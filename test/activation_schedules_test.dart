@@ -655,6 +655,15 @@ const _tabRegressions =
       ),
     };
 
+/// A subtree close from the Tabs sheet (TAB-008) while the child it takes
+/// is the tab on screen, the child opened in the setup: the close must land
+/// on the tab it leaves, a live slot rebinding to it.
+const _subtreeSetup = <SiteAction>[Tap(0), ChildTab(0)];
+const _subtreeScript = <SiteAction>[
+  CloseTab(0, tab: 0, fromSheet: true, subtree: true),
+  Tap(1),
+];
+
 const _alphabet = <SiteAction>[
   Tap(0),
   Tap(1),
@@ -1332,6 +1341,24 @@ void main() {
           world: () => ActivationWorld(_mixed, tabbed: true),
           setup: setup,
           script: script,
+          preemptions: _onePast,
+        );
+      });
+    }
+    for (final (name, world) in [
+      ('shared jar', () => ActivationWorld(_mixed, tabbed: true)),
+      (
+        'containers, webviews built',
+        () => ActivationWorld(_mixedContainers, deletes: true, tabbed: true),
+      ),
+    ]) {
+      _scheduleTest(
+          'a subtree close that takes the active tab lands on a survivor '
+          '(TAB-008), $name', body: () async {
+        await _expectEvery(
+          world: world,
+          setup: _subtreeSetup,
+          script: _subtreeScript,
           preemptions: _onePast,
         );
       });

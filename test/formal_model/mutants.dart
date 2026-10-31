@@ -687,6 +687,39 @@ Tables mutated(Mutant m) => switch (m) {
       arms: (s) => s.withArms(branches: [s.branches[1]]),
     ),
   ),
+  // A close's rebind asks whether the tab asked for is the active one, as
+  // it did before a subtree close was fixed (TAB-008): a live slot whose
+  // active tab closes as a descendant keeps its webview on it. While a
+  // close took only the tab asked for, the two questions were one.
+  Mutant.subtreekeepsslot => _with(
+    tabFlow: _withArms(
+      tables.tabFlow,
+      step: ActivationStep.tabClosed,
+      // The rebind of a live slot is the second branch.
+      arms: (s) => s.withArms(
+        branches: [
+          for (final (i, b) in s.branches.indexed)
+            if (i != 1)
+              b
+            else
+              Branch(
+                b.outcome,
+                when: b.when &
+                    const Field<TabId, TabFlow>(FlowField.tab).value.eq(
+                      TabVars.active<TabFlow>().at(
+                        const Field<WebViewModel, TabFlow>(FlowField.site).value,
+                      ),
+                    ),
+                pick: b.pick,
+                site: b.site,
+                tab: b.tab,
+                then: b.then,
+                next: b.next,
+              ),
+        ],
+      ),
+    ),
+  ),
   // A slot that runs as another site under a Tor runtime stays loaded, the
   // shape before BUG-037 attempt 20: the one exit is no rule `MovesRule`
   // counts, so the slot's webview is built again on another exit beside

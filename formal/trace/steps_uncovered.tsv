@@ -4,7 +4,6 @@ NextClear	skip	a clear's site leaves the loaded set or the resident tier only if
 GrantUnload	spared	an incognito victim is spared at its turn only if a tap opens it between the plan and the turn, which neither incognito script does
 TabCaptureReply	gone	a tab leaves its site's list only by a close, which the tab gate serialises with the switch; a delete takes its site off the list and leaves the site's own tabs as they are
 TabNavReply	gone	a tab leaves its site's list only by a close, which the tab gate serialises with the switch; a delete takes its site off the list and leaves the site's own tabs as they are
-TabRemoveReply	more	no schedule closes a subtree; a tab's close removes one file
 DupInsert	gone	the source leaves the list only by a close, which the tab gate serialises with the duplicate; a delete takes its site off the list and leaves the site's own tabs as they are
 DupRemoveReply	-	follows DupInsert gone, which no schedule reaches
 HtmlReply	bail	the walk's sites have no cached or imported HTML, so the step answers before any input can land

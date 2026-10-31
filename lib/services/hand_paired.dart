@@ -92,14 +92,6 @@ enum HandPaired implements Pairing {
   /// pool has one.
   landingTabs,
 
-  /// A close's surviving tabs (`tabs[current] \ {s}`). The code's close
-  /// takes the tab's subtree, which no schedule reaches (`TabRemoveReply`'s
-  /// `more` in `steps_uncovered.tsv`), so no assert can hold the two.
-  tabsAfterClose,
-
-  /// A close's closed ids (`{s}`), the subtree in the code as above.
-  closedTabIds,
-
   /// The ids of the tabs left to install (`fl[f].rest`).
   restTabIds,
 

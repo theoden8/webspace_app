@@ -1124,6 +1124,15 @@ enum Mutant {
         "a close of the active tab whose rebind ends the flow, so the closed "
         "tab's file outlives it (BUG-036, caught)",
   ),
+  subtreekeepsslot(
+    world: ActivationWorld.tabs,
+    by: Inv.tabBound,
+    doc:
+        "a close's rebind that asks whether the tab asked for is the active "
+        'one: a live slot whose active tab closes beside it keeps its webview '
+        'on the closed tab (TAB-008, caught once a close takes any set of '
+        'tabs)',
+  ),
   torkeepsslot(
     world: ActivationWorld.tabsChildNestedTorContainers,
     by: Inv.oneRoute,

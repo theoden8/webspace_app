@@ -211,17 +211,38 @@ abstract final class TabTable {
     key: (SiteTab t) => t.id,
     why: "a duplicate installs the site's tabs and its copy",
   );
-  static final _resultTabs = Expr.handPaired<List<SiteTab>, TabFlow>(
-    HandPaired.tabsAfterClose,
-    tla: 'tabs[current] \\ {s}',
-    run: (c) => _flow.from(c).result!.tabs,
-    reads: const Reads(vars: {ModelVar.current, ModelVar.tabs}),
+
+  /// What a close takes with the tab asked for: the model any set of the
+  /// site's tabs that holds it, so a subtree (TAB-008) is among them, and
+  /// every tab only while the pool has a fresh one to land on; the code the
+  /// engine's.
+  static final _eachClosed = Pick<List<TabId>, TabFlow>(
+    _tabIds(_current).choicesHolding(
+      member: _chosenTab,
+      whole: _hasFresh,
+      taken: (c) => _closeOf(c).closedIds,
+    ),
+    name: 'shut',
   );
-  static final _closedIds = Expr.handPaired<List<TabId>, TabFlow>(
-    HandPaired.closedTabIds,
-    tla: '{s}',
-    run: (c) => _flow.from(c).result!.closedIds,
-    reads: Reads.none,
+  static TabCloseResult _closeOf(StepView<TabFlow> c) {
+    final f = _flow.from(c);
+    return f.subtree
+        ? TabLifecycleEngine.closeSubtree(
+            f.site.tabs,
+            activeTabId: f.site.activeTabId,
+            closeId: _chosenTab.run(c),
+          )
+        : TabLifecycleEngine.closeTab(
+            f.site.tabs,
+            activeTabId: f.site.activeTabId,
+            closeId: _chosenTab.run(c),
+          );
+  }
+  static final _resultTabs = Expr.checked(
+    rule: _tabIds(_current).less(_eachClosed.it),
+    run: (c) => _flow.from(c).result!.tabs,
+    key: (SiteTab t) => t.id,
+    why: "a close installs the site's tabs but the ones it takes",
   );
   static final _survivors = _tabIds(_current).without(_chosenTab);
   static final _restIds = Expr.handPaired<List<TabId>, TabFlow>(
@@ -634,20 +655,11 @@ abstract final class TabTable {
         branches: [_dropped],
         otherwise: Otherwise(
           StepOutcome.go,
+          pick: _eachClosed,
           then: [
             Note((c) {
               final f = _flow.from(c);
-              f.result = f.subtree
-                  ? TabLifecycleEngine.closeSubtree(
-                      f.site.tabs,
-                      activeTabId: f.site.activeTabId,
-                      closeId: _chosenTab.run(c),
-                    )
-                  : TabLifecycleEngine.closeTab(
-                      f.site.tabs,
-                      activeTabId: f.site.activeTabId,
-                      closeId: _chosenTab.run(c),
-                    );
+              f.result = _closeOf(c);
               f.dropped = {
                 for (final id in f.result!.closedIds) id: f.site.stateKeyForTab(id),
               };
@@ -656,7 +668,7 @@ abstract final class TabTable {
             _tab.becomes(_chosenTab),
             _keep.becomes(_no),
             _rest.becomes(_resultTabs),
-            _closing.becomes(_closedIds),
+            _closing.becomes(_eachClosed.it),
             _ranAs.becomes(_tabHost.at(_current)),
           ],
           next: to(TabPlace.tClosed),
