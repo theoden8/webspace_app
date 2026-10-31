@@ -64,8 +64,8 @@ modules:
         url: https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz
         sha256: c880fa8d607b2aa6eadde7d6d6302b1396ebc38368fe2332fa20e193c7ee1420
 
-  # The release Debian sid ships, which CI's Linux job builds and tests the
-  # plugin against, with the same WPEPlatform backend.
+  # WebKit main at 323622@main, the merge of WebKit PR 69204 (WebKitFrameInfo,
+  # first released in 2.56); the plugin reads it through weak symbols.
   - name: wpewebkit
     buildsystem: cmake-ninja
     builddir: true
@@ -95,9 +95,9 @@ modules:
       - -DUSE_SYSTEM_SYSPROF_CAPTURE=OFF
       - -DUSE_SYSTEM_UNIFDEF=OFF
     sources:
-      - type: archive
-        url: https://wpewebkit.org/releases/wpewebkit-2.54.2.tar.xz
-        sha256: f3284e19e47fcb5ac8c63c2e1c113dbd65b2423eb8a545f5b345707829004f56
+      - type: git
+        url: https://github.com/WebKit/WebKit.git
+        commit: c22ba3278caac6a1fc8b0c7a10f04db1ffc44982
 
   - name: nlohmann-json
     buildsystem: cmake-ninja
