@@ -217,6 +217,12 @@ parts:
     override-build: |
       craftctl set version="$(sed -n 's/^version: *//p' pubspec.yaml)"
 
+      # The part builds a copy of the checkout, with whatever a build on the
+      # host left in it: Flutter's CMake cache names the host's path, and a
+      # host-built adblock library would be installed instead of one built here.
+      rm -rf build .dart_tool linux/flutter/ephemeral \
+        rust/webspace_adblock/target linux/lib/libwebspace_adblock.so
+
       # Flutter at the version .fvmrc pins.
       flutter_version="$(sed -n 's/.*"flutter": *"\([^"]*\)".*/\1/p' .fvmrc)"
       export FLUTTER_ROOT="$CRAFT_PART_BUILD/../flutter"
