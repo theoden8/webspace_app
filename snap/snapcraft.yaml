@@ -78,26 +78,9 @@ parts:
   # flatpak's options.
   wpewebkit:
     after: [libwpe]
-    plugin: cmake
+    plugin: nil
     source: https://wpewebkit.org/releases/wpewebkit-2.54.2.tar.xz
     source-checksum: sha256/f3284e19e47fcb5ac8c63c2e1c113dbd65b2423eb8a545f5b345707829004f56
-    cmake-generator: Ninja
-    cmake-parameters:
-      - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DPORT=WPE
-      - -DENABLE_DOCUMENTATION=OFF
-      - -DENABLE_INTROSPECTION=OFF
-      - -DENABLE_MINIBROWSER=OFF
-      - -DENABLE_WEBDRIVER=OFF
-      - -DENABLE_SPEECH_SYNTHESIS=OFF
-      # snapd confines the snap's processes; WebKit's own sandbox would need
-      # user namespaces strict confinement does not grant.
-      - -DENABLE_BUBBLEWRAP_SANDBOX=OFF
-      - -DENABLE_WPE_PLATFORM_DRM=OFF
-      - -DUSE_LIBBACKTRACE=OFF
-      - -DUSE_SYSTEM_SYSPROF_CAPTURE=OFF
-      - -DUSE_SYSTEM_UNIFDEF=OFF
     build-environment:
       - CC: clang
       - CXX: clang++
@@ -107,8 +90,39 @@ parts:
       # The Snap workflow keeps this between runs; elsewhere it is a cache
       # like any other.
       - CCACHE_DIR: /var/cache/webspace-snap-ccache
-      - CMAKE_C_COMPILER_LAUNCHER: ccache
-      - CMAKE_CXX_COMPILER_LAUNCHER: ccache
+    # The GNOME extension points every part at its SDK, whose glibc headers
+    # clang then reads as ordinary headers (its own posix_memalign clashes
+    # with them), with the SDK's libraries mixed into Ubuntu's. WebKit builds
+    # against Ubuntu 24.04's alone, the release the GNOME 46 runtime and the
+    # GPU provider are built from, and libwpe from the stage. Set here, not
+    # around `craftctl default`, which sets the extension's environment again.
+    # WebKit's bubblewrap sandbox is off: strict confinement grants none of
+    # the user namespaces it needs, and snapd confines the processes itself.
+    override-build: |
+      export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+      export PKG_CONFIG_PATH="$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig"
+      export CMAKE_PREFIX_PATH="$CRAFT_STAGE/usr"
+      unset LD_LIBRARY_PATH PYTHONPATH GI_TYPELIB_PATH ACLOCAL_PATH \
+        GDK_PIXBUF_MODULE_FILE GETTEXTDATADIRS XDG_DATA_DIRS
+      cmake -S "$CRAFT_PART_SRC" -B wpe -G Ninja \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+        -DPORT=WPE \
+        -DENABLE_DOCUMENTATION=OFF \
+        -DENABLE_INTROSPECTION=OFF \
+        -DENABLE_MINIBROWSER=OFF \
+        -DENABLE_WEBDRIVER=OFF \
+        -DENABLE_SPEECH_SYNTHESIS=OFF \
+        -DENABLE_BUBBLEWRAP_SANDBOX=OFF \
+        -DENABLE_WPE_PLATFORM_DRM=OFF \
+        -DUSE_LIBBACKTRACE=OFF \
+        -DUSE_SYSTEM_SYSPROF_CAPTURE=OFF \
+        -DUSE_SYSTEM_UNIFDEF=OFF
+      cmake --build wpe -- -j"$CRAFT_PARALLEL_BUILD_COUNT"
+      ccache --show-stats
+      DESTDIR="$CRAFT_PART_INSTALL" cmake --install wpe
     build-packages:
       - ccache
       - clang
