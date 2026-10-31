@@ -60,10 +60,8 @@ WEBSPACE_TEAM_ID = 7NGC2P87LM
 WEBSPACE_CODE_SIGN_IDENTITY = Apple Development
 ```
 
-That is only for running a properly entitled build during development. Move
-it aside before a release build: with a team set, Xcode embeds a development
-profile, which `sign_macos.sh devid` refuses. The release artifacts are signed
-after the build:
+That is only for running a properly entitled build during development. The
+release artifacts are signed after the build:
 
 ```bash
 # Developer ID: hardened runtime, notarized, stapled -> build/macos/*.zip, *.dmg
