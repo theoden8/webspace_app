@@ -15,6 +15,7 @@ import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/https_upgrade_engine.dart';
 import 'package:webspace/services/letterbox.dart';
 import 'package:webspace/services/page_shim.dart';
+import 'package:webspace/services/page_taps.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_coverage_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
@@ -1904,8 +1905,10 @@ class WebViewFactory {
       },
       child: webViewWidget,
     );
+    final focused = pageFocus?.wrap(scoped) ?? scoped;
     return RouteCover.over(_applyLetterbox(config,
-        webView: _applyRefreshGate(config, webView: pageFocus?.wrap(scoped) ?? scoped)));
+        webView: PageTaps.around(config.pullToRefreshGate?.around(focused) ?? focused,
+            onPageTap: config.onPageTap)));
   }
 
   /// Tells a live view when the blockers' data changes under it: a level's
@@ -1942,22 +1945,6 @@ class WebViewFactory {
       dns.removeBlocklistChangedListener(changed);
       blocker.removeRulesChangedListener(changed);
     };
-  }
-
-  /// Feeds the raw pointer stream to [WebViewConfig.pullToRefreshGate].
-  /// [Listener] never joins the gesture arena, so the webview keeps every
-  /// touch it would otherwise receive.
-  static Widget _applyRefreshGate(WebViewConfig config,
-      {required Widget webView}) {
-    final gate = config.pullToRefreshGate;
-    if (gate == null) return webView;
-    return Listener(
-      behavior: HitTestBehavior.translucent,
-      onPointerDown: (event) => gate.onPointerDown(event.pointer),
-      onPointerUp: (event) => gate.onPointerUp(event.pointer),
-      onPointerCancel: (event) => gate.onPointerUp(event.pointer),
-      child: webView,
-    );
   }
 
   /// Wrap [webView] in a centered, grid-snapped box with margin bars when the

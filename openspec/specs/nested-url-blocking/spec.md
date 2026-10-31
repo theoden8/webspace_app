@@ -189,7 +189,7 @@ redirects SHALL continue to require a user gesture.
 
 This replaces the previous hardcoded `_trackingDomains` blocklist (Stripe, analytics domains) with gesture-based detection using `NavigationAction.hasGesture`.
 
-**Note:** A user tap on "Sign in with Google" has `hasGesture = true`, but the resulting script-initiated navigation to `accounts.google.com` may have `hasGesture = false`. This means gesture detection can block user-intended OAuth flows, most often on iOS and macOS, where a script navigation reports no gesture. A flow that starts with a tap on a same-site link (`/auth/google`) still works: the gesture carries into the cross-domain redirect for 10 seconds (NESTED-007). One that navigates by script straight from a button has no workaround; that is the accepted cost of never letting a page leave by script.
+**Note:** A user tap on "Sign in with Google" has `hasGesture = true`, but the resulting script-initiated navigation to `accounts.google.com` may have `hasGesture = false`. This means gesture detection can block user-intended OAuth flows, most often on iOS and macOS, where a script navigation reports no gesture. A flow that starts with a tap on a same-site link (`/auth/google`) still works: the gesture carries into the cross-domain redirect for 10 seconds (NESTED-007). One that navigates by script straight from a button has no workaround outside the tap gestures experiment on iOS (NESTED-017); that is the accepted cost of never letting a page leave by script.
 
 #### Scenario: Google One Tap blocked
 
@@ -563,6 +563,42 @@ nested screen as before.
 **Given** a kiosk site, or one with Site tabs off
 **When** its page sends itself to a provider's authorization request
 **Then** the sign-in opens in a nested screen
+
+### Requirement: NESTED-017 - A Tap On The Page Counts As A Gesture On iOS, Experimentally
+
+WebKit's public API reports only a navigation's type, so a page that
+navigates from a script in a button's click handler (`location.href = …`)
+reports `other`, as a page moving on its own does, and NESTED-004 drops the
+cross-domain hop that follows. On iOS, while the tap gestures experiment is on
+(DEVTOOLS-011), a tap on the page of a site's webview or of a nested screen
+SHALL count as a gesture on that page, as a tap on a same-domain link does:
+a cross-domain hop within the next 10 seconds carries it, once (NESTED-007),
+and is routed as a link would be, a sign-in to NESTED-016's tab among them.
+
+A tap SHALL be read from Flutter's own pointer stream over the webview, which
+a page cannot write to: one pointer, its primary button, let go within the
+hit slop and before a long press. A scroll, a pinch or a long press SHALL NOT
+count. The experiment is read at each tap, and no other platform reads taps
+this way: Android and Linux report the engine's own gesture, and macOS's
+pointer stream over a webview is not read by the app.
+
+#### Scenario: Continue with Google from ChatGPT on iOS
+
+**Given** the tap gestures experiment on, and a ChatGPT site with tabs on `chatgpt.com`
+**When** the user taps Continue with Google, whose script sends the tab to `chatgpt.com/auth/login_with`, which redirects to `auth.openai.com/oauth/authorize`, which redirects to `accounts.google.com/o/oauth2/v2/auth?client_id=…`, every hop reporting no gesture
+**Then** the hop to Google carries the tap and opens the sign-in tab (NESTED-016)
+
+#### Scenario: A scroll is no tap
+
+**Given** the tap gestures experiment on
+**When** the user scrolls the page, and a script then sends it to another domain
+**Then** the hop is dropped (NESTED-004)
+
+#### Scenario: The experiment off
+
+**Given** the tap gestures experiment off
+**When** the user taps a button whose script sends the page to another domain
+**Then** the hop is dropped (NESTED-004)
 
 ## Implementation
 

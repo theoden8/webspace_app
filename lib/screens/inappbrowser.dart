@@ -292,6 +292,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   url: Uri.parse(_currentUrl),
                 ),
         pullToRefreshGate: _pullToRefreshGate,
+        onPageTap: () => _lastSameDomainGestureTime = DateTime.now(),
         onUrlChanged: (url) {
           _devToolsHost.currentUrl = url;
           if (mounted) setState(() => _currentUrl = url);

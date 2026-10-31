@@ -1310,6 +1310,7 @@ bool dispatch(NavigationDecision decision,
                   save: hooks.host.save,
                 ),
           pullToRefreshGate: pullToRefreshGate,
+          onPageTap: () => lastSameDomainGestureTime = DateTime.now(),
           onUnproxiedNavigationBlocked: (blocked) {
             blockedNavigation = blocked;
             hooks.host.rebuild();

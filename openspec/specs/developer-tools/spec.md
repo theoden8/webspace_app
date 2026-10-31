@@ -549,6 +549,7 @@ The features are:
 | The built-in Tor on Linux, a tor the app starts (`tor-proxy` TOR-027) | Built-in Tor | off | `TorService.builtInOffered`, read once at launch; Linux only |
 | Linux: a site's traffic bound to a network interface it names (`network-interface` NETIF-013) | Network interface per site | off | `EgressRelay.state`, read each time a site's route resolves and when a Network screen is built |
 | A site's service workers through its own blockers (`content-blocker` CB-022) | Service workers through blockers | off | `NativeIntercept.routeServiceWorkers`, read once at launch; Android only |
+| A tap on a site's page counted as a gesture (`nested-url-blocking` NESTED-017) | Taps as link gestures | off | `PageTaps.countAsGestures`, read at each tap; iOS only |
 
 Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the group with a switch that defaulted off; it graduated with the site info sheet (`site-info-sheet`, NAV-011), which shows the site and container a routed page runs as. Page icons fetched from the links a page declares on iOS, macOS and Linux (`icon-fetching` ICON-013) were in the group with a switch that defaulted off; they graduated to the default there, and the group's Site icons only switch took the slot.
 

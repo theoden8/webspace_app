@@ -5639,6 +5639,14 @@
   "@appSettingsExperimentalServiceWorkersHint": {
     "description": "Explanation behind the hint button of the Service workers through blockers switch in App settings > Developer > Experimental, on Android. A container keeps one site's cookies and storage apart from the others'. DNS blocklist, filter lists and LocalCDN are names of the app's own blocking settings; translate them as the app's other strings do."
   },
+  "appSettingsExperimentalTapGestures": "Taps as link gestures",
+  "@appSettingsExperimentalTapGestures": {
+    "description": "Title of an Experimental switch in App settings > Developer, on iOS only. With it on, a tap on a website counts as the user asking for the page it leads to, as tapping a link does."
+  },
+  "appSettingsExperimentalTapGesturesHint": "iOS reports that you asked for a page only when you tapped a link or sent a form. A button that leaves the site from a script, as many Sign in with Google buttons do, reads as the page leaving on its own, and the app stops it. With this on, a tap on the page counts for the next 10 seconds, so the page it leads to opens as a link would.",
+  "@appSettingsExperimentalTapGesturesHint": {
+    "description": "Explanation behind the hint button of the Taps as link gestures switch in App settings > Developer > Experimental, on iOS. 'Sign in with Google' is the label such buttons carry on websites; keep Google as is."
+  },
   "appSettingsExtensions": "Extensions",
   "@appSettingsExtensions": {
     "description": "Title of the App Settings row, and of the screen it opens, that lists the browser extensions (add-ons) imported on this device. Also the title of the per-site screen choosing which of them run on a site."

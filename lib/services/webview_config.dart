@@ -9,6 +9,7 @@ import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
+import 'package:webspace/services/page_taps.dart' show PageTaps;
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
@@ -135,6 +136,10 @@ class WebViewConfig {
   /// Pull-to-refresh, with the gate that keeps a pinch from firing it
   /// (NAV-006); the factory feeds it from a [Listener] around the webview.
   final PullToRefreshGate? pullToRefreshGate;
+  /// A tap on the page where a tap counts as a gesture
+  /// ([PageTaps.countAsGestures], NESTED-017): the surface records it as a
+  /// gesture on its page, as a link the platform reported would be.
+  final void Function()? onPageTap;
   /// Fires when the underlying renderer terminates unexpectedly. On Android
   /// this maps to `WebView.onRenderProcessGone` — the OS sometimes kills the
   /// renderer to reclaim memory after the app has been backgrounded for a
@@ -191,6 +196,7 @@ class WebViewConfig {
     this.onConsoleMessage,
     this.onLinkLongPress,
     this.pullToRefreshGate,
+    this.onPageTap,
     this.onRendererGone,
     this.onPageCommitVisible,
     this.grants,

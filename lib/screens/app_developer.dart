@@ -12,6 +12,7 @@ import 'package:webspace/services/egress_relay.dart';
 import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/services/page_taps.dart';
 import 'package:webspace/services/web_extension_library.dart' show extensionSearchSwitchOffered;
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
@@ -66,6 +67,10 @@ List<(ExperimentalFeature, IconData, Localized title, Localized hint)>
         (ExperimentalFeature.serviceWorkers, Icons.sync_alt,
             loc.appSettingsExperimentalServiceWorkers,
             loc.appSettingsExperimentalServiceWorkersHint),
+      if (PageTaps.offered)
+        (ExperimentalFeature.tapGestures, Icons.touch_app_outlined,
+            loc.appSettingsExperimentalTapGestures,
+            loc.appSettingsExperimentalTapGesturesHint),
     ];
 
 /// The names of the experiments switched on, for the App Settings row.

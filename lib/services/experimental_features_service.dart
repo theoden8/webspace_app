@@ -39,7 +39,12 @@ enum ExperimentalFeature {
   /// A site's service workers through its own blockers on Android, where
   /// each site has a container (CB-022). Read once at launch. New, so off by
   /// default.
-  serviceWorkers(AppPref.experimentalServiceWorkers);
+  serviceWorkers(AppPref.experimentalServiceWorkers),
+
+  /// A tap on a site's page counted as a gesture on iOS, whose webview
+  /// reports none for a navigation a page's script starts (NESTED-017). Read
+  /// at each tap. New, so off by default.
+  tapGestures(AppPref.experimentalTapGestures);
 
   const ExperimentalFeature(this.pref);
 

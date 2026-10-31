@@ -89,6 +89,9 @@ enum AppPref<T extends Object> {
   // CB-022: a site's service workers through its blockers on Android, read
   // once at launch.
   experimentalServiceWorkers('experimentalServiceWorkers', fallback: false),
+  // NESTED-017: a tap on a site's page counted as a gesture on iOS, read at
+  // each tap.
+  experimentalTapGestures('experimentalTapGestures', fallback: false),
   // TOR-025: Tor sites through a tor already running on the device. The key
   // keeps the name it shipped under as an Experimental switch.
   externalTor('experimentalExternalTor', fallback: false),

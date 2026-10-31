@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/platform/host_platform.dart';
 
@@ -114,6 +115,17 @@ class PullToRefreshGate {
     _multiTouchEndedAt = _now();
     _setEnabled(enabled: true);
   }
+
+  /// [webView] with its raw pointer stream fed to this gate. A [Listener]
+  /// never joins the gesture arena, so the webview keeps every touch it would
+  /// otherwise receive.
+  Widget around(Widget webView) => Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (event) => onPointerDown(event.pointer),
+        onPointerUp: (event) => onPointerUp(event.pointer),
+        onPointerCancel: (event) => onPointerUp(event.pointer),
+        child: webView,
+      );
 
   /// Runs [onRefresh] unless the gesture behind it was a pinch, in which
   /// case the spinner is stopped and the page is left alone.
