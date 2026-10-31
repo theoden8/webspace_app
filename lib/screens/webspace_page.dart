@@ -318,7 +318,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     WidgetsBinding.instance.addObserver(this);
     AppPref.anyChange.addListener(_onAppPrefChanged);
     debugStartupRestore = _startup.restore();
-    unawaited(_shortcuts.probeSupport());
     _shortcuts.start();
     _network.start();
     _fullscreen.start();

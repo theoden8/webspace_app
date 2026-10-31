@@ -167,11 +167,11 @@ void main() {
     (tester) async {
       expect(RemoteInput.driven, isTrue,
           reason: 'an Android TV is in TV mode, without a touchscreen');
-      final canPin = await ShortcutService.canAddShortcuts();
-      log('launcher takes pinned shortcuts: $canPin');
-      expect(canPin, isFalse,
-          reason: 'a TV launcher takes no pinned shortcut, so the menu '
-              'must not offer one (HS-004)');
+      await ShortcutService.probe();
+      log('launcher takes pinned shortcuts: ${ShortcutService.offered}');
+      expect(ShortcutService.offered, isFalse,
+          reason: 'a TV launcher takes no pinned shortcut, so neither the '
+              'menu nor App Settings may offer one (HS-004)');
     },
     skip: !_tvTier,
   );

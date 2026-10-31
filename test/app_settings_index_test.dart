@@ -12,6 +12,7 @@ import 'package:webspace/screens/app_behaviour.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
 
 void main() {
@@ -32,9 +33,14 @@ void main() {
       installerStore: null,
     );
     DeveloperModeService.instance.debugSet(on: false);
+    // A phone, whose launcher takes shortcuts, unless a test says otherwise.
+    ShortcutService.debugOfferedOverride = true;
   });
 
-  tearDown(() => DeveloperModeService.instance.debugSet(on: false));
+  tearDown(() {
+    DeveloperModeService.instance.debugSet(on: false);
+    ShortcutService.debugOfferedOverride = null;
+  });
 
   Widget settings({
     VoidCallback? onExportSettings,
@@ -162,6 +168,26 @@ void main() {
     await tester.pumpAndSettle();
     expect(summaryText(tester, title: 'Behaviour'),
         'Site Tab Strip · Full screen on shortcut launch · 1 more');
+  });
+
+  testWidgets('where no shortcut can be added, as on a TV, full screen on '
+      'shortcut launch is neither a row nor in the summary (FS-008, HS-004)',
+      (tester) async {
+    // Tall enough that the Behaviour screen builds every row.
+    tester.view.physicalSize = const Size(800, 3000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    ShortcutService.debugOfferedOverride = false;
+    AppPref.fullscreenOnShortcut.debugValue = true;
+    await tester.pumpWidget(app(settings()));
+    await tester.pumpAndSettle();
+    expect(summaryText(tester, title: 'Behaviour'), 'Nothing enabled');
+
+    await openRow(tester, title: 'Behaviour');
+    expect(find.text('Sign-in popups'), findsOneWidget,
+        reason: 'the rows around it are still listed');
+    expect(find.text('Link handling'), findsOneWidget);
+    expect(find.text('Full screen on shortcut launch'), findsNothing);
   });
 
   testWidgets('a change on a category screen reaches the app and the row (APPSET-003)',

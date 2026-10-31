@@ -265,23 +265,31 @@ class ShortcutService {
   /// Whether this device can add a home shortcut at all (HS-004): on Android
   /// whether the default launcher takes pinned shortcuts (a TV launcher does
   /// not), on iOS 16+ / macOS 13+ whether App Intents are there. False on
-  /// every other platform.
-  static Future<bool> canAddShortcuts() async {
+  /// every other platform. Probed in main(), so the menu and App Settings
+  /// read it synchronously, and where it is false nothing a shortcut decides
+  /// is offered.
+  static bool get offered => debugOfferedOverride ?? _offered;
+  static bool _offered = false;
+
+  /// Test and design gallery seam.
+  static bool? debugOfferedOverride;
+
+  static Future<void> probe() async {
     final method = hostIsAndroid
         ? 'canPinShortcuts'
         : hostIsIOS || hostIsMacOS
             ? 'isAppIntentsSupported'
             : null;
-    if (method == null) return false;
+    if (method == null) return;
     try {
-      final result = await _channel.invokeMethod(method);
-      return result == true;
+      _offered = await _channel.invokeMethod(method) == true;
     } on PlatformException {
-      return false;
+      _offered = false;
     } on MissingPluginException {
       // macOS builds without the shortcuts channel handler (no App Intents
-      // native side) report no implementation rather than a PlatformException.
-      return false;
+      // native side), and a background wake's engine, report no
+      // implementation rather than a PlatformException.
+      _offered = false;
     }
   }
 }
