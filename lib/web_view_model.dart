@@ -195,20 +195,6 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
     pageTitle = null;
   }
 
-  /// LIR-018: before an owner URL loads, move a site with no live webview from
-  /// a hosted tab to one it runs itself: the nearest such ancestor, or a new
-  /// root tab at home. A live slot moves through a tab switch instead.
-  void bindOwnerRunTab() {
-    if (_ownerRunTab() case (:final tabs, :final active)) {
-      const commit = Commit.unmodeled(Unmodeled.ownerRunTab);
-      if (!identical(tabs, _tabs)) {
-        tabsCell.write(at: this, to: tabs, commit: commit);
-      }
-      activeTabCell.write(at: this, to: active, commit: commit);
-      activeTab.lastActiveAt = DateTime.now();
-    }
-  }
-
   ({List<SiteTab> tabs, TabId active})? _ownerRunTab() =>
       TabLifecycleEngine.ownerRunMove(_tabs,
           activeTabId: activeTabId, homeUrl: initUrl, isForeign: isForeignTab);

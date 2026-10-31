@@ -99,4 +99,35 @@ void main() {
             'the new tab\'s file');
     expect(site.tabs.single.url, 'https://example.com/');
   });
+
+  test('a site without tabs leaves a hosted tab before an owner URL loads '
+      '(LIR-018)', () async {
+    final owner =
+        WebViewModel(initUrl: 'https://duckduckgo.com/', tabsEnabled: false);
+    final host = WebViewModel(initUrl: 'https://github.com/');
+    WebViewModel.siteLookup = (id) => id == host.siteId ? host : null;
+    final own = owner.activeTabId;
+    final hosted = SiteTab(
+      url: 'https://github.com/theoden8',
+      parentId: own,
+      hostSiteId: host.siteId,
+    );
+    owner
+      ..setTabs([...owner.tabs, hosted])
+      ..setActiveTab(hosted.id);
+    final sites = SiteRuntime()
+      ..isolation = fakeContainers()
+      ..applied(SitesLoaded([owner, host]));
+    final tabs = TabsController(sites, host: _Page(),
+        navStates: _NavStates(), residency: _ProcessGlobal());
+    expect(owner.effectiveTabsEnabled, isFalse);
+    expect(owner.runningIdentity, same(host));
+
+    await tabs.bindOwnerRunTab(owner);
+
+    expect(owner.activeTabId, own);
+    expect(owner.runningIdentity, same(owner));
+    expect(owner.tabs.map((t) => t.id), contains(hosted.id),
+        reason: 'the move leaves the hosted tab in place');
+  });
 }

@@ -241,15 +241,22 @@ void main() {
       );
     });
 
-    test('bindOwnerRunTab leaves a foreign tab for its owner-run ancestor', () {
+    ({List<SiteTab> tabs, TabId active}) ownerRunMove(WebViewModel m) =>
+        TabLifecycleEngine.ownerRunMove(m.tabs,
+            activeTabId: m.activeTabId,
+            homeUrl: m.initUrl,
+            isForeign: m.isForeignTab)!;
+
+    test('the owner-run move leaves a foreign tab for its owner-run ancestor',
+        () {
       ddg();
       final m = github(tabs: [
         SiteTab.primary(url: 'https://github.com/x'),
         linkTab(),
       ], active: TabId('l'));
-      m.bindOwnerRunTab();
-      expect(m.activeTabId, kPrimaryTabId);
-      expect(m.tabs, hasLength(2));
+      final move = ownerRunMove(m);
+      expect(move.active, kPrimaryTabId);
+      expect(move.tabs, hasLength(2));
     });
 
     test('with no owner-run ancestor it opens a root tab at home', () {
@@ -262,11 +269,12 @@ void main() {
           homeUrl: ddgLink,
         ),
       ], active: TabId('only'));
-      m.bindOwnerRunTab();
-      expect(m.activeTabId, isNot('only'));
-      expect(m.activeTab.url, m.initUrl);
-      expect(m.activeTab.parentId, isNull);
-      expect(m.tabs.map((t) => t.id), contains('only'));
+      final move = ownerRunMove(m);
+      final landed = move.tabs.firstWhere((t) => t.id == move.active);
+      expect(move.active, isNot('only'));
+      expect(landed.url, m.initUrl);
+      expect(landed.parentId, isNull);
+      expect(move.tabs.map((t) => t.id), contains('only'));
     });
 
     test('a site without tabs is sent home on a tab it runs at home', () {
