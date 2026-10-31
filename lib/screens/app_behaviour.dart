@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:webspace/controllers/desktop_tray.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/home_shortcuts_settings.dart';
 import 'package:webspace/settings/site_ids.dart';
@@ -159,9 +158,8 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
       hostIsMacOS
           ? loc.appSettingsKeepRunningWhenClosedHintMac
           : loc.appSettingsKeepRunningWhenClosedHintLinux,
-      if (DesktopTray.offered) loc.appSettingsKeepRunningWhenClosedHintTray,
-      if (DesktopTray.offered && hostIsLinux)
-        loc.appSettingsKeepRunningWhenClosedHintTrayLinux,
+      loc.appSettingsKeepRunningWhenClosedHintTray,
+      if (hostIsLinux) loc.appSettingsKeepRunningWhenClosedHintTrayLinux,
     ].reduce(loc.twoSentences);
     return Scaffold(
       appBar: AppBar(title: Text(loc.appSettingsBehaviour)),
