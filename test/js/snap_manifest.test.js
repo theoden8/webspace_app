@@ -53,7 +53,7 @@ test('the snap owns its application ID on the session bus (PLATFORM-011)', () =>
 // it was configured with, so the snap builds WPE for /usr and binds each
 // directory it compiles in to the snap's copy.
 test("WebKit's compiled-in directories are bound to the snap's copies (PLATFORM-012)", () => {
-  assert.match(manifest, /^ {6}- -DCMAKE_INSTALL_PREFIX=\/usr$/m,
+  assert.match(manifest, /^ {8}-DCMAKE_INSTALL_PREFIX=\/usr \\$/m,
     `${MANIFEST} does not build WPE for /usr, the prefix the layout binds`);
   const binds = Object.fromEntries([...block('layout').join('\n')
     .matchAll(/^ {2}(\/usr\/\S+):\n {4}bind: (\S+)$/gm)].map((m) => [m[1], m[2]]));
