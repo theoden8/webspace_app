@@ -7,6 +7,8 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/add_site.dart' show AddSiteScreen;
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/services/shortcut_service.dart';
+import 'package:webspace/services/site_overrides.dart' show resolveKiosk;
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/suggested_sites_service.dart'
     as suggested_sites;
@@ -118,7 +120,10 @@ class DialogSiteEditingPrompts implements SiteEditingPrompts {
         loc.siteSettingsThirdPartyCookies,
       if (turnsOn('notificationsEnabled')) loc.siteSettingsNotifications,
       if (turnsOn('backgroundAudioEnabled')) loc.siteSettingsBackgroundAudio,
-      if (turnsOn('kioskMode')) loc.siteSettingsKioskMode,
+      if (resolveKiosk(
+          stored: turnsOn('kioskMode'),
+          shortcutsOffered: ShortcutService.offered))
+        loc.siteSettingsKioskMode,
       if (qr['locationMode'] is String &&
           qr['locationMode'] != LocationMode.off.name)
         loc.siteSettingsGeolocation,

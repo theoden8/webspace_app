@@ -97,6 +97,12 @@ bool resolveLockdownMode({
   required bool trackingProtection,
 }) => choice.resolve(trackingProtection);
 
+/// Kiosk mode locks the shell on a shortcut launch (KIOSK-001), so where no
+/// shortcut can be added (HS-004) a site is no kiosk whatever it stores, and
+/// the stored choice comes back on a device that takes shortcuts.
+bool resolveKiosk({required bool stored, required bool shortcutsOffered}) =>
+    stored && shortcutsOffered;
+
 /// A kiosk site runs as one page, never with tabs (TAB-013).
 bool resolveTabs({required bool tabs, required bool kiosk}) => tabs && !kiosk;
 

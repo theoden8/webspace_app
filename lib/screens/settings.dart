@@ -868,7 +868,7 @@ class _SettingsScreenState extends State<SettingsScreen>
             incognito: _privacyValues.effectiveIncognito,
           ))
             loc.siteSettingsAlwaysOpenHome,
-          if (v.kioskMode) loc.siteSettingsKioskMode,
+          if (v.effectiveKioskMode) loc.siteSettingsKioskMode,
           if (v.fullscreenMode) loc.siteSettingsFullscreen,
           if (v.effectiveHtmlCaching) loc.siteSettingsHtmlCaching,
           if (v.effectiveRouteOutboundLinks) loc.siteSettingsRouteOutboundLinks,

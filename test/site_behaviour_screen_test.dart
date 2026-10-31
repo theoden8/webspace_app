@@ -15,6 +15,8 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/hint_button.dart';
 
+import 'helpers/no_shortcuts.dart';
+
 SiteBehaviourValues _values({
   bool archived = false,
   bool alwaysOpenHome = false,
@@ -208,6 +210,16 @@ void main() {
         reason: 'the switch became the browser option of External links');
     expect(find.text('Block auto-redirects'), findsNothing,
         reason: 'every site blocks them; there is nothing to switch');
+  });
+
+  testWidgets('where no shortcut can be added, as on a TV, Kiosk mode is '
+      'not offered and a stored one leaves tabs on (KIOSK-006)',
+      (tester) async {
+    withoutShortcuts();
+    await _pump(tester, values: _values(kioskMode: true));
+    expect(find.text('Always open Home'), findsOneWidget);
+    expect(find.text('Kiosk mode'), findsNothing);
+    expect(_selectedTabs(tester), isTrue);
   });
 
   group('external links (BEHAV-004)', () {
@@ -424,6 +436,22 @@ void main() {
       expect(_selectedTabs(tester), isTrue);
       expect(_switchTitled(tester, title: 'Kiosk mode').value, isFalse);
       expect(_switchTitled(tester, title: 'Full screen mode').value, isTrue);
+    });
+
+    testWidgets('where no shortcut can be added, the tabs switch leaves a '
+        'stored kiosk alone (KIOSK-006)', (tester) async {
+      withoutShortcuts();
+      SiteBehaviourValues? seen;
+      await _pump(
+        tester,
+        values: _values(kioskMode: true, tabsEnabled: false),
+        onChanged: (v) => seen = v,
+      );
+      await _tapTabs(tester);
+      expect(seen!.tabsEnabled.stored, isTrue);
+      expect(seen!.kioskMode, isTrue,
+          reason: 'a TV hides the kiosk it keeps for a phone');
+      expect(_selectedTabs(tester), isTrue);
     });
 
     testWidgets('kiosk shows tabs off and gives them back (BEHAV-005)', (tester) async {

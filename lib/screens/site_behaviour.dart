@@ -6,6 +6,7 @@ import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/services/html_source.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/popup_webview.dart';
+import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/site_overrides.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/settings/external_links.dart';
@@ -104,8 +105,12 @@ class SiteBehaviourValues {
       resolveAlwaysOpenHome(
           alwaysOpenHome: alwaysOpenHome, incognito: incognito);
 
+  bool get effectiveKioskMode => resolveKiosk(
+      stored: kioskMode, shortcutsOffered: ShortcutService.offered);
+
   bool get effectiveTabsEnabled => resolveTabs(
-      tabs: tabsEnabled.resolve(AppPref.tabsEnabled.value), kiosk: kioskMode);
+      tabs: tabsEnabled.resolve(AppPref.tabsEnabled.value),
+      kiosk: effectiveKioskMode);
 
   bool get effectiveRouteOutboundLinks => resolveRouteOutboundLinks(
       route: routeOutboundLinks,
@@ -190,9 +195,12 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
     widget.onChanged(next);
   }
 
+  // Where no kiosk runs (KIOSK-006) the stored one is left for a device
+  // that runs it.
   void _setTabs(Scoped<bool> choice) => _update(_values.copyWith(
         tabsEnabled: choice,
-        kioskMode: choice.resolve(AppPref.tabsEnabled.value)
+        kioskMode: choice.resolve(AppPref.tabsEnabled.value) &&
+                _values.effectiveKioskMode
             ? false
             : _values.kioskMode,
       ));
@@ -459,12 +467,13 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
             control: Toggle(value: _values.effectiveAlwaysOpenHome(incognito: widget.incognito),
                 onChanged: (value) => _update(_values.copyWith(alwaysOpenHome: value))),
           ),
-          SettingTile(
-            title: loc.siteSettingsKioskMode,
-            hint: loc.siteSettingsKioskModeHint,
-            control: Toggle(value: _values.kioskMode,
-                onChanged: (value) => _update(_values.copyWith(kioskMode: value))),
-          ),
+          if (ShortcutService.offered)
+            SettingTile(
+              title: loc.siteSettingsKioskMode,
+              hint: loc.siteSettingsKioskModeHint,
+              control: Toggle(value: _values.kioskMode,
+                  onChanged: (value) => _update(_values.copyWith(kioskMode: value))),
+            ),
           SettingTile(
             title: loc.siteSettingsFullscreen,
             hintTitle: loc.siteSettingsFullscreenHintTitle,

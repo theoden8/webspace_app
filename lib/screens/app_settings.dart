@@ -20,6 +20,7 @@ import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/developer_unlock_engine.dart';
 import 'package:webspace/services/reentry_guard.dart';
+import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/tor_holders.dart';
 import 'package:webspace/services/ubo_backup_import.dart';
 import 'package:webspace/services/web_extension_library.dart';
@@ -257,7 +258,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         loc,
         on: [
           if (TabStrip.current != TabStrip.hidden) loc.appSettingsSiteTabStrip,
-          if (AppPref.fullscreenOnShortcut.value)
+          if (ShortcutService.offered && AppPref.fullscreenOnShortcut.value)
             loc.appSettingsFullscreenOnShortcut,
           if (backOpensMenuOffered() && AppPref.backOpensMenu.value)
             loc.appSettingsBackOpensMenu,

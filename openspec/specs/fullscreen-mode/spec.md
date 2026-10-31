@@ -167,7 +167,7 @@ The system SHALL support a global option to keep the site tab strip visible in f
 
 ### Requirement: FS-008 - Full Screen on Shortcut Launch
 
-The system SHALL support a global option, enabled by default, to enter full screen automatically when a site is opened from a home-screen shortcut (Android pinned shortcut / iOS App Intents). The option is independent of the per-site `fullscreenMode` setting and applies to both cold and warm shortcut launches.
+The system SHALL support a global option, enabled by default, to enter full screen automatically when a site is opened from a home-screen shortcut (Android pinned shortcut / iOS App Intents). The option is independent of the per-site `fullscreenMode` setting and applies to both cold and warm shortcut launches. Where no shortcut can be added (HS-004: an Android launcher that takes none, as a TV's, Linux, older iOS and macOS), App Settings > Behaviour SHALL leave the option out, and the Behaviour summary on App Settings SHALL not name it: no launch it decides can happen there.
 
 #### Scenario: Cold launch from shortcut
 
@@ -194,6 +194,13 @@ The system SHALL support a global option, enabled by default, to enter full scre
 **Given** "Full screen on shortcut launch" is enabled
 **When** the user switches sites from inside the app (tab strip, drawer) rather than via a shortcut
 **Then** full screen is governed only by the target site's `fullscreenMode`
+
+#### Scenario: Absent where no shortcut can be added
+
+**Given** the app runs on Android TV, whose launcher takes no pinned shortcuts
+**When** the user opens App Settings > Behaviour
+**Then** "Full screen on shortcut launch" is not listed
+**And** the Behaviour row on App Settings does not name it, whatever its value
 
 ---
 

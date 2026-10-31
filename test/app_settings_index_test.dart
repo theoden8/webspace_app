@@ -14,6 +14,8 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
 
+import 'helpers/no_shortcuts.dart';
+
 void main() {
   setUp(() async {
     // Off where the default is on, so each test turns on what it names.
@@ -162,6 +164,26 @@ void main() {
     await tester.pumpAndSettle();
     expect(summaryText(tester, title: 'Behaviour'),
         'Site Tab Strip · Full screen on shortcut launch · 1 more');
+  });
+
+  testWidgets('where no shortcut can be added, as on a TV, full screen on '
+      'shortcut launch is neither a row nor in the summary (FS-008, HS-004)',
+      (tester) async {
+    // Tall enough that the Behaviour screen builds every row.
+    tester.view.physicalSize = const Size(800, 3000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    withoutShortcuts();
+    AppPref.fullscreenOnShortcut.debugValue = true;
+    await tester.pumpWidget(app(settings()));
+    await tester.pumpAndSettle();
+    expect(summaryText(tester, title: 'Behaviour'), 'Nothing enabled');
+
+    await openRow(tester, title: 'Behaviour');
+    expect(find.text('Sign-in popups'), findsOneWidget,
+        reason: 'the rows around it are still listed');
+    expect(find.text('Link handling'), findsOneWidget);
+    expect(find.text('Full screen on shortcut launch'), findsNothing);
   });
 
   testWidgets('a change on a category screen reaches the app and the row (APPSET-003)',

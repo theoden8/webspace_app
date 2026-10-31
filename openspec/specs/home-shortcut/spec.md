@@ -681,7 +681,7 @@ Methods:
 - `updateShortcuts({tiles: [{shortcutId, siteId, label, iconBytes?}]})` — **Android only** (HS-016, HS-017): `ShortcutManagerCompat.updateShortcuts` rewrites each tile's intent to open `siteId`, its label, and its icon where `iconBytes` is given (an update without an icon keeps the tile's). Returns false when the launcher rate-limits the call or refuses an id. No-op elsewhere.
 - `syncSites({sites: [{siteId, label, url?, iconUrl?}], tombstones: [{siteId, label, url?}]})` — **iOS only**: writes the live `sites` to `shortcut_sites` and the deleted-site `tombstones` to `shortcut_tombstones` in App Group UserDefaults (HS-014), then calls `WebSpaceShortcuts.updateAppShortcutParameters()` to refresh the picker. No-op on Android.
 - `canPinShortcuts()` — **Android**: `ShortcutManagerCompat.isRequestPinShortcutSupported`, false on a launcher that takes no pinned shortcuts (HS-004).
-- `isAppIntentsSupported()` — **iOS / macOS**: true if `#available(iOS 16, macOS 13, *)`. Dart reads the two through `ShortcutService.canAddShortcuts()`, the one answer to whether this device can add a shortcut.
+- `isAppIntentsSupported()` — **iOS / macOS**: true if `#available(iOS 16, macOS 13, *)`. Dart reads the two once at startup through `ShortcutService.probe()` into `ShortcutService.offered`, the one answer to whether this device can add a shortcut, which the menu (HS-004) and App Settings (FS-008) read.
 
 ### iOS App Intents
 

@@ -83,6 +83,7 @@ import 'package:webspace/widgets/search_site_picker.dart';
 import 'package:webspace/widgets/datasets.dart';
 import 'package:webspace/widgets/dataset_tile.dart';
 import 'package:webspace/services/site_search_list_service.dart';
+import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/services/webview.dart';
 
@@ -940,13 +941,14 @@ Widget _appBehaviour(BuildContext _) => AppBehaviourScreen(
 
 /// Off their defaults where that shows more of App settings: the tab strip
 /// pinned, so Behaviour shows its full-screen choice, with a width set, and
-/// full screen on shortcut off. Demo mode keeps what a designer toggles out
-/// of the browser's storage.
+/// full screen on shortcut off, on a device that takes shortcuts. Demo mode
+/// keeps what a designer toggles out of the browser's storage.
 void _seedAppPrefs() {
   isDemoMode = true;
   AppPref.showTabStrip.debugValue = true;
   AppPref.tabMaxWidth.debugValue = 180;
   AppPref.fullscreenOnShortcut.debugValue = false;
+  ShortcutService.debugOfferedOverride = true;
 }
 
 /// The proxy credentials fold and the connection test, as the network

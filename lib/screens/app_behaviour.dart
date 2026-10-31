@@ -9,6 +9,7 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/services/desktop_window.dart';
+import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/setting_labels.dart';
@@ -240,11 +241,12 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
             hint: loc.siteSettingsSignInPopupsHint,
             control: const PrefToggle(AppPref.signInPopups),
           ),
-          SettingTile(
-            title: loc.appSettingsFullscreenOnShortcut,
-            hint: loc.appSettingsFullscreenOnShortcutHint,
-            control: const PrefToggle(AppPref.fullscreenOnShortcut),
-          ),
+          if (ShortcutService.offered)
+            SettingTile(
+              title: loc.appSettingsFullscreenOnShortcut,
+              hint: loc.appSettingsFullscreenOnShortcutHint,
+              control: const PrefToggle(AppPref.fullscreenOnShortcut),
+            ),
           if (backOpensMenuOffered())
             SettingTile(
               // The escalation to leaving the app is Android's alone

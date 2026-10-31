@@ -44,6 +44,7 @@ import 'package:webspace/app.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/keyboard_input.dart';
 import 'package:webspace/services/remote_input.dart';
+import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/app_locale.dart';
 
@@ -143,6 +144,9 @@ void main([List<String> args = const []]) async {
     RemoteInput.probe(),
     // Whether a keyboard is attached, followed from here on.
     KeyboardInput.probe(),
+    // Whether a home shortcut can be added (HS-004), read by the menu and
+    // App Settings.
+    ShortcutService.probe(),
     // Where a site's icon comes from on Linux, read as each webview is built.
     WpePageIcons.initialize(),
     // ConnectivityService.lastKnownOnline before the first webview: the

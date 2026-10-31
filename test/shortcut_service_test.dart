@@ -70,7 +70,7 @@ void main() {
   group('ShortcutService — host gating', () {
     // Test host is the OS running `flutter test` (Linux on CI, macOS for local
     // dev and some CI lanes). Methods gate on the platform: pin/getLaunch run
-    // on Android + iOS + macOS, as does canAddShortcuts; syncSites runs on the
+    // on Android + iOS + macOS, as does probe; syncSites runs on the
     // App Intents hosts (iOS + macOS); the rest short-circuit without the
     // channel.
     final isShortcutHost =
@@ -86,10 +86,13 @@ void main() {
       }
     });
 
-    test('canAddShortcuts is false off a shortcut host (HS-004)', () async {
-      final supported = await ShortcutService.canAddShortcuts();
+    test('a shortcut is not offered off a shortcut host (HS-004)', () async {
+      final phone = ShortcutService.debugOfferedOverride;
+      ShortcutService.debugOfferedOverride = null;
+      addTearDown(() => ShortcutService.debugOfferedOverride = phone);
+      await ShortcutService.probe();
       if (!isShortcutHost) {
-        expect(supported, isFalse);
+        expect(ShortcutService.offered, isFalse);
         expect(calls, isEmpty);
       }
     });
@@ -159,7 +162,11 @@ void main() {
           PinShortcutResult.failed);
       expect(await ShortcutService.getLaunch(), isNull);
       expect(await ShortcutService.getPinnedShortcuts(), isEmpty);
-      expect(await ShortcutService.canAddShortcuts(), isFalse);
+      final phone = ShortcutService.debugOfferedOverride;
+      ShortcutService.debugOfferedOverride = null;
+      addTearDown(() => ShortcutService.debugOfferedOverride = phone);
+      await ShortcutService.probe();
+      expect(ShortcutService.offered, isFalse);
       expect(await ShortcutService.updateTiles(const []), isFalse);
       await ShortcutService.syncSites(const []);
       await ShortcutService.removeShortcut(SiteId('a'));
