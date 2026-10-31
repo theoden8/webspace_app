@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "ගොනුවකින් ඔබ ආයාත කරන බ්‍රවුසර දිගු (Chrome .crx, Firefox .xpi හෝ .zip) ඔබ තෝරන අඩවිවල ධාවනය කරයි. WebKit එක් එක් දිගුවෙන් එය සහාය දක්වන දේ ධාවනය කරයි. අඩවියක සැකසුම්වල ඔබ එය සක්‍රිය කරන තුරු දිගුවක් කිසිදු අඩවියක ධාවනය නොවන අතර, එහිදී එය ළඟා වන්නේ එම අඩවියට පමණි.",
   "appSettingsExperimentalExtensionSearch": "දිගු සෙවීම",
   "appSettingsExperimentalExtensionSearchHint": "\"දිගු\" තිරයට addons.mozilla.org හි සෙවීමක් එක් කරයි; සෑම ප්‍රතිඵලයකම, WebKit එය කෙතරම් හොඳින් ධාවනය කරනු ඇතැයි අපේක්ෂා කෙරේදැයි දැක්වේ. App Store වලින් පිටත නිකුත් කළ අනුවාදවල පමණක්, එසේම \"වෙබ් දිගු\" සක්‍රිය වී ඇති විට පමණක් ලබා දේ.",
-  "appSettingsExperimentalDesktopTray": "පද්ධති තැටි අයිකනය",
-  "appSettingsExperimentalDesktopTrayHint": "\"වැසූ පසුවත් ධාවනය වීම\" සක්‍රිය වී ඇති අතරතුර, මෙනු තීරුවේ WebSpace හි අයිකනය පෙන්වයි. එහි මෙනුව කවුළුව පෙන්වයි, දැනුම්දීම් සක්‍රිය කළ අඩවියක් විවෘත කරයි, නැතහොත් යෙදුමෙන් ඉවත් වෙයි.",
   "appSettingsExperimentalLinuxTor": "ගොඩනඟා ඇති Tor",
   "appSettingsExperimentalLinuxTorHint": "යෙදුම විසින්ම ආරම්භ කරන tor හරහා අඩවියේ ප්‍රොක්සිය ලෙස Tor ලබා දෙයි: මෙම නිකුතුව සමඟ එන tor, නැතහොත් මෙම පරිගණකයේ ස්ථාපනය කළ tor. සෑම අඩවියකටම තමන්ගේම පරිපථ ලැබේ. ඊළඟ වතාවේ යෙදුම ආරම්භ වන විට බලපැවැත්වේ.",
   "networkInterfaceTitle": "ජාල අතුරුමුහුණත",

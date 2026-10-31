@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "ከፋይል የሚያስመጧቸውን የአሳሽ ቅጥያዎች (የChrome .crx፣ የFirefox .xpi ወይም .zip) በሚመርጧቸው ጣቢያዎች ላይ ያሂዱ። WebKit ከእያንዳንዱ የሚደግፈውን ያሄዳል። አንድ ቅጥያ በዚያ ጣቢያ ቅንብሮች ውስጥ እስኪያበሩት ድረስ በየትኛውም ጣቢያ ላይ አይሄድም፤ እዚያም የሚደርሰው ያንን ጣቢያ ብቻ ነው።",
   "appSettingsExperimentalExtensionSearch": "የቅጥያ ፍለጋ",
   "appSettingsExperimentalExtensionSearchHint": "addons.mozilla.org ን መፈለግ ወደ \"ቅጥያዎች\" ማያ ገጽ ያክላል፤ እያንዳንዱ ውጤት WebKit ምን ያህል በደንብ ያስኬደዋል ተብሎ እንደሚጠበቅ ያሳያል። የሚቀርበው ከ App Store ውጭ በሚመጡ ግንባታዎች ብቻ ሲሆን \"የድር ቅጥያዎች\" በርቶ ሳለ ብቻ ነው።",
-  "appSettingsExperimentalDesktopTray": "የሲስተም ትሪ አዶ",
-  "appSettingsExperimentalDesktopTrayHint": "\"ሲዘጋ መሥራቱን ይቀጥል\" በርቶ ሳለ፣ የWebSpace አዶን በምናሌ አሞሌው ውስጥ ያሳያል። ምናሌው መስኮቱን ያሳያል፣ ማሳወቂያዎቹ የበሩ ጣቢያን ይከፍታል ወይም መተግበሪያውን ያቋርጣል።",
   "appSettingsExperimentalLinuxTor": "አብሮ የተሠራ Tor",
   "appSettingsExperimentalLinuxTorHint": "Torን እንደ ድረ-ገጽ ተኪ ያቀርባል፣ መተግበሪያው ራሱ በሚያስጀምረው tor በኩል፦ ይህ ግንባታ የያዘው፣ ካልሆነም በዚህ ኮምፒውተር ላይ የተጫነው tor። እያንዳንዱ ድረ-ገጽ የራሱን ዑደቶች ያገኛል። መተግበሪያው በሚቀጥለው ጊዜ ሲጀምር ተግባራዊ ይሆናል።",
   "networkInterfaceTitle": "የአውታረ መረብ በይነገጽ",

@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "Kör webbläsartillägg som du importerar från en fil (en Chrome .crx, en Firefox .xpi eller en .zip) på de webbplatser du väljer. WebKit kör det som det stöder av varje tillägg. Ett tillägg körs inte på någon webbplats förrän du slår på det i den webbplatsens inställningar, och där når det bara den webbplatsen.",
   "appSettingsExperimentalExtensionSearch": "Tilläggssökning",
   "appSettingsExperimentalExtensionSearchHint": "Lägger till en sökning på addons.mozilla.org på skärmen \"Tillägg\", där varje resultat är märkt med hur väl WebKit förväntas köra det. Erbjuds bara i versioner utanför App Store, och bara medan \"Webbtillägg\" är på.",
-  "appSettingsExperimentalDesktopTray": "Symbol i systemfältet",
-  "appSettingsExperimentalDesktopTrayHint": "Medan \"Fortsätt köra efter stängning\" är på visas symbolen för WebSpace i menyraden. Dess meny visar fönstret, öppnar en webbplats med aviseringar på eller avslutar appen.",
   "appSettingsExperimentalLinuxTor": "Inbyggd Tor",
   "appSettingsExperimentalLinuxTorHint": "Erbjuder Tor som en webbplats proxy genom en tor som appen själv startar: den som följer med den här versionen, annars den tor som är installerad på den här datorn. Varje webbplats får egna kretsar. Börjar gälla nästa gång appen startar.",
   "networkInterfaceTitle": "Nätverksgränssnitt",

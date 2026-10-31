@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "افزونه‌های مرورگری را که از یک فایل وارد می‌کنید (یک .crx از Chrome، یک .xpi از Firefox یا یک .zip) روی سایت‌هایی که انتخاب می‌کنید اجرا می‌کند. WebKit از هر افزونه آنچه را پشتیبانی می‌کند اجرا می‌کند. یک افزونه تا وقتی آن را در تنظیمات آن سایت روشن نکنید روی هیچ سایتی اجرا نمی‌شود، و آنجا فقط به همان سایت دسترسی دارد.",
   "appSettingsExperimentalExtensionSearch": "جست‌وجوی افزونه‌ها",
   "appSettingsExperimentalExtensionSearchHint": "جست‌وجو در addons.mozilla.org را به صفحهٔ «افزونه‌ها» اضافه می‌کند و هر نتیجه نشان می‌دهد انتظار می‌رود WebKit آن را چقدر خوب اجرا کند. فقط در نسخه‌های خارج از App Store ارائه می‌شود، و فقط تا زمانی که «افزونه‌های وب» روشن است.",
-  "appSettingsExperimentalDesktopTray": "نماد سینی سیستم",
-  "appSettingsExperimentalDesktopTrayHint": "تا زمانی که «ادامهٔ اجرا پس از بستن» روشن است، نماد WebSpace را در نوار منو نشان می‌دهد. منوی آن پنجره را نمایش می‌دهد، سایتی را که اعلان‌هایش روشن است باز می‌کند یا از برنامه خارج می‌شود.",
   "appSettingsExperimentalLinuxTor": "Tor داخلی",
   "appSettingsExperimentalLinuxTorHint": "Tor را به‌عنوان پراکسی سایت از طریق tor ای ارائه می‌کند که خود برنامه اجرا می‌کند: همانی که این نسخه همراه دارد، وگرنه tor نصب‌شده روی این رایانه. هر سایت مدارهای خودش را می‌گیرد. از دفعهٔ بعدی که برنامه اجرا شود اعمال می‌شود.",
   "networkInterfaceTitle": "رابط شبکه",

@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "Fájlból importált böngészőbővítményeket (Chrome .crx, Firefox .xpi vagy .zip) futtat az Ön által választott webhelyeken. A WebKit mindegyikből azt futtatja, amit támogat. Egy bővítmény egyik webhelyen sem fut, amíg be nem kapcsolja az adott webhely beállításaiban, és ott csak azt a webhelyet éri el.",
   "appSettingsExperimentalExtensionSearch": "Bővítménykeresés",
   "appSettingsExperimentalExtensionSearchHint": "Hozzáadja az addons.mozilla.org keresését a „Bővítmények” képernyőhöz, és minden találatnál jelzi, várhatóan mennyire jól futtatja a WebKit. Csak az App Store-on kívülről származó változatokban érhető el, és csak amíg a „Webes bővítmények” be van kapcsolva.",
-  "appSettingsExperimentalDesktopTray": "Ikon az értesítési területen",
-  "appSettingsExperimentalDesktopTrayHint": "Amíg a „Futás bezárás után is” be van kapcsolva, megjeleníti a WebSpace ikonját a menüsorban. A menüje megjeleníti az ablakot, megnyit egy bekapcsolt értesítésekkel rendelkező oldalt, vagy kilép az alkalmazásból.",
   "appSettingsExperimentalLinuxTor": "Beépített Tor",
   "appSettingsExperimentalLinuxTorHint": "A Tort kínálja egy oldal proxyjaként egy olyan toron keresztül, amelyet az alkalmazás maga indít: azon, amelyet ez a kiadás tartalmaz, vagy ha nincs ilyen, a számítógépre telepített toron. Minden oldal saját áramköröket kap. Az alkalmazás következő indításakor lép érvénybe.",
   "networkInterfaceTitle": "Hálózati csatoló",

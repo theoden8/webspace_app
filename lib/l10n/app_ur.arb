@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "فائل سے آپ کی درآمد کردہ براؤزر ایکسٹینشنز (Chrome .crx، Firefox .xpi یا .zip) آپ کی منتخب کردہ سائٹس پر چلاتا ہے۔ WebKit ہر ایک میں سے وہ چلاتا ہے جو وہ سپورٹ کرتا ہے۔ کوئی ایکسٹینشن کسی سائٹ پر تب تک نہیں چلتی جب تک آپ اسے اس سائٹ کی سیٹنگز میں آن نہ کریں، اور وہاں وہ صرف اسی سائٹ تک پہنچتی ہے۔",
   "appSettingsExperimentalExtensionSearch": "ایکسٹینشنز کی تلاش",
   "appSettingsExperimentalExtensionSearchHint": "\"ایکسٹینشنز\" اسکرین میں addons.mozilla.org پر تلاش شامل کرتا ہے، اور ہر نتیجے پر لکھا ہوتا ہے کہ WebKit سے اسے کتنی اچھی طرح چلانے کی توقع ہے۔ صرف App Store کے باہر کے بلڈز میں دستیاب، اور صرف اس وقت جب \"ویب ایکسٹینشنز\" آن ہو۔",
-  "appSettingsExperimentalDesktopTray": "سسٹم ٹرے آئیکن",
-  "appSettingsExperimentalDesktopTrayHint": "جب \"بند کرنے کے بعد بھی چلتی رہے\" آن ہو، تو مینو بار میں WebSpace کا آئیکن دکھاتا ہے۔ اس کا مینو ونڈو دکھاتا ہے، ایسی سائٹ کھولتا ہے جس کی اطلاعات آن ہیں، یا ایپ سے باہر نکلتا ہے۔",
   "appSettingsExperimentalLinuxTor": "بلٹ ان Tor",
   "appSettingsExperimentalLinuxTorHint": "ایپ خود جو tor شروع کرتی ہے اس کے ذریعے سائٹ کی پراکسی کے طور پر Tor پیش کرتی ہے: اس بلڈ کے ساتھ آنے والا tor، ورنہ اس کمپیوٹر پر انسٹال tor۔ ہر سائٹ کو اپنے سرکٹ ملتے ہیں۔ اگلی بار ایپ شروع ہونے پر نافذ ہوتا ہے۔",
   "networkInterfaceTitle": "نیٹ ورک انٹرفیس",

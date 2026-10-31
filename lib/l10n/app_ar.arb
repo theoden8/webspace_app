@@ -1164,8 +1164,6 @@
   "appSettingsExperimentalWebExtensionsHint": "شغّل إضافات المتصفح التي تستوردها من ملف (.crx من Chrome أو .xpi من Firefox أو .zip) على المواقع التي تختارها. يشغّل WebKit ما يدعمه من كل إضافة. لا تعمل الإضافة على أي موقع حتى تفعّلها في إعدادات ذلك الموقع، وهناك لا تصل إلا إلى ذلك الموقع.",
   "appSettingsExperimentalExtensionSearch": "البحث عن الإضافات",
   "appSettingsExperimentalExtensionSearchHint": "يضيف البحث في addons.mozilla.org إلى شاشة \"الإضافات\"، مع وسم كل نتيجة بحسب مدى جودة تشغيل WebKit المتوقَّع لها. متاح فقط في الإصدارات المبنية خارج App Store، وفقط أثناء تفعيل \"إضافات الويب\".",
-  "appSettingsExperimentalDesktopTray": "أيقونة علبة النظام",
-  "appSettingsExperimentalDesktopTrayHint": "أثناء تفعيل \"مواصلة العمل عند الإغلاق\"، يعرض أيقونة WebSpace في شريط القوائم. تتيح قائمتها إظهار النافذة، أو فتح موقع فعّلت له الإشعارات، أو الخروج من التطبيق.",
   "appSettingsExperimentalLinuxTor": "Tor المدمج",
   "appSettingsExperimentalLinuxTorHint": "يتيح Tor وكيلًا للموقع عبر tor يشغّله التطبيق بنفسه: المضمَّن في هذا الإصدار، وإلا فـ tor المثبّت على هذا الحاسوب. يحصل كل موقع على دارات خاصة به. يسري مفعولها عند التشغيل التالي للتطبيق.",
   "networkInterfaceTitle": "واجهة الشبكة",
