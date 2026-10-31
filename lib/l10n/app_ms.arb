@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Ikon dulang sistem",
   "appSettingsExperimentalDesktopTrayHint": "Semasa \"Terus berjalan apabila ditutup\" dihidupkan, ikon WebSpace dipaparkan di bar menu. Menunya memaparkan tetingkap, membuka tapak yang pemberitahuannya dihidupkan atau keluar daripada aplikasi.",
   "appSettingsExperimentalLinuxTor": "Tor terbina dalam",
-  "appSettingsExperimentalLinuxTorHint": "Menawarkan Tor sebagai proksi tapak melalui tor yang dimulakan oleh aplikasi sendiri: yang dibawa oleh binaan ini, atau jika tiada, tor yang dipasang pada komputer ini. Setiap tapak mendapat litarnya sendiri. Berkuat kuasa pada kali seterusnya aplikasi dimulakan.",
+  "appSettingsExperimentalLinuxTorHint": "Menawarkan Tor sebagai proksi tapak melalui tor yang dimulakan oleh aplikasi sendiri: yang dibawa oleh binaan ini, atau jika tiada, tor yang dipasang pada komputer ini. Setiap tapak mendapat litarnya sendiri.",
   "networkInterfaceTitle": "Antara muka rangkaian",
   "networkInterfaceHint": "Menghantar trafik laman ini melalui satu antara muka rangkaian sahaja, seperti terowong VPN, dan bukan yang lain. Selagi antara muka itu terputus, laman tidak memuatkan apa-apa dan tidak menggunakan sambungan lain. Nama hos dicari melalui pelayan DNS antara muka itu sendiri, jadi penyelesai sistem (systemd-resolved) mesti mengenalinya. Proksi yang ditetapkan di atas dicapai melalui antara muka. Panggilan WebRTC tidak menggunakannya.",
   "networkInterfaceSystem": "Penghalaan sistem",

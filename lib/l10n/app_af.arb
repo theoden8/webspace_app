@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Stelselbakikoon",
   "appSettingsExperimentalDesktopTrayHint": "Terwyl \"Bly loop wanneer toegemaak\" aan is, wys dit WebSpace se ikoon in die kieslysbalk. Die kieslys daarvan wys die venster, maak 'n webwerf met kennisgewings aan oop of sluit die program af.",
   "appSettingsExperimentalLinuxTor": "Ingeboude Tor",
-  "appSettingsExperimentalLinuxTorHint": "Bied Tor as 'n werf se instaanbediener aan deur 'n tor wat die toepassing self begin: die een wat hierdie weergawe saambring, of anders die tor wat op hierdie rekenaar geïnstalleer is. Elke werf kry sy eie stroombane. Tree in werking die volgende keer dat die toepassing begin.",
+  "appSettingsExperimentalLinuxTorHint": "Bied Tor as 'n werf se instaanbediener aan deur 'n tor wat die toepassing self begin: die een wat hierdie weergawe saambring, of anders die tor wat op hierdie rekenaar geïnstalleer is. Elke werf kry sy eie stroombane.",
   "networkInterfaceTitle": "Netwerkkoppelvlak",
   "networkInterfaceHint": "Stuur hierdie werf se verkeer net deur een netwerkkoppelvlak, soos 'n VPN se tonnel, en geen ander nie. Terwyl daardie koppelvlak af is, laai die werf niks in plaas daarvan om 'n ander verbinding te gebruik nie. Gasheername word deur die koppelvlak se eie DNS-bedieners opgesoek, dus moet die stelseloplosser (systemd-resolved) hulle ken. 'n Proxy wat hierbo gestel is, word deur die koppelvlak bereik. WebRTC-oproepe gebruik dit nie.",
   "networkInterfaceSystem": "Stelselroetering",

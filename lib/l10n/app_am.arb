@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "የሲስተም ትሪ አዶ",
   "appSettingsExperimentalDesktopTrayHint": "\"ሲዘጋ መሥራቱን ይቀጥል\" በርቶ ሳለ፣ የWebSpace አዶን በምናሌ አሞሌው ውስጥ ያሳያል። ምናሌው መስኮቱን ያሳያል፣ ማሳወቂያዎቹ የበሩ ጣቢያን ይከፍታል ወይም መተግበሪያውን ያቋርጣል።",
   "appSettingsExperimentalLinuxTor": "አብሮ የተሠራ Tor",
-  "appSettingsExperimentalLinuxTorHint": "Torን እንደ ድረ-ገጽ ተኪ ያቀርባል፣ መተግበሪያው ራሱ በሚያስጀምረው tor በኩል፦ ይህ ግንባታ የያዘው፣ ካልሆነም በዚህ ኮምፒውተር ላይ የተጫነው tor። እያንዳንዱ ድረ-ገጽ የራሱን ዑደቶች ያገኛል። መተግበሪያው በሚቀጥለው ጊዜ ሲጀምር ተግባራዊ ይሆናል።",
+  "appSettingsExperimentalLinuxTorHint": "Torን እንደ ድረ-ገጽ ተኪ ያቀርባል፣ መተግበሪያው ራሱ በሚያስጀምረው tor በኩል፦ ይህ ግንባታ የያዘው፣ ካልሆነም በዚህ ኮምፒውተር ላይ የተጫነው tor። እያንዳንዱ ድረ-ገጽ የራሱን ዑደቶች ያገኛል።",
   "networkInterfaceTitle": "የአውታረ መረብ በይነገጽ",
   "networkInterfaceHint": "የዚህን ጣቢያ ትራፊክ በአንድ የአውታረ መረብ በይነገጽ ብቻ ይልካል፣ ለምሳሌ በVPN ዋሻ፣ በሌላ በማንኛውም አይደለም። ያ በይነገጽ ሲጠፋ ጣቢያው ሌላ ግንኙነት ከመጠቀም ይልቅ ምንም አይጭንም። የአስተናጋጅ ስሞች በበይነገጹ የራሱ DNS አገልጋዮች ይፈለጋሉ፣ ስለዚህ የስርዓቱ ፈቺ (systemd-resolved) ሊያውቃቸው ይገባል። ከላይ የተቀመጠ ተኪ በበይነገጹ በኩል ይደረሳል። የWebRTC ጥሪዎች አይጠቀሙበትም።",
   "networkInterfaceSystem": "የስርዓት ማዘዋወር",

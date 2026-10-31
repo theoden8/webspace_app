@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Sistem tepsisi simgesi",
   "appSettingsExperimentalDesktopTrayHint": "\"Kapatıldığında çalışmaya devam et\" açıkken WebSpace simgesini menü çubuğunda gösterir. Simgenin menüsü pencereyi gösterir, bildirimleri açık bir siteyi açar veya uygulamadan çıkar.",
   "appSettingsExperimentalLinuxTor": "Yerleşik Tor",
-  "appSettingsExperimentalLinuxTorHint": "Tor'u, uygulamanın kendisinin başlattığı bir tor üzerinden sitenin vekil sunucusu olarak sunar: bu sürümle gelen tor, yoksa bu bilgisayarda kurulu tor. Her site kendi devrelerini alır. Uygulama bir sonraki başlatıldığında geçerli olur.",
+  "appSettingsExperimentalLinuxTorHint": "Tor'u, uygulamanın kendisinin başlattığı bir tor üzerinden sitenin vekil sunucusu olarak sunar: bu sürümle gelen tor, yoksa bu bilgisayarda kurulu tor. Her site kendi devrelerini alır.",
   "networkInterfaceTitle": "Ağ arayüzü",
   "networkInterfaceHint": "Bu sitenin trafiğini yalnızca bir ağ arayüzünden, örneğin bir VPN tünelinden gönderir, başka hiçbirinden göndermez. O arayüz kapalıyken site başka bir bağlantı kullanmak yerine hiçbir şey yüklemez. Ana makine adları arayüzün kendi DNS sunucuları üzerinden aranır, bu nedenle sistem çözümleyicisinin (systemd-resolved) onları tanıması gerekir. Yukarıda ayarlanan proxy'ye arayüz üzerinden ulaşılır. WebRTC aramaları onu kullanmaz.",
   "networkInterfaceSystem": "Sistem yönlendirmesi",

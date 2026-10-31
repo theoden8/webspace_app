@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Ikona v oznamovací oblasti",
   "appSettingsExperimentalDesktopTrayHint": "Když je zapnuto „Běžet i po zavření“, zobrazí ikonu WebSpace na řádku nabídek. Její nabídka zobrazí okno, otevře web se zapnutými oznámeními nebo aplikaci ukončí.",
   "appSettingsExperimentalLinuxTor": "Vestavěný Tor",
-  "appSettingsExperimentalLinuxTorHint": "Nabízí Tor jako proxy webu přes tor, který aplikace spouští sama: ten, který obsahuje toto sestavení, jinak tor nainstalovaný v tomto počítači. Každý web dostane vlastní okruhy. Projeví se při příštím spuštění aplikace.",
+  "appSettingsExperimentalLinuxTorHint": "Nabízí Tor jako proxy webu přes tor, který aplikace spouští sama: ten, který obsahuje toto sestavení, jinak tor nainstalovaný v tomto počítači. Každý web dostane vlastní okruhy.",
   "networkInterfaceTitle": "Síťové rozhraní",
   "networkInterfaceHint": "Posílá provoz tohoto webu jen jedním síťovým rozhraním, například tunelem VPN, a žádným jiným. Dokud je toto rozhraní mimo provoz, web nenačte nic, místo aby použil jiné připojení. Názvy hostitelů se vyhledávají přes vlastní servery DNS rozhraní, takže je systémový resolver (systemd-resolved) musí znát. Proxy nastavená výše se dosahuje přes rozhraní. Hovory WebRTC ho nepoužívají.",
   "networkInterfaceSystem": "Směrování systému",

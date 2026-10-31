@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "系統匣圖示",
   "appSettingsExperimentalDesktopTrayHint": "「關閉後繼續執行」開啟時，在選單列中顯示 WebSpace 的圖示。其選單可顯示視窗、前往已開啟通知的網站，或結束應用程式。",
   "appSettingsExperimentalLinuxTor": "內建 Tor",
-  "appSettingsExperimentalLinuxTorHint": "透過應用程式自行啟動的 tor，將 Tor 作為網站的代理伺服器：使用此版本內附的 tor，若沒有則使用這台電腦上安裝的 tor。每個網站各有自己的線路。下次啟動應用程式時生效。",
+  "appSettingsExperimentalLinuxTorHint": "透過應用程式自行啟動的 tor，將 Tor 作為網站的代理伺服器：使用此版本內附的 tor，若沒有則使用這台電腦上安裝的 tor。每個網站各有自己的線路。",
   "networkInterfaceTitle": "網路介面",
   "networkInterfaceHint": "只透過一個網路介面（例如 VPN 的通道）傳送此網站的流量，不經過其他介面。該介面停用期間，網站不會改用其他連線，而是什麼都不載入。主機名稱透過該介面自己的 DNS 伺服器查詢，因此系統解析器（systemd-resolved）必須知道這些伺服器。上方設定的代理會透過此介面連線。WebRTC 通話不會使用它。",
   "networkInterfaceSystem": "系統路由",

@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "システムトレイのアイコン",
   "appSettingsExperimentalDesktopTrayHint": "「閉じても実行を続ける」がオンの間、メニューバーに WebSpace のアイコンを表示します。そのメニューから、ウィンドウを表示したり、通知をオンにしたサイトを開いたり、アプリを終了したりできます。",
   "appSettingsExperimentalLinuxTor": "内蔵の Tor",
-  "appSettingsExperimentalLinuxTorHint": "アプリ自身が起動する tor を通じて、Tor をサイトのプロキシとして使えるようにします。このビルドに同梱された tor、なければこのコンピュータにインストールされた tor を使います。サイトごとに専用の回線が使われます。次回アプリを起動したときに有効になります。",
+  "appSettingsExperimentalLinuxTorHint": "アプリ自身が起動する tor を通じて、Tor をサイトのプロキシとして使えるようにします。このビルドに同梱された tor、なければこのコンピュータにインストールされた tor を使います。サイトごとに専用の回線が使われます。",
   "networkInterfaceTitle": "ネットワークインターフェース",
   "networkInterfaceHint": "このサイトの通信を 1 つのネットワークインターフェース（VPN のトンネルなど）だけから送り、他は使いません。そのインターフェースが停止している間、サイトは別の接続を使わずに何も読み込みません。ホスト名はそのインターフェース自身の DNS サーバーで解決されるため、システムのリゾルバー（systemd-resolved）がそれを把握している必要があります。上で設定したプロキシにはこのインターフェース経由で接続します。WebRTC の通話はこれを使いません。",
   "networkInterfaceSystem": "システムのルーティング",

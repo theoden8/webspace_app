@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Süsteemisalve ikoon",
   "appSettingsExperimentalDesktopTrayHint": "Kui „Jätka töötamist pärast sulgemist“ on sisse lülitatud, kuvatakse WebSpace'i ikooni menüüribal. Selle menüü kuvab akna, avab saidi, mille teavitused on sisse lülitatud, või väljub rakendusest.",
   "appSettingsExperimentalLinuxTor": "Sisseehitatud Tor",
-  "appSettingsExperimentalLinuxTorHint": "Pakub Tori saidi puhverserverina tor-i kaudu, mille rakendus ise käivitab: selle, mis on selle versiooniga kaasas, või muidu selles arvutis paigaldatud tor-i. Iga sait saab oma ahelad. Jõustub rakenduse järgmisel käivitusel.",
+  "appSettingsExperimentalLinuxTorHint": "Pakub Tori saidi puhverserverina tor-i kaudu, mille rakendus ise käivitab: selle, mis on selle versiooniga kaasas, või muidu selles arvutis paigaldatud tor-i. Iga sait saab oma ahelad.",
   "networkInterfaceTitle": "Võrguliides",
   "networkInterfaceHint": "Saadab selle saidi liikluse ainult ühe võrguliidese kaudu, näiteks VPN-i tunneli kaudu, ja mitte ühegi teise. Kui see liides ei tööta, ei laadi sait midagi, selle asemel et kasutada teist ühendust. Hostinimesid otsitakse liidese enda DNS-serverite kaudu, seega peab süsteemi lahendaja (systemd-resolved) neid teadma. Ülal määratud proksini jõutakse liidese kaudu. WebRTC kõned seda ei kasuta.",
   "networkInterfaceSystem": "Süsteemi marsruutimine",

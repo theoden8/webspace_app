@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Eicon yr hambwrdd system",
   "appSettingsExperimentalDesktopTrayHint": "Tra bo \"Dal i redeg ar ôl cau\" ymlaen, mae'n dangos eicon WebSpace yn y bar dewislen. Mae ei ddewislen yn dangos y ffenestr, yn agor safle â hysbysiadau ymlaen, neu'n gadael y rhaglen.",
   "appSettingsExperimentalLinuxTor": "Tor adeiledig",
-  "appSettingsExperimentalLinuxTorHint": "Yn cynnig Tor fel dirprwy gwefan drwy tor y mae'r ap yn ei gychwyn ei hun: yr un sy'n dod gyda'r fersiwn hon, neu fel arall y tor sydd wedi'i osod ar y cyfrifiadur hwn. Mae pob gwefan yn cael ei chylchedau ei hun. Daw i rym y tro nesaf y bydd yr ap yn cychwyn.",
+  "appSettingsExperimentalLinuxTorHint": "Yn cynnig Tor fel dirprwy gwefan drwy tor y mae'r ap yn ei gychwyn ei hun: yr un sy'n dod gyda'r fersiwn hon, neu fel arall y tor sydd wedi'i osod ar y cyfrifiadur hwn. Mae pob gwefan yn cael ei chylchedau ei hun.",
   "networkInterfaceTitle": "Rhyngwyneb rhwydwaith",
   "networkInterfaceHint": "Yn anfon traffig y wefan hon drwy un rhyngwyneb rhwydwaith yn unig, fel twnnel VPN, a dim un arall. Tra bo'r rhyngwyneb hwnnw i lawr, nid yw'r wefan yn llwytho dim yn hytrach na defnyddio cysylltiad arall. Caiff enwau gwesteiwyr eu chwilio drwy weinyddion DNS y rhyngwyneb ei hun, felly rhaid i ddatryswr y system (systemd-resolved) eu hadnabod. Cyrhaeddir dirprwy a osodwyd uchod drwy'r rhyngwyneb. Nid yw galwadau WebRTC yn ei ddefnyddio.",
   "networkInterfaceSystem": "Llwybro'r system",

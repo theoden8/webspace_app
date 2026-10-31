@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Pictogramă în zona de notificare",
   "appSettingsExperimentalDesktopTrayHint": "Cât timp \"Continuă să ruleze după închidere\" este activat, afișează pictograma WebSpace în bara de meniu. Meniul ei afișează fereastra, deschide un site cu notificările activate sau iese din aplicație.",
   "appSettingsExperimentalLinuxTor": "Tor integrat",
-  "appSettingsExperimentalLinuxTorHint": "Oferă Tor ca proxy al unui site printr-un tor pe care aplicația îl pornește singură: cel inclus în această versiune sau, altfel, tor-ul instalat pe acest computer. Fiecare site primește propriile circuite. Intră în vigoare la următoarea pornire a aplicației.",
+  "appSettingsExperimentalLinuxTorHint": "Oferă Tor ca proxy al unui site printr-un tor pe care aplicația îl pornește singură: cel inclus în această versiune sau, altfel, tor-ul instalat pe acest computer. Fiecare site primește propriile circuite.",
   "networkInterfaceTitle": "Interfață de rețea",
   "networkInterfaceHint": "Trimite traficul acestui site doar printr-o singură interfață de rețea, cum ar fi tunelul unui VPN, și prin nicio alta. Cât timp interfața este oprită, site-ul nu încarcă nimic în loc să folosească altă conexiune. Numele de gazdă sunt căutate prin serverele DNS proprii ale interfeței, deci rezolvatorul sistemului (systemd-resolved) trebuie să le cunoască. Un proxy setat mai sus este atins prin interfață. Apelurile WebRTC nu o folosesc.",
   "networkInterfaceSystem": "Rutarea sistemului",

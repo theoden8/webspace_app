@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Ikon baki sistem",
   "appSettingsExperimentalDesktopTrayHint": "Selama \"Tetap berjalan saat ditutup\" aktif, menampilkan ikon WebSpace di bilah menu. Menunya menampilkan jendela, membuka situs yang notifikasinya aktif, atau keluar dari aplikasi.",
   "appSettingsExperimentalLinuxTor": "Tor bawaan",
-  "appSettingsExperimentalLinuxTorHint": "Menyediakan Tor sebagai proxy situs melalui tor yang dijalankan aplikasi sendiri: yang dibawa oleh versi ini, atau jika tidak ada, tor yang terpasang di komputer ini. Setiap situs mendapat sirkuitnya sendiri. Berlaku saat aplikasi dimulai berikutnya.",
+  "appSettingsExperimentalLinuxTorHint": "Menyediakan Tor sebagai proxy situs melalui tor yang dijalankan aplikasi sendiri: yang dibawa oleh versi ini, atau jika tidak ada, tor yang terpasang di komputer ini. Setiap situs mendapat sirkuitnya sendiri.",
   "networkInterfaceTitle": "Antarmuka jaringan",
   "networkInterfaceHint": "Mengirim lalu lintas situs ini hanya melalui satu antarmuka jaringan, seperti terowongan VPN, dan tidak melalui yang lain. Selama antarmuka itu mati, situs tidak memuat apa pun alih-alih memakai koneksi lain. Nama host dicari melalui server DNS milik antarmuka itu sendiri, jadi resolver sistem (systemd-resolved) harus mengenalnya. Proxy yang diatur di atas dicapai melalui antarmuka. Panggilan WebRTC tidak memakainya.",
   "networkInterfaceSystem": "Perutean sistem",

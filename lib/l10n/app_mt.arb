@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Ikona fit-tray tas-sistema",
   "appSettingsExperimentalDesktopTrayHint": "Waqt li \"Ibqa' għaddej wara l-għeluq\" ikun mixgħul, turi l-ikona ta' WebSpace fil-bar tal-menu. Il-menu tagħha juri t-tieqa, jiftaħ sit bin-notifiki mixgħula, jew joħroġ mill-app.",
   "appSettingsExperimentalLinuxTor": "Tor integrat",
-  "appSettingsExperimentalLinuxTorHint": "Joffri Tor bħala l-prokura ta' sit permezz ta' tor li l-app tibda hi stess: dak li ġej ma' din il-verżjoni, jew inkella t-tor installat fuq dan il-kompjuter. Kull sit jieħu ċ-ċirkwiti tiegħu. Jidħol fis-seħħ id-darba li jmiss li tinfetaħ l-app.",
+  "appSettingsExperimentalLinuxTorHint": "Joffri Tor bħala l-prokura ta' sit permezz ta' tor li l-app tibda hi stess: dak li ġej ma' din il-verżjoni, jew inkella t-tor installat fuq dan il-kompjuter. Kull sit jieħu ċ-ċirkwiti tiegħu.",
   "networkInterfaceTitle": "Interfaċċja tan-netwerk",
   "networkInterfaceHint": "Tibgħat it-traffiku ta' dan is-sit minn interfaċċja waħda tan-netwerk biss, bħall-mina ta' VPN, u minn l-ebda oħra. Sakemm dik l-interfaċċja tkun mitfija, is-sit ma jtella' xejn minflok juża konnessjoni oħra. L-ismijiet tal-hosts jinfittxu permezz tas-servers DNS tal-interfaċċja stess, għalhekk ir-resolver tas-sistema (systemd-resolved) irid ikun jafhom. Il-proxy issettjat hawn fuq jintlaħaq permezz tal-interfaċċja. Is-sejħiet WebRTC ma jużawhiex.",
   "networkInterfaceSystem": "Rotot tas-sistema",

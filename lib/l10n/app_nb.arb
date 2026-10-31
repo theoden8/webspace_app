@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Symbol i systemkurven",
   "appSettingsExperimentalDesktopTrayHint": "Når \"Fortsett å kjøre etter lukking\" er slått på, vises symbolet for WebSpace i menylinjen. Menyen viser vinduet, åpner et nettsted med varsler slått på eller avslutter appen.",
   "appSettingsExperimentalLinuxTor": "Innebygd Tor",
-  "appSettingsExperimentalLinuxTorHint": "Tilbyr Tor som et nettsteds mellomtjener gjennom en tor som appen starter selv: den som følger med denne versjonen, eller ellers tor installert på denne datamaskinen. Hvert nettsted får sine egne kretser. Trer i kraft neste gang appen starter.",
+  "appSettingsExperimentalLinuxTorHint": "Tilbyr Tor som et nettsteds mellomtjener gjennom en tor som appen starter selv: den som følger med denne versjonen, eller ellers tor installert på denne datamaskinen. Hvert nettsted får sine egne kretser.",
   "networkInterfaceTitle": "Nettverksgrensesnitt",
   "networkInterfaceHint": "Sender trafikken til dette nettstedet ut gjennom bare ett nettverksgrensesnitt, for eksempel tunnelen til et VPN, og ingen andre. Mens grensesnittet er nede, laster nettstedet ingenting i stedet for å bruke en annen tilkobling. Vertsnavn slås opp via grensesnittets egne DNS-servere, så systemets navneoppslag (systemd-resolved) må kjenne dem. En proxy angitt ovenfor nås gjennom grensesnittet. WebRTC-samtaler bruker det ikke.",
   "networkInterfaceSystem": "Systemets ruting",

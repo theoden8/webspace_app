@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Sistema-erretiluko ikonoa",
   "appSettingsExperimentalDesktopTrayHint": "\"Jarraitu martxan itxi ondoren\" aktibatuta dagoen bitartean, WebSpace-ren ikonoa erakusten du menu-barran. Bere menuak leihoa erakusten du, jakinarazpenak aktibatuta dituen gune bat irekitzen du edo aplikaziotik irteten da.",
   "appSettingsExperimentalLinuxTor": "Integratutako Tor",
-  "appSettingsExperimentalLinuxTorHint": "Tor eskaintzen du gune baten proxy gisa, aplikazioak berak abiarazten duen tor baten bidez: bertsio honek dakarrena, edo bestela ordenagailu honetan instalatutako tor-a. Gune bakoitzak bere zirkuituak ditu. Aplikazioa hurrengo aldiz abiarazten denean hartuko du eragina.",
+  "appSettingsExperimentalLinuxTorHint": "Tor eskaintzen du gune baten proxy gisa, aplikazioak berak abiarazten duen tor baten bidez: bertsio honek dakarrena, edo bestela ordenagailu honetan instalatutako tor-a. Gune bakoitzak bere zirkuituak ditu.",
   "networkInterfaceTitle": "Sare-interfazea",
   "networkInterfaceHint": "Gune honen trafikoa sare-interfaze bakar batetik bidaltzen du, adibidez VPN baten tuneletik, eta ez beste inondik. Interfaze hori erorita dagoen bitartean, guneak ez du ezer kargatzen beste konexio bat erabili beharrean. Ostalari-izenak interfazearen beraren DNS zerbitzarien bidez bilatzen dira, beraz sistemaren ebazleak (systemd-resolved) ezagutu behar ditu. Goian ezarritako proxyra interfazearen bidez iristen da. WebRTC deiek ez dute erabiltzen.",
   "networkInterfaceSystem": "Sistemaren bideratzea",

@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Sistemos dėklo piktograma",
   "appSettingsExperimentalDesktopTrayHint": "Kol įjungta „Veikti ir uždarius“, WebSpace piktograma rodoma meniu juostoje. Jos meniu parodo langą, atidaro svetainę su įjungtais pranešimais arba išeina iš programos.",
   "appSettingsExperimentalLinuxTor": "Įtaisytasis Tor",
-  "appSettingsExperimentalLinuxTorHint": "Siūlo Tor kaip svetainės tarpinį serverį per tor, kurį programa paleidžia pati: tą, kuris pateikiamas su šia versija, o jei jo nėra, šiame kompiuteryje įdiegtą tor. Kiekviena svetainė gauna savo grandines. Įsigalioja kitą kartą paleidus programą.",
+  "appSettingsExperimentalLinuxTorHint": "Siūlo Tor kaip svetainės tarpinį serverį per tor, kurį programa paleidžia pati: tą, kuris pateikiamas su šia versija, o jei jo nėra, šiame kompiuteryje įdiegtą tor. Kiekviena svetainė gauna savo grandines.",
   "networkInterfaceTitle": "Tinklo sąsaja",
   "networkInterfaceHint": "Siunčia šios svetainės srautą tik per vieną tinklo sąsają, pavyzdžiui, VPN tunelį, ir per jokią kitą. Kol ta sąsaja neveikia, svetainė nieko neįkelia, užuot naudojusi kitą ryšį. Prieglobų vardai ieškomi per pačios sąsajos DNS serverius, todėl sistemos sprendiklis (systemd-resolved) turi juos žinoti. Aukščiau nustatytas tarpinis serveris pasiekiamas per sąsają. WebRTC skambučiai jos nenaudoja.",
   "networkInterfaceSystem": "Sistemos maršrutizavimas",

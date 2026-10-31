@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Deilbhín i dtráidire an chórais",
   "appSettingsExperimentalDesktopTrayHint": "Fad atá \"Coinnigh ag rith nuair a dhúntar é\" casta air, taispeánann sé deilbhín WebSpace sa bharra roghchláir. Taispeánann a roghchlár an fhuinneog, osclaíonn sé suíomh a bhfuil fógraí casta air, nó scoireann sé an feidhmchlár.",
   "appSettingsExperimentalLinuxTor": "Tor ionsuite",
-  "appSettingsExperimentalLinuxTorHint": "Cuireann sé Tor ar fáil mar sheachfhreastalaí suímh trí tor a thosaíonn an aip féin: an ceann atá sa leagan seo, nó murach sin an tor atá suiteáilte ar an ríomhaire seo. Faigheann gach suíomh a chiorcaid féin. Tagann sé i bhfeidhm an chéad uair eile a thosaíonn an aip.",
+  "appSettingsExperimentalLinuxTorHint": "Cuireann sé Tor ar fáil mar sheachfhreastalaí suímh trí tor a thosaíonn an aip féin: an ceann atá sa leagan seo, nó murach sin an tor atá suiteáilte ar an ríomhaire seo. Faigheann gach suíomh a chiorcaid féin.",
   "networkInterfaceTitle": "Comhéadan líonra",
   "networkInterfaceHint": "Seolann sé trácht an tsuímh seo trí chomhéadan líonra amháin, mar thollán VPN, agus trí cheann ar bith eile. Fad atá an comhéadan sin síos, ní lódálann an suíomh aon rud in ionad nasc eile a úsáid. Cuardaítear ainmneacha óstach trí fhreastalaithe DNS an chomhéadain féin, mar sin caithfidh réititheoir an chórais (systemd-resolved) eolas a bheith aige orthu. Sroichtear seachfhreastalaí a socraíodh thuas tríd an gcomhéadan. Ní úsáideann glaonna WebRTC é.",
   "networkInterfaceSystem": "Ródú an chórais",

@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Ikona w zasobniku systemowym",
   "appSettingsExperimentalDesktopTrayHint": "Gdy „Działaj dalej po zamknięciu” jest włączone, pokazuje ikonę WebSpace na pasku menu. Jej menu wyświetla okno, otwiera witrynę z włączonymi powiadomieniami lub kończy działanie aplikacji.",
   "appSettingsExperimentalLinuxTor": "Wbudowany Tor",
-  "appSettingsExperimentalLinuxTorHint": "Udostępnia Tor jako serwer proxy witryny przez tor uruchamiany przez samą aplikację: dołączony do tej wersji, a w przeciwnym razie tor zainstalowany na tym komputerze. Każda witryna dostaje własne obwody. Zacznie obowiązywać przy następnym uruchomieniu aplikacji.",
+  "appSettingsExperimentalLinuxTorHint": "Udostępnia Tor jako serwer proxy witryny przez tor uruchamiany przez samą aplikację: dołączony do tej wersji, a w przeciwnym razie tor zainstalowany na tym komputerze. Każda witryna dostaje własne obwody.",
   "networkInterfaceTitle": "Interfejs sieciowy",
   "networkInterfaceHint": "Wysyła ruch tej witryny tylko przez jeden interfejs sieciowy, na przykład tunel VPN, i przez żaden inny. Dopóki ten interfejs nie działa, witryna nic nie wczytuje, zamiast użyć innego połączenia. Nazwy hostów są wyszukiwane przez własne serwery DNS interfejsu, więc systemowy resolwer (systemd-resolved) musi je znać. Do ustawionego wyżej serwera proxy łączy się przez ten interfejs. Połączenia WebRTC z niego nie korzystają.",
   "networkInterfaceSystem": "Trasowanie systemowe",

@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Symbol im Infobereich",
   "appSettingsExperimentalDesktopTrayHint": "Zeigt, solange \"Nach dem Schließen weiterlaufen\" aktiviert ist, das Symbol von WebSpace in der Menüleiste an. Sein Menü zeigt das Fenster an, öffnet eine Website mit aktivierten Benachrichtigungen oder beendet die App.",
   "appSettingsExperimentalLinuxTor": "Eingebauter Tor",
-  "appSettingsExperimentalLinuxTorHint": "Bietet Tor als Proxy einer Website über einen tor an, den die App selbst startet: den, den dieser Build mitbringt, sonst den auf diesem Computer installierten tor. Jede Website bekommt eigene Kanäle. Wirkt ab dem nächsten App-Start.",
+  "appSettingsExperimentalLinuxTorHint": "Bietet Tor als Proxy einer Website über einen tor an, den die App selbst startet: den, den dieser Build mitbringt, sonst den auf diesem Computer installierten tor. Jede Website bekommt eigene Kanäle.",
   "networkInterfaceTitle": "Netzwerkschnittstelle",
   "networkInterfaceHint": "Leitet den Verkehr dieser Website nur über eine Netzwerkschnittstelle, etwa den Tunnel eines VPN, und über keine andere. Solange diese Schnittstelle nicht verfügbar ist, lädt die Website nichts, statt eine andere Verbindung zu nutzen. Hostnamen werden über die eigenen DNS-Server der Schnittstelle aufgelöst, daher muss der Systemresolver (systemd-resolved) sie kennen. Ein oben eingestellter Proxy wird über die Schnittstelle erreicht. WebRTC-Anrufe nutzen sie nicht.",
   "networkInterfaceSystem": "Systemrouting",

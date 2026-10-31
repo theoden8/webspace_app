@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Aikoni ya trei ya mfumo",
   "appSettingsExperimentalDesktopTrayHint": "Wakati \"Endelea kufanya kazi ikifungwa\" imewashwa, huonyesha aikoni ya WebSpace kwenye upau wa menyu. Menyu yake huonyesha dirisha, hufungua tovuti iliyowasha arifa, au huondoka kwenye programu.",
   "appSettingsExperimentalLinuxTor": "Tor iliyojengewa ndani",
-  "appSettingsExperimentalLinuxTorHint": "Hutoa Tor kama seva mbadala ya tovuti kupitia tor ambayo programu yenyewe huanzisha: ile inayokuja na toleo hili, au vinginevyo tor iliyosakinishwa kwenye kompyuta hii. Kila tovuti hupata saketi zake yenyewe. Huanza kutumika wakati ujao programu itakapoanza.",
+  "appSettingsExperimentalLinuxTorHint": "Hutoa Tor kama seva mbadala ya tovuti kupitia tor ambayo programu yenyewe huanzisha: ile inayokuja na toleo hili, au vinginevyo tor iliyosakinishwa kwenye kompyuta hii. Kila tovuti hupata saketi zake yenyewe.",
   "networkInterfaceTitle": "Kiolesura cha mtandao",
   "networkInterfaceHint": "Hutuma trafiki ya tovuti hii kupitia kiolesura kimoja tu cha mtandao, kama handaki la VPN, na si kingine chochote. Wakati kiolesura hicho kimezimwa, tovuti haipakii chochote badala ya kutumia muunganisho mwingine. Majina ya seva pangishi hutafutwa kupitia seva za DNS za kiolesura chenyewe, kwa hivyo kitatuzi cha mfumo (systemd-resolved) lazima kizijue. Proksi iliyowekwa hapo juu hufikiwa kupitia kiolesura. Simu za WebRTC hazikitumii.",
   "networkInterfaceSystem": "Uelekezaji wa mfumo",

@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Ikona u sistemskoj traci",
   "appSettingsExperimentalDesktopTrayHint": "Dok je \"Nastavi raditi nakon zatvaranja\" uključeno, prikazuje ikonu aplikacije WebSpace na traci menija. Njen meni prikazuje prozor, otvara stranicu s uključenim obavještenjima ili izlazi iz aplikacije.",
   "appSettingsExperimentalLinuxTor": "Ugrađeni Tor",
-  "appSettingsExperimentalLinuxTorHint": "Nudi Tor kao proxy stranice preko tora koji aplikacija sama pokreće: onog koji dolazi s ovom verzijom, ili inače tora instaliranog na ovom računaru. Svaka stranica dobija svoje krugove. Stupa na snagu pri sljedećem pokretanju aplikacije.",
+  "appSettingsExperimentalLinuxTorHint": "Nudi Tor kao proxy stranice preko tora koji aplikacija sama pokreće: onog koji dolazi s ovom verzijom, ili inače tora instaliranog na ovom računaru. Svaka stranica dobija svoje krugove.",
   "networkInterfaceTitle": "Mrežni interfejs",
   "networkInterfaceHint": "Šalje promet ove stranice samo kroz jedan mrežni interfejs, poput tunela VPN-a, i nijedan drugi. Dok je taj interfejs isključen, stranica ne učitava ništa umjesto da koristi drugu vezu. Imena hostova traže se preko vlastitih DNS servera interfejsa, pa ih sistemski razrješivač (systemd-resolved) mora znati. Proxy postavljen iznad dostiže se kroz interfejs. WebRTC pozivi ga ne koriste.",
   "networkInterfaceSystem": "Sistemsko usmjeravanje",

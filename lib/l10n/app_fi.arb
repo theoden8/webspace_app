@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Ilmoitusalueen kuvake",
   "appSettingsExperimentalDesktopTrayHint": "Kun \"Pidä käynnissä suljettaessa\" on päällä, näyttää WebSpacen kuvakkeen valikkorivillä. Sen valikosta voi näyttää ikkunan, avata sivuston, jonka ilmoitukset ovat päällä, tai lopettaa sovelluksen.",
   "appSettingsExperimentalLinuxTor": "Sisäänrakennettu Tor",
-  "appSettingsExperimentalLinuxTorHint": "Tarjoaa Torin sivuston välityspalvelimeksi tor-ohjelman kautta, jonka sovellus käynnistää itse: tämän version mukana tulevan, tai muuten tähän tietokoneeseen asennetun torin. Jokainen sivusto saa omat piirinsä. Tulee voimaan, kun sovellus seuraavan kerran käynnistyy.",
+  "appSettingsExperimentalLinuxTorHint": "Tarjoaa Torin sivuston välityspalvelimeksi tor-ohjelman kautta, jonka sovellus käynnistää itse: tämän version mukana tulevan, tai muuten tähän tietokoneeseen asennetun torin. Jokainen sivusto saa omat piirinsä.",
   "networkInterfaceTitle": "Verkkoliitäntä",
   "networkInterfaceHint": "Lähettää tämän sivuston liikenteen vain yhden verkkoliitännän kautta, kuten VPN:n tunnelin, eikä minkään muun. Kun liitäntä ei ole käytössä, sivusto ei lataa mitään sen sijaan, että käyttäisi toista yhteyttä. Isäntänimet haetaan liitännän omien DNS-palvelimien kautta, joten järjestelmän nimipalvelun (systemd-resolved) täytyy tuntea ne. Yllä asetettu välityspalvelin tavoitetaan liitännän kautta. WebRTC-puhelut eivät käytä sitä.",
   "networkInterfaceSystem": "Järjestelmän reititys",

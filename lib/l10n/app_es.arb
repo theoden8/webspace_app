@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Icono en la bandeja del sistema",
   "appSettingsExperimentalDesktopTrayHint": "Mientras \"Seguir en ejecución al cerrar\" está activado, muestra el icono de WebSpace en la barra de menús. Su menú muestra la ventana, abre un sitio con las notificaciones activadas o sale de la aplicación.",
   "appSettingsExperimentalLinuxTor": "Tor integrado",
-  "appSettingsExperimentalLinuxTorHint": "Ofrece Tor como proxy de un sitio a través de un tor que la aplicación inicia por sí misma: el que incluye esta versión o, si no, el tor instalado en este ordenador. Cada sitio obtiene sus propios circuitos. Se aplica la próxima vez que se inicie la aplicación.",
+  "appSettingsExperimentalLinuxTorHint": "Ofrece Tor como proxy de un sitio a través de un tor que la aplicación inicia por sí misma: el que incluye esta versión o, si no, el tor instalado en este ordenador. Cada sitio obtiene sus propios circuitos.",
   "networkInterfaceTitle": "Interfaz de red",
   "networkInterfaceHint": "Envía el tráfico de este sitio solo por una interfaz de red, como el túnel de una VPN, y por ninguna otra. Mientras esa interfaz esté caída, el sitio no carga nada en lugar de usar otra conexión. Los nombres de host se buscan a través de los servidores DNS de la propia interfaz, así que el resolvedor del sistema (systemd-resolved) debe conocerlos. Un proxy configurado arriba se alcanza a través de la interfaz. Las llamadas WebRTC no la usan.",
   "networkInterfaceSystem": "Enrutamiento del sistema",

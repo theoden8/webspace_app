@@ -1167,7 +1167,7 @@
   "appSettingsExperimentalDesktopTray": "Ikona në tabakanë e sistemit",
   "appSettingsExperimentalDesktopTrayHint": "Ndërsa \"Vazhdo të punojë pas mbylljes\" është aktiv, shfaq ikonën e WebSpace në shiritin e menysë. Menyja e saj shfaq dritaren, hap një sajt me njoftimet aktive ose del nga aplikacioni.",
   "appSettingsExperimentalLinuxTor": "Tor i integruar",
-  "appSettingsExperimentalLinuxTorHint": "Ofron Tor si ndërmjetës të faqes përmes një tor-i që e nis vetë aplikacioni: atij që vjen me këtë version, ose përndryshe tor-it të instaluar në këtë kompjuter. Çdo faqe merr qarqet e veta. Hyn në fuqi herën tjetër që niset aplikacioni.",
+  "appSettingsExperimentalLinuxTorHint": "Ofron Tor si ndërmjetës të faqes përmes një tor-i që e nis vetë aplikacioni: atij që vjen me këtë version, ose përndryshe tor-it të instaluar në këtë kompjuter. Çdo faqe merr qarqet e veta.",
   "networkInterfaceTitle": "Ndërfaqja e rrjetit",
   "networkInterfaceHint": "E dërgon trafikun e këtij siti vetëm përmes një ndërfaqeje rrjeti, si tuneli i një VPN-je, dhe përmes asnjë tjetre. Për sa kohë kjo ndërfaqe është e fikur, siti nuk ngarkon asgjë në vend që të përdorë një lidhje tjetër. Emrat e hosteve kërkohen përmes serverëve DNS të vetë ndërfaqes, ndaj zgjidhësi i sistemit (systemd-resolved) duhet t'i njohë. Te proxy-ja e caktuar më lart arrihet përmes ndërfaqes. Thirrjet WebRTC nuk e përdorin.",
   "networkInterfaceSystem": "Drejtimi i sistemit",
