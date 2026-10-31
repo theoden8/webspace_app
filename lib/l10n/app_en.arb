@@ -6228,9 +6228,9 @@
   "@siteExtensionsSettings": {
     "description": "Button under a browser extension in a site's Extensions screen: opens the extension's own settings page, over the site, with what it stored for this site."
   },
-  "siteExtensionsOpen": "Open",
-  "@siteExtensionsOpen": {
-    "description": "Button under a browser extension in a site's Extensions screen: does what pressing the extension's toolbar button does in a browser, usually opening its popup over the site."
+  "siteExtensionsMenu": "Menu",
+  "@siteExtensionsMenu": {
+    "description": "Button under a browser extension in a site's Extensions screen: does what pressing the extension's toolbar button does in a browser, usually opening its small menu (its popup) over the site."
   },
   "siteExtensionsPageFailed": "{name} could not open here",
   "@siteExtensionsPageFailed": {

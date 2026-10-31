@@ -565,7 +565,7 @@ void main() {
       );
       expect(find.text("Doesn't run on this device"), findsOneWidget);
       expect(find.text('Settings'), findsNothing);
-      expect(find.text('Open'), findsNothing);
+      expect(find.text('Menu'), findsNothing);
     });
   });
 
@@ -600,7 +600,7 @@ void main() {
       );
       await tester.tap(find.text('Settings'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Open'));
+      await tester.tap(find.text('Menu'));
       await tester.pumpAndSettle();
       expect(
         [for (final s in engine.shown) (s.page, s.extension, s.home.container)],
@@ -650,7 +650,7 @@ void main() {
         ),
       );
       expect(find.text('Settings'), findsNothing);
-      expect(find.text('Open'), findsNothing);
+      expect(find.text('Menu'), findsNothing);
     });
 
     testWidgets('the site\'s menu lists the extension, which opens its '

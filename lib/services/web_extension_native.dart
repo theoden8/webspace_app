@@ -2,17 +2,20 @@ import 'package:flutter/services.dart'
     show MissingPluginException, PlatformException;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/container_names.dart';
+import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/web_extension_attach_engine.dart';
 import 'package:webspace/settings/web_extension.dart';
 
-/// The fork's form of a site's extension plan: null for none.
+/// The fork's form of a site's extension plan: null for none. In developer
+/// mode Web Inspector may inspect the extensions (WEBEXT-020).
 inapp.WebExtensionAttach? nativeExtensions(ExtensionAttach attach) =>
     switch (attach) {
       NoExtensions() => null,
       AttachExtensions(:final persistent, :final loads) =>
         inapp.WebExtensionAttach(
           persistent: persistent,
+          inspectable: DeveloperModeService.instance.enabled,
           contexts: [
             for (final load in loads)
               inapp.WebExtensionContextSpec(
@@ -46,9 +49,18 @@ typedef ExtensionReport = ({
   bool loadsHere,
 });
 
+/// What WebKit reported going wrong running an extension (WEBEXT-020): it
+/// did not load, a page or popup of it could not be shown or failed to
+/// load, or it asked for a tab or window that was refused. [message] is in
+/// English, with WebKit's own words where it gave any.
+typedef ExtensionProblem = ({WebExtensionId extension, String message});
+
 /// What the app asks WebKit of an extension outside a webview's build.
 /// Where the platform refuses, each answers as though nothing were there.
 abstract interface class ExtensionEngine {
+  /// What goes wrong running extensions, as WebKit reports it.
+  Stream<ExtensionProblem> get problems;
+
   /// What WebKit reports reading the extension in [folder]; null where it
   /// reads none.
   Future<ExtensionReport?> inspect(String folder);
@@ -71,6 +83,14 @@ final class NativeExtensionEngine implements ExtensionEngine {
 
   inapp.ContainerController get _native =>
       inapp.ContainerController.instance();
+
+  @override
+  Stream<ExtensionProblem> get problems => _native.webExtensionProblems.expand(
+    (problem) => [
+      if (WebExtensionId.parse(problem.extensionId) case final id?)
+        (extension: id, message: problem.message),
+    ],
+  );
 
   @override
   Future<ExtensionReport?> inspect(String folder) async {

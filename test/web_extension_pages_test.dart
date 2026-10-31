@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/web_extension_attach_engine.dart';
 import 'package:webspace/services/web_extension_library.dart';
 import 'package:webspace/services/web_extension_native.dart';
@@ -136,6 +137,37 @@ void main() {
         site('https://mail.example.com/', on: {refused.id}).extensionPlan,
         isA<NoExtensions>(),
       );
+    });
+  });
+
+  group('WEBEXT-020 what goes wrong running an extension can be seen', () {
+    test('what WebKit reports is logged under its name, in memory only',
+        () async {
+      LogService.instance.resetForTest();
+      final entry = await _library.add(_package(name: 'Blocker'));
+      const refused = 'asked for a tab at https://other.example/, which only '
+          'opens for its own pages';
+      engine.problemsSent.add((extension: entry.id, message: refused));
+      await pumpEventQueue();
+      expect(
+        [for (final e in LogService.instance.sensitiveEntries) e.message],
+        ['Blocker: $refused'],
+      );
+      expect(
+        [for (final e in LogService.instance.entries) e.message],
+        everyElement(isNot(startsWith('Blocker'))),
+      );
+    });
+
+    test('in developer mode Web Inspector may inspect them', () async {
+      final entry = await _library.add(_package(name: 'Sample'));
+      final plan = site(
+        'https://mail.example.com/',
+        on: {entry.id},
+      ).extensionPlan;
+      expect(nativeExtensions(plan)?.inspectable, isTrue);
+      DeveloperModeService.instance.debugSet(on: false);
+      expect(nativeExtensions(plan)?.inspectable, isFalse);
     });
   });
 

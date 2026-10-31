@@ -261,6 +261,7 @@ class WebExtensionLibrary {
 
   ExtensionFolders? _folders;
   ExtensionEngine _engine = const NativeExtensionEngine();
+  StreamSubscription<ExtensionProblem>? _problems;
   ExtensionFetch _fetch = _fetchViaAppProxy;
   ReadPackage _read = readPackageApart;
   final ValueNotifier<List<InstalledExtension>> _installed = ValueNotifier(
@@ -283,7 +284,8 @@ class WebExtensionLibrary {
   /// Reads the library and removes any folder no entry names: one left by
   /// an import cut short, a removal cut short, or demo mode. A library not
   /// read whole may name any folder, so then none is removed. Then has
-  /// WebKit read each extension, without holding up the launch.
+  /// WebKit read each extension, without holding up the launch, and logs
+  /// what WebKit reports going wrong running one (WEBEXT-020).
   Future<void> initialize({
     @visibleForTesting ExtensionFolders? folders,
     @visibleForTesting ExtensionEngine? engine,
@@ -331,10 +333,23 @@ class WebExtensionLibrary {
       return;
     }
     _publish(entries);
+    unawaited(_problems?.cancel());
+    _problems = _engine.problems.listen(_logProblem);
     unawaited(_inspect(_installed.value));
     if (webExtensionsOffered) {
       unawaited(checkUpdates(now: DateTime.now(), because: CheckReason.daily));
     }
+  }
+
+  void _logProblem(ExtensionProblem problem) {
+    final name =
+        [
+          for (final (:entry, folder: _) in _installed.value)
+            if (entry.id == problem.extension) entry.name,
+        ].firstOrNull ??
+        problem.extension;
+    // Sensitive: a refused tab names the address the extension asked for.
+    LogTag.webExtension.warning('$name: ${problem.message}', sensitive: true);
   }
 
   /// Unpacks [package] and adds it, where [available], keeping the [source]
@@ -753,6 +768,8 @@ class WebExtensionLibrary {
   @visibleForTesting
   void debugReset() {
     _folders = null;
+    unawaited(_problems?.cancel());
+    _problems = null;
     _engine = const NativeExtensionEngine();
     _fetch = _fetchViaAppProxy;
     _read = readPackageApart;

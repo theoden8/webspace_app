@@ -204,8 +204,8 @@ class _SiteExtensionsScreenState extends State<SiteExtensionsScreen> {
                           ),
                         if (actions.contains(entry.id))
                           TextButton.icon(
-                            icon: const Icon(Icons.open_in_new),
-                            label: Text(loc.siteExtensionsOpen),
+                            icon: const Icon(Icons.menu_open),
+                            label: Text(loc.siteExtensionsMenu),
                             onPressed: () => unawaited(_open(
                               ExtensionPage.action,
                               entry: entry,
