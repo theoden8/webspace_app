@@ -15,6 +15,8 @@ import 'package:webspace/web_view_model_json.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 
+import 'helpers/no_shortcuts.dart';
+
 const _url = 'https://example.com';
 
 /// A stored site as builds before the per-site toggles wrote it, plus [extra].
@@ -459,6 +461,16 @@ void main() {
       expect(m.tabsEnabled, isNull, reason: 'the inherited choice is kept');
       m.kioskMode = false;
       expect(m.effectiveTabsEnabled, isTrue);
+    });
+
+    test('where no shortcut can be added a stored kiosk takes no tabs, and '
+        'is kept (KIOSK-006)', () {
+      withoutShortcuts();
+      final m = WebViewModel(initUrl: 'https://example.org/', kioskMode: true);
+      expect(m.effectiveKioskMode, isFalse);
+      expect(m.effectiveTabsEnabled, isTrue);
+      expect(m.toJson()['kioskMode'], isTrue,
+          reason: 'a backup restored on a phone brings it back');
     });
 
     test('full screen leaves tabs on (TAB-013)', () {

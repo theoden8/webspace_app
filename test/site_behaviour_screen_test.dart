@@ -15,6 +15,8 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/hint_button.dart';
 
+import 'helpers/no_shortcuts.dart';
+
 SiteBehaviourValues _values({
   bool archived = false,
   bool alwaysOpenHome = false,
@@ -208,6 +210,16 @@ void main() {
         reason: 'the switch became the browser option of External links');
     expect(find.text('Block auto-redirects'), findsNothing,
         reason: 'every site blocks them; there is nothing to switch');
+  });
+
+  testWidgets('where no shortcut can be added, as on a TV, Kiosk mode is '
+      'not offered and a stored one leaves tabs on (KIOSK-006)',
+      (tester) async {
+    withoutShortcuts();
+    await _pump(tester, values: _values(kioskMode: true));
+    expect(find.text('Always open Home'), findsOneWidget);
+    expect(find.text('Kiosk mode'), findsNothing);
+    expect(_selectedTabs(tester), isTrue);
   });
 
   group('external links (BEHAV-004)', () {

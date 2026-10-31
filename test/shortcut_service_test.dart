@@ -87,6 +87,9 @@ void main() {
     });
 
     test('a shortcut is not offered off a shortcut host (HS-004)', () async {
+      final phone = ShortcutService.debugOfferedOverride;
+      ShortcutService.debugOfferedOverride = null;
+      addTearDown(() => ShortcutService.debugOfferedOverride = phone);
       await ShortcutService.probe();
       if (!isShortcutHost) {
         expect(ShortcutService.offered, isFalse);
@@ -159,6 +162,9 @@ void main() {
           PinShortcutResult.failed);
       expect(await ShortcutService.getLaunch(), isNull);
       expect(await ShortcutService.getPinnedShortcuts(), isEmpty);
+      final phone = ShortcutService.debugOfferedOverride;
+      ShortcutService.debugOfferedOverride = null;
+      addTearDown(() => ShortcutService.debugOfferedOverride = phone);
       await ShortcutService.probe();
       expect(ShortcutService.offered, isFalse);
       expect(await ShortcutService.updateTiles(const []), isFalse);

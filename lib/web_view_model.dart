@@ -23,6 +23,7 @@ import 'package:webspace/services/opensearch_engine.dart'
     show SiteSearchTarget;
 import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/settings_backup.dart' show BackedUpSite;
+import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/startup_restore_engine.dart'
     show ShortcutTarget;
 import 'package:webspace/services/proxy_coverage_engine.dart';
@@ -157,7 +158,7 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
   /// off this way keeps the tab list, as the app-wide switch does (TAB-012).
   bool get effectiveTabsEnabled => resolveTabs(
       tabs: Scoped.fromStored(tabsEnabled).resolve(AppPref.tabsEnabled.value),
-      kiosk: kioskMode);
+      kiosk: effectiveKioskMode);
 
   /// Null follows the app's Sign-in popups switch (NESTED-014).
   bool? signInPopups;
@@ -251,7 +252,11 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
   /// away from. Opening the app normally (launcher icon, no shortcut) restores
   /// full access. Pure UI state, derived at launch; never gates the webview
   /// engine, so it is not threaded through WebViewConfig / nested screens.
+  /// Read [effectiveKioskMode]: no shortcut, no kiosk.
   bool kioskMode;
+
+  bool get effectiveKioskMode => resolveKiosk(
+      stored: kioskMode, shortcutsOffered: ShortcutService.offered);
   String? language; // Language code (e.g., 'en', 'es'), null = system default
   /// Browser-style page zoom for this site, as a percent (100 = unscaled).
   /// Scales the whole page (text and images) via CSS `zoom`, independent of
@@ -687,7 +692,7 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
   ExtensionAttach get extensionPlan => planExtensionAttach((
         offered: webExtensionsOffered,
         archived: isArchiveTier,
-        kiosk: kioskMode,
+        kiosk: effectiveKioskMode,
         incognito: effectiveIncognito,
         choices: webExtensionChoices,
         library: WebExtensionLibrary.instance.loadable,

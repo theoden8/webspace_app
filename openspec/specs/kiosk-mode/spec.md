@@ -172,6 +172,35 @@ audit it needs no archive override.
 
 ---
 
+### Requirement: KIOSK-006 - No Kiosk Where No Shortcut Can Be Added
+
+Kiosk mode decides only what a shortcut launch does (KIOSK-001). Where no
+shortcut can be added (HS-004: an Android launcher that takes none, as a
+TV's, Linux, older iOS and macOS), the system SHALL leave the Kiosk mode
+switch out of the site's Behaviour screen and out of its Behaviour summary,
+and SHALL run the site as no kiosk whatever it stores: its tabs follow its
+own choice (TAB-013) and its extensions are not locked (WEBEXT-016). The
+stored value is kept, written to backups and QR codes, and takes effect
+again on a device that takes shortcuts. The rule is
+`resolveKiosk` in `lib/services/site_overrides.dart`, read through
+`WebViewModel.effectiveKioskMode` and the Behaviour screen's values.
+
+#### Scenario: A TV offers no kiosk
+
+**Given** the app runs on Android TV, whose launcher takes no pinned shortcuts
+**When** the user opens a site's Behaviour screen
+**Then** "Kiosk mode" is not listed
+
+#### Scenario: A stored kiosk does not take a TV site's tabs
+
+**Given** a site stores `kioskMode = true`, restored from a phone's backup
+**And** the app runs where no shortcut can be added
+**When** the site follows the app's Tabs switch, which is on
+**Then** the site runs with tabs
+**And** its stored `kioskMode` is still `true`
+
+---
+
 ## Implementation
 
 ### Files

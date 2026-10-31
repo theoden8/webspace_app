@@ -265,7 +265,7 @@ class ShortcutController implements HomeShortcutsHost {
       return null;
     }
     final site = resolution.site;
-    _host.kioskLocked = site.kioskMode;
+    _host.kioskLocked = site.effectiveKioskMode;
     await _host.resetHomeOnLaunch(site);
     if (!_host.mounted) return null;
     return site;
@@ -333,7 +333,7 @@ class ShortcutController implements HomeShortcutsHost {
   Future<void> _open(WebViewModel site) async {
     if (!_sites.models.contains(site)) return;
     // KIOSK-001: a kiosk site locks the shell; any other clears the lock.
-    _host.kioskLocked = site.kioskMode;
+    _host.kioskLocked = site.effectiveKioskMode;
     await _host.resetHomeOnLaunch(site);
     if (!_host.mounted) return;
     if (site != _sites.shown) {

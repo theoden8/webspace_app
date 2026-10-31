@@ -12,8 +12,9 @@ import 'package:webspace/screens/app_behaviour.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
+
+import 'helpers/no_shortcuts.dart';
 
 void main() {
   setUp(() async {
@@ -33,14 +34,9 @@ void main() {
       installerStore: null,
     );
     DeveloperModeService.instance.debugSet(on: false);
-    // A phone, whose launcher takes shortcuts, unless a test says otherwise.
-    ShortcutService.debugOfferedOverride = true;
   });
 
-  tearDown(() {
-    DeveloperModeService.instance.debugSet(on: false);
-    ShortcutService.debugOfferedOverride = null;
-  });
+  tearDown(() => DeveloperModeService.instance.debugSet(on: false));
 
   Widget settings({
     VoidCallback? onExportSettings,
@@ -177,7 +173,7 @@ void main() {
     tester.view.physicalSize = const Size(800, 3000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    ShortcutService.debugOfferedOverride = false;
+    withoutShortcuts();
     AppPref.fullscreenOnShortcut.debugValue = true;
     await tester.pumpWidget(app(settings()));
     await tester.pumpAndSettle();
