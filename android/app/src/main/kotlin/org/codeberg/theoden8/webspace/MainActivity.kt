@@ -9,6 +9,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.View
 import android.view.WindowManager
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
@@ -451,6 +452,19 @@ class MainActivity: FlutterActivity() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         keyboardInputPlugin?.onConfigurationChanged(newConfig)
+    }
+
+    /**
+     * A key goes only to a focused view, and in touch mode Android focuses
+     * none as the window takes focus, so a keyboard's shortcut was dropped
+     * until an arrow or Tab left touch mode (NAV-019). The window's focus
+     * gives the Flutter view focus when no view has it.
+     */
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && currentFocus == null) {
+            findViewById<View>(FlutterActivity.FLUTTER_VIEW_ID)?.requestFocus()
+        }
     }
 
     /**

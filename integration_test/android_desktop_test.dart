@@ -123,18 +123,22 @@ void main() {
     print('android_desktop_test: $message');
   }
 
-  Future<void> type(
+  /// Types [keyCode] and says what it met: whether the window and a view
+  /// in it had focus.
+  Future<Map<String, bool>?> type(
     WidgetTester tester, {
     required int keyCode,
     int metaState = 0,
   }) async {
+    Map<String, bool>? met;
     await tester.runAsync(() async {
-      final met = await _keyboard.invokeMapMethod<String, bool>(
+      met = await _keyboard.invokeMapMethod<String, bool>(
           'debugTypeKey', {'keyCode': keyCode, 'metaState': metaState});
       log('typed $keyCode (meta $metaState): $met');
       await Future<void>.delayed(const Duration(milliseconds: 400));
     });
     await tester.pump();
+    return met;
   }
 
   testWidgets(
@@ -175,8 +179,7 @@ void main() {
           home: Scaffold(appBar: AppBar(title: const Text('header'))),
         ));
         await tester.pumpAndSettle();
-        // The tier's script moves the task into a desktop window once it
-        // exists, a moment after the app starts.
+        // The window may take its header a moment after the app starts.
         var window = await layout();
         for (var i = 0; i < 40 && (window['captionTop'] ?? 0) == 0; i++) {
           window = await layout();
@@ -210,7 +213,10 @@ void main() {
       addTearDown(keys.dispose);
       await tester.pumpWidget(const MaterialApp(home: Scaffold()));
 
-      await type(tester, keyCode: _keyT, metaState: _metaCtrl);
+      final met = await type(tester, keyCode: _keyT, metaState: _metaCtrl);
+      expect(met?['viewFocused'], isTrue,
+          reason: 'a key goes only to a focused view, and the window\'s '
+              'focus gives the Flutter view focus where touch mode leaves none');
       log('after Ctrl-T: ${screen.asked}');
       expect(screen.asked.single, isA<OpenNewTab>());
 

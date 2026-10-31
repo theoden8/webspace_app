@@ -838,6 +838,9 @@ on a desktop wherever the desktop's answer applies, as NAV-016 answers a TV's re
   Ctrl-Q, which goes on to the page: an Android app does not quit itself.
 - The menus SHALL write each key beside its item while a hardware keyboard is attached,
   followed as one is attached or folded away, and none while none is.
+- A key goes only to a focused view, and in touch mode Android focuses none as the window
+  takes focus: the window's focus SHALL give the app's view focus when no view has it, so
+  a shortcut is not dropped until an arrow or Tab leaves touch mode.
 - While a site's page has focus, every key the shortcuts left SHALL reach the webview.
   Flutter takes every key before a platform view and spends the arrows and Tab on moving
   its own focus, so without this a page's field could not move its caret and a page could
