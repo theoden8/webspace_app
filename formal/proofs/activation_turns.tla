@@ -50,8 +50,12 @@ LEMMA StepInd == Good /\ IndInv /\ [Next]_vars => IndInv'
     BY <1>6 DEF ViewBuilt, ViewGone
   <1>7. CASE \E s \in Sites : Frame(s)
     BY <1>7 DEF Frame
+  <1>8. CASE \E s \in Sites : LetGo(s)
+    BY <1>8 DEF LetGo
+  <1>9. CASE \E s \in Sites : Reframe(s)
+    BY <1>9 DEF Reframe
   <1> QED
-    BY <1>1, <1>2, <1>3, <1>4, <1>5, <1>6, <1>7 DEF Next
+    BY <1>1, <1>2, <1>3, <1>4, <1>5, <1>6, <1>7, <1>8, <1>9 DEF Next
 
 THEOREM Turns == ASSUME Good PROVE Spec => []Inv_Places
   <1>1. Init => IndInv

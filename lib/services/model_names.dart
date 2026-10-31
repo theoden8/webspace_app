@@ -276,6 +276,7 @@ enum ModelConst {
   archive(ConstKind.set, range: r'SUBSET Sites'),
   deletable(ConstKind.set, range: r'SUBSET Sites'),
   resettable(ConstKind.set, range: r'SUBSET Sites'),
+  rebuilt(ConstKind.set, range: r'SUBSET Sites'),
   boxed(ConstKind.set, range: r'SUBSET Sites', follows: {archive, deletable}),
   incognito(ConstKind.set, range: r'SUBSET Sites', follows: {archive}),
   noNavState(ConstKind.set, range: r'SUBSET Sites', follows: {archive, incognito}),

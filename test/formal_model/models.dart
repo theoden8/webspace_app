@@ -221,10 +221,7 @@ List<PrintedFile> printedModels({required List<String> handWritten}) => [
   (path: '$_tablesFacts.tla', text: activationTablesFacts()),
   ...activationTablesParts(tables),
   ...activationInvariantParts(tables),
-  (
-    path: 'activation_invariants_proof.tla',
-    text: activationInvariantsProof(tables),
-  ),
+  ...activationInvariantsProofs(tables),
   ...activationTypesProofs(
     tables: {
       for (final m in ModelTable.values)
@@ -394,7 +391,7 @@ List<ComposedAction> composedActions(Tables t) => [
       rows: const {},
       kinds: const {},
       fields: const {},
-      ways: {null: e.needs},
+      ways: [(kind: null, needs: e.needs, from: const {})],
       armed: const {},
     ),
 ];
@@ -403,7 +400,7 @@ List<ComposedAction> composedActions(Tables t) => [
 /// it prints from: what a schedule search pairs the steps it ran by.
 List<({ActivationStep step, ComposedAction action})> stepActions(Tables t) {
   final all = _footprintsOf(t);
-  final flows = flowsAt(all);
+  final flows = waysAt(all);
   return [
     for (final f in all)
       if (_resolved(f.reads, seen: const {}) case final r)
@@ -430,12 +427,20 @@ List<({ActivationStep step, ComposedAction action})> stepActions(Tables t) {
                     ],
                   },
             ways: f.input
-                ? {for (final a in f.arms) a.kind: f.needs}
-                : {
-                    for (final MapEntry(key: k, value: n)
+                ? [
+                    for (final k in {for (final a in f.arms) a.kind})
+                      (kind: k, needs: f.needs, from: const {}),
+                  ]
+                : [
+                    for (final MapEntry(key: k, value: ways)
                         in (flows[f.place] ?? const {}).entries)
-                      k: {...n, ...f.needs},
-                  },
+                      for (final w in ways)
+                        (
+                          kind: k,
+                          needs: {...w.needs, ...f.needs},
+                          from: w.from,
+                        ),
+                  ],
             armed: {
               for (final v in f.writes)
                 if ([
@@ -677,23 +682,42 @@ String activationBaseOps() => [
 ].join('\n');
 
 /// What reaching each place takes, for each kind of flow whose row can
-/// hold there: the model's constants every way there needs, read off every
-/// table's arms by place name, as the model's `pc` names them. An input
-/// lands on a row that holds no kind and needs nothing yet; an arm that
-/// sets a kind gives it, one taken only for some kinds lets only those
-/// through, every other carries the kind it found, and each adds what its
-/// step and its branch need; one that ends the flow leaves nothing.
-Map<String, Map<FlowKind, Set<Need>>> flowsAt(List<Footprint> all) {
-  final at = <String, Map<FlowKind, Set<Need>>>{};
+/// hold there: the model's constants every way there needs, in common
+/// ([waysAt]'s ways, intersected).
+Map<String, Map<FlowKind, Set<Need>>> flowsAt(List<Footprint> all) => {
+  for (final MapEntry(key: place, value: byKind) in waysAt(all).entries)
+    place: {
+      for (final MapEntry(key: kind, value: ways) in byKind.entries)
+        kind: ways.map((w) => w.needs).reduce((a, b) => a.intersection(b)),
+    },
+};
+
+/// One way a flow reaches a place: what the model's constants must be that
+/// way, and the kinds of flow that spawned it on the way there, whose
+/// starters a world must let in for it to run.
+typedef FlowWay = ({Set<Need> needs, Set<FlowKind> from});
+
+/// Each way to each place, for each kind of flow whose row can hold there:
+/// what the model's constants must be that way, read off every table's
+/// arms by place name, as the model's `pc` names them. An input lands on a
+/// row that holds no kind and needs nothing yet; an arm that sets a kind
+/// gives it, one taken only for some kinds lets only those through, every
+/// other carries the kind it found, and each adds what its step and its
+/// branch need, and a flow an arm spawns notes the kind that spawned it;
+/// one that ends the flow leaves nothing. A way that needs all another of
+/// its kind does, and more, is dropped: a world giving it gives the other.
+Map<String, Map<FlowKind, List<FlowWay>>> waysAt(List<Footprint> all) {
+  final at = <String, Map<FlowKind, List<FlowWay>>>{};
   var moved = true;
-  void reach(String place, {required FlowKind kind, required Set<Need> need}) {
-    final byKind = at.putIfAbsent(place, () => {});
-    final was = byKind[kind];
-    final now = was == null ? need : was.intersection(need);
-    if (was == null || now.length != was.length) {
-      byKind[kind] = now;
-      moved = true;
-    }
+  bool covers(FlowWay a, {required FlowWay over}) =>
+      over.needs.containsAll(a.needs) && over.from.containsAll(a.from);
+  void reach(String place, {required FlowKind kind, required FlowWay way}) {
+    final ways = at.putIfAbsent(place, () => {}).putIfAbsent(kind, () => []);
+    if (ways.any((w) => covers(w, over: way))) return;
+    ways
+      ..removeWhere((w) => covers(way, over: w))
+      ..add(way);
+    moved = true;
   }
 
   while (moved) {
@@ -709,27 +733,50 @@ Map<String, Map<FlowKind, Set<Need>>> flowsAt(List<Footprint> all) {
           guard: _,
         )
         in all) {
-      final Map<FlowKind?, Set<Need>> here = input
-          ? {null: const {}}
-          : {...?at[place]};
+      final Map<FlowKind?, List<FlowWay>> here = input
+          ? {
+              null: [(needs: const {}, from: const {})],
+            }
+          : {
+              for (final MapEntry(:key, :value) in (at[place] ?? {}).entries)
+                key: [...value],
+            };
       for (final a in arms) {
-        for (final MapEntry(key: k, value: got) in here.entries) {
+        for (final MapEntry(key: k, value: ways) in here.entries) {
           if (k != null && !(a.only?.contains(k) ?? true)) continue;
-          // A flow the arm starts goes on from its input's places, whatever
-          // the arm does to its own.
-          for (final r in a.spawns) {
-            for (final MapEntry(key: p, value: there) in r.next.entries) {
+          for (final got in ways) {
+            // A flow the arm starts goes on from its input's places,
+            // whatever the arm does to its own.
+            for (final r in a.spawns) {
+              for (final MapEntry(key: p, value: there) in r.next.entries) {
+                reach(
+                  p,
+                  kind: r.kind,
+                  way: (
+                    needs: {
+                      ...got.needs,
+                      ...needs,
+                      ...a.needs,
+                      ...r.needs,
+                      ...there,
+                    },
+                    from: {...got.from, ?k},
+                  ),
+                );
+              }
+            }
+            final out = a.kind ?? k;
+            if (a.ends || out == null) continue;
+            for (final MapEntry(key: p, value: there) in a.next.entries) {
               reach(
                 p,
-                kind: r.kind,
-                need: {...got, ...needs, ...a.needs, ...r.needs, ...there},
+                kind: out,
+                way: (
+                  needs: {...got.needs, ...needs, ...a.needs, ...there},
+                  from: got.from,
+                ),
               );
             }
-          }
-          final out = a.kind ?? k;
-          if (a.ends || out == null) continue;
-          for (final MapEntry(key: p, value: there) in a.next.entries) {
-            reach(p, kind: out, need: {...got, ...needs, ...a.needs, ...there});
           }
         }
       }
@@ -1090,25 +1137,31 @@ List<String> _rowsInd(
   ];
 }
 
-/// For each invariant every step keeps as it stands ([Inv.inductive]): a
-/// case per step, each closed by the step's definition, and the theorem
-/// that it holds in every state beside `IndInv`, whose own preservation is
-/// `proofs/activation_turns.tla`'s.
-String activationInvariantsProof(Tables t) => [
-  '--------------------- MODULE activation_invariants_proof ---------------------',
-  '(* Printed from Inv and the step tables by test/formal_model/main.dart.  *)',
-  '(* Not committed; edit the declarations instead.                          *)',
-  'EXTENDS ${['activation_turns', for (final (path: p, text: _) in activationInvariantParts(t)) p.replaceAll('.tla', '')].join(', ')}',
-  '',
+/// For each invariant every step keeps as it stands ([Inv.inductive]), a
+/// module of its own: a case per step, each closed by the step's
+/// definition, and the theorem that it holds in every state beside
+/// `IndInv`, whose own preservation is `proofs/activation_turns.tla`'s. One
+/// module an invariant, since tlapm holds what it proves until its module
+/// ends: two in one outgrew the memory of a run.
+List<PrintedFile> activationInvariantsProofs(Tables t) => [
   for (final i in Inv.values)
-    if (i.inductive) ...[
-      _keeps(i, over: 'TableStep', steps: _flowSteps(t)),
-      _keeps(i, over: 'InputTableStep', steps: _inputSteps(t)),
-      _holds(i),
-    ],
-  '=============================================================================',
-  '',
-].join('\n');
+    if (i.inductive)
+      (
+        path: 'activation_invariants_${i.name}_proof.tla',
+        text: [
+          '---------------- MODULE activation_invariants_${i.name}_proof ----------------',
+          '(* Printed from Inv and the step tables by test/formal_model/main.dart.  *)',
+          '(* Not committed; edit the declarations instead.                          *)',
+          'EXTENDS ${['activation_turns', for (final (path: p, text: _) in _armParts(i, tables: t)) p.replaceAll('.tla', '')].join(', ')}',
+          '',
+          _keeps(i, over: 'TableStep', steps: _flowSteps(t)),
+          _keeps(i, over: 'InputTableStep', steps: _inputSteps(t)),
+          _holds(i),
+          '=============================================================================',
+          '',
+        ].join('\n'),
+      ),
+];
 
 /// The lemma that every step of [over] keeps [i], one case per step: by
 /// the step's own lemma where [Inv.byArm], else by its action.
@@ -1141,27 +1194,32 @@ String _uses(Inv i) =>
 /// The steps' lemmas for each invariant proved an arm at a time
 /// ([Inv.byArm]), [_partSize] steps a module as the tables' are: each
 /// step's action split into its alternatives, each closed by itself.
-List<PrintedFile> activationInvariantParts(Tables t) {
-  final arms = _alternatives(t);
-  final steps = [..._flowSteps(t), ..._inputSteps(t)];
+List<PrintedFile> activationInvariantParts(Tables t) => [
+  for (final i in Inv.values) ..._armParts(i, tables: t),
+];
+
+/// [activationInvariantParts]'s modules for [i], none unless it is proved
+/// an arm at a time.
+List<PrintedFile> _armParts(Inv i, {required Tables tables}) {
+  if (!i.inductive || !i.byArm) return const [];
+  final arms = _alternatives(tables);
+  final steps = [..._flowSteps(tables), ..._inputSteps(tables)];
   return [
-    for (final i in Inv.values)
-      if (i.inductive && i.byArm)
-        for (var n = 0; n < steps.length; n += _partSize)
-          (
-            path: 'activation_inv_${i.name}_${n ~/ _partSize + 1}_proof.tla',
-            text: [
-              '---------------------- MODULE activation_inv_${i.name}_${n ~/ _partSize + 1}_proof ----------------------',
-              '(* Printed from Inv and the step tables by test/formal_model/main.dart.  *)',
-              '(* Not committed; edit the declarations instead.                          *)',
-              'EXTENDS $_tablesFacts',
-              '',
-              for (final s in steps.skip(n).take(_partSize))
-                _armKeeps(i, step: s, arms: arms[s.name]!),
-              '=============================================================================',
-              '',
-            ].join('\n'),
-          ),
+    for (var n = 0; n < steps.length; n += _partSize)
+      (
+        path: 'activation_inv_${i.name}_${n ~/ _partSize + 1}_proof.tla',
+        text: [
+          '---------------------- MODULE activation_inv_${i.name}_${n ~/ _partSize + 1}_proof ----------------------',
+          '(* Printed from Inv and the step tables by test/formal_model/main.dart.  *)',
+          '(* Not committed; edit the declarations instead.                          *)',
+          'EXTENDS $_tablesFacts',
+          '',
+          for (final s in steps.skip(n).take(_partSize))
+            _armKeeps(i, step: s, arms: arms[s.name]!),
+          '=============================================================================',
+          '',
+        ].join('\n'),
+      ),
   ];
 }
 

@@ -81,14 +81,18 @@ TLC model it backs (same definitions — no re-modeling).
   The step modules are pinned by their sum (`TABLE_PARTS` in `check_proofs.sh`), not one by
   one: a step added before others moves them to the next module.
   **49 obligations, all proved; `activation_tables_proof` as pinned in `check_proofs.sh`.**
-- **`activation_invariants_proof`** (printed, no hand-written module) — proves `[]Inv` for each
-  invariant of `activation.tla` every step keeps as it stands (`Inv.inductive` in
-  `test/formal_model/checks.dart`), beside `IndInv`, whose preservation is `activation_turns`'s
-  `StepInd`: a lemma per kind of step with a case per printed step, each closed by its
-  definition, then `Next`'s cases, the environment's (`EnvAction`) by their definitions. An
-  invariant is declared inductive only once its cases close; one that needs a strengthening is
-  not yet. Today `Inv_ChecksOffScreen`.
-  **All proved, as pinned in `check_proofs.sh`.**
+- **`activation_invariants_<inv>_proof`** (printed, no hand-written module) — one module for
+  each invariant of `activation.tla` every step keeps as it stands (`Inv.inductive` in
+  `test/formal_model/checks.dart`), proving `[]Inv` beside `IndInv`, whose preservation is
+  `activation_turns`'s `StepInd`: a lemma per kind of step with a case per printed step, each
+  closed by its definition or, for an invariant proved an arm at a time (`Inv.byArm`), by its
+  lemma in `activation_inv_<inv>_<n>_proof`; then `Next`'s cases, the environment's
+  (`EnvAction`) by their definitions. One module an invariant, since tlapm holds what it
+  proves until its module ends: `Inv_ChecksOffScreen` and `Inv_OneTabFlow` in one module
+  outgrew a 14 GB run once `LetGo` and `Reframe` joined `Next`. An invariant is declared
+  inductive only once its cases close; one that needs a strengthening is not yet. Today
+  `Inv_ChecksOffScreen` and `Inv_OneTabFlow`.
+  **All proved, each as pinned in `check_proofs.sh`.**
 - **`activation_types_proof` and its tables' modules** (printed from `FlowField` and the step
   tables, no hand-written module) — every step keeps `fl` a function of flow records, the flow
   rows' part of `TypeOK`. `activation_types_proof` holds the lemmas the rest stand on: a

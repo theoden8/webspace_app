@@ -29,6 +29,7 @@ enum Env {
   archiveOne(op: ModelConst.archive, by: 'ArchiveOne'),
   deleteOne(op: ModelConst.deletable, by: 'DeleteOne'),
   resetOne(op: ModelConst.resettable, by: 'ResetOne'),
+  rebuildOne(op: ModelConst.rebuilt, by: 'RebuildOne'),
   incognitoOne(op: ModelConst.incognito, by: 'IncognitoOne'),
   /// A refused read keeps the set the site last saved, so what the jar
   /// held of its session since is lost (ISO-014).
@@ -93,7 +94,10 @@ enum Inv {
   tabFilesHosted(atRest: true, reads: {ModelVar.file, ModelVar.host, ModelVar.tabs}),
   tabFilesListed(atRest: true, reads: {ModelVar.file, ModelVar.tabs}),
   tabBound(reads: {ModelVar.active, ModelVar.built}),
-  tabActive(atRest: true, reads: {ModelVar.active, ModelVar.built, ModelVar.loaded, ModelVar.tabs}),
+  tabActive(
+    atRest: true,
+    reads: {ModelVar.active, ModelVar.built, ModelVar.hist, ModelVar.loaded, ModelVar.tabs},
+  ),
 
   /// One tab handler at a time (`TabHandlingGate`): an input that would
   /// start a tab flow while one is in flight ends at once, so a switch's

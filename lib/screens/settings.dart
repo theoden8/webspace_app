@@ -647,7 +647,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     // Dispose the webview so it gets recreated with the new settings, at
     // the URL it was showing.
     final currentUrl = m.currentUrl;
-    m.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
+    m.disposeWebView(commit: const Commit.environment(Environment.letGo));
     m.currentUrl = currentUrl;
 
     // Pop first so the Settings route leaves the tree before the parent

@@ -5,7 +5,6 @@ GrantUnload	spared	an incognito victim is spared at its turn only if a tap opens
 TabCaptureReply	gone	a tab leaves its site's list only by a close, which the tab gate serialises with the switch; a delete takes its site off the list and leaves the site's own tabs as they are
 TabNavReply	gone	a tab leaves its site's list only by a close, which the tab gate serialises with the switch; a delete takes its site off the list and leaves the site's own tabs as they are
 TabRemoveReply	more	no schedule closes a subtree; a tab's close removes one file
-DupReadReply	skip	the site on screen is loaded and its webview is its active tab's, so the duplicate's read is never empty
 DupInsert	gone	the source leaves the list only by a close, which the tab gate serialises with the duplicate; a delete takes its site off the list and leaves the site's own tabs as they are
 DupRemoveReply	-	follows DupInsert gone, which no schedule reaches
 HtmlReply	bail	the walk's sites have no cached or imported HTML, so the step answers before any input can land

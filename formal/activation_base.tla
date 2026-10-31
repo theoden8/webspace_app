@@ -91,6 +91,10 @@ Deletable == {}
 \* The sites a home reset may unload off screen (SiteActivationController.
 \* unload); the pages reset none.
 Resettable == {}
+\* The sites whose webview the environment may let go of and frame again
+\* (LetGo, Reframe): a renderer gone, a setting's rebuild; the pages let go
+\* of none, so the worlds that do are the ones that set it.
+Rebuilt == {}
 \* The sites whose webviews and containers the model follows: what a close
 \* or a delete takes away.
 Boxed == Archive \cup Deletable

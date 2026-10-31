@@ -899,6 +899,9 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// frame builds again.
   bool _letGoInPlace = false;
 
+  /// The loaded sites whose webview was let go of and not yet built again.
+  final Set<WebViewModel> _letGo = {};
+
   /// Flows whose activation has committed.
   final Set<int?> _committed = {};
 
@@ -920,11 +923,18 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     required TabId? tab,
   }) {
     final flow = currentFlow();
-    if (step == ActivationStep.commit) _committed.add(flow);
+    if (step == ActivationStep.commit) {
+      _committed.add(flow);
+      // The site it shows is built by its resume (`ResumeReply`'s frame),
+      // a step of its own, not the environment's `Reframe`.
+      _letGo.remove(sites.shown);
+    }
     // The rebind's rebuild is the frame that builds the webview, and so is
     // a reroute's that keeps the slot loaded.
     if (step == ActivationStep.tabRebind || step == ActivationStep.rerouteFlip) {
-      _buildWebViews();
+      // The rebind binds its site itself, in its turn: no frame of a let-go.
+      _letGo.remove(site);
+      _buildWebViews(frame: false);
     }
     final calls = _unmarked.remove(flow) ?? const <PlatformCall>[];
     for (final call in calls) {
@@ -1625,6 +1635,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       ModelConst.archive => set([for (final m in _archived) _siteNumber(m)]),
       ModelConst.deletable => set(deletes ? const [1] : const <int>[]),
       ModelConst.resettable => set(every),
+      // A renderer dies only where the world builds webviews.
+      ModelConst.rebuilt => set(_boxed || rehosts ? every : const <int>[]),
       ModelConst.boxed || ModelConst.noNavState => null,
       // An archive's sites are incognito too (`Incognito == Archive`).
       ModelConst.incognito => page.incognito.isEmpty
@@ -1726,20 +1738,36 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// The frame after an activation or a tab rebind: every loaded site
   /// without a webview gets one, built as `WebViewModel.getWebView` builds
   /// it, for the active tab and from the back stack queued for that tab.
-  void _buildWebViews() {
+  /// A step's own rebuild is not a [frame]: a site let go of waits for the
+  /// frame, which builds it again as the environment's `Reframe`.
+  void _buildWebViews({bool frame = true}) {
     for (final m in sites.loaded) {
       if (m.controller != null) continue;
-      final tab = m.activeTabId;
-      m.tabBinding.bind(tab, commit: const Commit.environment(Environment.frame));
-      final bytes = m.tabBinding.take(
-        tab: tab,
-        commit: const Commit.environment(Environment.frame),
-      );
-      m.controller = FakeWebViewController()
-        ..pace = _webViewPace
-        ..history = bytes ?? _historyOf(tab);
-      _claimRoute(m);
+      if (!_letGo.contains(m)) {
+        _buildWebView(m);
+      } else if (frame) {
+        inFlow(flow: _frameFlow, () {
+          _buildWebView(m);
+          ActivationSteps.mark(ActivationStep.reframe, site: m);
+        });
+      }
     }
+    // One no longer loaded awaits no frame.
+    if (frame) _letGo.clear();
+  }
+
+  /// [m]'s webview, as `WebViewModel.getWebView` builds it.
+  void _buildWebView(WebViewModel m) {
+    final tab = m.activeTabId;
+    m.tabBinding.bind(tab, commit: const Commit.environment(Environment.frame));
+    final bytes = m.tabBinding.take(
+      tab: tab,
+      commit: const Commit.environment(Environment.frame),
+    );
+    m.controller = FakeWebViewController()
+      ..pace = _webViewPace
+      ..history = bytes ?? _historyOf(tab);
+    _claimRoute(m);
   }
 
   /// A built webview's first act, as `WebViewModel.setController` does it:
@@ -2002,10 +2030,14 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         assert(_boxed || rehosts, 'a renderer dies under a webview, which only '
             'a world that follows them builds');
         if (n > 0 && at(slot).controller != null) {
-          _recording = null;
-          _unmodeled.add(currentFlow());
+          final m = at(slot);
           _letGoInPlace = true;
-          at(slot).handleRendererGone(didCrash: true);
+          // The environment's (`LetGo`), as a frame's view builds are.
+          inFlow(flow: _frameFlow, () {
+            m.handleRendererGone(didCrash: true);
+            _letGo.add(m);
+            ActivationSteps.mark(ActivationStep.letGo, site: m);
+          });
         }
       case OpenTab(:final slot, :final tab):
         if (n > 0) {
@@ -2679,7 +2711,11 @@ final class _WalkHost implements ActivationHost, SurfaceHost, WebspacesHost {
 
   /// Called as an activation ends.
   @override
-  void backgroundSitesChanged() => world._buildWebViews();
+  // An activation's resume builds the site it shows (`ResumeReply`'s
+  // frame); another let go of waits for the frame.
+  void backgroundSitesChanged() => world
+    .._letGo.remove(world.sites.shown)
+    .._buildWebViews(frame: false);
 }
 
 /// The page's side of a commit: the controllers the world builds run as

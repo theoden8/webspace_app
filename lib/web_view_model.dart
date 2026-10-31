@@ -1112,7 +1112,7 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
     proxySettings = newSettings;
     switch (ProxyManager.binding) {
       case ProxyBinding.perSite || ProxyBinding.routed:
-        disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
+        disposeWebView(commit: const Commit.environment(Environment.letGo));
       case ProxyBinding.processWide:
         if (controller != null) await _applyProxySettings();
     }
@@ -1599,7 +1599,7 @@ bool dispatch(NavigationDecision decision,
     // A dead renderer loads nothing more, so nothing is left to quiet.
     _letGoOfWebView(
       quiet: null,
-      commit: const Commit.unmodeled(Unmodeled.rendererGone),
+      commit: const Commit.environment(Environment.letGo),
     );
     stateSetterF?.call();
   }

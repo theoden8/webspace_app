@@ -188,7 +188,7 @@ class BackupController {
     if (apply && matched.isNotEmpty) {
       for (final m in matched) {
         m.contentBlockEnabled = false;
-        m.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
+        m.disposeWebView(commit: const Commit.environment(Environment.letGo));
       }
       _host.rebuild();
       await _host.commitSites(const SitesEdited());
@@ -349,7 +349,7 @@ class BackupController {
       for (final script in plan.heldScripts) {
         script.release();
         for (final site in script.sites) {
-          site.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
+          site.disposeWebView(commit: const Commit.environment(Environment.letGo));
         }
       }
       _host.rebuild();

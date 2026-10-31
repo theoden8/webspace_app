@@ -46,7 +46,7 @@ class SiteResetController {
   void resetShown() {
     if (_sites.current == null || _sites.current! >= _sites.models.length)
       return;
-    _sites.models[_sites.current!].disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
+    _sites.models[_sites.current!].disposeWebView(commit: const Commit.environment(Environment.letGo));
     _host.rebuild();
   }
 
@@ -74,7 +74,7 @@ class SiteResetController {
   /// which can affect any site that has opted in.
   void resetAll() {
     for (final model in _sites.models) {
-      model.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
+      model.disposeWebView(commit: const Commit.environment(Environment.letGo));
     }
     _host.rebuild();
   }
@@ -146,7 +146,7 @@ class SiteResetController {
       return;
     final model = _sites.models[_sites.current!];
     model.currentUrl = model.navigationHomeUrl;
-    model.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
+    model.disposeWebView(commit: const Commit.environment(Environment.letGo));
     _host.rebuild();
     // Re-apply fullscreen for sites with auto-fullscreen after webview recreation
     if (model.fullscreenMode) {

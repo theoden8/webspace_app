@@ -302,7 +302,7 @@ class SiteActivationController {
     assert(reason.chosen, 'the unload input picks its site ($reason)');
     if (!_sites.models.contains(site)) return;
     if (identical(site, _sites.shown)) {
-      site.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
+      site.disposeWebView(commit: const Commit.environment(Environment.letGo));
       return;
     }
     final flow = _flow(target: site);

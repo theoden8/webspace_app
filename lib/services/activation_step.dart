@@ -381,6 +381,11 @@ enum ActivationStep {
   /// unmounts one whose site is not loaded: the environment's.
   frame(),
 
+  /// A loaded site's webview let go of, a renderer gone or a rebuild, and
+  /// the frame that builds it again: the environment's.
+  letGo(),
+  reframe(),
+
   /// An open archive closed (ArchiveController.close, ARCH-007, ARCH-014):
   /// refused with nothing changed when its sealed state does not fit its
   /// slot (ARCH-011), else sealed and saved with its key zeroed, its sites

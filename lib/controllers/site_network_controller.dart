@@ -97,7 +97,7 @@ class SiteNetworkController {
       anyTorSite = true;
       // A site with no webview shows the placeholder; the rebuild below
       // builds the real one.
-      if (m.webview != null) m.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
+      if (m.webview != null) m.disposeWebView(commit: const Commit.environment(Environment.letGo));
     }
     if (!anyTorSite) return;
     // Router mode encodes a Tor route against the endpoint it saw last
@@ -393,7 +393,7 @@ class SiteNetworkController {
               ProxyType.DEFAULT) {
         continue;
       }
-      m.disposeWebView(commit: const Commit.unmodeled(Unmodeled.rebuild));
+      m.disposeWebView(commit: const Commit.environment(Environment.letGo));
       rebuilt = true;
     }
     if (rebuilt) _host.rebuild();

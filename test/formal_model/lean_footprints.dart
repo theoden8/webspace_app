@@ -94,7 +94,7 @@ String footprintsLean({
     'gives. -/',
     'def ways : Act → List (List (Const × Bool))',
     for (final (i, a) in actions.indexed)
-      '  | .${names[i]} => ${_list([for (final n in a.ways.values) _list(n.map(need))])}',
+      '  | .${names[i]} => ${_list([for (final w in a.ways) _list(w.needs.map(need))])}',
     '',
     '/-- The inputs `Allowed` gates (`Lands`). -/',
     'def inputs : List Act := ${_list([for (final n in names)

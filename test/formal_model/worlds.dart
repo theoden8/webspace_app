@@ -61,6 +61,32 @@ enum EnvAction {
     reads: {ModelVar.boxes, ModelVar.loaded, ModelVar.views},
     writes: {ModelVar.boxes, ModelVar.views},
     needs: {(of: ModelConst.boxed, set: true)},
+  ),
+  letGo(
+    next: r'\E s \in Sites : LetGo(s)',
+    coverage: 'LetGo',
+    reads: {ModelVar.built, ModelVar.hist, ModelVar.loaded},
+    writes: {ModelVar.built, ModelVar.hist},
+    needs: {
+      (of: ModelConst.tabbed, set: true),
+      (of: ModelConst.rebuilt, set: true),
+    },
+  ),
+  reframe(
+    next: r'\E s \in Sites : Reframe(s)',
+    coverage: 'Reframe',
+    reads: {
+      ModelVar.active,
+      ModelVar.built,
+      ModelVar.hist,
+      ModelVar.loaded,
+      ModelVar.queued,
+    },
+    writes: {ModelVar.built, ModelVar.hist, ModelVar.queued},
+    needs: {
+      (of: ModelConst.tabbed, set: true),
+      (of: ModelConst.rebuilt, set: true),
+    },
   );
 
   const EnvAction({
@@ -87,7 +113,9 @@ enum EnvAction {
 /// writes of the shared state (other flows' rows apart, as [rows]), the
 /// kinds its row holds and the fields of it it writes (null: every one,
 /// as an end), each way a flow reaches it: the kind it runs in (null for
-/// none) and what the constants must be that way; and each variable only
+/// none), what the constants must be that way and the kinds of flow that
+/// spawned it, one entry a way, so a kind two ways reach is listed twice;
+/// and each variable only
 /// some of its arms write, with what all of those arms need ([armed]).
 typedef ComposedAction = ({
   String name,
@@ -96,7 +124,7 @@ typedef ComposedAction = ({
   Set<RowRead> rows,
   Set<FlowKind> kinds,
   Set<FlowField>? fields,
-  Map<FlowKind?, Set<Need>> ways,
+  List<({FlowKind? kind, Set<Need> needs, Set<FlowKind> from})> ways,
   Map<ModelVar, Set<Need>> armed,
 });
 
@@ -195,6 +223,7 @@ Set<Env> _with(Env e) => switch (e) {
   Env.archiveOne ||
   Env.deleteOne ||
   Env.resetOne ||
+  Env.rebuildOne ||
   Env.incognitoOne ||
   Env.jarRefuses ||
   Env.proxyRefuses ||
@@ -225,6 +254,7 @@ Env? _setting(ModelConst c, {required Set<Need> needs}) => switch (c) {
     Env.archiveOne,
   ModelConst.deletable => Env.deleteOne,
   ModelConst.resettable => Env.resetOne,
+  ModelConst.rebuilt => Env.rebuildOne,
   ModelConst.incognito => Env.incognitoOne,
   ModelConst.jarRefuses => Env.jarRefuses,
   ModelConst.proxyRefused => Env.proxyRefuses,
@@ -304,14 +334,14 @@ WorldSpec _worldFor(
       WorldSpec? best;
       var hosted = false;
       final meets = _meets(a, other: b);
-      for (final MapEntry(key: ka, value: na) in a.ways.entries) {
-        for (final MapEntry(key: kb, value: nb) in b.ways.entries) {
+      for (final (kind: ka, needs: na, from: fa) in a.ways) {
+        for (final (kind: kb, needs: nb, from: fb) in b.ways) {
           for (final m in meets) {
             final needs = {...na, ...nb, ...m};
             if (_contradicts(needs)) continue;
             final w = _worldFor(
               needs,
-              kinds: {?ka, ?kb},
+              kinds: {?ka, ?kb, ...fa, ...fb},
               own: {
                 for (final x in [a, b])
                   if (inputs.contains(x.name)) x.name,

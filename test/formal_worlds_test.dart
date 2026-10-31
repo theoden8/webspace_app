@@ -9,6 +9,7 @@ ComposedAction _act(
   Set<ModelVar> reads = const {},
   Set<ModelVar> writes = const {},
   required Map<FlowKind?, Set<Need>> ways,
+  Set<FlowKind> from = const {},
   Map<ModelVar, Set<Need>> armed = const {},
 }) => (
   name: name,
@@ -17,7 +18,10 @@ ComposedAction _act(
   rows: const {},
   kinds: const {},
   fields: const {},
-  ways: ways,
+  ways: [
+    for (final MapEntry(:key, :value) in ways.entries)
+      (kind: key, needs: value, from: from),
+  ],
   armed: armed,
 );
 
@@ -68,6 +72,20 @@ void main() {
     expect(world.spec.tabbed, {1}, reason: 'the tab input needs a tabbed site');
     expect(world.spec.allowed, {'NestedOpen', 'OpenTab'},
         reason: 'only the inputs that start the two flows');
+  });
+
+  test('a way another flow spawned lets in that flow\'s starters', () {
+    final kept = _act(
+      'KeptNav',
+      writes: {ModelVar.nested},
+      ways: {FlowKind.preload: const {}},
+      from: {FlowKind.nested},
+    );
+    final world = _print([kept, _tab], written: [_plain]).worlds.singleWhere(
+      (w) => w.pairs.contains(('KeptNav', 'OpenTab')),
+    );
+    expect(world.spec.allowed, containsAll({'NestedOpen', 'OpenTab'}),
+        reason: 'the nested flow that spawns the kept one must start');
   });
 
   test('a pair a written world gives its needs prints nothing', () {
