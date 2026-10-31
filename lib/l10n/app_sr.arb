@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS прокси га још не може користити",
   "appSettingsExperimentalNetworkInterface": "Мрежни интерфејс по сајту",
   "appSettingsExperimentalNetworkInterfaceHint": "Омогућава сваком сајту да на свом екрану Мрежа изабере мрежни интерфејс кроз који излази његов саобраћај, као што је тунел једног од неколико VPN-ова. Сајт чији интерфејс не ради не учитава ништа уместо да користи другу везу.",
+  "appSettingsExperimentalServiceWorkers": "Service workers преко блокатора",
+  "appSettingsExperimentalServiceWorkersHint": "Тамо где сваки сајт има свој контејнер, service workers сајта (позадинске скрипте које неки сајтови користе за странице ван мреже, кеширање и ажурирања) учитавају се преко DNS листе блокирања, листа филтера и LocalCDN-а тог сајта и могу да приступе мрежи. Ступа на снагу при следећем покретању апликације.",
   "appSettingsExtensions": "Проширења",
   "appSettingsExtensionsNone": "Ниједно није увезено",
   "appSettingsExtensionsCount": "{count, plural, one{{count} проширење} few{{count} проширења} other{{count} проширења}}",

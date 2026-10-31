@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS ප්‍රොක්සියකට තවම එය භාවිත කළ නොහැක",
   "appSettingsExperimentalNetworkInterface": "එක් එක් අඩවිය සඳහා ජාල අතුරුමුහුණත",
   "appSettingsExperimentalNetworkInterfaceHint": "එක් එක් අඩවියට තම ජාල තිරයේ තම තදබදය පිටවන ජාල අතුරුමුහුණත තෝරා ගැනීමට ඉඩ දෙයි, VPN කිහිපයකින් එකක උමඟ වැනි. අතුරුමුහුණත අක්‍රිය වූ අඩවිය වෙනත් සම්බන්ධතාවක් භාවිත කරනවා වෙනුවට කිසිවක් පූරණය නොකරයි.",
+  "appSettingsExperimentalServiceWorkers": "අවහිරක හරහා සේවා කාර්මිකයන්",
+  "appSettingsExperimentalServiceWorkersHint": "එක් එක් අඩවියට තමන්ගේම බහාලුමක් ඇති විට, අඩවියක service worker (සමහර අඩවි නොබැඳි පිටු, හැඹිලිගත කිරීම සහ යාවත්කාලීන සඳහා භාවිත කරන පසුබිම් ස්ක්‍රිප්ට්) එම අඩවියේ DNS අවහිර ලැයිස්තුව, පෙරහන් ලැයිස්තු සහ LocalCDN හරහා පූරණය වන අතර ජාලයට ළඟා විය හැක. ඊළඟ වතාවේ යෙදුම ආරම්භ වන විට බලපැවැත්වේ.",
   "appSettingsExtensions": "දිගු",
   "appSettingsExtensionsNone": "කිසිවක් ආයාත කර නැත",
   "appSettingsExtensionsCount": "{count, plural, one{දිගු {count}ක්} other{දිගු {count}ක්}}",

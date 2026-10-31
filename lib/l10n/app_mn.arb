@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS прокси үүнийг одоохондоо ашиглаж чадахгүй",
   "appSettingsExperimentalNetworkInterface": "Сайт бүрийн сүлжээний интерфейс",
   "appSettingsExperimentalNetworkInterfaceHint": "Сайт бүрд Сүлжээ дэлгэц дээрээ урсгал нь гарах сүлжээний интерфейсийг, жишээ нь хэд хэдэн VPN-ийн нэгнийх нь хонгилыг сонгох боломж олгоно. Интерфейс нь унтарсан сайт өөр холболт ашиглахын оронд юу ч ачаалахгүй.",
+  "appSettingsExperimentalServiceWorkers": "Хориглогчоор дамжих service worker",
+  "appSettingsExperimentalServiceWorkersHint": "Сайт бүр өөрийн контейнертэй үед сайтын service worker-ууд (зарим сайтын офлайн хуудас, кэш, шинэчлэлтэд ашигладаг арын скриптүүд) тухайн сайтын DNS хориглох жагсаалт, шүүлтүүрийн жагсаалтууд болон LocalCDN-ээр дамжин ачаалагдаж, сүлжээнд хүрч болно. Аппыг дараагийн удаа эхлүүлэхэд хүчин төгөлдөр болно.",
   "appSettingsExtensions": "Өргөтгөлүүд",
   "appSettingsExtensionsNone": "Импортлосон зүйл байхгүй",
   "appSettingsExtensionsCount": "{count, plural, one{{count} өргөтгөл} other{{count} өргөтгөл}}",

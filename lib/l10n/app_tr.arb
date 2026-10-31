@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS proxy henüz bunu kullanamaz",
   "appSettingsExperimentalNetworkInterface": "Site başına ağ arayüzü",
   "appSettingsExperimentalNetworkInterfaceHint": "Her sitenin Ağ ekranında trafiğinin çıktığı ağ arayüzünü, örneğin birkaç VPN'den birinin tünelini seçmesine izin verir. Arayüzü kapalı olan bir site başka bir bağlantı kullanmak yerine hiçbir şey yüklemez.",
+  "appSettingsExperimentalServiceWorkers": "Engelleyiciler üzerinden service worker'lar",
+  "appSettingsExperimentalServiceWorkersHint": "Her sitenin kendi kapsayıcısı olduğunda, bir sitenin service worker'ları (bazı sitelerin çevrimdışı sayfalar, önbellekleme ve güncellemeler için kullandığı arka plan betikleri) o sitenin DNS Engelleme Listesi, süzgeç listeleri ve LocalCDN üzerinden yüklenir ve ağa erişebilir. Uygulama bir sonraki başlatıldığında geçerli olur.",
   "appSettingsExtensions": "Uzantılar",
   "appSettingsExtensionsNone": "İçe aktarılan yok",
   "appSettingsExtensionsCount": "{count, plural, one{{count} uzantı} other{{count} uzantı}}",

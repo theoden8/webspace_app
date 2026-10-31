@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS 代理尚無法使用網路介面",
   "appSettingsExperimentalNetworkInterface": "每個網站的網路介面",
   "appSettingsExperimentalNetworkInterfaceHint": "讓每個網站在其「網路」畫面中選擇流量離開裝置所經的網路介面，例如多個 VPN 之中某一個的通道。介面停用的網站不會改用其他連線，而是什麼都不載入。",
+  "appSettingsExperimentalServiceWorkers": "透過封鎖機制的 Service Worker",
+  "appSettingsExperimentalServiceWorkersHint": "在每個網站都有自己容器的情況下，網站的 Service Worker（部分網站用於離線頁面、快取和更新的背景指令碼）會透過該網站的 DNS 封鎖清單、過濾清單和 LocalCDN 載入，並可連上網路。下次啟動應用程式時生效。",
   "appSettingsExtensions": "擴充功能",
   "appSettingsExtensionsNone": "尚未匯入",
   "appSettingsExtensionsCount": "{count, plural, other{{count} 個擴充功能}}",

@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS tarpinis serveris dar negali jos naudoti",
   "appSettingsExperimentalNetworkInterface": "Tinklo sąsaja kiekvienai svetainei",
   "appSettingsExperimentalNetworkInterfaceHint": "Leidžia kiekvienai svetainei savo ekrane Tinklas pasirinkti tinklo sąsają, per kurią išeina jos srautas, pavyzdžiui, vieno iš kelių VPN tunelį. Svetainė, kurios sąsaja neveikia, nieko neįkelia, užuot naudojusi kitą ryšį.",
+  "appSettingsExperimentalServiceWorkers": "Service worker per blokatorius",
+  "appSettingsExperimentalServiceWorkersHint": "Kai kiekviena svetainė turi savo konteinerį, svetainės service worker (foniniai scenarijai, kuriuos kai kurios svetainės naudoja neprisijungus rodomiems puslapiams, talpyklai ir atnaujinimams) įkeliami per tos svetainės DNS blokavimo sąrašą, filtrų sąrašus ir LocalCDN ir gali pasiekti tinklą. Įsigalioja kitą kartą paleidus programą.",
   "appSettingsExtensions": "Plėtiniai",
   "appSettingsExtensionsNone": "Neimportuota nė vieno",
   "appSettingsExtensionsCount": "{count, plural, one{{count} plėtinys} few{{count} plėtiniai} many{{count} plėtinio} other{{count} plėtinių}}",

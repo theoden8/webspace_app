@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "En HTTPS-proxy kan inte använda något ännu",
   "appSettingsExperimentalNetworkInterface": "Nätverksgränssnitt per webbplats",
   "appSettingsExperimentalNetworkInterfaceHint": "Låter varje webbplats välja på sin Nätverk-skärm vilket nätverksgränssnitt trafiken lämnar enheten genom, till exempel tunneln för ett av flera VPN. En webbplats vars gränssnitt är nere läser inte in något i stället för att använda en annan anslutning.",
+  "appSettingsExperimentalServiceWorkers": "Service workers genom blockeringarna",
+  "appSettingsExperimentalServiceWorkersHint": "Där varje webbplats har en egen container läses en webbplats service workers (bakgrundsskript som vissa webbplatser använder för offlinesidor, cachning och uppdateringar) in genom webbplatsens DNS-blockeringslista, filterlistor och LocalCDN, och de kan nå nätverket. Börjar gälla nästa gång appen startar.",
   "appSettingsExtensions": "Tillägg",
   "appSettingsExtensionsNone": "Inga importerade",
   "appSettingsExtensionsCount": "{count, plural, one{{count} tillägg} other{{count} tillägg}}",

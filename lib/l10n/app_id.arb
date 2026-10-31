@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "Proxy HTTPS belum bisa memakainya",
   "appSettingsExperimentalNetworkInterface": "Antarmuka jaringan per situs",
   "appSettingsExperimentalNetworkInterfaceHint": "Memungkinkan setiap situs memilih di layar Jaringan miliknya antarmuka jaringan tempat lalu lintasnya keluar, seperti terowongan salah satu dari beberapa VPN. Situs yang antarmukanya mati tidak memuat apa pun alih-alih memakai koneksi lain.",
+  "appSettingsExperimentalServiceWorkers": "Service worker melalui pemblokir",
+  "appSettingsExperimentalServiceWorkersHint": "Jika setiap situs memiliki kontainernya sendiri, service worker suatu situs (skrip latar belakang yang digunakan beberapa situs untuk halaman offline, cache, dan pembaruan) dimuat melalui Daftar Blokir DNS, daftar filter, dan LocalCDN situs tersebut, serta dapat menjangkau jaringan. Berlaku saat aplikasi dimulai berikutnya.",
   "appSettingsExtensions": "Ekstensi",
   "appSettingsExtensionsNone": "Belum ada yang diimpor",
   "appSettingsExtensionsCount": "{count, plural, other{{count} ekstensi}}",

@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "Een HTTPS-proxy kan er nog geen gebruiken",
   "appSettingsExperimentalNetworkInterface": "Netwerkinterface per site",
   "appSettingsExperimentalNetworkInterfaceHint": "Laat elke site op het Netwerk-scherm de netwerkinterface kiezen waarlangs het verkeer vertrekt, zoals de tunnel van één van meerdere VPN's. Een site waarvan de interface uit is, laadt niets in plaats van een andere verbinding te gebruiken.",
+  "appSettingsExperimentalServiceWorkers": "Service workers via de blokkeerders",
+  "appSettingsExperimentalServiceWorkersHint": "Waar elke site een eigen container heeft, laden de service workers van een site (de achtergrondscripts die sommige sites gebruiken voor offline pagina's, caching en updates) via de DNS-blokkeerlijst, filterlijsten en LocalCDN van die site, en kunnen ze het netwerk bereiken. Gaat in bij de volgende start van de app.",
   "appSettingsExtensions": "Extensies",
   "appSettingsExtensionsNone": "Geen geïmporteerd",
   "appSettingsExtensionsCount": "{count, plural, one{{count} extensie} other{{count} extensies}}",

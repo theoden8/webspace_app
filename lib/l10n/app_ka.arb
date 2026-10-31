@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS პროქსის ჯერ არ შეუძლია მისი გამოყენება",
   "appSettingsExperimentalNetworkInterface": "ქსელის ინტერფეისი თითო საიტზე",
   "appSettingsExperimentalNetworkInterfaceHint": "საშუალებას აძლევს თითოეულ საიტს თავის ქსელის ეკრანზე აირჩიოს ქსელის ინტერფეისი, რომლითაც მისი ტრაფიკი გადის, მაგალითად რამდენიმე VPN-დან ერთ-ერთის გვირაბი. საიტი, რომლის ინტერფეისიც გამორთულია, არაფერს ტვირთავს სხვა კავშირის გამოყენების ნაცვლად.",
+  "appSettingsExperimentalServiceWorkers": "Service worker-ები ბლოკერების გავლით",
+  "appSettingsExperimentalServiceWorkersHint": "სადაც თითოეულ საიტს საკუთარი კონტეინერი აქვს, საიტის service worker-ები (ფონური სკრიპტები, რომლებსაც ზოგი საიტი იყენებს ოფლაინ გვერდებისთვის, ქეშირებისა და განახლებებისთვის) იტვირთება ამ საიტის DNS ბლოკ-სიის, ფილტრების სიებისა და LocalCDN-ის გავლით და შეუძლიათ ქსელამდე მიღწევა. ძალაში შედის აპის შემდეგი გაშვებისას.",
   "appSettingsExtensions": "გაფართოებები",
   "appSettingsExtensionsNone": "არცერთი არ არის იმპორტირებული",
   "appSettingsExtensionsCount": "{count, plural, one{{count} გაფართოება} other{{count} გაფართოება}}",

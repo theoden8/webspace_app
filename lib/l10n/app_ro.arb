@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "Un proxy HTTPS nu poate folosi încă una",
   "appSettingsExperimentalNetworkInterface": "Interfață de rețea pentru fiecare site",
   "appSettingsExperimentalNetworkInterfaceHint": "Permite fiecărui site să aleagă pe ecranul său Rețea interfața de rețea prin care iese traficul său, cum ar fi tunelul unuia dintre mai multe VPN-uri. Un site cu interfața oprită nu încarcă nimic în loc să folosească altă conexiune.",
+  "appSettingsExperimentalServiceWorkers": "Service workers prin blocante",
+  "appSettingsExperimentalServiceWorkersHint": "Acolo unde fiecare site are propriul container, service workers ai unui site (scripturile de fundal pe care unele site-uri le folosesc pentru pagini offline, cache și actualizări) se încarcă prin lista de blocare DNS, listele de filtre și LocalCDN ale acelui site și pot accesa rețeaua. Intră în vigoare la următoarea pornire a aplicației.",
   "appSettingsExtensions": "Extensii",
   "appSettingsExtensionsNone": "Niciuna importată",
   "appSettingsExtensionsCount": "{count, plural, one{{count} extensie} few{{count} extensii} other{{count} de extensii}}",

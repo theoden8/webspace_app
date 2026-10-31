@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "Ni all dirprwy HTTPS ddefnyddio un eto",
   "appSettingsExperimentalNetworkInterface": "Rhyngwyneb rhwydwaith fesul gwefan",
   "appSettingsExperimentalNetworkInterfaceHint": "Yn gadael i bob gwefan ddewis ar ei sgrin Rhwydwaith y rhyngwyneb rhwydwaith y mae ei thraffig yn gadael drwyddo, fel twnnel un VPN ymhlith sawl un. Nid yw gwefan y mae ei rhyngwyneb i lawr yn llwytho dim yn hytrach na defnyddio cysylltiad arall.",
+  "appSettingsExperimentalServiceWorkers": "Gweithwyr gwasanaeth drwy atalwyr",
+  "appSettingsExperimentalServiceWorkersHint": "Lle mae gan bob gwefan ei chynhwysydd ei hun, mae gweithwyr gwasanaeth gwefan (y sgriptiau cefndir y mae rhai gwefannau yn eu defnyddio ar gyfer tudalennau all-lein, storio a diweddariadau) yn llwytho drwy Restr Rwystro DNS, rhestrau hidlo a LocalCDN y wefan honno, a gallant gyrraedd y rhwydwaith. Daw i rym y tro nesaf y bydd yr ap yn cychwyn.",
   "appSettingsExtensions": "Estyniadau",
   "appSettingsExtensionsNone": "Dim wedi'u mewnforio",
   "appSettingsExtensionsCount": "{count, plural, zero{{count} estyniad} one{{count} estyniad} two{{count} estyniad} few{{count} estyniad} many{{count} estyniad} other{{count} estyniad}}",

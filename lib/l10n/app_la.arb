@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "Procurator HTTPS ea nondum uti potest",
   "appSettingsExperimentalNetworkInterface": "Interfacies retis pro quoque situ",
   "appSettingsExperimentalNetworkInterfaceHint": "Sinit quemque situm in sua pagina Rete eligere interfaciem retis per quam commeatus eius exit, ut cuniculum unius e pluribus VPN. Situs cuius interfacies deficit nihil onerat potius quam alia conexione utatur.",
+  "appSettingsExperimentalServiceWorkers": "Operarii ministerii per impedimenta",
+  "appSettingsExperimentalServiceWorkersHint": "Ubi quisque situs suum continens habet, operarii ministerii situs (scripta in recessu quibus quidam situs ad paginas sine conexu, ad memoriam celerem et ad renovationes utuntur) per indicem impediendorum DNS, indices percolationis et LocalCDN eius situs onerantur, et ad rete pervenire possunt. Valebit proximo applicationis initio.",
   "appSettingsExtensions": "Extensiones",
   "appSettingsExtensionsNone": "Nulla importata",
   "appSettingsExtensionsCount": "{count, plural, one{{count} extensio} other{{count} extensiones}}",

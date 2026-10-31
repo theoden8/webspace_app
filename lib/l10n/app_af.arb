@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "'n HTTPS-proxy kan nog nie een gebruik nie",
   "appSettingsExperimentalNetworkInterface": "Netwerkkoppelvlak per werf",
   "appSettingsExperimentalNetworkInterfaceHint": "Laat elke werf op sy Netwerk-skerm die netwerkkoppelvlak kies waardeur sy verkeer vertrek, soos een VPN se tonnel onder verskeie. 'n Werf waarvan die koppelvlak af is, laai niks in plaas daarvan om 'n ander verbinding te gebruik nie.",
+  "appSettingsExperimentalServiceWorkers": "Service workers deur blokkeerders",
+  "appSettingsExperimentalServiceWorkersHint": "Waar elke werf sy eie houer het, laai 'n werf se service workers (die agtergrondskripte wat sommige werwe vir aflyn bladsye, kasgeheue en opdaterings gebruik) deur daardie werf se DNS-blokkeerlys, filterlyste en LocalCDN, en hulle kan die netwerk bereik. Tree in werking die volgende keer dat die toepassing begin.",
   "appSettingsExtensions": "Uitbreidings",
   "appSettingsExtensionsNone": "Geen ingevoer nie",
   "appSettingsExtensionsCount": "{count, plural, one{{count} uitbreiding} other{{count} uitbreidings}}",

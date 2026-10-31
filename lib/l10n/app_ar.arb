@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "لا يمكن لوكيل HTTPS استخدامها بعد",
   "appSettingsExperimentalNetworkInterface": "واجهة شبكة لكل موقع",
   "appSettingsExperimentalNetworkInterfaceHint": "يتيح لكل موقع أن يختار من شاشة الشبكة الخاصة به واجهة الشبكة التي تخرج منها حركة مروره، مثل نفق إحدى شبكات VPN من بين عدة شبكات. الموقع الذي تتعطل واجهته لا يحمّل شيئًا بدلًا من استخدام اتصال آخر.",
+  "appSettingsExperimentalServiceWorkers": "عمّال الخدمة عبر أدوات الحجب",
+  "appSettingsExperimentalServiceWorkersHint": "حيث يكون لكل موقع حاويته الخاصة، تُحمَّل عمّال الخدمة (service workers) الخاصة بالموقع، وهي نصوص تعمل في الخلفية تستخدمها بعض المواقع للصفحات دون اتصال والتخزين المؤقت والتحديثات، عبر قائمة حجب DNS وقوائم التصفية وLocalCDN الخاصة بذلك الموقع، ويمكنها الوصول إلى الشبكة. يسري مفعولها عند التشغيل التالي للتطبيق.",
   "appSettingsExtensions": "الإضافات",
   "appSettingsExtensionsNone": "لم يُستورد شيء",
   "appSettingsExtensionsCount": "{count, plural, zero{{count} إضافة} one{{count} إضافة} two{{count} إضافتان} few{{count} إضافات} many{{count} إضافةً} other{{count} إضافة}}",

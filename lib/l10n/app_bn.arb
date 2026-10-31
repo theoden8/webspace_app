@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS প্রক্সি এখনও এটি ব্যবহার করতে পারে না",
   "appSettingsExperimentalNetworkInterface": "প্রতি সাইটে নেটওয়ার্ক ইন্টারফেস",
   "appSettingsExperimentalNetworkInterfaceHint": "প্রতিটি সাইটকে তার নেটওয়ার্ক স্ক্রিনে বেছে নিতে দেয় কোন নেটওয়ার্ক ইন্টারফেস দিয়ে তার ট্র্যাফিক বের হবে, যেমন কয়েকটির মধ্যে একটি VPN-এর টানেল। যে সাইটের ইন্টারফেস বন্ধ, সেটি অন্য সংযোগ ব্যবহার না করে কিছুই লোড করে না।",
+  "appSettingsExperimentalServiceWorkers": "ব্লকারের মাধ্যমে সার্ভিস ওয়ার্কার",
+  "appSettingsExperimentalServiceWorkersHint": "যেখানে প্রতিটি সাইটের নিজস্ব কন্টেইনার আছে, সেখানে একটি সাইটের সার্ভিস ওয়ার্কার (কিছু সাইট অফলাইন পৃষ্ঠা, ক্যাশিং ও আপডেটের জন্য যে ব্যাকগ্রাউন্ড স্ক্রিপ্ট ব্যবহার করে) সেই সাইটের DNS ব্লকলিস্ট, ফিল্টার তালিকা ও LocalCDN-এর মধ্য দিয়ে লোড হয় এবং নেটওয়ার্কে পৌঁছাতে পারে। পরের বার অ্যাপ চালু হলে কার্যকর হয়।",
   "appSettingsExtensions": "এক্সটেনশন",
   "appSettingsExtensionsNone": "কিছু ইম্পোর্ট করা হয়নি",
   "appSettingsExtensionsCount": "{count, plural, one{{count}টি এক্সটেনশন} other{{count}টি এক্সটেনশন}}",

@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "پراکسی HTTPS هنوز نمی‌تواند از آن استفاده کند",
   "appSettingsExperimentalNetworkInterface": "رابط شبکه برای هر سایت",
   "appSettingsExperimentalNetworkInterfaceHint": "به هر سایت اجازه می‌دهد در صفحهٔ شبکهٔ خود رابط شبکه‌ای را انتخاب کند که ترافیکش از آن خارج می‌شود، مانند تونل یکی از چند VPN. سایتی که رابطش قطع است به‌جای استفاده از اتصال دیگری چیزی بارگذاری نمی‌کند.",
+  "appSettingsExperimentalServiceWorkers": "سرویس‌ورکرها از راه مسدودکننده‌ها",
+  "appSettingsExperimentalServiceWorkersHint": "جایی که هر سایت کانتینر خودش را دارد، سرویس‌ورکرهای یک سایت (اسکریپت‌های پس‌زمینه‌ای که برخی سایت‌ها برای صفحه‌های آفلاین، حافظهٔ نهان و به‌روزرسانی به کار می‌برند) از راه فهرست مسدودی DNS، فهرست‌های پالایه و LocalCDN همان سایت بارگیری می‌شوند و می‌توانند به شبکه دسترسی داشته باشند. از دفعهٔ بعدی که برنامه اجرا شود اعمال می‌شود.",
   "appSettingsExtensions": "افزونه‌ها",
   "appSettingsExtensionsNone": "هیچ‌کدام وارد نشده",
   "appSettingsExtensionsCount": "{count, plural, one{{count} افزونه} other{{count} افزونه}}",

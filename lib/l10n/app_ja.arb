@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS プロキシはまだ使用できません",
   "appSettingsExperimentalNetworkInterface": "サイトごとのネットワークインターフェース",
   "appSettingsExperimentalNetworkInterfaceHint": "各サイトが「ネットワーク」画面で、通信が出ていくネットワークインターフェース（複数ある VPN のうち 1 つのトンネルなど）を選べるようにします。インターフェースが停止しているサイトは、別の接続を使わずに何も読み込みません。",
+  "appSettingsExperimentalServiceWorkers": "ブロッカー経由の Service Worker",
+  "appSettingsExperimentalServiceWorkersHint": "サイトごとに専用のコンテナがある場合、サイトの Service Worker（オフラインページ、キャッシュ、更新のために一部のサイトが使うバックグラウンドのスクリプト）は、そのサイトの DNS ブロックリスト、フィルターリスト、LocalCDN を通して読み込まれ、ネットワークにアクセスできます。次回アプリを起動したときに有効になります。",
   "appSettingsExtensions": "拡張機能",
   "appSettingsExtensionsNone": "インポートなし",
   "appSettingsExtensionsCount": "{count, plural, other{{count} 個の拡張機能}}",

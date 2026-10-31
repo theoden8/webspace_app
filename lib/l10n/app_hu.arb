@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "HTTPS-proxy még nem használhatja",
   "appSettingsExperimentalNetworkInterface": "Hálózati csatoló webhelyenként",
   "appSettingsExperimentalNetworkInterfaceHint": "Lehetővé teszi, hogy minden webhely a Hálózat képernyőjén kiválassza azt a hálózati csatolót, amelyen a forgalma kilép, például több VPN közül az egyik alagútját. Az a webhely, amelynek csatolója nem működik, nem tölt be semmit ahelyett, hogy másik kapcsolatot használna.",
+  "appSettingsExperimentalServiceWorkers": "Service workerek a blokkolókon át",
+  "appSettingsExperimentalServiceWorkersHint": "Ahol minden webhelynek saját konténere van, egy webhely service workerei (azok a háttérszkriptek, amelyeket egyes webhelyek offline oldalakhoz, gyorsítótárazáshoz és frissítésekhez használnak) az adott webhely DNS feketelistáján, szűrőlistáin és LocalCDN-jén át töltődnek be, és elérhetik a hálózatot. Az alkalmazás következő indításakor lép érvénybe.",
   "appSettingsExtensions": "Bővítmények",
   "appSettingsExtensionsNone": "Nincs importálva",
   "appSettingsExtensionsCount": "{count, plural, one{{count} bővítmény} other{{count} bővítmény}}",

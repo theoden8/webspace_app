@@ -1176,6 +1176,8 @@
   "networkInterfaceHttpsLock": "Posredniški strežnik HTTPS ga še ne more uporabljati",
   "appSettingsExperimentalNetworkInterface": "Omrežni vmesnik za vsako spletno mesto",
   "appSettingsExperimentalNetworkInterfaceHint": "Vsakemu spletnemu mestu omogoča, da na svojem zaslonu Omrežje izbere omrežni vmesnik, skozi katerega odhaja njegov promet, na primer tunel enega od več VPN. Spletno mesto, katerega vmesnik ne deluje, ne naloži ničesar, namesto da bi uporabilo drugo povezavo.",
+  "appSettingsExperimentalServiceWorkers": "Service workerji prek blokad",
+  "appSettingsExperimentalServiceWorkersHint": "Kjer ima vsako spletno mesto svoj vsebnik, se service workerji spletnega mesta (skripti v ozadju, ki jih nekatera mesta uporabljajo za strani brez povezave, predpomnjenje in posodobitve) nalagajo prek seznama blokiranih DNS, seznamov filtrov in LocalCDN tega mesta ter lahko dosežejo omrežje. Začne veljati ob naslednjem zagonu aplikacije.",
   "appSettingsExtensions": "Razširitve",
   "appSettingsExtensionsNone": "Nobena ni uvožena",
   "appSettingsExtensionsCount": "{count, plural, one{{count} razširitev} two{{count} razširitvi} few{{count} razširitve} other{{count} razširitev}}",
