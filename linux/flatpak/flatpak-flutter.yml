@@ -90,6 +90,11 @@ modules:
       # Inside a flatpak WebKit sandboxes its processes with flatpak-spawn,
       # which does not depend on this option.
       - -DENABLE_BUBBLEWRAP_SANDBOX=OFF
+      # With precompiled headers clang splits WebKit into subtargets, and the
+      # network process's compiles stop waiting for the
+      # WebKitDirectoryInputStreamData.h WebKit generates, a race a parallel
+      # build can lose.
+      - -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
       - -DENABLE_WPE_PLATFORM_DRM=OFF
       - -DUSE_LIBBACKTRACE=OFF
       - -DUSE_SYSTEM_SYSPROF_CAPTURE=OFF
