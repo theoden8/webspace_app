@@ -6,6 +6,15 @@ library;
 
 import 'package:webspace/services/activation_step.dart';
 
+/// Marks a getter that reads a variable of the model outside a table, so
+/// `webspace_lints`' `model_await` rule sees a read of it held across an
+/// await to a write of the model's state.
+final class Modeled {
+  const Modeled(this.variable);
+
+  final ModelVar variable;
+}
+
 /// Every variable of `formal/activation.tla`, in the order its module
 /// declares them, with the comment that declaration prints: the one place
 /// a variable is named. Every leaf takes its name from here, the printer
