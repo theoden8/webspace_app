@@ -728,6 +728,11 @@ void _definitions() {
     });
   });
 
+  test('a turn that writes none of the model fails on a write', () {
+    expect(() => const Commit.none().wrote(ModelVar.loaded),
+        throwsA(isA<AssertionError>()));
+  });
+
   test('a call records what it reads as it starts, on the arm that enters '
       'its place', () async {
     final site = Field<int, _World>(FlowField.site);

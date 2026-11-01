@@ -548,7 +548,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       );
 
   /// The one way the set of sites changes ([SiteSetCommit]).
-  Future<void> _commitSites(SiteSetChange change) => _commit.commit(change);
+  Future<void> _commitSites(FunnelChange change) => _commit.commit(change);
 
   Future<void> _persistSites() async {
     if (isDemoMode) return;
@@ -1688,10 +1688,10 @@ class _PageHost
       _s._toast(message, duration: duration, floating: floating);
 
   @override
-  Future<void> commitSites(SiteSetChange change) => _s._commitSites(change);
+  Future<void> commitSites(FunnelChange change) => _s._commitSites(change);
 
   @override
-  SiteSetStage stageSites(SiteSetChange change) => _s._commit.stage(change);
+  SiteSetStage stageSites(SiteDrop drop) => _s._commit.stage(drop);
 
   @override
   Future<void> closeArchives() async {

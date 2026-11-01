@@ -643,27 +643,38 @@ final class Shared<T> {
 /// which names why. A cell the code shares ([SharedAt]) writes only with
 /// one in hand, so a write outside them does not compile.
 final class Commit {
-  const Commit._() : unmodeled = null, environment = null;
+  const Commit._() : unmodeled = null, environment = null, _none = false;
 
   /// A write no step of the model takes yet: debt, which a step that takes
   /// it retires.
-  const Commit.unmodeled(Unmodeled this.unmodeled) : environment = null;
+  const Commit.unmodeled(Unmodeled this.unmodeled)
+      : environment = null,
+        _none = false;
 
   /// A write of one of the environment's actions `activation.tla` states by
   /// hand: the model takes it there, not in a table's step.
-  const Commit.environment(Environment this.environment) : unmodeled = null;
+  const Commit.environment(Environment this.environment)
+      : unmodeled = null,
+        _none = false;
+
+  /// A turn that writes none of the model's state: a change to what the
+  /// model does not hold, such as a site's name or its settings. A write in
+  /// it fails at once.
+  const Commit.none() : unmodeled = null, environment = null, _none = true;
 
   /// A model a test builds before any step runs.
   @visibleForTesting
-  const Commit.fixture() : unmodeled = null, environment = null;
+  const Commit.fixture() : unmodeled = null, environment = null, _none = false;
 
   final Unmodeled? unmodeled;
   final Environment? environment;
+  final bool _none;
 
   /// This commit wrote [variable]. A write no step takes is stamped, so a
   /// step that reads the variable once its flow's await is over learns it
   /// met one ([UnmodeledWrites]).
   void wrote(ModelVar variable) {
+    assert(!_none, 'a turn that writes none of the model wrote $variable');
     if (unmodeled case final by?) {
       UnmodeledWrites._last[variable] = (at: ++UnmodeledWrites._now, by: by);
     }
@@ -751,6 +762,10 @@ final class Planted {
 /// The environment's actions of `activation.tla` the code writes the
 /// model's variables in, hand-written there until the tables print them.
 enum Environment {
+  /// The sites the last session saved, read into an empty list before any
+  /// flow runs: the list `Init` starts from.
+  init,
+
   /// The frame that builds a loaded site's webview for its active tab and
   /// hands it the back stack queued for that tab (`Frame(s)`).
   frame,
@@ -767,10 +782,10 @@ enum Environment {
 
 /// The writes of the model's state that no step of a table takes yet.
 enum Unmodeled {
-  /// A change to the set of sites no step takes: an add, an import, an
-  /// archive's open, a site's edit (`SiteSetCommit.commit`). A delete and
-  /// an archive's close land in their drop's step, and a move is the
-  /// environment's.
+  /// A site that joins the list: an add, an import, an archive's open
+  /// (`SiteSetCommit.commit`). A delete and an archive's close land in
+  /// their drop's step, a move and the startup load are the environment's,
+  /// and a site's edit writes none of the model.
   siteSet,
 }
 

@@ -209,6 +209,7 @@ class SiteRuntime {
           SiteUnarchived():
         break;
       case SitesLoaded(:final sites):
+        assert(models.isEmpty, 'the startup load fills the empty list');
         models.addAll(sites);
       case SiteAdded(:final site, :final joins):
         models.add(site);

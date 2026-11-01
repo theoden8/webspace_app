@@ -1751,7 +1751,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   /// The page's `_commitSites`: the change, then a rebuild.
   /// The page's commit, the funnel the page itself runs.
-  Future<void> _commit(SiteSetChange change) => _siteSetCommit.commit(change);
+  Future<void> _commit(FunnelChange change) => _siteSetCommit.commit(change);
 
   /// The rows as a drop found them, for the replay; a close's replaces a
   /// delete's.
@@ -1762,13 +1762,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   /// Another component edits the rows, as `formal/activation.tla`'s
   /// environment does (`Move`): at once, between the flows' steps.
-  void _editRows(SiteSetChange change) {
-    sites.apply(
-      change,
-      commit: change is SitesMoved
-          ? const Commit.environment(Environment.move)
-          : const Commit.unmodeled(Unmodeled.siteSet),
-    );
+  void _editRows(FunnelChange change) {
+    sites.apply(change, commit: SiteSetCommit.commitOf(change));
     _drawn = sites.shown;
   }
 
@@ -2726,7 +2721,7 @@ final class _WalkHost implements ActivationHost, SurfaceHost, WebspacesHost {
   }) {}
 
   @override
-  Future<void> commitSites(SiteSetChange change) => throw UnsupportedError(
+  Future<void> commitSites(FunnelChange change) => throw UnsupportedError(
     'activation committed $change; the walk models '
     'no site-set change from inside an activation',
   );
@@ -3099,7 +3094,7 @@ final class _WalkTabsHost implements TabsHost {
   }) {}
 
   @override
-  Future<void> commitSites(SiteSetChange change) => world._commit(change);
+  Future<void> commitSites(FunnelChange change) => world._commit(change);
 
   @override
   NavCapture? beginNavCapture(WebViewModel model) =>
@@ -3175,17 +3170,16 @@ final class _WalkArchiveHost implements ArchiveHost {
   }) {}
 
   @override
-  Future<void> commitSites(SiteSetChange change) async {
+  Future<void> commitSites(FunnelChange change) async {
     await world.gate.pace(PlatformCall.siteSetCommit);
-    if (change is ArchiveClosed) world._noteRowsAtDrop(overwrite: true);
     await world._commit(change);
   }
 
   @override
-  SiteSetStage stageSites(SiteSetChange change) => _WalkStage(
+  SiteSetStage stageSites(SiteDrop drop) => _WalkStage(
     world,
-    change: change,
-    before: () => world._noteRowsAtDrop(overwrite: change is ArchiveClosed),
+    drop: drop,
+    before: () => world._noteRowsAtDrop(overwrite: drop is ArchiveClosed),
   );
 
   @override
@@ -3220,16 +3214,16 @@ final class _WalkDeletionHost implements SiteDeletionHost {
   }) {}
 
   @override
-  Future<void> commitSites(SiteSetChange change) async {
+  Future<void> commitSites(FunnelChange change) async {
     await world.gate.pace(PlatformCall.siteSetCommit);
     world._noteRowsAtDrop(overwrite: false);
     await world._commit(change);
   }
 
   @override
-  SiteSetStage stageSites(SiteSetChange change) => _WalkStage(
+  SiteSetStage stageSites(SiteDrop drop) => _WalkStage(
     world,
-    change: change,
+    drop: drop,
     before: () => world._noteRowsAtDrop(overwrite: false),
   );
 
@@ -3245,9 +3239,9 @@ final class _WalkDeletionHost implements SiteDeletionHost {
 final class _WalkStage implements SiteSetStage {
   _WalkStage(
     this.world, {
-    required SiteSetChange change,
+    required SiteDrop drop,
     required void Function() before,
-  }) : _inner = world._siteSetCommit.stage(change),
+  }) : _inner = world._siteSetCommit.stage(drop),
        _before = before;
 
   final ActivationWorld world;

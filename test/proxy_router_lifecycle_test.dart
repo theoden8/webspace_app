@@ -161,7 +161,7 @@ void main() {
       // A site joins and its webview's first request reaches the relay while
       // the table that routes it is still on its way there.
       final joined = WebViewModel(initUrl: 'https://two.test');
-      sites.applied(SitesLoaded([...sites.models, joined]));
+      sites.applied(SiteAdded(joined));
       final lands = Completer<void>();
       relay.routesAfter = lands.future;
       final refreshed = network.refreshRoutes();

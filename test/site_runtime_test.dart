@@ -5,10 +5,12 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
+import 'package:webspace/controllers/site_set_commit.dart';
 import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/archive_storage.dart';
 import 'package:webspace/services/process_route.dart';
 import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/services/step_table.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
@@ -265,6 +267,30 @@ void main() {
       );
       expect(r.models.last.siteId, 'x');
       expect(r.webspaces.single.siteIndices, [0, 1]);
+    });
+
+    test('the startup load fills the empty list Init starts from', () {
+      final r = _runtime([_site(SiteId('a'))]);
+      expect(() => r.applied(SitesLoaded([_site(SiteId('b'))])),
+          throwsA(isA<AssertionError>()));
+    });
+
+    test('a change to what the model does not hold writes none of it', () {
+      final a = _site(SiteId('a'));
+      final r = _runtime([a, _site(SiteId('b'))], loaded: ['a'], shown: SiteId('a'));
+      for (final change in <FunnelChange>[
+        const SitesEdited(),
+        const SiteSettingsSaved(),
+        const SiteSettingsClosed(),
+        SiteUnarchived(a),
+      ]) {
+        r.apply(change, commit: SiteSetCommit.commitOf(change));
+      }
+      expect(
+        () => r.apply(SiteAdded(_site(SiteId('c'))), commit: const Commit.none()),
+        throwsA(isA<AssertionError>()),
+        reason: 'a change that moves the list writes rows',
+      );
     });
   });
 
