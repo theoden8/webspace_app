@@ -40,13 +40,10 @@ bool get webExtensionsOffered =>
     );
 
 /// Whether this build carries the search of addons.mozilla.org at all
-/// (WEBEXT-019): only one made with
-/// `--dart-define=WEBSPACE_EXTENSION_SEARCH=true`, which no App Store build
-/// is. Without it the compiler leaves the search bar, its screen and its
-/// queries out of the binary.
-const bool extensionSearchBuilt = bool.fromEnvironment(
-  'WEBSPACE_EXTENSION_SEARCH',
-);
+/// (WEBEXT-019): only one made with the [directFlavor], which no App Store
+/// build is. Without it the compiler leaves the search bar, its screen and
+/// its queries out of the binary.
+const bool extensionSearchBuilt = builtFor == AppDistribution.direct;
 
 /// Test seam: a debug build that carries the search without the define.
 /// A release build never reads it, so it cannot keep the search in one.
