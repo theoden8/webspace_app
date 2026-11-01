@@ -123,6 +123,9 @@ ColdInit ==
 Init ==
     /\ rows = [q \in Pos |-> q]
     /\ IF ColdStart THEN ColdInit ELSE WarmInit
+    \* A site that joins later is nothing yet: on no screen, in no jar.
+    \* "joinsloaded" builds its webview before it is on the list.
+    /\ Mistake = "joinsloaded" \/ Joining \cap (loaded \cup signedIn \cup jar) = {}
     /\ version = 0
     /\ marker = NoMarker
     /\ nested = 0
@@ -153,7 +156,7 @@ Init ==
                 IF \E l \in Links : l.s = s /\ l.t = t THEN s ELSE 0]]
     /\ dns = [lvl |-> 0, levels |-> {}]
     /\ told = [s \in Sites |-> -1]
-    /\ gone = {}
+    /\ gone = Joining
     \* Where an archive is open, a loaded site's webview is mounted and an
     \* archive site's container is on disk once it was.
     /\ views = IF Boxed = {} THEN {} ELSE loaded
@@ -186,6 +189,18 @@ Move(from, to) ==
     /\ UNCHANGED << loaded, current, version, marker, tier, nested, headless, fore,
                     sessions, turn, fl, newest, evictedShown, tabVars,
                     blocking, archived >>
+
+\* SiteAdded, ArchiveOpened: a site joins the list, at its end, where the
+\* model kept its row. Nothing a flow holds names it yet, so the join
+\* supersedes no flow in flight.
+Join(s) ==
+    /\ Input
+    /\ s \in Joining \cap gone
+    /\ gone' = gone \ {s}
+    /\ seen' = seen \cup (IF Idle THEN {} ELSE {"joinedMidFlight"})
+    /\ Did("Join", inputs + 1, "", s)
+    /\ UNCHANGED << site, sessions, turn, fl, newest, evictedShown, tabVars,
+                    blocking, views, boxes >>
 
 \* A loaded site's page signs in. Only at rest: a page write inside another
 \* site's capture-nuke-restore is lost by design of the shared jar.
@@ -313,6 +328,7 @@ FlowStep(f) == TableStep(f)
 InputStep ==
     \/ \E f \in Flows : InputTableStep(f)
     \/ nested = 0 /\ fore /\ \E from, to \in Pos : Move(from, to)
+    \/ nested = 0 /\ fore /\ \E s \in Sites : Join(s)
     \/ \E s \in Sites : Login(s)
 
 Next ==
@@ -468,6 +484,8 @@ ArchiveOne == {3}
 DeleteOne == {1}
 \* The rebuild config's: site 1, on screen at the start.
 RebuildOne == {1}
+\* The join config's: site 3, off the list at the start.
+JoinOne == {3}
 \* The reset config's: site 3, loaded and signed in at the start, off screen.
 ResetOne == {3}
 \* The incognito config's: site 3, loaded and signed in at the start.
@@ -510,6 +528,7 @@ Reach_TurnQueued == "queued" \notin seen
 Reach_BackOff == "backoff" \notin seen
 Reach_EvictMidActivation == "evictMidActivation" \notin seen
 Reach_MovedMidFlight == "movedMidFlight" \notin seen
+Reach_JoinedMidFlight == "joinedMidFlight" \notin seen
 Reach_Preloaded == "preloaded" \notin seen
 \* A tap's plan picks by the loaded-site cap: the cap config is not vacuous.
 Reach_CapPicked ==

@@ -773,6 +773,10 @@ enum Environment {
   /// A row moved to another place in the list (`Move(from, to)`).
   move,
 
+  /// A site joining the list at its end, where the model kept its row
+  /// (`Join(s)`): an add, an archive's open.
+  join,
+
   /// A loaded site's webview let go of so the frame builds it afresh
   /// (`LetGo(s)`): a changed posture, proxy, user script, Tor binding or
   /// address, a data clear, a reset, a renderer gone (BUG-002), a move
@@ -782,11 +786,11 @@ enum Environment {
 
 /// The writes of the model's state that no step of a table takes yet.
 enum Unmodeled {
-  /// A site that joins the list: an add, an import, an archive's open
-  /// (`SiteSetCommit.commit`). A delete and an archive's close land in
-  /// their drop's step, a move and the startup load are the environment's,
-  /// and a site's edit writes none of the model.
-  siteSet,
+  /// An import, which replaces every site (`SitesReplaced`). A delete and
+  /// an archive's close land in their drop's step; a move, a join and the
+  /// startup load are the environment's; a site's edit writes none of the
+  /// model.
+  sitesReplaced,
 }
 
 /// An input the code marks by hand ([ActivationSteps.mark]) and what it

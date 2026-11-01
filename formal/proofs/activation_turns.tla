@@ -31,8 +31,10 @@ LEMMA StepInd == Good /\ IndInv /\ [Next]_vars => IndInv'
       BY <2>2 DEF Move, Input, Starts
     <2>3. CASE \E s \in Sites : Login(s)
       BY <2>3 DEF Login, Input, Starts
+    <2>4. CASE \E s \in Sites : Join(s)
+      BY <2>4 DEF Join, Input, Starts
     <2> QED
-      BY <1>1, <2>1, <2>2, <2>3 DEF InputStep
+      BY <1>1, <2>1, <2>2, <2>3, <2>4 DEF InputStep
   <1>2. CASE \E f \in Flows : FlowStep(f)
     <2> PICK f \in Flows : FlowStep(f)
       BY <1>2

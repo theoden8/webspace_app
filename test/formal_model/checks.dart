@@ -30,6 +30,7 @@ enum Env {
   deleteOne(op: ModelConst.deletable, by: 'DeleteOne'),
   resetOne(op: ModelConst.resettable, by: 'ResetOne'),
   rebuildOne(op: ModelConst.rebuilt, by: 'RebuildOne'),
+  joinOne(op: ModelConst.joining, by: 'JoinOne'),
   incognitoOne(op: ModelConst.incognito, by: 'IncognitoOne'),
   /// A refused read keeps the set the site last saved, so what the jar
   /// held of its session since is lost (ISO-014).
@@ -788,6 +789,16 @@ enum ActivationWorld {
         'containers, the site on screen deleted beside taps and frames: it '
         'stays off the list, unloaded, unmounted and off the disk '
         '(CONT-010)',
+  ),
+  joins(
+    cookies: Cookies.sharedJar,
+    coldStart: false,
+    inputs: 3,
+    env: {Env.joinOne},
+    invariants: [..._core, ..._jar, Inv.retired],
+    holds:
+        "shared jar, site 3 joining the list beside taps and the jar's "
+        'turns: it joins as nothing, and every session stays',
   );
 
   const ActivationWorld({
@@ -881,6 +892,10 @@ enum Witness {
   movedMidFlight(
     world: ActivationWorld.base,
     doc: 'rows moving while a flow is in flight is reachable',
+  ),
+  joinedMidFlight(
+    world: ActivationWorld.joins,
+    doc: 'a site joining the list while a flow is in flight is reachable',
   ),
   routeSwitch(
     world: ActivationWorld.proxyContainers,
@@ -1387,6 +1402,14 @@ enum HandMistake {
     doc:
         "a launch clear outside the jar's turns empties a restored session "
         '(ISO-012, caught)',
+  ),
+  joinsloaded(
+    world: ActivationWorld.joins,
+    slice: (allowed: {'GoHome'}),
+    caught: Breaks(Inv.retired),
+    doc:
+        'a site whose webview is built before it joins the list is a loaded '
+        'site off it (caught)',
   );
 
   const HandMistake({

@@ -58,8 +58,9 @@ ARCHIVE_VARS = ["gone", "views", "boxes"]
 
 
 def boxed(trace):
-    """Whether the trace's world follows webviews and containers: one with
-    an archive to close or a site to delete (the model's `Boxed`)."""
+    """Whether the trace carries the sites off the list and the webviews
+    and containers it follows: a world with an archive to close or a site
+    to delete (the model's `Boxed`), or a site to join (`Joining`)."""
     return bool(trace["boxed"])
 
 

@@ -552,6 +552,23 @@ const _deleteAlphabet = <SiteAction>[
 
 const _deleteLength = 2;
 
+/// Site 3 joining the list beside the flows on it: a tap of site 3 finds
+/// it only once it has joined, and an activation in flight as it joins
+/// goes on (`Join`).
+const _joinSetups = <String, List<SiteAction>>{
+  'site 1 on screen': [Tap(0)],
+};
+
+const _joinAlphabet = <SiteAction>[
+  JoinSite(),
+  Tap(1),
+  Tap(2),
+  GoHome(),
+  Pressure(),
+];
+
+const _joinLength = 2;
+
 /// A delete of site 1 against its tabs' flows, which write the tabs'
 /// variables the delete drops: from site 1 on screen, or on its second tab
 /// loaded behind.
@@ -1185,6 +1202,22 @@ void main() {
         for (final script in _scripts(length, alphabet: _deleteAlphabet)) {
           await _expectEvery(
             world: () => ActivationWorld(_mixedContainers, deletes: true),
+            setup: setup,
+            script: script,
+            preemptions: _preemptions,
+          );
+        }
+      }
+    });
+  }
+
+  for (final MapEntry(key: setupName, value: setup) in _joinSetups.entries) {
+    _scheduleTest('a site joining, shared jar, $setupName: every schedule '
+        'holds', body: () async {
+      for (var length = 1; length <= _joinLength; length++) {
+        for (final script in _scripts(length, alphabet: _joinAlphabet)) {
+          await _expectEvery(
+            world: () => ActivationWorld(_mixed, joins: true),
             setup: setup,
             script: script,
             preemptions: _preemptions,

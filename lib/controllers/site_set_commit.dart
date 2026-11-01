@@ -58,20 +58,21 @@ final class SiteSetCommit {
   }
 
   /// The model's action [change] is: a row move is the environment's
-  /// `Move`, the startup load the list `Init` starts from; a change to
-  /// what the model does not hold writes none of it; a site joining the
-  /// list no step takes yet. A drop lands in its own step ([stage]).
+  /// `Move`, a site joining the list its `Join`, the startup load the list
+  /// `Init` starts from; a change to what the model does not hold writes
+  /// none of it; an import no step takes yet. A drop lands in its own step
+  /// ([stage]).
   static Commit commitOf(FunnelChange change) => switch (change) {
     SitesMoved() => const Commit.environment(Environment.move),
+    SiteAdded() ||
+    ArchiveOpened() => const Commit.environment(Environment.join),
     SitesLoaded() => const Commit.environment(Environment.init),
     SitesEdited() ||
     SiteSettingsSaved() ||
     SiteSettingsClosed() ||
     SiteArchived() ||
     SiteUnarchived() => const Commit.none(),
-    SiteAdded() ||
-    SitesReplaced() ||
-    ArchiveOpened() => const Commit.unmodeled(Unmodeled.siteSet),
+    SitesReplaced() => const Commit.unmodeled(Unmodeled.sitesReplaced),
   };
 
   /// [drop] in the three parts a step table runs it in, so the lists

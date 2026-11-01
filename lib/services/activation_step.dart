@@ -118,6 +118,9 @@ enum ActivationStep {
   /// that one site.
   unloadSite(),
   move(),
+
+  /// A site joining the list at its end: an add, an archive's open.
+  join(),
   login(calls: {PlatformCall.cookieSet}),
 
   /// A site loaded off screen, a notification site at launch: an activation

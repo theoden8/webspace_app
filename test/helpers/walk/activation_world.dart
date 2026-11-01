@@ -279,6 +279,14 @@ final class Add extends SiteAction {
   String toString() => 'Add($host)';
 }
 
+/// The page's last site, off the list until now, joins it (`SiteAdded`,
+/// `Join`, `JoinOne`).
+final class JoinSite extends SiteAction {
+  const JoinSite();
+  @override
+  String toString() => 'JoinSite()';
+}
+
 /// The site at [from] moves to [to] (`SitesMoved`).
 final class Move extends SiteAction {
   const Move(this.from, {required this.to});
@@ -526,6 +534,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     this.spaces,
     this.archived = false,
     this.deletes = false,
+    this.joins = false,
     this.rehosts = false,
     this.declared,
   }) {
@@ -557,11 +566,13 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     navStates
       ..pace = gate.pace
       ..onSave = _onSave;
+    final listed = [for (final h in page.hosts) _site(h)];
+    if (joins) _joining = listed.removeLast();
     sites
       ..isolation = page.containers
           ? Containers(engine: ContainerIsolationEngine(containerNative: native))
           : SharedJar(sharedJar)
-      ..applied(SitesLoaded([for (final h in page.hosts) _site(h)]));
+      ..applied(SitesLoaded(listed));
     if (tabbed && sites.models.isNotEmpty) {
       final first = sites.models.first;
       first.setTabs([...first.tabs, SiteTab(url: '${first.initUrl}two')]);
@@ -663,6 +674,20 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// site's webview, which binds its container (`Deletable`, `Frame`).
   final bool deletes;
 
+  /// The page's last site starts off the list, and the script may add it
+  /// ([JoinSite]) (`Joining`).
+  final bool joins;
+
+  /// The site that starts off the list, while [joins].
+  WebViewModel? _joining;
+
+  /// The sites off the list: those a close or a delete took, and the one
+  /// yet to join (`gone`).
+  Iterable<WebViewModel> get _offList => [
+    ..._followed.where(_gone),
+    if (_joining case final j? when _gone(j)) j,
+  ];
+
   /// Site 1 starts with a second tab, a link of its own into site 3's
   /// domain, which [Reroute] runs as site 3 or as site 1.
   final bool rehosts;
@@ -725,7 +750,11 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   /// The model's rows: the list, or as it stood at a drop.
   List<int> get _rows =>
-      _rowsAtDrop ?? [for (final m in sites.models) _siteNumber(m)];
+      _rowsAtDrop ??
+      [
+        for (final m in sites.models) _siteNumber(m),
+        if (_joining case final j? when _gone(j)) _siteNumber(j),
+      ];
 
   /// A frame's mounts and unmounts: a loaded site's webview mounts and binds
   /// its container, one no longer loaded unmounts (`Frame`).
@@ -1145,6 +1174,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     Login() ||
     Fails() ||
     Add() ||
+    JoinSite() ||
     Move() ||
     RendererGone() ||
     Touch() ||
@@ -1155,7 +1185,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// keep it now, by its id rather than the model's numbering, which a
   /// read here must not move; null for one only the model keeps.
   ModelFrame _frameState() {
-    final bySite = [...sites.models, ..._followed.where(_gone)]
+    final bySite = [...sites.models, ..._offList]
       ..sort((a, b) => a.siteId.compareTo(b.siteId));
     FrameValues ids(Iterable<WebViewModel> ms) =>
         FrameValues([for (final m in ms) m.siteId]..sort());
@@ -1229,7 +1259,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       ModelVar.told => each(
         (m) => DnsBlockService.instance.views.told[m.siteId],
       ),
-      ModelVar.gone => ids(_followed.where(_gone)),
+      ModelVar.gone => ids(_offList),
       ModelVar.views => ids(_mounted.keys),
       ModelVar.boxes => ids([
         for (final m in _followed)
@@ -1440,7 +1470,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     }.toList()..sort();
     // The model's per-site state is over every site, a closed archive's
     // included.
-    final bySite = [...sites.models, ..._followed.where(_gone)]
+    final bySite = [...sites.models, ..._offList]
       ..sort((a, b) => _siteNumber(a).compareTo(_siteNumber(b)));
     final activating = sites.activating;
     return {
@@ -1486,8 +1516,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         for (final m in bySite) owners(stored.allStorage[m.siteId] ?? const []),
       ],
       if (_followsTabs) ..._projectTabs(bySite),
-      if (_boxed) ...{
-        'gone': [for (final m in _followed.where(_gone)) _siteNumber(m)]
+      if (_boxed || joins) ...{
+        'gone': [for (final m in _offList) _siteNumber(m)]
           ..sort(),
         'views': [for (final m in _mounted.keys) _siteNumber(m)]..sort(),
         'boxes': [
@@ -1526,9 +1556,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   }
 
   /// The page's first sites by number, whatever rows they moved to.
-  List<WebViewModel> get _bySite =>
-      [...sites.models.where((m) => _siteNumber(m) <= page.hosts.length)]
-        ..sort((a, b) => _siteNumber(a).compareTo(_siteNumber(b)));
+  List<WebViewModel> get _bySite => [
+    for (final m in [...sites.models, ..._offList])
+      if (_siteNumber(m) <= page.hosts.length) m,
+  ]..sort((a, b) => _siteNumber(a).compareTo(_siteNumber(b)));
 
   /// The route each site's traffic takes as the code resolves it, numbered
   /// from 1 by first appearance, as the model's `Route`; direct is a route
@@ -1615,12 +1646,13 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
             '${spaces == null ? '' : '_spaces'}'
             '${archived ? '_archive' : ''}'
             '${deletes ? '_delete' : ''}'
+            '${joins ? '_join' : ''}'
             '${page.incognito.isEmpty ? '' : '_incognito'}'
             '${_faults.isEmpty ? '' : '_fails_${[for (final f in _faults) f.name].join('_')}'}',
         constants: (
           sites: page.hosts.length,
           tabbed: _followsTabs,
-          boxed: archived || deletes,
+          boxed: _boxed || joins,
           tla: {for (final c in ModelConst.values) c: ?_constant(c)},
         ),
         start: _project(),
@@ -1680,6 +1712,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       ModelConst.resettable => set(every),
       // A renderer dies only where the world builds webviews.
       ModelConst.rebuilt => set(_boxed || rehosts ? every : const <int>[]),
+      ModelConst.joining => switch (_joining) {
+        final j? => set([_siteNumber(j)]),
+        null => null,
+      },
       ModelConst.boxed || ModelConst.noNavState => null,
       // An archive's sites are incognito too (`Incognito == Archive`).
       ModelConst.incognito => page.incognito.isEmpty
@@ -1721,9 +1757,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     ChildTab() => ActivationStep.childTab,
     ParkChild() => ActivationStep.parkChild,
     Reroute() => ActivationStep.reroute,
-    // A move is the environment's, a move into an archive the model's
-    // setup, and the rest wait on the page.
+    // A move and a join are the environment's, a move into an archive the
+    // model's setup, and the rest wait on the page.
     Move() ||
+    JoinSite() ||
     ArchiveSite() ||
     Add() ||
     RendererGone() ||
@@ -2064,6 +2101,11 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         if (page.pool.isNotEmpty) {
           _editRows(SiteAdded(_site(page.pool[host % page.pool.length])));
         }
+      case JoinSite():
+        if (_joining case final j? when _gone(j)) {
+          _editRows(SiteAdded(j));
+          ActivationSteps.mark(ActivationStep.join, site: j);
+        }
       case Move(:final from, :final to):
         if (n > 0) {
           _editRows(SitesMoved(from % n, to: to % n));
@@ -2276,6 +2318,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           UnloadSite() ||
           Preload() ||
           Add() ||
+          JoinSite() ||
           Move() ||
           RendererGone() ||
           OpenTab() ||
