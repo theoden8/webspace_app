@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Wala itong makukuhang pahintulot.",
   "siteExtensionsSwitchOn": "I-on",
   "siteExtensionsSettings": "Mga Setting",
-  "siteExtensionsOpen": "Buksan",
+  "siteExtensionsMenu": "Menu",
   "siteExtensionsPageFailed": "Hindi mabuksan dito ang {name}",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

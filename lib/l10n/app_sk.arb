@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Nedostane žiadne povolenia.",
   "siteExtensionsSwitchOn": "Zapnúť",
   "siteExtensionsSettings": "Nastavenia",
-  "siteExtensionsOpen": "Otvoriť",
+  "siteExtensionsMenu": "Ponuka",
   "siteExtensionsPageFailed": "{name} sa tu nepodarilo otvoriť",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

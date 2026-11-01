@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "វាមិនទទួលបានការអនុញ្ញាតណាមួយទេ។",
   "siteExtensionsSwitchOn": "បើក",
   "siteExtensionsSettings": "ការកំណត់",
-  "siteExtensionsOpen": "បើក",
+  "siteExtensionsMenu": "ម៉ឺនុយ",
   "siteExtensionsPageFailed": "មិនអាចបើក {name} នៅទីនេះបានទេ",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

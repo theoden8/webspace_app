@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Non riceve autorizzazioni.",
   "siteExtensionsSwitchOn": "Attiva",
   "siteExtensionsSettings": "Impostazioni",
-  "siteExtensionsOpen": "Apri",
+  "siteExtensionsMenu": "Menu",
   "siteExtensionsPageFailed": "Impossibile aprire {name} qui",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

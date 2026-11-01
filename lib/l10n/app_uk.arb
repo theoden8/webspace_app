@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Не отримує жодних дозволів.",
   "siteExtensionsSwitchOn": "Увімкнути",
   "siteExtensionsSettings": "Налаштування",
-  "siteExtensionsOpen": "Відкрити",
+  "siteExtensionsMenu": "Меню",
   "siteExtensionsPageFailed": "Не вдалося відкрити {name} тут",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

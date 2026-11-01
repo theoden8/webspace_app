@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Ямар ч зөвшөөрөл авахгүй.",
   "siteExtensionsSwitchOn": "Асаах",
   "siteExtensionsSettings": "Тохиргоо",
-  "siteExtensionsOpen": "Нээх",
+  "siteExtensionsMenu": "Цэс",
   "siteExtensionsPageFailed": "{name}-г энд нээж чадсангүй",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

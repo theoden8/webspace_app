@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "এটি কোনো অনুমতি পায় না।",
   "siteExtensionsSwitchOn": "চালু করুন",
   "siteExtensionsSettings": "সেটিংস",
-  "siteExtensionsOpen": "খুলুন",
+  "siteExtensionsMenu": "মেনু",
   "siteExtensionsPageFailed": "{name} এখানে খোলা যায়নি",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

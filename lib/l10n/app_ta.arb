@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "இதற்கு எந்த அனுமதியும் கிடைக்காது.",
   "siteExtensionsSwitchOn": "இயக்கு",
   "siteExtensionsSettings": "அமைப்புகள்",
-  "siteExtensionsOpen": "திற",
+  "siteExtensionsMenu": "பட்டியல்",
   "siteExtensionsPageFailed": "{name} ஐ இங்கே திறக்க முடியவில்லை",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

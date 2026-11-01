@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "권한이 부여되지 않습니다.",
   "siteExtensionsSwitchOn": "켜기",
   "siteExtensionsSettings": "설정",
-  "siteExtensionsOpen": "열기",
+  "siteExtensionsMenu": "메뉴",
   "siteExtensionsPageFailed": "여기서 {name}을(를) 열 수 없습니다",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

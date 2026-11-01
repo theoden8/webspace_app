@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Nie otrzymuje żadnych uprawnień.",
   "siteExtensionsSwitchOn": "Włącz",
   "siteExtensionsSettings": "Ustawienia",
-  "siteExtensionsOpen": "Otwórz",
+  "siteExtensionsMenu": "Menu",
   "siteExtensionsPageFailed": "Nie udało się tu otworzyć {name}",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

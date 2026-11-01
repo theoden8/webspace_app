@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Ní fhaigheann sí aon chead.",
   "siteExtensionsSwitchOn": "Cuir ar siúl",
   "siteExtensionsSettings": "Socruithe",
-  "siteExtensionsOpen": "Oscail",
+  "siteExtensionsMenu": "Roghchlár",
   "siteExtensionsPageFailed": "Níorbh fhéidir {name} a oscailt anseo",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

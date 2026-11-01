@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Não recebe permissões.",
   "siteExtensionsSwitchOn": "Ativar",
   "siteExtensionsSettings": "Definições",
-  "siteExtensionsOpen": "Abrir",
+  "siteExtensionsMenu": "Menu",
   "siteExtensionsPageFailed": "Não foi possível abrir {name} aqui",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

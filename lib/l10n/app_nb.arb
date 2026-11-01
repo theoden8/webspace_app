@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Den får ingen tillatelser.",
   "siteExtensionsSwitchOn": "Slå på",
   "siteExtensionsSettings": "Innstillinger",
-  "siteExtensionsOpen": "Åpne",
+  "siteExtensionsMenu": "Meny",
   "siteExtensionsPageFailed": "{name} kunne ikke åpnes her",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

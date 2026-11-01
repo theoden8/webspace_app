@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Не добива никакви дозволи.",
   "siteExtensionsSwitchOn": "Вклучи",
   "siteExtensionsSettings": "Поставки",
-  "siteExtensionsOpen": "Отвори",
+  "siteExtensionsMenu": "Мени",
   "siteExtensionsPageFailed": "{name} не можеше да се отвори тука",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

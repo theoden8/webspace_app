@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Tas nesaņem nekādas atļaujas.",
   "siteExtensionsSwitchOn": "Ieslēgt",
   "siteExtensionsSettings": "Iestatījumi",
-  "siteExtensionsOpen": "Atvērt",
+  "siteExtensionsMenu": "Izvēlne",
   "siteExtensionsPageFailed": "{name} šeit neizdevās atvērt",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

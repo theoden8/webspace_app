@@ -160,7 +160,7 @@ An extension's messages to an application, its native-messaging connections and 
 
 ### Requirement: WEBEXT-008 - An extension's own UI opens within its site
 
-Each enabled extension with an action SHALL appear in the site's menu; its popup and its options page SHALL open over the site. A request to open a tab SHALL open the extension's own page over the site, a URL of the site's domains as a nested screen of the site, and nothing for any other URL. A request to open a window SHALL be refused.
+Each enabled extension with an action SHALL appear in the site's menu; its popup and its options page SHALL open over the site. On the site's Extensions screen, Settings SHALL open its options page and Menu SHALL do what its toolbar button does in a browser. A request to open a tab SHALL open the extension's own page over the site, a URL of the site's domains as a nested screen of the site, and nothing for any other URL. A request to open a window SHALL be refused.
 
 #### Scenario: The action popup
 
@@ -449,3 +449,21 @@ A build installed outside the App Store (macOS without a Mac App Store receipt) 
 - **WHEN** the results show
 - **THEN** that result is labelled as running in part, and is still offered
 
+
+### Requirement: WEBEXT-020 - What goes wrong running an extension can be seen
+
+What WebKit reports going wrong running an extension SHALL be written to the app log under the extension's name: that it did not load, that its options page or popup could not be shown or failed to load, or that it asked for a tab or window and was refused. These entries SHALL be kept in memory only, since a refused tab names an address. In developer mode Web Inspector SHALL be able to inspect an extension's background, popup and pages, from the next webview built for its site or the next time one of its pages opens; with developer mode off it SHALL inspect none of them.
+
+#### Scenario: A refused tab
+
+- **GIVEN** an extension switched on for a site claiming `example.com`
+- **WHEN** it asks to open a tab at `https://other.example/`
+- **THEN** the app log has an entry naming the extension and the address it asked for
+- **AND** the entry is not written to disk
+
+#### Scenario: Developer mode
+
+- **GIVEN** developer mode is on, and a site with an extension switched on
+- **WHEN** the site's webview is built
+- **THEN** Web Inspector lists the extension's background page
+- **AND** with developer mode off, it lists none of the extension's pages

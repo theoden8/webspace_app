@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "ഇതിന് അനുമതികളൊന്നും ലഭിക്കുന്നില്ല.",
   "siteExtensionsSwitchOn": "ഓണാക്കുക",
   "siteExtensionsSettings": "ക്രമീകരണങ്ങൾ",
-  "siteExtensionsOpen": "തുറക്കുക",
+  "siteExtensionsMenu": "മെനു",
   "siteExtensionsPageFailed": "{name} ഇവിടെ തുറക്കാനായില്ല",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

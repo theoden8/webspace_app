@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Ne dobi nobenih dovoljenj.",
   "siteExtensionsSwitchOn": "Vklopi",
   "siteExtensionsSettings": "Nastavitve",
-  "siteExtensionsOpen": "Odpri",
+  "siteExtensionsMenu": "Meni",
   "siteExtensionsPageFailed": "{name} tukaj ni bilo mogoče odpreti",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

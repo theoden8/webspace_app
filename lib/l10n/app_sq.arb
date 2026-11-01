@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Nuk merr asnjë leje.",
   "siteExtensionsSwitchOn": "Aktivizo",
   "siteExtensionsSettings": "Cilësimet",
-  "siteExtensionsOpen": "Hap",
+  "siteExtensionsMenu": "Menyja",
   "siteExtensionsPageFailed": "{name} nuk mund të hapej këtu",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

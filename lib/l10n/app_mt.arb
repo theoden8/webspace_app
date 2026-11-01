@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Ma tingħata l-ebda permess.",
   "siteExtensionsSwitchOn": "Ixgħel",
   "siteExtensionsSettings": "Settings",
-  "siteExtensionsOpen": "Iftaħ",
+  "siteExtensionsMenu": "Menu",
   "siteExtensionsPageFailed": "{name} ma setgħetx tinfetaħ hawn",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

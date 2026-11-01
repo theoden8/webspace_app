@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Dit kry geen toestemmings nie.",
   "siteExtensionsSwitchOn": "Skakel aan",
   "siteExtensionsSettings": "Instellings",
-  "siteExtensionsOpen": "Maak oop",
+  "siteExtensionsMenu": "Kieslys",
   "siteExtensionsPageFailed": "{name} kon nie hier oopmaak nie",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

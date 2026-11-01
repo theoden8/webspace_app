@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "ምንም ፈቃድ አያገኝም።",
   "siteExtensionsSwitchOn": "አብራ",
   "siteExtensionsSettings": "ቅንብሮች",
-  "siteExtensionsOpen": "ክፈት",
+  "siteExtensionsMenu": "ምናሌ",
   "siteExtensionsPageFailed": "{name} እዚህ ሊከፈት አልቻለም",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

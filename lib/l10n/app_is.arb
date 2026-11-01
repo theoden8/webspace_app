@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Hún fær engar heimildir.",
   "siteExtensionsSwitchOn": "Kveikja á",
   "siteExtensionsSettings": "Stillingar",
-  "siteExtensionsOpen": "Opna",
+  "siteExtensionsMenu": "Valmynd",
   "siteExtensionsPageFailed": "Ekki tókst að opna {name} hér",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

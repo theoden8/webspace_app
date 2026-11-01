@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Nezíská žádná oprávnění.",
   "siteExtensionsSwitchOn": "Zapnout",
   "siteExtensionsSettings": "Nastavení",
-  "siteExtensionsOpen": "Otevřít",
+  "siteExtensionsMenu": "Nabídka",
   "siteExtensionsPageFailed": "{name} se zde nepodařilo otevřít",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

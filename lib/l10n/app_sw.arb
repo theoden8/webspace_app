@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Hakipati ruhusa yoyote.",
   "siteExtensionsSwitchOn": "Washa",
   "siteExtensionsSettings": "Mipangilio",
-  "siteExtensionsOpen": "Fungua",
+  "siteExtensionsMenu": "Menyu",
   "siteExtensionsPageFailed": "{name} hakikuweza kufunguka hapa",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

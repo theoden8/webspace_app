@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "See ei saa ühtegi õigust.",
   "siteExtensionsSwitchOn": "Lülita sisse",
   "siteExtensionsSettings": "Seaded",
-  "siteExtensionsOpen": "Ava",
+  "siteExtensionsMenu": "Menüü",
   "siteExtensionsPageFailed": "{name} avamine siin ebaõnnestus",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "No obté cap permís.",
   "siteExtensionsSwitchOn": "Activa",
   "siteExtensionsSettings": "Configuració",
-  "siteExtensionsOpen": "Obre",
+  "siteExtensionsMenu": "Menú",
   "siteExtensionsPageFailed": "No s'ha pogut obrir {name} aquí",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

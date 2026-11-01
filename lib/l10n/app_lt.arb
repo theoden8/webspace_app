@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Jis negauna jokių leidimų.",
   "siteExtensionsSwitchOn": "Įjungti",
   "siteExtensionsSettings": "Nustatymai",
-  "siteExtensionsOpen": "Atidaryti",
+  "siteExtensionsMenu": "Meniu",
   "siteExtensionsPageFailed": "Nepavyko čia atidaryti {name}",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

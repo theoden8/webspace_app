@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:webspace/services/web_extension_attach_engine.dart';
 import 'package:webspace/services/web_extension_native.dart';
 import 'package:webspace/settings/web_extension.dart';
@@ -8,6 +10,10 @@ import 'package:webspace/settings/web_extension.dart';
 /// extension's stored data by container, which [forget] deletes everywhere.
 class FakeExtensionEngine implements ExtensionEngine {
   final Map<String, ExtensionReport> reports = {};
+
+  /// What WebKit reports going wrong, as a test sends it.
+  final StreamController<ExtensionProblem> problemsSent =
+      StreamController.broadcast();
   ExtensionReport? anyFolder;
   final List<({ExtensionPage page, WebExtensionId extension, ExtensionHome home})>
   shown = [];
@@ -15,6 +21,9 @@ class FakeExtensionEngine implements ExtensionEngine {
 
   /// Where [inspect] was asked, in order.
   final List<String> inspected = [];
+
+  @override
+  Stream<ExtensionProblem> get problems => problemsSent.stream;
 
   @override
   Future<ExtensionReport?> inspect(String folder) async {

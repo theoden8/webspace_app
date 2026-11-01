@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "لا تحصل على أي أذونات.",
   "siteExtensionsSwitchOn": "تفعيل",
   "siteExtensionsSettings": "الإعدادات",
-  "siteExtensionsOpen": "فتح",
+  "siteExtensionsMenu": "القائمة",
   "siteExtensionsPageFailed": "تعذّر فتح {name} هنا",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "არცერთ ნებართვას არ იღებს.",
   "siteExtensionsSwitchOn": "ჩართვა",
   "siteExtensionsSettings": "პარამეტრები",
-  "siteExtensionsOpen": "გახსნა",
+  "siteExtensionsMenu": "მენიუ",
   "siteExtensionsPageFailed": "{name} აქ ვერ გაიხსნა",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"

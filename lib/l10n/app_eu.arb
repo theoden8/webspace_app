@@ -1279,7 +1279,7 @@
   "siteExtensionsConsentNoPermissions": "Ez du baimenik jasotzen.",
   "siteExtensionsSwitchOn": "Aktibatu",
   "siteExtensionsSettings": "Ezarpenak",
-  "siteExtensionsOpen": "Ireki",
+  "siteExtensionsMenu": "Menua",
   "siteExtensionsPageFailed": "Ezin izan da {name} hemen ireki",
   "termAndMeaning": "{term}: {meaning}",
   "twoSentences": "{first} {second}"
