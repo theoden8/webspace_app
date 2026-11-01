@@ -77,6 +77,7 @@ Def<Object?, Object?> definition(ModelDef d) => switch (d) {
   ModelDef.tabBusy => TabTable.tabBusy,
   ModelDef.reopens => TabTable.reopens,
   ModelDef.movesRule => TabTable.movesRule,
+  ModelDef.misplaced => TabTable.misplaced,
   ModelDef.capture => TabVars.capture<Object?>(),
   ModelDef.bound => TabVars.bound<Object?>(),
   ModelDef.takes => takesOf<Object?>(),

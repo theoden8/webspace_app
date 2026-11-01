@@ -418,18 +418,29 @@ abstract final class TabTable {
   );
 
   /// The tabs of [s] a link opened that run elsewhere than [_placeOf] puts
-  /// them while [routed] route.
+  /// them while the openers `R` route (`Misplaced`): the reroute picks a
+  /// reading that leaves one out of place, and its flip moves them.
+  static final misplaced = () {
+    const s = Bound<WebViewModel, TabFlow>('s');
+    const routed = Bound<Iterable<WebViewModel>, TabFlow>('R');
+    const l = Bound<TabId, TabFlow>('l');
+    return Def<List<TabId>, TabFlow>(
+      ModelDef.misplaced,
+      params: const [s, routed],
+      body: _tabIds(s.it).where(
+        l,
+        holds: _opener.at(s.it).at(l.it).neq(_noLink) &
+            _tabHost
+                .at(s.it)
+                .at(l.it)
+                .neq(_placeOf(s.it, t: l.it, routed: routed.it)),
+      ),
+    );
+  }();
   static Expr<List<TabId>, TabFlow> _misplaced(
     Expr<WebViewModel, TabFlow> s, {
     required Expr<Iterable<WebViewModel>, TabFlow> routed,
-  }) {
-    const l = Bound<TabId, TabFlow>('l');
-    return _tabIds(s).where(
-      l,
-      holds: _opener.at(s).at(l.it).neq(_noLink) &
-          _tabHost.at(s).at(l.it).neq(_placeOf(s, t: l.it, routed: routed)),
-    );
-  }
+  }) => misplaced.call([s, routed]);
 
   /// A site whose switch-following tabs may move: one whose tabs the model
   /// follows (`Tabbed`) with a tab that has two places.

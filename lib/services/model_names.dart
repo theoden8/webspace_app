@@ -345,6 +345,7 @@ enum ModelDef {
   tabBusy,
   reopens,
   movesRule,
+  misplaced,
   capture,
   bound,
   takes,
