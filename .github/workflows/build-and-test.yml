@@ -1037,11 +1037,14 @@ jobs:
       # build step therefore asserts the engine actually shipped inside the
       # produced bundle before moving on (scripts/verify_adblock_shipped.sh:
       # nm's the framework for >=15 ws_* Dart-FFI exports).
+      # The unsigned IPA is installed outside the App Store (sideloaded), so it
+      # is the direct flavor and carries what App Review leaves out
+      # (WEBEXT-019); an App Store build is the same project without a flavor.
       - name: Build IPA
         run: |
-          fvm flutter build ipa --release --no-codesign
+          fvm flutter build ipa --release --no-codesign --flavor direct
           bash scripts/verify_adblock_shipped.sh ios
-          bash scripts/check_extension_search.sh absent \
+          bash scripts/check_extension_search.sh present \
             build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/App
           # --no-codesign builds the archive and then skips the export
           # ("Codesigning disabled with --no-codesign, skipping IPA"), so
@@ -1069,6 +1072,12 @@ jobs:
           bash scripts/check_extension_search.sh absent \
             build/macos/Build/Products/Release/webspace.app/Contents/Frameworks/App.framework/App
           bash scripts/sign_macos.sh adhoc
+          # The direct flavor, as a Developer ID download is made, compiles
+          # and carries the search; its products are not kept.
+          fvm flutter build macos --release --flavor direct
+          bash scripts/check_extension_search.sh present \
+            build/macos/Build/Products/Release-direct/webspace.app/Contents/Frameworks/App.framework/App
+          rm -rf build/macos/Build/Products/Release-direct
 
       # Reclaim disk before the macOS integration loop. The macos-latest
       # runner has a tight disk budget, and by this point three build trees

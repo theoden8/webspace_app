@@ -4,7 +4,7 @@
 #   adhoc  local/CI artifact: re-sign with an entitlement set an ad-hoc
 #          signature can actually back
 #   devid  Developer ID + hardened runtime, notarized and stapled -> .zip
-#          and .dmg
+#          and .dmg, from the direct flavor's build (--flavor direct)
 #   mas    Apple Distribution + provisioning profiles -> .pkg for App Store
 #          Connect
 #
@@ -34,7 +34,13 @@ set -euo pipefail
 
 MODE="${1:-}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DEFAULT_APP=$(ls -d "$REPO_ROOT"/build/macos/Build/Products/Release/*.app 2>/dev/null | head -1 || true)
+# A Developer ID download is the direct flavor (WEBEXT-019); the others are
+# the flavorless build an App Store one is.
+case "$MODE" in
+  devid) PRODUCTS=Release-direct BUILD="fvm flutter build macos --release --flavor direct" ;;
+  *) PRODUCTS=Release BUILD="fvm flutter build macos --release" ;;
+esac
+DEFAULT_APP=$(ls -d "$REPO_ROOT"/build/macos/Build/Products/"$PRODUCTS"/*.app 2>/dev/null | head -1 || true)
 APP="${2:-$DEFAULT_APP}"
 
 TEAM_ID="${WEBSPACE_TEAM_ID:-7NGC2P87LM}"
@@ -53,11 +59,11 @@ esac
 
 [[ "$(uname -s)" == "Darwin" ]] || { echo "ERROR: macOS only." >&2; exit 2; }
 [[ -n "$APP" && -d "$APP" ]] || {
-  echo "ERROR: no .app at '${APP:-<none>}'. Run: fvm flutter build macos --release" >&2
+  echo "ERROR: no .app at '${APP:-<none>}'. Run: $BUILD" >&2
   exit 2
 }
 
-# The search of addons.mozilla.org is compiled in only on request
+# The search of addons.mozilla.org is compiled in only with the direct flavor
 # (WEBEXT-019), and App Review rejects it: a store build must not carry it.
 SNAPSHOT="$APP/Contents/Frameworks/App.framework/App"
 case "$MODE" in

@@ -6,7 +6,7 @@ identifier as the iOS app. Spec: PLATFORM-006 in
 [openspec/specs/platform-support/spec.md](../openspec/specs/platform-support/spec.md).
 
 Each channel is its own build from the same commit, the two differing in
-one define (the extension search, below). `flutter build macos --release`
+their flavor (the extension search, below). `flutter build macos --release`
 produces an unsigned universal bundle (arm64 + x86_64; `ONLY_ACTIVE_ARCH` is
 Debug-only, and the adblock static lib is already fat), and
 [scripts/sign_macos.sh](../scripts/sign_macos.sh) signs it for the channel
@@ -65,7 +65,7 @@ release artifacts are signed after the build:
 
 ```bash
 # Developer ID: hardened runtime, notarized, stapled -> build/macos/*.zip, *.dmg
-fvm flutter build macos --release --dart-define=WEBSPACE_EXTENSION_SEARCH=true
+fvm flutter build macos --release --flavor direct
 NOTARY_PROFILE=webspace-notary \
   ./scripts/sign_macos.sh devid
 
@@ -79,12 +79,15 @@ MACOS_EXT_PROVISION_PROFILE=~/profiles/ext.provisionprofile \
 The two channels are two builds from one commit, because only the Developer
 ID build carries the extension search (WEBEXT-019): App Review guideline
 3.2.2(i) rejects an in-app catalogue of extensions, so the search is compiled
-in only with `--dart-define=WEBSPACE_EXTENSION_SEARCH=true`, and without it
-none of its code is in the binary.
+in only with `--flavor direct` (the `direct` scheme and its `Release-direct`
+configuration, whose products land in `build/macos/Build/Products/Release-direct`),
+and without it none of its code is in the binary and the app counts itself an
+App Store build.
 [scripts/check_extension_search.sh](../scripts/check_extension_search.sh)
 looks for it in the built snapshot: `sign_macos.sh mas` refuses a build that
-carries it, `devid` notes one that does not, and CI checks the iOS and macOS
-builds it makes, which are made without the define.
+carries it, `devid` signs the direct build and notes one that does not, and CI
+checks that its flavorless macOS build carries none and its direct iOS and
+macOS builds do.
 
 `NOTARY_PROFILE` is a notarytool keychain profile, stored once with
 `xcrun notarytool store-credentials webspace-notary --apple-id <id>
@@ -197,7 +200,7 @@ launch. Until then passkeys do nothing on macOS: WebKit refuses every site.
 ## First submission checklist
 
 1. `fvm flutter build macos --release` on a machine with the certificates,
-   without `--dart-define=WEBSPACE_EXTENSION_SEARCH`.
+   without `--flavor direct`.
 2. `./scripts/sign_macos.sh mas` and upload the `.pkg`.
 3. In App Store Connect: macOS platform added to the existing record,
    category set, privacy labels copied from iOS, Mac screenshots uploaded,

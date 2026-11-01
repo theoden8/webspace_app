@@ -106,6 +106,12 @@ void main() {
 
   group('WEBEXT-019 search and installs without asking, outside the App '
       'Store only', () {
+    test('a build made without the direct flavor is an App Store build, and '
+        'carries no search', () {
+      expect(builtFor, AppDistribution.appStore);
+      expect(extensionSearchBuilt, isFalse);
+    });
+
     testWidgets('a build from the App Store offers neither', (tester) async {
       debugHostDistribution = AppDistribution.appStore;
       searchSwitch(on: true);
@@ -118,8 +124,8 @@ void main() {
       expect(find.text('Add from a link'), findsOneWidget);
     });
 
-    testWidgets('a build made without the search flag carries neither the bar '
-        'nor its switch, wherever it was installed from', (tester) async {
+    testWidgets('a build made without the direct flavor carries neither the '
+        'bar nor its switch, wherever it was installed from', (tester) async {
       debugExtensionSearchBuilt = false;
       debugHostDistribution = AppDistribution.direct;
       searchSwitch(on: true);
