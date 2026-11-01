@@ -784,35 +784,43 @@ class DnsBlockService {
   /// prune runs: the startup sweep reads the levels before a download the
   /// user started lands, or a site's level fetched before its Save
   /// (DNS-021).
-  Future<void> pruneLevels(Set<int> keep) {
+  Future<void> pruneLevels(Set<int> keep) async {
     final since = _folds;
-    return _mutations.run(() => _pruneLevelsInner(keep, since: since));
+    await _mutations.run(() => _runFlow(
+          DnsFlow._(this, level: kDnsLevelOff, appWide: false)
+            ..keep = keep
+            ..since = since,
+          from: DnsPlace.prune,
+        ));
   }
 
   /// Folds so far; [_foldedAt] names the fold each level last landed in.
   int _folds = 0;
   final Map<int, int> _foldedAt = {};
 
-  @Held(#_mutations)
-  Future<void> _pruneLevelsInner(Set<int> keep, {required int since}) async {
-    final drop = _levelSets.levels
-        .where((l) =>
-            !keep.contains(l) &&
-            l != _level &&
-            (_foldedAt[l] ?? 0) <= since)
-        .toSet();
-    if (drop.isEmpty) return;
+  /// The levels [flow]'s prune drops: those its keep does not name, other
+  /// than the app-wide level, and folded no later than the prune was asked.
+  List<int> _drops(DnsFlow flow) => [
+    for (final l in _levelSets.levels)
+      if (!flow.keep.contains(l) &&
+          l != _level &&
+          (_foldedAt[l] ?? 0) <= flow.since)
+        l,
+  ]..sort();
+
+  /// A prune's disk work, before the table puts the levels left in force.
+  Future<void> _writePruned(DnsFlow flow, {required List<int> drops}) async {
     final builder = DnsLevelSetsBuilder.from(_levelSets);
-    for (final level in drop) {
+    for (final level in drops) {
       builder.dropLevel(level);
     }
     final pruned = builder.build();
     await _writeLevelSets(pruned);
     final prefs = await SharedPreferences.getInstance();
     await _persistDownloadedLevels(prefs, levels: pruned.levels);
-    _apply(sets: pruned, level: _level);
+    flow.folded = pruned;
     LogTag.dnsBlock.info(
-        'Dropped unused blocklist levels ${drop.toList()..sort()} '
+        'Dropped unused blocklist levels $drops '
         '(${pruned.domainCount} domains left)');
   }
 
@@ -904,18 +912,22 @@ class DnsBlockService {
   /// Out-of-range levels, and an import that names the level already in
   /// force, are no-ops. Tiers no site wants are reclaimed by the startup
   /// sweep rather than here.
-  Future<void> applyImportedLevel(int level) =>
-      _mutations.run(() => _applyImportedLevelInner(level));
-
-  @Held(#_mutations)
-  Future<void> _applyImportedLevelInner(int level) async {
+  Future<void> applyImportedLevel(int level) async {
     if (level < 0 || level > kDnsMaxLevel) return;
-    if (level == _level) return;
+    await _mutations.run(() => _runFlow(
+          DnsFlow._(this, level: level, appWide: true),
+          from: DnsPlace.import,
+        ));
+  }
+
+  /// An import's disk work, before the table puts its level in force with
+  /// no list held.
+  Future<void> _clearForImport(DnsFlow flow) async {
     try {
       await _store.delete(_levelsFileName);
       await _store.delete(_legacyCacheFileName);
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(_levelKey, level);
+      await prefs.setInt(_levelKey, flow.level);
       await prefs.remove(_lastUpdatedKey);
       await _persistDownloadedLevels(prefs, levels: const <int>{});
     } on IOException catch (e) {
@@ -923,7 +935,7 @@ class DnsBlockService {
     } on PlatformException catch (e) {
       LogTag.dnsBlock.error('Error applying imported level: $e');
     }
-    _apply(sets: DnsLevelSets.empty, level: level);
+    flow.folded = DnsLevelSets.empty;
   }
 
   /// Get the last time the blocklist was downloaded, or null if never.
@@ -1051,7 +1063,18 @@ final class DnsInForce {
 
 /// The places a download waits at, as `activation.tla` names them: the
 /// three inputs, the fetch and fold, the clear's disk work, and the end.
-enum DnsPlace { download, addLevel, clear, dFold, dCleared, done }
+enum DnsPlace {
+  download,
+  addLevel,
+  clear,
+  prune,
+  import,
+  dFold,
+  dCleared,
+  dPruned,
+  dImported,
+  done,
+}
 
 /// One download as its table runs it: the service, the level asked for,
 /// whether it becomes the app-wide level, and what the fold made.
@@ -1065,6 +1088,11 @@ final class DnsFlow {
 
   /// The level was downloaded already: nothing to fetch.
   bool held = false;
+
+  /// A prune's: the levels a site or the app asks for as it was asked, and
+  /// the folds there had been then (DNS-021).
+  Set<int> keep = const {};
+  int since = 0;
 }
 
 extension DnsTable on DnsBlockService {
@@ -1141,6 +1169,26 @@ typedef DnsFold = ({
   Future<void> Function() clear,
   bool Function() failed,
   void Function() held,
+});
+
+/// What a prune drops as its turn starts, and its disk work; and an
+/// import's.
+final _dnsTrim = Port<DnsTrim, DnsFlow>(
+  'trim',
+  reads: {ModelVar.dns},
+  changes: const {},
+  of: (w) => (
+    drops: () => w.service._drops(w),
+    prune: ({required drops}) => w.service._writePruned(w, drops: drops),
+    import: () => w.service._clearForImport(w),
+  ),
+);
+
+/// [_dnsTrim]'s interface.
+typedef DnsTrim = ({
+  List<int> Function() drops,
+  Future<void> Function({required List<int> drops}) prune,
+  Future<void> Function() import,
 });
 
 final _dnsFlowing = Expr.inFlight<DnsFlow>(
@@ -1239,6 +1287,36 @@ final _dnsNoLevels = Expr.constant<Iterable<int>, DnsFlow>(
 final _dnsHeld = _dnsInForce.value
     .part<Iterable<int>>('levels', get: (d) => d.levels)
     .has(_dnsEachLevel.it);
+
+final _dnsDrops = Field<List<int>, DnsFlow>(FlowField.drops);
+final _dnsLevelInForce = _dnsInForce.value.part('lvl', get: (d) => d.level);
+final _dnsLeft = _dnsInForce.value
+    .part<Iterable<int>>('levels', get: (d) => d.levels)
+    .less(_dnsDrops.value);
+
+/// The levels a prune may drop (DNS-021): any held but the app-wide level
+/// and those a listed site asks for. The code drops one of these: those
+/// its keep does not name, less any a fold since it was asked brought.
+final _dnsEachDrop = Pick<List<int>, DnsFlow>(
+  Expr.op(
+    HandPaired.dnsPrunes,
+    tla: r'SUBSET ((dns.levels \ {dns.lvl}) \ {SiteLevel[s] : s \in Listed})',
+    run: (c) => [_dnsTrim.from(c).drops()],
+    reads: const Reads(vars: {ModelVar.dns}, base: {BaseOp.listed}),
+  ),
+  name: 'dr',
+);
+
+/// The app-wide level an import names: off, or one a download may pick.
+final _dnsEachImport = Pick<int, DnsFlow>(
+  Expr.op(
+    HandPaired.dnsImports,
+    tla: r'{0} \cup DnsLevels',
+    run: _dnsLevels.run,
+    reads: Reads.none,
+  ),
+  name: 'il',
+);
 
 final StepTable<DnsFlow, DnsPlace> _dnsTable = StepTable(
   DnsPlace.values,
@@ -1357,6 +1435,112 @@ final StepTable<DnsFlow, DnsPlace> _dnsTable = StepTable(
               ),
             ),
             _toldUnder(level: _dnsOff, levels: _dnsNoLevels),
+          ]),
+        ],
+        next: to(DnsPlace.done),
+      ),
+    ),
+    // The startup sweep drops the levels nothing asks for any more, in its
+    // turn of the lists (DNS-021).
+    DnsPlace.prune => Step.input(
+      ActivationStep.dnsPrune,
+      enabled: ~_dnsFlowing,
+      pick: _dnsEachDrop,
+      branches: [
+        Branch(
+          StepOutcome.skip,
+          when: _dnsEachDrop.it.isEmpty,
+          then: [],
+          next: to(DnsPlace.done),
+        ),
+      ],
+      otherwise: Otherwise(
+        StepOutcome.go,
+        then: [
+          _dnsKind.becomes(Expr.constant(FlowKind.dns)),
+          _dnsDrops.becomes(_dnsEachDrop.it),
+        ],
+        next: to(DnsPlace.dPruned),
+      ),
+    ),
+    // The levels left written; then they are in force and every live view
+    // is told the level its site resolves to under them, as one write.
+    DnsPlace.dPruned => Step(
+      ActivationStep.dnsPruned,
+      holds: null,
+      call: Call.on(
+        _dnsTrim,
+        run: (c) => c.api.prune(drops: _dnsDrops.of(c)),
+        writes: const [],
+      ),
+      otherwise: Otherwise(
+        StepOutcome.none,
+        then: [
+          Act.of([
+            _dnsInForce.becomes(
+              record(
+                {'lvl': _dnsLevelInForce, 'levels': _dnsLeft},
+                run: (c) => DnsInForce(
+                  level: _dnsLevelInForce.run(c),
+                  levels: _dnsLeft.run(c).toSet(),
+                ),
+              ),
+            ),
+            _toldUnder(level: _dnsLevelInForce, levels: _dnsLeft),
+          ]),
+        ],
+        next: to(DnsPlace.done),
+      ),
+    ),
+    // A settings import names the app-wide level, unless it is the one in
+    // force already.
+    DnsPlace.import => Step.input(
+      ActivationStep.dnsImport,
+      enabled: ~_dnsFlowing,
+      pick: _dnsEachImport,
+      branches: [
+        Branch(
+          StepOutcome.skip,
+          when: _dnsEachImport.it.eq(_dnsLevelInForce),
+          then: [],
+          next: to(DnsPlace.done),
+        ),
+      ],
+      otherwise: Otherwise(
+        StepOutcome.go,
+        then: [
+          _dnsKind.becomes(Expr.constant(FlowKind.dns)),
+          _dnsLvl.becomes(_dnsEachImport.it),
+          _dnsAppWide.becomes(Expr.constant(true)),
+        ],
+        next: to(DnsPlace.dImported),
+      ),
+    ),
+    // The lists deleted from disk; then the imported level is in force with
+    // none held until one is fetched again, and every live view is told it,
+    // as one write.
+    DnsPlace.dImported => Step(
+      ActivationStep.dnsImported,
+      holds: null,
+      call: Call.on(
+        _dnsTrim,
+        run: (c) => c.api.import(),
+        writes: const [],
+      ),
+      otherwise: Otherwise(
+        StepOutcome.none,
+        then: [
+          Act.of([
+            _dnsInForce.becomes(
+              record(
+                {'lvl': _dnsLvl.value, 'levels': _dnsNoLevels},
+                run: (c) => DnsInForce(
+                  level: _dnsLvl.value.run(c),
+                  levels: const <int>{},
+                ),
+              ),
+            ),
+            _toldUnder(level: _dnsLvl.value, levels: _dnsNoLevels),
           ]),
         ],
         next: to(DnsPlace.done),

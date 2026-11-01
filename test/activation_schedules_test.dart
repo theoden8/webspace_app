@@ -194,6 +194,18 @@ const _dnsAlphabet = <SiteAction>[
   Pressure(),
 ];
 
+/// The startup sweep's prune and a settings import against the downloads
+/// and a tap: level 1 fetched for no site and dropped, or made the app's
+/// level and kept; an import of level 2 or of off (DNS-021, DNS-022).
+const _dnsTrimAlphabet = <SiteAction>[
+  Tap(1),
+  DnsDownload(0),
+  DnsAddLevel(0),
+  DnsPrune(),
+  DnsImport(1),
+  DnsImport(2),
+];
+
 /// A wake the model broke before the code ran it, at three preemptions,
 /// under the mismatched proxies (BUG-037).
 const _wakeRegressions = <String, List<SiteAction>>{
@@ -1044,6 +1056,20 @@ void main() {
       });
     }
   }
+
+  _scheduleTest('mixed, containers, one site signed in, a DNS prune and an '
+      'import: every schedule holds', body: () async {
+    for (var length = 1; length <= _dnsLength; length++) {
+      for (final script in _scripts(length, alphabet: _dnsTrimAlphabet)) {
+        await _expectEvery(
+          world: () => ActivationWorld(_mixedContainers, dns: _dnsSites),
+          setup: _oneSignedIn,
+          script: script,
+          preemptions: _preemptions,
+        );
+      }
+    }
+  });
 
   group('wake regressions', () {
     final (:page, :launch) = _launches['mixed, containers, from launch']!;

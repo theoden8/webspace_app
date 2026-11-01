@@ -376,6 +376,16 @@ enum ActivationStep {
   dnsClear(),
   dnsCleared(),
 
+  /// The startup sweep's prune of the levels nothing asks for (DNS-021):
+  /// nothing to drop, or the levels left written, then in force and told.
+  dnsPrune(outcomes: {StepOutcome.skip, StepOutcome.go}),
+  dnsPruned(),
+
+  /// A settings import's app-wide level: the one in force already, or its
+  /// lists deleted, then in force with none held and told.
+  dnsImport(outcomes: {StepOutcome.skip, StepOutcome.go}),
+  dnsImported(),
+
   /// A site's webview is built and attaches at its site's level, or is
   /// gone: the environment's, as a frame builds or drops it.
   viewBuilt(),

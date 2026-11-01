@@ -35,6 +35,7 @@ import 'package:webspace/controllers/startup_controller.dart';
 import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
@@ -171,6 +172,23 @@ final class DnsClear extends SiteAction {
   const DnsClear();
   @override
   String toString() => 'DnsClear()';
+}
+
+/// The startup sweep drops the levels no site and not the app ask for
+/// (`pruneLevels`), left running.
+final class DnsPrune extends SiteAction {
+  const DnsPrune();
+  @override
+  String toString() => 'DnsPrune()';
+}
+
+/// A settings import names the DNS level at [pick] of the page's, or off
+/// past them (`applyImportedLevel`), left running.
+final class DnsImport extends SiteAction {
+  const DnsImport(this.pick);
+  final int pick;
+  @override
+  String toString() => 'DnsImport($pick)';
 }
 
 /// The webspace at [pick] of the page's (`All` first) is chosen on the list
@@ -1154,6 +1172,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     DnsDownload() ||
     DnsAddLevel() ||
     DnsClear() ||
+    DnsPrune() ||
+    DnsImport() ||
     SwitchWebspace() ||
     CloseArchive() ||
     Delete() ||
@@ -1744,6 +1764,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     DnsDownload() => ActivationStep.dnsDownload,
     DnsAddLevel() => ActivationStep.dnsAddLevel,
     DnsClear() => ActivationStep.dnsClear,
+    DnsPrune() => ActivationStep.dnsPrune,
+    DnsImport() => ActivationStep.dnsImport,
     SwitchWebspace() => ActivationStep.spaceSwitch,
     CloseArchive() => ActivationStep.closeArchive,
     Delete() => ActivationStep.deleteSite,
@@ -2213,6 +2235,23 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         }
       case DnsClear():
         if (dns != null) _track(DnsBlockService.instance.downloadList(0));
+      // As the startup sweep asks, each listed site at the level the walk
+      // gives its views.
+      case DnsPrune():
+        if (dns case (levels: _, :final siteLevels)?) {
+          _track(DnsBlockService.instance.pruneLevels(requiredDnsLevels(
+            globalLevel: DnsBlockService.instance.level,
+            siteLevels: [
+              for (final m in sites.models) siteLevels[_siteNumber(m) - 1],
+            ],
+          )));
+        }
+      case DnsImport(:final pick):
+        if (dns case (:final levels, siteLevels: _)?) {
+          _track(DnsBlockService.instance.applyImportedLevel(
+            pick < levels.length ? levels[pick] : kDnsLevelOff,
+          ));
+        }
       case SwitchWebspace(:final pick):
         if (spaces != null) {
           final to = sites.webspaces[pick % sites.webspaces.length];
@@ -2337,6 +2376,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           DnsDownload() ||
           DnsAddLevel() ||
           DnsClear() ||
+          DnsPrune() ||
+          DnsImport() ||
           SwitchWebspace() ||
           ArchiveSite() ||
           CloseArchive() ||

@@ -245,6 +245,9 @@ enum FlowField {
   lvl('0', range: r'0..5'),
   appWide('FALSE', range: r'BOOLEAN'),
 
+  /// The DNS levels a prune drops.
+  drops('{}', range: r'SUBSET (1..5)'),
+
   /// A call of the restore on the shared jar was refused, so its target is
   /// not shown once the rest of the refill is written (ISO-014).
   unrestored('FALSE', range: r'BOOLEAN');
