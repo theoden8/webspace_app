@@ -89,18 +89,13 @@ jobs:
           path: /var/cache/webspace-snap-ccache
           key: snap-ccache-${{ hashFiles('snap/snapcraft.yaml') }}-${{ github.sha }}
 
-      # A snap installed from a file has no store declaration, so its content
-      # plugs do not connect to Canonical's runtimes by themselves.
+      # The runtimes' own store declarations let any snap's content plugs
+      # connect to them, so even a snap installed from a file connects by
+      # itself, as it does for a user; this checks that it did.
       - name: Install the snap
         run: |
           sudo snap install gnome-46-2404 mesa-2404 gtk-common-themes
           sudo snap install --dangerous ./webspace_*_amd64.snap
-          for c in gnome-46-2404:gnome-46-2404 gpu-2404:mesa-2404 \
-                   gtk-3-themes:gtk-common-themes icon-themes:gtk-common-themes \
-                   sound-themes:gtk-common-themes; do
-            plug="${c%%:*}" provider="${c#*:}"
-            sudo snap connect "webspace:$plug" "$provider:$plug" || true
-          done
           connections="$(snap connections webspace)"
           echo "$connections"
           unconnected="$(awk '$1 == "content" && $3 == "-"' <<<"$connections")"
