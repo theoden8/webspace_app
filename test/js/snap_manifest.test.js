@@ -88,6 +88,16 @@ test('the tray exports its item and menu where unity7 lets a snap (NOTIF-019)', 
   assert.match(manifest, /^ {6}- unity7$/m, `${MANIFEST} does not plug unity7`);
 });
 
+// GLib in the snap sends proxy lookups and network-status calls to
+// xdg-desktop-portal whenever the desktop plug is connected
+// (gportalsupport.c), and the portal answers a snap's only when its
+// network-status interface is connected (snap routine portal-info). The gnome
+// extension plugs desktop, so without network-status every lookup is refused.
+test('the snap plugs network-status, which the portal requires for proxy lookups', () => {
+  assert.match(manifest, /^ {4}extensions: \[gnome\]$/m, `${MANIFEST}: the app no longer uses the gnome extension`);
+  assert.match(manifest, /^ {6}- network-status$/m, `${MANIFEST} does not plug network-status`);
+});
+
 test('each plug names what needs it, and none is the home directory or the host (PLATFORM-012)', () => {
   const start = lines.indexOf('    plugs:');
   assert.ok(start >= 0, `${MANIFEST}: the app has no plugs:`);

@@ -49,6 +49,10 @@ apps:
       - network
       # The built-in tor's SOCKS port (TOR-027) and the egress relay (NETIF-003) listen on loopback.
       - network-bind
+      # GLib sends proxy lookups to xdg-desktop-portal once desktop is connected,
+      # and the portal answers a snap only when network-status is; WebKit's
+      # network process looks one up per request.
+      - network-status
       # WPE's GStreamer: a page's sound out.
       - audio-playback
       # WPE's GStreamer: a page's microphone in.
