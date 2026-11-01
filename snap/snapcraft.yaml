@@ -2,7 +2,7 @@
 # on the GNOME extension's runtime. `snapcraft pack` builds it (in LXD, or with
 # --destructive-mode on an Ubuntu 24.04 host). Registering the name, uploading
 # and releasing are the maintainer's (docs/releasing.md).
-name: webspace
+name: webspace-app
 title: WebSpace
 base: core24
 adopt-info: webspace
@@ -33,7 +33,7 @@ slots:
     name: org.codeberg.theoden8.webspace
 
 apps:
-  webspace:
+  webspace-app:
     command: opt/webspace/webspace_app
     desktop: usr/share/applications/org.codeberg.theoden8.webspace.desktop
     common-id: org.codeberg.theoden8.webspace

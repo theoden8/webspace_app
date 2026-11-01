@@ -95,8 +95,9 @@ jobs:
       - name: Install the snap
         run: |
           sudo snap install gnome-46-2404 mesa-2404 gtk-common-themes
-          sudo snap install --dangerous ./webspace_*_amd64.snap
-          connections="$(snap connections webspace)"
+          snap_name="$(sed -n 's/^name: \([a-z0-9-]*\)$/\1/p' snap/snapcraft.yaml)"
+          sudo snap install --dangerous ./"$snap_name"_*_amd64.snap
+          connections="$(snap connections "$snap_name")"
           echo "$connections"
           unconnected="$(awk '$1 == "content" && $3 == "-"' <<<"$connections")"
           if [ -n "$unconnected" ]; then

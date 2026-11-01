@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the installed webspace snap with one site and checks what only a
+# Runs the installed snap with one site and checks what only a
 # confined run shows (PLATFORM-012): the app starts with every library it
 # links found in the snap and its runtimes, and owns its application ID on
 # the session bus through the dbus slot; a second launch with a
@@ -24,13 +24,15 @@ gdbus call --session --dest org.freedesktop.systemd1 --object-path /org/freedesk
 root="$(cd "$(dirname "$0")/.." && pwd)"
 id="$(sed -n 's/^  set(APPLICATION_ID "\([[:alnum:]_.]*\)")$/\1/p' "$root/linux/CMakeLists.txt")"
 [ -n "$id" ] || { echo "::error::no default APPLICATION_ID in linux/CMakeLists.txt" >&2; exit 1; }
+snap_name="$(sed -n 's/^name: \([a-z0-9-]*\)$/\1/p' "$root/snap/snapcraft.yaml")"
+[ -n "$snap_name" ] || { echo "::error::no name in snap/snapcraft.yaml" >&2; exit 1; }
 
 work="$(mktemp -d)"
 pids=()
 cleanup() {
   for p in "${pids[@]}"; do kill "$p" 2>/dev/null || true; done
   echo "--- AppArmor denials for the snap"
-  sudo -n journalctl -k --no-pager 2>/dev/null | grep 'apparmor="DENIED"' | grep 'snap\.webspace' | tail -40 || true
+  sudo -n journalctl -k --no-pager 2>/dev/null | grep 'apparmor="DENIED"' | grep -F "snap.$snap_name." | tail -40 || true
 }
 trap cleanup EXIT
 
@@ -39,7 +41,7 @@ fail() {
   echo "--- app log"; tail -60 "$work/app.log" || true
   echo "--- http log"; cat "$work/http.log" || true
   echo "--- libraries not found, as the app's shell resolves them"
-  snap run --shell webspace -c '
+  snap run --shell "$snap_name" -c '
     for f in "$SNAP"/opt/webspace/webspace_app "$SNAP"/opt/webspace/lib/*.so \
              "$SNAP"/usr/libexec/wpe-webkit-2.0/* "$SNAP"/usr/lib/*/libWPEWebKit-2.0.so.*; do
       ldd "$f" 2>&1 | sed -n "s|^[[:space:]]*\([^ ]*\) => not found|$f: \1|p"
@@ -61,7 +63,7 @@ python3 -c '
 import json, sys
 site = {"siteId": "snapcheck01", "initUrl": sys.argv[1], "currentUrl": sys.argv[1], "name": "Check"}
 print(json.dumps({"flutter.webViewModels": [json.dumps(site)]}))' "$url" \
-  | snap run --shell webspace -c "d=\"\${XDG_DATA_HOME:-\$HOME/.local/share}/$id\" && mkdir -p \"\$d\" && cat > \"\$d/shared_preferences.json\""
+  | snap run --shell "$snap_name" -c "d=\"\${XDG_DATA_HOME:-\$HOME/.local/share}/$id\" && mkdir -p \"\$d\" && cat > \"\$d/shared_preferences.json\""
 
 owned() {
   local reply
@@ -70,7 +72,7 @@ owned() {
   grep -q true <<<"$reply"
 }
 
-snap run webspace > "$work/app.log" 2>&1 &
+snap run "$snap_name" > "$work/app.log" 2>&1 &
 app=$!
 pids+=("$app")
 for _ in $(seq 90); do
@@ -84,7 +86,7 @@ echo "the app runs and owns $id"
 
 link="webspace://open?url=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$url")"
 start=$SECONDS
-timeout 30 snap run webspace "$link" > "$work/second.log" 2>&1 \
+timeout 30 snap run "$snap_name" "$link" > "$work/second.log" 2>&1 \
   || fail "a second launch did not hand over and exit: $(cat "$work/second.log")"
 echo "a second launch handed over and exited after $((SECONDS - start)) s"
 

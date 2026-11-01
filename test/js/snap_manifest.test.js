@@ -52,6 +52,22 @@ test('check_snap.sh reads the application ID this gate reads', () => {
   assert.equal(id.trim(), nativeId, `${script} reads ${JSON.stringify(id.trim())}, not ${nativeId}`);
 });
 
+// The snap's name is the manifest's: the app is keyed by it, so the command a
+// user types and `snap run <name>` are the name itself, and the check script
+// and the workflow read it from the manifest instead of repeating it.
+test('the snap is named once, in its manifest', () => {
+  const name = manifest.match(/^name: ([a-z0-9-]+)$/m)?.[1];
+  assert.ok(name, `${MANIFEST} has no name:`);
+  assert.deepEqual(block('apps').filter((l) => /^ {2}\S/.test(l)), [`  ${name}:`],
+    `${MANIFEST}: the app is not keyed by the snap's name, so its command is not ${name}`);
+  const restated = new RegExp(`snap (?:run|connections|connect|install)(?: --shell| --dangerous)? \\.?/?${name}\\b|\\b${name}_\\*`);
+  for (const file of ['scripts/check_snap.sh', '.github/workflows/snap.yml']) {
+    const text = read(file);
+    assert.match(text, /sed -n 's\/\^name: /, `${file} does not read the snap's name from ${MANIFEST}`);
+    assert.doesNotMatch(text, restated, `${file} names the snap ${name} itself`);
+  }
+});
+
 // GApplication owns the application ID on the session bus, and strict
 // confinement lets a snap own a name only through a dbus slot.
 test('the snap owns its application ID on the session bus (PLATFORM-011)', () => {

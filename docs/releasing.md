@@ -96,18 +96,18 @@ Once, register the name; the store reviews a new name before it is yours:
 
 ```bash
 snapcraft login
-snapcraft register webspace
+snapcraft register webspace-app
 ```
 
 Each release, upload the workflow's artifact, or a snap built locally with
 `snapcraft pack` (in LXD, or `--destructive-mode` on Ubuntu 24.04):
 
 ```bash
-snapcraft upload --release=edge webspace_X.Y.Z_amd64.snap
-snapcraft release webspace <revision> stable   # once edge has been tried
+snapcraft upload --release=edge webspace-app_X.Y.Z_amd64.snap
+snapcraft release webspace-app <revision> stable   # once edge has been tried
 ```
 
 The store reviews each upload, and one its automated checks flag waits for a
 person. The `password-manager-service` plug never connects by itself; a user
 without a Secret portal connects it with
-`snap connect webspace:password-manager-service`.
+`snap connect webspace-app:password-manager-service`.
