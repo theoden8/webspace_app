@@ -88,6 +88,17 @@ test('LICENSE-001 every row was read at the version the build takes', needsPub, 
     ['pod:Tor: read at 409.11.2, built at 410.0.0'], 'a pod the lock moved on');
 });
 
+// The Tor pod downloads tor already built, so CI reads how from its symbols
+// (scripts/verify_tor_framework.sh) on each Apple build.
+test('LICENSE-001 each Apple build checks its tor for the GPL-only build', () => {
+  const workflow = read('.github/workflows/build-and-test.yml');
+  for (const platform of ['ios', 'macos']) {
+    assert.match(workflow, new RegExp(`^ +bash scripts/verify_tor_framework\\.sh ${platform}/Pods$`, 'm'),
+      `CI does not check the ${platform} build's tor`);
+  }
+  assert.match(read('scripts/verify_tor_framework.sh'), /\(equix\|hashx\)/, 'the check reads no proof-of-work symbol');
+});
+
 test('the verdicts are the ones licence_cases.tsv gives', () => {
   for (const [expression, ships, component, verdict] of L.rows(read(L.CASES))) {
     assert.equal(L.allows(expression, { ships, component }), verdict === 'allowed',
