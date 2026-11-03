@@ -88,8 +88,9 @@ reproduces what the PR committed.
 ## The snap
 
 The tag runs the Snap workflow, which builds the snap from
-`snap/snapcraft.yaml`, runs it once with a site (`scripts/check_snap.sh`) and
-keeps it as the `webspace-snap` artifact. Nothing in CI logs in to the Snap
+`snap/snapcraft.yaml` for amd64 and arm64, runs each once with a site
+(`scripts/check_snap.sh`) and keeps them as the `webspace-snap-amd64` and
+`webspace-snap-arm64` artifacts. Nothing in CI logs in to the Snap
 Store (PLATFORM-012): the store steps are yours.
 
 Once, register the name; the store reviews a new name before it is yours:
@@ -99,12 +100,14 @@ snapcraft login
 snapcraft register webspace-app
 ```
 
-Each release, upload the workflow's artifact, or a snap built locally with
-`snapcraft pack` (in LXD, or `--destructive-mode` on Ubuntu 24.04):
+Each release, upload the workflow's artifacts, or snaps built locally with
+`snapcraft pack` (in LXD, or `--destructive-mode` on Ubuntu 24.04). Each
+architecture's upload is a revision of its own:
 
 ```bash
 snapcraft upload --release=edge webspace-app_X.Y.Z_amd64.snap
-snapcraft release webspace-app <revision> stable   # once edge has been tried
+snapcraft upload --release=edge webspace-app_X.Y.Z_arm64.snap
+snapcraft release webspace-app <revision> stable   # each one, once edge has been tried
 ```
 
 The store reviews each upload, and one its automated checks flag waits for a

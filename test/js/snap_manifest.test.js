@@ -94,6 +94,22 @@ test("WebKit's compiled-in directories are bound to the snap's copies (PLATFORM-
   }
 });
 
+// The manifest's platforms are the snap's architectures: CI builds and runs
+// each on a runner of its own, and the app part knows where Flutter puts each
+// one's bundle.
+test('every platform the snap names is built in CI and has a bundle directory', () => {
+  const platforms = block('platforms').map((l) => l.match(/^ {2}([a-z0-9]+):$/)?.[1]).filter(Boolean);
+  assert.ok(platforms.length > 0, `${MANIFEST} names no platform`);
+  const workflow = read('.github/workflows/snap.yml');
+  const built = [...workflow.matchAll(/^ {10}- arch: ([a-z0-9]+)$/gm)].map((m) => m[1]);
+  assert.deepEqual([...built].sort(), [...platforms].sort(),
+    `.github/workflows/snap.yml builds ${built.join(', ')}; ${MANIFEST} names ${platforms.join(', ')}`);
+  for (const arch of platforms) {
+    assert.match(manifest, new RegExp(`^ {8}${arch}\\) bundle=build/linux/[a-z0-9]+/release/bundle ;;$`, 'm'),
+      `${MANIFEST}: the app part has no bundle directory for ${arch}`);
+  }
+});
+
 // The app runs the tor beside its executable (managed_tor_io.dart's
 // _bundleDir), which the app's own build fills (linux/tor.cmake). The snap
 // gives that build what tor links and checks what it laid out; a part of its

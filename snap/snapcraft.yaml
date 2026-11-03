@@ -11,6 +11,7 @@ confinement: strict
 
 platforms:
   amd64:
+  arm64:
 
 # WebKit compiles in where its helper processes, injected bundle and inspector
 # resources live (PKGLIBEXECDIR, PKGLIBDIR, PKGDATADIR), and a release build
@@ -258,7 +259,11 @@ parts:
       # Under the application ID every native build runs as (PLATFORM-009).
       flutter build linux --release
       bash scripts/verify_adblock_shipped.sh linux
-      bundle=build/linux/x64/release/bundle
+      case "$CRAFT_ARCH_BUILD_FOR" in
+        amd64) bundle=build/linux/x64/release/bundle ;;
+        arm64) bundle=build/linux/arm64/release/bundle ;;
+        *) echo "no Flutter bundle directory for $CRAFT_ARCH_BUILD_FOR" >&2; exit 1 ;;
+      esac
       bash scripts/verify_tor_shipped.sh "$bundle"
 
       # The plugin copies WPE into the bundle; the app loads the snap's own

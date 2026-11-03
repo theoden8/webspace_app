@@ -354,7 +354,8 @@ desktop entry and metainfo are the bundle's (PLATFORM-008).
   their notices beside it in the bundle's `lib/tor/`; the snap has no part of
   its own for it.
 
-CI builds the snap and runs it; nothing in CI logs in to the Snap Store.
+CI builds the snap for amd64 and arm64, each on a runner of its own
+architecture, and runs it; nothing in CI logs in to the Snap Store.
 Registering the name, uploading and releasing are the maintainer's
 (`docs/releasing.md`).
 
