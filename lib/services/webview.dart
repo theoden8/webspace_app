@@ -169,15 +169,10 @@ class WebViewFactory {
     'hcaptcha.com',
   ];
 
-  /// The hosts that serve reCAPTCHA under `/recaptcha/`, exactly: a
-  /// subdomain of them may serve HTML anyone uploads (`storage.googleapis.com`,
-  /// `sites.google.com`), and a challenge loads in place and may open the
-  /// verification popup (SEC-042).
+  /// Exactly the hosts serving reCAPTCHA: their subdomains include hosts of
+  /// uploaded HTML, such as `storage.googleapis.com` (SEC-042).
   static const _recaptchaHosts = {
-    'www.google.com',
-    'google.com',
-    'www.recaptcha.net',
-    'recaptcha.net',
+    'www.google.com', 'google.com', 'www.recaptcha.net', 'recaptcha.net',
     'www.gstatic.com',
   };
 
