@@ -82,8 +82,59 @@ function allows(expression, { ships, component, licences = policy() }) {
 
 /** source -> { licence, ships, note } from components.tsv. */
 function registry(text = read(COMPONENTS)) {
-  return new Map(rows(text).map(([source, licence, ships, note]) =>
-    [source.trim(), { licence: licence.trim(), ships: ships.trim(), note: (note ?? '').trim() }]));
+  return new Map(rows(text).map(([source, licence, ships, pin, note]) => [source.trim(), {
+    licence: licence.trim(), ships: ships.trim(), pin: (pin ?? '').trim(), note: (note ?? '').trim(),
+  }]));
+}
+
+/**
+ * source -> the version a build takes it at, from the build files [inputs]
+ * name (as buildFiles() reads them) and the pub [packages]: a pod's locked
+ * version, a URL's ${VAR}s expanded from the CMake set() beside it, the
+ * commit a git URL fetches, a pub file's package version. A source whose own
+ * text names its version has none.
+ */
+function pinsOf({ files = buildFiles().map(([rel]) => rel), packages = null } = {}) {
+  const out = new Map();
+  for (const rel of files) {
+    const text = read(rel);
+    if (rel.endsWith('Podfile.lock')) {
+      const locked = text.match(/^PODS:\n((?: {2}.*\n?)*)/m)?.[1] ?? '';
+      for (const m of locked.matchAll(/^ {2}- "?([^\s/"(]+)(?:\/[^\s(]+)? \(([^)]+)\)/gm)) out.set(`pod:${m[1]}`, m[2]);
+      continue;
+    }
+    const vars = new Map([...text.matchAll(/^\s*set\(\s*(\w+)\s+"?([^"\s)]+)"?\s*\)/gm)].map((m) => [m[1], m[2]]));
+    for (const source of urls(text)) {
+      const url = source.slice(4);
+      if (/\$\{\w+\}/.test(url)) {
+        out.set(source, url.replace(/\$\{(\w+)\}/g, (all, v) => vars.get(v) ?? all));
+      } else if (url.endsWith('.git')) {
+        const after = text.slice(text.indexOf(url)).split('\n').slice(0, 20).join('\n');
+        const sha = after.match(/\b[0-9a-f]{40}\b/)?.[0];
+        if (sha) out.set(source, sha);
+      }
+    }
+  }
+  for (const [name, { dir }] of packages ?? []) {
+    const version = path.basename(dir.replace(/\/$/, '')).replace(`${name}-`, '');
+    out.set(`pub:${name}`, version);
+  }
+  return out;
+}
+
+/**
+ * Each row of [components] whose pin is not the build's ([pins]): a pub
+ * file's row is pinned to its package's version.
+ */
+function staleReads(components, { pins }) {
+  const out = [];
+  for (const [source, { pin }] of components) {
+    const key = source.startsWith('pub:') ? source.split('/')[0] : source;
+    if (source.startsWith('gradle:')) continue;
+    const want = pins.get(key) ?? '';
+    if (pin !== want) out.push(`${source}: read at ${pin || '(no pin)'}, built at ${want || '(no pin)'}`);
+  }
+  return out;
 }
 
 /** The pods a Podfile.lock resolves that no plugin's or local path names. */
@@ -418,7 +469,7 @@ function pullSites(inputs = buildFiles()) {
 }
 
 module.exports = {
-  LICENCES, COMPONENTS, CASES, rows, policy, allows, registry, pods, gradle, urls, pullSites,
+  LICENCES, COMPONENTS, CASES, rows, policy, allows, registry, pinsOf, staleReads, pods, gradle, urls, pullSites,
   buildFiles, shippedFiles, pubPackages, pluginBuildFiles, pubRefusals, licencesIn, readingOf,
   ATTRIBUTIONS, attributions, pubNotices, attributionGaps, podAttributionGaps,
 };

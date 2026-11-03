@@ -77,6 +77,17 @@ test('LICENSE-003 every pod an Apple build links reaches the licences page', () 
     [`pod:Lyre: MIT AND GPL-3.0-or-later, and no row in ${L.ATTRIBUTIONS}`], 'a pod that compiles in more, unattributed');
 });
 
+// A version is read again before its row moves: a new release can bring in
+// what the one read did not (a pod built with --enable-gpl, a vendored tree).
+test('LICENSE-001 every row was read at the version the build takes', needsPub, () => {
+  const pins = L.pinsOf({ packages });
+  assert.deepEqual(L.staleReads(components, { pins }), [],
+    `read each component's licence again at its new version, then move its pin in ${L.COMPONENTS}`);
+  const bumped = new Map([...pins, ['pod:Tor', '410.0.0']]);
+  assert.deepEqual(L.staleReads(components, { pins: bumped }).filter((r) => r.startsWith('pod:Tor')),
+    ['pod:Tor: read at 409.11.2, built at 410.0.0'], 'a pod the lock moved on');
+});
+
 test('the verdicts are the ones licence_cases.tsv gives', () => {
   for (const [expression, ships, component, verdict] of L.rows(read(L.CASES))) {
     assert.equal(L.allows(expression, { ships, component }), verdict === 'allowed',
