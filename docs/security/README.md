@@ -12,6 +12,9 @@ of re-auditing the whole surface.
   the spec requirement they contradict, and a fix that keeps the user experience
   intact. A **Verified safe** section lists the paths that were checked and hold,
   with the line that makes them hold, so a later run can skip them.
+- `lab.md`: the access policy the reviews test against (subjects, objects, rules and
+  the component that enforces each) and the design of an adversarial evaluation lab
+  that tests it with fresh canaries and an independent collector.
 - Findings are closed by editing the run file's status column, not by deleting the
   row. Cite the fixing commit or PR. A finding that resurfaces through a new code
   path is a recurring bug: open a `docs/bugs/NNN-*.md` file and link it from here.
