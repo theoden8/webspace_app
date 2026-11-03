@@ -422,6 +422,13 @@ On close, after deleting the archive's opaque containers, `_closeArchive` SHALL 
 **When** the user opens the settings screen
 **Then** the archive entry point is disabled with a subtitle explaining the platform requirement
 
+#### Scenario: An app-tier site holding an archived id is not the archive's
+
+**Given** an app-tier site a backup brought back under the id of a site sealed in an archive
+**When** the archive opens beside it and closes again
+**Then** the archive's own site is told apart by its opaque container key, not its id
+**And** the close seals and drops only that site, and erases none of the app-tier site's container, back stacks, cookies or proxy password
+
 ### Requirement: ARCH-008 — Settings UI entry point
 
 The user-facing entry point for archive restore and create SHALL live inside the existing settings-backup / restore section. It SHALL NOT be a separate "Archives" UI surface, and SHALL be visible identically regardless of whether the user has any archives.
