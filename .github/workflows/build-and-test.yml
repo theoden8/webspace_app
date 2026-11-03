@@ -1004,6 +1004,40 @@ jobs:
           path: ${{ env.WS_EGRESS_STATE }}
           if-no-files-found: ignore
 
+  # The bridge transports the Apple app builds in (go/iptproxy): lyrebird's
+  # obfs4 over go/hiddenkey against lyrebird as released, which is what a
+  # bridge runs (TOR-016), and the licence gate over their sources
+  # (LICENSE-001). Linux, minutes: the Apple job builds the framework itself.
+  bridge-transports:
+    name: Bridge transports (obfs4 interop, licences)
+    runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.apple == 'true'
+    env:
+      GOFLAGS: -mod=readonly
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Go (for go/iptproxy)
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go/iptproxy/.go-version
+          cache: false
+      - name: Test hiddenkey
+        working-directory: go/hiddenkey
+        run: |
+          ./fetch-monocypher.sh
+          go test ./...
+      - name: Fetch and patch the transports, check their licences (LICENSE-001)
+        run: sh go/iptproxy/build.sh check
+      - name: Build lyrebird as released, the test's server
+        run: sh go/iptproxy/build.sh upstream
+      - name: obfs4 handshakes with upstream lyrebird (TOR-016)
+        working-directory: go/iptproxy/interop
+        env:
+          LYREBIRD_UPSTREAM: ${{ github.workspace }}/go/iptproxy/build/bin/lyrebird-upstream
+        run: go test -count=1 -v ./...
+
   build-apple:
     name: Build iOS & macOS
     runs-on: macos-latest
