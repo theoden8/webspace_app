@@ -37,7 +37,7 @@ test('the model reads the binding from the posture of the site webview config', 
   assert.match(model, /final identityPosture = id\.sitePosture\(\s*globalUserScripts: globalUserScripts, isolation: hooks\.host\.isolation\(\)\);/);
   assert.match(model, /final posture =\s*runsForeignTab \? identityPosture\.forNested\(\) : identityPosture;/);
   assert.match(read('lib/services/site_posture.dart'),
-    /SitePosture forNested\(\) => SitePosture\(\s*siteId: siteId,\s*container: container,/,
+    /SitePosture forNested\(\) => SitePosture\(\s*siteId: siteId,\s*origins: origins,\s*container: container,/,
     'the nested form keeps the container the binding reads');
   assert.match(callArgs(model, model.indexOf('WebViewFactory.storeBinding(')), /^posture$/);
   const config = callArgs(model, model.indexOf('webview = WebViewFactory.createWebView('));
