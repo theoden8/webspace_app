@@ -52,6 +52,20 @@ end
 
 ensure_webspace_adblock_built
 
+# IPtProxy is a CocoaPod we own at go/iptproxy/: the pluggable transports for
+# Tor bridges (TOR-016), which go/iptproxy/build.sh builds from source into
+# IPtProxy.xcframework. Run on every install rather than only when the
+# framework is missing: the script stamps what it built from and returns at
+# once while that still matches, so a pin it moves cannot leave an old build.
+def ensure_iptproxy_built
+  script = File.expand_path('../go/iptproxy/build.sh', __dir__)
+  unless system('sh', script)
+    raise '[webspace] go/iptproxy/build.sh failed, see output above'
+  end
+end
+
+ensure_iptproxy_built
+
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
@@ -67,6 +81,10 @@ target 'Runner' do
   # SOCKS5 auth, so Android could not do per-site circuit isolation and
   # keeps its manual Orbot row instead.
   pod 'Tor', '409.11.2'
+  # Pluggable transports for bridges (TOR-016): obfs4, webtunnel, snowflake
+  # and dnstt, built from IPtProxy's source with nothing GPL in it
+  # (LICENSE-001); meek_lite is not built in. Its pins live in build.sh.
+  pod 'IPtProxy', :path => '../go/iptproxy'
 
   target 'RunnerTests' do
     inherit! :search_paths
@@ -171,8 +189,8 @@ post_install do |installer|
         # An empty string is truthy in Ruby, so the nil guard alone turned a
         # committed `OTHER_LDFLAGS = ""` into [""] -- a target-level value
         # that shadows the Pods xcconfig instead of inheriting it, and with
-        # it every flag a pod declares (a pod's `s.libraries` among them: a
-        # Go pod's `resolv` once failed the macOS link on res_9_* symbols).
+        # it every flag a pod declares (IPtProxy's `s.libraries = 'resolv'`
+        # is why the macOS link failed on the Go runtime's res_9_* symbols).
         ldflags = nil if ldflags.respond_to?(:empty?) && ldflags.empty?
         ldflags = ['$(inherited)'] unless ldflags
         ldflags = [ldflags] unless ldflags.is_a?(Array)
