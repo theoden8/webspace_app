@@ -776,25 +776,21 @@ class TorEngine {
   /// Put [_bridges] into force for the start that is about to happen.
   ///
   /// Starting the transport is what allocates its port, so it has to happen
-  /// before the options can be built. A transport that fails to start yields
-  /// port 0, and [torBridgeOptions] then produces nothing rather than a
-  /// configuration pointing at a dead port — tor would otherwise hang the
-  /// whole bootstrap dialling it.
+  /// before the options can be built. A transport that does not start (port
+  /// 0, or a failure) fails the start (TOR-016): tor without the bridges the
+  /// user turned on would reach the public relays from their own address,
+  /// which is what the bridges are there to hide.
   Future<void> _applyBridgeConfig() async {
     await _hydrateBridges();
     final config = _bridges;
     var options = const <(String, String)>[];
     if (config.enabled && config.isUsable) {
-      int port = 0;
-      try {
-        port = await _runtime.startTransport(config.transport.wireName);
-      } on TorRuntimeFailure {
-        // A transport that will not start is not fatal on its own: falling
-        // through with port 0 produces no bridge options, so tor starts
-        // without bridges rather than not at all. On a censored network
-        // that will fail at bootstrap and be reported as `censored`, which
-        // is the honest outcome.
-        port = 0;
+      final transport = config.transport.wireName;
+      final port = await _runtime.startTransport(transport);
+      if (port == 0) {
+        throw TorRuntimeFailure('the $transport bridge transport did not '
+            'start, and Tor does not connect without the bridges it was '
+            'set to use');
       }
       options = torBridgeOptions(config, transportPort: port);
     }

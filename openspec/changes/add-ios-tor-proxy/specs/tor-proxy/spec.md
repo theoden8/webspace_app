@@ -947,10 +947,11 @@ appears once per line, so the options SHALL travel as an ordered list of
 pairs and reach tor through its argument vector, never through a
 name-keyed map that would keep only the last line.
 
-A transport that fails to start SHALL NOT abort the run: it yields no
-bridge options, and tor comes up without bridges rather than not at all.
-On a censored network that then fails at bootstrap and is reported as
-`censored` (TOR-015), which is the honest outcome.
+With bridges on, a transport that does not start (none runs here, or it
+failed) SHALL keep Tor from starting, and the failure SHALL name the
+transport. Tor without the bridges the user turned on would bootstrap to the
+public relays from their own address, which is what the bridges are there to
+hide.
 
 Snowflake SHALL be usable without the user supplying a line. Its
 rendezvous parameters — broker URL, domain fronts, STUN servers — ride
@@ -1007,12 +1008,12 @@ is covered by LEAK-015.
 - **WHEN** the user turns bridges off and the runtime restarts
 - **THEN** no bridge options are sent, rather than the previous set
 
-#### Scenario: A transport that will not start does not stop tor
+#### Scenario: A transport that will not start keeps tor off
 
 - **GIVEN** bridges are enabled
 - **AND** starting the transport fails or reports port 0
-- **THEN** no bridge options are produced
-- **AND** tor still starts
+- **THEN** tor is not started
+- **AND** Tor reports an error naming the transport
 
 #### Scenario: Snowflake with no user line still has something to dial
 

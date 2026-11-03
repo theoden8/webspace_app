@@ -453,11 +453,11 @@ void main() {
       await engine.dispose();
     });
 
-    test('a transport that will not start yields no bridge options',
-        () async {
-      // Port 0 means the transport died. Emitting a ClientTransportPlugin
-      // pointing at it would hang bootstrap dialling a dead port; coming up
-      // without bridges fails visibly instead, and classifies as `censored`.
+    // Port 0 means no transport runs here. Coming up without the bridges
+    // the user turned on would reach the public relays from their own
+    // address, which the bridges are there to hide, so tor stays off.
+    test('TOR-016 a bridge transport that will not start keeps tor from '
+        'starting', () async {
       final runtime = FakeTorRuntime()..transportPort = 0;
       final engine = TorEngine(runtime: runtime, sessionSecret: 's');
       engine.setBridges(TorBridgeConfig(
@@ -468,12 +468,15 @@ void main() {
 
       await engine.acquire(TorSiteHolder(SiteId('site-a')));
 
-      expect(runtime.torrcOptions, isEmpty);
-      expect(runtime.startCalls, 1, reason: 'tor still starts, without bridges');
+      expect(runtime.startCalls, 0, reason: 'no bootstrap without the bridges');
+      final status = engine.status;
+      expect(status, isA<TorErrored>());
+      expect((status as TorErrored).message, contains('obfs4'));
       await engine.dispose();
     });
 
-    test('a transport that throws does not stop tor starting', () async {
+    test('TOR-016 a bridge transport that throws keeps tor from starting',
+        () async {
       final runtime = FakeTorRuntime()
         ..transportError = const TorRuntimeFailure('no go');
       final engine = TorEngine(runtime: runtime, sessionSecret: 's');
@@ -485,10 +488,8 @@ void main() {
 
       await engine.acquire(TorSiteHolder(SiteId('site-a')));
 
-      expect(runtime.torrcOptions, isEmpty);
-      expect(runtime.startCalls, 1);
-      expect(engine.status, isNot(isA<TorErrored>()),
-          reason: 'a dead transport is not itself a fatal Tor failure');
+      expect(runtime.startCalls, 0, reason: 'no bootstrap without the bridges');
+      expect(engine.status, isA<TorErrored>());
       await engine.dispose();
     });
 
