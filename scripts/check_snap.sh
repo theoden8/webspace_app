@@ -5,7 +5,9 @@
 # the session bus through the dbus slot; a second launch with a
 # webspace://open link hands it over and exits (PLATFORM-011); the first
 # opens the site, whose page is requested, with WebKit's web and network
-# processes started from the snap's copies through the layout.
+# processes started from the snap's copies through the layout. First, from
+# the installed snap's files: WebKit is a shared library of its own that a
+# library of the app's loads at run time, so a user can replace it (LICENSE-004).
 #
 #   scripts/check_snap.sh
 #
@@ -26,6 +28,18 @@ id="$(sed -n 's/^  set(APPLICATION_ID "\([[:alnum:]_.]*\)")$/\1/p' "$root/linux/
 [ -n "$id" ] || { echo "::error::no default APPLICATION_ID in linux/CMakeLists.txt" >&2; exit 1; }
 snap_name="$(sed -n 's/^name: \([a-z0-9-]*\)$/\1/p' "$root/snap/snapcraft.yaml")"
 [ -n "$snap_name" ] || { echo "::error::no name in snap/snapcraft.yaml" >&2; exit 1; }
+
+mount="/snap/$snap_name/current"
+compgen -G "$mount/usr/lib/*/libWPEWebKit-2.0.so.*" > /dev/null \
+  || { echo "::error::the snap carries no libWPEWebKit-2.0.so of its own" >&2; exit 1; }
+loads=()
+for f in "$mount"/opt/webspace/webspace_app "$mount"/opt/webspace/lib/*.so; do
+  needed="$(readelf -d "$f")"
+  grep -q '(NEEDED).*\[libWPEWebKit-2\.0\.so' <<<"$needed" && loads+=("${f#"$mount"/}")
+done
+[ "${#loads[@]}" -gt 0 ] \
+  || { echo "::error::nothing in the snap loads WebKit as a shared library" >&2; exit 1; }
+echo "WebKit is a shared library of its own, loaded by ${loads[*]}"
 
 work="$(mktemp -d)"
 pids=()

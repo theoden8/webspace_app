@@ -199,12 +199,17 @@ test('WebKit is built without the parts whose licence it may not ship (LICENSE-0
 // linux/install_notices.sh writes a built library's notices where a staged
 // Debian package keeps its own, which the app's licences page reads
 // (bundled_notices_io.dart). WebKit's call also holds its third-party
-// directories to the audited table and makes the source offer LGPL asks for.
+// directories to the audited table, names the commit it was built from and
+// makes the source offer LGPL asks for (LICENSE-004).
 function noticeRefusals(text) {
   const out = [];
   for (const [part, dest, extra] of [
     ['libwpe', 'libwpe', []],
-    ['wpewebkit', 'wpewebkit', ['--third-party "$CRAFT_PROJECT_DIR/linux/webkit_third_party.tsv" --offer']],
+    ['wpewebkit', 'wpewebkit', [
+      '--third-party "$CRAFT_PROJECT_DIR/linux/webkit_third_party.tsv"',
+      '--revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)"',
+      '--offer',
+    ]],
   ]) {
     const start = text.indexOf(`\n  ${part}:\n`);
     const end = text.indexOf('\n\n  ', start + 1);
@@ -222,11 +227,26 @@ function noticeRefusals(text) {
 
 test('each library the snap builds ships its notices (LICENSE-003)', () => {
   assert.deepEqual(noticeRefusals(manifest), []);
-  assert.deepEqual(noticeRefusals(manifest.replace(' --offer\n', '\n')),
-    ['wpewebkit lacks --third-party "$CRAFT_PROJECT_DIR/linux/webkit_third_party.tsv" --offer'],
-    'WebKit without its source offer');
   assert.deepEqual(noticeRefusals(manifest.replace('      - -usr/include\n', '      - -usr/include\n      - -usr/share/doc\n')),
     ['a part leaves usr/share/doc out of the snap'], 'the notices primed out');
+});
+
+test("the snap's WebKit is a library a user can replace, its source named and offered (LICENSE-004)", () => {
+  assert.deepEqual(noticeRefusals(manifest.replace(' --offer\n', '\n')), ['wpewebkit lacks --offer'],
+    'WebKit without its source offer');
+  assert.deepEqual(noticeRefusals(manifest.replace(/--revision "\$\(git -C [^\n]*\n/, '--revision main \\\n')),
+    ['wpewebkit lacks --revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)"'], 'a revision not read off the checkout');
+  const notices = read('linux/install_notices.sh');
+  for (const line of ['echo "Source: $source"', 'Built as it is from $source at $revision.',
+    'For at least three years from the day you received this copy']) {
+    assert.ok(notices.includes(line), `linux/install_notices.sh no longer writes: ${line}`);
+  }
+  const check = read('scripts/check_snap.sh');
+  assert.ok(check.includes("grep -q '(NEEDED).*\\[libWPEWebKit-2\\.0\\.so'"),
+    'scripts/check_snap.sh does not require a library of the app to load WebKit at run time');
+  assert.ok(check.includes('$mount/usr/lib/*/libWPEWebKit-2.0.so.*'),
+    'scripts/check_snap.sh does not require WebKit as a file of its own');
+  assert.match(read('.github/workflows/snap.yml'), /^ +bash scripts\/check_snap\.sh$/m, 'CI does not run scripts/check_snap.sh');
 });
 
 test('every third-party tree of WebKit under the GPL is one the build leaves out (LICENSE-001)', () => {

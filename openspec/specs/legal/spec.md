@@ -111,15 +111,17 @@ A released binary SHALL be buildable from the published source.
 
 ### LICENSE-001 - No copyleft code in a shipped binary
 
-No GPL/AGPL code SHALL be linked into a distributed artifact. LGPL
-components SHALL be dynamically linked system libraries only.
+No GPL/AGPL code SHALL be linked into a distributed artifact. LGPL code
+SHALL ship only as a shared library the user can replace: a system library,
+or one a package bundles as LICENSE-004 asks.
 
 #### Scenario: New dependency
 
 - **WHEN** a dependency is added to `pubspec.yaml`, a Cargo manifest, or a
   platform build file
 - **THEN** its licence is permissive or file-level copyleft (MIT, BSD,
-  Apache-2.0, MPL-2.0), or it is a dynamically linked LGPL system library
+  Apache-2.0, MPL-2.0), or it is LGPL code that ships as a replaceable
+  shared library
 
 ---
 
@@ -161,8 +163,7 @@ libwpe in the snap and the flatpak) SHALL carry its notices in the package as
 a Debian package does: `usr/share/doc/<name>/copyright` naming its source and
 revision and its licence, every licence file of its source tree and the
 copyright lines of its sources beside it, written at build time by
-`linux/install_notices.sh`, and for an LGPL library the offer of its source.
-The licences page SHALL list every such notice the package carries, so the
+`linux/install_notices.sh`. The licences page SHALL list every such notice the package carries, so the
 app's own notices name the libraries LGPL-2.1 section 6 asks them to.
 
 #### Scenario: New pub package or crate
@@ -179,3 +180,31 @@ app's own notices name the libraries LGPL-2.1 section 6 asks them to.
 
 - **THEN** its licence text is bundled under `assets/licenses/` and registered
   in the custom-licence list in `lib/main.dart`
+
+---
+
+### LICENSE-004 - A bundled LGPL library ships as the LGPL asks
+
+A library under the LGPL that a package bundles instead of taking it from the
+system (WPE WebKit in the snap) SHALL ship as LGPL-2.1 section 6 asks:
+
+- **Replaceable:** a shared library of its own that the app loads at run time,
+  so a user can put a modified build in its place; never linked into the app
+  or a plugin.
+- **Notices:** its licence and copyright notices in the package and on the
+  licences page (LICENSE-003).
+- **Source:** its copyright file names the source and the revision built, and
+  carries a written offer, valid for at least three years, of a complete
+  machine-readable copy of that source for no more than the cost of making it.
+
+Answering the offer is the maintainers' duty, which no check holds (rung 6);
+attaching each bundled LGPL library's source to the release that ships it
+would lift it to one.
+
+#### Scenario: The snap bundles WebKit
+
+- **WHEN** the snap is built and installed
+- **THEN** `libWPEWebKit-2.0.so` is a file of its own in the snap and a library
+  of the app's names it as `NEEDED` (`scripts/check_snap.sh`)
+- **AND** `usr/share/doc/wpewebkit/copyright` names WebKit's source and
+  revision and carries the offer (`test/js/snap_manifest.test.js`)

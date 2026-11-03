@@ -348,7 +348,7 @@ desktop entry and metainfo are the bundle's (PLATFORM-008).
   (LICENSE-001), so a PDF downloads. Its `Source/ThirdParty` is held to the
   audited table `linux/webkit_third_party.tsv` as it builds, and libwpe and
   WebKit lay their notices out in `usr/share/doc/` as a Debian package does,
-  WebKit's with the source offer LGPL asks for (LICENSE-003).
+  WebKit's with the source offer LGPL asks for (LICENSE-003, LICENSE-004).
 - **One instance (PLATFORM-011):** a dbus slot gives the snap its application
   ID on the session bus, the one name strict confinement lets it own.
 - **Permissions:** each plug names what needs it, and none grants the home
