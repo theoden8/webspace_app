@@ -51,6 +51,12 @@ test('LICENSE-001 every file a pub package builds into the app may link', needsP
     `${L.LICENCES} lets none of these link; a licence the readings cannot judge is read by hand into a pub: row of ${L.COMPONENTS}`);
 });
 
+// Flutter's notices carry each package's root LICENSE alone; what else a
+// package ships under a licence reaches the page only through assets/licenses.
+test('LICENSE-003 every notice a pub package ships beyond its root LICENSE is on the licences page', needsPub, () => {
+  assert.deepEqual(L.attributionGaps(packages, { components }), []);
+});
+
 test('the verdicts are the ones licence_cases.tsv gives', () => {
   for (const [expression, ships, component, verdict] of L.rows(read(L.CASES))) {
     assert.equal(L.allows(expression, { ships, component }), verdict === 'allowed',
@@ -125,4 +131,23 @@ test('each rule catches the mistake it is for', (t) => {
   ], "a plugin's Gradle dependency and CMake download are pull sites");
   assert.deepEqual([...L.licencesIn('Redistribution and use in source and binary forms. '
     + 'All advertising materials mentioning features')], ['BSD-4-Clause'], 'the advertising clause is not BSD-3');
+
+  const mit = 'Permission is hereby granted, free of charge, to any person obtaining a copy of this software';
+  write('LICENSE', mit);
+  write('vendor/zlib/LICENSE.txt', "This software is provided 'as-is', without any express or implied warranty.");
+  write('src/lib.c', '// SPDX-License-Identifier: Apache-2.0\n');
+  const vendored = new Map([['q', { dir, files: ['LICENSE', 'vendor/zlib/LICENSE.txt', 'src/lib.c'] }]]);
+  assert.deepEqual(L.attributionGaps(vendored, { components: new Map(), attributed: new Map() }), [
+    `pub:q/vendor/zlib/LICENSE.txt: no row in ${L.ATTRIBUTIONS}`,
+    `pub:q: no row in ${L.ATTRIBUTIONS}`,
+  ], 'a vendored licence file and an SPDX licence the root LICENSE does not grant, with no row');
+  assert.deepEqual(L.attributionGaps(vendored, { components: new Map(), attributed: new Map([
+    ['pub:q/vendor/zlib/LICENSE.txt', ['assets/licenses/kagi_bangs.txt']],
+    ['pub:q', ['assets/licenses/kagi_bangs.txt']],
+    ['pub:gone/LICENSE-other.md', ['assets/licenses/kagi_bangs.txt']],
+  ]) }), [
+    'pub:q/vendor/zlib/LICENSE.txt: its text is in none of assets/licenses/kagi_bangs.txt',
+    'pub:q: Apache-2.0 granted by none of assets/licenses/kagi_bangs.txt',
+    'pub:gone/LICENSE-other.md: no package ships it',
+  ], 'rows whose asset carries neither the text nor the licence, and a row for nothing');
 });

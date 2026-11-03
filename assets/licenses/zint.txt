@@ -1,0 +1,76 @@
+zint's backend, which flutter_zxing (flutter_zxing-3.1.0) compiles into the app, under the
+BSD 3-Clause licence its sources state.
+
+Its copyright holders, as its sources name them:
+
+Copyright (C) 2004 (Grandzebu).
+Copyright (C) 2004 Grandzebu
+Copyright (C) 2006 Kentaro Fukuchi <fukuchi@megaui.net>
+Copyright (C) 2006 United States Postal Service
+Copyright (C) 2007-2025 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2008-2022 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2008-2023 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2008-2024 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2008-2025 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2009-2022 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2009-2024 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2009-2025 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2010-2025 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2016 Zoe Stuart
+Copyright (C) 2016-2022 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2016-2024 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2016-2025 Harald Oehlmann
+Copyright (C) 2016-2025 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2017-2025 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2018-2025 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2019-2025 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2020-2022 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2020-2025 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2021-2022 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2021-2025 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2022 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2022-2025 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2023 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2023-2025 Robin Stuart <rstuart114@gmail.com>
+Copyright (C) 2024-2025 Antoine Merino <antoine.merino.dev@gmail.com>
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+3. Neither the name of the project nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+From src/zxing/zint/LICENSE:
+
+ZINT was originally developed by Robin Stuart and licensed under the terms of the GPL (Gnu
+Public License). In 2013 Robin Stuart and all developers that contributed to the code agreed
+to change the license to a less restrictive one (see ZINT mailing list of May 2013 for
+related mails) under the following conditions:
+- the names of original copyright holder Robin Stuart and contributors are not removed,
+  neither from sources nor from the manual
+- the documentation is done in British English (as Robin said: "Oh, and please don't
+  replace the word "colour" with "color" in the documentation - that really annoys me!")
+
+Change to BSD-license is done for backend and therefore for ZINT shared library only, for
+the frontends and Qt4-backend the GPL is still valid. Since BSD-license is GPL-compatible
+this gives the possibility to include ZINT library in own products or link against it from
+own software.

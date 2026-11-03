@@ -137,11 +137,15 @@ function buildFiles() {
 // examples, and this app builds for no Windows.
 const NOT_SHIPPED = new Set(['test', 'tests', 'example', 'examples', 'integration_test', 'benchmark', 'benchmarks', 'windows']);
 
+// Paths from a package's root that no app build takes: a DevTools
+// extension, which Flutter's DevTools loads beside the app, never into it.
+const NOT_SHIPPED_PATHS = new Set(['extension/devtools']);
+
 function shippedFiles(dir, rel = '') {
   const out = [];
   for (const e of fs.readdirSync(path.join(dir, rel), { withFileTypes: true })) {
     const at = rel ? `${rel}/${e.name}` : e.name;
-    if (e.isDirectory() && !NOT_SHIPPED.has(e.name) && !e.name.startsWith('.')) out.push(...shippedFiles(dir, at));
+    if (e.isDirectory() && !NOT_SHIPPED.has(e.name) && !NOT_SHIPPED_PATHS.has(at) && !e.name.startsWith('.')) out.push(...shippedFiles(dir, at));
     else if (e.isFile()) out.push(at);
   }
   return out;
@@ -192,7 +196,11 @@ function pluginBuildFiles(packages) {
   return out;
 }
 
-const LICENCE_FILE = /^(?:licen[cs]e|copying)/i;
+// A licence file by its name, wherever the word sits in it
+// (UNICODE_LICENSE.txt, FMDB_LICENSE.txt), and not a source file.
+const LICENCE_FILE = /(?:^|[^a-z])(?:licen[cs]e|copying)(?![a-z])[^/]*$/i;
+const CODE = /\.(?:dart|c|cc|cpp|h|hpp|m|mm|swift|kt|java|js|py|rs|go)$/i;
+const isLicenceFile = (rel) => LICENCE_FILE.test(path.basename(rel)) && !CODE.test(rel);
 const GNU_HEADING = /^\s*GNU (?:LESSER |LIBRARY |AFFERO )?GENERAL PUBLIC LICENSE\s*$/im;
 // A notice read as letters and digits only, so one split across comment
 // lines (`//`, ` *`, `#`) reads as one sentence, as build.rs reads a crate's.
@@ -275,13 +283,86 @@ function pubRefusals(packages, components) {
     for (const rel of shipped) {
       const key = `pub:${name}/${rel}`;
       const row = components.get(key);
-      const licences = row ? [row.licence] : readingOf(path.join(dir, rel), { licenceFile: LICENCE_FILE.test(path.basename(rel)) });
+      const licences = row ? [row.licence] : readingOf(path.join(dir, rel), { licenceFile: isLicenceFile(rel) });
       const ships = row ? row.ships : 'linked';
       for (const l of licences) {
         if (!allows(l, { ships, component: key })) out.push(`${key}: ${l || '(no licence it knows)'}`);
       }
     }
   }
+  return out;
+}
+
+const ATTRIBUTIONS = 'openspec/specs/legal/attributions.tsv';
+
+/** notice -> the assets/licenses texts that carry it, from attributions.tsv. */
+function attributions(text = read(ATTRIBUTIONS)) {
+  return new Map(rows(text).map(([source, assets]) => [source.trim(), assets.trim().split(/\s+/)]));
+}
+
+const words = (text) => text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+/** The SPDX ids an expression names, its operators left out. */
+const idsOf = (expression) => tokens(expression).filter((t) => !/^(AND|OR|WITH|\(|\))$/.test(t));
+
+/**
+ * The notices [packages] ship that Flutter's collection of each root LICENSE
+ * leaves out: a licence file elsewhere in a package, and a package whose
+ * SPDX tags name licences its root LICENSE does not grant.
+ */
+function pubNotices(packages) {
+  const out = [];
+  for (const [name, { dir, files }] of packages) {
+    const root = files.includes('LICENSE') ? licencesIn(fs.readFileSync(path.join(dir, 'LICENSE'), 'utf8')) : new Set();
+    const tagged = new Set();
+    for (const rel of files) {
+      const file = path.join(dir, rel);
+      if (rel !== 'LICENSE' && isLicenceFile(rel)) out.push({ key: `pub:${name}/${rel}`, file });
+      const text = textOf(file, { whole: false });
+      if (text === null) continue;
+      for (const m of text.matchAll(SPDX_TAG)) {
+        for (const id of idsOf(m[1].replace(/\s*-->.*$/, '').trim())) tagged.add(id);
+      }
+    }
+    const uncovered = [...tagged].filter((id) => !root.has(id)).sort();
+    if (uncovered.length) out.push({ key: `pub:${name}`, ids: uncovered });
+  }
+  return out;
+}
+
+/**
+ * Each notice of [packages] the licences page would not show, as one line: a
+ * notice with neither a row in attributions.tsv nor a `build` row in
+ * [components], an asset a row names that does not exist, a licence file
+ * whose text is in none of its assets, a package's SPDX licence none of its
+ * assets grants, and a row for a notice nothing ships.
+ */
+function attributionGaps(packages, { components, attributed = attributions() }) {
+  const out = [];
+  const notices = pubNotices(packages);
+  for (const n of notices) {
+    if (components.get(n.key)?.ships === 'build') continue;
+    const assets = attributed.get(n.key);
+    if (!assets) {
+      out.push(`${n.key}: no row in ${ATTRIBUTIONS}`);
+      continue;
+    }
+    const texts = assets.filter((a) => {
+      if (!exists(a)) out.push(`${n.key}: ${a} does not exist`);
+      return exists(a);
+    }).map((a) => read(a));
+    if (n.file) {
+      const want = words(fs.readFileSync(n.file, 'utf8'));
+      if (!texts.some((t) => words(t).includes(want))) out.push(`${n.key}: its text is in none of ${assets.join(', ')}`);
+    }
+    if (n.ids) {
+      const granted = new Set(texts.flatMap((t) => [...licencesIn(t)]));
+      const missing = n.ids.filter((id) => !granted.has(id));
+      if (missing.length) out.push(`${n.key}: ${missing.join(', ')} granted by none of ${assets.join(', ')}`);
+    }
+  }
+  const keys = new Set(notices.map((n) => n.key));
+  for (const key of attributed.keys()) if (!keys.has(key)) out.push(`${key}: no package ships it`);
   return out;
 }
 
@@ -301,4 +382,5 @@ function pullSites(inputs = buildFiles()) {
 module.exports = {
   LICENCES, COMPONENTS, CASES, rows, policy, allows, registry, pods, gradle, urls, pullSites,
   buildFiles, shippedFiles, pubPackages, pluginBuildFiles, pubRefusals, licencesIn, readingOf,
+  ATTRIBUTIONS, attributions, pubNotices, attributionGaps,
 };

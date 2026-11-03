@@ -53,3 +53,11 @@ url:https://github.com/nothings/stb.git	MIT OR Unlicense	build	its LICENSE; only
 url:https://github.com/zint/zint.git	BSD-3-Clause	build	never fetched: flutter_zxing builds its bundled copy (ZXING_USE_BUNDLED_ZINT defaults ON); the backend, the only part zxing links, is BSD-3-Clause
 pub:flutter_zxing/src/zxing/zint/LICENSE	BSD-3-Clause	linked	zint's note that its backend, the only part bundled, moved to BSD; each of the bundled files carries SPDX-License-Identifier: BSD-3-Clause
 pub:characters/third_party/Wikipedia/License CC BY-SA 3.0.txt	CC-BY-SA-3.0	build	the licence of Wikipedia text the package's tests read; lib/ takes nothing from third_party/
+pub:crypto/third_party/wycheproof/LICENSE	Apache-2.0	build	test vectors the package's tests read; lib/ takes nothing from third_party/
+pub:csslib/third_party/bootstrap/LICENSE	MIT	build	CSS the package's tests parse; lib/ takes nothing from third_party/
+pub:csslib/third_party/foundation/LICENSE	MIT	build	CSS the package's tests parse; lib/ takes nothing from third_party/
+pub:csslib/third_party/html5-boilerplate/LICENSE.txt	MIT	build	CSS the package's tests parse; lib/ takes nothing from third_party/
+pub:csslib/third_party/materialize/LICENSE	MIT	build	CSS the package's tests parse; lib/ takes nothing from third_party/
+pub:csslib/third_party/mdc/LICENSE	MIT	build	CSS the package's tests parse; lib/ takes nothing from third_party/
+pub:csslib/third_party/pure/LICENSE	BSD-3-Clause	build	CSS the package's tests parse; lib/ takes nothing from third_party/
+pub:csslib/third_party/skeleton/LICENSE.md	MIT	build	CSS the package's tests parse; lib/ takes nothing from third_party/

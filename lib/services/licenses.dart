@@ -81,6 +81,25 @@ void registerLicenses() {
       ['Public Suffix List (compiled in through the psl crate)'],
       'assets/licenses/public_suffix_list.txt'
     ),
+    // What pub packages compile in beside their own code, whose notices
+    // Flutter's collection of each root LICENSE leaves out
+    // (openspec/specs/legal/attributions.tsv).
+    (['archive (the code it ported)'], 'assets/licenses/archive_other.txt'),
+    (['image (the code it ported)'], 'assets/licenses/image_other.txt'),
+    (['Unicode data (in characters)'], 'assets/licenses/unicode_data.txt'),
+    (
+      ['Bouncy Castle (in pointycastle)'],
+      'assets/licenses/pointycastle_bouncycastle.txt'
+    ),
+    (['scrypt (in pointycastle)'], 'assets/licenses/pointycastle_scrypt.txt'),
+    (['Apache httpd mime.types (in mime)'], 'assets/licenses/mime_httpd.txt'),
+    (['FMDB (in sqflite_darwin)'], 'assets/licenses/fmdb.txt'),
+    (['zxing-cpp (in flutter_zxing)'], 'assets/licenses/zxing_cpp.txt'),
+    (['zint (in flutter_zxing)'], 'assets/licenses/zint.txt'),
+    (
+      ['nlohmann/json (in flutter_secure_storage_linux)'],
+      'assets/licenses/nlohmann_json.txt'
+    ),
   ];
   for (final (packages, assetPath) in customLicenses) {
     LicenseRegistry.addLicense(() async* {
