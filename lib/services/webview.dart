@@ -169,13 +169,17 @@ class WebViewFactory {
     'hcaptcha.com',
   ];
 
-  /// Domains that legitimately serve reCAPTCHA at /recaptcha/ paths.
-  static const _recaptchaDomains = [
+  /// The hosts that serve reCAPTCHA under `/recaptcha/`, exactly: a
+  /// subdomain of them may serve HTML anyone uploads (`storage.googleapis.com`,
+  /// `sites.google.com`), and a challenge loads in place and may open the
+  /// verification popup (SEC-042).
+  static const _recaptchaHosts = {
+    'www.google.com',
     'google.com',
-    'gstatic.com',
+    'www.recaptcha.net',
     'recaptcha.net',
-    'googleapis.com',
-  ];
+    'www.gstatic.com',
+  };
 
   static bool _matchesDomain(String host, {required String domain}) =>
       host == domain || host.endsWith('.$domain');
@@ -211,8 +215,8 @@ class WebViewFactory {
         _sameSite(host, siteUrl: siteUrl)) {
       return true;
     }
-    if (uri.path.contains('/recaptcha/') &&
-        _recaptchaDomains.any((d) => _matchesDomain(host, domain: d))) {
+    if (uri.path.startsWith('/recaptcha/') &&
+        _recaptchaHosts.contains(host.toLowerCase())) {
       return true;
     }
     return false;

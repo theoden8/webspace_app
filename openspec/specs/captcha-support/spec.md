@@ -110,7 +110,17 @@ pipeline a URL skips. It SHALL parse the URL and decide on host and
 **path** only. The two Cloudflare markers (`/cdn-cgi/challenge-platform`,
 `cf-turnstile`) are served from the protected origin itself, so they stay
 host-agnostic but SHALL match `uri.path`; `challenges.cloudflare.com` /
-`hcaptcha.com` stay exact-domain, and `/recaptcha/` stays path-plus-domain.
+`hcaptcha.com` stay exact-domain, and `/recaptcha/` SHALL be a path prefix on
+the reCAPTCHA hosts themselves (`www.google.com`, `google.com`,
+`www.recaptcha.net`, `recaptcha.net`, `www.gstatic.com`), never on a
+subdomain of them: `storage.googleapis.com` and `sites.google.com` serve
+HTML anyone uploads (SEC-042).
+
+#### Scenario: Uploaded HTML under a Google host is not a captcha
+
+**Given** a page links to `https://storage.googleapis.com/bucket/recaptcha/x.html`
+**When** the URL is classified
+**Then** it is not a captcha challenge, so it neither loads in place nor opens a verification popup
 
 #### Scenario: An attacker-chosen query string is not a captcha
 
