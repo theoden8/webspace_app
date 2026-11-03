@@ -314,3 +314,7 @@ dependencies {
     testImplementation "org.mockito:mockito-core:5.14.2"
     testImplementation "org.mockito.kotlin:mockito-kotlin:5.4.0"
 }
+
+// The Maven artifacts the app links, with their POMs' licences, for the
+// licences page and the licence gate (LICENSE-001, LICENSE-003).
+apply from: 'maven_licences.gradle'

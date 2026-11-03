@@ -1,0 +1,74 @@
+// LICENSE-001 and LICENSE-003 for the Maven artifacts the app links, which
+// no build file names whole: every artifact the release runtime classpaths
+// resolve, transitive ones included, with the licences its POM names (or its
+// nearest parent's), written where pubspec.yaml's assets take it up. The
+// licences page lists them (lib/services/licenses.dart), and
+// tool/check_maven_licences.js holds them to openspec/specs/legal/licences.tsv
+// in CI. Flutter bundles assets in compileFlutterBuild*, which runs after this.
+
+import groovy.json.JsonOutput
+import groovy.xml.XmlSlurper
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.result.ResolvedArtifactResult
+import org.gradle.maven.MavenModule
+import org.gradle.maven.MavenPomArtifact
+
+def licenceConfigurations = (project.findProperty('mavenLicenceConfigurations') ?: 'ReleaseRuntimeClasspath').toString()
+def licenceOut = project.findProperty('mavenLicenceOut') ?: rootProject.file('../assets/native_notices/maven.json')
+
+/** The licences [group]:[name]:[version]'s POM names, or its nearest parent's. */
+def pomLicences
+pomLicences = { String group, String name, String version, int depth ->
+    def result = project.dependencies.createArtifactResolutionQuery()
+        .forModule(group, name, version)
+        .withArtifacts(MavenModule, MavenPomArtifact)
+        .execute()
+    for (component in result.resolvedComponents) {
+        for (artifact in component.getArtifacts(MavenPomArtifact)) {
+            if (!(artifact instanceof ResolvedArtifactResult)) continue
+            def pom = new XmlSlurper(false, false).parse(artifact.file)
+            def licences = pom.licenses.license.collect {
+                [name: it.name.text().trim(), url: it.url.text().trim()]
+            }
+            if (!licences.isEmpty()) return licences
+            def parent = pom.parent
+            if (!parent.artifactId.text().isEmpty() && depth < 6) {
+                return pomLicences(parent.groupId.text().trim(), parent.artifactId.text().trim(),
+                    parent.version.text().trim(), depth + 1)
+            }
+        }
+    }
+    return []
+}
+
+def mavenLicences = tasks.register('mavenLicences') {
+    description = 'Lists the Maven artifacts the app links and the licences their POMs name'
+    outputs.file(licenceOut)
+    outputs.upToDateWhen { false }
+    doLast {
+        def ids = new TreeMap<String, ModuleComponentIdentifier>()
+        configurations.matching { it.canBeResolved && it.name.endsWith(licenceConfigurations) }.each { c ->
+            c.incoming.resolutionResult.allComponents.each { component ->
+                if (component.id instanceof ModuleComponentIdentifier) {
+                    def id = (ModuleComponentIdentifier) component.id
+                    ids.put("${id.group}:${id.module}:${id.version}".toString(), id)
+                }
+            }
+        }
+        if (ids.isEmpty()) {
+            throw new GradleException("mavenLicences: no configuration ending in ${licenceConfigurations} resolved an artifact")
+        }
+        def entries = ids.values().collect { id ->
+            [group: id.group, artifact: id.module, version: id.version,
+             licences: pomLicences(id.group, id.module, id.version, 0)]
+        }
+        def out = file(licenceOut)
+        out.parentFile.mkdirs()
+        out.text = JsonOutput.prettyPrint(JsonOutput.toJson(entries)) + '\n'
+        logger.lifecycle("mavenLicences: ${entries.size()} artifacts in ${out}")
+    }
+}
+
+tasks.matching { it.name.startsWith('compileFlutterBuild') }.configureEach {
+    dependsOn mavenLicences
+}

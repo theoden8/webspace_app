@@ -457,6 +457,9 @@ jobs:
           # actually shipped in the APK (Android links it over JNI, so this
           # is the .so-presence analog of the iOS/macOS/Linux ws_* check).
           bash scripts/verify_adblock_shipped.sh android
+          # LICENSE-001 over every Maven artifact the build linked, transitive
+          # ones included, as android/app/maven_licences.gradle listed them.
+          node tool/check_maven_licences.js assets/native_notices/maven.json
 
       - name: Verify APK is free of Google Mobile Services
         # Per openspec/specs/per-site-profiles/spec.md PROF-007, no shipped

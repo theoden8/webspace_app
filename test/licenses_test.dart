@@ -69,6 +69,18 @@ void main() {
     expect(podNotices('# Acknowledgements\nno pods\n'), isEmpty);
   });
 
+  test('each Maven artifact is one entry with its POM licences (LICENSE-003)', () {
+    const json = '[{"group":"com.google.guava","artifact":"guava","version":"33.5.0-android",'
+        '"licences":[{"name":"Apache License, Version 2.0","url":"http://www.apache.org/licenses/LICENSE-2.0.txt"}]},'
+        '{"group":"x","artifact":"bad","version":1,"licences":[]}]';
+    expect(mavenNotices(json), [
+      (
+        'com.google.guava:guava',
+        'Version: 33.5.0-android\nLicense: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)',
+      ),
+    ]);
+  });
+
   test('the README names EasyList and adblock-rust (CB-007)', () {
     final readme = File('README.md').readAsStringSync();
     expect(readme, contains('EasyList'));

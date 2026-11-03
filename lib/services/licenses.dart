@@ -113,10 +113,20 @@ void registerLicenses() {
   }
 
   // The pods an Apple build links, from the acknowledgements its Podfile lays
-  // out at pod install; absent from every other build.
+  // out at pod install, and the Maven artifacts an Android build links, from
+  // what android/app/maven_licences.gradle lists; each shown only on its own
+  // platform, so one left from a build for another is not.
   LicenseRegistry.addLicense(() async* {
     final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-    if (!manifest.listAssets().contains(_podNotices)) return;
+    final assets = manifest.listAssets();
+    if (defaultTargetPlatform == TargetPlatform.android && assets.contains(_mavenNotices)) {
+      for (final (artifact, text) in mavenNotices(await rootBundle.loadString(_mavenNotices))) {
+        yield _PerLineLicenseEntry(['$artifact (Maven)'], text: text);
+      }
+    }
+    final apple = defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS;
+    if (!apple || !assets.contains(_podNotices)) return;
     for (final (pod, text) in podNotices(await rootBundle.loadString(_podNotices))) {
       yield _PerLineLicenseEntry(['$pod (pod)'], text: text);
     }
@@ -212,6 +222,31 @@ void registerLicenses() {
 }
 
 const String _podNotices = 'assets/native_notices/pods.md';
+const String _mavenNotices = 'assets/native_notices/maven.json';
+
+/// Each Maven artifact and the licences its POM names, from what
+/// android/app/maven_licences.gradle writes; an entry of the wrong shape
+/// reads as absent.
+List<(String, String)> mavenNotices(String json) => [
+      if (jsonDecode(json) case final List entries)
+        for (final entry in entries)
+          if (entry
+              case {
+                'group': final String group,
+                'artifact': final String artifact,
+                'version': final String version,
+                'licences': final List licences,
+              })
+            (
+              '$group:$artifact',
+              [
+                'Version: $version',
+                for (final licence in licences)
+                  if (licence case {'name': final String name, 'url': final String url})
+                    url.isEmpty ? 'License: $name' : 'License: $name ($url)',
+              ].join('\n'),
+            ),
+    ];
 
 /// Each pod and its licence from the acknowledgements CocoaPods writes
 /// (`Pods-Runner-acknowledgements.markdown`): a `## <pod>` heading, then its
