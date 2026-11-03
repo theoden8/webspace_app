@@ -215,10 +215,24 @@ const GNU_DATED = [
 ];
 const SPDX_TAG = /SPDX-License-Identifier:\s*([^\r\n*]+)/g;
 
+const RESTRICTED = [
+  ['CC-BY-SA', /attribution[- ]sharealike/],
+  ['CC-BY-NC', /attribution[- ]noncommercial|non[- ]commercial use only/],
+  ['CC-BY-ND', /attribution[- ]no ?derivatives/],
+  ['EPL', /eclipse public license/],
+  ['CDDL', /common development and distribution license/],
+  ['EUPL', /european union public licen[cs]e/],
+  ['SSPL', /server side public license/],
+  ['OSL', /open software license/],
+  ['BUSL', /business source license/],
+  ['Commons-Clause', /commons clause/],
+  ['Elastic', /elastic license/],
+];
+
 /**
- * The licences a licence file grants, by the sentences each is known by. A
- * licence it does not know passes when the file also carries one it knows;
- * the GNU licences are read apart, from every file, by their heading or notice.
+ * The licences a licence file grants, by the sentences each is known by, and
+ * the copyleft and restricted families it names; the GNU licences are read
+ * apart, from every file, by their heading or notice.
  */
 function licencesIn(text) {
   const t = text.toLowerCase().replace(/\s+/g, ' ');
@@ -235,6 +249,9 @@ function licencesIn(text) {
   if (t.includes('free and unencumbered software released into the public domain')) out.add('Unlicense');
   if (t.includes("this software is provided 'as-is', without any express or implied")) out.add('Zlib');
   if (t.includes('permission to use, copy, modify, and/or distribute this software for any purpose with or without fee')) out.add('ISC');
+  // Licences beside a permissive one that would otherwise pass unread: each
+  // is an id licences.tsv does not list, so the file needs a row read by hand.
+  for (const [id, re] of RESTRICTED) if (re.test(t)) out.add(id);
   return out;
 }
 

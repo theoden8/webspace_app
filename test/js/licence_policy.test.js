@@ -130,6 +130,8 @@ test('each rule catches the mistake it is for', (t) => {
     + ' * Software Foundation. */\n');
   write('src/vendored/COPYING', '                    GNU GENERAL PUBLIC LICENSE\n       Version 3, 29 June 2007\n');
   write('third_party/LICENSE', 'Attribution-ShareAlike 3.0 Unported\n');
+  write('vendor/LICENSE', 'Permission is hereby granted, free of charge, to any person obtaining a copy\n'
+    + 'Parts are under the Eclipse Public License 2.0.\n');
   write('test/c.dart', '// SPDX-License-Identifier: GPL-3.0-or-later\n');
   write('android/build.gradle', "    implementation 'org.example:plugin-dep:1.0'\n");
   write('linux/CMakeLists.txt', 'FetchContent_Declare(x URL https://example.org/x.tar.gz)\n');
@@ -141,8 +143,9 @@ test('each rule catches the mistake it is for', (t) => {
     'pub:p/src/vendored/COPYING: a GNU licence',
     'pub:p/src/vendored/COPYING: (no licence it knows)',
     'pub:p/src/vendored/b.c: a GNU licence',
-    'pub:p/third_party/LICENSE: (no licence it knows)',
-  ], 'an SPDX tag, a GNU notice and heading, and a licence the readings do not know, each refused');
+    'pub:p/third_party/LICENSE: CC-BY-SA',
+    'pub:p/vendor/LICENSE: MIT AND EPL',
+  ], 'an SPDX tag, a GNU notice and heading, and a restricted licence alone or beside a permissive one');
   assert.deepEqual(L.pubRefusals(pkg, L.registry('pub:p/third_party/LICENSE\tCC-BY-SA-3.0\tbuild\ttest data\n'))
     .filter((r) => r.startsWith('pub:p/third_party/')), [], 'a pub: row read by hand replaces the reading');
   assert.deepEqual(L.pluginBuildFiles(pkg).map(([at, s]) => [at, s]), [
