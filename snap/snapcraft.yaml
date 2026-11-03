@@ -117,6 +117,8 @@ parts:
     # subtargets, and the network process's compiles stop waiting for the
     # WebKitDirectoryInputStreamData.h WebKit generates, a race a 4-job build
     # loses.
+    # PDF.js is off: its standard fonts are Liberation 1.x, under GPL-2.0, and
+    # WebKit compiles them into the library (LICENSE-001); a PDF downloads.
     override-build: |
       export PATH=/usr/sbin:/usr/bin:/sbin:/bin
       export PKG_CONFIG_PATH="$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig"
@@ -140,7 +142,8 @@ parts:
         -DENABLE_WPE_PLATFORM_DRM=OFF \
         -DUSE_LIBBACKTRACE=OFF \
         -DUSE_SYSTEM_SYSPROF_CAPTURE=OFF \
-        -DUSE_SYSTEM_UNIFDEF=OFF
+        -DUSE_SYSTEM_UNIFDEF=OFF \
+        -DENABLE_PDFJS=OFF
       cmake --build wpe -- -j"$CRAFT_PARALLEL_BUILD_COUNT"
       ccache --show-stats
       DESTDIR="$CRAFT_PART_INSTALL" cmake --install wpe

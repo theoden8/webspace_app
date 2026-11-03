@@ -343,7 +343,9 @@ desktop entry and metainfo are the bundle's (PLATFORM-008).
   reads through weak symbols, for `/usr`. A release build of WebKit runs its helper
   processes only from the directory it was configured with, so the snap's
   layout binds that directory, the injected bundle's and the inspector
-  resources' to the snap's copies.
+  resources' to the snap's copies. WebKit is built without PDF.js, whose
+  standard fonts are GPL-2.0 and would be compiled into the library
+  (LICENSE-001), so a PDF downloads.
 - **One instance (PLATFORM-011):** a dbus slot gives the snap its application
   ID on the session bus, the one name strict confinement lets it own.
 - **Permissions:** each plug names what needs it, and none grants the home

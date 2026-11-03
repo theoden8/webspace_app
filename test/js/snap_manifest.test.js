@@ -176,3 +176,22 @@ test('the snap restates no version .fvmrc or rust-toolchain.toml pins', () => {
   assert.match(manifest, /\.fvmrc\)"$/m, `${MANIFEST} does not read the Flutter version from .fvmrc`);
   assert.match(manifest, /rust-toolchain\.toml\)"$/m, `${MANIFEST} does not read the Rust channel from rust-toolchain.toml`);
 });
+
+// What WebKit compiles in is decided by its build options, which no type
+// reads: PDF.js brings its standard fonts, Liberation 1.x under GPL-2.0, and
+// libwebrtc trees this table has not read (linux/webkit_third_party.tsv).
+function webkitBuildRefusals(text) {
+  const out = [];
+  if (!/^ {8}-DENABLE_PDFJS=OFF$/m.test(text)) out.push('-DENABLE_PDFJS=OFF is missing');
+  for (const option of ['ENABLE_PDFJS', 'ENABLE_WEB_RTC', 'USE_LIBWEBRTC', 'ENABLE_EXPERIMENTAL_FEATURES']) {
+    if (new RegExp(`-D${option}=ON\\b`).test(text)) out.push(`-D${option}=ON`);
+  }
+  return out;
+}
+
+test('WebKit is built without the parts whose licence it may not ship (LICENSE-001)', () => {
+  assert.deepEqual(webkitBuildRefusals(manifest), []);
+  const planted = manifest.replace(/^ {8}-DENABLE_PDFJS=OFF$/m, '        -DENABLE_PDFJS=ON');
+  assert.deepEqual(webkitBuildRefusals(planted), ['-DENABLE_PDFJS=OFF is missing', '-DENABLE_PDFJS=ON'],
+    'a build with PDF.js on');
+});
