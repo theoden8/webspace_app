@@ -145,6 +145,39 @@ void main() {
   // move's steps sealed a state the move then changed, or left a site
   // flipped to the archive tier with no archive to hold it.
   // ARCH-013
+  test('ARCH-007: an app-tier site holding an archived id keeps its row and '
+      'its state across the archive\'s open and close', () async {
+    final h = _Harness();
+    final id = SiteId.parse('shared')!;
+    final archived = _away(id);
+    h.load([archived]);
+    await h.archives.moveIn(archived);
+    await h.archives.closeArchiveOf(archived);
+    expect(h.runtime.models, isEmpty);
+
+    // A backup brings the site back on the app tier under the same id.
+    final restored = _away(id);
+    h.load([restored]);
+    final cookies = CookieSecureStorage(secureStorage: h.keychain);
+    await cookies.saveCookiesForSite(id, cookies: [
+      cookieFromJson({'name': 'sid', 'value': 'app-tier', 'domain': 'shared.test'}),
+    ]);
+
+    expect(await h.archives.open(_passphrase), isNotNull);
+    expect(h.runtime.models, hasLength(2));
+    expect(h.archives.archiveOf(restored), isNull,
+        reason: 'the app-tier site is not the archive\'s');
+    final opened = h.runtime.models.singleWhere((m) => m.isArchiveTier);
+    expect(h.archives.archiveOf(opened), isNotNull);
+
+    await h.archives.closeArchiveOf(opened);
+    expect(h.runtime.models, [same(restored)],
+        reason: 'the close seals the archive\'s own site, not the app-tier one');
+    expect(await cookies.loadCookiesForSite(id), isNotEmpty,
+        reason: 'and erases none of the app-tier site\'s state');
+    expect(await h.sealedShapes(), hasLength(1));
+  });
+
   group('archive operations one at a time', () {
     test('a close while a move reads cookies seals the moved site too',
         () async {

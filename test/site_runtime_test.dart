@@ -98,7 +98,7 @@ void main() {
           loaded: ['x', 'c', 'b'],
           shown: SiteId('c'),
         );
-        r.applied(ArchiveClosed(siteIds: {SiteId('x')}, webspaceIds: {}));
+        r.applied(ArchiveClosed(sites: [r.models.singleWhere((m) => m.siteId == SiteId('x'))], webspaceIds: {}));
         expect([for (final m in r.models) m.siteId], ['a', 'b', 'c']);
         expect(_loadedIds(r), ['c', 'b']);
         expect(r.shown?.siteId, 'c');
@@ -111,7 +111,7 @@ void main() {
         loaded: ['a', 'x'],
         shown: SiteId('x'),
       );
-      r.applied(ArchiveClosed(siteIds: {SiteId('x')}, webspaceIds: {}));
+      r.applied(ArchiveClosed(sites: [r.models.singleWhere((m) => m.siteId == SiteId('x'))], webspaceIds: {}));
       expect(r.current, isNull);
       expect(_loadedIds(r), ['a']);
     });
@@ -128,7 +128,7 @@ void main() {
       r.selectedWebspaceId = WebspaceId('arch');
       r.applied(
         ArchiveClosed(
-          siteIds: {SiteId('x')},
+          sites: [r.models.singleWhere((m) => m.siteId == SiteId('x'))],
           webspaceIds: {WebspaceId('arch')},
         ),
       );
@@ -242,7 +242,7 @@ void main() {
         const SitesMoved(0, to: 1),
         const SitesReplaced(sites: [], webspaces: [], selectedWebspaceId: null),
         const ArchiveOpened(sites: [], webspaces: [], appTierMembership: {}),
-        const ArchiveClosed(siteIds: {}, webspaceIds: {}),
+        const ArchiveClosed(sites: [], webspaceIds: {}),
         SiteArchived(_site(SiteId('a')), into: into),
         SiteUnarchived(_site(SiteId('a'))),
       ];

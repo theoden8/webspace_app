@@ -249,12 +249,12 @@ class SiteRuntime {
           webspaces,
           membership: appTierMembership,
         );
-      case ArchiveClosed(:final siteIds, :final webspaceIds):
+      case ArchiveClosed(sites: final leaving, :final webspaceIds):
         final closing = [
           for (final m in models)
-            if (siteIds.contains(m.siteId)) m,
+            if (leaving.any((s) => identical(s, m))) m,
         ];
-        models.removeWhere(closing.contains);
+        models.removeWhere((m) => closing.any((c) => identical(c, m)));
         if (closing.isNotEmpty) _drop(closing);
         if (webspaceIds.contains(selectedWebspaceId)) {
           selectedWebspaceId = WebspaceId.all;

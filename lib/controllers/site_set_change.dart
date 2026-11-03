@@ -232,8 +232,11 @@ final class ArchiveOpened extends SiteSetChange {
 
 /// A sealed archive's rows leave the lists.
 final class ArchiveClosed extends SiteSetChange {
-  const ArchiveClosed({required this.siteIds, required this.webspaceIds});
-  final Set<SiteId> siteIds;
+  const ArchiveClosed({required this.sites, required this.webspaceIds});
+
+  /// The archive's own rows, by identity: an app-tier site a backup brought
+  /// back under one of their ids stays (ARCH-007).
+  final List<WebViewModel> sites;
   final Set<WebspaceId> webspaceIds;
 }
 

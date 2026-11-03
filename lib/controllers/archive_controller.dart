@@ -107,11 +107,17 @@ class ArchiveController {
 
   bool get anyOpen => _slices.isNotEmpty;
 
-  /// The open archive [m] belongs to, or null for an app-tier site.
-  ArchiveHandle? archiveOf(WebViewModel m) => _slices.entries
-      .where((e) => e.value.siteIds.contains(m.siteId))
-      .firstOrNull
-      ?.key;
+  /// The open archive [m] belongs to, or null for an app-tier site. Read
+  /// off its opaque container key, which only an archive-tier model has: an
+  /// app-tier site a backup brought back under the same id is not the
+  /// archive's (ARCH-007).
+  ArchiveHandle? archiveOf(WebViewModel m) => switch (m.archiveContainerKey) {
+    final key? => _slices.entries
+        .where((e) => e.value.containerKeys.contains(key))
+        .firstOrNull
+        ?.key,
+    null => null,
+  };
 
   /// The handle for [passphrase] with its sites in the lists, or null when
   /// none matches. Done before returning: a caller writes into the handle
@@ -480,9 +486,13 @@ final class CloseFlow {
 
   SiteRuntime get _sites => controller._sites;
 
+  /// The archive's sites on the page, by their opaque container keys: an
+  /// app-tier site sharing an id is not sealed into the archive (ARCH-007).
   late final List<WebViewModel> owned = [
     for (final m in _sites.models)
-      if (slice.siteIds.contains(m.siteId)) m,
+      if (m.archiveContainerKey case final key?
+          when slice.containerKeys.contains(key))
+        m,
   ];
 
   /// Rows missing from the runtime mean something cleared the list under
@@ -545,7 +555,7 @@ final class CloseFlow {
   /// let go of their webviews, which the next frame unmounts, in the page's
   /// own commit, which supersedes an activation in flight.
   late final SiteSetStage _drop = controller._host.stageSites(
-    ArchiveClosed(siteIds: slice.siteIds, webspaceIds: slice.webspaceIds),
+    ArchiveClosed(sites: owned, webspaceIds: slice.webspaceIds),
   );
 
   /// What follows the commit, then the frame: a container a mounted
@@ -567,25 +577,26 @@ final class CloseFlow {
 
   /// A `ws-<siteId>` for an archived site means some path bound one
   /// without the opaque id; it would otherwise name the site on disk until
-  /// the next cold-start sweep. Skipped for an id an app-tier site also
-  /// holds (a backup can bring one back), whose container is that site's
-  /// own. Then a defensive back-erasure of per-siteId app-tier state: the
+  /// the next cold-start sweep. Then a defensive back-erasure of per-siteId
+  /// app-tier state. Both skip an id an app-tier site also holds (a backup
+  /// can bring one back), whose container and state are that site's own: the
   /// ARCH-006 overrides keep new writes out, and this catches entries
   /// written by builds that predate them and by any path that forgets the
   /// gate.
   Future<void> erase() async {
+    // An id an app-tier site also holds names that site's own state: its
+    // container, back stacks, cookies and proxy password stay.
+    final appTier = {
+      for (final m in _sites.models)
+        if (!m.isArchiveTier) m.siteId,
+    };
+    final traces = slice.siteIds.difference(appTier);
     if (_sites.isolation case Containers(:final engine)) {
-      final appTier = {
-        for (final m in _sites.models)
-          if (!m.isArchiveTier) m.siteId,
-      };
-      for (final sid in slice.siteIds) {
-        if (!appTier.contains(sid)) {
-          await engine.onSiteDeleted(ContainerKey.ofSite(sid));
-        }
+      for (final sid in traces) {
+        await engine.onSiteDeleted(ContainerKey.ofSite(sid));
       }
     }
-    for (final sid in slice.siteIds) {
+    for (final sid in traces) {
       await controller.navStates.removeStatesForSite(sid);
       await controller.cookieStore.saveCookiesForSite(sid, cookies: const []);
     }
@@ -593,7 +604,7 @@ final class CloseFlow {
       await FaviconUrlCache.invalidate(m.initUrl);
     }
     await controller.proxyPasswords.mutate((draft) {
-      for (final sid in slice.siteIds) {
+      for (final sid in traces) {
         draft[ProxyPasswordKey.site(sid)] = null;
       }
     });

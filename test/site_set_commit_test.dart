@@ -135,7 +135,7 @@ void main() {
         selectedWebspaceId: WebspaceId('w'),
       ),
       (_) => const ArchiveOpened(sites: [], webspaces: [], appTierMembership: {}),
-      (a) => ArchiveClosed(siteIds: {a.siteId}, webspaceIds: const {}),
+      (a) => ArchiveClosed(sites: [a], webspaceIds: const {}),
       (a) => SiteArchived(a, into: into),
       SiteUnarchived.new,
     ];
