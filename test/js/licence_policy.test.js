@@ -100,7 +100,8 @@ test('each rule catches the mistake it is for', (t) => {
   write('LICENSE', 'Permission is hereby granted, free of charge, to any person obtaining a copy of this software');
   write('lib/a.dart', '// SPDX-License-Identifier: GPL-3.0-or-later\n');
   write('src/vendored/b.c', '/* This program is free software; you can redistribute it and/or modify it\n'
-    + ' * under the terms of the GNU General Public License as published by */\n');
+    + ' * under the terms of the GNU General Public License as published by the Free\n'
+    + ' * Software Foundation. */\n');
   write('src/vendored/COPYING', '                    GNU GENERAL PUBLIC LICENSE\n       Version 3, 29 June 2007\n');
   write('third_party/LICENSE', 'Attribution-ShareAlike 3.0 Unported\n');
   write('test/c.dart', '// SPDX-License-Identifier: GPL-3.0-or-later\n');

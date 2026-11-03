@@ -194,7 +194,17 @@ function pluginBuildFiles(packages) {
 
 const LICENCE_FILE = /^(?:licen[cs]e|copying)/i;
 const GNU_HEADING = /^\s*GNU (?:LESSER |LIBRARY |AFFERO )?GENERAL PUBLIC LICENSE\s*$/im;
-const GNU_NOTICE = /under\s+the\s+terms\s+of\s+the\s+GNU\s+(?:Lesser\s+|Library\s+|Affero\s+)?General\s+Public\s+License/i;
+// A notice read as letters and digits only, so one split across comment
+// lines (`//`, ` *`, `#`) reads as one sentence, as build.rs reads a crate's.
+const GNU_NOTICE = /general public license.*as published by the free software foundation/;
+const GNU_DATED = [
+  'gnu general public license version 2 june 1991',
+  'gnu general public license version 3 29 june 2007',
+  'gnu library general public license version 2 june 1991',
+  'gnu lesser general public license version 2 1 february 1999',
+  'gnu lesser general public license version 3 29 june 2007',
+  'gnu affero general public license version 3 19 november 2007',
+];
 const SPDX_TAG = /SPDX-License-Identifier:\s*([^\r\n*]+)/g;
 
 /**
@@ -243,7 +253,10 @@ function readingOf(file, { licenceFile }) {
   const text = textOf(file, { whole: licenceFile });
   if (text === null) return [];
   const out = [];
-  if (GNU_HEADING.test(text) || GNU_NOTICE.test(text)) out.push('a GNU licence');
+  const words = text.toLowerCase().replace(/[^a-z0-9]+/g, ' ');
+  if (GNU_HEADING.test(text) || GNU_NOTICE.test(words) || GNU_DATED.some((h) => words.includes(h))) {
+    out.push('a GNU licence');
+  }
   for (const m of text.matchAll(SPDX_TAG)) out.push(m[1].replace(/\s*-->.*$/, '').trim());
   if (licenceFile) {
     const known = [...licencesIn(text)];
