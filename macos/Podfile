@@ -1,3 +1,4 @@
+require 'fileutils'
 # 11.0, not 10.15: the Tor pod's floor (TOR-007). It moved when Tor came to
 # macOS, so a Catalina machine no longer gets the app at all — the shipped
 # ShareExtension already required 11.0, so that half was moot there anyway.
@@ -179,4 +180,17 @@ post_install do |installer|
     end
     aggregate.user_project.save
   end
+end
+
+# The licences page lists every pod the app links (LICENSE-003) from the
+# acknowledgements CocoaPods writes as it installs them, laid out where
+# pubspec.yaml's assets take it up; Flutter bundles assets after this, and
+# post_integrate runs once CocoaPods has written every file.
+post_integrate do |installer|
+  acknowledgements = File.join(installer.sandbox.root, 'Target Support Files',
+                               'Pods-Runner', 'Pods-Runner-acknowledgements.markdown')
+  raise "[webspace] CocoaPods wrote no #{acknowledgements}" unless File.exist?(acknowledgements)
+  notices = File.expand_path('../assets/native_notices', __dir__)
+  FileUtils.mkdir_p(notices)
+  FileUtils.cp(acknowledgements, File.join(notices, 'pods.md'))
 end

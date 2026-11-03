@@ -362,7 +362,28 @@ function attributionGaps(packages, { components, attributed = attributions() }) 
     }
   }
   const keys = new Set(notices.map((n) => n.key));
-  for (const key of attributed.keys()) if (!keys.has(key)) out.push(`${key}: no package ships it`);
+  for (const key of attributed.keys()) {
+    if (key.startsWith('pub:') && !keys.has(key)) out.push(`${key}: no package ships it`);
+  }
+  return out;
+}
+
+/**
+ * The pods [components] lists whose licence is more than their own (the
+ * libraries they compile in beside it) with no row in attributions.tsv
+ * naming texts that exist, and pod rows for no pod in [components].
+ */
+function podAttributionGaps({ components, attributed = attributions() }) {
+  const out = [];
+  for (const [source, { licence }] of components) {
+    if (!source.startsWith('pod:') || !/ AND /.test(licence)) continue;
+    const assets = attributed.get(source);
+    if (!assets) out.push(`${source}: ${licence}, and no row in ${ATTRIBUTIONS}`);
+    else for (const a of assets) if (!exists(a)) out.push(`${source}: ${a} does not exist`);
+  }
+  for (const key of attributed.keys()) {
+    if (key.startsWith('pod:') && !components.has(key)) out.push(`${key}: no pod in ${COMPONENTS}`);
+  }
   return out;
 }
 
@@ -382,5 +403,5 @@ function pullSites(inputs = buildFiles()) {
 module.exports = {
   LICENCES, COMPONENTS, CASES, rows, policy, allows, registry, pods, gradle, urls, pullSites,
   buildFiles, shippedFiles, pubPackages, pluginBuildFiles, pubRefusals, licencesIn, readingOf,
-  ATTRIBUTIONS, attributions, pubNotices, attributionGaps,
+  ATTRIBUTIONS, attributions, pubNotices, attributionGaps, podAttributionGaps,
 };

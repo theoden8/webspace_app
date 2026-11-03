@@ -57,6 +57,26 @@ test('LICENSE-003 every notice a pub package ships beyond its root LICENSE is on
   assert.deepEqual(L.attributionGaps(packages, { components }), []);
 });
 
+// CocoaPods writes every pod's licence as it installs them; the Podfiles lay
+// that out where pubspec.yaml's assets take it up (lib/services/licenses.dart
+// reads it), and what a pod compiles in beside itself has its own text.
+test('LICENSE-003 every pod an Apple build links reaches the licences page', () => {
+  for (const podfile of ['ios/Podfile', 'macos/Podfile']) {
+    const text = read(podfile);
+    const hook = text.slice(text.indexOf('post_integrate do |installer|'));
+    assert.ok(text.includes('post_integrate do |installer|'), `${podfile} has no post_integrate hook`);
+    assert.match(hook, /'Pods-Runner-acknowledgements\.markdown'/, `${podfile} does not read CocoaPods' acknowledgements`);
+    assert.match(hook, /File\.join\(notices, 'pods\.md'\)/, `${podfile} does not lay them out as pods.md`);
+    assert.match(hook, /'\.\.\/assets\/native_notices'/, `${podfile} lays them out elsewhere`);
+  }
+  assert.match(read('pubspec.yaml'), /^ {4}- assets\/native_notices\/$/m, 'pubspec.yaml does not bundle assets/native_notices/');
+  assert.match(read('.gitignore'), /^assets\/native_notices\/\*$/m, 'the laid-out notices are not ignored');
+  assert.deepEqual(L.podAttributionGaps({ components }), []);
+  const planted = L.registry('pod:Lyre\tMIT AND GPL-3.0-or-later\tlinked\tits LICENSE\n');
+  assert.deepEqual(L.podAttributionGaps({ components: planted, attributed: new Map() }),
+    [`pod:Lyre: MIT AND GPL-3.0-or-later, and no row in ${L.ATTRIBUTIONS}`], 'a pod that compiles in more, unattributed');
+});
+
 test('the verdicts are the ones licence_cases.tsv gives', () => {
   for (const [expression, ships, component, verdict] of L.rows(read(L.CASES))) {
     assert.equal(L.allows(expression, { ships, component }), verdict === 'allowed',

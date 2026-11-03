@@ -98,3 +98,7 @@ rust/webspace_adblock/cocoapods/keep_alive.c
 # Design mailbox pulled out of the Claude Design project for servicing.
 # The request is the design side's state, not the repo's.
 /_requests/
+
+# The notices pod install lays out for the licences page (ios/Podfile).
+assets/native_notices/*
+!assets/native_notices/.gitkeep
