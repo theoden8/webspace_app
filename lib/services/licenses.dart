@@ -106,13 +106,10 @@ void registerLicenses() {
     }
   });
 
-  // Transitive Rust dependency attribution. Loaded from the
-  // adblock_rust shared library's static metadata blob (see
-  // rust/webspace_adblock/build.rs). Surfaces every crate
-  // adblock-rust pulls in (regex, serde, flatbuffers, idna, …) with
-  // its SPDX license + canonical SPDX text (sourced at build time
-  // via the `license` crate's vendored license-list-data, NOT
-  // hand-typed). Dual-licensed crates ship every relevant text.
+  // Every crate the adblock library links, from the blob its build embeds
+  // (rust/webspace_adblock/build.rs): each with its own licence files, which
+  // carry its copyright notices, or the canonical SPDX text and its authors
+  // for one that ships none.
   LicenseRegistry.addLicense(() async* {
     for (final dep in AdblockEngine.depLicenses()) {
       final name = dep['name'] as String? ?? '';
@@ -123,16 +120,40 @@ void registerLicenses() {
       final desc = dep['description'] as String? ?? '';
       final texts = (dep['license_texts'] as List? ?? const [])
           .cast<Map<String, dynamic>>();
+      final files = switch (dep['license_files']) {
+        final List list => [
+            for (final f in list)
+              if (f case {'name': final String name, 'text': final String text})
+                (name, text),
+          ],
+        _ => const <(String, String)>[],
+      };
+      final authors = switch (dep['authors']) {
+        final List list => [
+            for (final a in list)
+              if (a case final String author) author,
+          ],
+        _ => const <String>[],
+      };
 
       final parts = <String>[
         if (desc.isNotEmpty) desc,
         '',
         'Version: $version',
         'License: $license',
+        if (files.isEmpty && authors.isNotEmpty) 'Authors: ${authors.join(', ')}',
         if (repo.isNotEmpty) 'Source: $repo',
         if (repo.isEmpty) 'Source: https://crates.io/crates/$name',
       ];
-      if (texts.isEmpty) {
+      if (files.isNotEmpty) {
+        for (final (fileName, text) in files) {
+          parts
+            ..add('')
+            ..add('--- $fileName ---')
+            ..add('')
+            ..add(text);
+        }
+      } else if (texts.isEmpty) {
         parts.add('');
         parts.add(
             'Canonical SPDX license text was not resolvable for "$license". '

@@ -63,6 +63,31 @@ fn license_texts_for_expression(expression: &str) -> Vec<Value> {
     out
 }
 
+/// The licence files at the top of a crate's directory, each as its name
+/// and text, in name order.
+fn licence_files(dir: &Path) -> Vec<Value> {
+    let mut files: Vec<_> = fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| e.path().is_file())
+        .filter(|e| {
+            let name = e.file_name().to_string_lossy().to_lowercase();
+            ["licen", "copying", "notice", "copyright"].iter().any(|p| name.starts_with(p))
+        })
+        .collect();
+    files.sort_by_key(|e| e.file_name());
+    files
+        .iter()
+        .map(|e| {
+            json!({
+                "name": e.file_name().to_string_lossy(),
+                "text": String::from_utf8_lossy(&fs::read(e.path()).unwrap_or_default()),
+            })
+        })
+        .collect()
+}
+
 /// Run `cargo metadata` against the crate and emit a slim JSON list
 /// of (name, version, license SPDX, repository, description) for every
 /// resolved dependency. The result is embedded into the .so/.a via
@@ -99,8 +124,10 @@ fn write_dep_licenses(out_dir: &Path) {
         .and_then(|v| v.as_array())
         .expect("cargo metadata lists no packages");
 
+    let linked = licence_policy::linked(&parsed);
     let mut out = Vec::new();
     let mut refused = Vec::new();
+    let mut gnu = Vec::new();
     for pkg in packages {
         let name = pkg.get("name").and_then(|v| v.as_str()).unwrap_or("");
         // Skip the wrapper crate itself — it has no upstream
@@ -118,13 +145,22 @@ fn write_dep_licenses(out_dir: &Path) {
         if !policy.allows(license_expr, licence_policy::Ships::Linked, &format!("crate:{name}")) {
             refused.push(format!("{name} {version}: {license_expr:?}"));
         }
-        // Resolve the SPDX expression to canonical license texts via
-        // the `license` crate (build-dep). One entry per distinct
-        // SPDX id named in the expression so dual-licensed crates
-        // ship both bodies. Empty when the expression names no
-        // recognised SPDX id — the consumer falls back to the raw
-        // expression string.
-        let license_texts = license_texts_for_expression(license_expr);
+        if !pkg["id"].as_str().is_some_and(|id| linked.contains(id)) {
+            continue;
+        }
+        let dir = Path::new(pkg["manifest_path"].as_str().expect("a package with no manifest"))
+            .parent()
+            .expect("a manifest with no directory");
+        gnu.extend(licence_policy::gnu_text_in(dir).into_iter().map(|f| format!("{name} {version}: {f}")));
+        // The crate's own licence files carry its copyright notices, which
+        // MIT and BSD ask to travel with the binary; the canonical SPDX text
+        // stands in only for a crate that ships none.
+        let license_files = licence_files(dir);
+        let license_texts = if license_files.is_empty() {
+            license_texts_for_expression(license_expr)
+        } else {
+            Vec::new()
+        };
         out.push(json!({
             "name": name,
             "version": version,
@@ -137,12 +173,18 @@ fn write_dep_licenses(out_dir: &Path) {
                 .get("description")
                 .and_then(|v| v.as_str())
                 .unwrap_or(""),
+            "authors": pkg["authors"].clone(),
+            "license_files": license_files,
             "license_texts": license_texts,
         }));
     }
     assert!(
         refused.is_empty(),
         "LICENSE-001: openspec/specs/legal/licences.tsv lets none of these crates link: {refused:?}"
+    );
+    assert!(
+        gnu.is_empty(),
+        "LICENSE-001: these linked crates carry GNU licence text, whatever their label: {gnu:?}"
     );
     // Stable order — sort by name so successive builds with the same
     // Cargo.lock produce byte-identical output (deterministic .so).
