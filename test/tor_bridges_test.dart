@@ -25,7 +25,7 @@ const _obfs4 =
     'obfs4 192.0.2.10:9443 A1B2C3D4E5F60718293A4B5C6D7E8F9012345678 '
     'cert=abcdEFGH1234ijklMNOP5678qrstUVWX90yzABcdEFghIJklMNop iat-mode=0';
 
-// A dnstt line as IPtProxy's client reads it (key, domain and address are
+// A dnstt line as dnstt's client reads it (key, domain and address are
 // invented). The address is a placeholder tor needs; the lookups go to doh=.
 const _dnstt =
     'dnstt 192.0.2.30:1 A1B2C3D4E5F60718293A4B5C6D7E8F9012345678 '
@@ -219,7 +219,7 @@ void main() {
     });
 
     test('snowflake with no lines falls back to the built-in bridge', () {
-      // IPtProxy's Controller defaults every snowflake rendezvous field to
+      // A transport runner defaults every snowflake rendezvous field to
       // the empty string, so UseBridges with no Bridge line leaves tor with
       // nothing to dial rather than reaching a working default.
       const cfg = TorBridgeConfig(
@@ -314,7 +314,7 @@ void main() {
     });
 
     test('produces nothing when the transport never got a port', () {
-      // IPtProxy reports 0 when the transport failed to start; emitting a
+      // A runtime reports 0 when no transport started; emitting a
       // plugin line pointing at port 0 would hang bootstrap instead of
       // failing loudly.
       final cfg = TorBridgeConfig(

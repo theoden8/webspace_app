@@ -302,10 +302,10 @@ abstract class TorRuntime {
   Future<void> applyExitCountry(String? exitNodes, {String? geoipFile});
 
   /// Start the pluggable transport named [transport] and return the loopback
-  /// port its SOCKS listener bound to, or 0 when it failed to start.
+  /// port its SOCKS listener bound to, or 0 when none runs here.
   ///
-  /// The port is allocated by IPtProxy at start time, so only the native
-  /// side can know it — which is why this is a round trip rather than a
+  /// The port is allocated by the transport at start time, so only the
+  /// runtime can know it — which is why this is a round trip rather than a
   /// constant. Dart then builds the torrc options around the returned port,
   /// keeping that logic in [torBridgeOptions] where it is tested, rather
   /// than reimplementing it in Swift.

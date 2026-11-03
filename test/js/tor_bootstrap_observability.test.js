@@ -281,7 +281,7 @@ test('macOS carries the same pinned runtime as iOS', () => {
   // other than what iOS ships. Same pods, same pins, one floor.
   const iosPods = read('ios/Podfile');
   const macPods = read('macos/Podfile');
-  for (const pod of ['Tor', 'IPtProxy']) {
+  for (const pod of ['Tor']) {
     const pin = new RegExp(`pod '${pod}', '([0-9.]+)'`);
     const ios = iosPods.match(pin);
     const mac = macPods.match(pin);
@@ -378,7 +378,7 @@ test('the plugin type-checks somewhere cheaper than a device build', () => {
   // The stubs name the version they came from; a pod bump has to land in
   // both places or this fails.
   const iosPods = read('ios/Podfile');
-  for (const pod of ['Tor', 'IPtProxy']) {
+  for (const pod of ['Tor']) {
     const version = iosPods.match(new RegExp(`pod '${pod}', '([0-9.]+)'`))[1];
     const stubRel = `tool/swift_typecheck/stub_${pod}.swift`;
     const stub = read(stubRel);
@@ -389,8 +389,8 @@ test('the plugin type-checks somewhere cheaper than a device build', () => {
 });
 
 test('the macOS Runner inherits the pods\' linker flags', () => {
-  // IPtProxy declares `s.libraries = 'resolv'`, which reaches the app only
-  // through the Pods xcconfig. The macOS Runner carried
+  // A pod's `s.libraries` reaches the app only through the Pods xcconfig
+  // (a Go pod's `resolv` once did). The macOS Runner carried
   // `OTHER_LDFLAGS = ""` at target level, which shadows that xcconfig, and
   // the Podfile hook that rewrites the setting kept the shadow: "" is truthy
   // in Ruby, so its nil guard produced [""] rather than ["$(inherited)"].

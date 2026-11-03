@@ -55,7 +55,6 @@ PODS:
   - integration_test (0.0.1):
     - Flutter
   - InternalCollectionsUtilities (1.1.1)
-  - IPtProxy (5.5.1)
   - package_info_plus (0.4.5):
     - Flutter
   - SDWebImage (5.21.5):
@@ -105,7 +104,6 @@ DEPENDENCIES:
   - flutter_zxing (from `.symlinks/plugins/flutter_zxing/ios`)
   - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
-  - IPtProxy (= 5.5.1)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
@@ -119,7 +117,6 @@ SPEC REPOS:
     - DKImagePickerController
     - DKPhotoGallery
     - InternalCollectionsUtilities
-    - IPtProxy
     - SDWebImage
     - swift-collections
     - SwiftyGif
@@ -170,7 +167,6 @@ SPEC CHECKSUMS:
   image_picker_ios: e0ece4aa2a75771a7de3fa735d26d90817041326
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   InternalCollectionsUtilities: af3f471602c4a67cbcb0bee0a80f6f55a33ae453
-  IPtProxy: c4c20975d2c793222b7a9e0dc3855818b5f1181f
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
   SDWebImage: e9c98383c7572d713c1a0d7dd2783b10599b9838
   share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a

@@ -1,7 +1,7 @@
 name: Apple toolchain
 description: >-
   Flutter from .fvmrc with the project's packages and localizations,
-  CocoaPods, the Go the IPtProxy pod builds with, and the Rust adblock
+  CocoaPods, and the Rust adblock
   library the webspace_adblock pod vendors. Shared by the iOS and macOS build
   and the Apple screenshots, which build the same app.
 runs:
@@ -81,16 +81,6 @@ runs:
         key: cargo-apple-${{ runner.os }}-${{ hashFiles('rust/webspace_adblock/Cargo.lock') }}
         restore-keys: |
           cargo-apple-${{ runner.os }}-
-
-    # The IPtProxy pod has no prebuilt binary: its prepare_command
-    # cross-compiles the transports from Go with gomobile during `pod
-    # install`, which `flutter build ipa` runs. Pinned rather than left to
-    # whatever the runner image ships, because the pod needs 1.24+ and a
-    # runner image bump is not something this build should notice.
-    - name: Setup Go (for the IPtProxy pod's gomobile build)
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.24'
 
     - name: Read Rust toolchain
       id: rust

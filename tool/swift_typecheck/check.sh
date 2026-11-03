@@ -22,7 +22,7 @@ fi
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-modules="Flutter Tor IPtProxy"
+modules="Flutter Tor"
 # The macos/Runner stubs are Linux-only. On macOS the real Cocoa, WebKit and
 # Network frameworks are present, so stub modules under those names are at
 # best ambiguous against them -- and the Xcode build compiles that Runner
