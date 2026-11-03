@@ -750,6 +750,13 @@ jobs:
           fvm flutter build linux --release
           bash scripts/verify_adblock_shipped.sh linux
 
+      # LICENSE-001 over what the bundle ships outside pub and Cargo: each
+      # library tor's build copies beside it, by its Debian copyright file.
+      - name: Check the bundle's licences
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends nodejs
+          node tool/check_bundle_licences.js build/linux/x64/release/bundle
+
       # The built-in Tor (TOR-027): the bundle carries the tor linux/tor.cmake
       # built from source, its libraries and notices, no GeoIP table
       # (LICENSE-002), no transport and no GPL module (LICENSE-001), and the

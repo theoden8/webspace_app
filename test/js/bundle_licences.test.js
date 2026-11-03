@@ -1,6 +1,7 @@
 // LICENSE-001 over a built Linux package (tool/check_bundle_licences.js, run
-// by CI on the snap it builds): each rule caught on the mistake it is for, on
-// packages laid out here; the real snap is checked where CI builds it.
+// by CI on the Linux bundle and the snap it builds): each rule caught on the
+// mistake it is for, on packages laid out here; the real ones are checked
+// where CI builds them.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -8,6 +9,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const B = require('../../tool/check_bundle_licences');
+const { read } = require('./helpers/source');
 
 function pkg(t, files) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bundle-licences-'));
@@ -78,4 +80,13 @@ test('every build-only row names the files it covers and why (LICENSE-001)', () 
   for (const r of rows.filter((x) => x.spdx === 'LicenseRef-build-only')) {
     assert.ok(r.pkg && r.files.length, `${r.name} maps to LicenseRef-build-only without a package and its files`);
   }
+});
+
+test('LICENSE-001 CI checks the Linux bundle and the snap it builds', () => {
+  const workflow = read('.github/workflows/build-and-test.yml');
+  const build = workflow.indexOf('fvm flutter build linux --release');
+  const check = workflow.indexOf('node tool/check_bundle_licences.js build/linux/x64/release/bundle');
+  assert.ok(build >= 0 && check > build, 'CI does not check the Linux bundle after it builds it');
+  assert.match(read('.github/workflows/snap.yml'), /node tool\/check_bundle_licences\.js /,
+    'CI does not check the snap it builds');
 });
