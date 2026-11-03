@@ -6,6 +6,7 @@ MIT OR Apache-2.0	linked	crate:a	allowed
 MIT/Apache-2.0	linked	crate:a	allowed
 (MIT OR Apache-2.0) AND Unicode-3.0	linked	crate:a	allowed
 Apache-2.0 WITH LLVM-exception	linked	crate:a	allowed
+Apache-2.0 AND OFL-1.1	linked	url:b	allowed
 GPL-3.0-or-later	linked	crate:a	refused
 MIT AND GPL-2.0-only	linked	crate:a	refused
 MIT OR GPL-2.0-only	linked	crate:a	allowed
