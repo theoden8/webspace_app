@@ -61,6 +61,26 @@ void registerLicenses() {
       'assets/licenses/ipfire_location.txt'
     ),
     (['Kagi Bangs (site search list data)'], 'assets/licenses/kagi_bangs.txt'),
+    (
+      ['timezone-boundary-builder (time zone data)'],
+      'assets/licenses/timezone_boundary_builder.txt'
+    ),
+    (
+      ['Chrome UX Report top sites (address completion data)'],
+      'assets/licenses/crux_top_lists.txt'
+    ),
+    (
+      ['StevenBlack hosts, porn-only (domain data)'],
+      'assets/licenses/stevenblack_hosts.txt'
+    ),
+    (
+      ['uBlock Origin filter list index (backup import data)'],
+      'assets/licenses/ubo_assets.txt'
+    ),
+    (
+      ['Public Suffix List (compiled in through the psl crate)'],
+      'assets/licenses/public_suffix_list.txt'
+    ),
   ];
   for (final (packages, assetPath) in customLicenses) {
     LicenseRegistry.addLicense(() async* {

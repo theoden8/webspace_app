@@ -111,7 +111,6 @@ LAZY-004	no check: no test returns to a visited site and asserts its webview was
 # legal
 EXPORT-002	no check: nothing fails a cryptographic primitive outside the listed ones; review is the gate
 EXPORT-003	process: building a release from the published source at its tag is a release step (docs/releasing.md); no test builds a tag
-LICENSE-003	no check names it: test/licenses_test.dart holds each data licence to the licences page, not every bundled component's notice
 # link-intent-routing
 LIR-005	no check: the ACTION_SEND filter, URL extraction from shared text and no-NEW_TASK flag are native; no Kotlin, manifest gate or integration test covers them
 LIR-006	no check: the iOS Share Extension has no test; ios/RunnerTests holds only a placeholder

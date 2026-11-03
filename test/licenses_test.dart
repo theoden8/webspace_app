@@ -38,6 +38,24 @@ void main() {
         contains('The EasyList authors'));
   });
 
+  // Every text under assets/licenses is a component that neither pub's nor
+  // Cargo's collector reaches, so one left unregistered never shows.
+  test('every licence text the app bundles is on the licences page (LICENSE-003)', () async {
+    String lines(Iterable<String> all) =>
+        all.map((l) => l.trimLeft()).where((l) => l.isNotEmpty).join('\n');
+    final wanted = {
+      for (final f in Directory('assets/licenses').listSync().whereType<File>())
+        if (f.path.endsWith('.txt')) f.path: lines(f.readAsLinesSync()),
+    };
+    expect(wanted, isNotEmpty);
+    await for (final entry in LicenseRegistry.licenses) {
+      final text = lines(entry.paragraphs.map((p) => p.text));
+      wanted.removeWhere((_, file) => file == text);
+      if (wanted.isEmpty) break;
+    }
+    expect(wanted.keys, isEmpty, reason: 'registered in lib/services/licenses.dart');
+  });
+
   test('the README names EasyList and adblock-rust (CB-007)', () {
     final readme = File('README.md').readAsStringSync();
     expect(readme, contains('EasyList'));
