@@ -48,7 +48,7 @@ function(webspace_bundle_tor TOR_TARGET_ARCH TOR_WORK_DIR TOR_INSTALL_DIR)
   set(archive "${TOR_WORK_DIR}/${name}")
   if(source STREQUAL "")
     file(DOWNLOAD
-      "https://dist.torproject.org/torbrowser/${TOR_EXPERT_BUNDLE_VERSION}/${name}"
+      "https://archive.torproject.org/tor-package-archive/torbrowser/${TOR_EXPERT_BUNDLE_VERSION}/${name}"
       "${archive}"
       EXPECTED_HASH SHA256=${TOR_EXPERT_BUNDLE_SHA256}
       TLS_VERIFY ON
