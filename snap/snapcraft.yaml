@@ -72,6 +72,14 @@ parts:
       - --prefix=/usr
       - --buildtype=release
       - -Dbuild-docs=false
+    # Its notices, as a Debian package carries its own (LICENSE-003).
+    override-build: |
+      craftctl default
+      bash "$CRAFT_PROJECT_DIR/linux/install_notices.sh" \
+        --src "$CRAFT_PART_SRC" --dest "$CRAFT_PART_INSTALL/usr/share/doc/libwpe" \
+        --name libwpe --source https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz \
+        --revision "sha256 c880fa8d607b2aa6eadde7d6d6302b1396ebc38368fe2332fa20e193c7ee1420" \
+        --license BSD-2-clause
     build-packages:
       - libegl-dev
       - libxkbcommon-dev
@@ -147,6 +155,12 @@ parts:
       cmake --build wpe -- -j"$CRAFT_PARALLEL_BUILD_COUNT"
       ccache --show-stats
       DESTDIR="$CRAFT_PART_INSTALL" cmake --install wpe
+      bash "$CRAFT_PROJECT_DIR/linux/install_notices.sh" \
+        --src "$CRAFT_PART_SRC" --dest "$CRAFT_PART_INSTALL/usr/share/doc/wpewebkit" \
+        --name "WPE WebKit" --source https://github.com/WebKit/WebKit.git \
+        --revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)" \
+        --license "LGPL-2.1+ and LGPL-2+ and BSD-2-clause and BSD-2-Clause-Patent and BSD-3-clause and Expat and Apache-2.0 and BSL-1.0 and ISC" \
+        --third-party "$CRAFT_PROJECT_DIR/linux/webkit_third_party.tsv" --offer
     build-packages:
       - ccache
       - clang

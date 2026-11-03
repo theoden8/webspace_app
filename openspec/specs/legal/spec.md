@@ -156,9 +156,24 @@ collector reaches.
 vendored or modified source, and components that are not a package in either
 graph.
 
+A library a Linux package builds from source and bundles (WPE WebKit and
+libwpe in the snap and the flatpak) SHALL carry its notices in the package as
+a Debian package does: `usr/share/doc/<name>/copyright` naming its source and
+revision and its licence, every licence file of its source tree and the
+copyright lines of its sources beside it, written at build time by
+`linux/install_notices.sh`, and for an LGPL library the offer of its source.
+The licences page SHALL list every such notice the package carries, so the
+app's own notices name the libraries LGPL-2.1 section 6 asks them to.
+
 #### Scenario: New pub package or crate
 
 - **THEN** nothing is added by hand; the licence page picks it up
+
+#### Scenario: A Linux package bundles a library it builds
+
+- **WHEN** the snap or the flatpak builds a library from source and ships it
+- **THEN** its notices are in `usr/share/doc/<name>/` of the package and on
+  the licences page
 
 #### Scenario: New data source or vendored tree
 

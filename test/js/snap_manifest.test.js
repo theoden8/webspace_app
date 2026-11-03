@@ -195,3 +195,49 @@ test('WebKit is built without the parts whose licence it may not ship (LICENSE-0
   assert.deepEqual(webkitBuildRefusals(planted), ['-DENABLE_PDFJS=OFF is missing', '-DENABLE_PDFJS=ON'],
     'a build with PDF.js on');
 });
+
+// linux/install_notices.sh writes a built library's notices where a staged
+// Debian package keeps its own, which the app's licences page reads
+// (bundled_notices_io.dart). WebKit's call also holds its third-party
+// directories to the audited table and makes the source offer LGPL asks for.
+function noticeRefusals(text) {
+  const out = [];
+  for (const [part, dest, extra] of [
+    ['libwpe', 'libwpe', []],
+    ['wpewebkit', 'wpewebkit', ['--third-party "$CRAFT_PROJECT_DIR/linux/webkit_third_party.tsv" --offer']],
+  ]) {
+    const start = text.indexOf(`\n  ${part}:\n`);
+    const end = text.indexOf('\n\n  ', start + 1);
+    const body = start < 0 ? '' : text.slice(start, end < 0 ? text.length : end);
+    if (!body.includes('bash "$CRAFT_PROJECT_DIR/linux/install_notices.sh"')) {
+      out.push(`${part} writes no notices`);
+      continue;
+    }
+    if (!body.includes(`--dest "$CRAFT_PART_INSTALL/usr/share/doc/${dest}"`)) out.push(`${part}'s notices are not in usr/share/doc/${dest}`);
+    for (const flag of extra) if (!body.includes(flag)) out.push(`${part} lacks ${flag}`);
+  }
+  if (/^ {6}- -usr\/share\/doc\b/m.test(text)) out.push('a part leaves usr/share/doc out of the snap');
+  return out;
+}
+
+test('each library the snap builds ships its notices (LICENSE-003)', () => {
+  assert.deepEqual(noticeRefusals(manifest), []);
+  assert.deepEqual(noticeRefusals(manifest.replace(' --offer\n', '\n')),
+    ['wpewebkit lacks --third-party "$CRAFT_PROJECT_DIR/linux/webkit_third_party.tsv" --offer'],
+    'WebKit without its source offer');
+  assert.deepEqual(noticeRefusals(manifest.replace('      - -usr/include\n', '      - -usr/include\n      - -usr/share/doc\n')),
+    ['a part leaves usr/share/doc out of the snap'], 'the notices primed out');
+});
+
+test('every third-party tree of WebKit under the GPL is one the build leaves out (LICENSE-001)', () => {
+  const rows = read('linux/webkit_third_party.tsv').split('\n')
+    .filter((l) => l && !l.startsWith('#')).map((l) => l.split('\t'));
+  assert.ok(rows.length > 10, 'linux/webkit_third_party.tsv read no rows');
+  const shipped = rows.filter(([, licence, built]) => /(^|[^L])GPL/.test(licence) && built !== 'no')
+    .map(([path]) => path);
+  assert.deepEqual(shipped, [], 'these trees are under the GPL and marked as compiled in');
+  for (const [path, , built, why] of rows) {
+    assert.match(built, /^(yes|no)$/, `${path}: built is ${built}`);
+    assert.ok(why, `${path} says nothing about why`);
+  }
+});

@@ -1,0 +1,23 @@
+# Source/ThirdParty of the WebKit the snap and the flatpak build (LICENSE-001),
+# held by linux/install_notices.sh --third-party at build time: a directory this
+# table does not list fails the build. Columns: path, licence as read from its
+# licence files, whether the WPE build configured in snap/snapcraft.yaml
+# compiles any of it in (`no` leaves its notices out, since nothing of it
+# ships), and why.
+Source/ThirdParty/ANGLE	BSD-3-Clause AND BSD-2-Clause AND MIT AND Apache-2.0	yes	WebGL
+Source/ThirdParty/ANGLE/third_party/android_system_sdk	GPL-2.0-only WITH Classpath-exception-2.0	no	Android SDK stubs for ANGLE's Android build
+Source/ThirdParty/ANGLE/third_party/proguard	GPL-2.0-only	no	an Android build tool
+Source/ThirdParty/ANGLE/tools/flex-bison	GPL-2.0-only AND GPL-3.0-or-later WITH Bison-exception-2.2	no	the generator ANGLE's committed parser came from; the output is under bison's exception
+Source/ThirdParty/capstone	BSD-3-Clause AND MIT	yes	JavaScriptCore's disassembler
+Source/ThirdParty/d3flamegraphjs	Apache-2.0	yes	Web Inspector
+Source/ThirdParty/d3js	ISC	yes	Web Inspector
+Source/ThirdParty/dav1d	BSD-2-Clause	no	the Cocoa ports' AV1 decoder; WPE decodes through GStreamer
+Source/ThirdParty/gmock	BSD-3-Clause	no	tests
+Source/ThirdParty/gtest	BSD-3-Clause	no	tests
+Source/ThirdParty/libsysprof-capture	BSD-2-Clause-Patent	yes	tracing, built in since USE_SYSTEM_SYSPROF_CAPTURE is off
+Source/ThirdParty/libwebrtc	BSD-3-Clause AND Apache-2.0 AND MIT AND ISC	no	WebRTC is off, and USE_LIBWEBRTC with it
+Source/ThirdParty/pdfjs	Apache-2.0 AND GPL-2.0-only	no	ENABLE_PDFJS is off: its standard fonts are Liberation 1.x, GPL-2.0 with a font exception
+Source/ThirdParty/qunit	MIT	no	tests
+Source/ThirdParty/skia	BSD-3-Clause AND Apache-2.0	yes	2D graphics
+Source/ThirdParty/unifdef	BSD-3-Clause	no	a tool the build runs, built since USE_SYSTEM_UNIFDEF is off; nothing of it ships
+Source/ThirdParty/xdgmime	AFL-2.0 OR LGPL-2.0-or-later	yes	MIME types; under its LGPL-2.0-or-later choice, whose text is WebCore's LICENSE-LGPL-2
