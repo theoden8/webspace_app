@@ -619,6 +619,25 @@ Checks: `activation_archive_containers` with `Inv_Sealed` and the
 `closenoframe` mutant (`test/formal_model/checks.dart`); the archive
 schedules in `test/activation_schedules_test.dart`.
 
+### Requirement: ARCH-015 — A restored section grants nothing until this device agrees
+
+An archive section a backup restores (`Archive.importSections`) SHALL pass
+through the same sanitizer an app-tier import's sites do
+(`sanitizeImportedSites`, through `sanitizeImportedArchive`) before it is
+written to a slot: a `real` capture grant goes back to `ask`, live location
+to off, a remembered protected-content answer and the notification and
+background-audio switches are cleared, and every user script is switched off.
+The section is a file the user was given, so what it carries is consent from
+the exporting device (SEC-041). A local close and reopen does not come this
+way, so consent given on this device stays. Site ids stay as they were, so
+the section's cookies stay keyed to their sites.
+
+#### Scenario: A backup's archive section asks again
+
+**Given** a backup whose archive section holds a site with a `real` camera grant, live location, notifications on and an enabled user script
+**When** the user restores the section and opens the archive
+**Then** the site asks for the camera, has location off and notifications off, and runs none of its scripts
+
 ## Implementation Details
 
 ### Crypto primitives

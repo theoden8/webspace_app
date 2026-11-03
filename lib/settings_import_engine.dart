@@ -11,6 +11,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart'
     show kDnsLevelOff, kDnsMaxLevel;
@@ -326,6 +327,23 @@ List<HeldScript> sanitizeImportedSites(
         HeldGlobalScript(g, sites: optedIn),
     ...heldSiteScripts,
   ];
+}
+
+/// An archive section a backup restores, its sites sanitized as an app-tier
+/// import's are (SEC-041): a grant, a script or a capability in it is
+/// consent given on the exporting device. A local close and reopen never
+/// comes this way, so consent given here stays.
+ArchiveState sanitizeImportedArchive(ArchiveState section) {
+  final sites = [
+    for (final json in section.sites)
+      WebViewModel.fromJson(
+        Map<String, dynamic>.from(json),
+        stateSetterF: () {},
+        isArchiveTier: true,
+      ),
+  ];
+  sanitizeImportedSites(sites, globalScripts: const []);
+  return section.copyWith(sites: [for (final s in sites) s.toArchiveJson()]);
 }
 
 /// Webspaces written before membership was keyed by siteId (v0.2.3 and

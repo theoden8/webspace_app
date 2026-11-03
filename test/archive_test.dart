@@ -14,6 +14,12 @@ import 'package:webspace/services/archive_crypto.dart';
 import 'package:webspace/services/archive_storage.dart';
 
 import 'helpers/mock_secure_storage.dart';
+import 'package:webspace/settings/capture.dart';
+import 'package:webspace/settings/location.dart';
+import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/settings_import_engine.dart';
+import 'package:webspace/web_view_model.dart';
+import 'helpers/capture_fakes.dart';
 
 Uint8List _testKey(int seed) {
   return Uint8List.fromList(
@@ -279,7 +285,7 @@ void main() {
         storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()),
         deriveKey: deriver.call,
       );
-      final unmatched = await dst.importSections('pw', base64Sections: [blob]);
+      final unmatched = await dst.importSections('pw', base64Sections: [blob], admit: (s) => s);
       expect(unmatched, isEmpty);
 
       final reopened = await dst.tryOpen('pw');
@@ -312,7 +318,7 @@ void main() {
           reason: 'sanity: the two installs must have different salts');
 
       expect(
-          await dst.importSections('shared passphrase', base64Sections: [blob]),
+          await dst.importSections('shared passphrase', base64Sections: [blob], admit: (s) => s),
           isEmpty);
 
       // Restored under device B's own salt, so B's normal open path finds it.
@@ -343,11 +349,56 @@ void main() {
         storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()),
         deriveKey: deriver.call,
       );
-      expect(await dst.importSections('pw', base64Sections: [legacyBlob]),
+      expect(await dst.importSections('pw', base64Sections: [legacyBlob], admit: (s) => s),
           isEmpty);
       final reopened = await dst.tryOpen('pw');
       expect(reopened, isNotNull);
       expect(reopened!.state.sites.single['siteId'], equals('s1'));
+    });
+
+    test('ARCH-015 / SEC-041: a restored section asks again and runs none of its scripts',
+        () async {
+      // A section is a file the user was given: what its sites were granted
+      // is consent from the exporting device, so it is reset as an app-tier
+      // import's is before anything reaches a slot.
+      final deriver = _CountingDeriver();
+      final src = Archive(
+        storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()),
+        deriveKey: deriver.call,
+      );
+      final handle = await src.create('pw');
+      final site = siteWith(CaptureKind.camera,
+          mode: CameraAccessMode.real, archived: true)
+        ..locationMode = LocationMode.live
+        ..notificationsEnabled = true
+        ..protectedContentAllowed = true
+        ..userScripts.add(UserScriptConfig(name: 'grab', source: 'steal()'));
+      handle.state.sites.add(site.toArchiveJson());
+      await src.save(handle);
+      final blob = await src.exportSection(handle);
+      await src.close(handle);
+
+      final dst = Archive(
+        storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()),
+        deriveKey: deriver.call,
+      );
+      expect(
+          await dst.importSections('pw',
+              base64Sections: [blob], admit: sanitizeImportedArchive),
+          isEmpty);
+      final reopened = (await dst.tryOpen('pw'))!;
+      final back = WebViewModel.fromJson(
+        Map<String, dynamic>.from(reopened.state.sites.single),
+        stateSetterF: () {},
+        isArchiveTier: true,
+      );
+      expect(CaptureKind.camera.grantOf(back.captures).mode,
+          CameraAccessMode.ask);
+      expect(back.locationMode, LocationMode.off);
+      expect(back.notificationsEnabled, isFalse);
+      expect(back.protectedContentAllowed, isNull);
+      expect(back.userScripts.single.enabled, isFalse);
+      expect(back.siteId, site.siteId, reason: 'the cookies stay keyed to it');
     });
 
     test('importSections returns the blob unmatched under a wrong passphrase', () async {
@@ -367,7 +418,7 @@ void main() {
         deriveKey: deriver.call,
       );
       final unmatched =
-          await dst.importSections('wrong', base64Sections: [blob]);
+          await dst.importSections('wrong', base64Sections: [blob], admit: (s) => s);
       expect(unmatched, equals([blob]));
       expect(await dst.tryOpen('wrong'), isNull);
     });
