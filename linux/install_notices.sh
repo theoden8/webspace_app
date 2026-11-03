@@ -33,6 +33,11 @@ for pair in "src:$src" "dest:$dest" "name:$name" "source:$source" \
   "revision:$revision" "license:$license"; do
   [ -n "${pair#*:}" ] || { echo "install_notices.sh: --${pair%%:*} is required" >&2; exit 2; }
 done
+# An offer must name what an archive keeps (LICENSE-004): a branch or tag moves.
+if [ "$offer" = yes ] && ! [[ "$revision" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "install_notices.sh: --offer needs --revision to be a commit; got $revision" >&2
+  exit 2
+fi
 
 skipped=''
 if [ -n "$table" ]; then

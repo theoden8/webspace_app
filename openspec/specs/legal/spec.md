@@ -193,13 +193,17 @@ system (WPE WebKit in the snap) SHALL ship as LGPL-2.1 section 6 asks:
   or a plugin.
 - **Notices:** its licence and copyright notices in the package and on the
   licences page (LICENSE-003).
-- **Source:** its copyright file names the source and the revision built, and
+- **Source:** its copyright file names the source and the commit built, and
   carries a written offer, valid for at least three years, of a complete
   machine-readable copy of that source for no more than the cost of making it.
+- **Providable:** Software Heritage, which keeps what it archives, holds that
+  commit and its tree, so the copy can be given for as long as the offer runs,
+  whatever happens to the upstream repository.
 
-Answering the offer is the maintainers' duty, which no check holds (rung 6);
-attaching each bundled LGPL library's source to the release that ships it
-would lift it to one.
+Answering a request is the maintainers' duty, which no check holds (rung 6):
+fetch the commit's tree from Software Heritage, or upstream while it serves
+it. Attaching the source to each release that ships the library would lift it
+to a check.
 
 #### Scenario: The snap bundles WebKit
 
@@ -207,4 +211,14 @@ would lift it to one.
 - **THEN** `libWPEWebKit-2.0.so` is a file of its own in the snap and a library
   of the app's names it as `NEEDED` (`scripts/check_snap.sh`)
 - **AND** `usr/share/doc/wpewebkit/copyright` names WebKit's source and
-  revision and carries the offer (`test/js/snap_manifest.test.js`)
+  commit and carries the offer (`test/js/snap_manifest.test.js`)
+- **AND** Software Heritage holds that commit and its tree, asked about the
+  installed snap's own copyright file (`tool/check_source_offer.js`)
+
+#### Scenario: WebKit's pin moves to a commit the archive does not hold yet
+
+- **WHEN** the snap is built from a commit Software Heritage has not archived
+- **THEN** the snap job fails, naming the commit and where to ask Software
+  Heritage to archive it, until the archive holds it
+- **AND** `linux/install_notices.sh` refuses an offer whose revision is not a
+  commit, since a branch or tag moves (`test/js/source_offer.test.js`)
