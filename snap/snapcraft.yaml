@@ -209,15 +209,18 @@ parts:
       - curl
       - git
       - libepoxy-dev
+      - libevent-dev
       - libgtk-3-dev
       - liblzma-dev
       - libpipewire-0.3-dev
       - libsecret-1-dev
+      - libssl-dev
       - lld
       - ninja-build
       - pkg-config
       - unzip
       - xz-utils
+      - zlib1g-dev
     override-build: |
       craftctl set version="$(sed -n 's/^version: *//p' pubspec.yaml)"
 

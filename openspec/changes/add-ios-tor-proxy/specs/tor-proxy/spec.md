@@ -1922,21 +1922,23 @@ Linux build is what it was before: Tor only through Tor (external)
 (TOR-025), no `TOR` in the proxy pickers otherwise, nothing that starts a
 tor, and the unavailable copy of every other platform without one.
 
-**Where tor comes from.** The Linux build SHALL bundle tor, the libevent and
-OpenSSL it links, the lyrebird pluggable transport and their licence notices
-from the Tor Project's Tor Expert Bundle at a pinned release and SHA-256
-([linux/tor_bundle.cmake](../../../../../linux/tor_bundle.cmake)), at
-`lib/tor/` beside the executable, so every package made from the bundle
-directory (a tarball, an AppImage, a flatpak or snap built from it) carries
-it. It SHALL install none of the bundle's GeoIP data. A build with no network
-names the archive in `WEBSPACE_TOR_BUNDLE`, whose checksum SHALL match the
-pin or fail the build; `none` builds without. Where the build bundles none
-(`none`, or arm64, for which the Tor Project publishes no bundle), the app
-SHALL run the first `tor` on `PATH` or in the sbin directories a distribution
-installs it to, so a flatpak or snap module that ships tor, or the
-distribution's package, serves; and where there is none, Tor is not offered
-(TOR-007). The licences page SHALL carry the bundled notices, read from where
-the build installed them.
+**Where tor comes from.** The Linux build SHALL build tor from the Tor
+Project's signed source release at a pinned version and SHA-256
+([linux/tor.cmake](../../../../../linux/tor.cmake)), as a client alone and
+never as its GPL build (LICENSE-001), and install it with each shared library
+it links that a base system may lack, and that library's package notice
+([linux/tor_build.sh](../../../../../linux/tor_build.sh)), at `lib/tor/`
+beside the executable, so every package made from the bundle directory (a
+tarball, an AppImage, the snap, a flatpak) carries it. It SHALL ship no
+pluggable transport and none of the source's GeoIP data. A build with no
+network names the source tarball in `WEBSPACE_TOR_SOURCE`, whose checksum
+SHALL match the pin or fail the build; `none` builds without, and so does a
+build for another architecture than the machine's. Where the build bundles
+none, the app SHALL run the first `tor` on `PATH` or in the sbin directories
+a distribution installs it to, so the distribution's package serves; and
+where there is none, Tor is not offered (TOR-007). Transports come from the
+machine likewise. The licences page SHALL carry the bundled notices, read
+from where the build installed them.
 
 **How it runs.** Everything on tor's command line, nothing from a torrc the
 machine keeps (`/etc/tor/torrc` belongs to the tor service): an empty file
@@ -1975,7 +1977,9 @@ and the control socket's privacy. CI SHALL run it twice: in the job that runs
 the Dart tests, against the distribution's tor and obfs4proxy, and in the
 Linux build, against the tor the build bundled, found beside the executable
 as the app finds it, after `scripts/verify_tor_shipped.sh` checked the bundle
-carries tor and no GeoIP table. Reaching `up` needs the Tor network, so it is
+carries tor, a notice beside its libraries, no GeoIP table, no transport and
+no GPL module. A bundle ships no transport, so the transport case is skipped
+there. Reaching `up` needs the Tor network, so it is
 asked only under `WEBSPACE_TOR_NETWORK=1`, as in TOR-021.
 
 #### Scenario: A Linux build offers Tor
@@ -1998,7 +2002,7 @@ asked only under `WEBSPACE_TOR_NETWORK=1`, as in TOR-021.
 
 #### Scenario: A build without the bundled tor
 
-- **GIVEN** a Linux build made with `WEBSPACE_TOR_BUNDLE=none`, with the
+- **GIVEN** a Linux build made with `WEBSPACE_TOR_SOURCE=none`, with the
   experiment on
 - **WHEN** the machine has a `tor` on `PATH` or in `/usr/sbin`
 - **THEN** that tor is the built-in Tor

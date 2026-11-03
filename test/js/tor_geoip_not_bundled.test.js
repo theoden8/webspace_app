@@ -4,8 +4,8 @@
 // forbids: Tor.framework's `Tor/GeoIP` subspec bundles the IPFire Location
 // Database, CC BY-SA 4.0, into the app. Copyleft data is fetched on the
 // device instead (lib/services/tor_geoip.dart), so this fails CI if a Podfile
-// asks for the bundle, the plugin reads it, the Linux build installs the
-// Tor Expert Bundle's (TOR-027), or a table gets committed.
+// asks for the bundle, the plugin reads it, the Linux build installs tor's
+// own tables from its source (TOR-027), or a table gets committed.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -37,15 +37,21 @@ test('the plugin never reads a bundled table', () => {
   }
 });
 
-test("the Linux build installs nothing of the Tor Expert Bundle's data", () => {
-  const rel = 'linux/tor_bundle.cmake';
-  const installs = read(rel).match(/install\([^)]*\)/g) || [];
-  assert.ok(installs.length > 0, `${rel} installs the bundle's tor`);
-  for (const block of installs) {
-    assert.ok(!/geoip|\/data\//i.test(block),
-      `${rel} installs GeoIP data from the bundle:\n${block}`);
-    assert.ok(!/\bDIRECTORY\b|\bGLOB/.test(block),
-      `${rel} must name each file it installs, so no table comes along:\n${block}`);
+// The Linux build installs what linux/tor_build.sh lays out, and the script
+// takes only tor's program and licence from the source tree, which carries
+// tables under src/config. scripts/verify_tor_shipped.sh looks for one in the
+// built bundle on CI.
+test("the Linux build takes nothing of tor's source tree but the program and its licence", () => {
+  const rel = 'linux/tor_build.sh';
+  const takes = read(rel)
+    .split('\n')
+    .filter((l) => /^\s*(install|cp)\s/.test(l));
+  assert.deepEqual(takes.filter((l) => /\bsrc\/|LICENSE/.test(l)).map((l) => l.trim()), [
+    'install -m 755 src/app/tor "$out/tor"',
+    'install -m 644 LICENSE "$out/docs/tor.txt"',
+  ], `${rel} takes something else from tor's source tree`);
+  for (const line of takes) {
+    assert.doesNotMatch(line, /geoip|src\/config/i, `${rel} installs GeoIP data: ${line}`);
   }
 });
 

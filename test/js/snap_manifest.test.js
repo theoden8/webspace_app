@@ -94,6 +94,25 @@ test("WebKit's compiled-in directories are bound to the snap's copies (PLATFORM-
   }
 });
 
+// The app runs the tor beside its executable (managed_tor_io.dart's
+// _bundleDir), which the app's own build fills (linux/tor.cmake). The snap
+// gives that build what tor links and checks what it laid out; a part of its
+// own would be a second build of tor beside the one every package shares.
+test("the snap's tor is the one the app's build makes (TOR-027)", () => {
+  const parts = block('parts').map((l) => l.match(/^ {2}([a-z0-9-]+):$/)?.[1]).filter(Boolean);
+  for (const name of ['tor', 'lyrebird']) {
+    assert.ok(!parts.includes(name), `${MANIFEST} builds ${name} in a part of its own`);
+  }
+  assert.doesNotMatch(manifest, /WEBSPACE_TOR_SOURCE=none/,
+    `${MANIFEST}: the app part builds without tor`);
+  for (const pkg of ['libevent-dev', 'libssl-dev', 'zlib1g-dev']) {
+    assert.match(manifest, new RegExp(`^ {6}- ${pkg}$`, 'm'),
+      `${MANIFEST}: the app part lacks ${pkg}, which tor's build links`);
+  }
+  assert.match(manifest, /^ {6}bash scripts\/verify_tor_shipped\.sh "\$bundle"$/m,
+    `${MANIFEST}: the app part does not check the tor it built`);
+});
+
 // unity7 is the plug that lets a snap register a StatusNotifierItem, and its
 // AppArmor rules allow the item and its dbusmenu at fixed object paths only;
 // an item exported elsewhere is denied and the icon never shows.

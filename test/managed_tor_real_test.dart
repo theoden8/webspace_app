@@ -11,7 +11,7 @@
 // WS_REAL_TOR=1, which CI sets after installing tor and obfs4proxy: there a
 // missing tor or transport fails rather than passing nothing. With
 // WS_TOR_BESIDE naming a built bundle's executable, the tor is the one the
-// build put beside it (linux/tor_bundle.cmake), as the app finds it.
+// build put beside it (linux/tor.cmake), as the app finds it.
 
 @Timeout(Duration(seconds: 240))
 library;
@@ -80,10 +80,13 @@ void main() {
   }
 
   if (_beside != null) {
-    test('TOR-027 the build bundles its tor and lyrebird', () {
+    test('TOR-027 the build bundles its tor and no transport', () {
       expect(install.bundled, isTrue, reason: 'tor beside $_beside');
-      expect(install.transports[TorTransport.obfs4]?.first,
-          endsWith('/lib/tor/pluggable_transports/lyrebird'));
+      expect(
+          install.transports.values
+              .expand((programs) => programs)
+              .where((program) => program.contains('/lib/tor/')),
+          isEmpty);
     });
   }
 
@@ -188,7 +191,10 @@ void main() {
   test('TOR-027 a pluggable transport on this machine names its listener',
       () async {
     if (obfs4.isEmpty) {
-      if (_required) fail('WS_REAL_TOR=1, and no lyrebird or obfs4proxy here');
+      // A built bundle ships no transport, so only a machine's own counts.
+      if (_required && _beside == null) {
+        fail('WS_REAL_TOR=1, and no lyrebird or obfs4proxy here');
+      }
       markTestSkipped('no lyrebird or obfs4proxy here');
       return;
     }

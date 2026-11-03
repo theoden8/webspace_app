@@ -735,11 +735,12 @@ jobs:
           fvm flutter build linux --release
           bash scripts/verify_adblock_shipped.sh linux
 
-      # The built-in Tor (TOR-027): the bundle carries the Tor Expert
-      # Bundle's tor, libraries and lyrebird and no GeoIP table
-      # (LICENSE-002), and the real-tor tier runs that tor, found beside the
-      # executable as the app finds it, not one this job installed. Its only
-      # bridge is a dead loopback port, so nothing leaves the runner.
+      # The built-in Tor (TOR-027): the bundle carries the tor linux/tor.cmake
+      # built from source, its libraries and notices, no GeoIP table
+      # (LICENSE-002), no transport and no GPL module (LICENSE-001), and the
+      # real-tor tier runs that tor, found beside the executable as the app
+      # finds it, not one this job installed. Its only bridge is a dead
+      # loopback port, so nothing leaves the runner.
       - name: Bundled tor runs
         env:
           WS_REAL_TOR: '1'
