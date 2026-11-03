@@ -779,8 +779,10 @@ class WebViewFactory {
                   request.resources.contains(
                       inapp.PermissionResourceType.PROTECTED_MEDIA_ID);
               if (wantsProtectedMedia) {
-                final granted =
-                    await grants.protectedContent(request.origin.toString());
+                final from = await PageHandlers.requesterAt(controller,
+                    config: config, origin: request.origin.toString());
+                final granted = await grants.protectedContent(from.origin,
+                    standing: from.standing);
                 return inapp.PermissionResponse(
                   resources: [
                     inapp.PermissionResourceType.PROTECTED_MEDIA_ID
@@ -792,12 +794,8 @@ class WebViewFactory {
               }
               // Asked lazily: a request the app leaves to the platform needs
               // no origin.
-              late final where = () async {
-                final top = await PageHandlers.promptOrigin(controller, config: config);
-                final from = request.origin.toString();
-                final isTopFrame = PageHandlers.sameOrigin(top, b: from);
-                return (origin: isTopFrame ? top : from, isTopFrame: isTopFrame);
-              }();
+              late final where = PageHandlers.requesterAt(controller,
+                  config: config, origin: request.origin.toString());
               final cameraAndMicrophone =
                   inapp.PermissionResourceType.CAMERA_AND_MICROPHONE;
               final resources = request.resources;
@@ -813,9 +811,9 @@ class WebViewFactory {
                     r != cameraAndMicrophone),
               ), host: (
                 opensDevice: (kind) async {
-                  final (:origin, :isTopFrame) = await where;
-                  final grant = await grants.capture(kind, origin: origin,
-                      isTopFrame: isTopFrame);
+                  final (:origin, :standing) = await where;
+                  final grant = await grants.capture(kind,
+                      origin: origin, standing: standing);
                   return opensRealDevice(grant.mode.state);
                 },
                 cameraPermission: CameraPermissionService.ensurePermission,

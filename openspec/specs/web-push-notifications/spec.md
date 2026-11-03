@@ -450,6 +450,23 @@ webview's own, never the page's. The polyfill stays in frames so
 **Then** no OS notification is shown
 **And** a post from Acme's own document, or a same-origin frame, is shown as before
 
+### Requirement: NOTIF-020 - A page the site does not own posts nothing
+
+A site's notification permission SHALL serve only the documents the site owns
+(PERM-001). A top document whose origin is not the site's (a page a link
+reached in a nested screen, a tab that runs as the site, a popup), and every
+frame inside one, SHALL have its posts dropped by `webNotification` and be
+answered `denied` by `webNotificationRequestPermission`, both judged on the
+frame identity the plugin supplies. Gated by
+`test/js/page_bridge_authority.test.js`.
+
+#### Scenario: A linked page posts under the site's name
+
+**Given** site "Acme" has notifications enabled
+**When** a link on Acme opens a page of another domain in a nested screen, and that page asks for permission and posts
+**Then** it is answered `denied`
+**And** no OS notification is shown
+
 ### Requirement: NOTIF-011 - A notification site vetoes the app-background JS pause
 
 `AppLifecycleEngine.backgroundPlan` SHALL return `jsPauseIndex: null` when

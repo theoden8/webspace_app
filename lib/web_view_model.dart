@@ -36,6 +36,7 @@ import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_overrides.dart';
+import 'package:webspace/services/site_origins.dart';
 import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
@@ -723,6 +724,7 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
         _forcedByTrackingProtection(force, stored: stored);
     return SitePosture(
       siteId: siteId,
+      origins: SiteOrigins(initUrl, claims: effectiveDomainClaims),
       container: (
         containerId: boundContainerId(isolation),
         incognito: effectiveIncognito,

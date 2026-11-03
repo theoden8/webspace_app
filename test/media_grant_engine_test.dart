@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/media_grant_engine.dart';
+import 'package:webspace/services/site_origins.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 
@@ -36,8 +37,8 @@ final class _Host {
   Future<CaptureGrant> ask(
     CaptureKind kind, {
     String origin = _top,
-    bool isTopFrame = true,
-  }) => store.capture(kind, origin: origin, isTopFrame: isTopFrame);
+    Standing standing = Standing.own,
+  }) => store.capture(kind, origin: origin, standing: standing);
 
   CaptureGrant stored(CaptureKind kind) =>
       kind.grantOf(store.media.capture);
@@ -136,7 +137,7 @@ void main() {
       test('a subframe inherits the device-free answers', () async {
         for (final (mode, withSource) in [(kind.block, false), (kind.virtual, true)]) {
           final host = _Host(kind, mode: mode, withSource: withSource);
-          final grant = await host.ask(kind, origin: _frame, isTopFrame: false);
+          final grant = await host.ask(kind, origin: _frame, standing: Standing.embedded);
           expect(grant.mode, mode);
           expect(host.prompter.asked, isEmpty);
         }
@@ -155,7 +156,7 @@ void main() {
       test('a subframe does not inherit a settled real grant', () async {
         final host =
             _Host(kind, mode: kind.real, answer: _always(Answer.block));
-        final grant = await host.ask(kind, origin: _frame, isTopFrame: false);
+        final grant = await host.ask(kind, origin: _frame, standing: Standing.embedded);
         expect(grant.mode, kind.block);
         expect(host.prompter.asked.single.$2, _frame,
             reason: 'the popup names the frame');
@@ -164,25 +165,25 @@ void main() {
 
       test('a subframe answer is never written back to the site', () async {
         final host = _Host(kind, mode: kind.ask, answer: _always(Answer.allow));
-        final grant = await host.ask(kind, origin: _frame, isTopFrame: false);
+        final grant = await host.ask(kind, origin: _frame, standing: Standing.embedded);
         expect(grant.mode, kind.real);
         expect(host.stored(kind).mode, kind.ask);
       });
 
       test('the platform follow-up reuses the frame answer', () async {
         final host = _Host(kind, mode: kind.ask, answer: _always(Answer.allow));
-        await host.ask(kind, origin: _frame, isTopFrame: false);
-        final again = await host.ask(kind, origin: _frame, isTopFrame: false);
+        await host.ask(kind, origin: _frame, standing: Standing.embedded);
+        final again = await host.ask(kind, origin: _frame, standing: Standing.embedded);
         expect(again.mode, kind.real);
         expect(host.prompter.asked, hasLength(1));
       });
 
       test('the grace window does not leak to another frame', () async {
         final host = _Host(kind, mode: kind.ask, answer: _always(Answer.allow));
-        await host.ask(kind, origin: _frame, isTopFrame: false);
+        await host.ask(kind, origin: _frame, standing: Standing.embedded);
         host.prompter.answer = _always(Answer.block);
         final other = await host.ask(kind,
-            origin: 'https://other.example', isTopFrame: false);
+            origin: 'https://other.example', standing: Standing.embedded);
         expect(other.mode, kind.block);
         expect(host.prompter.asked, hasLength(2));
       });
@@ -191,7 +192,7 @@ void main() {
         final host = _Host(kind, mode: kind.ask, answer: _always(Answer.allow));
         host.prompter.gate = Completer<void>();
         final top = host.ask(kind);
-        final frame = host.ask(kind, origin: _frame, isTopFrame: false);
+        final frame = host.ask(kind, origin: _frame, standing: Standing.embedded);
         await pumpEventQueue();
         host.prompter.gate!.complete();
         await Future.wait([top, frame]);
@@ -230,8 +231,8 @@ void main() {
     final store = InMemoryGrantStore(nested,
         prompter: prompter, isSiteActive: () => true);
     for (final kind in <CaptureKind>[CaptureKind.camera, CaptureKind.microphone]) {
-      expect(store.mode(kind).state, SitePermissionState.ask);
-      await store.capture(kind, origin: _top, isTopFrame: true);
+      expect(store.mode(kind, standing: Standing.own).state, SitePermissionState.ask);
+      await store.capture(kind, origin: _top, standing: Standing.own);
     }
     expect(prompter.asked, hasLength(2));
   });
@@ -246,9 +247,9 @@ InMemoryGrantStore store(FakePrompter prompter, {required bool? remembered}) =>
 
     test('a remembered answer settles without a popup', () async {
       final prompter = FakePrompter();
-      expect(await store(prompter, remembered: false).protectedContent(_top),
+      expect(await store(prompter, remembered: false).protectedContent(_top, standing: Standing.own),
           isFalse);
-      expect(await store(prompter, remembered: true).protectedContent(_top),
+      expect(await store(prompter, remembered: true).protectedContent(_top, standing: Standing.own),
           isTrue);
       expect(prompter.drmAsked, 0);
     });
@@ -258,12 +259,109 @@ InMemoryGrantStore store(FakePrompter prompter, {required bool? remembered}) =>
         ..drmAnswer = true
         ..gate = Completer<void>();
       final s = store(prompter, remembered: null);
-      final burst = [s.protectedContent(_top), s.protectedContent(_top)];
+      final burst = [s.protectedContent(_top, standing: Standing.own), s.protectedContent(_top, standing: Standing.own)];
       await pumpEventQueue();
       prompter.gate!.complete();
       expect(await Future.wait(burst), [true, true]);
       expect(prompter.drmAsked, 1);
       expect(s.media.protectedContent, isTrue);
     });
+  });
+
+  // A page the site does not own: one a link reached in a nested screen or a
+  // tab, or the next page a surface navigated to.
+  const foreign = 'https://evil.example';
+  for (final kind in CaptureKind.values) {
+    group('PERM-001: a grant answers for the origin that gave it ($kind)', () {
+      test("a foreign document does not ride the site's real grant", () async {
+        final host =
+            _Host(kind, mode: kind.real, answer: _always(Answer.block));
+        final grant =
+            await host.ask(kind, origin: foreign, standing: Standing.foreign);
+        expect(grant.mode, kind.block);
+        expect(host.prompter.asked.single.$2, foreign,
+            reason: 'the popup names the page that asks');
+        expect(host.stored(kind).mode, kind.real,
+            reason: "the site's own grant is left as it was");
+      });
+
+      test("a foreign document is not served the site's file", () async {
+        final host = _Host(kind,
+            mode: kind.virtual,
+            withSource: true,
+            answer: _always(Answer.cancelPick));
+        final grant =
+            await host.ask(kind, origin: foreign, standing: Standing.foreign);
+        expect(grant.source, isNull);
+        expect(host.prompter.asked.single.$3, kind.ask,
+            reason: "the popup shows none of the site's settings");
+      });
+
+      test('a foreign answer stays with its origin', () async {
+        final host = _Host(kind, mode: kind.ask, answer: _always(Answer.allow));
+        expect(
+            (await host.ask(kind, origin: foreign, standing: Standing.foreign))
+                .mode,
+            kind.real);
+        expect(host.stored(kind).mode, kind.ask,
+            reason: 'never written to the site');
+        expect(
+            (await host.ask(kind, origin: foreign, standing: Standing.foreign))
+                .mode,
+            kind.real);
+        expect(host.prompter.asked, hasLength(1),
+            reason: 'kept for its origin while the surface lives');
+        host.prompter.answer = _always(Answer.block);
+        expect(
+            (await host.ask(kind,
+                    origin: 'https://next.example', standing: Standing.foreign))
+                .mode,
+            kind.block,
+            reason: 'the next origin is asked for itself');
+        expect((await host.ask(kind)).mode, kind.block,
+            reason: "and so is the site's own document");
+        expect(host.prompter.asked, hasLength(3));
+      });
+
+      test("the site's block holds for a foreign document", () async {
+        final host = _Host(kind, mode: kind.block);
+        expect(
+            (await host.ask(kind, origin: foreign, standing: Standing.foreign))
+                .mode,
+            kind.block);
+        expect(host.prompter.asked, isEmpty);
+      });
+
+      test("a foreign document reads ask where the site is real", () {
+        expect(_Host(kind, mode: kind.real)
+            .store
+            .mode(kind, standing: Standing.foreign), kind.ask);
+        expect(_Host(kind, mode: kind.real)
+            .store
+            .mode(kind, standing: Standing.own), kind.real);
+        expect(_Host(kind, mode: kind.block)
+            .store
+            .mode(kind, standing: Standing.foreign), kind.block);
+      });
+    });
+  }
+
+  test('PERM-001: protected content answers for the origin that asked',
+      () async {
+    final prompter = FakePrompter()..drmAnswer = true;
+    final s = InMemoryGrantStore(
+      (capture: CaptureGrants.none, protectedContent: false),
+      prompter: prompter,
+      isSiteActive: () => true,
+    );
+    expect(await s.protectedContent(foreign, standing: Standing.foreign),
+        isTrue);
+    expect(s.media.protectedContent, isFalse,
+        reason: 'never written to the site');
+    expect(await s.protectedContent(foreign, standing: Standing.foreign),
+        isTrue);
+    expect(prompter.drmAsked, 1);
+    expect(await s.protectedContent(_top, standing: Standing.own), isFalse,
+        reason: "the site's own answer serves its own document");
   });
 }

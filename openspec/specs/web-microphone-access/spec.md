@@ -63,12 +63,13 @@ which is what draws the row and its badge in the error colour via
 ### Requirement: MIC-005 — Nested webviews prompt independently
 
 A nested `InAppWebViewScreen` (cross-domain navigation) SHALL forward
-microphone requests to the same popup and remember the answer in-memory for
-that screen's lifetime only, mirroring the camera pattern. Nested screens have
-no persisted model. A screen starts from the opening site's nested posture,
-where a device grant (`real`) is back to `ask`, so the parent's grant of the
-device does not follow the origin change; `block` and `virtual` are inherited
-as they are.
+microphone requests to the same popup and remember each answer in memory, for
+the origin that gave it, for that screen's lifetime only, mirroring the camera
+pattern (PERM-001). Nested screens have no persisted model. A screen starts
+from the opening site's nested posture, where a device grant (`real`) is back
+to `ask`, so the parent's grant of the device does not follow the origin
+change; `block` is inherited as it is, and a page the site does not own is
+asked rather than served the site's `virtual` clip.
 
 #### Scenario: Outbound link to a page that wants audio
 

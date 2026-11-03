@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/media_grant_engine.dart';
+import 'package:webspace/services/site_origins.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -38,7 +39,7 @@ void main() {
             model,
             isActive: () => false,
             onSave: () => saves++,
-          ).capture(kind, origin: origin, isTopFrame: true);
+          ).capture(kind, origin: origin, standing: Standing.own);
           expect(grant.toBridgeJson(), {'mode': 'block'}, reason: '$mode');
           expect(kind.grantOf(model.captures).mode, mode,
               reason: 'stored decision left intact');
@@ -54,7 +55,7 @@ void main() {
           prompter: FakePrompter(
               (_, {required origin, required current}) => Answer.useFile),
           onSave: () => saves++,
-        ).capture(kind, origin: origin, isTopFrame: true);
+        ).capture(kind, origin: origin, standing: Standing.own);
         expect(grant.mode, kind.virtual);
         expect(kind.grantOf(model.captures),
             (mode: kind.virtual, source: pickedFor(kind)));
@@ -67,9 +68,9 @@ void main() {
             mode: kind.virtual, withSource: true, archived: true);
         final store = _store(model);
         expect(
-            (await store.capture(kind, origin: origin, isTopFrame: true)).mode,
+            (await store.capture(kind, origin: origin, standing: Standing.own)).mode,
             kind.block);
-        expect(store.mode(kind), kind.block,
+        expect(store.mode(kind, standing: Standing.own), kind.block,
             reason: 'enumerateDevices reads the folded mode too');
         expect(kind.grantOf(model.captures).mode, kind.virtual,
             reason: 'preserved for when the site leaves the archive');
@@ -81,11 +82,11 @@ void main() {
             siteWith(kind, mode: kind.virtual, withSource: true),
             isActive: () => active);
         expect(
-            (await store.capture(kind, origin: origin, isTopFrame: true)).mode,
+            (await store.capture(kind, origin: origin, standing: Standing.own)).mode,
             kind.virtual);
         active = false;
         expect(
-            (await store.capture(kind, origin: origin, isTopFrame: true)).mode,
+            (await store.capture(kind, origin: origin, standing: Standing.own)).mode,
             kind.block);
       });
     });
@@ -97,7 +98,7 @@ void main() {
     final grant = await _store(
       siteWith(CaptureKind.microphone, mode: MicrophoneAccessMode.real),
       onSave: () => saves++,
-    ).capture(CaptureKind.microphone, origin: origin, isTopFrame: true);
+    ).capture(CaptureKind.microphone, origin: origin, standing: Standing.own);
     expect(grant.toBridgeJson(), {'mode': 'real'});
     expect(saves, 0, reason: 'nothing changed, so nothing to persist');
   });
@@ -111,7 +112,7 @@ void main() {
         siteWith(CaptureKind.screenShare, mode: ScreenShareMode.ask),
         prompter:
             FakePrompter((_, {required origin, required current}) => answer),
-      ).capture(CaptureKind.screenShare, origin: origin, isTopFrame: true);
+      ).capture(CaptureKind.screenShare, origin: origin, standing: Standing.own);
       expect(grant.toBridgeJson()['mode'],
           answer == Answer.allow ? 'real' : isIn(['virtual', 'block']),
           reason: answer.name);
@@ -125,7 +126,7 @@ void main() {
     var saves = 0;
     final store = _store(model,
         prompter: FakePrompter()..drmAnswer = true, onSave: () => saves++);
-    expect(await store.protectedContent(origin), isTrue);
+    expect(await store.protectedContent(origin, standing: Standing.own), isTrue);
     expect(model.protectedContentAllowed, isTrue);
     expect(saves, 1);
   });
@@ -133,6 +134,6 @@ void main() {
   test('Tracking Protection denies protected content without a popup', () async {
     final model = WebViewModel(initUrl: origin, trackingProtectionEnabled: true)
       ..protectedContentAllowed = true;
-    expect(await _store(model).protectedContent(origin), isFalse);
+    expect(await _store(model).protectedContent(origin, standing: Standing.own), isFalse);
   });
 }

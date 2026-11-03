@@ -215,15 +215,24 @@ test('NESTED-013: onCreateWindow loads into the top webview only on a gesture', 
 
 // --- web notifications ----------------------------------------------------
 
-test('NOTIF-010: a notification post from a cross-origin iframe is dropped', () => {
+test('NOTIF-010 / NOTIF-020: a post from a cross-origin iframe, or a page the site does not own, is dropped', () => {
   const at = WEBVIEW.indexOf("handlerName: 'webNotification'");
   assert.notEqual(at, -1, 'webNotification registration is gone');
   const body = WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
   assert.ok(body.includes('inapp.JavaScriptHandlerFunctionData call'),
     'webNotification must use the frame-aware callback: the polyfill is in '
     + 'every frame and any frame can call the handler directly');
-  assert.ok(body.includes('if (!call.isMainFrame)'),
-    'webNotification must test the frame before posting under the site');
+  assert.ok(body.includes('requesterOf(controller, config: config, frame: call)')
+      && body.includes('if (from.standing != Standing.own) return null;'),
+    'webNotification must judge the calling frame, on the identity the plugin '
+    + 'supplies, before posting under the site: only the site\'s own document '
+    + 'and its same-origin frames post (PERM-001)');
+  const permAt = WEBVIEW.indexOf("handlerName: 'webNotificationRequestPermission'");
+  assert.notEqual(permAt, -1, 'webNotificationRequestPermission registration is gone');
+  const perm = WEBVIEW.slice(permAt, WEBVIEW.indexOf('addJavaScriptHandler', permAt + 1));
+  assert.ok(perm.includes('inapp.JavaScriptHandlerFunctionData call')
+      && perm.includes('from.standing == Standing.own'),
+    'requestPermission must answer granted only to the site\'s own document');
   assert.ok(!body.includes('args[0][\'siteId\']') && !body.includes("data['siteId']"),
     'the target site is never taken from the page');
 });
@@ -398,7 +407,7 @@ test('NOTIF-016: a headless check stays on the site and is granted nothing', () 
 
 // --- the live location fix ------------------------------------------------
 
-test('LOC-011: a live fix is served to the top document only', () => {
+test('LOC-011 / LOC-012: a live fix is served to the site\'s own document only', () => {
   const at = WEBVIEW.indexOf("handlerName: 'getRealLocation'");
   assert.notEqual(at, -1, 'getRealLocation registration is gone');
   const body = WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
@@ -406,8 +415,14 @@ test('LOC-011: a live fix is served to the top document only', () => {
     'getRealLocation must use the frame-aware callback: the location shim is '
     + 'injected forMainFrameOnly:false, so a cross-origin iframe can call it '
     + 'directly and skip the Permissions-Policy check');
-  assert.ok(body.includes('if (!data.isMainFrame)'),
-    'getRealLocation must test the frame before reading the device');
+  const judged = body.indexOf('requesterOf(controller, config: config, frame: data)');
+  const read = body.indexOf('CurrentLocationService.getCurrentLocation(');
+  assert.ok(judged !== -1 && read > judged,
+    'getRealLocation must judge the calling frame before reading the device');
+  assert.ok(body.includes('if (from.standing != Standing.own) {'),
+    'only the site\'s own document and its same-origin frames get a fix: a '
+    + 'cross-origin frame (LOC-011) and a page the site does not own '
+    + '(LOC-012) are refused');
   assert.ok(body.includes("'status': 'permission_denied'"),
     'a refused frame must see PERMISSION_DENIED, what an undelegated iframe '
     + 'gets in a browser');
@@ -478,14 +493,18 @@ test('CAM-013 / MIC-013: capture prompts name an origin read from the webview (S
     'a capture bridge must not take the origin from the page: the camera and ' +
     'microphone shims are injected forMainFrameOnly:false, so any frame can ' +
     'call the handler directly and name a site it is not');
-  assert.ok(CAPTURE_BRIDGE.replace(/\s+/g, ' ').includes('promptOrigin(controller, config: config, frame: data)'),
-    'a capture bridge must derive the origin from the controller and the frame');
+  assert.ok(CAPTURE_BRIDGE.replace(/\s+/g, ' ').includes('requesterOf(controller, config: config, frame: data)'),
+    'a capture bridge must derive the origin from the frame the plugin reports');
   assert.match(WEBVIEW,
-    /promptOrigin\([\s\S]{0,400}?await controller\.getUrl\(\)\)\?\.toString\(\) \?\? config\.initialUrl/,
-    'promptOrigin must read the live URL, falling back to the site URL');
+    /final origin = originOf\(frame\.origin\.toString\(\)\);/,
+    'a prompt must name the calling frame, not the document that embeds it');
   assert.match(WEBVIEW,
-    /if \(frame != null && !frame\.isMainFrame\) return frame\.origin\.toString\(\);/,
-    'a subframe prompt must name the frame, not the document that embeds it');
+    /top: frame\.isMainFrame \? origin : await _top\(controller, config: config\)/,
+    'a main-frame request is judged by the document that made it, not by '
+    + 'whatever the webview navigated to since (PERM-001)');
+  assert.match(WEBVIEW,
+    /_top\([\s\S]{0,300}?await controller\.getUrl\(\)\)\?\.toString\(\) \?\? config\.initialUrl/,
+    'a subframe\'s top document is read from the webview, falling back to the site URL');
 });
 
 test('CAM-014 / MIC-016: a device grant does not travel to a subframe', () => {
@@ -496,14 +515,14 @@ test('CAM-014 / MIC-016: a device grant does not travel to a subframe', () => {
   assert.ok(CAPTURE_BRIDGE.includes('inapp.JavaScriptHandlerFunctionData data'),
     'a capture bridge must use the frame-aware callback: page script can ' +
     'neither forge isMainFrame nor call the handler around it');
-  assert.ok(CAPTURE_BRIDGE.includes('isTopFrame: data.isMainFrame'),
-    'a capture bridge must hand the frame identity to the store');
+  assert.ok(CAPTURE_BRIDGE.includes('standing: from.standing'),
+    'a capture bridge must hand where the frame stands to the store');
   const grant = read('lib/services/media_grant_engine.dart');
-  assert.match(grant, /SitePermissionState\.allowed =>\s*isTopFrame \?/,
+  assert.match(grant, /SitePermissionState\.allowed =>\s*standing == Standing\.own \?/,
     'media_grant_engine.dart: a settled real mode must short-circuit only for ' +
-    'the top document');
+    'the site\'s own document (PERM-001)');
   // The answer a subframe popup produced is that request's, not the site's.
-  assert.match(grant, /if \(isTopFrame\) \{\s*_recordCaptures\(/,
+  assert.match(grant, /case Standing\.own:\s*_recordCaptures\(/,
     'media_grant_engine.dart: a subframe answer must not be written back to ' +
     'the site — one frame cannot flip the whole site to real');
   assert.match(grant, /final key = \(kind, origin\);[\s\S]*_inFlight\.run\(key,/,
@@ -629,4 +648,26 @@ test('DNS-018: getBlockBloom hands page JS no cross-site host list', () => {
 test('DNS-018: the bloom consumer no longer seeds its cache from the response', () => {
   assert.ok(!WEBVIEW.includes('var persisted = map.cache;'),
     'the interceptor JS must not read a host list off getBlockBloom');
+});
+
+test('PERM-001: every grant is asked for the origin the platform reports', () => {
+  // Each page-reachable decision over a site's grants goes through the one
+  // reading of who asks; a second way of naming the caller would be a place
+  // the page's own word, or the webview's later document, could stand in.
+  for (const gone of ['promptOrigin(', 'isTopFrame', 'PageHandlers.sameOrigin(']) {
+    assert.ok(!WEBVIEW.includes(gone), `${gone} is back: ask requesterOf / requesterAt`);
+  }
+  const permission = blockAfter(WEBVIEW, 'onPermissionRequest: grants == null',
+    undefined, 'webview.dart');
+  assert.equal((permission.match(/PageHandlers\.requesterAt\(controller,/g) || []).length, 2,
+    'the platform path judges both the protected-content and the device '
+    + 'request through requesterAt');
+  assert.ok(permission.includes('standing: from.standing'),
+    'protected content must be answered for the standing of who asks');
+  const modeAt = WEBVIEW.indexOf('handlerName: device.modeHandler');
+  assert.notEqual(modeAt, -1, 'the published mode handler is gone');
+  const mode = WEBVIEW.slice(modeAt, WEBVIEW.indexOf('addJavaScriptHandler', modeAt));
+  assert.ok(mode.includes('inapp.JavaScriptHandlerFunctionData data')
+      && mode.includes('standing: from.standing'),
+    'a page the site does not own must not read the site\'s mode');
 });

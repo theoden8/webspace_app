@@ -58,6 +58,7 @@ Rules are fixed; a new one replaces one. The map grows one row per item. No reci
 | Compartment | Owns | Join |
 |---|---|---|
 | `SitePosture` (`services/site_posture.dart`) | a site's resolved settings in six groups, resolved once by `WebViewModel.sitePosture` | `LaunchUrlFunc(url, posture:, homeTitle:)`; `WebViewConfig.posture` |
+| `SiteOrigins` / `Standing` (`services/site_origins.dart`) | which documents a site's grants and settings answer for (its scheme and its domain claims, the reading that keeps a link in the site), and where a request stands toward them: own, embedded or foreign (PERM-001) | `posture.origins.standing(top:, frame:)`; `PageHandlers.requesterOf(controller, config:, frame:)` or `requesterAt(..., origin:)`, the caller's origin always the platform's |
 | `site_overrides.dart` | archive-tier and Tracking Protection overrides | `TrackingProtectionForce`, `ArchiveFold`; read through `effective*` getters and by screens |
 | `WebViewHostHooks`, `SiteHooks` (`web_view_model_hooks.dart`) | the host's answers to every webview that runs as a site: prompts, popups, capture; and to a site's own webview, those that name the site (on screen, its outbound links, its link menu) | one required-field class each, passed whole; `SiteHooks(host:, ...)` to `getWebView` |
 | `BlockDecision` | whether a request is blocked, and by which blocker | `decide(BlockQuery)` → sealed `BlockVerdict` |
