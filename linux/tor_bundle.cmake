@@ -19,8 +19,13 @@
 # or offers no Tor. The Tor Project publishes no bundle for arm64 Linux, so
 # an arm64 build is one without.
 #
-# To bump: pick a release under https://dist.torproject.org/torbrowser/,
-# check `sha256sums-signed-build.txt` against its `.asc` with the Tor Browser
+# The download names the Tor Project's archive, which keeps every release;
+# dist.torproject.org keeps only the current ones, so a pin there stops
+# resolving once Tor Browser moves on.
+#
+# To bump: pick a release under
+# https://archive.torproject.org/tor-package-archive/torbrowser/, check
+# `sha256sums-signed-build.txt` against its `.asc` with the Tor Browser
 # Developers signing key (EF6E 286D DA85 EA2A 4BA7 DE68 4E2C 6E87 9329 8290),
 # and copy the x86_64 expert bundle's line here.
 
@@ -48,7 +53,7 @@ function(webspace_bundle_tor TOR_TARGET_ARCH TOR_WORK_DIR TOR_INSTALL_DIR)
   set(archive "${TOR_WORK_DIR}/${name}")
   if(source STREQUAL "")
     file(DOWNLOAD
-      "https://dist.torproject.org/torbrowser/${TOR_EXPERT_BUNDLE_VERSION}/${name}"
+      "https://archive.torproject.org/tor-package-archive/torbrowser/${TOR_EXPERT_BUNDLE_VERSION}/${name}"
       "${archive}"
       EXPECTED_HASH SHA256=${TOR_EXPERT_BUNDLE_SHA256}
       TLS_VERIFY ON
