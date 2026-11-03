@@ -894,11 +894,12 @@ implements neither `!#include` nor `!#if`. uBlock Origin's own lists depend
 on both: `filters.txt` holds a quarter of its rules and pulls the rest in from
 ten sublists. The app SHALL resolve both directives before the engine sees a
 list, in [`filter_list_preparser.dart`](../../../lib/services/filter_list_preparser.dart),
-matching uBO's `utils.preparser` and `assets.fetchFilterList`:
+so a list written for uBO resolves as it does there:
 
-- **`!#if` / `!#else` / `!#endif`** use uBO's token table and expression
-  grammar (`!`, `&&`, `||`, one pair of parentheses). A block whose expression
-  uBO would not recognise is kept, as uBO keeps it. An unknown `cap_` token is
+- **`!#if` / `!#else` / `!#endif`** test the tokens uBO lists use (`env_`,
+  `ext_`, `cap_`, `adguard_`) joined by `!`, `&&` and `||`, `&&` binding
+  tighter, grouped by parentheses. A block whose expression does not parse or
+  names an unknown token is kept, both branches. An unknown `cap_` token is
   false.
 - **The environment** names the engine the rules run in: `ublock` always
   (the engine takes uBO syntax and scriptlets), `chromium` on Android,
@@ -907,12 +908,13 @@ matching uBO's `utils.preparser` and `assets.fetchFilterList`:
 - **Pruning** happens at engine build time, before the CB-015 mask rewrite, so
   a list is stored whole and the environment is applied where it runs.
 - **`!#include`** is expanded at download time, recursively, each path
-  resolved against the directory of the list that names it. As in uBO, an
-  include inside a false `!#if` is not fetched, an absolute URL or a path
-  containing `..` is refused, and a sublist is fetched at most once. A
+  resolved against the directory of the list that names it. An
+  include inside a false `!#if` is not fetched, an absolute URL, a path from
+  the host's root or one containing `..` is refused, and a sublist is fetched
+  at most once. A
   percent-encoded dot and a backslash are refused as well, since a server may
   decode either into a climb out of the directory.
-- **A sublist that cannot be fetched fails the whole download**, as in uBO:
+- **A sublist that cannot be fetched fails the whole download**:
   nothing is cached and the list keeps its previous state. A list may name at
   most 64 sublists.
 

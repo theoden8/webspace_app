@@ -1,7 +1,6 @@
-// uBO pre-parser directives (CB-017). adblock-rust reads every `!` line as a
+// Pre-parser directives (CB-017). adblock-rust reads every `!` line as a
 // comment, so `!#if` and `!#include` are resolved before the engine sees the
-// text; each case here pins behaviour to uBO's `utils.preparser` and
-// `assets.fetchFilterList`.
+// text, as uBlock Origin resolves them.
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -45,6 +44,25 @@ void main() {
       expect(
           evaluatePreparserExpr('env_chromium && !env_mobile', env: androidEnv),
           isFalse);
+    });
+
+    test('&& binds tighter than ||', () {
+      expect(
+          evaluatePreparserExpr('env_chromium || env_firefox && env_safari',
+              env: androidEnv),
+          isTrue);
+      expect(
+          evaluatePreparserExpr('(env_chromium || env_firefox) && env_safari',
+              env: androidEnv),
+          isFalse);
+    });
+
+    test('an expression that does not close is unknown', () {
+      expect(evaluatePreparserExpr('(env_chromium', env: androidEnv), isNull);
+      expect(evaluatePreparserExpr('env_chromium)', env: androidEnv), isNull);
+      expect(evaluatePreparserExpr('', env: androidEnv), isNull);
+      expect(evaluatePreparserExpr('env_chromium env_mobile', env: androidEnv),
+          isNull);
     });
 
     test('false and ext_abp never hold, their negation always does', () {
@@ -91,9 +109,27 @@ void main() {
       expect(out, contains('c.example'));
     });
 
-    test('a block under an unknown token is kept, as uBO keeps it', () {
+    test('a block under an unknown token is kept', () {
       const list = '!#if env_future\nkept.example##.x\n!#endif\n';
       expect(pruneFilterList(list, env: androidEnv), contains('kept.example'));
+    });
+
+    test('a list with CRLF line breaks is pruned the same', () {
+      const list = '!#if env_firefox\r\n'
+          'firefox-only.example##.a\r\n'
+          '!#else\r\n'
+          'other.example##.b\r\n'
+          '!#endif\r\n';
+      final out = pruneFilterList(list, env: androidEnv);
+      expect(out, 'other.example##.b\r\n');
+    });
+
+    test('the else of an unknown block is kept too', () {
+      const list = '!#if env_future\na.example##.x\n!#else\nb.example##.y\n'
+          '!#endif\n';
+      final out = pruneFilterList(list, env: androidEnv);
+      expect(out, contains('a.example'));
+      expect(out, contains('b.example'));
     });
 
     test('a list with no directives is returned untouched', () {
@@ -132,13 +168,15 @@ void main() {
       expect(out, contains('||b.example^'));
     });
 
-    test('an include uBO refuses is never fetched', () async {
+    test('an include that could leave the directory is never fetched', () async {
       final fetched = <String>[];
       await expandFilterListIncludes(
         '!#include https://evil.example/x.txt\n'
         '!#include ../secret.txt\n'
         '!#include %2e%2e/secret.txt\n'
-        '!#include a\\..\\b.txt\n',
+        '!#include a\\..\\b.txt\n'
+        '!#include /root.txt\n'
+        '!#include //other.example/x.txt\n',
         url: 'https://lists.example/filters/main.txt',
         env: androidEnv,
         fetch: server(const {}, fetched: fetched),
