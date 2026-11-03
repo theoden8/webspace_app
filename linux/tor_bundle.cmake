@@ -22,7 +22,9 @@
 # To bump: pick a release under https://dist.torproject.org/torbrowser/,
 # check `sha256sums-signed-build.txt` against its `.asc` with the Tor Browser
 # Developers signing key (EF6E 286D DA85 EA2A 4BA7 DE68 4E2C 6E87 9329 8290),
-# and copy the x86_64 expert bundle's line here.
+# and copy the x86_64 expert bundle's line here. The build fetches the pinned
+# release from the archive, which keeps every release: dist drops one as soon
+# as the next is out, and a pinned build then fails to download.
 
 set(TOR_EXPERT_BUNDLE_VERSION "15.0.26")
 set(TOR_EXPERT_BUNDLE_SHA256
@@ -48,7 +50,7 @@ function(webspace_bundle_tor TOR_TARGET_ARCH TOR_WORK_DIR TOR_INSTALL_DIR)
   set(archive "${TOR_WORK_DIR}/${name}")
   if(source STREQUAL "")
     file(DOWNLOAD
-      "https://dist.torproject.org/torbrowser/${TOR_EXPERT_BUNDLE_VERSION}/${name}"
+      "https://archive.torproject.org/tor-package-archive/torbrowser/${TOR_EXPERT_BUNDLE_VERSION}/${name}"
       "${archive}"
       EXPECTED_HASH SHA256=${TOR_EXPERT_BUNDLE_SHA256}
       TLS_VERIFY ON
