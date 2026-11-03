@@ -134,6 +134,24 @@ a build file pulls in outside pub and Cargo has a row in
   licence, read from its source, is one `licences.tsv` allows for how it
   ships
 
+#### Scenario: A build pulls in what no build file names
+
+- **WHEN** a build links or ships a component that only the built output
+  shows: a Maven artifact Gradle resolves, a library the Linux bundle or the
+  snap copies in, the code a prebuilt Tor framework was configured with
+- **THEN** CI fails after that build: `tool/check_maven_licences.js` on every
+  artifact the release runtime classpaths resolve, read from its POM;
+  `tool/check_bundle_licences.js` on every Debian copyright file the Linux
+  bundle or the snap carries, and on any GNU notice outside them;
+  `scripts/verify_tor_framework.sh` on a framework that links the GPL-only
+  parts of tor
+
+#### Scenario: A component moves to another version
+
+- **WHEN** a pod, a pub package or a download changes version
+- **THEN** its row in `components.tsv` is stale and the gate fails until its
+  licence is read again at the new version
+
 #### Scenario: A package bundles code under another licence
 
 - **WHEN** a file a pub package builds into the app carries an SPDX tag, a
@@ -167,22 +185,31 @@ this repo or bundled into a release artifact.
 
 ### Requirement: LICENSE-003 - Attribution is collected, not hand-written
 
-Attribution SHALL come from dependency metadata at build time: pub packages
-through `LicenseRegistry`, Rust crates through the SPDX blob the adblock build
-emits. Licence texts SHALL NOT be copied into the repo for anything either
-collector reaches.
+Attribution SHALL come from dependency metadata at build time, and the
+licences page (`lib/services/licenses.dart`) SHALL show every notice it
+collects:
 
-`assets/licenses/` covers only what they cannot see: runtime-downloaded data,
-vendored or modified source, and components that are not a package in either
-graph.
+| Graph | Collector |
+|---|---|
+| pub packages | `LicenseRegistry`, which reads each package's root `LICENSE` |
+| Rust crates | the adblock build's blob: each linked crate's licence files, or its SPDX text where it ships none |
+| pods (iOS, macOS) | CocoaPods' acknowledgements, copied by each Podfile's `post_integrate` into `assets/native_notices/pods.md` |
+| Maven artifacts (Android) | `android/app/maven_licences.gradle`, into `assets/native_notices/maven.json` |
+
+Licence texts SHALL NOT be copied into the repo for anything a collector
+reaches. `assets/licenses/` covers only what none sees: runtime-downloaded
+data, vendored or modified source, a notice a pub package nests below its
+root `LICENSE` (listed in [`attributions.tsv`](attributions.tsv)), and
+components that are not a package in any graph.
 
 A library a Linux package builds from source and bundles (WPE WebKit and
 libwpe in the snap and the flatpak) SHALL carry its notices in the package as
 a Debian package does: `usr/share/doc/<name>/copyright` naming its source and
 revision and its licence, every licence file of its source tree and the
 copyright lines of its sources beside it, written at build time by
-`linux/install_notices.sh`. The licences page SHALL list every such notice the package carries, so the
-app's own notices name the libraries LGPL-2.1 section 6 asks them to.
+`linux/install_notices.sh`. The licences page SHALL list every such notice
+the package carries, so the app's own notices name the libraries LGPL-2.1
+section 6 asks them to.
 
 #### Scenario: New pub package or crate
 
@@ -197,11 +224,19 @@ app's own notices name the libraries LGPL-2.1 section 6 asks them to.
 #### Scenario: New data source or vendored tree
 
 - **THEN** its licence text is bundled under `assets/licenses/` and registered
-  in the custom-licence list in `lib/main.dart`
+  in `lib/services/licenses.dart`, and `test/licenses_test.dart` fails on a
+  text the page does not show
+
+#### Scenario: A pub package nests a notice below its root licence
+
+- **WHEN** a package ships code under a notice of its own (a vendored
+  library, a ported algorithm) that its root `LICENSE` does not hold
+- **THEN** `test/js/licence_policy.test.js` fails until `attributions.tsv`
+  names a text under `assets/licenses/` that carries it
 
 ---
 
-### LICENSE-004 - A bundled LGPL library ships as the LGPL asks
+### Requirement: LICENSE-004 - A bundled LGPL library ships as the LGPL asks
 
 A library under the LGPL that a package bundles instead of taking it from the
 system (WPE WebKit in the snap) SHALL ship as LGPL-2.1 section 6 asks:
@@ -212,8 +247,9 @@ system (WPE WebKit in the snap) SHALL ship as LGPL-2.1 section 6 asks:
 - **Notices:** its licence and copyright notices in the package and on the
   licences page (LICENSE-003).
 - **Source:** its copyright file names the source, the commit built and
-  anything the build changed in it first, and carries a written offer, valid for at least three years, of a complete
-  machine-readable copy of that source for no more than the cost of making it.
+  anything the build changed in it first, and carries a written offer, valid
+  for at least three years, of a complete machine-readable copy of that source
+  for no more than the cost of making it.
 - **Providable:** Software Heritage, which keeps what it archives, holds that
   commit and its tree, so the copy can be given for as long as the offer runs,
   whatever happens to the upstream repository.
