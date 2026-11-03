@@ -216,11 +216,6 @@ jobs:
       # dart:io through a service instead of through a platform seam.
       - name: Check UI files still compile for web
         run: npm run design:check
-      # JS shim + localization tests (jsdom + node:test). Node-only, so
-      # they belong in this lightweight checks job rather than gated behind
-      # a platform build; runs early to fail fast.
-      - name: Run JS shim tests
-        run: npm run test:js
       - name: Set up Swift for the plugin type-check
         uses: swift-actions/setup-swift@v2
         continue-on-error: true
@@ -269,6 +264,12 @@ jobs:
         run: fvm flutter pub get --enforce-lockfile
       - name: Generate localizations
         run: fvm dart tool/gen_l10n.dart
+      # JS shim + localization tests (jsdom + node:test). Node-only, so
+      # they belong in this lightweight checks job rather than gated behind
+      # a platform build. After pub get: the licence gate reads the packages
+      # it resolved (LICENSE-001).
+      - name: Run JS shim tests
+        run: npm run test:js
       # Errors only: the lints analysis_options.yaml raises to `error` fail
       # here, and the warnings and infos the code already carries do not.
       # `dart analyze`, since `flutter analyze` drops what an analyzer plugin

@@ -111,17 +111,35 @@ A released binary SHALL be buildable from the published source.
 
 ### Requirement: LICENSE-001 - No copyleft code in a shipped binary
 
-No GPL/AGPL code SHALL be linked into a distributed artifact. LGPL code
-SHALL ship only as a shared library the user can replace: a system library,
-or one a package bundles as LICENSE-004 asks.
+No GPL or AGPL code SHALL be built, linked or bundled into a distributed
+artifact, whatever brings it in: a pub package, a crate, a pod, a Gradle
+dependency, or a download in a build script, the app's or a plugin's. LGPL
+code SHALL ship only as a shared library the user can replace: a system
+library, or one a package bundles as LICENSE-004 asks.
+
+[`licences.tsv`](licences.tsv) is the policy: each licence a component may
+ship under and how. Its one exception is `desugar_jdk_libs`, under GPL-2.0
+with the Classpath Exception, which the notification plugin requires on
+Android and whose exception permits linking it. A component's licence is
+read from what it ships, the code it bundles included, and every component
+a build file pulls in outside pub and Cargo has a row in
+[`components.tsv`](components.tsv) saying what it was read from.
 
 #### Scenario: New dependency
 
-- **WHEN** a dependency is added to `pubspec.yaml`, a Cargo manifest, or a
-  platform build file
-- **THEN** its licence is permissive or file-level copyleft (MIT, BSD,
-  Apache-2.0, MPL-2.0), or it is LGPL code that ships as a replaceable
-  shared library
+- **WHEN** a dependency is added to `pubspec.yaml`, a Cargo manifest, a
+  Podfile, a Gradle file or a build script
+- **THEN** `test/js/licence_policy.test.js` (pub packages, pods, Gradle,
+  downloads) or `rust/webspace_adblock/build.rs` (crates) fails until its
+  licence, read from its source, is one `licences.tsv` allows for how it
+  ships
+
+#### Scenario: A package bundles code under another licence
+
+- **WHEN** a file a pub package builds into the app carries an SPDX tag, a
+  licence file or a GNU licence notice that `licences.tsv` does not allow
+- **THEN** the gate fails naming the file, whatever licence the package
+  states for itself
 
 ---
 

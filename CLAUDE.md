@@ -543,7 +543,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | always-open-home | per-site: navigation URL reverts to `initUrl` on cold start and shortcut tap, cookies and other stored state survive; site switches and a transient background are not resets |
 | captcha-support | |
 | clearurls | tracking-param removal, per-site toggle |
-| legal | App Store encryption declaration + licence composition of the shipped work |
+| legal | App Store encryption declaration + licence composition of the shipped work: `licences.tsv` beside the spec is the policy, `components.tsv` every component a build pulls in outside pub and Cargo, held by `test/js/licence_policy.test.js` (with what pub packages ship) and by `rust/webspace_adblock/build.rs` for crates |
 | configurable-suggested-sites | the user's own list, empty in every build so no flavor changes the Dart; a downloaded, filtered CrUX top list completes a typed address on the device |
 | content-blocker | ABP filter lists via adblock-rust (network, cosmetic, procedural, $redirect/$csp/$removeparam); per-site list selection is a mask over the app-wide set |
 | cookie-secure-storage | encrypted cookie persistence |
