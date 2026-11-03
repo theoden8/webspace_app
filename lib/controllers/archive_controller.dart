@@ -20,6 +20,7 @@ import 'package:webspace/services/step_flow.dart';
 import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/tab_leaves.dart';
 import 'package:webspace/services/webview_state_storage.dart';
+import 'package:webspace/settings_import_engine.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/utils/concurrency.dart';
 import 'package:webspace/webspace_model.dart';
@@ -453,7 +454,8 @@ class ArchiveController {
       if (passphrase == null || passphrase.isEmpty) break;
       final before = remaining.length;
       final unmatched = await _ops.run(() =>
-          _archive.importSections(passphrase, base64Sections: remaining));
+          _archive.importSections(passphrase,
+              base64Sections: remaining, admit: sanitizeImportedArchive));
       if (!_host.mounted) return;
       final restored = before - unmatched.length;
       remaining = unmatched;

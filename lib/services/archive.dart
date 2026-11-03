@@ -305,12 +305,15 @@ class Archive {
   /// Restores self-contained sections produced by [exportSection] into
   /// the slot pool. Tries [passphrase] against each base64 blob; a blob
   /// that decrypts is written to its archive's slot (existing slot for
-  /// that key, or a fresh one). Restored archives are written to disk
+  /// that key, or a fresh one), as [admit] returns it: a section is a file
+  /// the user was given, so the import's sanitizer takes it before anything
+  /// in it reaches a slot (SEC-041). Restored archives are written to disk
   /// but NOT opened. Returns the blobs that did not decrypt under this
   /// passphrase, so the caller can prompt again for a different one.
   Future<List<String>> importSections(
     String passphrase, {
     required List<String> base64Sections,
+    required ArchiveState Function(ArchiveState section) admit,
   }) async {
     await ensureInitialized();
     final localSalt = (await _storage.ensureKdfSalt()).salt;
@@ -344,7 +347,7 @@ class Archive {
         // exporting device's, which this device's open path never derives.
         await _writeState(
           await keyFor(localSalt),
-          state: ArchiveState.fromJson(stateJson),
+          state: admit(ArchiveState.fromJson(stateJson)),
         );
       }
     } finally {
