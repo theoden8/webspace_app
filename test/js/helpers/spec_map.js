@@ -38,14 +38,20 @@ function specFiles() {
 /** The capability a spec file describes: `openspec/.../specs/<slug>/spec.md`. */
 const slugOf = (f) => f.split('/specs/')[1].split('/')[0];
 
+// A heading that starts with an id but not with `Requirement:`, which the
+// map would otherwise not read as a requirement at all.
+const STRAY = /^###\s+(?!Requirement:)((?:[A-Z][A-Z0-9]*-)+\d{3}(?:[a-z]|-[A-Z])?)\b.*$/gm;
+
 /**
  * Every requirement by id: its title, its spec's slug and every file that
  * states it (a change may restate a published one). Headers that carry no
- * id are returned apart, as `unnamed`.
+ * id are returned apart, as `unnamed`, and headings with an id but no
+ * `Requirement:` as `stray`.
  */
 function requirements() {
   const byId = new Map();
   const unnamed = [];
+  const stray = [];
   for (const f of specFiles()) {
     const src = read(f);
     for (const m of src.matchAll(HEADER)) {
@@ -57,8 +63,9 @@ function requirements() {
     for (const m of src.matchAll(/^###\s+Requirement:\s*(.*)$/gm)) {
       if (!/^(?:[A-Z][A-Z0-9]*-)+\d{3}/.test(m[1])) unnamed.push({ file: f, title: m[1].trim() });
     }
+    for (const m of src.matchAll(STRAY)) stray.push({ file: f, id: m[1] });
   }
-  return { byId, unnamed };
+  return { byId, unnamed, stray };
 }
 
 // The gate over this map plants ids of its own to show each rule catches
@@ -170,7 +177,7 @@ const KINDS = ['model', 'assert', 'test', 'integration', 'native', 'tool', 'gate
  * cited ids no spec declares.
  */
 function specMap() {
-  const { byId, unnamed } = requirements();
+  const { byId, unnamed, stray } = requirements();
   const prefixes = new Set([...byId.keys()].map((id) => id.replace(/-\d{3}.*$/, '')));
   const cited = citations({ prefixes });
   const checks = new Map([...byId.keys()].map((id) => [id, new Map()]));
@@ -189,7 +196,7 @@ function specMap() {
       }
     }
   }
-  return { byId, unnamed, checks, undeclared };
+  return { byId, unnamed, stray, checks, undeclared };
 }
 
 /**
@@ -198,10 +205,11 @@ function specMap() {
  * does not owe, a listed one a check now names, a listed id no spec
  * declares or that says no reason, and a citation of an undeclared id.
  */
-function problems({ byId, unnamed, checks, undeclared }, owed) {
+function problems({ byId, unnamed, stray = [], checks, undeclared }, owed) {
   const named = (id) => (checks.get(id)?.size ?? 0) > 0;
   return {
     unnamed: unnamed.map((u) => `${u.file}: ${u.title}`),
+    stray: stray.map((s) => `${s.file}: ${s.id}`),
     shared: [...byId.values()]
       .filter((r) => new Set(r.files).size < r.files.length
         || new Set(r.files.map(slugOf)).size > 1)

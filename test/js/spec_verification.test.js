@@ -14,6 +14,13 @@ test('every requirement header carries an id', () => {
   assert.deepEqual(found.unnamed, [], 'give each requirement the next free id of its spec');
 });
 
+// A heading such as `### LICENSE-001 - ...` reads as a requirement to a
+// person and as nothing to the map, so its requirement went unchecked and
+// unowed alike.
+test('every heading with an id is a requirement heading', () => {
+  assert.deepEqual(found.stray, [], 'write it `### Requirement: <ID> - <title>`');
+});
+
 test('no id names two requirements', () => {
   assert.deepEqual(found.shared, [], 'a citation of a shared id verifies neither; renumber one');
 });
@@ -55,6 +62,7 @@ test('each rule catches the mistake it is for', () => {
       req('LOC-001', ['openspec/specs/localization/spec.md', 'openspec/specs/per-site-location/spec.md']),
     ]),
     unnamed: [{ file: 'openspec/specs/content-blocker/spec.md', title: 'Lists' }],
+    stray: [{ file: 'openspec/specs/legal/spec.md', id: 'LICENSE-009' }],
     checks: new Map([
       ['CB-001', new Map([['test', new Set(['test/a_test.dart'])]])],
       ['CB-002', new Map()],
@@ -66,6 +74,7 @@ test('each rule catches the mistake it is for', () => {
   const owed = new Map([['CB-001', 'covered since'], ['CB-404', 'gone'], ['CB-003', '']]);
   assert.deepEqual(problems(planted, owed), {
     unnamed: ['openspec/specs/content-blocker/spec.md: Lists'],
+    stray: ['openspec/specs/legal/spec.md: LICENSE-009'],
     shared: [
       'CB-003: openspec/specs/content-blocker/spec.md, openspec/specs/content-blocker/spec.md',
       'LOC-001: openspec/specs/localization/spec.md, openspec/specs/per-site-location/spec.md',

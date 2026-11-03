@@ -22,7 +22,7 @@ void main() {
     service = LocalCdnService.instance;
   });
 
-  group('LocalCdnService CDN URL pattern matching', () {
+  group('LCDN-001 LocalCdnService CDN URL pattern matching', () {
     test('recognizes cdnjs.cloudflare.com URLs', () {
       expect(
         service.getCacheKey('https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js'),
@@ -121,7 +121,7 @@ void main() {
       );
     });
 
-    test('strips query parameters from CDN URLs', () {
+    test('LCDN-011 strips query parameters from CDN URLs', () {
       expect(
         service.getCacheKey('https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js?v=123'),
         equals('jquery/3.7.1/jquery.min.js'),
@@ -142,7 +142,7 @@ void main() {
     });
   });
 
-  group('Cross-CDN deduplication', () {
+  group('LCDN-002 Cross-CDN deduplication', () {
     test('same library from different CDNs produces same cache key', () {
       final key1 = service.getCacheKey(
         'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js',
@@ -214,7 +214,7 @@ void main() {
 /// A Clear pressed while the popular set downloads wins; the download
 /// lands nothing fetched before it and stops.
 void clearDuringDownload() {
-  test('a clear during the popular download is not refilled behind it',
+  test('LCDN-015 a clear during the popular download is not refilled behind it',
       () async {
     final dir = await Directory.systemTemp.createTemp('localcdn_test');
     addTearDown(() => dir.delete(recursive: true));

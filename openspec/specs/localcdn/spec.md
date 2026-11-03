@@ -24,7 +24,7 @@ Works on Android via `shouldInterceptRequest`. On iOS/macOS, the feature degrade
 
 ## Requirements
 
-### LCDN-001: CDN URL Pattern Matching
+### Requirement: LCDN-001 - CDN URL Pattern Matching
 
 The service SHALL recognize URLs from major CDN providers and extract a canonical (library, version, file) tuple.
 
@@ -46,7 +46,7 @@ The service SHALL recognize URLs from major CDN providers and extract a canonica
 - **When** the URL is checked against CDN patterns
 - **Then** it does not match any pattern (returns null)
 
-### LCDN-002: Cross-CDN Deduplication
+### Requirement: LCDN-002 - Cross-CDN Deduplication
 
 The same library served from different CDN providers SHALL produce the same cache key.
 
@@ -56,7 +56,7 @@ The same library served from different CDN providers SHALL produce the same cach
 - **When** cache keys are computed for all four URLs
 - **Then** all four produce the same cache key `jquery/3.7.1/jquery.min.js`
 
-### LCDN-003: Trusted Source Download
+### Requirement: LCDN-003 - Trusted Source Download
 
 Resources SHALL always be downloaded from cdnjs.cloudflare.com. The original CDN that was requested SHALL NOT be contacted.
 
@@ -73,7 +73,7 @@ Resources SHALL always be downloaded from cdnjs.cloudflare.com. The original CDN
 - **When** any CDN URL for jQuery 3.7.1 is intercepted
 - **Then** the cached copy is served without any network request
 
-### LCDN-004: Pre-Download Popular Resources
+### Requirement: LCDN-004 - Pre-Download Popular Resources
 
 Users SHALL be able to download a curated set of popular CDN resources via app settings, similar to DNS blocklist download.
 
@@ -90,7 +90,7 @@ Users SHALL be able to download a curated set of popular CDN resources via app s
 - **When** the user taps "Update"
 - **Then** only missing resources are downloaded (cached ones are skipped)
 
-### LCDN-005: On-Demand Caching
+### Requirement: LCDN-005 - On-Demand Caching
 
 When a CDN URL is intercepted that isn't pre-downloaded, the system SHALL fetch the resource from cdnjs on demand.
 
@@ -101,7 +101,7 @@ When a CDN URL is intercepted that isn't pre-downloaded, the system SHALL fetch 
 - **Then** the resource is downloaded from cdnjs, cached locally, and served
 - **And** subsequent requests for the same resource are served from cache
 
-### LCDN-006: Content Type Detection
+### Requirement: LCDN-006 - Content Type Detection
 
 The service SHALL return the correct MIME type for cached resources based on file extension.
 
@@ -123,7 +123,7 @@ The service SHALL return the correct MIME type for cached resources based on fil
 - **When** the content type is determined
 - **Then** the appropriate font MIME type is returned
 
-### LCDN-007: Per-Site Toggle
+### Requirement: LCDN-007 - Per-Site Toggle
 
 Each site SHALL have a `localCdnEnabled` boolean (default: `true`) that controls whether LocalCDN is applied. The umbrella `trackingProtectionEnabled` (see [tracking-protection/spec.md](../tracking-protection/spec.md), ETP-002) forces this effectively-on whenever the umbrella is true; the stored field is honoured only when the umbrella is off.
 
@@ -154,7 +154,7 @@ The effective value (`WebViewModel.effectiveLocalCdnEnabled`: forced on by the u
 - **When** the site's settings screen renders
 - **Then** `localCdnEnabled` is effectively `true`
 
-### LCDN-008: Per-Site Settings UI
+### Requirement: LCDN-008 - Per-Site Settings UI
 
 The per-site settings screen SHALL show a toggle for LocalCDN with cache statistics. When the tracking-protection umbrella is on, the toggle SHALL render with `onChanged: null`, `value: true` (gated by `LocalCdnService.instance.hasCache`), and subtitle "Forced on by Tracking Protection".
 
@@ -170,7 +170,7 @@ The per-site settings screen SHALL show a toggle for LocalCDN with cache statist
 - **Then** the LocalCDN switch's `onChanged` is `null`
 - **And** its subtitle reads "Forced on by Tracking Protection"
 
-### LCDN-009: App Settings UI
+### Requirement: LCDN-009 - App Settings UI
 
 App Settings SHALL display LocalCDN with a download/update button, cache statistics, last updated timestamp, and a clear cache button.
 
@@ -192,7 +192,7 @@ App Settings SHALL display LocalCDN with a download/update button, cache statist
 - **When** the cache is cleared
 - **Then** all cached resources are deleted and the count resets to 0
 
-### LCDN-010: Backward Compatibility
+### Requirement: LCDN-010 - Backward Compatibility
 
 Existing sites without `localCdnEnabled` in their stored JSON SHALL default to `true` on deserialization.
 
@@ -202,7 +202,7 @@ Existing sites without `localCdnEnabled` in their stored JSON SHALL default to `
 - **When** deserialized with `WebViewModel.fromJson`
 - **Then** `localCdnEnabled` defaults to `true`
 
-### LCDN-011: Query Parameter Handling
+### Requirement: LCDN-011 - Query Parameter Handling
 
 CDN URL matching SHALL strip query parameters before pattern matching.
 
@@ -212,7 +212,7 @@ CDN URL matching SHALL strip query parameters before pattern matching.
 - **When** the URL is checked against CDN patterns
 - **Then** it matches with cache key `jquery/3.7.1/jquery.min.js`
 
-### LCDN-012: Cache Persistence
+### Requirement: LCDN-012 - Cache Persistence
 
 The cache index SHALL be persisted via SharedPreferences and the resource files SHALL be stored in the platform cache directory (PLATFORM-010).
 
@@ -222,7 +222,7 @@ The cache index SHALL be persisted via SharedPreferences and the resource files 
 - **When** the app is restarted
 - **Then** the cache index is loaded from SharedPreferences and cached resources are available immediately
 
-### LCDN-015: A Clear Wins Over a Download in Progress
+### Requirement: LCDN-015 - A Clear Wins Over a Download in Progress
 
 Every change to the cache directory and its index SHALL run one at a time. A
 Clear pressed while the popular resources download SHALL stop the download,
@@ -236,7 +236,7 @@ and nothing it fetched before the Clear SHALL be written, indexed or dated.
 
 Test: `test/localcdn_service_test.dart` ("a clear during the popular download is not refilled behind it").
 
-### LCDN-013: Platform Support and Interception Scope
+### Requirement: LCDN-013 - Platform Support and Interception Scope
 
 LocalCDN resource interception SHALL work on Android via `shouldInterceptRequest`. On iOS/macOS, the feature SHALL degrade gracefully. LocalCDN does NOT intercept `fetch()` or `XMLHttpRequest` CDN requests — in practice this is a non-issue because CDN resources are almost always loaded via static HTML tags (`<script>`, `<link>`), not JS-initiated requests.
 
@@ -269,7 +269,7 @@ LocalCDN resource interception SHALL work on Android via `shouldInterceptRequest
 | `fetch('cdn...')` | Not intercepted | Not intercepted |
 | `XMLHttpRequest` to CDN | Not intercepted | Not intercepted |
 
-### LCDN-014: Per-Site Replacement Counter
+### Requirement: LCDN-014 - Per-Site Replacement Counter
 
 The service SHALL track the number of CDN requests replaced from the local cache per site as runtime-only state, so the count is available for future UIs (developer tools, diagnostics) without being surfaced in the stats banner.
 

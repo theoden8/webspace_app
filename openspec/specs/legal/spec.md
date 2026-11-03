@@ -14,7 +14,7 @@ encryption declaration, and MIT as the licence of the shipped work.
 
 ## Requirements
 
-### EXPORT-001 - Encryption declaration
+### Requirement: EXPORT-001 - Encryption declaration
 
 The iOS and macOS bundles SHALL each declare `ITSAppUsesNonExemptEncryption`
 as `false` and SHALL NOT carry an `ITSEncryptionExportComplianceCode`. Both
@@ -84,7 +84,7 @@ gates the two keys against each other on the fastlane deploy lanes.
 
 ---
 
-### EXPORT-002 - Standard primitives only
+### Requirement: EXPORT-002 - Standard primitives only
 
 Cryptography the app implements itself SHALL use published standard
 primitives: AES-GCM, HMAC-SHA-256, HKDF-SHA-256, Argon2id.
@@ -97,7 +97,7 @@ primitives: AES-GCM, HMAC-SHA-256, HKDF-SHA-256, Argon2id.
 
 ---
 
-### EXPORT-003 - Source correspondence
+### Requirement: EXPORT-003 - Source correspondence
 
 A released binary SHALL be buildable from the published source.
 
@@ -109,7 +109,7 @@ A released binary SHALL be buildable from the published source.
 
 ---
 
-### LICENSE-001 - No copyleft code in a shipped binary
+### Requirement: LICENSE-001 - No copyleft code in a shipped binary
 
 No GPL/AGPL code SHALL be linked into a distributed artifact. LGPL code
 SHALL ship only as a shared library the user can replace: a system library,
@@ -125,7 +125,7 @@ or one a package bundles as LICENSE-004 asks.
 
 ---
 
-### LICENSE-002 - Copyleft data stays runtime-fetched
+### Requirement: LICENSE-002 - Copyleft data stays runtime-fetched
 
 Filter lists, blocklists, rules and tiles under GPL/LGPL/CC BY-SA/ODbL SHALL
 be downloaded at runtime and cached on-device. They SHALL NOT be committed to
@@ -147,7 +147,7 @@ this repo or bundled into a release artifact.
 
 ---
 
-### LICENSE-003 - Attribution is collected, not hand-written
+### Requirement: LICENSE-003 - Attribution is collected, not hand-written
 
 Attribution SHALL come from dependency metadata at build time: pub packages
 through `LicenseRegistry`, Rust crates through the SPDX blob the adblock build

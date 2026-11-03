@@ -14,7 +14,7 @@ Automated screenshot generation for app store submissions using Flutter integrat
 
 ## Requirements
 
-### SCREENSHOT-001 - Cross-Platform Generation
+### Requirement: SCREENSHOT-001 - Cross-Platform Generation
 
 Screenshots SHALL be generated using Flutter integration tests on Android, iOS, macOS and Linux.
 
@@ -51,7 +51,7 @@ Screenshots SHALL be generated using Flutter integration tests on Android, iOS, 
 
 ---
 
-### SCREENSHOT-002 - Demo Data Seeding
+### Requirement: SCREENSHOT-002 - Demo Data Seeding
 
 Screenshots SHALL use demo data seeded automatically via `lib/demo_data.dart`.
 
@@ -70,7 +70,7 @@ Screenshots SHALL use demo data seeded automatically via `lib/demo_data.dart`.
 
 ---
 
-### SCREENSHOT-003 - Screenshot Coverage
+### Requirement: SCREENSHOT-003 - Screenshot Coverage
 
 The test SHALL capture 4 screenshots per theme (8 total): `01-site-settings`, `02-work-sites-drawer`, `03-work-webspace`, `04-workspace-sites-selected`.
 
@@ -81,7 +81,7 @@ The test SHALL capture 4 screenshots per theme (8 total): `01-site-settings`, `0
 
 ---
 
-### SCREENSHOT-004 - CI/CD Integration
+### Requirement: SCREENSHOT-004 - CI/CD Integration
 
 Screenshots SHALL be generated in GitHub Actions on a manual (`workflow_dispatch`) run and on every release PR, so a release cannot go green without them. The plan job decides which runs make them. Each device's set is a job of its own (`screenshots-android`, `screenshots-ios` for iPhone and iPad, `screenshots-macos`, `screenshots-linux`), started with the build jobs rather than after their test tiers; a job shares its toolchain setup with the build job of its platform through `.github/actions/`.
 
@@ -111,7 +111,7 @@ Screenshots SHALL be generated in GitHub Actions on a manual (`workflow_dispatch
 
 ---
 
-### SCREENSHOT-005 - Device Frame Integration
+### Requirement: SCREENSHOT-005 - Device Frame Integration
 
 Android, iPhone and iPad screenshots SHALL be frameable with device bezels using frameit; the iPhone and iPad sets share the frameit config in `screenshots/ios/`, which frameit reads from a screenshot's parent folder. macOS and Linux screenshots are left unframed: frameit has no desktop bezel, and the window captures carry their own title bar (SCREENSHOT-007, SCREENSHOT-009).
 
@@ -130,7 +130,7 @@ Android, iPhone and iPad screenshots SHALL be frameable with device bezels using
 
 ---
 
-### SCREENSHOT-006 - Theme Support
+### Requirement: SCREENSHOT-006 - Theme Support
 
 Screenshots SHALL be captured in both light and dark themes.
 
@@ -142,7 +142,7 @@ Screenshots SHALL be captured in both light and dark themes.
 
 ---
 
-### SCREENSHOT-007 - macOS Window Capture
+### Requirement: SCREENSHOT-007 - macOS Window Capture
 
 On macOS a screenshot SHALL be the app's window as the window server composites it, so the site's WKWebView is in it, at a size App Store Connect takes for a Mac app (1280x800, 1440x900, 2560x1600 or 2880x1800). Flutter's macOS `integration_test` plugin does not implement `captureScreenshot`, so the Runner provides a debug-only `window_capture` channel; no release build carries it.
 
@@ -162,7 +162,7 @@ On macOS a screenshot SHALL be the app's window as the window server composites 
 
 ---
 
-### SCREENSHOT-008 - Android Capture In Texture Mode
+### Requirement: SCREENSHOT-008 - Android Capture In Texture Mode
 
 On Android every screenshot SHALL be taken by `binding.takeScreenshot`, which after `convertFlutterSurfaceToImage()` is a `PixelCopy` of the FlutterView's rectangle in the activity window, and the run SHALL create its webviews in texture layer hybrid composition (PAUSE-032), so a site's page is in that copy. In hybrid composition, the app's default, Flutter draws into `FlutterImageView`s layered around the WebView and an image view presents the last image it acquired: a shot of a site showed the previous screen (PR #77). In texture mode the page renders into a texture Flutter composites in its own frame. The test turns the mode on through the gate `main()` reads (DEVTOOLS-011), with developer mode and the Texture page rendering switch in its in-memory preferences, and holds off the proxy router that developer mode would also start, so the run keeps PROXY-008. Developer mode shows nothing on the screens SCREENSHOT-003 captures. No other platform changes mode, and nothing captures the screen through adb.
 
@@ -182,7 +182,7 @@ On Android every screenshot SHALL be taken by `binding.takeScreenshot`, which af
 
 ---
 
-### SCREENSHOT-009 - Linux Window Capture
+### Requirement: SCREENSHOT-009 - Linux Window Capture
 
 On Linux a screenshot SHALL be the app's GTK window drawn into an image, with the title bar, shadow and rounded corners GTK draws for it, so the site's WPE view is in it and the window carries the native decoration Flathub's quality guidelines require of a screenshot. FlView paints through `gdk_cairo_draw_from_gl`, which reads its GL frame back for any cairo target, and the WPE view is a texture inside that frame, so the capture reads nothing back from the display server and works with the window covered or larger than the screen. The Runner provides the debug-only `window_capture` channel macOS has (`linux/window_capture.cc`); no release build carries it.
 
@@ -207,7 +207,7 @@ On Linux a screenshot SHALL be the app's GTK window drawn into an image, with th
 
 ---
 
-### SCREENSHOT-010 - iPad Landscape
+### Requirement: SCREENSHOT-010 - iPad Landscape
 
 The iPad set SHALL be landscape. iPadOS honours an app's orientation lock only when the app opts out of multitasking, and the shipped app does not, so `SystemChrome.setPreferredOrientations` alone leaves an iPad in portrait. The iPad lane builds the app with `UIRequiresFullScreen` set for the run and puts `ios/Runner/Info.plist` back afterwards, failed run included; no shipped build opts out of multitasking.
 
