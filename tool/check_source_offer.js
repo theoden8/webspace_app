@@ -23,7 +23,7 @@ function offers(root) {
     if (!fs.existsSync(file)) continue;
     const text = fs.readFileSync(file, 'utf8');
     if (!text.includes(OFFER)) continue;
-    const built = text.match(/^Comment: Built as it is from (\S+) at (\S+)\.$/m);
+    const built = text.match(/^Comment: Built (?:as it is )?from (\S+) at ([^\s,]+?)(?:\.$|, )/m);
     out.push({ file: path.relative(root, file), source: built?.[1] ?? null, revision: built?.[2] ?? null });
   }
   return out;

@@ -12,10 +12,13 @@
 #
 #   install_notices.sh --src DIR --dest DIR --name NAME --source URL \
 #     --revision REV --license 'LGPL-2.1+ and BSD-2-clause' \
-#     [--third-party TABLE] [--offer]
+#     [--third-party TABLE] [--offer] [--changed WHAT]
+#
+# --changed names what the build changed in the tree before compiling it, so
+# the copyright file does not claim the source as it is.
 set -euo pipefail
 
-src='' dest='' name='' source='' revision='' license='' table='' offer=no
+src='' dest='' name='' source='' revision='' license='' table='' offer=no changed=''
 while [ $# -gt 0 ]; do
   case "$1" in
     --src) src=$2; shift 2 ;;
@@ -26,6 +29,7 @@ while [ $# -gt 0 ]; do
     --license) license=$2; shift 2 ;;
     --third-party) table=$2; shift 2 ;;
     --offer) offer=yes; shift ;;
+    --changed) changed=$2; shift 2 ;;
     *) echo "install_notices.sh: unknown argument $1" >&2; exit 2 ;;
   esac
 done
@@ -82,7 +86,12 @@ done < <(printf '%s\n' "$files" | grep -i -E '(^|/)(licen[cs]e|copying|notice)[^
   echo 'Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/'
   echo "Upstream-Name: $name"
   echo "Source: $source"
-  echo "Comment: Built as it is from $source at $revision."
+  if [ -n "$changed" ]; then
+    echo "Comment: Built from $source at $revision, changed before the build:"
+    echo " $changed."
+  else
+    echo "Comment: Built as it is from $source at $revision."
+  fi
   echo " The licence files of that source tree are in licences/ beside this file."
   if [ "$offer" = yes ]; then
     echo ' .'

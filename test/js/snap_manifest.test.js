@@ -178,22 +178,41 @@ test('the snap restates no version .fvmrc or rust-toolchain.toml pins', () => {
 });
 
 // What WebKit compiles in is decided by its build options, which no type
-// reads: PDF.js brings its standard fonts, Liberation 1.x under GPL-2.0, and
-// libwebrtc trees this table has not read (linux/webkit_third_party.tsv).
+// reads: libwebrtc trees this table has not read (linux/webkit_third_party.tsv),
+// and PDF.js, whose standard fonts are Liberation Sans 1.07.4 under GPL-2.0
+// until linux/pdfjs_fonts.sh replaces them, before cmake configures the tree.
 function webkitBuildRefusals(text) {
   const out = [];
-  if (!/^ {8}-DENABLE_PDFJS=OFF$/m.test(text)) out.push('-DENABLE_PDFJS=OFF is missing');
-  for (const option of ['ENABLE_PDFJS', 'ENABLE_WEB_RTC', 'USE_LIBWEBRTC', 'ENABLE_EXPERIMENTAL_FEATURES']) {
+  for (const option of ['ENABLE_WEB_RTC', 'USE_LIBWEBRTC', 'ENABLE_EXPERIMENTAL_FEATURES']) {
     if (new RegExp(`-D${option}=ON\\b`).test(text)) out.push(`-D${option}=ON`);
+  }
+  const start = text.indexOf('\n  wpewebkit:\n');
+  const part = text.slice(start, text.indexOf('\n\n  ', start + 1));
+  if (!/^ {8}-DENABLE_PDFJS=(ON|OFF)$/m.test(part)) out.push('ENABLE_PDFJS is left to its default');
+  if (/^ {8}-DENABLE_PDFJS=ON$/m.test(part)) {
+    const swap = part.indexOf('bash "$CRAFT_PROJECT_DIR/linux/pdfjs_fonts.sh" --src "$CRAFT_PART_SRC"');
+    if (swap < 0 || swap > part.indexOf('cmake -S')) out.push('PDF.js ships its fonts as WebKit has them');
+    if (!/^ {6}- fonts-liberation$/m.test(part)) out.push('fonts-liberation is not a build package');
   }
   return out;
 }
 
 test('WebKit is built without the parts whose licence it may not ship (LICENSE-001)', () => {
   assert.deepEqual(webkitBuildRefusals(manifest), []);
-  const planted = manifest.replace(/^ {8}-DENABLE_PDFJS=OFF$/m, '        -DENABLE_PDFJS=ON');
-  assert.deepEqual(webkitBuildRefusals(planted), ['-DENABLE_PDFJS=OFF is missing', '-DENABLE_PDFJS=ON'],
-    'a build with PDF.js on');
+  const check = read('scripts/check_snap.sh');
+  assert.ok(check.includes("grep -a -q 'Liberation Fonts license' \"$webkit\""),
+    'scripts/check_snap.sh does not refuse a library carrying Liberation 1.x');
+  assert.ok(check.includes("grep -a -q 'Licensed under the SIL Open Font License' \"$webkit\""),
+    'scripts/check_snap.sh does not require the OFL fonts in the library');
+  const unswapped = manifest.replace(/^ {6}changed="\$\(bash "\$CRAFT_PROJECT_DIR\/linux\/pdfjs_fonts\.sh"[^\n]*\n/m, '');
+  assert.deepEqual(webkitBuildRefusals(unswapped), ['PDF.js ships its fonts as WebKit has them'],
+    'PDF.js with its own fonts');
+  assert.deepEqual(webkitBuildRefusals(manifest.replace(/^ {6}- fonts-liberation\n/m, '')),
+    ['fonts-liberation is not a build package'], 'the replacement fonts not installed');
+  assert.deepEqual(webkitBuildRefusals(manifest.replace(/^ {8}-DENABLE_PDFJS=ON\n/m, '')),
+    ['ENABLE_PDFJS is left to its default'], 'PDF.js on by WebKit\'s default, unseen');
+  assert.deepEqual(webkitBuildRefusals(manifest.replace('-DUSE_SYSTEM_UNIFDEF=OFF', '-DUSE_SYSTEM_UNIFDEF=OFF -DENABLE_WEB_RTC=ON')),
+    ['-DENABLE_WEB_RTC=ON'], 'WebRTC on');
 });
 
 // linux/install_notices.sh writes a built library's notices where a staged
@@ -209,6 +228,7 @@ function noticeRefusals(text) {
       '--third-party "$CRAFT_PROJECT_DIR/linux/webkit_third_party.tsv"',
       '--revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)"',
       '--offer',
+      '--changed "$changed"',
     ]],
   ]) {
     const start = text.indexOf(`\n  ${part}:\n`);
@@ -232,10 +252,12 @@ test('each library the snap builds ships its notices (LICENSE-003)', () => {
 });
 
 test("the snap's WebKit is a library a user can replace, its source named and offered (LICENSE-004)", () => {
-  assert.deepEqual(noticeRefusals(manifest.replace(' --offer\n', '\n')), ['wpewebkit lacks --offer'],
+  assert.deepEqual(noticeRefusals(manifest.replace(' --offer \\\n', ' \\\n')), ['wpewebkit lacks --offer'],
     'WebKit without its source offer');
   assert.deepEqual(noticeRefusals(manifest.replace(/--revision "\$\(git -C [^\n]*\n/, '--revision main \\\n')),
     ['wpewebkit lacks --revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)"'], 'a revision not read off the checkout');
+  assert.deepEqual(noticeRefusals(manifest.replace(' \\\n        --changed "$changed"\n', '\n')),
+    ['wpewebkit lacks --changed "$changed"'], 'a copyright file that hides the fonts it replaced');
   const notices = read('linux/install_notices.sh');
   for (const line of ['echo "Source: $source"', 'Built as it is from $source at $revision.',
     'For at least three years from the day you received this copy']) {

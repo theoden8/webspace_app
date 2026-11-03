@@ -7,7 +7,10 @@
 # opens the site, whose page is requested, with WebKit's web and network
 # processes started from the snap's copies through the layout. First, from
 # the installed snap's files: WebKit is a shared library of its own that a
-# library of the app's loads at run time, so a user can replace it (LICENSE-004).
+# library of the app's loads at run time, so a user can replace it (LICENSE-004),
+# and the PDF.js fonts it carries are the OFL release linux/pdfjs_fonts.sh put
+# there, not WebKit's GPL-2.0 ones (LICENSE-001; WebKit stores a .ttf
+# uncompressed).
 #
 #   scripts/check_snap.sh
 #
@@ -30,8 +33,14 @@ snap_name="$(sed -n 's/^name: \([a-z0-9-]*\)$/\1/p' "$root/snap/snapcraft.yaml")
 [ -n "$snap_name" ] || { echo "::error::no name in snap/snapcraft.yaml" >&2; exit 1; }
 
 mount="/snap/$snap_name/current"
-compgen -G "$mount/usr/lib/*/libWPEWebKit-2.0.so.*" > /dev/null \
+webkit="$(compgen -G "$mount/usr/lib/*/libWPEWebKit-2.0.so.*" | head -1)" \
   || { echo "::error::the snap carries no libWPEWebKit-2.0.so of its own" >&2; exit 1; }
+LC_ALL=C grep -a -q 'Licensed under the SIL Open Font License' "$webkit" \
+  || { echo "::error::$webkit carries no PDF.js font of the OFL release" >&2; exit 1; }
+if LC_ALL=C grep -a -q 'Liberation Fonts license' "$webkit"; then
+  echo "::error::$webkit carries Liberation 1.x, under GPL-2.0" >&2
+  exit 1
+fi
 loads=()
 for f in "$mount"/opt/webspace/webspace_app "$mount"/opt/webspace/lib/*.so; do
   needed="$(readelf -d "$f")"

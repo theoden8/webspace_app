@@ -16,7 +16,7 @@ const COMMIT = 'c22ba3278caac6a1fc8b0c7a10f04db1ffc44982';
 const TREE = 'c4057731cd96fd3b00c2c5d53e7f0c5c34c90671';
 const SOURCE = 'https://github.com/WebKit/WebKit.git';
 
-function notices(t, { revision, offer = true }) {
+function notices(t, { revision, offer = true, changed = null }) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'source-offer-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const src = path.join(root, 'src');
@@ -25,7 +25,8 @@ function notices(t, { revision, offer = true }) {
   fs.writeFileSync(path.join(src, 'a.c'), '/* Copyright (C) 2026 Someone */\n');
   const args = [path.join(REPO, 'linux/install_notices.sh'), '--src', src,
     '--dest', path.join(root, 'pkg/usr/share/doc/lib'), '--name', 'lib', '--source', SOURCE,
-    '--revision', revision, '--license', 'LGPL-2.1+', ...(offer ? ['--offer'] : [])];
+    '--revision', revision, '--license', 'LGPL-2.1+', ...(offer ? ['--offer'] : []),
+    ...(changed ? ['--changed', changed] : [])];
   const run = spawnSync('bash', args, { encoding: 'utf8' });
   return { root: path.join(root, 'pkg'), run };
 }
@@ -37,6 +38,12 @@ test('LICENSE-004 the offer names the commit the library was built from', (t) =>
   assert.equal(run.status, 0, run.stderr);
   assert.deepEqual(S.offers(root), [{ file: 'usr/share/doc/lib/copyright', source: SOURCE, revision: COMMIT }]);
   assert.deepEqual(S.offers(notices(t, { revision: COMMIT, offer: false }).root), [], 'no offer, nothing to give');
+  const changed = notices(t, { revision: COMMIT, changed: 'fonts replaced' }).root;
+  assert.deepEqual(S.offers(changed), [{ file: 'usr/share/doc/lib/copyright', source: SOURCE, revision: COMMIT }],
+    'a build that changed the tree still names its commit');
+  assert.match(fs.readFileSync(path.join(changed, 'usr/share/doc/lib/copyright'), 'utf8'),
+    /^Comment: Built from \S+ at [0-9a-f]{40}, changed before the build:\n fonts replaced\.$/m,
+    'and says what changed, never "as it is"');
   const branch = notices(t, { revision: 'main' }).run;
   assert.equal(branch.status, 2, 'an offer of a branch, which moves, is refused as the notices are written');
   assert.match(branch.stderr, /--offer needs --revision to be a commit/);

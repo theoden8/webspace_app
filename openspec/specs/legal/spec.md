@@ -193,8 +193,8 @@ system (WPE WebKit in the snap) SHALL ship as LGPL-2.1 section 6 asks:
   or a plugin.
 - **Notices:** its licence and copyright notices in the package and on the
   licences page (LICENSE-003).
-- **Source:** its copyright file names the source and the commit built, and
-  carries a written offer, valid for at least three years, of a complete
+- **Source:** its copyright file names the source, the commit built and
+  anything the build changed in it first, and carries a written offer, valid for at least three years, of a complete
   machine-readable copy of that source for no more than the cost of making it.
 - **Providable:** Software Heritage, which keeps what it archives, holds that
   commit and its tree, so the copy can be given for as long as the offer runs,
