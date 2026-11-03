@@ -71,6 +71,8 @@ ios/fastlane/README.md
 **/fastlane/report.xml
 **/fastlane/test_output/
 **/fastlane/screenshots/
+# The framing font, which both Fastfiles download where it is missing.
+screenshots/Righteous-Regular.ttf
 **/fastlane/Preview.html
 screenshots
 

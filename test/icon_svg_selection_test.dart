@@ -7,11 +7,13 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('svgRendersBlank', () {
-    test("duck.ai's nested-<svg> favicon renders blank under flutter_svg",
+    // The nesting duck.ai's favicon has: an <svg> inside a group inside an
+    // <svg>, three deep, which flutter_svg draws blank.
+    test('a favicon of nested <svg> elements renders blank under flutter_svg',
         () async {
-      final duck =
-          File('test/fixtures/duck_ai_favicon.svg').readAsStringSync();
-      expect(await svgRendersBlank(duck), isTrue);
+      final nested =
+          File('test/fixtures/nested_svg_favicon.svg').readAsStringSync();
+      expect(await svgRendersBlank(nested), isTrue);
     });
 
     test('a flat colored SVG renders visibly', () async {
