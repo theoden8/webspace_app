@@ -527,9 +527,9 @@ Existing sites without `contentBlockEnabled` in their stored JSON SHALL default 
 
 ---
 
-### Requirement: CB-010 - uBO Resource Pool Toggle
+### Requirement: CB-010 - Redirect Stub Pool Toggle
 
-The system SHALL gate `adblock-rust`'s uBO web_accessible_resources/ pool behind a user-facing toggle persisted as `useUboResources` (default: `true`).
+The system SHALL serve `$redirect=` rules from a pool of stubs (`rust/webspace_adblock/src/redirect_resources.rs`), under the names filter lists give them: bodies that do nothing (an empty script, page, text, stylesheet and JSON value, transparent GIF and PNG images, silent MP3s, a VMAP playlist with no ad breaks). A rule naming a resource outside the pool SHALL block the request. The pool SHALL be gated behind a user-facing toggle persisted as `useUboResources` (default: `true`).
 
 #### Scenario: Default on
 
@@ -541,8 +541,16 @@ The system SHALL gate `adblock-rust`'s uBO web_accessible_resources/ pool behind
 **Given** the toggle is on
 **And** a filter rule contains `$redirect=noopjs` or similar
 **When** a matching request is intercepted
-**Then** `ContentBlockerService.redirectFor` returns a `data:` URL with the matching stub body (noop.js, 1x1.gif, neutered tracker shim)
+**Then** `ContentBlockerService.redirectFor` returns a `data:` URL with the matching stub body (noop.js, 1x1.gif)
 **And** the request is served the stub instead of being dropped
+
+#### Scenario: A resource outside the pool blocks
+
+**Given** the toggle is on
+**And** a filter rule names a `$redirect=` resource the pool does not hold
+**When** a matching request is intercepted
+**Then** `redirectFor` returns null
+**And** the request is blocked with the empty-body response
 
 #### Scenario: Off → $redirect= rules become plain blocks
 
@@ -1285,7 +1293,7 @@ Late-added or class-flipped elements hide reactively without any JS sweep.
 - `android/app/src/main/kotlin/.../WebInterceptPlugin.kt` — DNS host-only fast path, JNI bridge to `adblock-rust` via `AdblockEngineNative`
 - `lib/widgets/stats_banner.dart` — Shows banner when either DNS or engine has rules
 - `lib/screens/settings.dart` — Per-site Content Blocker toggle
-- `lib/screens/app_settings.dart` — Content Blocker list management UI, uBO resources toggle
+- `lib/screens/app_settings.dart` — Content Blocker list management UI, redirect stubs toggle
 - `lib/screens/inappbrowser.dart` — Propagate `contentBlockEnabled` to nested webview
 - `lib/main.dart` — `ContentBlockerService.initialize`, change-listener wiring for DNS bloom invalidation, license registration
 

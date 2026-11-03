@@ -395,7 +395,8 @@ class ContentBlockerService {
         requestType: 'native', micros: null, blocked: true, count: count);
   }
 
-  /// Whether uBO web_accessible_resources/ is wired into the engine.
+  /// Whether the redirect stubs (`rust/webspace_adblock/src/redirect_resources.rs`)
+  /// are wired into the engine.
   /// Drives the `$redirect=` rule output: when on, the engine returns
   /// the matching stub body (noop.js, 1x1.gif, …); when off, redirect
   /// rules become plain blocks (drop the request).
@@ -404,7 +405,7 @@ class ContentBlockerService {
   Future<void> setUseUboResources({required bool enabled}) async {
     if (useUboResources == enabled) return;
     LogTag.contentBlocker.info(
-        'uBO resources toggle flipped to $enabled (was ${!enabled})');
+        'Redirect stubs toggle flipped to $enabled (was ${!enabled})');
     await AppPref.useUboResources.set(enabled);
     await _rebuilds.run(_clearEngineCache);
     await _rebuildEngine();

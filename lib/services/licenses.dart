@@ -53,17 +53,6 @@ void registerLicenses() {
     (['Hagezi DNS Blocklists (domain data)'], 'assets/licenses/hagezi.txt'),
     (['EasyList filter lists (filter data)'], 'assets/licenses/easylist.txt'),
     (['AdGuard filters (filter data)'], 'assets/licenses/adguard.txt'),
-    (
-      // uBO ships the redirect-resource bodies (noop.js, 1x1.gif,
-      // neutered trackers, etc.) we embed at build time. uBO isn't
-      // a Rust crate so the transitive-deps SPDX extractor below
-      // can't reach it — the bundled file carries the MPL-2.0 text
-      // for that contribution. The `adblock` and `webspace_adblock`
-      // crates themselves flow through the transitive enumeration
-      // with canonical SPDX text from the `license` crate.
-      ['uBlock Origin web-accessible resources (redirect bodies)'],
-      'assets/licenses/ubo_resources.txt'
-    ),
     (['cdnjs (LocalCDN resource data)'], 'assets/licenses/cdnjs.txt'),
     (['OpenStreetMap (map data and tiles)'], 'assets/licenses/openstreetmap.txt'),
     (

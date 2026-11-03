@@ -107,9 +107,8 @@ enum AppPref<T extends Object> {
   // names none. Empty until the user picks one, so no build ships a default
   // engine. Never an archived site's id (ARCH-001).
   webSearchDefaultSite('webSearchDefaultSite', fallback: ''),
-  // CB-013: uBO web_accessible_resources, which back $redirect= rules with
-  // stubs that satisfy the page's expected API. Off makes $redirect= drop
-  // the request instead, which breaks some sites.
+  // CB-010: the stubs $redirect= rules are served (an empty script, a
+  // transparent image). Off makes $redirect= drop the request instead.
   useUboResources('useUboResources', fallback: true),
   // UI language as a locale tag ('de', 'pt_BR', 'zh_Hant'); empty follows
   // the system locale.

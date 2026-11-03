@@ -30,17 +30,6 @@ adblock = { version = "0.13.3", default-features = false, features = [
   # CB-020. WebKit reports no rule match back, so blocking stats stay
   # with the page's interceptor.
   "content-blocking",
-  # uBO resource format parsers. Exposes `lists::ResourceAssembler`
-  # and the runtime side of `engine.use_resources(...)` — required
-  # for $redirect= rule serving (noop.js, etc.) and #$# snippet
-  # injection. Enabling the parser is zero-cost; activating those
-  # rule shapes also requires bundling uBO's resources directory
-  # and wiring redirect serving in the native interceptor +
-  # injected_script in the cosmetic shim. Currently only the
-  # parser side is on; the resource pool is empty so $redirect=
-  # rules silently become drop-the-request and #$# becomes a
-  # no-op. Same observable behaviour as before the feature flag.
-  "resource-assembler",
   # Pulls in `cssparser` + `selectors` so the crate validates the CSS
   # half of procedural rules at parse time instead of silently
   # dropping them. Without this flag adblock-rust 0.13 fails to
@@ -53,17 +42,10 @@ adblock = { version = "0.13.3", default-features = false, features = [
   "css-validation",
 ] }
 serde_json = "1"
+# A redirect stub's body, as `Resource::content` carries it.
+base64 = "0.22"
 
-# Build-time only: we use the adblock crate's resource_assembler to
-# parse a downloaded uBO tarball into a serializable Vec<Resource>,
-# then embed the result via include_str!. The runtime engine
-# dependency above does NOT enable resource-assembler (no need at
-# runtime — we already have the JSON baked in).
 [build-dependencies]
-adblock = { version = "0.13.3", default-features = false, features = [
-  "embedded-domain-resolver",
-  "resource-assembler",
-] }
 serde_json = "1"
 # SPDX 3.x license dataset. `License::text()` returns the canonical
 # upstream-published text — sourced from the SPDX license-list-data

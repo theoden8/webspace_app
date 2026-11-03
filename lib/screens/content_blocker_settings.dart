@@ -390,11 +390,10 @@ class _ContentBlockerSettingsScreenState
               ],
             ),
           ),
-          // uBO resources toggle. When off, $redirect= rules become
+          // Redirect stubs toggle. When off, $redirect= rules become
           // plain blocks (drop the request) instead of returning a stub
-          // body. Some ad/tracker sites detect the missing API surface
-          // and break (white page, infinite spinner), so default on.
-          // Greyed out on platforms that don't ship the engine library.
+          // body. Greyed out on platforms that don't ship the engine
+          // library.
           SettingTile(
             title: loc.appSettingsUboRedirectStubs,
             hint: loc.appSettingsUboRedirectStubsSubtitle,
