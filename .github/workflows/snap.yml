@@ -19,6 +19,8 @@ on:
       - 'v*'
     paths:
       - .github/workflows/snap.yml
+      - tool/check_bundle_licences.js
+      - openspec/specs/legal/**
       - snap/**
       - scripts/check_snap.sh
       - tool/check_source_offer.js
@@ -28,6 +30,8 @@ on:
   pull_request:
     paths:
       - .github/workflows/snap.yml
+      - tool/check_bundle_licences.js
+      - openspec/specs/legal/**
       - snap/**
       - scripts/check_snap.sh
       - tool/check_source_offer.js
@@ -102,6 +106,15 @@ jobs:
         with:
           path: /var/cache/webspace-snap-ccache
           key: snap-ccache-${{ matrix.arch }}-${{ hashFiles('snap/snapcraft.yaml') }}-${{ github.sha }}
+
+      # LICENSE-001 over what the snap carries, read from the snap itself:
+      # every copyright file in it, and no GNU notice outside its notices.
+      - name: Check the snap's licences
+        run: |
+          command -v unsquashfs >/dev/null || sudo apt-get install -y --no-install-recommends squashfs-tools
+          unsquashfs -q -d snap-root ./*.snap
+          node tool/check_bundle_licences.js snap-root
+          sudo rm -rf snap-root
 
       # The runtimes' own store declarations let any snap's content plugs
       # connect to them, so even a snap installed from a file connects by

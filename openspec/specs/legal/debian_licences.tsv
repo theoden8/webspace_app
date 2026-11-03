@@ -1,0 +1,46 @@
+# The licence names a Debian copyright file (DEP-5) writes, and the SPDX id
+# each stands for in licences.tsv (LICENSE-001); tool/check_bundle_licences.js
+# reads the copyright files a Linux package carries through it. A name not
+# listed fails. Columns: the name, its SPDX id, and for a row only one
+# package's file may use, that package, the exact Files: of the stanzas it
+# covers (empty: any of that package's), and why. A row with files covers a
+# stanza only when it lists every file of it, so a licence that also names a
+# file of the library falls back to the generic row.
+Apache-2.0	Apache-2.0
+BSD-2-clause	BSD-2-Clause
+BSD-2-Clause	BSD-2-Clause
+BSD-2-Clause-Patent	BSD-2-Clause-Patent
+BSD-3-clause	BSD-3-Clause
+BSD-3-Clause	BSD-3-Clause
+BSD-3-Clause-Clear	BSD-3-Clause-Clear
+BSL-1.0	BSL-1.0
+CC0-1.0	CC0-1.0
+Expat	MIT
+MIT	MIT
+ISC	ISC
+NTP	NTP
+Zlib	Zlib
+zlib	Zlib
+public-domain	LicenseRef-public-domain
+LGPL-2	LGPL-2.0-only
+LGPL-2+	LGPL-2.0-or-later
+LGPL-2.1	LGPL-2.1-only
+LGPL-2.1+	LGPL-2.1-or-later
+LGPL-3	LGPL-3.0-only
+LGPL-3+	LGPL-3.0-or-later
+GPL-2	GPL-2.0-only
+GPL-2+	GPL-2.0-or-later
+GPL-3	GPL-3.0-only
+GPL-3+	GPL-3.0-or-later
+custom-1	IJG	libavif16		apps/shared/iccjpeg, IJG's terms, a tool's file
+BSD-BY-LC-NE	IJG	libjpeg-turbo8		the files Debian reads as "assuming main license", the IJG's
+public-domain-md5	LicenseRef-public-domain	libaom3		Colin Plumb's MD5, placed in the public domain
+FSFULLR	LicenseRef-build-only	libevent-2.1-7t64	m4/ltoptions.m4 m4/ltsugar.m4 m4/lt~obsolete.m4	libtool's macros, which build the library and are not in it
+FSFULLR-No-Warranty	LicenseRef-build-only	libevent-2.1-7t64	Makefile.in aclocal.m4 m4/ltversion.m4	generated build files
+FSFUL	LicenseRef-build-only	libevent-2.1-7t64	configure	the generated configure script
+BSL	LicenseRef-build-only	libevent-2.1-7t64	cmake/CodeCoverage.cmake	a build script
+curl	LicenseRef-build-only	libevent-2.1-7t64	sample/hostcheck.c	a sample program
+GPL-2+	LicenseRef-build-only	libevent-2.1-7t64	m4/libtool.m4	libtool's macros
+GPL-3+	LicenseRef-build-only	libevent-2.1-7t64	m4/acx_pthread.m4	an autoconf macro
+Artistic	LicenseRef-build-only	libssl3t64	external/perl/Text-Template-1.56/*	a Perl module OpenSSL's build runs
+GPL-1+	LicenseRef-build-only	libssl3t64	external/perl/Text-Template-1.56/*	a Perl module OpenSSL's build runs
