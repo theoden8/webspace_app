@@ -8,6 +8,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+mod licence_policy;
+
 use serde_json::{json, Value};
 
 fn main() {
@@ -70,49 +72,35 @@ fn license_texts_for_expression(expression: &str) -> Vec<Value> {
 /// vendoring any license text.
 ///
 /// `cargo metadata` parses Cargo.lock + Cargo.toml; it never compiles.
-/// Failure path: cargo not on PATH (theoretically impossible — we
-/// were just invoked by cargo) → write `[]`, app shows no deps.
+/// A crate whose licence licence_policy.rs refuses fails the build, and
+/// so does a metadata run that fails, since nothing is then checked.
 fn write_dep_licenses(out_dir: &Path) {
+    println!("cargo:rerun-if-changed=Cargo.toml");
+    println!("cargo:rerun-if-changed=Cargo.lock");
+    let policy = licence_policy::Policy::checked();
     let out_path = out_dir.join("dep_licenses.json");
     let metadata = match Command::new(env::var("CARGO").unwrap_or_else(|_| "cargo".into()))
         .args(["metadata", "--format-version", "1", "--all-features"])
         .output()
     {
         Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).into_owned(),
-        Ok(o) => {
-            println!(
-                "cargo:warning=cargo metadata exit {}: {}",
-                o.status,
-                String::from_utf8_lossy(&o.stderr).trim()
-            );
-            fs::write(&out_path, b"[]").expect("write empty dep_licenses");
-            return;
-        }
-        Err(e) => {
-            println!("cargo:warning=cargo metadata failed: {}", e);
-            fs::write(&out_path, b"[]").expect("write empty dep_licenses");
-            return;
-        }
+        Ok(o) => panic!(
+            "cargo metadata exit {}, so the crates' licences cannot be read: {}",
+            o.status,
+            String::from_utf8_lossy(&o.stderr).trim()
+        ),
+        Err(e) => panic!("cargo metadata failed, so the crates' licences cannot be read: {e}"),
     };
 
-    let parsed: Value = match serde_json::from_str(&metadata) {
-        Ok(v) => v,
-        Err(e) => {
-            println!("cargo:warning=cargo metadata parse failed: {}", e);
-            fs::write(&out_path, b"[]").expect("write empty dep_licenses");
-            return;
-        }
-    };
-
-    let packages = match parsed.get("packages").and_then(|v| v.as_array()) {
-        Some(p) => p,
-        None => {
-            fs::write(&out_path, b"[]").expect("write empty dep_licenses");
-            return;
-        }
-    };
+    let parsed: Value = serde_json::from_str(&metadata)
+        .unwrap_or_else(|e| panic!("cargo metadata printed no JSON: {e}"));
+    let packages = parsed
+        .get("packages")
+        .and_then(|v| v.as_array())
+        .expect("cargo metadata lists no packages");
 
     let mut out = Vec::new();
+    let mut refused = Vec::new();
     for pkg in packages {
         let name = pkg.get("name").and_then(|v| v.as_str()).unwrap_or("");
         // Skip the wrapper crate itself — it has no upstream
@@ -125,7 +113,11 @@ fn write_dep_licenses(out_dir: &Path) {
         let license_expr = pkg
             .get("license")
             .and_then(|v| v.as_str())
-            .unwrap_or("<unspecified>");
+            .unwrap_or("");
+        let version = pkg.get("version").and_then(|v| v.as_str()).unwrap_or("");
+        if !policy.allows(license_expr, licence_policy::Ships::Linked, &format!("crate:{name}")) {
+            refused.push(format!("{name} {version}: {license_expr:?}"));
+        }
         // Resolve the SPDX expression to canonical license texts via
         // the `license` crate (build-dep). One entry per distinct
         // SPDX id named in the expression so dual-licensed crates
@@ -135,7 +127,7 @@ fn write_dep_licenses(out_dir: &Path) {
         let license_texts = license_texts_for_expression(license_expr);
         out.push(json!({
             "name": name,
-            "version": pkg.get("version").and_then(|v| v.as_str()).unwrap_or(""),
+            "version": version,
             "license": license_expr,
             "repository": pkg
                 .get("repository")
@@ -148,6 +140,10 @@ fn write_dep_licenses(out_dir: &Path) {
             "license_texts": license_texts,
         }));
     }
+    assert!(
+        refused.is_empty(),
+        "LICENSE-001: openspec/specs/legal/licences.tsv lets none of these crates link: {refused:?}"
+    );
     // Stable order — sort by name so successive builds with the same
     // Cargo.lock produce byte-identical output (deterministic .so).
     out.sort_by(|a, b| {
