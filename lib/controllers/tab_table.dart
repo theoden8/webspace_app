@@ -35,13 +35,14 @@ abstract final class TabTable {
     of: (w) => w._c.routingOpeners,
   );
 
-  /// The opener a child tab not listed yet names, read as [_opener] reads a
-  /// listed one's (`opener`, LIR-034).
-  static final _childOpeners = Port<WebViewModel? Function(SiteTab tab), TabFlow>(
+  /// The opener a child tab's press named, the flow's own payload
+  /// ([TabFlow.namedOpener]): no variable of the model, which picks any
+  /// listed site for it (LIR-034).
+  static final _childOpeners = Port<WebViewModel? Function(TabState flow), TabFlow>(
     'childOpeners',
-    reads: {ModelVar.opener},
+    reads: const {},
     changes: const {},
-    of: (w) => w._c._openerOf,
+    of: (w) => w._c._namedOpener,
   );
 
   /// What a child tab not listed yet follows, read as [_link] reads a
@@ -553,8 +554,8 @@ abstract final class TabTable {
     Expr.op(
       HandPaired.childOpeners,
       tla: r'{0} \cup Listed',
-      run: (c) => [_childOpeners.from(c)(_flow.from(c).fresh!)],
-      reads: const Reads(vars: {ModelVar.opener}, base: {BaseOp.listed}),
+      run: (c) => [_childOpeners.from(c)(_flow.from(c))],
+      reads: const Reads(base: {BaseOp.listed}),
     ),
     name: 'op',
   );

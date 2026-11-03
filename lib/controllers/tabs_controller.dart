@@ -341,6 +341,16 @@ class TabsController {
   WebViewModel? _openerOf(SiteTab tab) =>
       tab.followsOpener ? _sites.byId(tab.openerSiteId!) : null;
 
+  /// [_openerOf] for the child tab [flow] lands, as its press named it:
+  /// both child inputs set [TabFlow.namedOpener] from what the tab is built
+  /// with.
+  WebViewModel? _namedOpener(TabState flow) {
+    final named = flow.namedOpener;
+    return named != null && flow.fresh?.homeUrl != null
+        ? _sites.byId(named)
+        : null;
+  }
+
   /// The openers of [owner]'s link tabs whose routing switch is on now
   /// (LIR-013, LIR-034).
   List<WebViewModel> routingOpeners(WebViewModel owner) => [
@@ -661,7 +671,9 @@ class TabsController {
       openerSiteId: openerSiteId,
       homeUrl: homeUrl,
     );
-    final c = StepContext(TabFlow(this, site: owner)..fresh = tab);
+    final c = StepContext(TabFlow(this, site: owner)
+      ..fresh = tab
+      ..namedOpener = openerSiteId);
     final next = TabTable.tabInputs.runInput(c, from: TabPlace.childTab);
     if (next == TabPlace.done) return;
     LogTag.tabs.debug('Opened a child tab of "${owner.name}"'
@@ -774,7 +786,9 @@ class TabsController {
     if (!_host.mounted || !_sites.models.contains(model)) return;
     final tab = child();
     if (tab == null) return;
-    final c = StepContext(TabFlow(this, site: model)..fresh = tab);
+    final c = StepContext(TabFlow(this, site: model)
+      ..fresh = tab
+      ..namedOpener = tab.openerSiteId);
     final next = TabTable.tabInputs.runInput(c, from: TabPlace.parkChild);
     await _gate.hold(() => _runTabFlow(c, from: next));
   }
