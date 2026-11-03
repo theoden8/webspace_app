@@ -456,12 +456,13 @@ handler shape matches the other capture bridges; the Dart side ignores it.
 ### Requirement: SHARE-014 — Nested webviews prompt independently
 
 A nested `InAppWebViewScreen` (cross-domain navigation) SHALL forward screen
-sharing requests to the same popup and remember the answer in-memory for that
-screen's lifetime only, mirroring the camera and microphone pattern. Nested
-screens have no persisted model. A screen starts from the opening site's
-nested posture: a `real` mode answered a popup naming the opening site, so it
-is back to `ask` one hop out (SEC-007), and `virtual` and `block` are
-inherited. A share a nested screen starts is its own webview's: the site's
+sharing requests to the same popup and remember each answer in memory, for
+the origin that gave it, for that screen's lifetime only, mirroring the camera
+and microphone pattern (PERM-001). Nested screens have no persisted model. A
+screen starts from the opening site's nested posture: a `real` mode answered a
+popup naming the opening site, so it is back to `ask` one hop out (SEC-007),
+`block` is inherited, and a page the site does not own is asked rather than
+served the site's `virtual` surface. A share a nested screen starts is its own webview's: the site's
 own page cannot read it.
 
 A popup window a site's page opens (a captcha or sign-in popup) and a foreign

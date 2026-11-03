@@ -11,6 +11,7 @@ library;
 import 'package:meta/meta.dart';
 import 'package:webspace/services/container_names.dart';
 import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
+import 'package:webspace/services/site_origins.dart';
 import 'package:webspace/services/web_extension_attach_engine.dart';
 import 'package:webspace/settings/site_ids.dart';
 
@@ -85,6 +86,7 @@ typedef SitePage = ({
 final class SitePosture {
   const SitePosture({
     required this.siteId,
+    required this.origins,
     required this.container,
     required this.blocking,
     required this.fingerprint,
@@ -94,6 +96,10 @@ final class SitePosture {
   });
 
   final SiteId siteId;
+
+  /// The documents the grants and settings below answer for; any other
+  /// document a surface of the site shows is asked for itself (PERM-001).
+  final SiteOrigins origins;
   final SiteContainer container;
   final SiteBlocking blocking;
   final SiteFingerprint fingerprint;
@@ -107,6 +113,7 @@ final class SitePosture {
   /// (CAM-005 / MIC-005, SEC-007). Every other decision is inherited.
   SitePosture forNested() => SitePosture(
     siteId: siteId,
+    origins: origins,
     container: container,
     blocking: blocking,
     fingerprint: fingerprint,

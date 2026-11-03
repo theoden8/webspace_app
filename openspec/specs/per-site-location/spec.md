@@ -646,6 +646,22 @@ The location shim is injected `forMainFrameOnly: false` (LOC-007) so a page's ow
 **When** the top document, or a same-origin iframe, calls `getCurrentPosition`
 **Then** the snapped device fix is returned as before
 
+### Requirement: LOC-012 - A page the site does not own gets no live fix
+
+A site's `live` mode SHALL serve only the documents the site owns (PERM-001):
+a top document whose origin is not the site's (a page a link reached in a
+nested screen, a tab that runs as the site, a popup), and every frame inside
+one, SHALL get `permission_denied` from `getRealLocation`, and the device's
+location service SHALL not be consulted. Gated by
+`test/js/page_bridge_authority.test.js`.
+
+#### Scenario: A linked page in a nested screen asks for the device fix
+
+**Given** site "Acme" has `locationMode = live`
+**When** a link on Acme opens a page of another domain in a nested screen, and that page calls `getCurrentPosition`
+**Then** the error callback receives `PERMISSION_DENIED`
+**And** the device's location service is not consulted
+
 ---
 
 ### Requirement: LOC-005 - Persistence and backup

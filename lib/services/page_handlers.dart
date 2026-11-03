@@ -20,6 +20,7 @@ import 'package:webspace/services/file_dialog.dart' show FileDialogFailure;
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_grant_engine.dart';
+import 'package:webspace/services/site_origins.dart';
 import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/user_script_service.dart';
@@ -41,35 +42,57 @@ typedef PageSide = ({
 /// The JavaScript handlers a site page calls into: notifications, capture,
 /// passkeys, media session, downloads and the rest of the page bridge.
 abstract final class PageHandlers {
-  /// The origin a camera / microphone prompt names.
+  /// Who is asking: the calling frame's origin, as every grant key and popup
+  /// names it, and where it stands toward the site.
   ///
   /// Never the shim's argument: the shims are injected
   /// `forMainFrameOnly: false`, so any frame can call the handler directly and
-  /// would otherwise get to choose which site the dialog accuses. The top
-  /// document's origin comes from the webview; a subframe's comes from the
-  /// plugin's bridge preamble, which computes it behind the bridge secret and
-  /// so is no more forgeable than `isMainFrame` (CAM-014 / MIC-016).
-  static Future<String> promptOrigin(
+  /// would otherwise get to choose which site the dialog accuses. A frame's
+  /// origin comes from the plugin's bridge preamble, which computes it behind
+  /// the bridge secret and so is no more forgeable than `isMainFrame`
+  /// (CAM-014 / MIC-016); the main frame's is the calling document's own, not
+  /// whatever the webview has navigated to since. The top document is read
+  /// from the webview for a subframe.
+  static Future<Requester> requesterOf(
     inapp.InAppWebViewController controller, {
     required WebViewConfig config,
-    inapp.JavaScriptHandlerFunctionData? frame,
+    required inapp.JavaScriptHandlerFunctionData frame,
   }) async {
-    if (frame != null && !frame.isMainFrame) return frame.origin.toString();
-    return (await controller.getUrl())?.toString() ?? config.initialUrl;
+    final origin = originOf(frame.origin.toString());
+    return _stand(
+      origin,
+      top: frame.isMainFrame ? origin : await _top(controller, config: config),
+      config: config,
+    );
   }
 
-  /// Whether a native permission request came from the top document.
-  ///
-  /// The platform hands `onPermissionRequest` the requesting frame's origin
-  /// but not its frame identity, so compare it with the document the webview
-  /// is actually showing. Anything that does not match is a subframe and does
-  /// not inherit a settled device grant (CAM-014 / MIC-016).
-  static bool sameOrigin(String a, {required String b}) {
-    final ua = Uri.tryParse(a);
-    final ub = Uri.tryParse(b);
-    if (ua == null || ub == null) return false;
-    return ua.scheme == ub.scheme && ua.host == ub.host && ua.port == ub.port;
-  }
+  /// [requesterOf] for a platform request, which names the requesting
+  /// frame's [origin] but not the frame: a request of the top document's
+  /// origin is taken as the top document's.
+  static Future<Requester> requesterAt(
+    inapp.InAppWebViewController controller, {
+    required WebViewConfig config,
+    required String origin,
+  }) async => _stand(
+    originOf(origin),
+    top: await _top(controller, config: config),
+    config: config,
+  );
+
+  static Future<String> _top(
+    inapp.InAppWebViewController controller, {
+    required WebViewConfig config,
+  }) async =>
+      originOf((await controller.getUrl())?.toString() ?? config.initialUrl);
+
+  static Requester _stand(
+    String origin, {
+    required String top,
+    required WebViewConfig config,
+  }) => (
+    origin: origin,
+    standing: config.posture.origins.standing(top: top, frame: origin),
+  );
 
   /// Register the Dart side of every shim [PageScripts.buildPageScripts] installs.
   /// The two go together: a shim whose handler is missing leaves the
@@ -108,13 +131,12 @@ abstract final class PageHandlers {
           // The shim reaches every frame, so a cross-origin iframe can call
           // this directly and skip the engine's Permissions-Policy check.
           // Serve it what an undelegated iframe sees in a browser (LOC-011);
-          // a same-origin frame keeps the default 'self' allowlist.
-          if (!data.isMainFrame) {
-            final top =
-                (await controller.getUrl())?.toString() ?? config.initialUrl;
-            if (!sameOrigin(data.origin.toString(), b: top)) {
-              return {'status': 'permission_denied', 'message': 'subframe'};
-            }
+          // a same-origin frame keeps the default 'self' allowlist. A page
+          // the site does not own (one a link reached in a nested screen or
+          // a tab) is never served the site's live location (PERM-001).
+          final from = await requesterOf(controller, config: config, frame: data);
+          if (from.standing != Standing.own) {
+            return {'status': 'permission_denied', 'message': from.standing.name};
           }
           final res = await CurrentLocationService.getCurrentLocation(
             accuracy: requestAccuracy,
@@ -161,11 +183,12 @@ abstract final class PageHandlers {
             if (kind.frames == ShimFrames.top && !data.isMainFrame) {
               return const {'mode': 'block'};
             }
+            final from =
+                await requesterOf(controller, config: config, frame: data);
             final grant = await grants.capture(
               kind,
-              origin:
-                  await promptOrigin(controller, config: config, frame: data),
-              isTopFrame: data.isMainFrame,
+              origin: from.origin,
+              standing: from.standing,
             );
             return grant.toBridgeJson();
           },
@@ -173,7 +196,11 @@ abstract final class PageHandlers {
         if (kind.publishedDevice case final device?) {
           controller.addJavaScriptHandler(
             handlerName: device.modeHandler,
-            callback: (args) => grants.mode(kind).name,
+            callback: (inapp.JavaScriptHandlerFunctionData data) async {
+              final from =
+                  await requesterOf(controller, config: config, frame: data);
+              return grants.mode(kind, standing: from.standing).name;
+            },
           );
         }
       }
@@ -200,15 +227,16 @@ abstract final class PageHandlers {
           if (!data.isMainFrame || !CaptureKind.screenShare.realOffered) {
             return null;
           }
-          final origin = await promptOrigin(controller, config: config);
+          final from =
+              await requesterOf(controller, config: config, frame: data);
           final grant = await grants.capture(CaptureKind.screenShare,
-              origin: origin, isTopFrame: true);
+              origin: from.origin, standing: from.standing);
           if (grant.mode != ScreenShareMode.real) return null;
           final size = await ScreenShare.instance.start(
             owner,
             request: shareRequestFromPage(data.args.firstOrNull),
-            notice:
-                grants.prompter.shareNotice(Uri.tryParse(origin)?.host ?? origin),
+            notice: grants.prompter
+                .shareNotice(Uri.tryParse(from.origin)?.host ?? from.origin),
           );
           if (size == null) return null;
           if (!grants.isSiteActive()) {
@@ -445,15 +473,13 @@ abstract final class PageHandlers {
         handlerName: 'webNotification',
         // The polyfill is in every frame. A cross-origin iframe posting
         // under the site's identity is dropped here, on the frame identity
-        // the plugin supplies, not on anything the page says (NOTIF-010).
+        // the plugin supplies, not on anything the page says (NOTIF-010), and
+        // so is a page the site does not own (PERM-001).
         callback: (inapp.JavaScriptHandlerFunctionData call) async {
           final args = call.args;
           if (args.isEmpty || args[0] is! Map) return null;
-          if (!call.isMainFrame) {
-            final top =
-                (await controller.getUrl())?.toString() ?? config.initialUrl;
-            if (!sameOrigin(call.origin.toString(), b: top)) return null;
-          }
+          final from = await requesterOf(controller, config: config, frame: call);
+          if (from.standing != Standing.own) return null;
           final data = Map<String, dynamic>.from(args[0] as Map);
           final title = data['title'] as String? ?? '';
           final body = data['body'] as String? ?? '';
@@ -505,8 +531,12 @@ abstract final class PageHandlers {
     }
     controller.addJavaScriptHandler(
       handlerName: 'webNotificationRequestPermission',
-      callback: (args) {
-        final result = config.posture.page.notifications ? 'granted' : 'denied';
+      callback: (inapp.JavaScriptHandlerFunctionData call) async {
+        final from = await requesterOf(controller, config: config, frame: call);
+        final result =
+            config.posture.page.notifications && from.standing == Standing.own
+            ? 'granted'
+            : 'denied';
         LogTag.notification.debug(
             'requestPermission handler called, returning: $result');
         return result;

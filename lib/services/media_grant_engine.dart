@@ -9,6 +9,7 @@
 /// `cookie_isolation.dart`.
 library;
 
+import 'package:webspace/services/site_origins.dart';
 import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/site_permission_state.dart';
@@ -75,8 +76,19 @@ sealed class GrantStore {
 
   static const Duration _subframeGrace = Duration(seconds: 30);
 
+  /// What a document the site does not own was answered, kept for that
+  /// origin while this surface lives and never written to the site
+  /// (PERM-001): a page a link reached is asked once for itself, and the
+  /// next origin it navigates to is asked again.
+  final _foreign = <(CaptureKind, String), CaptureGrant>{};
+
   /// A page fires several `PROTECTED_MEDIA_ID` requests while EME starts.
   final _protectedContentInFlight = SingleFlight<(), bool>();
+
+  /// [_protectedContentInFlight] and [_foreign] for a document the site does
+  /// not own, by its origin.
+  final _foreignProtectedInFlight = SingleFlight<String, bool>();
+  final _foreignProtected = <String, bool>{};
 
   SiteMedia get media;
 
@@ -87,39 +99,59 @@ sealed class GrantStore {
   Future<void> _save();
 
   /// The site's [kind] mode, never prompting: what `enumerateDevices` reads.
-  CaptureMode mode(CaptureKind kind) => kind.grantOf(media.capture).mode;
+  /// A document the site does not own reads what it would be asked from:
+  /// the site's block, else ask (PERM-001).
+  CaptureMode mode(CaptureKind kind, {required Standing standing}) {
+    final mode = kind.grantOf(media.capture).mode;
+    return standing == Standing.foreign &&
+            mode.state != SitePermissionState.blocked
+        ? kind.ask
+        : mode;
+  }
 
-  /// Resolves a [kind] request from [origin].
+  /// Resolves a [kind] request from [origin], which stands toward the site
+  /// as [standing] says.
   ///
-  /// [isTopFrame]: a `real` grant answered a popup naming the top document,
-  /// so a subframe does not inherit it and is asked under its own origin,
-  /// and a subframe's answer is never written back to the site (CAM-014 /
-  /// MIC-016). The device-free answers are inherited as they are.
+  /// Only [Standing.own] answers for the site: a remembered `real` serves it
+  /// and its answer is saved. An embedded frame takes the site's device-free
+  /// answers, is asked for a device under its own origin, and its answer is
+  /// never written back (CAM-014 / MIC-016). A foreign document is asked for
+  /// itself for anything the site did not block, its popup showing none of
+  /// the site's settings, and gets none of the site's files (PERM-001).
   Future<CaptureGrant> capture(
     CaptureKind kind, {
     required String origin,
-    required bool isTopFrame,
+    required Standing standing,
   }) async {
     if (!isSiteActive()) return (mode: kind.block, source: null);
     final current = kind.grantOf(media.capture);
-    final settled = _settled(current, isTopFrame: isTopFrame);
+    final settled = _settled(current, standing: standing);
     if (settled != null) return settled;
     final key = (kind, origin);
-    if (!isTopFrame) {
-      final recent = _takeRecentSubframe(key);
-      if (recent != null) return recent;
-    }
+    final kept = switch (standing) {
+      Standing.own => null,
+      Standing.embedded => _takeRecentSubframe(key),
+      Standing.foreign => _foreign[key],
+    };
+    if (kept != null) return kept;
     return _inFlight.run(key, call: () async {
-      final answer =
-          await prompter.capture(kind, origin: origin, current: current.mode);
-      if (isTopFrame) {
-        _recordCaptures((stored) => kind.withGrant(stored, grant: (
-          mode: answer.mode,
-          source: answer.source ?? kind.grantOf(stored).source,
-        )));
-        await _save();
-      } else {
-        _recentSubframe[key] = (DateTime.now(), answer);
+      final answer = await prompter.capture(
+        kind,
+        origin: origin,
+        current: standing == Standing.foreign ? kind.ask : current.mode,
+      );
+      switch (standing) {
+        case Standing.own:
+          _recordCaptures((stored) => kind.withGrant(stored, grant: (
+            mode: answer.mode,
+            source: answer.source ?? kind.grantOf(stored).source,
+          )));
+          await _save();
+        case Standing.embedded:
+          _recentSubframe[key] = (DateTime.now(), answer);
+        case Standing.foreign:
+          _foreign[key] = answer;
+          return answer;
       }
       // A cancelled pick falls back to the file already on record rather
       // than serving nothing.
@@ -133,12 +165,13 @@ sealed class GrantStore {
   /// The answer that needs no popup, or null when the user must be asked.
   static CaptureGrant? _settled(
     CaptureGrant grant, {
-    required bool isTopFrame,
+    required Standing standing,
   }) => switch (grant.mode.state) {
     SitePermissionState.blocked => (mode: grant.mode, source: null),
     SitePermissionState.allowed =>
-      isTopFrame ? (mode: grant.mode, source: null) : null,
-    SitePermissionState.simulated => grant.source == null ? null : grant,
+      standing == Standing.own ? (mode: grant.mode, source: null) : null,
+    SitePermissionState.simulated =>
+      standing == Standing.foreign || grant.source == null ? null : grant,
     SitePermissionState.ask => null,
   };
 
@@ -151,9 +184,22 @@ sealed class GrantStore {
     return _recentSubframe[key]?.$2;
   }
 
-  /// Resolves a protected-content request: the remembered answer, or one
-  /// popup for the burst.
-  Future<bool> protectedContent(String origin) async {
+  /// Resolves a protected-content request from [origin]: the remembered
+  /// answer, or one popup for the burst. A document the site does not own
+  /// is asked for itself and its answer stays with its origin (PERM-001).
+  Future<bool> protectedContent(
+    String origin, {
+    required Standing standing,
+  }) async {
+    if (standing == Standing.foreign) {
+      final kept = _foreignProtected[origin];
+      if (kept != null) return kept;
+      return _foreignProtectedInFlight.run(origin, call: () async {
+        final granted = await prompter.protectedContent(origin);
+        _foreignProtected[origin] = granted;
+        return granted;
+      });
+    }
     final remembered = media.protectedContent;
     if (remembered != null) return remembered;
     return _protectedContentInFlight.run((), call: () async {

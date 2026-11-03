@@ -139,19 +139,22 @@ the request through to the platform untouched
 ### Requirement: CAM-005 — Nested webviews prompt independently
 
 A nested `InAppWebViewScreen` (cross-domain navigation) SHALL forward
-camera requests to the same popup and remember the answer in-memory for
-that screen's lifetime only, mirroring the protected-content pattern.
-Nested screens have no persisted model. A screen starts from the opening
-site's nested posture, where a device grant (`real`) is back to `ask`, so
-the parent's grant of the device does not follow the origin change;
-`block` and `virtual` are inherited as they are.
+camera requests to the same popup and remember each answer in memory, for
+the origin that gave it, for that screen's lifetime only, mirroring the
+protected-content pattern (PERM-001). Nested screens have no persisted
+model. A screen starts from the opening site's nested posture, where a
+device grant (`real`) is back to `ask`, so the parent's grant of the device
+does not follow the origin change; `block` is inherited as it is, and a
+page the site does not own is asked rather than served the site's
+`virtual` file.
 
 #### Scenario: Outbound link to a camera page
 
 **Given** a site whose outbound link opens a nested webview on another domain
 **When** the nested page requests the camera
 **Then** the Allow/Block popup is shown
-**And** the answer is reused for further requests within that nested screen
+**And** the answer is reused for further requests from that origin within that nested screen
+**And** a page of another origin the screen navigates to is asked for itself
 **And** nothing is persisted
 
 #### Scenario: The parent's device grant does not follow the link
@@ -577,6 +580,50 @@ Gated by `test/js/page_bridge_authority.test.js` and
 **Given** site "Acme" is set to `virtual` with a picked image
 **When** a cross-origin frame calls `getUserMedia({video: true})`
 **Then** it is served the picked image with no popup
+
+### Requirement: PERM-001 — A grant answers for the origin that gave it
+
+A site's capture grants and protected-content answer SHALL serve only the
+documents the site owns: a top document whose scheme is the site
+address's and whose host one of the site's domain claims covers (LIR-001,
+`SiteOrigins`, the reading that keeps a link in the site's webview).
+Every surface that runs as the site applies it: the site's own webview,
+a nested screen, a popup and a tab that runs as the site (LIR-034). The
+requesting frame's origin SHALL come from the platform (the plugin's
+bridge preamble, or the permission request), never from the page, and a
+main-frame request SHALL be judged by the document that made it, not by
+whatever the webview has navigated to since. A document the site does not
+own, and any frame inside one:
+
+- does not settle from the site's `real` grant or its `virtual` file, and
+  sees `ask` as the published mode;
+- is asked under its own origin, the popup showing none of the site's
+  settings;
+- keeps its answer for that origin for the surface's lifetime, never
+  written to the site, so the next origin it navigates to is asked again.
+
+A site's `block` holds for every document its surfaces show. A frame of
+another origin inside the site's own document keeps CAM-014 / MIC-016.
+
+#### Scenario: A page a link reached does not use the site's camera
+
+**Given** site "Acme" is set to `real` for the camera
+**When** a page of another domain, opened from Acme in a nested screen or a tab that runs as Acme, requests the camera
+**Then** the popup names that page's origin
+**And** an Allow there serves that origin only, on that surface
+**And** Acme's own grant is unchanged
+
+#### Scenario: The next origin is asked again
+
+**Given** a nested screen where the user allowed the camera for `https://a.example`
+**When** the screen navigates to `https://b.example` and that page requests the camera
+**Then** the user is asked again, under `https://b.example`
+
+#### Scenario: Protected content
+
+**Given** Acme remembers an answer for protected content
+**When** a page Acme does not own asks for `PROTECTED_MEDIA_ID`
+**Then** the user is asked for that page's origin, and Acme's answer is unchanged
 
 ## Platform notes
 
