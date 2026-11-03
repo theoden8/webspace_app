@@ -8,6 +8,7 @@ import 'package:webspace/services/site_overrides.dart';
 import 'package:webspace/services/virtual_media_picker.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/location.dart';
+import 'package:webspace/settings/origin_choices.dart';
 import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
@@ -29,6 +30,7 @@ class SitePermissionValues {
   const SitePermissionValues({
     required this.archived,
     required this.captures,
+    required this.originChoices,
     required this.notificationsEnabled,
     required this.backgroundAudioEnabled,
     required this.protectedContentAllowed,
@@ -43,6 +45,10 @@ class SitePermissionValues {
   /// for every capability ARCH-006 folds.
   final bool archived;
   final CaptureGrants captures;
+
+  /// What other origins inside the site were answered, which each sheet
+  /// lists under its capability (PERM-002).
+  final OriginChoices originChoices;
   final bool notificationsEnabled;
   final bool backgroundAudioEnabled;
   final bool? protectedContentAllowed;
@@ -62,8 +68,11 @@ class SitePermissionValues {
   final String? spoofTimezone;
   final bool spoofTimezoneFromLocation;
 
+  /// A change of a capability's own mode to Block or Ask forgets what other
+  /// origins were answered for it ([OriginChoices.afterModeChange]).
   SitePermissionValues copyWith({
     CaptureGrants? captures,
+    OriginChoices? originChoices,
     bool? notificationsEnabled,
     bool? backgroundAudioEnabled,
     bool? protectedContentAllowed,
@@ -74,10 +83,11 @@ class SitePermissionValues {
     String? spoofTimezone,
     bool clearSpoofTimezone = false,
     bool? spoofTimezoneFromLocation,
-  }) =>
-      SitePermissionValues(
+  }) {
+    final next = SitePermissionValues(
         archived: archived,
         captures: captures ?? this.captures,
+        originChoices: originChoices ?? this.originChoices,
         notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
         backgroundAudioEnabled:
             backgroundAudioEnabled ?? this.backgroundAudioEnabled,
@@ -93,6 +103,31 @@ class SitePermissionValues {
         spoofTimezoneFromLocation:
             spoofTimezoneFromLocation ?? this.spoofTimezoneFromLocation,
       );
+    final followed = SitePermission.values.fold(
+      next.originChoices,
+      (choices, p) =>
+          choices.afterModeChange(p, from: stateOf(p), to: next.stateOf(p)),
+    );
+    return followed == next.originChoices
+        ? next
+        : next.copyWith(originChoices: followed);
+  }
+
+  /// The site's own state for [permission], as it is stored.
+  SitePermissionState stateOf(SitePermission permission) =>
+      switch (permission) {
+        SitePermission.camera => _captureState(CaptureKind.camera),
+        SitePermission.microphone => _captureState(CaptureKind.microphone),
+        SitePermission.screenShare => _captureState(CaptureKind.screenShare),
+        SitePermission.location => locationPermissionState(locationMode),
+        SitePermission.notifications =>
+          notificationPermissionState(enabled: notificationsEnabled),
+        SitePermission.protectedContent =>
+          protectedContentPermissionState(allowed: protectedContentAllowed),
+      };
+
+  SitePermissionState _captureState(CaptureKind kind) =>
+      kind.grantOf(captures).mode.state;
 
   /// What the site runs with, which is what the screen and the settings row
   /// show; the stored values survive underneath for when it leaves the
@@ -113,6 +148,7 @@ class SitePermissionValues {
 /// later means adding a descriptor, not a new idiom.
 class _Capability {
   const _Capability({
+    required this.permission,
     required this.icon,
     required this.title,
     required this.hint,
@@ -123,6 +159,9 @@ class _Capability {
     this.detail,
     this.footer,
   });
+
+  /// What another origin's answer for this capability is kept under.
+  final SitePermission permission;
 
   final IconData icon;
   final String title;
@@ -321,6 +360,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
     final stored = kind.grantOf(_values.captures);
     final state = kind.grantOf(_values.effectiveCaptures).mode.state;
     return _Capability(
+      permission: SitePermission.ofCapture(kind),
       icon: kind.icon(real: opensRealDevice(state)),
       title: text.title,
       hint: text.hint,
@@ -398,6 +438,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
   }
 
   _Capability _location(AppLocalizations loc) => _Capability(
+        permission: SitePermission.location,
         icon: _values.locationMode == LocationMode.live
             ? Icons.my_location
             : Icons.location_on_outlined,
@@ -558,6 +599,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
   }
 
   _Capability _protectedContent(AppLocalizations loc) => _Capability(
+        permission: SitePermission.protectedContent,
         icon: Icons.shield_outlined,
         title: loc.siteSettingsProtectedContent,
         hint: loc.siteSettingsProtectedContentHint,
@@ -606,6 +648,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
     final settingsPath =
         hostIsIOS ? 'Notifications → WebSpace' : 'WebSpace → Notifications';
     return _Capability(
+      permission: SitePermission.notifications,
       icon: Icons.notifications_none,
       title: loc.siteSettingsNotifications,
       hint: loc.siteSettingsNotificationsHint,
@@ -716,6 +759,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
                         padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
                         child: current.footer!(context, setSheetState: setSheetState),
                       ),
+                    ..._otherOrigins(current, setSheetState: setSheetState),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
                       child: Container(
@@ -737,6 +781,48 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
           },
         ),
       );
+
+  /// The other origins answered for [capability], each a row whose tap
+  /// flips its answer and whose button forgets it (PERM-002).
+  List<Widget> _otherOrigins(
+    _Capability capability, {
+    required StateSetter setSheetState,
+  }) {
+    final permission = capability.permission;
+    final listed = _values.originChoices.listed(permission);
+    if (listed.isEmpty) return const [];
+    final loc = AppLocalizations.of(context);
+    void set(OriginChoices choices) {
+      _update(_values.copyWith(originChoices: choices));
+      setSheetState(() {});
+    }
+
+    return [
+      SettingsSection(loc.permissionsOtherOrigins),
+      for (final MapEntry(key: origin, value: allowed) in listed.entries)
+        ListTile(
+          title: Text(origin),
+          onTap: () => set(_values.originChoices
+              .remember(permission, origin: origin, allowed: !allowed)),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SitePermissionChip(
+                state: allowed
+                    ? SitePermissionState.allowed
+                    : SitePermissionState.blocked,
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: loc.permissionsForgetOrigin,
+                onPressed: () => set(_values.originChoices
+                    .forget(permission, origin: origin)),
+              ),
+            ],
+          ),
+        ),
+    ];
+  }
 
   List<_Capability> _capabilities(AppLocalizations loc) => [
         for (final kind in CaptureKind.values) _capture(kind),

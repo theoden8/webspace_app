@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/settings/capture.dart';
+import 'package:webspace/settings/origin_choices.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/setting_labels.dart';
@@ -199,6 +200,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   late bool _backgroundAudioEnabled;
   bool? _protectedContentAllowed;
   CaptureGrants _captures = CaptureGrants.none;
+  OriginChoices _originChoices = OriginChoices.none;
   String? _selectedLanguage;
   late int _zoomPercent;
   late Scoped<WebViewTheme> _theme;
@@ -292,6 +294,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         backgroundAudioEnabled: _backgroundAudioEnabled,
         protectedContentAllowed: _protectedContentAllowed,
         captures: _captures,
+        originChoices: _originChoices,
         selectedLanguage: _selectedLanguage,
         zoomPercent: _zoomPercent,
         theme: _theme,
@@ -461,6 +464,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     _backgroundAudioEnabled = m.backgroundAudioEnabled;
     _protectedContentAllowed = m.protectedContentAllowed;
     _captures = m.captures;
+    _originChoices = m.originChoices;
     _selectedLanguage = m.language;
     _zoomPercent = m.zoomPercent;
     _theme = Scoped.fromStored(m.theme);
@@ -610,6 +614,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     m.backgroundAudioEnabled = _backgroundAudioEnabled;
     m.protectedContentAllowed = _protectedContentAllowed;
     m.captures = _captures;
+    m.originChoices = _originChoices;
     m.language = _selectedLanguage;
     m.zoomPercent = _zoomPercent;
     m.theme = _theme.stored;
@@ -780,6 +785,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   SitePermissionValues get _permissionValues => SitePermissionValues(
         archived: _archived,
         captures: _captures,
+        originChoices: _originChoices,
         notificationsEnabled: _notificationsEnabled,
         backgroundAudioEnabled: _backgroundAudioEnabled,
         protectedContentAllowed: _protectedContentAllowed,
@@ -818,6 +824,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         },
         onChanged: (values) => setState(() {
           _captures = values.captures;
+          _originChoices = values.originChoices;
           _notificationsEnabled = values.notificationsEnabled;
           _backgroundAudioEnabled = values.backgroundAudioEnabled;
           _protectedContentAllowed = values.protectedContentAllowed;

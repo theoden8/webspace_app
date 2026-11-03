@@ -18,6 +18,7 @@ import 'package:webspace/services/dns_level_mask_engine.dart'
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/origin_choices.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart'
     show ProxyLibraryData, resolveLibrary;
@@ -320,6 +321,9 @@ List<HeldScript> sanitizeImportedSites(
     }
     site.notificationsEnabled = false;
     site.backgroundAudioEnabled = false;
+    // No export carries what other origins were answered; a file that does
+    // was written by hand (PERM-002).
+    site.originChoices = OriginChoices.none;
   }
   return [
     for (final g in globalScripts)

@@ -215,7 +215,14 @@ test('NESTED-013: onCreateWindow loads into the top webview only on a gesture', 
 
 // --- web notifications ----------------------------------------------------
 
-test('NOTIF-010 / NOTIF-020: a post from a cross-origin iframe, or a page the site does not own, is dropped', () => {
+/** The body of PageHandlers' static [name], the rule a handler defers to. */
+const rule = (name) => {
+  const at = WEBVIEW.indexOf(`static Future<bool> ${name}(`);
+  assert.notEqual(at, -1, `${name} is gone`);
+  return WEBVIEW.slice(at, WEBVIEW.indexOf(';\n', at));
+};
+
+test('NOTIF-010 / NOTIF-020: a post from a cross-origin iframe, or a page the site does not own, waits for its own answer', () => {
   const at = WEBVIEW.indexOf("handlerName: 'webNotification'");
   assert.notEqual(at, -1, 'webNotification registration is gone');
   const body = WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
@@ -223,16 +230,23 @@ test('NOTIF-010 / NOTIF-020: a post from a cross-origin iframe, or a page the si
     'webNotification must use the frame-aware callback: the polyfill is in '
     + 'every frame and any frame can call the handler directly');
   assert.ok(body.includes('requesterOf(controller, config: config, frame: call)')
-      && body.includes('if (from.standing != Standing.own) return null;'),
+      && body.includes('if (!await _mayNotify(from, grants: grants)) return null;'),
     'webNotification must judge the calling frame, on the identity the plugin '
-    + 'supplies, before posting under the site: only the site\'s own document '
-    + 'and its same-origin frames post (PERM-001)');
+    + 'supplies, before posting under the site: the site\'s own document and '
+    + 'its same-origin frames post, another origin once it was allowed for '
+    + 'itself (PERM-001, PERM-002)');
   const permAt = WEBVIEW.indexOf("handlerName: 'webNotificationRequestPermission'");
   assert.notEqual(permAt, -1, 'webNotificationRequestPermission registration is gone');
   const perm = WEBVIEW.slice(permAt, WEBVIEW.indexOf('addJavaScriptHandler', permAt + 1));
   assert.ok(perm.includes('inapp.JavaScriptHandlerFunctionData call')
-      && perm.includes('from.standing == Standing.own'),
-    'requestPermission must answer granted only to the site\'s own document');
+      && perm.includes('await _mayNotify(from, grants: grants)'),
+    'requestPermission must answer by the same rule as a post');
+  const may = rule('_mayNotify');
+  assert.ok(may.includes('grants?.notifications(')
+      && may.includes('standing: from.standing')
+      && may.includes('Future.value(from.standing == Standing.own)'),
+    'the rule asks the site\'s grant store, which asks another origin for '
+    + 'itself, and where no surface can ask serves the site\'s own documents only');
   assert.ok(!body.includes('args[0][\'siteId\']') && !body.includes("data['siteId']"),
     'the target site is never taken from the page');
 });
@@ -419,10 +433,16 @@ test('LOC-011 / LOC-012: a live fix is served to the site\'s own document only',
   const read = body.indexOf('CurrentLocationService.getCurrentLocation(');
   assert.ok(judged !== -1 && read > judged,
     'getRealLocation must judge the calling frame before reading the device');
-  assert.ok(body.includes('if (from.standing != Standing.own) {'),
-    'only the site\'s own document and its same-origin frames get a fix: a '
-    + 'cross-origin frame (LOC-011) and a page the site does not own '
-    + '(LOC-012) are refused');
+  assert.ok(body.includes('if (!await _mayLocate(from, grants: grants)) {'),
+    'only the site\'s own document and its same-origin frames get a fix '
+    + 'unasked: a cross-origin frame (LOC-011) and a page the site does not '
+    + 'own (LOC-012) get one only once allowed for themselves (PERM-002)');
+  const may = rule('_mayLocate');
+  assert.ok(may.includes('grants?.location(')
+      && may.includes('standing: from.standing')
+      && may.includes('Future.value(from.standing == Standing.own)'),
+    'the rule asks the site\'s grant store, and where no surface can ask '
+    + 'serves the site\'s own documents only');
   assert.ok(body.includes("'status': 'permission_denied'"),
     'a refused frame must see PERMISSION_DENIED, what an undelegated iframe '
     + 'gets in a browser');
@@ -515,19 +535,14 @@ test('CAM-014 / MIC-016: a device grant does not travel to a subframe', () => {
   assert.ok(CAPTURE_BRIDGE.includes('inapp.JavaScriptHandlerFunctionData data'),
     'a capture bridge must use the frame-aware callback: page script can ' +
     'neither forge isMainFrame nor call the handler around it');
-  assert.ok(CAPTURE_BRIDGE.includes('standing: from.standing'),
-    'a capture bridge must hand where the frame stands to the store');
-  const grant = read('lib/services/media_grant_engine.dart');
-  assert.match(grant, /SitePermissionState\.allowed =>\s*standing == Standing\.own \?/,
-    'media_grant_engine.dart: a settled real mode must short-circuit only for ' +
-    'the site\'s own document (PERM-001)');
-  // The answer a subframe popup produced is that request's, not the site's.
-  assert.match(grant, /case Standing\.own:\s*_recordCaptures\(/,
-    'media_grant_engine.dart: a subframe answer must not be written back to ' +
-    'the site — one frame cannot flip the whole site to real');
-  assert.match(grant, /final key = \(kind, origin\);[\s\S]*_inFlight\.run\(key,/,
-    'media_grant_engine.dart: coalescing must be keyed by prompt origin, or a ' +
-    'subframe rides the answer the user gave for the top document');
+  assert.ok(CAPTURE_BRIDGE.includes('origin: from.origin')
+      && CAPTURE_BRIDGE.includes('standing: from.standing'),
+    'a capture bridge must hand the frame\'s origin and where it stands to '
+    + 'the store');
+  // What the store does with them (a real grant short-circuits only for the
+  // site's own document, a frame's answer is its origin's and never the
+  // site's, coalescing per origin) is held by test/media_grant_engine_test.dart
+  // through the store's public type, which catches each as a planted mistake.
 });
 
 test('SHARE-018: the screen share bridge serves the top document only', () => {

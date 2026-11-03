@@ -543,20 +543,19 @@ A settled `real` grant SHALL therefore short-circuit only for the top document;
 a subframe SHALL be asked separately, and its popup SHALL name the frame's own
 origin (computed by the plugin's bridge preamble, so page script can neither
 forge it nor call the handler around it). The answer a subframe popup produced
-SHALL apply to that request only and SHALL NOT be written back to the site's
-stored mode — one frame cannot flip the whole site to `real`. Request
-coalescing SHALL be keyed by prompt origin, so a subframe never rides the
-answer the user gave for the top document.
+SHALL be remembered for that origin only (PERM-002) and SHALL NOT be written
+back to the site's stored mode — one frame cannot flip the whole site to
+`real`. Request coalescing SHALL be keyed by prompt origin, so a subframe never
+rides the answer the user gave for the top document.
 
 The device-free answers are inherited as they are: `block` denies, and
 `virtual` serves the file the user picked, which observes nothing.
 
 Allowing a frame makes the shim call the real `getUserMedia`, and the platform
 permission request that follows reaches the same resolver milliseconds later
-for the same origin. A subframe answer SHALL therefore be held for a short
-grace window, keyed by prompt origin, so that follow-up reuses it rather than
-asking the user the same question twice. The window does not persist anything
-and cannot hand back an answer given for a different frame.
+for the same origin. That follow-up SHALL read the frame's remembered answer
+rather than ask the user the same question twice, and cannot read an answer
+given for a different origin.
 
 Gated by `test/js/page_bridge_authority.test.js` and
 `test/media_grant_engine_test.dart`.
@@ -599,8 +598,8 @@ own, and any frame inside one:
   sees `ask` as the published mode;
 - is asked under its own origin, the popup showing none of the site's
   settings;
-- keeps its answer for that origin for the surface's lifetime, never
-  written to the site, so the next origin it navigates to is asked again.
+- has its answer remembered for that origin (PERM-002), never written to
+  the site, so the next origin it navigates to is asked again.
 
 A site's `block` holds for every document its surfaces show. A frame of
 another origin inside the site's own document keeps CAM-014 / MIC-016.
@@ -610,7 +609,7 @@ another origin inside the site's own document keeps CAM-014 / MIC-016.
 **Given** site "Acme" is set to `real` for the camera
 **When** a page of another domain, opened from Acme in a nested screen or a tab that runs as Acme, requests the camera
 **Then** the popup names that page's origin
-**And** an Allow there serves that origin only, on that surface
+**And** an Allow there serves that origin only
 **And** Acme's own grant is unchanged
 
 #### Scenario: The next origin is asked again
@@ -621,9 +620,60 @@ another origin inside the site's own document keeps CAM-014 / MIC-016.
 
 #### Scenario: Protected content
 
-**Given** Acme remembers an answer for protected content
+**Given** Acme is set to ask for protected content
 **When** a page Acme does not own asks for `PROTECTED_MEDIA_ID`
-**Then** the user is asked for that page's origin, and Acme's answer is unchanged
+**Then** the user is asked for that page's origin, and Acme's own setting is unchanged
+
+### Requirement: PERM-002 — Each origin is asked once, and its answer is kept for it
+
+A document of an origin other than the site's own (PERM-001), whether a frame
+the site's page embedded or a page a link reached, SHALL be asked for itself
+for each capability it requests: the camera, the microphone, screen sharing,
+the device's live location, notifications and protected content. The popup
+SHALL name the asking origin and offer Allow or Block only: a picked file is
+the site's own (the site's `virtual` mode), so another origin is never served
+it, except a frame the site's page embedded under CAM-014 / MIC-016, and where
+no real device is offered another origin is blocked unasked.
+
+- The site's `block` (location `off`, notifications off) SHALL hold for every
+  origin, unasked.
+- Otherwise the site's own documents follow the site's setting, and any other
+  origin is asked once. Its answer SHALL be remembered for that origin, read
+  by every surface that runs as the site (its webview, a nested screen, a
+  popup, a tab that runs as it) and kept across restarts. A dismissed popup
+  is denied once and asked again next time.
+- A site off screen asks no other origin: an unanswered one is denied.
+- A change of the site's own setting for a capability to Block or Ask, in its
+  settings or by its own answer to a popup, SHALL forget every other origin's
+  answer for that capability.
+- The site's permission screen SHALL list, under each capability, the other
+  origins answered for it, each with its answer, which the user can flip or
+  forget.
+- The remembered answers stay on the device: a backup SHALL NOT carry them,
+  a QR share SHALL NOT carry them, and an import SHALL drop any a file holds.
+
+Verified by `test/media_grant_engine_test.dart`,
+`test/origin_choices_test.dart` and `test/site_permissions_screen_test.dart`.
+
+#### Scenario: An embedded player asks once
+
+**Given** site "Acme" is set to `ask` for the camera and embeds a frame from `https://player.example`
+**When** the frame requests the camera, the user allows it, and the app restarts
+**And** the frame requests the camera again
+**Then** it is served without a popup
+**And** Acme's own setting is still `ask`
+
+#### Scenario: Blocking the site forgets the origins
+
+**Given** Acme's camera list shows `https://player.example` allowed
+**When** the user sets Acme's camera to Always block
+**Then** the list is empty, and the next time Acme allows the camera the frame is asked again
+
+#### Scenario: A backup leaves them out
+
+**Given** Acme remembers answers for other origins
+**When** the user exports a backup and imports it on another device
+**Then** the file holds none of them, and every other origin is asked again
 
 ## Platform notes
 

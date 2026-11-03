@@ -5,6 +5,10 @@ import 'package:webspace/settings/capture.dart';
 /// device and bytes that would blow the code's capacity do not.
 enum QrShare { carried, withheld }
 
+/// Whether a backup carries a field: everything a site's JSON holds, but for
+/// trust the user gave other origins on this device (PERM-002).
+enum BackupShare { carried, withheld }
+
 /// Every value a site's JSON carries, under the key it is saved by, in the
 /// order a save writes them. A save, a read and a QR share each go through
 /// this list, so a field added here does not compile until the save and the
@@ -60,6 +64,9 @@ enum SiteField {
   // Each capture kind's own keys, which [keys] names; the virtual sources
   // are local media that would also blow QR capacity.
   captures('captures', qr: QrShare.withheld),
+  // What other origins inside the site were answered: this device's trust.
+  originChoices('originChoices',
+      qr: QrShare.withheld, backup: BackupShare.withheld),
   userScripts('userScripts', qr: QrShare.withheld),
   enabledGlobalScriptIds('enabledGlobalScriptIds', qr: QrShare.withheld),
   // Ids from this device's extension library (WEBEXT-011). Builds before
@@ -103,13 +110,20 @@ enum SiteField {
   searchSites('searchSites', qr: QrShare.withheld),
   searchDefault('searchDefault', qr: QrShare.withheld);
 
-  const SiteField(this.key, {required this.qr, this.legacyKeys = const []});
+  const SiteField(
+    this.key, {
+    required this.qr,
+    this.legacyKeys = const [],
+    this.backup = BackupShare.carried,
+  });
 
   /// The key a save writes. [captures] names its group with it and writes
   /// each kind's own keys instead.
   final String key;
 
   final QrShare qr;
+
+  final BackupShare backup;
 
   /// Older names a read still takes and a save no longer writes.
   final List<String> legacyKeys;

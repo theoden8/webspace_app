@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_native.dart';
+import 'package:webspace/services/media_grant_engine.dart' show OriginMemory;
 import 'package:webspace/settings/site_ids.dart';
 
 import 'package:flutter/foundation.dart';
@@ -680,6 +681,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                 },
           homeTitle: homeTitle,
           posture: posture,
+          origins: OriginMemory.of(nestedSite, save: _webViewHooks.save),
           hooks: _webViewHooks,
           showUrlBar: AppPref.showUrlBar.value,
           onShowUrlBarChanged: ({required show}) => AppPref.showUrlBar.set(show),

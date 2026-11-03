@@ -5,6 +5,7 @@ import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/screens/site_permissions.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/location.dart';
+import 'package:webspace/settings/origin_choices.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/widgets/site_permission_chip.dart';
 
@@ -16,6 +17,7 @@ SitePermissionValues _values({
   LocationMode location = LocationMode.off,
   bool notifications = false,
   bool? protectedContent,
+  OriginChoices originChoices = OriginChoices.none,
 }) =>
     SitePermissionValues(
       archived: archived,
@@ -24,6 +26,7 @@ SitePermissionValues _values({
         microphone: (mode: microphone, source: null),
         screenShare: (mode: screenShare, source: null),
       ),
+      originChoices: originChoices,
       notificationsEnabled: notifications,
       backgroundAudioEnabled: false,
       protectedContentAllowed: protectedContent,
@@ -303,5 +306,60 @@ void main() {
     }
     expect(chips, isNotEmpty);
     expect(find.text('Fixed for sites in an archive'), findsWidgets);
+  });
+
+  group("a capability's sheet lists the other origins it answered (PERM-002)",
+      () {
+    const embed = 'https://player.example';
+    const reached = 'https://pay.example';
+    final answered = OriginChoices.none
+        .remember(SitePermission.camera, origin: embed, allowed: true)
+        .remember(SitePermission.camera, origin: reached, allowed: false)
+        .remember(SitePermission.location, origin: embed, allowed: true);
+
+    Future<List<SitePermissionValues>> openCamera(WidgetTester tester) async {
+      final changes = <SitePermissionValues>[];
+      await _pump(tester,
+          values: _values(originChoices: answered), onChanged: changes.add);
+      await tester.tap(find.text('Camera access'));
+      await tester.pumpAndSettle();
+      return changes;
+    }
+
+    testWidgets('each origin with its answer', (tester) async {
+      await openCamera(tester);
+      expect(find.text('Other origins'), findsOneWidget);
+      expect(find.text(embed), findsOneWidget);
+      expect(find.text(reached), findsOneWidget);
+    });
+
+    testWidgets('forgetting one asks it again', (tester) async {
+      final changes = await openCamera(tester);
+      await tester.tap(find.byTooltip('Forget, so it is asked again').first);
+      await tester.pumpAndSettle();
+      expect(changes.last.originChoices.listed(SitePermission.camera),
+          {reached: false});
+      expect(find.text(embed), findsNothing);
+    });
+
+    testWidgets('a tap flips the answer', (tester) async {
+      final changes = await openCamera(tester);
+      await tester.tap(find.text(reached));
+      await tester.pumpAndSettle();
+      expect(changes.last.originChoices
+          .of(SitePermission.camera, origin: reached), isTrue);
+    });
+
+    testWidgets("moving the site's own mode to Always block forgets them",
+        (tester) async {
+      final changes = await openCamera(tester);
+      await tester.tap(find.text('Always block').last);
+      await tester.pumpAndSettle();
+      expect(changes.last.originChoices.listed(SitePermission.camera), isEmpty);
+      expect(changes.last.originChoices
+          .of(SitePermission.location, origin: embed), isTrue,
+          reason: 'only the capability that moved');
+      expect(find.text('Other origins'), findsNothing);
+    });
   });
 }

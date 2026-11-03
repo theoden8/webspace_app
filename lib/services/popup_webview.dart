@@ -189,6 +189,7 @@ abstract final class PopupWebView {
             parent.posture.forNested().media,
             prompter: parent.hooks.media,
             isSiteActive: siteGrants.isSiteActive,
+            origins: siteGrants.origins,
           );
     // The popup's documents, which a script its handlers evaluate lands in.
     final phases = PagePhases(

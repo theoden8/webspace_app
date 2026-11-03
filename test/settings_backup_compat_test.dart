@@ -250,6 +250,13 @@ final Set<String> _siteKeysWritten = {
   for (final field in SiteField.values) ...field.keys,
 };
 
+/// Every key a backup carries of a site: what a save writes, less what stays
+/// on the device ([BackupShare.withheld]).
+final Set<String> _siteKeysBackedUp = {
+  for (final field in SiteField.values)
+    if (field.backup == BackupShare.carried) ...field.keys,
+};
+
 /// Keys a site writes that `superset.json` leaves out, and why.
 const Map<String, String> _supersetOmits = {
   'uaPreset': 'fromJson recognises it from a generated userAgent, so a '
@@ -1278,7 +1285,7 @@ Map<String, dynamic> loaded(Map<String, dynamic> json) =>
 
       final sites = jsonEncode(_superset['sites']);
       final keys = {
-        ..._siteKeysWritten,
+        ..._siteKeysBackedUp,
         ..._matches(
             _region('lib/services/site_tab.dart',
                 from: 'Map<String, dynamic> toJson() =>', to: '};'),

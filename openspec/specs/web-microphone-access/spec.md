@@ -730,15 +730,15 @@ frame reaches the same handler as the page, and `real` is the mode that hands
 over the device under the MIC-014 containment contract. A settled `real` grant
 SHALL therefore short-circuit only for the top document; a subframe SHALL be
 asked separately, its popup SHALL name the frame's own origin, and the answer
-SHALL apply to that request only rather than being written back to the site's
-stored mode. Request coalescing SHALL be keyed by prompt origin, so a subframe
+SHALL be remembered for that origin only (PERM-002) rather than being written
+back to the site's stored mode. Request coalescing SHALL be keyed by prompt origin, so a subframe
 never rides the answer the user gave for the top document. The device-free
 answers are inherited as they are: `block` denies, and `virtual` loops the clip
 the user picked, which records nothing.
 
 This is the camera's CAM-014 verbatim, on the same shared grant engine, including
-the grace window that keeps the platform's follow-up request from asking the
-user twice.
+the remembered answer that keeps the platform's follow-up request from asking
+the user twice.
 
 #### Scenario: An ad frame does not inherit the site's microphone
 

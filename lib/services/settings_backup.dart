@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/settings/site_field.dart';
 import 'package:webspace/settings/web_extension_backup.dart';
 import 'package:webspace/webspace_model.dart';
 
@@ -167,12 +168,14 @@ class SettingsBackup {
 class SettingsBackupService {
   /// Create a backup from current app state.
   ///
-  /// Two classes of secrets are intentionally stripped from the export,
+  /// What is intentionally stripped from the export,
   /// matching the rule "no secret rides along in a user-controlled JSON
   /// file" applied uniformly across the app:
   /// - `isSecure=true` cookies (see `cookie-secure-storage` spec, COOKIE-006)
   /// - Proxy passwords, per-site and global (see
   ///   `proxy-password-secure-storage` spec, PWD-005)
+  /// - what other origins inside a site were answered, a [SiteField] whose
+  ///   [BackupShare] is withheld (PERM-002)
   ///
   /// After import the user re-logs in to sites whose secure cookies were
   /// stripped, and re-enters proxy passwords on the proxy settings screen.
@@ -198,6 +201,9 @@ class SettingsBackupService {
     // password (per PWD-005); we still need to strip secure cookies here.
     final sitesJson = webViewModels.map((model) {
       final json = model.toJson();
+      for (final field in SiteField.values) {
+        if (field.backup == BackupShare.withheld) field.keys.forEach(json.remove);
+      }
       final cookies = json['cookies'] as List<dynamic>;
       json['cookies'] = cookies
           .where((c) => c['isSecure'] != true)
