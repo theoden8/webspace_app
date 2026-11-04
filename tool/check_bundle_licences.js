@@ -2,7 +2,8 @@
 // LICENSE-001 over a built Linux package, which no build file names whole:
 // every Debian copyright file it carries (a staged package's
 // usr/share/doc/<package>/copyright, one linux/install_notices.sh wrote, the
-// libraries tor's build copies beside it as lib/tor/docs/<package>.txt) names
+// libraries tor's build copies beside it as lib/tor/docs/<package>.txt, but
+// not the notices of the programs there, which their builds check) names
 // only licences openspec/specs/legal/licences.tsv lets ship as a shared
 // library, read through debian_licences.tsv; and no file the package ships
 // outside its notices carries a GNU licence's notice, but a debug source of a
@@ -16,6 +17,12 @@ const L = require('../test/js/helpers/licences');
 const { read } = require('../test/js/helpers/source');
 
 const NAMES = 'openspec/specs/legal/debian_licences.tsv';
+
+// The notices in lib/tor/docs of the programs there rather than of a library
+// tor links: tor's LICENSE (linux/tor_build.sh), and lyrebird's, the licence
+// files of each Go module it compiled in, which `go/iptproxy/build.sh
+// check-lyrebird` holds to go/iptproxy/licences.tsv.
+const PROGRAMS = new Set(['tor.txt', 'lyrebird.txt']);
 
 /** The rows of debian_licences.tsv: { name, spdx, pkg, files }. */
 function names(text = read(NAMES)) {
@@ -72,7 +79,7 @@ function copyrightFiles(root) {
       if (e.isDirectory()) walk(at);
       else if (e.name === 'copyright' && path.basename(path.dirname(path.dirname(at))) === 'doc') {
         out.push({ file: at, pkg: path.basename(path.dirname(at)) });
-      } else if (/\.txt$/.test(e.name) && e.name !== 'tor.txt' && path.basename(dir) === 'docs'
+      } else if (/\.txt$/.test(e.name) && !PROGRAMS.has(e.name) && path.basename(dir) === 'docs'
         && path.basename(path.dirname(dir)) === 'tor') {
         out.push({ file: at, pkg: e.name.replace(/\.txt$/, '') });
       }

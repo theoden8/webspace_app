@@ -741,6 +741,14 @@ jobs:
       - name: Test webspace_adblock crate
         run: cargo test --manifest-path rust/webspace_adblock/Cargo.toml --release --locked
 
+      # The bundle's lyrebird (TOR-016): linux/tor.cmake builds it with
+      # go/iptproxy/build.sh, and without a go command builds none.
+      - name: Setup Go (for the bundle's lyrebird)
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go/iptproxy/.go-version
+          cache: false
+
       # The Linux Rust .so is built by the CMake custom target wired
       # into linux/CMakeLists.txt (phase 11). flutter build linux
       # invokes CMake which auto-builds the crate as a dependency of
@@ -759,10 +767,12 @@ jobs:
 
       # The built-in Tor (TOR-027): the bundle carries the tor linux/tor.cmake
       # built from source, its libraries and notices, no GeoIP table
-      # (LICENSE-002), no transport and no GPL module (LICENSE-001), and the
-      # real-tor tier runs that tor, found beside the executable as the app
-      # finds it, not one this job installed. Its only bridge is a dead
-      # loopback port, so nothing leaves the runner.
+      # (LICENSE-002) and no GPL module, and the lyrebird go/iptproxy/build.sh
+      # built with no GPL package in it and only modules licences.tsv names,
+      # each with its notice (LICENSE-001). The real-tor tier runs both, found
+      # beside the executable as the app finds them, not ones this job
+      # installed. Its only bridge is a dead loopback port, so nothing leaves
+      # the runner.
       - name: Bundled tor runs
         env:
           WS_REAL_TOR: '1'

@@ -64,6 +64,16 @@ test('LICENSE-001 a name no row reads, or a file that is not machine-readable, i
   ]);
 });
 
+test("LICENSE-001 the programs' notices beside tor are not read as a library's", (t) => {
+  const root = pkg(t, {
+    'opt/lib/tor/docs/tor.txt': 'Copyright (c) the Tor Project\nRedistribution and use ...\n',
+    'opt/lib/tor/docs/lyrebird.txt': 'lyrebird: its own program\n\n--- LICENSE\n\nBSD 2-Clause\n',
+    'opt/lib/tor/docs/libevent-2.1-7t64.txt': 'Not a machine-readable copyright file.\n',
+  });
+  assert.deepEqual(B.refusals(root), ['opt/lib/tor/docs/libevent-2.1-7t64.txt: (not a machine-readable copyright file) '
+    + 'is a name openspec/specs/legal/debian_licences.tsv does not read']);
+});
+
 test('LICENSE-001 a shipped file carrying a GNU notice is refused, a notice under doc/ is not', (t) => {
   const notice = 'This program is free software; you can redistribute it under the terms of the GNU General\n'
     + '# Public License as published by the Free Software Foundation.\n';

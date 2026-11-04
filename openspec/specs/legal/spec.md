@@ -177,13 +177,20 @@ a build file pulls in outside pub and Cargo has a row in
 - **AND** a GPL notice there, or one in a library whose notices name no LGPL,
   still fails (`test/js/bundle_licences.test.js`)
 
-#### Scenario: A Go module is compiled into the Apple builds' transports
+#### Scenario: A Go module is compiled into the bridge transports
 
-- **WHEN** `go/iptproxy/build.sh` links a Go module into IPtProxy.xcframework
-- **THEN** `build.sh check` fails unless the module has a row in
-  `go/iptproxy/licences.tsv` with its licence read from its licence files,
-  and `test/js/licence_policy.test.js` fails unless `licences.tsv` lets that
-  licence link
+- **WHEN** `go/iptproxy/build.sh` links a Go module into IPtProxy.xcframework,
+  or into the lyrebird the Linux bundle ships beside tor (`build.sh
+  lyrebird`, which `linux/tor.cmake` runs)
+- **THEN** `build.sh check`, which lists both, fails unless the module has a
+  row in `go/iptproxy/licences.tsv` with its licence read from its licence
+  files, and `test/js/licence_policy.test.js` fails unless `licences.tsv` lets
+  that licence link
+- **AND** `scripts/verify_tor_shipped.sh` fails, through `build.sh
+  check-lyrebird`, on a bundled lyrebird that `go version -m` shows compiling
+  a module `licences.tsv` lacks, that names a GPL package of lyrebird's or not
+  hiddenkey's and go/meekutls's, or whose `lib/tor/docs/lyrebird.txt` lacks
+  a module's licence files
 - **AND** a GPL file in a module is deleted before anything reads the tree,
   and what the rest of the module needs of it is our own: lyrebird's
   `internal/x25519ell2` comes from `go/hiddenkey`, and its meek_lite's

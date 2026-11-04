@@ -360,8 +360,10 @@ desktop entry and metainfo are the bundle's (PLATFORM-008).
   through the desktop portals.
 - **Tor (TOR-027):** the snap's tor is the one the app's own build makes from
   source (`linux/tor.cmake`), with Ubuntu 24.04's libevent and OpenSSL and
-  their notices beside it in the bundle's `lib/tor/`; the snap has no part of
-  its own for it.
+  their notices beside it in the bundle's `lib/tor/`, and so is the lyrebird
+  beside it, built with the go snap's `go`, which fetches the Go
+  `go/iptproxy/.go-version` names; the snap has no part of its own for
+  either.
 
 CI builds the snap for amd64 and arm64, each on a runner of its own
 architecture, and runs it; nothing in CI logs in to the Snap Store.

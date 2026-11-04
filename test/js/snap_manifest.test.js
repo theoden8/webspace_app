@@ -112,17 +112,23 @@ test('every platform the snap names is built in CI and has a bundle directory', 
   }
 });
 
-// The app runs the tor beside its executable (managed_tor_io.dart's
+// The app runs the tor and lyrebird beside its executable (managed_tor_io.dart's
 // _bundleDir), which the app's own build fills (linux/tor.cmake). The snap
-// gives that build what tor links and checks what it laid out; a part of its
-// own would be a second build of tor beside the one every package shares.
-test("the snap's tor is the one the app's build makes (TOR-027)", () => {
+// gives that build what tor links and a go command for lyrebird, and checks
+// what it laid out; a part of its own would be a second build beside the one
+// every package shares.
+test("the snap's tor and lyrebird are the ones the app's build makes (TOR-027)", () => {
   const parts = block('parts').map((l) => l.match(/^ {2}([a-z0-9-]+):$/)?.[1]).filter(Boolean);
-  for (const name of ['tor', 'lyrebird']) {
+  for (const name of ['tor', 'lyrebird', 'go']) {
     assert.ok(!parts.includes(name), `${MANIFEST} builds ${name} in a part of its own`);
   }
-  assert.doesNotMatch(manifest, /WEBSPACE_TOR_SOURCE=none/,
-    `${MANIFEST}: the app part builds without tor`);
+  assert.doesNotMatch(manifest, /WEBSPACE_(TOR_SOURCE|LYREBIRD)=none/,
+    `${MANIFEST}: the app part builds without tor or lyrebird`);
+  const app = manifest.slice(manifest.indexOf('\n  webspace:\n'));
+  // Any go fetches the one go/iptproxy/.go-version names (GOTOOLCHAIN, set by
+  // go/iptproxy/build.sh), so the channel is not a second statement of it.
+  assert.match(app, /^ {4}build-snaps:\n {6}- go\/latest\/stable$/m,
+    `${MANIFEST}: the app part has no go command for lyrebird`);
   for (const pkg of ['libevent-dev', 'libssl-dev', 'zlib1g-dev']) {
     assert.match(manifest, new RegExp(`^ {6}- ${pkg}$`, 'm'),
       `${MANIFEST}: the app part lacks ${pkg}, which tor's build links`);

@@ -924,11 +924,13 @@ bridges can plausibly fix (`censored`, `bootstrapTimeout`).
 Where Tor itself is blocked, a bridge is the only route in, so the app
 SHALL let the user configure pluggable transports: obfs4, snowflake,
 meek_lite, webtunnel and dnstt, each run by a transport program the platform
-has. On Linux that is one on the machine (TOR-027). On iOS and macOS it is
-IPtProxy, built from pinned sources by `go/iptproxy/build.sh` with no GPL code
-in it (LICENSE-001), which runs all five: its obfs4 takes its Elligator 2 key
-hiding from `go/hiddenkey`, and its meek_lite its uTLS round tripper from
-`go/meekutls`. The obfs4 client SHALL complete its handshake with lyrebird as
+has. On iOS and macOS it is IPtProxy, built from pinned sources by
+`go/iptproxy/build.sh` with no GPL code in it (LICENSE-001), which runs all
+five: its obfs4 takes its Elligator 2 key hiding from `go/hiddenkey`, and its
+meek_lite its uTLS round tripper from `go/meekutls`. On Linux it is the
+lyrebird the build bundles beside tor, lyrebird's own program built by the
+same script from the same patched tree, which runs all but dnstt, else one on
+the machine (TOR-027). The obfs4 client SHALL complete its handshake with lyrebird as
 the Tor Project releases it, the server a bridge runs, for any representative
 it sends. The meek_lite client SHALL carry data both ways through meek-server
 as the Tor Project releases it, the server behind a meek bridge's front, with
@@ -1960,15 +1962,23 @@ never as its GPL build (LICENSE-001), and install it with each shared library
 it links that a base system may lack, and that library's package notice
 ([linux/tor_build.sh](../../../../../linux/tor_build.sh)), at `lib/tor/`
 beside the executable, so every package made from the bundle directory (a
-tarball, an AppImage, the snap, a flatpak) carries it. It SHALL ship no
-pluggable transport and none of the source's GeoIP data. A build with no
+tarball, an AppImage, the snap, a flatpak) carries it. It SHALL ship none of
+the source's GeoIP data. Beside tor it SHALL install one pluggable transport,
+lyrebird's own program at `pluggable_transports/lyrebird`, which runs obfs4,
+meek_lite, webtunnel and snowflake: built for the machine by
+`go/iptproxy/build.sh lyrebird` from the tree that script prepares for the
+Apple builds, at its pins and after its `check`, so with `go/hiddenkey` and
+`go/meekutls` in place of lyrebird's GPL files (LICENSE-001, TOR-016), and its
+notice, each Go module's licence files, in `docs/`. A build with no
 network names the source tarball in `WEBSPACE_TOR_SOURCE`, whose checksum
-SHALL match the pin or fail the build; `none` builds without, and so does a
-build for another architecture than the machine's. Where the build bundles
-none, the app SHALL run the first `tor` on `PATH` or in the sbin directories
-a distribution installs it to, so the distribution's package serves; and
-where there is none, Tor is not offered (TOR-007). Transports come from the
-machine likewise. The licences page SHALL carry the bundled notices, read
+SHALL match the pin or fail the build; `none` builds without tor or lyrebird,
+and so does a build for another architecture than the machine's.
+`WEBSPACE_LYREBIRD=none` builds tor without lyrebird, as a build with no `go`
+command does, and says so. Where the build bundles no tor, the app SHALL run
+the first `tor` on `PATH` or in the sbin directories a distribution installs
+it to, so the distribution's package serves; and where there is none, Tor is
+not offered (TOR-007). Where the bundle has no lyrebird, transports come from
+the machine likewise. The licences page SHALL carry the bundled notices, read
 from where the build installed them.
 
 **How it runs.** Everything on tor's command line, nothing from a torrc the
@@ -2008,9 +2018,12 @@ and the control socket's privacy. CI SHALL run it twice: in the job that runs
 the Dart tests, against the distribution's tor and obfs4proxy, and in the
 Linux build, against the tor the build bundled, found beside the executable
 as the app finds it, after `scripts/verify_tor_shipped.sh` checked the bundle
-carries tor, a notice beside its libraries, no GeoIP table, no transport and
-no GPL module. A bundle ships no transport, so the transport case is skipped
-there. Reaching `up` needs the Tor network, so it is
+carries tor, a notice beside its libraries, no GeoIP table and no GPL module,
+and lyrebird and no other transport, held by `go/iptproxy/build.sh
+check-lyrebird`: lyrebird's program at the pinned version, naming hiddenkey's
+package and go/meekutls's round tripper and no GPL package, compiling only
+modules `go/iptproxy/licences.tsv` names, each with its notice. There the
+transport case runs the bundle's lyrebird. Reaching `up` needs the Tor network, so it is
 asked only under `WEBSPACE_TOR_NETWORK=1`, as in TOR-021.
 
 #### Scenario: A Linux build offers Tor
@@ -2030,6 +2043,17 @@ asked only under `WEBSPACE_TOR_NETWORK=1`, as in TOR-021.
   is on
 - **AND** a site set to `TOR` reads the unavailable copy it read before
   TOR-027
+
+#### Scenario: A build without the bundled lyrebird
+
+- **GIVEN** a Linux build made with `WEBSPACE_LYREBIRD=none`, or with no
+  `go` command
+- **WHEN** it is built
+- **THEN** the build says it builds without lyrebird, the bundle carries tor
+  and no `pluggable_transports`, and `scripts/verify_tor_shipped.sh` passes it
+  only under `WEBSPACE_LYREBIRD=none`
+- **AND** bridges run a lyrebird or obfs4proxy the machine has, else answer 0
+  and keep Tor from starting (TOR-016)
 
 #### Scenario: A build without the bundled tor
 
