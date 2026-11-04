@@ -71,7 +71,7 @@ modules:
         url: https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz
         sha256: c880fa8d607b2aa6eadde7d6d6302b1396ebc38368fe2332fa20e193c7ee1420
       - type: file
-        path: ../install_notices.sh
+        path: install_notices.sh
 
   # WebKit main at 323622@main, the merge of WebKit PR 69204 (WebKitFrameInfo,
   # first released in 2.56); the plugin reads it through weak symbols.
@@ -124,11 +124,11 @@ modules:
         url: https://github.com/WebKit/WebKit.git
         commit: c22ba3278caac6a1fc8b0c7a10f04db1ffc44982
       - type: file
-        path: ../install_notices.sh
+        path: install_notices.sh
       - type: file
-        path: ../webkit_third_party.tsv
+        path: webkit_third_party.tsv
       - type: file
-        path: ../pdfjs_fonts.sh
+        path: pdfjs_fonts.sh
       # PDF.js's Liberation Sans fonts are 1.07.4, under GPL-2.0, and WebKit
       # compiles them into the library; linux/pdfjs_fonts.sh replaces them
       # with the SDK's 2.x release, under the OFL, before the build

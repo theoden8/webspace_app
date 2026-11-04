@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # Builds the flatpak with no network inside the build: flatpak-flutter
 # (pinned below) turns linux/flatpak/flatpak-flutter.yml into an offline
-# manifest under build/flatpak/linux/flatpak/, and flatpak-builder --sandbox
+# manifest under build/flatpak/manifest/, and flatpak-builder --sandbox
 # builds that.
 #
 #   scripts/build_flatpak.sh [--generate-only] [commit]
 #
 # commit defaults to HEAD and has to be on GitHub: the manifest fetches the
-# app from there, not from this checkout. The manifest and the files under
-# linux/ it names by path are this checkout's, laid out as in the repository.
+# app from there, not from this checkout. The manifest and the files it takes
+# by path are this checkout's: a sandboxed build takes none from outside the
+# manifest's directory, so linux/flatpak/ links the scripts in linux/ it needs,
+# and the copy here holds their contents.
 set -euo pipefail
 
 FLATPAK_FLUTTER_TAG=0.15.0
@@ -24,7 +26,7 @@ commit="${1:-$(git -C "$root" rev-parse HEAD)}"
 app_id="$(sed -n 's/^id: //p' "$root/linux/flatpak/flatpak-flutter.yml")"
 out="$root/build/flatpak"
 tool="$out/flatpak-flutter"
-work="$out/linux/flatpak"
+work="$out/manifest"
 
 if [ ! -d "$tool" ]; then
   git clone --quiet --depth 1 --branch "$FLATPAK_FLUTTER_TAG" \
@@ -33,9 +35,9 @@ if [ ! -d "$tool" ]; then
   "$tool/.venv/bin/pip" install --quiet -r "$tool/requirements.txt"
 fi
 
-rm -rf "$out/linux"
-mkdir -p "$out"
-(cd "$root" && git ls-files -z linux | xargs -0 cp --parents -t "$out")
+rm -rf "$work"
+mkdir -p "$work"
+cp -L "$root"/linux/flatpak/* "$work"/
 
 # The committed manifest builds master; point it at $commit instead.
 "$tool/.venv/bin/python" - "$work/flatpak-flutter.yml" "$commit" <<'PY'

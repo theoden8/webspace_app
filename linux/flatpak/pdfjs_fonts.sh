@@ -1,0 +1,1 @@
+../pdfjs_fonts.sh

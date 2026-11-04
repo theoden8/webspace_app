@@ -127,24 +127,27 @@ test('each sandbox permission names what needs it, and none is the whole bus or 
   }
 });
 
-// A `path:` source resolves against the manifest; scripts/build_flatpak.sh
-// lays linux/ out as the repository does, so the same path holds there.
-test('every file the manifest takes by path is in the repository', () => {
+// flatpak-builder --sandbox takes no `path:` source from outside the
+// manifest's directory, so one shared with the snap is a link there into
+// linux/, and scripts/build_flatpak.sh copies what the links point at.
+test('every file the manifest takes by path is beside it in the repository', () => {
+  const dir = path.posix.dirname(MANIFEST);
   const paths = parsed.modules.filter((m) => typeof m === 'object')
     .flatMap((m) => (m.sources ?? []).filter((src) => src.path).map((src) => src.path));
   assert.ok(paths.length > 0, `${MANIFEST} takes no file by path`);
   for (const p of paths) {
-    const rel = path.posix.normalize(path.posix.join(path.posix.dirname(MANIFEST), p));
-    assert.ok(exists(rel), `${MANIFEST} takes ${p}, but ${rel} is not in the repository`);
+    assert.ok(!p.split('/').includes('..') && !p.startsWith('/'),
+      `${MANIFEST} takes ${p} from outside its directory, which a sandboxed build refuses`);
+    assert.ok(exists(path.posix.join(dir, p)), `${MANIFEST} takes ${p}, but ${dir}/${p} is not in the repository`);
   }
-  assert.match(read('scripts/build_flatpak.sh'), /git ls-files -z linux \| xargs -0 cp --parents -t "\$out"/,
-    'scripts/build_flatpak.sh does not lay linux/ out as the repository does');
+  assert.match(read('scripts/build_flatpak.sh'), /^cp -L "\$root"\/linux\/flatpak\/\* "\$work"\/$/m,
+    'scripts/build_flatpak.sh does not copy what the manifest\'s links point at');
 });
 
 // The flatpak's WebKit carries PDF.js as the snap's does (LICENSE-001).
 test('the flatpak swaps PDF.js\'s fonts for the SDK\'s OFL release before WebKit builds (LICENSE-001)', () => {
   const webkit = moduleNamed('wpewebkit');
-  assert.ok(webkit.sources.some((src) => src.path === '../pdfjs_fonts.sh'), 'wpewebkit does not take linux/pdfjs_fonts.sh');
+  assert.ok(webkit.sources.some((src) => src.path === 'pdfjs_fonts.sh'), 'wpewebkit does not take linux/pdfjs_fonts.sh');
   const swaps = webkit.sources.filter((src) => src.type === 'shell').flatMap((src) => src.commands);
   assert.deepEqual(swaps, ['bash pdfjs_fonts.sh --src . --fonts /usr/share/fonts/liberation-fonts'
     + ' --licence /usr/share/licenses/freedesktop-sdk/liberation-fonts/fonts/LICENSE > pdfjs_fonts.changed'],
@@ -164,7 +167,7 @@ test('libwpe and WebKit write their notices where the app reads a flatpak\'s (LI
   assert.equal(docs, '/app/share/doc', 'bundledDocsDir names another directory for a flatpak');
   assert.ok(!(parsed.cleanup ?? []).includes('/share/doc'), `${MANIFEST} cleans the notices away`);
   for (const name of ['libwpe', 'wpewebkit']) {
-    assert.ok(moduleNamed(name).sources.some((src) => src.path === '../install_notices.sh'), `${name} does not take install_notices.sh`);
+    assert.ok(moduleNamed(name).sources.some((src) => src.path === 'install_notices.sh'), `${name} does not take install_notices.sh`);
     assert.match(noticesOf(name), new RegExp(` --src \\.\\. --dest ${docs}/${name} `), `${name}'s notices are not in ${docs}/${name}`);
   }
   const webkit = noticesOf('wpewebkit');
