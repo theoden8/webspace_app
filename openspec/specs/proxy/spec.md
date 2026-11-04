@@ -1965,6 +1965,32 @@ than drop it. A relay that stops answering then says when. Lineage:
 - **THEN** router mode is down for the run and a proxied site shows the block
 - **AND** the rule is not taken off the relay
 
+### Requirement: PROXY-033 - A tunnel ends as its far side ended it
+
+The router's relay (PROXY-013) sits between the WebView and every origin, so
+the error a page shows is whatever the relay hands the WebView. A side of a
+tunnel that fails (a reset, a timeout, a failed write) SHALL end the other
+side with a reset, not a close: Chromium reports a reset as
+`ERR_CONNECTION_RESET` and a close as `ERR_CONNECTION_CLOSED`, and without
+the relay the WebView would have seen the reset. A side that closes cleanly
+SHALL still be passed on as a close, after what it sent.
+
+Each tunnel's end SHALL be logged in one line: the site, the target and the
+address the relay reached, how long it lasted, which side ended it and with
+what error, and how many bytes each side sent. A direct connect that fails
+on one of a name's addresses SHALL log that address and its error. A page
+that fails during its TLS handshake then says whether the far side answered
+the client's hello at all.
+
+#### Scenario: An origin that resets the handshake is reported as a reset
+
+- **GIVEN** a site in router mode on a direct route
+- **AND** its origin resets the connection once the client's TLS hello arrives
+- **WHEN** the site loads the origin
+- **THEN** the WebView reports `ERR_CONNECTION_RESET`, as it does with no relay
+- **AND** the relay logs that reading from the upstream failed, with the bytes
+  the client sent and none from the upstream
+
 ### Requirement: PROXY-034 - A change of the app-wide proxy reaches the relay before any webview is rebuilt
 
 A proxy setting SHALL be a value: no holder of one (the app-wide proxy, a
