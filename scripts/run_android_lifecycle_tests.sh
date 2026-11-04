@@ -664,11 +664,11 @@ echo "  WorkManager job(s) scheduled: $(echo "$job_ids" | tr '\n' ' ')"
 # debug-build receiver enqueues a one-shot of the same worker, which runs the
 # leg this scenario is about; the schedule itself is asserted above.
 #
-# Both legs log under one tag. Read it filtered and counted rather than
-# sliced by timestamp: `adb logcat -t '<time>'` cannot carry a space through
-# adb's argument joining, and clearing the buffer would cost every later
-# scenario its history.
-bg_log() { adb logcat -d -s WebspaceBgRefresh:I 2>/dev/null | tr -d '\r' || true; }
+# Both legs log under one tag, AppLog's for AppLog.Tag.backgroundTask. Read
+# it filtered and counted rather than sliced by timestamp: `adb logcat -t
+# '<time>'` cannot carry a space through adb's argument joining, and clearing
+# the buffer would cost every later scenario its history.
+bg_log() { adb logcat -d -s Webspace/backgroundTask:I 2>/dev/null | tr -d '\r' || true; }
 bg_log_hits() { bg_log | grep -c "$1" || true; }
 
 triggers_before="$(bg_log_hits 'debug trigger: enqueueing')"
@@ -721,7 +721,7 @@ while :; do
       echo "  the site did NOT reload — the break is upstream," \
            "in the worker -> engine dispatch -> onBackgroundRefresh leg" >&2
     fi
-    echo "  WebspaceBgRefresh logcat:" >&2
+    echo "  Webspace/backgroundTask logcat:" >&2
     bg_log | tail -20 | sed 's/^/    /' >&2
     dump_bg_diagnostics notif-refresh
     exit 1
@@ -760,7 +760,7 @@ fg_beacons_after="$(beacon_hits)"
 if [ "$fg_beacons_after" -gt "$fg_beacons_before" ]; then
   echo "FAIL: the refresh tick reloaded the site the user is looking at"        "(page loads $fg_beacons_before -> $fg_beacons_after)" >&2
   echo "  This is the v0.3.1 behaviour: _refreshNotificationSites must skip"        "the active site (ForegroundPollEngine) when the app is resumed." >&2
-  echo "  WebspaceBgRefresh logcat:" >&2
+  echo "  Webspace/backgroundTask logcat:" >&2
   bg_log | tail -10 | sed 's/^/    /' >&2
   dump_bg_diagnostics foreground-refresh-reloaded-active
   exit 1
