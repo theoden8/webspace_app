@@ -338,9 +338,9 @@ strict confinement, on the GNOME extension's runtime, and SHALL run as
 (PLATFORM-009): the Snap Store sets no naming rule that would move it, and its
 desktop entry and metainfo are the bundle's (PLATFORM-008).
 
-- **WebKit:** the snap builds libwpe, and WebKit at 323622@main, the merge
-  that added `WebKitFrameInfo` (first released in 2.56), which the plugin
-  reads through weak symbols, for `/usr`. A release build of WebKit runs its helper
+- **WebKit:** the snap builds libwpe from git at its 1.16.3 tag's commit,
+  and WebKit at 323622@main, the merge that added `WebKitFrameInfo` (first
+  released in 2.56), which the plugin reads through weak symbols, for `/usr`. A release build of WebKit runs its helper
   processes only from the directory it was configured with, so the snap's
   layout binds that directory, the injected bundle's and the inspector
   resources' to the snap's copies. WebKit is built with PDF.js, whose
@@ -350,7 +350,8 @@ desktop entry and metainfo are the bundle's (PLATFORM-008).
   either. Its `Source/ThirdParty` is held to the
   audited table `linux/webkit_third_party.tsv` as it builds, and libwpe and
   WebKit lay their notices out in `usr/share/doc/` as a Debian package does,
-  WebKit's with the source offer LGPL asks for (LICENSE-003, LICENSE-004).
+  each with the source offer LGPL asks for, libwpe's with the build host's
+  LGPL text its tree lacks (LICENSE-003, LICENSE-004).
 - **One instance (PLATFORM-011):** a dbus slot gives the snap its application
   ID on the session bus, the one name strict confinement lets it own.
 - **Permissions:** each plug names what needs it, and none grants the home

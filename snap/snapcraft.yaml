@@ -64,23 +64,30 @@ apps:
       - password-manager-service
 
 parts:
+  # libwpe 1.16.3, its tag's commit, from git so the commit its notices offer
+  # is the one checked out.
   libwpe:
     plugin: meson
-    source: https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz
-    source-checksum: sha256/c880fa8d607b2aa6eadde7d6d6302b1396ebc38368fe2332fa20e193c7ee1420
+    source: https://github.com/WebPlatformForEmbedded/libwpe.git
+    source-commit: e0814ca7d4f87594a46732ebd309494872d2520e
     meson-parameters:
       - --prefix=/usr
       - --buildtype=release
       - -Dbuild-docs=false
-    # Its notices, as a Debian package carries its own (LICENSE-003).
+    # Its notices, as a Debian package carries its own (LICENSE-003). Its
+    # src/key-unicode.c, adapted from GDK, is under the LGPL, so it ships as
+    # WebKit does (LICENSE-004): the LGPL's text, which its tree does not
+    # carry, and the offer of its source.
     override-build: |
       craftctl default
       bash "$CRAFT_PROJECT_DIR/linux/install_notices.sh" \
         --src "$CRAFT_PART_SRC" --dest "$CRAFT_PART_INSTALL/usr/share/doc/libwpe" \
-        --name libwpe --source https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz \
-        --revision "sha256 c880fa8d607b2aa6eadde7d6d6302b1396ebc38368fe2332fa20e193c7ee1420" \
-        --license BSD-2-clause
+        --name libwpe --source https://github.com/WebPlatformForEmbedded/libwpe.git \
+        --revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)" \
+        --license "BSD-2-clause and LGPL-2+" --offer \
+        --lgpl-text /usr/share/common-licenses/LGPL-2
     build-packages:
+      - git
       - libegl-dev
       - libxkbcommon-dev
     prime:

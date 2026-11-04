@@ -6,8 +6,8 @@
 # webspace://open link hands it over and exits (PLATFORM-011); the first
 # opens the site, whose page is requested, with WebKit's web and network
 # processes started from the snap's copies through the layout. First, from
-# the installed snap's files: WebKit is a shared library of its own that a
-# library of the app's loads at run time, so a user can replace it (LICENSE-004),
+# the installed snap's files: WebKit and libwpe are shared libraries of their
+# own that the app loads at run time, so a user can replace them (LICENSE-004),
 # and the PDF.js fonts it carries are the OFL release linux/pdfjs_fonts.sh put
 # there, not WebKit's GPL-2.0 ones (LICENSE-001; WebKit stores a .ttf
 # uncompressed).
@@ -49,6 +49,15 @@ done
 [ "${#loads[@]}" -gt 0 ] \
   || { echo "::error::nothing in the snap loads WebKit as a shared library" >&2; exit 1; }
 echo "WebKit is a shared library of its own, loaded by ${loads[*]}"
+libwpe="$(compgen -G "$mount/usr/lib/*/libwpe-1.0.so.*" | head -1)" \
+  || { echo "::error::the snap carries no libwpe-1.0.so of its own" >&2; exit 1; }
+wpe_loads=()
+for f in "$webkit" "$mount"/opt/webspace/webspace_app "$mount"/opt/webspace/lib/*.so; do
+  grep -q '(NEEDED).*\[libwpe-1\.0\.so' <<<"$(readelf -d "$f")" && wpe_loads+=("${f#"$mount"/}")
+done
+[ "${#wpe_loads[@]}" -gt 0 ] \
+  || { echo "::error::nothing in the snap loads $libwpe as a shared library" >&2; exit 1; }
+echo "libwpe is a shared library of its own, loaded by ${wpe_loads[*]}"
 
 work="$(mktemp -d)"
 pids=()

@@ -215,31 +215,67 @@ test('WebKit is built without the parts whose licence it may not ship (LICENSE-0
     ['-DENABLE_WEB_RTC=ON'], 'WebRTC on');
 });
 
+// A part's block of the manifest: from its key to the first blank line.
+function partSpan(text, part) {
+  const start = text.indexOf(`\n  ${part}:\n`);
+  if (start < 0) return null;
+  const end = text.indexOf('\n\n  ', start + 1);
+  return [start, end < 0 ? text.length : end];
+}
+
+// [text] with [from] replaced by [to] in [part]'s block alone.
+function inPart(text, part, from, to) {
+  const [start, end] = partSpan(text, part);
+  return text.slice(0, start) + text.slice(start, end).replace(from, to) + text.slice(end);
+}
+
+// The source a part pulls and the commit it checks out: snapcraft's git
+// source keys, or an override-pull that fetches one commit.
+function checkoutOf(body) {
+  const url = body.match(/^ {4}source: (\S+)$/m)?.[1] ?? body.match(/git remote add origin (\S+)/)?.[1];
+  const commit = body.match(/^ {4}source-commit: ([0-9a-f]{40})$/m)?.[1]
+    ?? body.match(/git fetch .*\borigin ([0-9a-f]{40})$/m)?.[1];
+  return { url, commit };
+}
+
 // linux/install_notices.sh writes a built library's notices where a staged
 // Debian package keeps its own, which the app's licences page reads
-// (bundled_notices_io.dart). WebKit's call also holds its third-party
-// directories to the audited table, names the commit it was built from and
-// makes the source offer LGPL asks for (LICENSE-004).
+// (bundled_notices_io.dart). Both libraries are under the LGPL, so each call
+// names the commit it was built from, read off the part's own checkout of it,
+// and makes the source offer LGPL asks for (LICENSE-004); libwpe's tree
+// carries no LGPL text, so its call gives the build host's. WebKit's call also
+// holds its third-party directories to the audited table and says what the
+// build changed.
 function noticeRefusals(text) {
   const out = [];
+  const offered = [
+    '--revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)"',
+    '--offer',
+  ];
   for (const [part, dest, extra] of [
-    ['libwpe', 'libwpe', []],
+    ['libwpe', 'libwpe', [
+      ...offered,
+      '--license "BSD-2-clause and LGPL-2+"',
+      '--lgpl-text /usr/share/common-licenses/LGPL-2',
+    ]],
     ['wpewebkit', 'wpewebkit', [
+      ...offered,
       '--third-party "$CRAFT_PROJECT_DIR/linux/webkit_third_party.tsv"',
-      '--revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)"',
-      '--offer',
       '--changed "$changed"',
     ]],
   ]) {
-    const start = text.indexOf(`\n  ${part}:\n`);
-    const end = text.indexOf('\n\n  ', start + 1);
-    const body = start < 0 ? '' : text.slice(start, end < 0 ? text.length : end);
+    const span = partSpan(text, part);
+    const body = span ? text.slice(...span) : '';
     if (!body.includes('bash "$CRAFT_PROJECT_DIR/linux/install_notices.sh"')) {
       out.push(`${part} writes no notices`);
       continue;
     }
     if (!body.includes(`--dest "$CRAFT_PART_INSTALL/usr/share/doc/${dest}"`)) out.push(`${part}'s notices are not in usr/share/doc/${dest}`);
     for (const flag of extra) if (!body.includes(flag)) out.push(`${part} lacks ${flag}`);
+    const { url, commit } = checkoutOf(body);
+    if (!commit) out.push(`${part} is not a checkout of one commit, so its HEAD is not the source it offers`);
+    const named = body.match(/--source (\S+)/)?.[1];
+    if (named !== url) out.push(`${part}'s notices name ${named}, not the ${url} it pulls`);
   }
   if (/^ {6}- -usr\/share\/doc\b/m.test(text)) out.push('a part leaves usr/share/doc out of the snap');
   return out;
@@ -252,12 +288,14 @@ test('each library the snap builds ships its notices (LICENSE-003)', () => {
 });
 
 test("the snap's WebKit is a library a user can replace, its source named and offered (LICENSE-004)", () => {
-  assert.deepEqual(noticeRefusals(manifest.replace(' --offer \\\n', ' \\\n')), ['wpewebkit lacks --offer'],
+  assert.deepEqual(noticeRefusals(inPart(manifest, 'wpewebkit', ' --offer \\\n', ' \\\n')), ['wpewebkit lacks --offer'],
     'WebKit without its source offer');
-  assert.deepEqual(noticeRefusals(manifest.replace(/--revision "\$\(git -C [^\n]*\n/, '--revision main \\\n')),
+  assert.deepEqual(noticeRefusals(inPart(manifest, 'wpewebkit', /--revision "\$\(git -C [^\n]*\n/, '--revision main \\\n')),
     ['wpewebkit lacks --revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)"'], 'a revision not read off the checkout');
-  assert.deepEqual(noticeRefusals(manifest.replace(' \\\n        --changed "$changed"\n', '\n')),
+  assert.deepEqual(noticeRefusals(inPart(manifest, 'wpewebkit', ' \\\n        --changed "$changed"\n', '\n')),
     ['wpewebkit lacks --changed "$changed"'], 'a copyright file that hides the fonts it replaced');
+  assert.deepEqual(noticeRefusals(inPart(manifest, 'wpewebkit', / origin [0-9a-f]{40}$/m, ' origin main')),
+    ['wpewebkit is not a checkout of one commit, so its HEAD is not the source it offers'], 'WebKit fetched at a branch');
   const notices = read('linux/install_notices.sh');
   for (const line of ['echo "Source: $source"', 'Built as it is from $source at $revision.',
     'For at least three years from the day you received this copy']) {
@@ -269,6 +307,27 @@ test("the snap's WebKit is a library a user can replace, its source named and of
   assert.ok(check.includes('$mount/usr/lib/*/libWPEWebKit-2.0.so.*'),
     'scripts/check_snap.sh does not require WebKit as a file of its own');
   assert.match(read('.github/workflows/snap.yml'), /^ +bash scripts\/check_snap\.sh$/m, 'CI does not run scripts/check_snap.sh');
+});
+
+// libwpe's src/key-unicode.c, adapted from GDK's gdkkeyuni.c, is under the
+// LGPL, and the library ships as libwpe-1.0's own .so, as WebKit's does.
+test("the snap's libwpe ships as the LGPL asks: its text, and its source named and offered (LICENSE-004)", () => {
+  const libwpe = (from, to) => noticeRefusals(inPart(manifest, 'libwpe', from, to));
+  assert.deepEqual(libwpe(' --offer \\\n', ' \\\n'), ['libwpe lacks --offer'], 'libwpe without its source offer');
+  assert.deepEqual(libwpe(/--revision "\$\(git -C [^\n]*\n/, '--revision 1.16.3 \\\n'),
+    ['libwpe lacks --revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)"'], 'a revision not read off the checkout');
+  assert.deepEqual(libwpe('--license "BSD-2-clause and LGPL-2+"', '--license BSD-2-clause'),
+    ['libwpe lacks --license "BSD-2-clause and LGPL-2+"'], 'the LGPL of key-unicode.c left unnamed');
+  assert.deepEqual(libwpe(' \\\n        --lgpl-text /usr/share/common-licenses/LGPL-2\n', '\n'),
+    ['libwpe lacks --lgpl-text /usr/share/common-licenses/LGPL-2'], 'the LGPL named, its text not given');
+  assert.deepEqual(libwpe(/^ {4}source: \S+\n {4}source-commit: \S+\n/m, '    source: https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz\n'), [
+    'libwpe is not a checkout of one commit, so its HEAD is not the source it offers',
+    "libwpe's notices name https://github.com/WebPlatformForEmbedded/libwpe.git, not the https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz it pulls",
+  ], 'libwpe from its release tarball, where git would read the project\'s own HEAD');
+  const check = read('scripts/check_snap.sh');
+  assert.ok(check.includes('$mount/usr/lib/*/libwpe-1.0.so.*'), 'scripts/check_snap.sh does not require libwpe as a file of its own');
+  assert.ok(check.includes("grep -q '(NEEDED).*\\[libwpe-1\\.0\\.so'"),
+    'scripts/check_snap.sh does not require a library of the snap to load libwpe at run time');
 });
 
 test('every third-party tree of WebKit under the GPL is one the build leaves out (LICENSE-001)', () => {

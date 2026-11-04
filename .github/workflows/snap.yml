@@ -132,8 +132,9 @@ jobs:
             exit 1
           fi
 
-      # LICENSE-004: the source WebKit's notices offer is a commit Software
-      # Heritage holds, so it can be given whatever happens upstream.
+      # LICENSE-004: the source each bundled LGPL library's notices offer
+      # (WebKit's, libwpe's) is a commit Software Heritage holds, so it can be
+      # given whatever happens upstream.
       - name: Check the offered source is archived
         run: |
           snap_name="$(sed -n 's/^name: \([a-z0-9-]*\)$/\1/p' snap/snapcraft.yaml)"

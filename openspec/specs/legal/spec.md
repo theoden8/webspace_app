@@ -260,7 +260,9 @@ own notices name the libraries LGPL-2.1 section 6 asks them to.
 ### Requirement: LICENSE-004 - A bundled LGPL library ships as the LGPL asks
 
 A library under the LGPL that a package bundles instead of taking it from the
-system (WPE WebKit in the snap) SHALL ship as LGPL-2.1 section 6 asks:
+system SHALL ship as LGPL-2.1 section 6 asks. The snap bundles two: WPE WebKit,
+and libwpe, whose `src/key-unicode.c` (adapted from GDK's `gdkkeyuni.c`) is
+under the LGPL, version 2 or later, beside its BSD-2-Clause `COPYING`.
 
 - **Replaceable:** a shared library of its own that the app loads at run time,
   so a user can put a modified build in its place; never linked into the app
@@ -291,6 +293,19 @@ to a check.
   commit and carries the offer (`test/js/snap_manifest.test.js`)
 - **AND** Software Heritage holds that commit and its tree, asked about the
   installed snap's own copyright file (`tool/check_source_offer.js`)
+
+#### Scenario: The snap bundles libwpe
+
+- **WHEN** the snap is built and installed
+- **THEN** `libwpe-1.0.so` is a file of its own in the snap and a library of
+  the snap names it as `NEEDED` (`scripts/check_snap.sh`)
+- **AND** libwpe is built from git at the commit its 1.16.3 tag names, and
+  `usr/share/doc/libwpe/copyright` names that source and commit, the LGPL
+  beside BSD-2-Clause, and carries the offer, with the build host's LGPL-2 text
+  in `licences/` (`test/js/snap_manifest.test.js`)
+- **AND** Software Heritage holds that commit and its tree
+  (`tool/check_source_offer.js`, which asks about every copyright file that
+  makes the offer)
 
 #### Scenario: A bundled library's notices name the LGPL its tree has no text of
 
