@@ -17,6 +17,8 @@ on:
     paths:
       - .github/workflows/flatpak.yml
       - scripts/build_flatpak.sh
+      - scripts/verify_webkit_shipped.sh
+      - tool/check_source_offer.js
       - linux/**
       - pubspec.lock
       - rust/webspace_adblock/**
@@ -24,6 +26,8 @@ on:
     paths:
       - .github/workflows/flatpak.yml
       - scripts/build_flatpak.sh
+      - scripts/verify_webkit_shipped.sh
+      - tool/check_source_offer.js
       - linux/**
       - pubspec.lock
       - rust/webspace_adblock/**
@@ -72,6 +76,14 @@ jobs:
 
       - name: Build
         run: bash scripts/build_flatpak.sh "${{ github.event.pull_request.head.sha || github.sha }}"
+
+      # What the built /app holds: WebKit a library a user can replace, with
+      # PDF.js's OFL fonts (LICENSE-001, LICENSE-004), and the source its
+      # notices offer one Software Heritage keeps.
+      - name: Check the flatpak's licences
+        run: |
+          bash scripts/verify_webkit_shipped.sh build/flatpak/app/files webspace
+          node tool/check_source_offer.js build/flatpak/app/files
 
       # Saved even when the app module fails, so the next run starts from a
       # built WPE.

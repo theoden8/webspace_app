@@ -50,7 +50,6 @@ cleanup:
   - /lib/pkgconfig
   - /share/cmake
   - /share/pkgconfig
-  - /share/doc
   - '*.a'
   - '*.la'
 
@@ -59,10 +58,20 @@ modules:
     buildsystem: meson
     config-opts:
       - -Dbuild-docs=false
+    # Its notices, where the app reads a flatpak's (LICENSE-003). Post-install
+    # runs in the build directory, inside the source tree.
+    post-install:
+      - >-
+        bash ../install_notices.sh --src .. --dest /app/share/doc/libwpe --name libwpe
+        --source https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz
+        --revision "sha256 c880fa8d607b2aa6eadde7d6d6302b1396ebc38368fe2332fa20e193c7ee1420"
+        --license BSD-2-clause
     sources:
       - type: archive
         url: https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz
         sha256: c880fa8d607b2aa6eadde7d6d6302b1396ebc38368fe2332fa20e193c7ee1420
+      - type: file
+        path: ../install_notices.sh
 
   # WebKit main at 323622@main, the merge of WebKit PR 69204 (WebKitFrameInfo,
   # first released in 2.56); the plugin reads it through weak symbols.
@@ -99,14 +108,43 @@ modules:
       - -DUSE_LIBBACKTRACE=OFF
       - -DUSE_SYSTEM_SYSPROF_CAPTURE=OFF
       - -DUSE_SYSTEM_UNIFDEF=OFF
+      - -DENABLE_PDFJS=ON
+    # Its notices, with the offer of the source the LGPL asks for (LICENSE-003,
+    # LICENSE-004), where the app reads a flatpak's.
+    post-install:
+      - >-
+        bash ../install_notices.sh --src .. --dest /app/share/doc/wpewebkit --name "WPE WebKit"
+        --source https://github.com/WebKit/WebKit.git
+        --revision c22ba3278caac6a1fc8b0c7a10f04db1ffc44982
+        --license "LGPL-2.1+ and LGPL-2+ and BSD-2-clause and BSD-2-Clause-Patent and BSD-3-clause and Expat and Apache-2.0 and BSL-1.0 and ISC and CC0-1.0 and OFL-1.1"
+        --third-party ../webkit_third_party.tsv --offer
+        --changed "$(cat ../pdfjs_fonts.changed)"
     sources:
       - type: git
         url: https://github.com/WebKit/WebKit.git
         commit: c22ba3278caac6a1fc8b0c7a10f04db1ffc44982
+      - type: file
+        path: ../install_notices.sh
+      - type: file
+        path: ../webkit_third_party.tsv
+      - type: file
+        path: ../pdfjs_fonts.sh
+      # PDF.js's Liberation Sans fonts are 1.07.4, under GPL-2.0, and WebKit
+      # compiles them into the library; linux/pdfjs_fonts.sh replaces them
+      # with the SDK's 2.x release, under the OFL, before the build
+      # (LICENSE-001). A shell source runs in the SDK, in the source tree.
+      - type: shell
+        commands:
+          - >-
+            bash pdfjs_fonts.sh --src . --fonts /usr/share/fonts/liberation-fonts
+            --licence /usr/share/licenses/freedesktop-sdk/liberation-fonts/fonts/LICENSE
+            > pdfjs_fonts.changed
 
   - name: nlohmann-json
     buildsystem: cmake-ninja
     builddir: true
+    cleanup:
+      - /share/doc
     config-opts:
       - -DJSON_BuildTests=OFF
     sources:

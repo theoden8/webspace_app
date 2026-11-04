@@ -9,7 +9,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { read } = require('./helpers/source');
+const path = require('node:path');
+const YAML = require('yaml');
+const { read, exists } = require('./helpers/source');
 
 const MANIFEST = 'linux/flatpak/flatpak-flutter.yml';
 const manifest = read(MANIFEST);
@@ -28,6 +30,8 @@ function sourceRef(url, key) {
 }
 
 const appId = manifest.match(/^id:\s*(\S+)\s*$/m)?.[1];
+const parsed = YAML.parse(manifest);
+const moduleNamed = (name) => parsed.modules.find((m) => typeof m === 'object' && m.name === name);
 
 test('the manifest builds the Flutter version .fvmrc pins', () => {
   assert.equal(
@@ -121,4 +125,57 @@ test('each sandbox permission names what needs it, and none is the whole bus or 
     assert.doesNotMatch(arg, /^--socket=session-bus$|^--socket=system-bus$|^--filesystem=(home|host)(\b|$)/,
       `${MANIFEST} grants ${arg}`);
   }
+});
+
+// A `path:` source resolves against the manifest; scripts/build_flatpak.sh
+// lays linux/ out as the repository does, so the same path holds there.
+test('every file the manifest takes by path is in the repository', () => {
+  const paths = parsed.modules.filter((m) => typeof m === 'object')
+    .flatMap((m) => (m.sources ?? []).filter((src) => src.path).map((src) => src.path));
+  assert.ok(paths.length > 0, `${MANIFEST} takes no file by path`);
+  for (const p of paths) {
+    const rel = path.posix.normalize(path.posix.join(path.posix.dirname(MANIFEST), p));
+    assert.ok(exists(rel), `${MANIFEST} takes ${p}, but ${rel} is not in the repository`);
+  }
+  assert.match(read('scripts/build_flatpak.sh'), /git ls-files -z linux \| xargs -0 cp --parents -t "\$out"/,
+    'scripts/build_flatpak.sh does not lay linux/ out as the repository does');
+});
+
+// The flatpak's WebKit carries PDF.js as the snap's does (LICENSE-001).
+test('the flatpak swaps PDF.js\'s fonts for the SDK\'s OFL release before WebKit builds (LICENSE-001)', () => {
+  const webkit = moduleNamed('wpewebkit');
+  assert.ok(webkit.sources.some((src) => src.path === '../pdfjs_fonts.sh'), 'wpewebkit does not take linux/pdfjs_fonts.sh');
+  const swaps = webkit.sources.filter((src) => src.type === 'shell').flatMap((src) => src.commands);
+  assert.deepEqual(swaps, ['bash pdfjs_fonts.sh --src . --fonts /usr/share/fonts/liberation-fonts'
+    + ' --licence /usr/share/licenses/freedesktop-sdk/liberation-fonts/fonts/LICENSE > pdfjs_fonts.changed'],
+  'wpewebkit does not swap the fonts in a shell source, which runs before the build');
+  assert.ok(webkit['config-opts'].includes('-DENABLE_PDFJS=ON'), 'wpewebkit does not say it builds PDF.js');
+});
+
+// The install_notices.sh call a module's post-install makes, as its arguments.
+function noticesOf(name) {
+  const calls = (moduleNamed(name)['post-install'] ?? []).filter((c) => c.startsWith('bash ../install_notices.sh '));
+  assert.equal(calls.length, 1, `${name} does not write its notices once in its post-install`);
+  return calls[0];
+}
+
+test('libwpe and WebKit write their notices where the app reads a flatpak\'s (LICENSE-003, LICENSE-004)', () => {
+  const docs = read('lib/services/bundled_notices_io.dart').match(/containsKey\('FLATPAK_ID'\)\) return '([^']+)';/)?.[1];
+  assert.equal(docs, '/app/share/doc', 'bundledDocsDir names another directory for a flatpak');
+  assert.ok(!(parsed.cleanup ?? []).includes('/share/doc'), `${MANIFEST} cleans the notices away`);
+  for (const name of ['libwpe', 'wpewebkit']) {
+    assert.ok(moduleNamed(name).sources.some((src) => src.path === '../install_notices.sh'), `${name} does not take install_notices.sh`);
+    assert.match(noticesOf(name), new RegExp(` --src \\.\\. --dest ${docs}/${name} `), `${name}'s notices are not in ${docs}/${name}`);
+  }
+  const webkit = noticesOf('wpewebkit');
+  assert.ok(webkit.includes(` --revision ${moduleNamed('wpewebkit').sources[0].commit}`),
+    'WebKit\'s notices do not name the commit the module builds');
+  assert.match(webkit, / --offer /, 'WebKit\'s notices make no offer of its source');
+  assert.ok(webkit.endsWith(' --changed "$(cat ../pdfjs_fonts.changed)"'), 'WebKit\'s notices hide the fonts the build replaced');
+  const snap = read('snap/snapcraft.yaml');
+  for (const flag of ['--license', '--name']) {
+    const of = (text) => text.match(new RegExp(`${flag} ("[^"]+")`))?.[1];
+    assert.equal(of(webkit), of(snap.slice(snap.indexOf('--name "WPE WebKit"') - 200)), `the flatpak's WebKit ${flag} is not the snap's`);
+  }
+  assert.match(webkit, / --third-party \.\.\/webkit_third_party\.tsv /, 'WebKit\'s third-party trees are not held to the table');
 });

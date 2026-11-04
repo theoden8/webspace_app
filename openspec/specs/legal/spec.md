@@ -309,12 +309,12 @@ own notices name the libraries LGPL-2.1 section 6 asks them to.
 ### Requirement: LICENSE-004 - A bundled LGPL library ships as the LGPL asks
 
 A library under the LGPL that a package bundles instead of taking it from the
-system SHALL ship as LGPL-2.1 section 6 asks. The snap bundles two: WPE WebKit,
-and libwpe, whose `src/key-unicode.c` (adapted from GDK's `gdkkeyuni.c`) is
-under the LGPL, version 2 or later; the rest of its tree is under its
-BSD-2-Clause `COPYING`, Apache-2.0 (`src/gamepad.c`, `include/wpe/gamepad.h`)
-and the X11-style notices of `include/wpe/keysyms.h`, The Open Group's
-(`MIT-open-group`) and Digital's (`HPND`).
+system SHALL ship as LGPL-2.1 section 6 asks. The snap and the flatpak each
+bundle two: WPE WebKit, and libwpe, whose `src/key-unicode.c` (adapted from
+GDK's `gdkkeyuni.c`) is under the LGPL, version 2 or later; the rest of its
+tree is under its BSD-2-Clause `COPYING`, Apache-2.0 (`src/gamepad.c`,
+`include/wpe/gamepad.h`) and the X11-style notices of `include/wpe/keysyms.h`,
+The Open Group's (`MIT-open-group`) and Digital's (`HPND`).
 
 - **Replaceable:** a shared library of its own that the app loads at run time,
   so a user can put a modified build in its place; never linked into the app
@@ -340,7 +340,8 @@ to a check.
 
 - **WHEN** the snap is built and installed
 - **THEN** `libWPEWebKit-2.0.so` is a file of its own in the snap and a library
-  of the app's names it as `NEEDED` (`scripts/check_snap.sh`)
+  of the app's names it as `NEEDED` (`scripts/verify_webkit_shipped.sh`, run by
+  `scripts/check_snap.sh`)
 - **AND** `usr/share/doc/wpewebkit/copyright` names WebKit's source and
   commit and carries the offer (`test/js/snap_manifest.test.js`)
 - **AND** Software Heritage holds that commit and its tree, asked about the
@@ -350,7 +351,7 @@ to a check.
 
 - **WHEN** the snap is built and installed
 - **THEN** `libwpe-1.0.so` is a file of its own in the snap and a library of
-  the snap names it as `NEEDED` (`scripts/check_snap.sh`)
+  the snap names it as `NEEDED` (`scripts/verify_webkit_shipped.sh`)
 - **AND** libwpe is built from git at the commit its 1.16.3 tag names, and
   `usr/share/doc/libwpe/copyright` names that source and commit, every licence
   of its tree, and carries the offer, with the build host's LGPL-2 and
@@ -362,6 +363,18 @@ to a check.
 - **AND** Software Heritage holds that commit and its tree
   (`tool/check_source_offer.js`, which asks about every copyright file that
   makes the offer)
+
+#### Scenario: The flatpak bundles WebKit
+
+- **WHEN** the flatpak is built
+- **THEN** its `/app` holds `libWPEWebKit-2.0.so` as a file of its own that a
+  library of the app's names as `NEEDED`, with PDF.js's fonts of the OFL
+  release (`scripts/verify_webkit_shipped.sh`)
+- **AND** `/app/share/doc/wpewebkit/copyright` names WebKit's source and
+  commit, what the build changed and the offer, and libwpe's notices sit
+  beside it (`test/js/flatpak_manifest.test.js`)
+- **AND** Software Heritage holds that commit and its tree, asked about the
+  built flatpak's own copyright file (`tool/check_source_offer.js`)
 
 #### Scenario: WebKit's pin moves to a commit the archive does not hold yet
 
