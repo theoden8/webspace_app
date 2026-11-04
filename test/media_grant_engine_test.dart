@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/site_origins.dart';
 import 'package:webspace/settings/capture.dart';
+import 'package:webspace/settings/origin_choices.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 
 import 'helpers/capture_fakes.dart';
@@ -21,12 +22,14 @@ final class _Host {
     bool withSource = false,
     Answer Function(CaptureKind kind,
         {required String origin, required CaptureMode current})? answer,
+    OriginMemory? origins,
   }) : prompter = FakePrompter(answer) {
     store = InMemoryGrantStore(
       (capture: grantsWith(kind, mode: mode, withSource: withSource),
           protectedContent: null),
       prompter: prompter,
       isSiteActive: () => active,
+      origins: origins ?? TransientOrigins(),
     );
   }
 
@@ -154,49 +157,54 @@ void main() {
       });
 
       test('a subframe does not inherit a settled real grant', () async {
-        final host =
-            _Host(kind, mode: kind.real, answer: _always(Answer.block));
+        final host = _Host(kind, mode: kind.real);
+        host.prompter.originAnswer = (_, {required origin}) => false;
         final grant = await host.ask(kind, origin: _frame, standing: Standing.embedded);
         expect(grant.mode, kind.block);
-        expect(host.prompter.asked.single.$2, _frame,
+        expect(host.prompter.originsAsked.single,
+            (SitePermission.ofCapture(kind), _frame),
             reason: 'the popup names the frame');
         expect(host.stored(kind).mode, kind.real);
       });
 
       test('a subframe answer is never written back to the site', () async {
-        final host = _Host(kind, mode: kind.ask, answer: _always(Answer.allow));
+        final host = _Host(kind, mode: kind.ask);
+        host.prompter.originAnswer = (_, {required origin}) => true;
         final grant = await host.ask(kind, origin: _frame, standing: Standing.embedded);
         expect(grant.mode, kind.real);
         expect(host.stored(kind).mode, kind.ask);
       });
 
-      test('the platform follow-up reuses the frame answer', () async {
-        final host = _Host(kind, mode: kind.ask, answer: _always(Answer.allow));
+      test('the platform follow-up reads the frame answer', () async {
+        final host = _Host(kind, mode: kind.ask);
+        host.prompter.originAnswer = (_, {required origin}) => true;
         await host.ask(kind, origin: _frame, standing: Standing.embedded);
         final again = await host.ask(kind, origin: _frame, standing: Standing.embedded);
         expect(again.mode, kind.real);
-        expect(host.prompter.asked, hasLength(1));
+        expect(host.prompter.originsAsked, hasLength(1));
       });
 
-      test('the grace window does not leak to another frame', () async {
-        final host = _Host(kind, mode: kind.ask, answer: _always(Answer.allow));
+      test('a frame answer does not leak to another frame', () async {
+        final host = _Host(kind, mode: kind.ask);
+        host.prompter.originAnswer = (_, {required origin}) => origin == _frame;
         await host.ask(kind, origin: _frame, standing: Standing.embedded);
-        host.prompter.answer = _always(Answer.block);
         final other = await host.ask(kind,
             origin: 'https://other.example', standing: Standing.embedded);
         expect(other.mode, kind.block);
-        expect(host.prompter.asked, hasLength(2));
+        expect(host.prompter.originsAsked, hasLength(2));
       });
 
       test("a subframe does not ride the top document's popup", () async {
         final host = _Host(kind, mode: kind.ask, answer: _always(Answer.allow));
+        host.prompter.originAnswer = (_, {required origin}) => true;
         host.prompter.gate = Completer<void>();
         final top = host.ask(kind);
         final frame = host.ask(kind, origin: _frame, standing: Standing.embedded);
         await pumpEventQueue();
         host.prompter.gate!.complete();
         await Future.wait([top, frame]);
-        expect(host.prompter.asked, hasLength(2));
+        expect(host.prompter.asked, hasLength(1));
+        expect(host.prompter.originsAsked, hasLength(1));
       });
     });
   }
@@ -229,21 +237,23 @@ void main() {
     );
     final prompter = FakePrompter(_always(Answer.block));
     final store = InMemoryGrantStore(nested,
-        prompter: prompter, isSiteActive: () => true);
+        prompter: prompter, isSiteActive: () => true, origins: TransientOrigins());
     for (final kind in <CaptureKind>[CaptureKind.camera, CaptureKind.microphone]) {
-      expect(store.mode(kind, standing: Standing.own).state, SitePermissionState.ask);
+      expect(store.mode(kind, origin: _top, standing: Standing.own).state,
+          SitePermissionState.ask);
       await store.capture(kind, origin: _top, standing: Standing.own);
     }
     expect(prompter.asked, hasLength(2));
   });
 
   group('GrantStore.protectedContent', () {
-InMemoryGrantStore store(FakePrompter prompter, {required bool? remembered}) =>
-    InMemoryGrantStore(
-      (capture: CaptureGrants.none, protectedContent: remembered),
-      prompter: prompter,
-      isSiteActive: () => true,
-    );
+    InMemoryGrantStore store(FakePrompter prompter, {required bool? remembered}) =>
+        InMemoryGrantStore(
+          (capture: CaptureGrants.none, protectedContent: remembered),
+          prompter: prompter,
+          isSiteActive: () => true,
+          origins: TransientOrigins(),
+        );
 
     test('a remembered answer settles without a popup', () async {
       final prompter = FakePrompter();
@@ -272,46 +282,57 @@ InMemoryGrantStore store(FakePrompter prompter, {required bool? remembered}) =>
   // tab, or the next page a surface navigated to.
   const foreign = 'https://evil.example';
   for (final kind in CaptureKind.values) {
-    group('PERM-001: a grant answers for the origin that gave it ($kind)', () {
+    final permission = SitePermission.ofCapture(kind);
+    group('PERM-001 / PERM-002: a grant answers for the origin that gave it '
+        '($kind)', () {
       test("a foreign document does not ride the site's real grant", () async {
-        final host =
-            _Host(kind, mode: kind.real, answer: _always(Answer.block));
+        final host = _Host(kind, mode: kind.real);
+        host.prompter.originAnswer = (_, {required origin}) => false;
         final grant =
             await host.ask(kind, origin: foreign, standing: Standing.foreign);
         expect(grant.mode, kind.block);
-        expect(host.prompter.asked.single.$2, foreign,
-            reason: 'the popup names the page that asks');
+        if (kind.realOffered) {
+          expect(host.prompter.originsAsked.single, (permission, foreign),
+              reason: 'the popup names the page that asks');
+        }
+        expect(host.prompter.asked, isEmpty,
+            reason: "the site's own popup, with its file, is not shown");
         expect(host.stored(kind).mode, kind.real,
             reason: "the site's own grant is left as it was");
       });
 
       test("a foreign document is not served the site's file", () async {
-        final host = _Host(kind,
-            mode: kind.virtual,
-            withSource: true,
-            answer: _always(Answer.cancelPick));
+        final host = _Host(kind, mode: kind.virtual, withSource: true);
+        host.prompter.originAnswer = (_, {required origin}) => true;
         final grant =
             await host.ask(kind, origin: foreign, standing: Standing.foreign);
         expect(grant.source, isNull);
-        expect(host.prompter.asked.single.$3, kind.ask,
-            reason: "the popup shows none of the site's settings");
+        expect(grant.mode, kind.realOffered ? kind.real : kind.block,
+            reason: 'its own answer, Allow or Block, never the file');
       });
 
-      test('a foreign answer stays with its origin', () async {
-        final host = _Host(kind, mode: kind.ask, answer: _always(Answer.allow));
+      test('a foreign answer stays with its origin, and is remembered for it',
+          () async {
+        final origins = TransientOrigins();
+        final host = _Host(kind, mode: kind.ask, origins: origins,
+            answer: _always(Answer.block));
+        host.prompter.originAnswer = (_, {required origin}) => true;
         expect(
             (await host.ask(kind, origin: foreign, standing: Standing.foreign))
                 .mode,
-            kind.real);
+            kind.realOffered ? kind.real : kind.block);
         expect(host.stored(kind).mode, kind.ask,
             reason: 'never written to the site');
+        if (!kind.realOffered) return;
+        expect(origins.choices.of(permission, origin: foreign), isTrue);
+        final later = _Host(kind, mode: kind.ask, origins: origins);
         expect(
-            (await host.ask(kind, origin: foreign, standing: Standing.foreign))
+            (await later.ask(kind, origin: foreign, standing: Standing.foreign))
                 .mode,
-            kind.real);
-        expect(host.prompter.asked, hasLength(1),
-            reason: 'kept for its origin while the surface lives');
-        host.prompter.answer = _always(Answer.block);
+            kind.real,
+            reason: 'another surface of the site reads the same answer');
+        expect(later.prompter.originsAsked, isEmpty);
+        host.prompter.originAnswer = (_, {required origin}) => false;
         expect(
             (await host.ask(kind,
                     origin: 'https://next.example', standing: Standing.foreign))
@@ -319,49 +340,183 @@ InMemoryGrantStore store(FakePrompter prompter, {required bool? remembered}) =>
             kind.block,
             reason: 'the next origin is asked for itself');
         expect((await host.ask(kind)).mode, kind.block,
-            reason: "and so is the site's own document");
-        expect(host.prompter.asked, hasLength(3));
+            reason: "and so is the site's own document, by its own popup");
+        expect(host.prompter.originsAsked, hasLength(2));
+        expect(host.prompter.asked, hasLength(1));
+      });
+
+      test('a dismissed origin popup is denied once and asked again', () async {
+        if (!kind.realOffered) return;
+        final host = _Host(kind, mode: kind.ask);
+        host.prompter.originAnswer = (_, {required origin}) => null;
+        for (var i = 0; i < 2; i++) {
+          expect(
+              (await host.ask(kind, origin: foreign, standing: Standing.foreign))
+                  .mode,
+              kind.block);
+        }
+        expect(host.prompter.originsAsked, hasLength(2));
       });
 
       test("the site's block holds for a foreign document", () async {
-        final host = _Host(kind, mode: kind.block);
+        final origins = TransientOrigins()
+          ..choices = OriginChoices.none
+              .remember(permission, origin: foreign, allowed: true);
+        final host = _Host(kind, mode: kind.block, origins: origins);
         expect(
             (await host.ask(kind, origin: foreign, standing: Standing.foreign))
                 .mode,
             kind.block);
-        expect(host.prompter.asked, isEmpty);
+        expect(host.prompter.originsAsked, isEmpty);
       });
 
-      test("a foreign document reads ask where the site is real", () {
-        expect(_Host(kind, mode: kind.real)
-            .store
-            .mode(kind, standing: Standing.foreign), kind.ask);
-        expect(_Host(kind, mode: kind.real)
-            .store
-            .mode(kind, standing: Standing.own), kind.real);
-        expect(_Host(kind, mode: kind.block)
-            .store
-            .mode(kind, standing: Standing.foreign), kind.block);
+      test('a backgrounded site asks no other origin', () async {
+        final host = _Host(kind, mode: kind.ask)..active = false;
+        expect(
+            (await host.ask(kind, origin: foreign, standing: Standing.foreign))
+                .mode,
+            kind.block);
+        expect(host.prompter.originsAsked, isEmpty);
+      });
+
+      test('a foreign document reads its own answer, else ask', () {
+        final origins = TransientOrigins();
+        final host = _Host(kind, mode: kind.real, origins: origins);
+        expect(
+            host.store.mode(kind, origin: foreign, standing: Standing.foreign),
+            kind.ask);
+        origins.choices = origins.choices
+            .remember(permission, origin: foreign, allowed: false);
+        expect(
+            host.store.mode(kind, origin: foreign, standing: Standing.foreign),
+            kind.block);
+        expect(host.store.mode(kind, origin: _top, standing: Standing.own),
+            kind.real);
+        expect(
+            _Host(kind, mode: kind.block)
+                .store
+                .mode(kind, origin: foreign, standing: Standing.foreign),
+            kind.block);
+      });
+
+      test("the site's own answer to Block forgets its other origins", () async {
+        final origins = TransientOrigins()
+          ..choices = OriginChoices.none
+              .remember(permission, origin: foreign, allowed: true)
+              .remember(SitePermission.location, origin: foreign, allowed: true);
+        final host = _Host(kind, mode: kind.ask, origins: origins,
+            answer: _always(Answer.block));
+        await host.ask(kind);
+        expect(origins.choices.listed(permission), isEmpty);
+        expect(origins.choices.of(SitePermission.location, origin: foreign),
+            isTrue, reason: 'only the capability that moved');
       });
     });
   }
 
-  test('PERM-001: protected content answers for the origin that asked',
+  group('PERM-001 / PERM-002: protected content, location and notifications '
+      'answer for the origin that asked', () {
+    InMemoryGrantStore store(FakePrompter prompter, {bool? protectedContent}) =>
+        InMemoryGrantStore(
+          (capture: CaptureGrants.none, protectedContent: protectedContent),
+          prompter: prompter,
+          isSiteActive: () => true,
+          origins: TransientOrigins(),
+        );
+
+    test('protected content: a foreign origin is asked for itself, once',
+        () async {
+      final prompter = FakePrompter()
+        ..drmAnswer = false
+        ..originAnswer = (_, {required origin}) => true;
+      final s = store(prompter);
+      expect(await s.protectedContent(foreign, standing: Standing.foreign),
+          isTrue);
+      expect(await s.protectedContent(foreign, standing: Standing.embedded),
+          isTrue);
+      expect(prompter.originsAsked,
+          [(SitePermission.protectedContent, foreign)]);
+      expect(s.media.protectedContent, isNull,
+          reason: 'never written to the site');
+      expect(await s.protectedContent(_top, standing: Standing.own), isFalse,
+          reason: "the site's own document asks by the site's popup");
+      expect(prompter.drmAsked, 1);
+    });
+
+    test("protected content: the site's block holds for every origin",
+        () async {
+      final prompter = FakePrompter();
+      expect(
+          await store(prompter, protectedContent: false)
+              .protectedContent(foreign, standing: Standing.foreign),
+          isFalse);
+      expect(prompter.originsAsked, isEmpty);
+    });
+
+    test('location (LOC-012): served to the site, asked of another origin',
+        () async {
+      final prompter = FakePrompter()
+        ..originAnswer = (_, {required origin}) => origin == foreign;
+      final s = store(prompter);
+      expect(await s.location(_top, standing: Standing.own, live: true), isTrue);
+      expect(await s.location(foreign, standing: Standing.foreign, live: true),
+          isTrue);
+      expect(await s.location(_frame, standing: Standing.embedded, live: true),
+          isFalse);
+      expect(await s.location(foreign, standing: Standing.foreign, live: true),
+          isTrue);
+      expect(prompter.originsAsked, [
+        (SitePermission.location, foreign),
+        (SitePermission.location, _frame),
+      ]);
+      expect(await s.location(foreign, standing: Standing.foreign, live: false),
+          isFalse, reason: 'a site not set to live serves no origin');
+    });
+
+    test('notifications (NOTIF-020): the site may, another origin is asked',
+        () async {
+      final prompter = FakePrompter()
+        ..originAnswer = (_, {required origin}) => false;
+      final s = store(prompter);
+      expect(await s.notifications(_top, standing: Standing.own, enabled: true),
+          isTrue);
+      expect(
+          await s.notifications(foreign,
+              standing: Standing.foreign, enabled: true),
+          isFalse);
+      expect(
+          await s.notifications(foreign,
+              standing: Standing.foreign, enabled: true),
+          isFalse);
+      expect(prompter.originsAsked, hasLength(1));
+      expect(
+          await s.notifications(_top, standing: Standing.own, enabled: false),
+          isFalse);
+    });
+  });
+
+  test('PERM-002: an answer outlives its surface, saved with the site',
       () async {
-    final prompter = FakePrompter()..drmAnswer = true;
-    final s = InMemoryGrantStore(
-      (capture: CaptureGrants.none, protectedContent: false),
-      prompter: prompter,
-      isSiteActive: () => true,
-    );
-    expect(await s.protectedContent(foreign, standing: Standing.foreign),
+    final site = siteWith(CaptureKind.camera, mode: CameraAccessMode.ask);
+    var saves = 0;
+    final prompter = FakePrompter()
+      ..originAnswer = (_, {required origin}) => true;
+    final first = PersistedGrantStore(site,
+        prompter: prompter, isSiteActive: () => true, save: () async => saves++);
+    await first.capture(CaptureKind.camera,
+        origin: foreign, standing: Standing.foreign);
+    expect(site.originChoices.of(SitePermission.camera, origin: foreign),
         isTrue);
-    expect(s.media.protectedContent, isFalse,
-        reason: 'never written to the site');
-    expect(await s.protectedContent(foreign, standing: Standing.foreign),
-        isTrue);
-    expect(prompter.drmAsked, 1);
-    expect(await s.protectedContent(_top, standing: Standing.own), isFalse,
-        reason: "the site's own answer serves its own document");
+    expect(saves, 1);
+    final nested = InMemoryGrantStore(site.effectiveMedia,
+        prompter: FakePrompter(),
+        isSiteActive: () => true,
+        origins: SavedOrigins(site, save: () async => saves++));
+    expect(
+        (await nested.capture(CaptureKind.camera,
+                origin: foreign, standing: Standing.foreign))
+            .mode,
+        CameraAccessMode.real,
+        reason: "a nested screen reads the site's answers");
   });
 }

@@ -3255,6 +3255,23 @@
   "@homeBlockAction": {
     "description": "Button label to block protected content playback"
   },
+  "homeLocationAccessTitle": "Allow location access?",
+  "@homeLocationAccessTitle": {
+    "description": "Title of the popup that asks whether a page of another origin, inside one of the user's sites, may have the device's live location"
+  },
+  "homeNotificationsAccessTitle": "Allow notifications?",
+  "@homeNotificationsAccessTitle": {
+    "description": "Title of the popup that asks whether a page of another origin, inside one of the user's sites, may show notifications under the site's name"
+  },
+  "homeOriginAccessBody": "{origin} is asking for itself: it is not one of this site's own pages, so the site's setting does not answer for it.\n\nYour answer is remembered for {origin} only, and listed in the site's permissions.",
+  "@homeOriginAccessBody": {
+    "description": "Body of the popup that asks a page of another origin (an embedded frame, or a page a link reached) for a permission such as camera, location or notifications. The title names the permission. {origin} is the asking page's origin, such as https://example.com",
+    "placeholders": {
+      "origin": {
+        "type": "String"
+      }
+    }
+  },
   "homeCameraAccessTitle": "Allow camera access?",
   "@homeCameraAccessTitle": {
     "description": "Title of the web camera access permission dialog"
@@ -4258,6 +4275,14 @@
   "permissionsBackgroundAudioNotAGrant": "Exempt from pausing. Grants nothing.",
   "@permissionsBackgroundAudioNotAGrant": {
     "description": "Subtitle for the background audio switch, clarifying it is a playback exemption rather than a permission."
+  },
+  "permissionsOtherOrigins": "Other origins",
+  "@permissionsOtherOrigins": {
+    "description": "Heading in a permission's sheet above the list of other origins (embedded frames or pages a link reached inside the site) the user answered for this permission"
+  },
+  "permissionsForgetOrigin": "Forget, so it is asked again",
+  "@permissionsForgetOrigin": {
+    "description": "Tooltip of the button beside an origin in a permission's list of other origins: removes the remembered answer so that origin is asked again next time"
   },
   "permissionStateAsk": "Ask",
   "@permissionStateAsk": {

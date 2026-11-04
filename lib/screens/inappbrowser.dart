@@ -79,6 +79,10 @@ class InAppWebViewScreen extends StatefulWidget {
   /// ([SitePosture.forNested]). A nested screen has no persisted model, so
   /// the decisions it seeds (capture, DRM) live in this screen's memory only.
   final SitePosture posture;
+
+  /// The site's answers to documents of other origins, which this screen
+  /// reads and adds to as the site's own webview does (PERM-002).
+  final OriginMemory origins;
   final WebViewHostHooks hooks;
   final bool showUrlBar;
 
@@ -101,6 +105,7 @@ class InAppWebViewScreen extends StatefulWidget {
   InAppWebViewScreen({
     required this.url,
     required SitePosture posture,
+    required this.origins,
     required this.hooks,
     required this.webView,
     this.homeTitle,
@@ -130,6 +135,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     widget.posture.media,
     prompter: widget.hooks.media,
     isSiteActive: () => mounted,
+    origins: widget.origins,
   );
 
   /// Cached InAppWebView widget. Built once in initState and reused on

@@ -94,6 +94,29 @@ abstract final class PageHandlers {
     standing: config.posture.origins.standing(top: top, frame: origin),
   );
 
+  /// Whether [from] gets the device's live location, the site serving it:
+  /// the site's own documents do, another origin once it was allowed for
+  /// itself where the surface can ask, never on a headless check (PERM-002).
+  static Future<bool> _mayLocate(
+    Requester from, {
+    required GrantStore? grants,
+  }) =>
+      grants?.location(from.origin, standing: from.standing, live: true) ??
+      Future.value(from.standing == Standing.own);
+
+  /// [_mayLocate] for a notification, the site's notifications being on
+  /// (NOTIF-020, PERM-002).
+  static Future<bool> _mayNotify(
+    Requester from, {
+    required GrantStore? grants,
+  }) =>
+      grants?.notifications(
+        from.origin,
+        standing: from.standing,
+        enabled: true,
+      ) ??
+      Future.value(from.standing == Standing.own);
+
   /// Register the Dart side of every shim [PageScripts.buildPageScripts] installs.
   /// The two go together: a shim whose handler is missing leaves the
   /// promise it hands the page unresolved. [grants] answers this view's
@@ -129,13 +152,12 @@ abstract final class PageHandlers {
         handlerName: 'getRealLocation',
         callback: (inapp.JavaScriptHandlerFunctionData data) async {
           // The shim reaches every frame, so a cross-origin iframe can call
-          // this directly and skip the engine's Permissions-Policy check.
-          // Serve it what an undelegated iframe sees in a browser (LOC-011);
-          // a same-origin frame keeps the default 'self' allowlist. A page
-          // the site does not own (one a link reached in a nested screen or
-          // a tab) is never served the site's live location (PERM-001).
+          // this directly and skip the engine's Permissions-Policy check. Only
+          // the site's own documents are served the site's answer; a frame or
+          // page of another origin is asked for itself once, and is denied
+          // where no surface can ask (LOC-011, LOC-012, PERM-002).
           final from = await requesterOf(controller, config: config, frame: data);
-          if (from.standing != Standing.own) {
+          if (!await _mayLocate(from, grants: grants)) {
             return {'status': 'permission_denied', 'message': from.standing.name};
           }
           final res = await CurrentLocationService.getCurrentLocation(
@@ -199,7 +221,9 @@ abstract final class PageHandlers {
             callback: (inapp.JavaScriptHandlerFunctionData data) async {
               final from =
                   await requesterOf(controller, config: config, frame: data);
-              return grants.mode(kind, standing: from.standing).name;
+              return grants
+                  .mode(kind, origin: from.origin, standing: from.standing)
+                  .name;
             },
           );
         }
@@ -471,15 +495,15 @@ abstract final class PageHandlers {
     if (config.posture.page.notifications) {
       controller.addJavaScriptHandler(
         handlerName: 'webNotification',
-        // The polyfill is in every frame. A cross-origin iframe posting
-        // under the site's identity is dropped here, on the frame identity
-        // the plugin supplies, not on anything the page says (NOTIF-010), and
-        // so is a page the site does not own (PERM-001).
+        // The polyfill is in every frame. A frame or page of another origin
+        // posts under the site's identity only once it was allowed for
+        // itself, which the frame identity the plugin supplies decides, not
+        // anything the page says (NOTIF-010, NOTIF-020, PERM-002).
         callback: (inapp.JavaScriptHandlerFunctionData call) async {
           final args = call.args;
           if (args.isEmpty || args[0] is! Map) return null;
           final from = await requesterOf(controller, config: config, frame: call);
-          if (from.standing != Standing.own) return null;
+          if (!await _mayNotify(from, grants: grants)) return null;
           final data = Map<String, dynamic>.from(args[0] as Map);
           final title = data['title'] as String? ?? '';
           final body = data['body'] as String? ?? '';
@@ -534,7 +558,8 @@ abstract final class PageHandlers {
       callback: (inapp.JavaScriptHandlerFunctionData call) async {
         final from = await requesterOf(controller, config: config, frame: call);
         final result =
-            config.posture.page.notifications && from.standing == Standing.own
+            config.posture.page.notifications &&
+                await _mayNotify(from, grants: grants)
             ? 'granted'
             : 'denied';
         LogTag.notification.debug(

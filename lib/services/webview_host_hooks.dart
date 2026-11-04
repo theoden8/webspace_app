@@ -8,6 +8,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/popup_webview.dart' show PopupKind;
 import 'package:webspace/settings/capture.dart';
+import 'package:webspace/settings/origin_choices.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/webview_controller.dart';
@@ -110,6 +111,12 @@ final class WebViewHostHooks {
 
 final class _Declines implements MediaPrompter {
   const _Declines();
+
+  @override
+  Future<bool?> originAccess(
+    SitePermission permission, {
+    required String origin,
+  }) async => false;
 
   @override
   Future<CaptureGrant> capture(

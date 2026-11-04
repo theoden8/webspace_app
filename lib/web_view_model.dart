@@ -50,6 +50,7 @@ import 'package:webspace/services/webview_tab_binding.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/capture.dart';
+import 'package:webspace/settings/origin_choices.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -350,6 +351,10 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
   /// never frozen into a per-site Block.
   @override
   CaptureGrants captures;
+  /// What documents of other origins inside the site were answered, on
+  /// this device only (PERM-002).
+  @override
+  OriginChoices originChoices = OriginChoices.none;
   List<UserScriptConfig> userScripts;
   /// IDs of global user scripts opted into for this site. Global scripts
   /// are stored once in app state (shared source/URL) and each site
@@ -1309,6 +1314,7 @@ bool dispatch(NavigationDecision decision,
                   posture.media,
                   prompter: hooks.host.media,
                   isSiteActive: isActive,
+                  origins: SavedOrigins(id, save: hooks.host.save),
                 )
               : PersistedGrantStore(
                   id,

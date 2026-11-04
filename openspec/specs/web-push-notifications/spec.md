@@ -436,9 +436,10 @@ The `Notification` polyfill is injected into every frame, and any frame can
 also call the `webNotification` bridge directly. The handler SHALL read the
 frame identity the plugin's bridge preamble supplies
 (`JavaScriptHandlerFunctionData`) and SHALL drop a post whose frame is not
-the top document and whose origin differs from the top document's, so a
-cross-origin iframe cannot post a notification under the site's identity,
-nor replace the site's tagged notifications. The target `siteId` stays the
+the top document and whose origin differs from the top document's, unless the
+user allowed that origin for itself (PERM-002), so a cross-origin iframe cannot
+post a notification under the site's identity, nor replace the site's tagged
+notifications, without being asked. The target `siteId` stays the
 webview's own, never the page's. The polyfill stays in frames so
 `Notification.permission` reads consistently. Gated by
 `test/js/page_bridge_authority.test.js`.
@@ -447,25 +448,29 @@ webview's own, never the page's. The polyfill stays in frames so
 
 **Given** site "Acme" has notifications enabled and embeds a cross-origin ad frame
 **When** the frame calls `new Notification('Security alert', {body: '...'})`, or the bridge directly
-**Then** no OS notification is shown
+**Then** the user is asked, under the frame's origin, and until it is allowed no OS notification is shown
 **And** a post from Acme's own document, or a same-origin frame, is shown as before
 
-### Requirement: NOTIF-020 - A page the site does not own posts nothing
+### Requirement: NOTIF-020 - A page the site does not own is asked for itself
 
 A site's notification permission SHALL serve only the documents the site owns
-(PERM-001). A top document whose origin is not the site's (a page a link
-reached in a nested screen, a tab that runs as the site, a popup), and every
-frame inside one, SHALL have its posts dropped by `webNotification` and be
-answered `denied` by `webNotificationRequestPermission`, both judged on the
-frame identity the plugin supplies. Gated by
+(PERM-001) without asking. A document of another origin (a page a link reached
+in a nested screen, a tab that runs as the site, a popup, or a frame of another
+origin, NOTIF-010) SHALL be asked for itself once, when it asks for permission
+or posts, and its answer remembered for that origin (PERM-002); until it is
+allowed its posts are dropped by `webNotification` and it is answered `denied`
+by `webNotificationRequestPermission`, both judged on the frame identity the
+plugin supplies. Where no surface can ask (a headless check, a site off
+screen) an unanswered origin is denied. Verified by
+`test/media_grant_engine_test.dart`; the handlers' calls are gated by
 `test/js/page_bridge_authority.test.js`.
 
 #### Scenario: A linked page posts under the site's name
 
 **Given** site "Acme" has notifications enabled
-**When** a link on Acme opens a page of another domain in a nested screen, and that page asks for permission and posts
-**Then** it is answered `denied`
-**And** no OS notification is shown
+**When** a link on Acme opens a page of another domain in a nested screen, and that page asks for permission
+**Then** the user is asked, under that page's origin
+**And** until the user allows it, it is answered `denied` and no OS notification is shown
 
 ### Requirement: NOTIF-011 - A notification site vetoes the app-background JS pause
 

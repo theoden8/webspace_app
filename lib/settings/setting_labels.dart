@@ -6,6 +6,7 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/location.dart';
+import 'package:webspace/settings/origin_choices.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -120,6 +121,18 @@ extension CaptureKindText on CaptureKind {
       realUnavailable: loc.permissionScreenShareUnavailable,
       allowWarning: loc.siteSettingsScreenShareAllowWarning,
     ),
+  };
+}
+
+extension SitePermissionText on SitePermission {
+  /// The title of the popup that asks another origin's document (PERM-002).
+  Localized promptTitle(AppLocalizations loc) => switch (this) {
+    SitePermission.camera => loc.homeCameraAccessTitle,
+    SitePermission.microphone => loc.homeMicrophoneAccessTitle,
+    SitePermission.screenShare => loc.homeScreenShareTitle,
+    SitePermission.location => loc.homeLocationAccessTitle,
+    SitePermission.notifications => loc.homeNotificationsAccessTitle,
+    SitePermission.protectedContent => loc.homePlayProtectedContentTitle,
   };
 }
 

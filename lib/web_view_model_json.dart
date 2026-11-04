@@ -20,6 +20,7 @@ import 'package:webspace/utils/url_utils.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
+import 'package:webspace/settings/origin_choices.dart';
 import 'package:webspace/settings/site_ids.dart';
 
 /// A site's JSON: the form it is saved in and the one a backup carries.
@@ -117,6 +118,9 @@ extension WebViewModelJson on WebViewModel {
       // Virtual-source bytes ride the model like `customIconPng` (backups
       // keep them; archive-tier sites live only inside the encrypted slice).
       SiteField.captures => captures.toJson(),
+      SiteField.originChoices => {
+          if (!originChoices.isEmpty) key: originChoices.toJson(),
+        },
       SiteField.userScripts => {
           key: userScripts.map((s) => s.toJson()).toList(),
         },
@@ -400,6 +404,8 @@ class _SiteJson {
         model.protectedContentAllowed = value<bool>(field);
       case SiteField.captures:
         model.captures = CaptureGrants.fromJson(json);
+      case SiteField.originChoices:
+        model.originChoices = OriginChoices.fromJson(json[field.key]);
       case SiteField.userScripts:
         model.userScripts =
             _jsonEntries(raw, parse: UserScriptConfig.fromJson);

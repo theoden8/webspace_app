@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/settings/capture.dart';
+import 'package:webspace/settings/origin_choices.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// A file of [kind]'s medium.
@@ -55,6 +56,12 @@ final class FakePrompter implements MediaPrompter {
   bool? drmAnswer;
   int drmAsked = 0;
 
+  /// How another origin's document is answered (PERM-002); null fails the
+  /// test if one is asked. A null result is a dismissed popup.
+  bool? Function(SitePermission permission, {required String origin})?
+      originAnswer;
+  final List<(SitePermission, String)> originsAsked = [];
+
   @override
   Future<CaptureGrant> capture(
     CaptureKind kind, {
@@ -81,6 +88,18 @@ final class FakePrompter implements MediaPrompter {
     if (answer == null) fail('protected content must not prompt for $origin');
     if (gate case final gate?) await gate.future;
     return answer;
+  }
+
+  @override
+  Future<bool?> originAccess(
+    SitePermission permission, {
+    required String origin,
+  }) async {
+    originsAsked.add((permission, origin));
+    final choice = originAnswer;
+    if (choice == null) fail('$permission must not ask $origin');
+    if (gate case final gate?) await gate.future;
+    return choice(permission, origin: origin);
   }
 
   @override

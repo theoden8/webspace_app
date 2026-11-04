@@ -8,6 +8,7 @@ import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/popup_webview.dart';
 import 'package:webspace/services/virtual_media_picker.dart';
 import 'package:webspace/settings/capture.dart';
+import 'package:webspace/settings/origin_choices.dart';
 import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/widgets/http_auth_prompt.dart';
 import 'package:webspace/widgets/toast.dart';
@@ -158,6 +159,35 @@ class DialogWebViewPrompts implements MediaPrompter {
       ),
     );
     return result ?? false;
+  }
+
+  /// Asked once per origin that is not one of the site's own: Allow or
+  /// Block, the site's file staying the site's (PERM-002). The [GrantStore]
+  /// remembers the answer for that origin.
+  @override
+  Future<bool?> originAccess(
+    SitePermission permission, {
+    required String origin,
+  }) async {
+    if (!context.mounted) return null;
+    final loc = AppLocalizations.of(context);
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(permission.promptTitle(loc)),
+        content: Text(loc.homeOriginAccessBody(origin)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(loc.homeBlockAction),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(loc.homeAllowAction),
+          ),
+        ],
+      ),
+    );
   }
 
   /// The first request shows Block / Use a file / Allow (no Allow where the

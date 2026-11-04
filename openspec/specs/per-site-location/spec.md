@@ -631,14 +631,14 @@ Otherwise a site could defeat the spoof by linking to a detection page (e.g. bro
 
 ### Requirement: LOC-011 - A live fix is served to the top document only
 
-The location shim is injected `forMainFrameOnly: false` (LOC-007) so a page's own frames see the same spoof, which also puts a cross-origin iframe on the `getRealLocation` handler. In `live` mode the handler SHALL read the frame identity the plugin's bridge preamble supplies (`JavaScriptHandlerFunctionData`, which page script can neither forge nor call around) and SHALL answer a frame whose origin differs from the top document's with `permission_denied`, which the shim maps to `PERMISSION_DENIED`: exactly what an iframe without `allow="geolocation"` sees in a browser. A same-origin frame keeps the engine's default `'self'` allowlist. Gated by `test/js/page_bridge_authority.test.js`.
+The location shim is injected `forMainFrameOnly: false` (LOC-007) so a page's own frames see the same spoof, which also puts a cross-origin iframe on the `getRealLocation` handler. In `live` mode the handler SHALL read the frame identity the plugin's bridge preamble supplies (`JavaScriptHandlerFunctionData`, which page script can neither forge nor call around) and SHALL answer a frame whose origin differs from the top document's with `permission_denied`, which the shim maps to `PERMISSION_DENIED`, until the user allowed that origin for itself (PERM-002): never the site's own answer, which is what an iframe without `allow="geolocation"` gets in a browser. A same-origin frame keeps the engine's default `'self'` allowlist. Gated by `test/js/page_bridge_authority.test.js`.
 
 #### Scenario: A cross-origin iframe asks for the device fix
 
 **Given** site "Acme" has `locationMode = live`
 **When** a cross-origin iframe it embeds calls `navigator.geolocation.getCurrentPosition`, or calls the `getRealLocation` handler directly
-**Then** the error callback receives `PERMISSION_DENIED`
-**And** the device's location service is not consulted
+**Then** the user is asked, under the frame's origin
+**And** until it is allowed, the error callback receives `PERMISSION_DENIED` and the device's location service is not consulted
 
 #### Scenario: The top document and its own frames still get a fix
 
@@ -646,21 +646,24 @@ The location shim is injected `forMainFrameOnly: false` (LOC-007) so a page's ow
 **When** the top document, or a same-origin iframe, calls `getCurrentPosition`
 **Then** the snapped device fix is returned as before
 
-### Requirement: LOC-012 - A page the site does not own gets no live fix
+### Requirement: LOC-012 - A page the site does not own is asked for itself
 
-A site's `live` mode SHALL serve only the documents the site owns (PERM-001):
-a top document whose origin is not the site's (a page a link reached in a
-nested screen, a tab that runs as the site, a popup), and every frame inside
-one, SHALL get `permission_denied` from `getRealLocation`, and the device's
-location service SHALL not be consulted. Gated by
+A site's `live` mode SHALL serve only the documents the site owns (PERM-001)
+without asking. A document of another origin (a page a link reached in a
+nested screen, a tab that runs as the site, a popup, or a frame of another
+origin, LOC-011) SHALL be asked for itself once, its answer remembered for
+that origin (PERM-002); until it is allowed it gets `permission_denied` from
+`getRealLocation`, and the device's location service SHALL not be consulted.
+Where no surface can ask (a headless check) it is denied. Verified by
+`test/media_grant_engine_test.dart`; the handler's call is gated by
 `test/js/page_bridge_authority.test.js`.
 
 #### Scenario: A linked page in a nested screen asks for the device fix
 
 **Given** site "Acme" has `locationMode = live`
 **When** a link on Acme opens a page of another domain in a nested screen, and that page calls `getCurrentPosition`
-**Then** the error callback receives `PERMISSION_DENIED`
-**And** the device's location service is not consulted
+**Then** the user is asked, under that page's origin
+**And** until the user allows it, the error callback receives `PERMISSION_DENIED` and the device's location service is not consulted
 
 ---
 

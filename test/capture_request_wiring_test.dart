@@ -70,7 +70,8 @@ void main() {
         expect(
             (await store.capture(kind, origin: origin, standing: Standing.own)).mode,
             kind.block);
-        expect(store.mode(kind, standing: Standing.own), kind.block,
+        expect(store.mode(kind, origin: origin, standing: Standing.own),
+            kind.block,
             reason: 'enumerateDevices reads the folded mode too');
         expect(kind.grantOf(model.captures).mode, kind.virtual,
             reason: 'preserved for when the site leaves the archive');
