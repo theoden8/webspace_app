@@ -179,7 +179,9 @@ void main() {
               reason: '$engine at ${m.start} reads the sites, not the slots');
         }
       }
-      expect(main, contains('state._sites.slotIdentities()'),
+      expect(
+          File('lib/screens/webspace_page_residency.dart').readAsStringSync(),
+          contains('state._sites.slotIdentities()'),
           reason: 'the residency host hands the plan the slots');
       final plan = bodyOf(
         File('lib/services/site_unload_engine.dart').readAsStringSync(),

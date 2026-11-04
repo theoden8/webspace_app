@@ -114,6 +114,8 @@ import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/services/step_table.dart';
 
+part 'webspace_page_residency.dart';
+
 /// Test seam: when set, the page state uses this store instead of
 /// constructing a [SecureWebViewStateStorage]. Lets integration tests
 /// inject an in-memory store that survives a simulated restart (re-run of
@@ -1640,45 +1642,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 }
 
-class _ResidencyHost implements ResidencyHost {
-  const _ResidencyHost(this.state);
-
-  final _WebSpacePageState state;
-
-  @override
-  ResidencyCaps get caps => kResidencyCaps;
-
-  @override
-  List<WebViewModel> get models => state._sites.models;
-
-  @override
-  RuntimeVars<WebViewModel> get vars => state._sites.vars;
-
-  @override
-  Isolation get isolation => state._sites.isolation;
-
-  @override
-  NavCapture? beginNavCapture(WebViewModel model) =>
-      state._activation.beginNavCapture(model);
-
-  @override
-  void noteUnloaded(WebViewModel model, {required UnloadReason reason}) =>
-      state._background.noteUnloaded(model, reason: reason.label);
-
-  @override
-  List<WebViewModel> identities() => state._sites.slotIdentities();
-
-  @override
-  SiteRetentionPriority priorityOf(int index) =>
-      state._sites.retentionPriority(index);
-
-  @override
-  ProxyTopology get proxyTopology => state._network.topology;
-
-  @override
-  bool get torAvailable => TorService.instance.isAvailable;
-}
-
 /// What the page answers for its controllers.
 class _PageHost
     implements
@@ -1948,8 +1911,7 @@ class _PageHost
   }
 
   @override
-  ArchiveHandle? archiveOf(WebViewModel model) =>
-      _s._archives.archiveOf(model);
+  ArchiveHandle? archiveOf(WebViewModel model) => _s._archives.archiveOf(model);
 
   @override
   void cancelPendingCapture(SiteId siteId) =>

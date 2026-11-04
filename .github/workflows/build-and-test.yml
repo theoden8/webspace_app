@@ -500,6 +500,17 @@ jobs:
           path: build/app/outputs/flutter-apk/*.apk
           if-no-files-found: error
 
+      # The emulator refuses an AVD it has no room for, and on a snapshot
+      # cache miss the AVD is made here, after the release build filled the
+      # disk. The APKs are uploaded and the emulator runs x86_64 only, so the
+      # other ABIs' Rust outputs go, with the tool cache's unused CodeQL.
+      - name: Make room for the emulator
+        run: |
+          df -h .
+          rm -rf rust/webspace_adblock/target/{aarch64-linux-android,armv7-linux-androideabi,i686-linux-android}
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          df -h .
+
       - name: Android emulator
         uses: ./.github/actions/android-emulator
 
