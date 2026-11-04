@@ -494,6 +494,24 @@ Each launch SHALL write one App Logs line, tagged Startup, giving the time from 
 
 ---
 
+### Requirement: DEVTOOLS-014 - Native Lines in App Logs
+
+Every line the Android code writes SHALL reach App Logs through one sink ([AppLog.kt](../../../android/app/src/main/kotlin/org/codeberg/theoden8/webspace/AppLog.kt), read by [native_log.dart](../../../lib/services/native_log.dart)), filed under the `LogTag` its native tag names and kept in memory only. A failure the Android code catches SHALL be written with what was being done and the failure's class, message and causes, as perror names errno. An engine whose Dart side starts listening late SHALL be sent the lines it missed, up to the last 200. A line SHALL reach logcat only when its tag names nothing of the user's (no site, host or picked file) and it is not a failure, whose text comes from outside the app.
+
+#### Scenario: A caught failure is readable in the app
+
+**Given** the router relay's read of a tunnel throws `IOException: Connection reset`
+**When** the user opens App Logs
+**Then** a ProxyRelay line names the read and `IOException: Connection reset`, with its causes
+
+#### Scenario: A line written before Dart listens is not lost
+
+**Given** a wake's worker writes a line before its engine's Dart side has started
+**When** that Dart side starts listening
+**Then** the line is filed, before every line written after it
+
+---
+
 ### Requirement: DEVTOOLS-007 - Console Eval
 
 The app SHALL provide a JavaScript evaluation input in the Console tab, allowing users to execute arbitrary JS in the context of the current page and see results inline, like a standard browser console.
@@ -615,6 +633,7 @@ The tray icon while a close only hides the window (`web-push-notifications` NOTI
 | `lib/services/background_log.dart` | DEVTOOLS-012 `BackgroundLog`: records background lines (normal to the native file, sensitive companions in memory), merges the native file with this process, exposes the system-state rows. |
 | `lib/widgets/background_log_view.dart` | The Background tab: system state, the log, the sensitive switch, Refresh / Export / Copy / Clear. |
 | `android/.../BackgroundLogFile.kt`, `ios/Runner/BackgroundTaskPlugin.swift` (`BackgroundLogFile`) | Native background-log file, single-owner executor / queue, and the system-state query. |
+| `android/.../AppLog.kt`, `lib/services/native_log.dart` | DEVTOOLS-014: the one native log sink, its tags, and the Dart side that files its lines. |
 | `lib/services/icon_png_export.dart` | The icon the drawer shows, as PNG (`displayedSiteIconAsPng`); resolves a site favicon, fetches it via the proxy-aware icon client, and normalizes any source (PNG/ICO/JPEG/SVG) to PNG bytes (`exportIconAsPng`). |
 | `lib/screens/inappbrowser.dart` | InAppWebViewScreen owns a NestedDevToolsHost: forwards onConsoleMessage / onUrlChanged / onControllerCreated and exposes a "Developer Tools" entry in the popup menu. |
 

@@ -94,6 +94,7 @@ class MediaPlaybackService : Service() {
             try {
                 BitmapFactory.decodeByteArray(it, 0, it.size)
             } catch (e: Exception) {
+                AppLog.failed(AppLog.Tag.mediaSession, "decoding the artwork", e)
                 null
             }
         }
@@ -262,6 +263,7 @@ class MediaPlaybackService : Service() {
             return try {
                 mgr.activeNotifications.any { it.id == NOTIFICATION_ID }
             } catch (e: Exception) {
+                AppLog.failed(AppLog.Tag.mediaSession, "reading the active notifications", e)
                 false
             }
         }

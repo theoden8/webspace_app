@@ -162,7 +162,11 @@ class LocationPlugin(
         fun finish(payload: Map<String, Any?>) {
             if (!resolved.compareAndSet(false, true)) return
             for (l in listeners) {
-                try { lm.removeUpdates(l) } catch (_: SecurityException) {}
+                try {
+                    lm.removeUpdates(l)
+                } catch (e: SecurityException) {
+                    AppLog.failed(AppLog.Tag.location, "removing a location listener", e)
+                }
             }
             main.post { result.success(payload) }
         }
@@ -187,7 +191,7 @@ class LocationPlugin(
             try {
                 lm.requestLocationUpdates(provider, 0L, 0f, listener, Looper.getMainLooper())
             } catch (e: SecurityException) {
-                finish(mapOf("status" to "permission_denied", "message" to e.message))
+                finish(mapOf("status" to "permission_denied", "message" to describe(e)))
                 return
             }
         }
@@ -207,7 +211,9 @@ class LocationPlugin(
                     ))
                     return
                 }
-            } catch (_: SecurityException) {}
+            } catch (e: SecurityException) {
+                AppLog.failed(AppLog.Tag.location, "reading $provider's last fix", e)
+            }
         }
 
         main.postDelayed({

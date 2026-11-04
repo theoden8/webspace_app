@@ -46,20 +46,7 @@ class ProxyRelay implements ProxyRelayApi {
       MethodChannel('org.codeberg.theoden8.webspace/proxy_relay');
 
   static final ProxyRelay instance = ProxyRelay._();
-  ProxyRelay._() {
-    // The native side posts every relay event (accept, upstream connect
-    // attempt/result, 502, start/stop) over this channel so they land in
-    // the in-app Logs tab alongside the `Proxy` events.
-    _channel.setMethodCallHandler((call) async {
-      if (call.method == 'logEvent') {
-        final msg = (call.arguments as Map?)?['msg']?.toString();
-        if (msg != null) {
-          LogTag.proxyRelay.debug(msg, sensitive: true);
-        }
-      }
-      return null;
-    });
-  }
+  ProxyRelay._();
 
   /// Start or reconfigure the relay for [upstream]. Returns the loopback
   /// address and port to hand to `ProxyController`, or `null` if it could not

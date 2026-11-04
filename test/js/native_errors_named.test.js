@@ -16,19 +16,6 @@ const { read, files, code, enclosed } = require('./helpers/source');
 const ROOT = 'android/app/src/main/kotlin/org/codeberg/theoden8/webspace/';
 const TEARDOWN = /^[\w.?!()]+\.(close|shutdownInput|shutdownOutput|cancel|disconnect|release|interrupt)\(\)$/;
 
-// Files that still drop a failure, and how many. Only shrinks: a file fixed
-// leaves the list in the same change.
-const DEBT = {
-  'LocationPlugin.kt': 2,
-  'MainActivity.kt': 5,
-  'MediaPlaybackService.kt': 2,
-  'NetworkSignInPlugin.kt': 1,
-  'PasskeyPlugin.kt': 2,
-  'ScreenShareService.kt': 4,
-  'SurfaceDiagPlugin.kt': 2,
-  'WebInterceptPlugin.kt': 2,
-};
-
 /** Each handler in `raw` (the text of `f`) that drops what it caught, as `line: why`. */
 function dropped(f, raw = read(f)) {
   const masked = code(raw, { strings: true });
@@ -62,17 +49,8 @@ const found = Object.fromEntries(
 );
 
 test('every caught failure is named where it is caught', () => {
-  const over = Object.entries(found)
-    .filter(([f, hits]) => hits.length > (DEBT[f] ?? 0))
-    .map(([f, hits]) => `${f}:\n    ${hits.join('\n    ')}`);
-  assert.deepEqual(over, [], 'log it with describe(e), rethrow it, or keep it on a value the code reads');
-});
-
-test('the debt list only shrinks', () => {
-  const stale = Object.entries(DEBT)
-    .filter(([f, n]) => (found[f]?.length ?? 0) < n)
-    .map(([f, n]) => `${f}: listed ${n}, now ${found[f]?.length ?? 0}`);
-  assert.deepEqual(stale, [], 'lower the count, or drop the file from DEBT');
+  const hits = Object.entries(found).map(([f, h]) => `${f}:\n    ${h.join('\n    ')}`);
+  assert.deepEqual(hits, [], 'log it with AppLog.failed(tag, doing, e), rethrow it, or keep it on a value the code reads');
 });
 
 // The gate's own proof: the handlers it must catch, planted.

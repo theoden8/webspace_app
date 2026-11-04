@@ -33,6 +33,7 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/egress_relay.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/native_log.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
@@ -54,6 +55,8 @@ void main([List<String> args = const []]) async {
   ActivationSteps.sink = (step, {required outcome, required site, required tab}) =>
       LaunchTimeline.stepReached(step);
   WidgetsFlutterBinding.ensureInitialized();
+  // First, so what the Android code writes as it starts is read here.
+  unawaited(NativeLog.listen());
 
   // Imported HTML files are the only copy of user-supplied content, so they
   // live in their own persistent store and survive upgrades. The page

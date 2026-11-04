@@ -322,6 +322,7 @@ class MainActivity: FlutterActivity() {
         return try {
             ShortcutManagerCompat.updateShortcuts(this, shortcuts)
         } catch (e: IllegalArgumentException) {
+            AppLog.failed(AppLog.Tag.shortcut, "updating ${shortcuts.size} home screen tile(s)", e)
             false
         }
     }
@@ -363,6 +364,7 @@ class MainActivity: FlutterActivity() {
             val resolvedType = try {
                 contentResolver.getType(streamUri)?.lowercase()
             } catch (e: Exception) {
+                AppLog.failed(AppLog.Tag.htmlImport, "reading a shared file's type", e)
                 null
             }
             val htmlByMeta = mime == "text/html" || mime == "application/xhtml+xml" ||
@@ -407,6 +409,7 @@ class MainActivity: FlutterActivity() {
                 }
             }
         } catch (e: Exception) {
+            AppLog.failed(AppLog.Tag.htmlImport, "reading a shared file's name", e)
             null
         }
     }
@@ -423,6 +426,7 @@ class MainActivity: FlutterActivity() {
                 input.bufferedReader(Charsets.UTF_8).readText()
             }
         } catch (e: Exception) {
+            AppLog.failed(AppLog.Tag.htmlImport, "reading a shared file", e)
             null
         }
     }
@@ -541,5 +545,6 @@ internal fun pinnedShortcuts(context: Context): List<Map<String, String>> = try 
         }
     }
 } catch (e: Exception) {
+    AppLog.failed(AppLog.Tag.shortcut, "listing the pinned home screen tiles", e)
     emptyList()
 }

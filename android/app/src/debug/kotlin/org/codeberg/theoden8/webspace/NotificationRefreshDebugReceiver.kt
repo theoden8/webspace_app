@@ -3,7 +3,6 @@ package org.codeberg.theoden8.webspace
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.util.Log
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -25,7 +24,7 @@ import androidx.work.WorkManager
  */
 class NotificationRefreshDebugReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        Log.i(TAG, "debug trigger: enqueueing a one-shot notification refresh")
+        AppLog.info(AppLog.Tag.backgroundTask, "debug trigger: enqueueing a one-shot notification refresh")
         // No constraints: the point is to reach the worker now, not to
         // re-test what the periodic request's constraints gate.
         WorkManager.getInstance(context.applicationContext).enqueueUniqueWork(
@@ -37,6 +36,5 @@ class NotificationRefreshDebugReceiver : BroadcastReceiver() {
 
     private companion object {
         const val UNIQUE_NAME = "webspace-notification-refresh-once"
-        const val TAG = "WebspaceBgRefresh"
     }
 }

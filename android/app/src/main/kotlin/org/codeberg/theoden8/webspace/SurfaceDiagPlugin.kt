@@ -168,6 +168,7 @@ class SurfaceDiagPlugin(private val activity: Activity, flutterEngine: FlutterEn
             )
         } catch (e: IllegalArgumentException) {
             // Window surface not attached (mid-transition); transient, retry later.
+            AppLog.debug(AppLog.Tag.surfaceDiag, "copying the window's pixels failed: ${describe(e)}")
             bitmap.recycle()
             result.success(mapOf("status" to "no-surface"))
         }
@@ -211,6 +212,7 @@ class SurfaceDiagPlugin(private val activity: Activity, flutterEngine: FlutterEn
                 Handler(Looper.getMainLooper()),
             )
         } catch (e: IllegalArgumentException) {
+            AppLog.debug(AppLog.Tag.surfaceDiag, "copying the surface behind the window failed: ${describe(e)}")
             behind.recycle()
             done()
         }

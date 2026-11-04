@@ -15,6 +15,8 @@ internal class EnginePlugins(
     context: Context,
     engine: FlutterEngine,
 ) {
+    // First, so a line any plugin writes as it starts is this engine's.
+    private val appLog = AppLog.attach(engine)
     private val webIntercept = WebInterceptPlugin(engine)
     private val container = WebSpaceContainerPlugin(engine)
     private val backgroundTask = BackgroundTaskAndroidPlugin(context.applicationContext, engine)
@@ -23,6 +25,7 @@ internal class EnginePlugins(
     private val siteIcon = SiteIconPlugin(context.applicationContext, engine)
 
     fun dispose() {
+        appLog.detach()
         backgroundTask.dispose()
         mediaSession.dispose()
         proxyRelay.dispose()

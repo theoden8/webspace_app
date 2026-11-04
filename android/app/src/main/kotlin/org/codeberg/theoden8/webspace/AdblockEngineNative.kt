@@ -12,7 +12,6 @@
 // no-op — the existing host-only fast path keeps working.
 package org.codeberg.theoden8.webspace
 
-import android.util.Log
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.write
 
@@ -39,7 +38,6 @@ import kotlin.concurrent.write
  * we `dispose()` the handle and revert to host-only matching.
  */
 object AdblockEngineNative {
-    private const val TAG = "AdblockEngineNative"
 
     /** True iff `libwebspace_adblock.so` loaded and the JNI probe returned true. */
     @Volatile
@@ -65,15 +63,15 @@ object AdblockEngineNative {
             // correctly before any sub-resource request hits.
             loaded = nativeProbe()
             if (loaded) {
-                Log.i(TAG, "webspace_adblock JNI loaded")
+                AppLog.info(AppLog.Tag.contentBlocker, "webspace_adblock JNI loaded")
             } else {
-                Log.w(TAG, "webspace_adblock loaded but probe returned false")
+                AppLog.warning(AppLog.Tag.contentBlocker, "webspace_adblock loaded but probe returned false")
             }
         } catch (t: Throwable) {
             // Missing .so on this ABI / CI build skipped Rust step.
             // Falling back to host-only is the documented contract,
             // so we log info-level (not error) and move on.
-            Log.i(TAG, "webspace_adblock JNI not loaded: ${t.message}")
+            AppLog.info(AppLog.Tag.contentBlocker, "webspace_adblock JNI not loaded: ${describe(t)}")
             loaded = false
         }
     }
@@ -120,7 +118,7 @@ object AdblockEngineNative {
             replaced
         }
         if (previous != 0L) nativeEngineFree(previous)
-        Log.i(TAG, if (next != 0L) "engine built" else "engine torn down or build failed")
+        AppLog.info(AppLog.Tag.contentBlocker, if (next != 0L) "engine built" else "engine torn down or build failed")
     }
 
     /**
@@ -175,7 +173,7 @@ object AdblockEngineNative {
             if (enginePtr != 0L) {
                 nativeEngineFree(enginePtr)
                 enginePtr = 0L
-                Log.i(TAG, "engine disposed")
+                AppLog.info(AppLog.Tag.contentBlocker, "engine disposed")
             }
         } finally {
             writeLock.unlock()

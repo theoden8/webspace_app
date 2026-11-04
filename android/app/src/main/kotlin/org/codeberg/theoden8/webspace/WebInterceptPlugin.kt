@@ -130,7 +130,8 @@ class WebInterceptPlugin(
                         val compiled = patterns.mapNotNull { p ->
                             try {
                                 Regex(p)
-                            } catch (_: PatternSyntaxException) {
+                            } catch (e: PatternSyntaxException) {
+                                AppLog.debug(AppLog.Tag.webIntercept, "skipping a LocalCDN pattern Java's regex rejects: ${describe(e)}")
                                 null
                             }
                         }
@@ -199,14 +200,6 @@ class WebInterceptPlugin(
                 override fun error(code: String, message: String?, details: Any?) = answered()
                 override fun notImplemented() = answered()
             })
-        }
-    }
-
-    /// Forward a log line to Dart's LogService so the user can see what
-    /// the native interceptor is doing without plugging into logcat.
-    fun log(tag: String, message: String) {
-        mainHandler.post {
-            channel.invokeMethod("log", mapOf("tag" to tag, "message" to message), null)
         }
     }
 
@@ -727,7 +720,8 @@ class FastSubresourceInterceptor(
                 // the UTF-8 bytes.
                 payload.toByteArray(Charsets.UTF_8)
             }
-        } catch (_: Throwable) {
+        } catch (e: IllegalArgumentException) {
+            AppLog.debug(AppLog.Tag.webIntercept, "decoding a $mime redirect resource failed: ${describe(e)}")
             return null
         }
         return WebResourceResponse(mime, "utf-8", ByteArrayInputStream(body))

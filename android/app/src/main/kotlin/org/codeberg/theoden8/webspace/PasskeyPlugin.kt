@@ -207,8 +207,10 @@ class PasskeyCeremonies(
             // The framework enforces CREDENTIAL_MANAGER_SET_ORIGIN synchronously
             // in the binder call, so a build without the permission lands here
             // rather than in the callback.
+            AppLog.failed(AppLog.Tag.passkey, "asking Credential Manager to $op", e)
             once(PasskeyOutcome.Failure("SECURITY"))
         } catch (e: IllegalArgumentException) {
+            AppLog.failed(AppLog.Tag.passkey, "asking Credential Manager to $op", e)
             once(PasskeyOutcome.Failure("INVALID_REQUEST"))
         }
     }
