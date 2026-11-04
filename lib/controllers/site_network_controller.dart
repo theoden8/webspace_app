@@ -407,6 +407,14 @@ class SiteNetworkController {
   /// The first proxy of a run that started without one starts the router
   /// here, before any webview of a proxied site is built: that build then
   /// waits for the start rather than showing the block (PROXY-013).
+  /// The app-wide proxy changed: the relay takes the routes it implies
+  /// before [letGo] lets the loaded webviews go, so none is rebuilt
+  /// presenting a credential the relay does not route yet (PROXY-034).
+  Future<void> appProxyChanged({required void Function() letGo}) async {
+    await refreshRoutes();
+    if (_host.mounted) letGo();
+  }
+
   Future<void> refreshRoutes({WebViewModel? active}) async {
     final router = ProxyRouterService.instance;
     if (!router.isActive && !router.isStarting) {

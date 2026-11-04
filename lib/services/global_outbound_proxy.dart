@@ -57,11 +57,11 @@ class GlobalOutboundProxy {
       prefsKey: AppPref.globalOutboundProxy.key,
       secureKey: ProxyPasswordKey.global,
     );
-    final loaded = readGlobalOutboundProxy(prefs);
+    var loaded = readGlobalOutboundProxy(prefs);
     final pwd = await _passwordStore
         .loadPassword(ProxyPasswordKey.global);
     if (pwd != null && pwd.isNotEmpty) {
-      loaded.password = pwd;
+      loaded = loaded.copyWith(password: (pwd,));
     }
     _current = loaded;
     LogTag.proxy.info(

@@ -157,12 +157,12 @@ class SavedProxy {
     final proxy = json['proxy'];
     if (id == null || proxy is! Map) return null;
     final settings =
-        UserProxySettings.fromJson(Map<String, dynamic>.from(proxy));
+        UserProxySettings.fromJson(Map<String, dynamic>.from(proxy)).copyWith(
+      password: (null,),
+      torExitCountry: (null,),
+      savedProxyId: (null,),
+    );
     if (!validType(settings.type)) return null;
-    settings
-      ..password = null
-      ..torExitCountry = null
-      ..savedProxyId = null;
     return SavedProxy(
       id: id,
       name: _text(json['name']) ?? '',
@@ -313,8 +313,8 @@ class ProxyLibrary {
           passwords[ProxyPasswordKey.credentials(c.id)];
     }
     for (final p in loaded.proxies) {
-      p.settings.password =
-          passwords[ProxyPasswordKey.savedProxy(p.id)];
+      p.settings = p.settings
+          .copyWith(password: (passwords[ProxyPasswordKey.savedProxy(p.id)],));
     }
     _data = loaded;
     await _writePasswords();

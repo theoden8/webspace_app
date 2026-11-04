@@ -5,7 +5,9 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
+import 'package:webspace/settings/network_interface.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/proxy_ids.dart';
 
 import 'helpers/mock_secure_storage.dart';
 import 'helpers/fake_outbound.dart';
@@ -182,6 +184,28 @@ void main() {
       expect(GlobalOutboundProxy.current.address, '192.168.1.10:8080');
       expect(GlobalOutboundProxy.current.username, 'alice');
       expect(GlobalOutboundProxy.current.password, 'secret');
+    });
+
+    test('copyWith carries every field it is not given, the password '
+        'included, and clears a field given as null', () {
+      final full = UserProxySettings(
+        type: ProxyType.SOCKS5,
+        address: '10.0.0.1:1080',
+        username: 'u',
+        password: 'p',
+        torExitCountry: 'de',
+        savedProxyId: SavedProxyId('saved-1'),
+        gatewayId: GatewayId('gw-1'),
+        credentialsId: CredentialsId('cred-1'),
+        leavesBy: NamedInterface(InterfaceName.parse('tun0')!),
+      );
+      final same = full.copyWith();
+      expect(same.toJson(), full.toJson());
+      expect(same.password, 'p');
+      final cleared = full.copyWith(type: ProxyType.HTTP, credentialsId: (null,));
+      expect(cleared.type, ProxyType.HTTP);
+      expect(cleared.credentialsId, isNull);
+      expect(cleared.gatewayId, full.gatewayId);
     });
 
     test('password is stored in secure storage, not SharedPreferences', () async {

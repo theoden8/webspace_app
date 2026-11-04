@@ -10,9 +10,11 @@
 // Rule: every instance field assigned in _loadFromModel() must be
 // referenced in snapshot(), unless it is fully derived from a
 // field that already is (allowlist below, each entry justified). A form
-// object edited in place (`_proxySettings.type = ...`) is registered member
-// by member: the object being in the snapshot says nothing about a member
-// that is not, which is how the Tor exit country escaped the rule above.
+// object edited a member at a time (`_proxySettings.type = ...` in place, or
+// `_proxySettings = _proxySettings.copyWith(type: ...)` now that proxy
+// settings are a value) is registered member by member: the object being in
+// the snapshot says nothing about a member that is not, which is how the Tor
+// exit country escaped the rule above.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -98,17 +100,27 @@ test('settings form fields loaded from the model are all dirty-tracked', () => {
   );
 });
 
-test('form objects edited in place are dirty-tracked member by member', () => {
+/** The members a `_x = _x.copyWith(...)` sets, as `_x.member`. */
+function copyWithMembers(src) {
+  const members = [];
+  for (const m of src.matchAll(/(_[A-Za-z0-9_]+)\s*=\s*\1\s*\.copyWith\s*\(/g)) {
+    const args = extractBody(src.slice(m.index), /copyWith\s*\(/, 'copyWith', ['(', ')']);
+    for (const a of args.matchAll(/(?:^|[,(\s])([A-Za-z0-9_]+)\s*:/g)) members.push(`${m[1]}.${a[1]}`);
+  }
+  return members;
+}
+
+test('form objects edited a member at a time are dirty-tracked member by member', () => {
   const src = fs.readFileSync(path.join(repoRoot, SETTINGS), 'utf8');
   const snapshot = snapshotBody(src);
 
-  const members = new Set();
+  const members = new Set(copyWithMembers(src));
   for (const m of src.matchAll(/^\s*(_[A-Za-z0-9_]+\.[A-Za-z0-9_]+)\s*=(?!=)/gm)) {
     members.add(m[1]);
   }
   assert.ok(
-    members.has('_proxySettings.type'),
-    'expected the proxy type to be edited in place — extraction broke?',
+    members.has('_proxySettings.type') && members.has('_proxySettings.torExitCountry'),
+    'expected the proxy type and exit country to be edited a member at a time — extraction broke?',
   );
 
   const missing = [...members].filter(
@@ -117,7 +129,7 @@ test('form objects edited in place are dirty-tracked member by member', () => {
   assert.deepEqual(
     missing,
     [],
-    `members written in place but absent from snapshot() (an edit to ` +
+    `members edited a member at a time but absent from snapshot() (an edit to ` +
       `only that member is dropped on back without a prompt — BUG-006): ` +
       `${missing.join(', ')}. Register each in snapshot().`,
   );

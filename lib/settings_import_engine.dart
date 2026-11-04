@@ -292,7 +292,7 @@ List<HeldScript> sanitizeImportedSites(
     g.enabled = false;
   }
   for (final site in sites) {
-    site.proxySettings.password = null;
+    site.proxySettings = site.proxySettings.copyWith(password: (null,));
     // Global scripts inject on per-site opt-in regardless of their own
     // `enabled` flag (`combineUserScripts` forces that true), so the opt-in
     // set is what has to be dropped.
