@@ -349,10 +349,13 @@ desktop entry and metainfo are the bundle's (PLATFORM-008).
 - **Permissions:** each plug names what needs it, and none grants the home
   directory, other users' files or removable media. Files reach the app
   through the desktop portals.
-- **Tor (TOR-027):** the build downloads the Tor Expert Bundle as any native
-  build does.
+- **Tor (TOR-027):** the snap's tor is the one the app's own build makes from
+  source (`linux/tor.cmake`), with Ubuntu 24.04's libevent and OpenSSL and
+  their notices beside it in the bundle's `lib/tor/`; the snap has no part of
+  its own for it.
 
-CI builds the snap and runs it; nothing in CI logs in to the Snap Store.
+CI builds the snap for amd64 and arm64, each on a runner of its own
+architecture, and runs it; nothing in CI logs in to the Snap Store.
 Registering the name, uploading and releasing are the maintainer's
 (`docs/releasing.md`).
 

@@ -1,8 +1,8 @@
 name: Snap
 
-# Builds the snap from snap/snapcraft.yaml on the runner itself (an
-# ubuntu-24.04 runner is the core24 host --destructive-mode needs), installs
-# it and runs it with one site (scripts/check_snap.sh, PLATFORM-012). Nothing
+# Builds the snap from snap/snapcraft.yaml for amd64 and arm64, each on a
+# runner of its own architecture (an ubuntu-24.04 runner is the core24 host
+# --destructive-mode needs), installs it and runs it with one site (scripts/check_snap.sh, PLATFORM-012). Nothing
 # here logs in to the Snap Store or uploads: registering, uploading and
 # releasing are the maintainer's, by hand (docs/releasing.md). Kept out of
 # build-and-test.yml because a cold WPE WebKit build takes hours; ccache keeps
@@ -41,8 +41,19 @@ concurrency:
 
 jobs:
   snap:
-    name: Build snap
-    runs-on: ubuntu-24.04
+    name: Build snap (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            # amd64's caches were saved before they carried an architecture.
+            fallback: snap-ccache-
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            fallback: snap-ccache-arm64-
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 350
     steps:
       - name: Checkout code
@@ -68,10 +79,11 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: /var/cache/webspace-snap-ccache
-          key: snap-ccache-${{ hashFiles('snap/snapcraft.yaml') }}-${{ github.sha }}
+          key: snap-ccache-${{ matrix.arch }}-${{ hashFiles('snap/snapcraft.yaml') }}-${{ github.sha }}
           restore-keys: |
-            snap-ccache-${{ hashFiles('snap/snapcraft.yaml') }}-
-            snap-ccache-
+            snap-ccache-${{ matrix.arch }}-${{ hashFiles('snap/snapcraft.yaml') }}-
+            snap-ccache-${{ matrix.arch }}-
+            ${{ matrix.fallback }}
 
       - name: Build
         run: sudo snapcraft pack --destructive-mode
@@ -87,7 +99,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: /var/cache/webspace-snap-ccache
-          key: snap-ccache-${{ hashFiles('snap/snapcraft.yaml') }}-${{ github.sha }}
+          key: snap-ccache-${{ matrix.arch }}-${{ hashFiles('snap/snapcraft.yaml') }}-${{ github.sha }}
 
       # The runtimes' own store declarations let any snap's content plugs
       # connect to them, so even a snap installed from a file connects by
@@ -96,7 +108,7 @@ jobs:
         run: |
           sudo snap install gnome-46-2404 mesa-2404 gtk-common-themes
           snap_name="$(sed -n 's/^name: \([a-z0-9-]*\)$/\1/p' snap/snapcraft.yaml)"
-          sudo snap install --dangerous ./"$snap_name"_*_amd64.snap
+          sudo snap install --dangerous ./"$snap_name"_*_${{ matrix.arch }}.snap
           connections="$(snap connections "$snap_name")"
           echo "$connections"
           unconnected="$(awk '$1 == "content" && $3 == "-"' <<<"$connections")"
@@ -124,6 +136,6 @@ jobs:
       - name: Upload snap
         uses: actions/upload-artifact@v4
         with:
-          name: webspace-snap
+          name: webspace-snap-${{ matrix.arch }}
           path: '*.snap'
           if-no-files-found: error

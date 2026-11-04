@@ -94,6 +94,41 @@ test("WebKit's compiled-in directories are bound to the snap's copies (PLATFORM-
   }
 });
 
+// The manifest's platforms are the snap's architectures: CI builds and runs
+// each on a runner of its own, and the app part knows where Flutter puts each
+// one's bundle.
+test('every platform the snap names is built in CI and has a bundle directory', () => {
+  const platforms = block('platforms').map((l) => l.match(/^ {2}([a-z0-9]+):$/)?.[1]).filter(Boolean);
+  assert.ok(platforms.length > 0, `${MANIFEST} names no platform`);
+  const workflow = read('.github/workflows/snap.yml');
+  const built = [...workflow.matchAll(/^ {10}- arch: ([a-z0-9]+)$/gm)].map((m) => m[1]);
+  assert.deepEqual([...built].sort(), [...platforms].sort(),
+    `.github/workflows/snap.yml builds ${built.join(', ')}; ${MANIFEST} names ${platforms.join(', ')}`);
+  for (const arch of platforms) {
+    assert.match(manifest, new RegExp(`^ {8}${arch}\\) bundle=build/linux/[a-z0-9]+/release/bundle ;;$`, 'm'),
+      `${MANIFEST}: the app part has no bundle directory for ${arch}`);
+  }
+});
+
+// The app runs the tor beside its executable (managed_tor_io.dart's
+// _bundleDir), which the app's own build fills (linux/tor.cmake). The snap
+// gives that build what tor links and checks what it laid out; a part of its
+// own would be a second build of tor beside the one every package shares.
+test("the snap's tor is the one the app's build makes (TOR-027)", () => {
+  const parts = block('parts').map((l) => l.match(/^ {2}([a-z0-9-]+):$/)?.[1]).filter(Boolean);
+  for (const name of ['tor', 'lyrebird']) {
+    assert.ok(!parts.includes(name), `${MANIFEST} builds ${name} in a part of its own`);
+  }
+  assert.doesNotMatch(manifest, /WEBSPACE_TOR_SOURCE=none/,
+    `${MANIFEST}: the app part builds without tor`);
+  for (const pkg of ['libevent-dev', 'libssl-dev', 'zlib1g-dev']) {
+    assert.match(manifest, new RegExp(`^ {6}- ${pkg}$`, 'm'),
+      `${MANIFEST}: the app part lacks ${pkg}, which tor's build links`);
+  }
+  assert.match(manifest, /^ {6}bash scripts\/verify_tor_shipped\.sh "\$bundle"$/m,
+    `${MANIFEST}: the app part does not check the tor it built`);
+});
+
 // unity7 is the plug that lets a snap register a StatusNotifierItem, and its
 // AppArmor rules allow the item and its dbusmenu at fixed object paths only;
 // an item exported elsewhere is denied and the icon never shows.
