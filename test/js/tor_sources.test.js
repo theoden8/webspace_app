@@ -87,14 +87,21 @@ function lyrebirdProblems({ cmake, lists, verify, workflow }) {
   }
   if (!/! -path "\$transports\/lyrebird"/.test(held)) out.push('verify_tor_shipped.sh lets another transport ship');
 
-  // The Build Linux job: a go command before the build, and the real-tor tier
-  // on the bundle's tor and lyrebird.
+  // The Build Linux job: a go command before the build, and the bridge the
+  // real-tor tier reaches through the bundle's lyrebird.
   const job = workflow.slice(workflow.indexOf('\n  build-linux:\n'));
   const end = job.indexOf('\n  build-', 2);
   const body = end < 0 ? job : job.slice(0, end);
   const go = body.indexOf('go-version-file: go/iptproxy/.go-version');
   if (go < 0 || go > body.indexOf('fvm flutter build linux')) out.push('the Linux build has no go before it builds');
   const step = body.slice(body.indexOf('- name: Bundled tor runs'));
+  if (!/apt-get install -y --no-install-recommends tor lyrebird\n/.test(step)) {
+    out.push('the real-tor tier has no bridge of the machine\'s to reach');
+  }
+  const kept = step.indexOf("printf '#!/bin/sh\\nexit 101\\n' > /usr/sbin/policy-rc.d\n");
+  if (kept < 0 || kept > step.indexOf('apt-get install')) {
+    out.push('the bridge\'s tor package starts a tor service that reaches the network');
+  }
   if (!/WS_TOR_BESIDE: build\/linux\/x64\/release\/bundle\/webspace_app\n/.test(step)) {
     out.push('the real-tor tier does not run the bundle\'s tor and lyrebird');
   }
@@ -147,6 +154,8 @@ test('each lyrebird rule catches the mistake it is for', () => {
   caught('verify', 'if [ "${WEBSPACE_LYREBIRD:-}" = none ]; then', 'if false; then', 'none never checked');
   caught('workflow', '          go-version-file: go/iptproxy/.go-version\n          cache: false\n\n      # The Linux Rust',
     '          cache: false\n\n      # The Linux Rust', 'a Linux build with no go');
+  caught('workflow', 'apt-get install -y --no-install-recommends tor lyrebird\n', 'true\n', 'no bridge');
+  caught('workflow', "          printf '#!/bin/sh\\nexit 101\\n' > /usr/sbin/policy-rc.d\n", '', 'a tor service started');
   caught('workflow', '          WS_TOR_BESIDE: build/linux/x64/release/bundle/webspace_app\n', '',
     'the tier on the machine\'s tor');
 });

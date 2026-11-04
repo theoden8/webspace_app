@@ -6,17 +6,21 @@
 // tor's only way out is a bridge on a loopback port nothing listens on, so
 // nothing leaves the machine and bootstrap stays early; WEBSPACE_TOR_NETWORK=1
 // takes the bridge away and asks for `up` on the real Tor network as well.
+// The bridge case runs a bridge of its own on loopback, which asks nothing of
+// the Tor network either.
 //
 // Needs `tor` on PATH or in /usr/sbin. Skipped without it, except under
-// WS_REAL_TOR=1, which CI sets after installing tor and obfs4proxy: there a
-// missing tor or transport fails rather than passing nothing. With
-// WS_TOR_BESIDE naming a built bundle's executable, the tor and lyrebird are
-// the ones the build put beside it (linux/tor.cmake), as the app finds them.
+// WS_REAL_TOR=1, which CI sets after installing tor and obfs4proxy or
+// lyrebird: there a missing tor, transport or bridge fails rather than
+// passing nothing. With WS_TOR_BESIDE naming a built bundle's executable, the
+// tor and lyrebird are the ones the build put beside it (linux/tor.cmake), as
+// the app finds them.
 
 @Timeout(Duration(seconds: 240))
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -24,7 +28,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/managed_tor_io.dart';
 import 'package:webspace/services/managed_tor_runtime.dart';
-import 'package:webspace/services/tor_bridges.dart' show TorTransport;
+import 'package:webspace/services/tor_bridges.dart';
 import 'package:webspace/services/tor_control.dart';
 import 'package:webspace/services/tor_control_io.dart';
 import 'package:webspace/services/tor_engine.dart';
@@ -42,6 +46,93 @@ final ManagedTorInstall? _install = findManagedTor(
       _beside == null ? Platform.resolvedExecutable : File(_beside!).absolute.path,
   environment: Platform.environment,
 );
+
+/// [name] where a distribution installs it: on PATH or in an sbin
+/// directory.
+String? _onMachine(String name) {
+  final dirs = [
+    ...(Platform.environment['PATH'] ?? '').split(':').where((d) => d.isNotEmpty),
+    '/usr/local/sbin', '/usr/sbin', '/sbin',
+  ];
+  for (final dir in dirs) {
+    if (File('$dir/$name').existsSync()) return '$dir/$name';
+  }
+  return null;
+}
+
+/// An obfs4 bridge on loopback: a relay-capable [tor] serving obfs4 through
+/// [server], whose only directory authority is a dead loopback port, so it
+/// never reaches the Tor network and a client gets no further than the
+/// bridge's own directory.
+final class _Bridge {
+  _Bridge._({required this.process, required this.data, required this.line});
+
+  final Process process;
+  final Directory data;
+
+  /// Its line as a user pastes one.
+  final String line;
+
+  static const _zero = '0000000000000000000000000000000000000000';
+
+  static Future<_Bridge> start({
+    required String tor,
+    required String server,
+  }) async {
+    final data = await Directory.systemTemp.createTemp('wsbridge');
+    final torrc = File('${data.path}/torrc')..writeAsStringSync('');
+    final obfs4 = await _deadPort();
+    final process = await Process.start(tor, [
+      '-f', torrc.path, '--defaults-torrc', torrc.path,
+      '--DataDirectory', '${data.path}/tor',
+      '--SocksPort', '0',
+      '--ORPort', '127.0.0.1:auto',
+      '--ExtORPort', 'auto',
+      '--BridgeRelay', '1',
+      '--PublishServerDescriptor', '0',
+      '--AssumeReachable', '1',
+      '--ExitRelay', '0',
+      '--DirAuthority', 'none orport=1 no-v2 v3ident=$_zero 127.0.0.1:1 $_zero',
+      '--ServerTransportPlugin', 'obfs4 exec $server',
+      '--ServerTransportListenAddr', 'obfs4 127.0.0.1:$obfs4',
+      '--Log', 'notice stdout',
+    ]);
+    final said = <String>[];
+    final registered = Completer<void>();
+    process.stdout
+        .transform(const SystemEncoding().decoder)
+        .transform(const LineSplitter())
+        .listen((line) {
+      said.add(line);
+      if (line.contains("Registered server transport 'obfs4' at '127.0.0.1:$obfs4'") &&
+          !registered.isCompleted) {
+        registered.complete();
+      }
+    });
+    process.stderr.drain<void>().ignore();
+    await registered.future.timeout(const Duration(seconds: 60), onTimeout: () {
+      process.kill();
+      fail('the bridge registered no obfs4 transport; it said:\n${said.join('\n')}');
+    });
+    final fingerprint =
+        File('${data.path}/tor/fingerprint').readAsStringSync().trim().split(' ').last;
+    final cert = RegExp(r'cert=(\S+)')
+        .firstMatch(File('${data.path}/tor/pt_state/obfs4_bridgeline.txt').readAsStringSync())
+        ?.group(1);
+    if (cert == null) fail('$server wrote no obfs4 cert');
+    return _Bridge._(
+      process: process,
+      data: data,
+      line: 'obfs4 127.0.0.1:$obfs4 $fingerprint cert=$cert iat-mode=0',
+    );
+  }
+
+  Future<void> stop() async {
+    process.kill();
+    await process.exitCode;
+    await data.delete(recursive: true);
+  }
+}
 
 Future<int> _deadPort() async {
   final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
@@ -203,6 +294,41 @@ void main() {
     final socket = await Socket.connect(InternetAddress.loopbackIPv4, port);
     socket.destroy();
     expect(await runtime.restartTransport('obfs4'), greaterThan(0));
+  });
+
+  // The bridge is the machine's: the bundle's tor is a client alone. Past 25%
+  // the client has made its TLS handshake with the bridge through obfs4 and a
+  // one-hop circuit to it, and asked it for the consensus it cannot have.
+  test('TOR-016 tor reaches an obfs4 bridge through its transport', () async {
+    final relay = _onMachine('tor');
+    final server = _onMachine('lyrebird') ?? _onMachine('obfs4proxy');
+    final modules = relay == null
+        ? ''
+        : (await Process.run(relay, ['--list-modules'])).stdout as String;
+    if (obfs4.isEmpty || server == null || !modules.contains('relay: yes')) {
+      if (_required) {
+        fail('WS_REAL_TOR=1, and no obfs4 client, relay-capable tor and obfs4 '
+            'server here to bridge with');
+      }
+      markTestSkipped('no obfs4 client, relay-capable tor and obfs4 server here');
+      return;
+    }
+    final bridge = await _Bridge.start(tor: relay!, server: server);
+    addTearDown(bridge.stop);
+    final line = parseTorBridgeLine(bridge.line).line;
+    expect(line, isNotNull, reason: bridge.line);
+
+    final port = await runtime.startTransport('obfs4');
+    expect(port, greaterThan(0));
+    await runtime.setTorrcOptions(torBridgeOptions(
+      TorBridgeConfig(enabled: true, transport: TorTransport.obfs4, lines: [line!]),
+      transportPort: port,
+    ));
+    final through = _until<TorBootstrapping>(runtime,
+        within: const Duration(seconds: 90), matches: (s) => s.percent >= 25);
+    await runtime.start();
+    final reached = await through;
+    expect(reached.tag, isNotNull, reason: '$reached');
   });
 
   test('TOR-027 the control socket is private to this user', () async {

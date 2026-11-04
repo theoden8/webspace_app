@@ -2023,7 +2023,13 @@ and lyrebird and no other transport, held by `go/iptproxy/build.sh
 check-lyrebird`: lyrebird's program at the pinned version, naming hiddenkey's
 package and go/meekutls's round tripper and no GPL package, compiling only
 modules `go/iptproxy/licences.tsv` names, each with its notice. There the
-transport case runs the bundle's lyrebird. Reaching `up` needs the Tor network, so it is
+transport case runs the bundle's lyrebird. In both runs a bridge case SHALL
+reach an obfs4 bridge through the runtime's transport: a relay-capable tor
+the machine has, serving obfs4 through the machine's lyrebird or obfs4proxy as
+released, on loopback with a dead port for its directory authority, so the
+client gets past its TLS handshake and a circuit to the bridge to the
+bridge's own directory, which has no consensus to give, and nothing leaves
+the machine. Reaching `up` needs the Tor network, so it is
 asked only under `WEBSPACE_TOR_NETWORK=1`, as in TOR-021.
 
 #### Scenario: A Linux build offers Tor
@@ -2043,6 +2049,15 @@ asked only under `WEBSPACE_TOR_NETWORK=1`, as in TOR-021.
   is on
 - **AND** a site set to `TOR` reads the unavailable copy it read before
   TOR-027
+
+#### Scenario: A Linux build's bridges run on its own lyrebird
+
+- **GIVEN** the Linux bundle, on a machine with neither lyrebird nor
+  obfs4proxy, with the experiment on and obfs4 bridges set with a line
+- **WHEN** Tor starts
+- **THEN** the obfs4 transport is the bundle's `pluggable_transports/lyrebird`
+- **AND** tor reaches the bridge through it, the bridge as released having
+  accepted its handshake
 
 #### Scenario: A build without the bundled lyrebird
 

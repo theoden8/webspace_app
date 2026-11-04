@@ -428,9 +428,11 @@ jobs:
         # test/external_tor_real_daemon_test.dart drives the external tor's
         # control port against real tor processes (TOR-026), and
         # test/managed_tor_real_test.dart starts one as the Linux built-in
-        # Tor does, with a pluggable transport (TOR-027). WS_REAL_TOR below
-        # makes a missing tor or transport fail them rather than skip. The
-        # package starts the system service, which nothing here uses.
+        # Tor does, with a pluggable transport (TOR-027), and through it
+        # reaches a loopback obfs4 bridge the same tor and obfs4proxy run
+        # (TOR-016). WS_REAL_TOR below makes a missing tor, transport or
+        # bridge fail them rather than skip. The package starts the system
+        # service, which nothing here uses.
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq tor tor-geoipdb obfs4proxy
@@ -771,14 +773,22 @@ jobs:
       # built with no GPL package in it and only modules licences.tsv names,
       # each with its notice (LICENSE-001). The real-tor tier runs both, found
       # beside the executable as the app finds them, not ones this job
-      # installed. Its only bridge is a dead loopback port, so nothing leaves
-      # the runner.
+      # installed. What it installs is the bridge they reach (TOR-016):
+      # Debian's tor, which can relay, serving obfs4 through Debian's
+      # lyrebird as released, on loopback with a dead directory authority, so
+      # nothing leaves the runner. policy-rc.d keeps the package's tor
+      # service from starting.
       - name: Bundled tor runs
         env:
           WS_REAL_TOR: '1'
           WS_TOR_BESIDE: build/linux/x64/release/bundle/webspace_app
         run: |
           bash scripts/verify_tor_shipped.sh build/linux/x64/release/bundle
+          printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d
+          chmod +x /usr/sbin/policy-rc.d
+          apt-get update
+          apt-get install -y --no-install-recommends tor lyrebird
+          rm -rf /var/lib/apt/lists/*
           fvm flutter test test/managed_tor_real_test.dart
 
       # The build above only compiles the runner's screen sharing
