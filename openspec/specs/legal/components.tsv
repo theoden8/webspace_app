@@ -31,6 +31,7 @@ url:https://github.com/tladesignz/IPtProxy.git	MIT	linked	d4878bf7729902c1fb5e31
 url:https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird.git	BSD-2-Clause AND BSD-3-Clause	linked	0b10edbb61e0ca6fb70c7d57aeaabf315f1fade1	its LICENSE at lyrebird-0.8.1; build.sh deletes the GPL-3.0 parts (internal/x25519ell2, transports/meeklite, LICENSE-GPL3.txt) before it builds, and build.sh check fails on a framework that compiles them
 url:https://github.com/tladesignz/dnstt.git	CC0-1.0	linked	f1b9b97a269f83bad41d2ceef291b4d2c161cd11	its COPYING at the commit IPtProxy 5.5.1's submodule names
 url:https://github.com/LoupVaillant/Monocypher.git	CC0-1.0 OR BSD-2-Clause	linked	4.0.3	its LICENCE.md at 4.0.3; go/hiddenkey/fetch-monocypher.sh checks monocypher.c and monocypher.h by SHA-256
+url:https://github.com/duckduckgo/tracker-surrogates.git	Apache-2.0 AND MPL-2.0	linked	1cca57fa1edc945f208423d478c1d2aa50655141	its LICENSE.md at that commit: Apache-2.0 for the work as a whole, MPL-2.0 for the files from Mozilla's webcompat shims and uBlock Origin's google-ima.js, each saying so in its header; rust/webspace_adblock/build.rs takes LICENSE.md and the scripts surrogates.tsv names, each checked by SHA-256, and the build reads this row's licence for the licences page
 gradle:androidx.activity:activity	Apache-2.0	linked		its POM
 gradle:androidx.annotation:annotation	Apache-2.0	linked		its POM
 gradle:androidx.appcompat:appcompat	Apache-2.0	linked		its POM

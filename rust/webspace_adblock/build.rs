@@ -1,7 +1,7 @@
 // Build-time enumeration of the crates linked into this library and
 // their licences, embedded for the app's licence page
-// (`ws_dep_licenses_json`). The `$redirect=` stubs are built by
-// src/redirect_resources.rs.
+// (`ws_dep_licenses_json`), and the tracker surrogates the `$redirect=`
+// pool takes in (src/redirect_resources.rs builds the rest of it).
 
 use std::env;
 use std::fs;
@@ -9,18 +9,207 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 mod licence_policy;
+#[path = "src/sha256.rs"]
+mod sha256;
 
 use serde_json::{json, Value};
+
+// DuckDuckGo's tracker surrogates (CB-010): the files surrogates.tsv names,
+// taken at this commit and held one by one to the SHA-256 digests the table
+// pins, so a moved branch or a tampered copy fails the build rather than
+// reaching a page. A build with no network checks out the same commit itself
+// and names the checkout in WEBSPACE_SURROGATES_SOURCE, held to the same
+// digests. To move the pin, read the new commit's files and licence, write
+// their digests into surrogates.tsv and move the pin in components.tsv.
+const SURROGATES_REPO: &str = "https://github.com/duckduckgo/tracker-surrogates.git";
+const SURROGATES_COMMIT: &str = "1cca57fa1edc945f208423d478c1d2aa50655141";
+const SURROGATES_SOURCE_ENV: &str = "WEBSPACE_SURROGATES_SOURCE";
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set"));
+    let policy = licence_policy::Policy::checked();
+    let surrogates = take_surrogates(&out_dir, &policy);
 
     // Always re-enumerate the dep tree on every build — `cargo
     // metadata` is fast (no compilation, just lockfile + manifest
     // parse) and we want a license blob that exactly mirrors what
     // got linked into this binary.
-    write_dep_licenses(&out_dir);
+    write_dep_licenses(&out_dir, &policy, surrogates);
+}
+
+/// A file surrogates.tsv names: its path in the upstream tree, the digest it
+/// must have, and the names a `$redirect=` asks for it by, none for the
+/// licence.
+struct Pinned {
+    path: String,
+    sha256: String,
+    names: Vec<String>,
+}
+
+fn surrogates_table() -> Vec<Pinned> {
+    let at = Path::new(&env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set"))
+        .join("surrogates.tsv");
+    println!("cargo:rerun-if-changed={}", at.display());
+    let text = fs::read_to_string(&at).unwrap_or_else(|e| panic!("{}: {e}", at.display()));
+    let rows: Vec<Pinned> = text
+        .lines()
+        .filter(|l| !l.trim().is_empty() && !l.starts_with('#'))
+        .map(|line| {
+            let cols: Vec<&str> = line.split('\t').collect();
+            let (path, sha256, names) = match cols[..] {
+                [path, sha256] => (path, sha256, ""),
+                [path, sha256, names] => (path, sha256, names),
+                _ => panic!("{}: a row is a path, a digest and its names: {line:?}", at.display()),
+            };
+            assert!(
+                sha256.len() == 64 && sha256.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
+                "{}: {path}'s digest is not 64 lowercase hex digits",
+                at.display()
+            );
+            assert!(
+                !path.starts_with('/') && !path.split('/').any(|p| p.is_empty() || p == ".." || p == "."),
+                "{}: {path} is not a path inside the tree",
+                at.display()
+            );
+            Pinned {
+                path: path.to_string(),
+                sha256: sha256.to_string(),
+                names: names.split_whitespace().map(String::from).collect(),
+            }
+        })
+        .collect();
+    let licences = rows.iter().filter(|r| r.names.is_empty()).count();
+    assert_eq!(licences, 1, "{}: one file, the licence, is served under no name", at.display());
+    for row in rows.iter().filter(|r| !r.names.is_empty()) {
+        assert!(row.path.ends_with(".js"), "{}: {} is served as a script", at.display(), row.path);
+    }
+    rows
+}
+
+/// Each file of [rows] under [root], or every one missing or unlike its pin.
+fn read_pinned(root: &Path, rows: &[Pinned]) -> Result<Vec<Vec<u8>>, Vec<String>> {
+    let mut files = Vec::new();
+    let mut wrong = Vec::new();
+    for row in rows {
+        match fs::read(root.join(&row.path)) {
+            Ok(bytes) => {
+                let digest = sha256::sha256_hex(&bytes);
+                if digest != row.sha256 {
+                    wrong.push(format!("{}: SHA-256 {digest}, pinned {}", row.path, row.sha256));
+                }
+                files.push(bytes);
+            }
+            Err(e) => wrong.push(format!("{}: {e}", row.path)),
+        }
+    }
+    if wrong.is_empty() { Ok(files) } else { Err(wrong) }
+}
+
+/// The files of [rows], from the checkout [SURROGATES_SOURCE_ENV] names or
+/// fetched at [SURROGATES_COMMIT] into [out_dir], each as surrogates.tsv
+/// pins it. Any other outcome fails the build: a pool that silently lost its
+/// surrogates would block what it should stand in for.
+fn surrogate_files(out_dir: &Path, rows: &[Pinned]) -> Vec<Vec<u8>> {
+    println!("cargo:rerun-if-env-changed={SURROGATES_SOURCE_ENV}");
+    if let Some(root) = env::var_os(SURROGATES_SOURCE_ENV).map(PathBuf::from) {
+        for row in rows {
+            println!("cargo:rerun-if-changed={}", root.join(&row.path).display());
+        }
+        return read_pinned(&root, rows).unwrap_or_else(|wrong| {
+            panic!(
+                "{SURROGATES_SOURCE_ENV} names {}, which does not hold the files surrogates.tsv pins at {SURROGATES_COMMIT}: {wrong:?}",
+                root.display()
+            )
+        });
+    }
+    let root = out_dir.join(format!("tracker-surrogates-{SURROGATES_COMMIT}"));
+    if let Ok(files) = read_pinned(&root, rows) {
+        return files;
+    }
+    if root.exists() {
+        fs::remove_dir_all(&root).unwrap_or_else(|e| panic!("{}: {e}", root.display()));
+    }
+    fs::create_dir_all(&root).unwrap_or_else(|e| panic!("{}: {e}", root.display()));
+    let offline = format!(
+        "a build with no network names a checkout of {SURROGATES_REPO} at {SURROGATES_COMMIT} in {SURROGATES_SOURCE_ENV}"
+    );
+    for args in [
+        &["init", "-q"][..],
+        &["fetch", "-q", "--depth", "1", SURROGATES_REPO, SURROGATES_COMMIT],
+        &["-c", "advice.detachedHead=false", "checkout", "-q", "FETCH_HEAD"],
+    ] {
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(&root)
+            .args(args)
+            .env_remove("GIT_DIR")
+            .env_remove("GIT_WORK_TREE")
+            .env_remove("GIT_INDEX_FILE")
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .output()
+            .unwrap_or_else(|e| panic!("git {}: {e}; {offline}", args.join(" ")));
+        assert!(
+            out.status.success(),
+            "git {} failed ({}): {}; {offline}",
+            args.join(" "),
+            out.status,
+            String::from_utf8_lossy(&out.stderr).trim()
+        );
+    }
+    read_pinned(&root, rows).unwrap_or_else(|wrong| {
+        panic!("{SURROGATES_REPO} at {SURROGATES_COMMIT} does not hold the files surrogates.tsv pins: {wrong:?}")
+    })
+}
+
+/// Writes `surrogates.rs`, the pool's `SURROGATES`, into [out_dir], each
+/// script under the names surrogates.tsv gives it, and returns the licences
+/// page's entry for them, whose licence is the one components.tsv reads.
+fn take_surrogates(out_dir: &Path, policy: &licence_policy::Policy) -> Value {
+    let source = format!("url:{SURROGATES_REPO}");
+    let component = licence_policy::component(&source);
+    assert!(
+        policy.allows(&component.licence, component.ships, &source),
+        "LICENSE-001: openspec/specs/legal/licences.tsv lets {source} not ship under {:?}",
+        component.licence
+    );
+    let rows = surrogates_table();
+    let files = surrogate_files(out_dir, &rows);
+    let dir = out_dir.join("surrogates");
+    fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("{}: {e}", dir.display()));
+    let mut code = String::from("// Written by build.rs from surrogates.tsv.\nconst SURROGATES: &[Stub] = &[\n");
+    let mut licence = None;
+    for (row, bytes) in rows.iter().zip(&files) {
+        let Some((name, aliases)) = row.names.split_first() else {
+            licence = Some(json!({ "name": row.path, "text": String::from_utf8_lossy(bytes) }));
+            continue;
+        };
+        let file = dir.join(row.path.replace('/', "__"));
+        fs::write(&file, bytes).unwrap_or_else(|e| panic!("{}: {e}", file.display()));
+        code.push_str(&format!(
+            "    Stub {{ name: {name:?}, aliases: &{aliases:?}, mime: MimeType::ApplicationJavascript, \
+             body: Body::Text(include_str!({:?})) }},\n",
+            file.display().to_string()
+        ));
+    }
+    code.push_str("];\n");
+    let out = out_dir.join("surrogates.rs");
+    fs::write(&out, code).unwrap_or_else(|e| panic!("{}: {e}", out.display()));
+    json!({
+        "kind": "redirect-resources",
+        "name": "DuckDuckGo tracker-surrogates",
+        "version": SURROGATES_COMMIT,
+        "license": component.licence,
+        "repository": SURROGATES_REPO.trim_end_matches(".git"),
+        "description": "Scripts that stand in for the APIs of trackers and ad libraries, \
+            which the content blocker serves for $redirect= rules. The files based on \
+            Mozilla's webcompat shims and on uBlock Origin's google-ima.js are under \
+            MPL-2.0, as each one's header says. The source of every file is the \
+            repository below at this version.",
+        "authors": [],
+        "license_files": [licence.expect("surrogates.tsv names the licence")],
+        "license_texts": [],
+    })
 }
 
 /// Look up canonical SPDX license texts for a `cargo metadata`
@@ -90,7 +279,7 @@ fn licence_files(dir: &Path) -> Vec<Value> {
 
 /// Run `cargo metadata` against the crate and emit a slim JSON list
 /// of (name, version, license SPDX, repository, description) for every
-/// resolved dependency. The result is embedded into the .so/.a via
+/// resolved dependency, then [surrogates]' entry. The result is embedded into the .so/.a via
 /// `include_str!` and surfaced to Flutter's LicenseRegistry on app
 /// startup — that satisfies attribution requirements for the
 /// permissive licenses every transitive crate carries without us
@@ -99,10 +288,9 @@ fn licence_files(dir: &Path) -> Vec<Value> {
 /// `cargo metadata` parses Cargo.lock + Cargo.toml; it never compiles.
 /// A crate whose licence licence_policy.rs refuses fails the build, and
 /// so does a metadata run that fails, since nothing is then checked.
-fn write_dep_licenses(out_dir: &Path) {
+fn write_dep_licenses(out_dir: &Path, policy: &licence_policy::Policy, surrogates: Value) {
     println!("cargo:rerun-if-changed=Cargo.toml");
     println!("cargo:rerun-if-changed=Cargo.lock");
-    let policy = licence_policy::Policy::checked();
     let out_path = out_dir.join("dep_licenses.json");
     let metadata = match Command::new(env::var("CARGO").unwrap_or_else(|_| "cargo".into()))
         .args(["metadata", "--format-version", "1", "--all-features"])
@@ -162,6 +350,7 @@ fn write_dep_licenses(out_dir: &Path) {
             Vec::new()
         };
         out.push(json!({
+            "kind": "crate",
             "name": name,
             "version": version,
             "license": license_expr,
@@ -192,6 +381,8 @@ fn write_dep_licenses(out_dir: &Path) {
         a.get("name").and_then(|v| v.as_str()).unwrap_or("")
             .cmp(b.get("name").and_then(|v| v.as_str()).unwrap_or(""))
     });
+
+    out.push(surrogates);
 
     let json_blob = serde_json::to_string(&out).expect("serialise dep_licenses");
     fs::write(&out_path, &json_blob).expect("write dep_licenses.json");

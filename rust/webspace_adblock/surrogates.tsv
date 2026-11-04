@@ -1,0 +1,21 @@
+# The files build.rs takes from DuckDuckGo's tracker-surrogates at the commit
+# it pins (CB-010): each one's path in that tree, its SHA-256, and the names a
+# filter list's $redirect= asks for it by, space-separated: the first uBlock
+# Origin's resource name, the rest its aliases, as uBO's Resources Library
+# lists them. The file with no names is the licence, which reaches the
+# licences page (LICENSE-003). The build fails on a file whose digest differs.
+LICENSE.md	3f5c7ba77e03842c9b9c8b9e2fcd2e0db2b824eda3ba06e09f9ef742f9fd6b51
+surrogates/ga.js	d80ce155264a6555e24dbb75484a73d5021c774bda559d1b1ea6d5c47329c016	google-analytics_ga.js google-analytics.com/ga.js
+surrogates/analytics.js	fe34d56570ffa4ba2b29365f41be3aaf6d424a13a7fd831653a828fe9e9a7b31	google-analytics_analytics.js google-analytics.com/analytics.js
+surrogates/inpage_linkid.js	f7fc3f7463e78758b34a6f645f76aeae6b19a79f0111f4f50e139a5559ae039a	google-analytics_inpage_linkid.js google-analytics.com/inpage_linkid.js
+surrogates/api.js	6f6043af1bf50698ddbf7c468d9730756a7930babe94ac28b87fb757053d5bfc	google-analytics_cx_api.js google-analytics.com/cx/api.js
+surrogates/gtm.js	98ec1d6632d164edd8d58a7b3442a27b2956f38ede9db166894e730dde61cdd4	googletagmanager_gtm.js googletagmanager.com/gtm.js
+surrogates/gpt.js	e93bc75b892401120acdc719c606e4f23ec1bcdca67adac6065cb2af75894828	googletagservices_gpt.js googletagservices.com/gpt.js
+surrogates/google-ima.js	f731b38d1e9bf6574e92ce707f2c6aff2dcaeda9eea45ca6dfe10b4dfb100990	google-ima.js
+surrogates/adsbygoogle.js	133439bf2213095d1270873dedd0e8e41274ccfe687391515a31657648b20310	googlesyndication_adsbygoogle.js googlesyndication.com/adsbygoogle.js
+surrogates/amzn_apstag.js	537fb873001fbaeaed71e1d3c2a07055d0d7625f67593d3a65037a9f8841e600	amazon_apstag.js
+surrogates/amzn_ads.js	3569d2fa96b161586c412e684825a421e163ffa04f2036a14c85377f2e53d029	amazon_ads.js amazon-adsystem.com/aax2/amzn_ads.js
+surrogates/ad_status.js	afa5b7077e2b650ef840d5eb81fb62b17e8e9374f27fabc82ec72a6d6aed2b29	doubleclick_instream_ad_status.js doubleclick.net/instream/ad_status.js
+surrogates/beacon.js	b66642872e3f5646a16020323a9950cd17afb4b1f82bd455aa61271d33b67924	scorecardresearch_beacon.js scorecardresearch.com/beacon.js
+surrogates/chartbeat.js	1bd0a2fe31809bd1ccc6b6ec8149c7aec649b90890a3d0e78d0d91598f10bc4a	chartbeat.js static.chartbeat.com/chartbeat.js
+surrogates/outbrain.js	b00b1aaa5bd72e3a84e880a6677b47106bf0f61a349e6a9cf14e5ce688412d2f	outbrain-widget.js widgets.outbrain.com/outbrain.js

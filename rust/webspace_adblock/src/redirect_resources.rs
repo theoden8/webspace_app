@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: MPL-2.0
 //
 // The bodies `$redirect=` and `$rewrite=abp-resource:` rules name. A filter
-// list asks for one by the name its syntax gives it (the
-// `noop.js` family and its aliases); the engine serves the body as a
-// `data:` URL in place of the blocked request. Each body does nothing: an
-// empty script, page, text, stylesheet or JSON value, a transparent image,
-// a silent sound, an empty ad playlist. A rule naming a resource that is
-// not here blocks the request outright (adblock-rust's `Blocker`), as it
-// does with the pool switched off.
+// list asks for one by the name its syntax gives it (uBlock Origin's resource
+// names and their aliases, Adblock Plus's `abp-resource:` names); the engine
+// serves the body as a `data:` URL in place of the blocked request. A rule
+// naming a resource that is not here blocks the request outright
+// (adblock-rust's `Blocker`), as it does with the pool switched off. The pool
+// holds two kinds:
+//   * bodies that do nothing: an empty script, page, text, stylesheet or JSON
+//     value, a transparent image, a silent sound, an empty ad playlist, made
+//     here;
+//   * DuckDuckGo's tracker surrogates (`SURROGATES`), which build.rs takes at
+//     a pinned commit, file by file as ../surrogates.tsv pins them.
 
 use adblock::resources::{MimeType, Resource, ResourceType};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
@@ -58,10 +62,13 @@ const STUBS: &[Stub] = &[
         mime: MimeType::AudioMp3, body: Body::SilentMp3 { seconds: 0.5 } },
 ];
 
-/// Every stub, as the engine takes them (`Engine::use_resources`).
+include!(concat!(env!("OUT_DIR"), "/surrogates.rs"));
+
+/// The pool, as the engine takes it (`Engine::use_resources`).
 pub(crate) fn all() -> Vec<Resource> {
     STUBS
         .iter()
+        .chain(SURROGATES)
         .map(|stub| Resource {
             name: stub.name.to_string(),
             aliases: stub.aliases.iter().map(|a| a.to_string()).collect(),
@@ -183,13 +190,49 @@ mod tests {
         assert_eq!(adler32(b"Wikipedia"), 0x11e6_0398);
     }
 
+    fn pool() -> impl Iterator<Item = &'static Stub> {
+        STUBS.iter().chain(SURROGATES)
+    }
+
+    fn names(stub: &Stub) -> impl Iterator<Item = &'static str> + '_ {
+        std::iter::once(stub.name).chain(stub.aliases.iter().copied())
+    }
+
     #[test]
     fn every_name_and_alias_is_taken_once() {
         let mut seen = HashSet::new();
-        for stub in STUBS {
-            for name in std::iter::once(&stub.name).chain(stub.aliases) {
-                assert!(seen.insert(*name), "{name} is named twice");
+        for stub in pool() {
+            for name in names(stub) {
+                assert!(seen.insert(name), "{name} is named twice");
             }
+        }
+    }
+
+    // adblock-rust drops a resource it cannot take without a word (a name
+    // taken twice, a body that is not its kind's), so each name is asked of
+    // an engine the way a filter list asks for it.
+    #[test]
+    fn every_name_and_alias_serves_its_body_cb_010() {
+        let asked: Vec<(String, &Stub)> = pool()
+            .flat_map(|stub| names(stub).map(move |name| (name.to_string(), stub)))
+            .collect();
+        let rules: Vec<String> = asked
+            .iter()
+            .enumerate()
+            .map(|(i, (name, _))| format!("||r{i}.example^$redirect={name}"))
+            .collect();
+        let mut set = adblock::lists::FilterSet::new(false);
+        set.add_filter_list(rules.join("\n"), Default::default());
+        let mut engine = adblock::Engine::new_with_filter_set(set);
+        engine.use_resources(all());
+        for (i, (name, stub)) in asked.iter().enumerate() {
+            let request = adblock::request::Request::new(
+                &format!("https://r{i}.example/x"), "https://site.example/", "script", "").unwrap();
+            let redirect = engine.check_network_request(&request).redirect
+                .unwrap_or_else(|| panic!("$redirect={name} serves nothing"));
+            let (head, body) = redirect.split_once(";base64,").expect("a base64 data: URL");
+            assert_eq!(head, format!("data:{}", stub.mime), "{name}");
+            assert_eq!(STANDARD.decode(body).unwrap(), stub.body.bytes(), "{name}");
         }
     }
 
@@ -276,5 +319,26 @@ mod tests {
             checked += 1;
         }
         assert_eq!(checked, 2);
+    }
+
+    // build.rs takes each surrogate as surrogates.tsv pins it; this holds what
+    // the library compiled in to the same table, read apart from build.rs.
+    #[test]
+    fn each_surrogate_is_the_file_surrogates_tsv_pins_cb_010() {
+        let mut served = 0;
+        for line in include_str!("../surrogates.tsv").lines().filter(|l| !l.is_empty() && !l.starts_with('#')) {
+            let cols: Vec<&str> = line.split('\t').collect();
+            let Some(names) = cols.get(2) else { continue };
+            let mut names = names.split_whitespace();
+            let name = names.next().unwrap();
+            let stub = SURROGATES.iter().find(|s| s.name == name)
+                .unwrap_or_else(|| panic!("{name}, {}, is not in the pool", cols[0]));
+            assert_eq!(stub.aliases, names.collect::<Vec<_>>(), "{name}'s aliases");
+            assert_eq!(crate::sha256::sha256_hex(&stub.body.bytes()), cols[1], "{name} is not {}", cols[0]);
+            assert_eq!(stub.mime, MimeType::ApplicationJavascript, "{name}");
+            served += 1;
+        }
+        assert!(served > 0, "surrogates.tsv names no script");
+        assert_eq!(SURROGATES.len(), served, "a surrogate surrogates.tsv does not name");
     }
 }

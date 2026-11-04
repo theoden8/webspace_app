@@ -149,76 +149,86 @@ void registerLicenses() {
     }
   });
 
-  // Every crate the adblock library links, from the blob its build embeds
-  // (rust/webspace_adblock/build.rs): each with its own licence files, which
-  // carry its copyright notices, or the canonical SPDX text and its authors
-  // for one that ships none.
+  // Every crate the adblock library links and the redirect scripts it
+  // serves, from the blob its build embeds (rust/webspace_adblock/build.rs).
   LicenseRegistry.addLicense(() async* {
     for (final dep in AdblockEngine.depLicenses()) {
-      final name = dep['name'] as String? ?? '';
-      if (name.isEmpty) continue;
-      final version = dep['version'] as String? ?? '';
-      final license = dep['license'] as String? ?? '<unspecified>';
-      final repo = dep['repository'] as String? ?? '';
-      final desc = dep['description'] as String? ?? '';
-      final texts = (dep['license_texts'] as List? ?? const [])
-          .cast<Map<String, dynamic>>();
-      final files = switch (dep['license_files']) {
-        final List list => [
-            for (final f in list)
-              if (f case {'name': final String name, 'text': final String text})
-                (name, text),
-          ],
-        _ => const <(String, String)>[],
-      };
-      final authors = switch (dep['authors']) {
-        final List list => [
-            for (final a in list)
-              if (a case final String author) author,
-          ],
-        _ => const <String>[],
-      };
-
-      final parts = <String>[
-        if (desc.isNotEmpty) desc,
-        '',
-        'Version: $version',
-        'License: $license',
-        if (files.isEmpty && authors.isNotEmpty) 'Authors: ${authors.join(', ')}',
-        if (repo.isNotEmpty) 'Source: $repo',
-        if (repo.isEmpty) 'Source: https://crates.io/crates/$name',
-      ];
-      if (files.isNotEmpty) {
-        for (final (fileName, text) in files) {
-          parts
-            ..add('')
-            ..add('--- $fileName ---')
-            ..add('')
-            ..add(text);
-        }
-      } else if (texts.isEmpty) {
-        parts.add('');
-        parts.add(
-            'Canonical SPDX license text was not resolvable for "$license". '
-            'See the upstream source above for the original.');
-      } else {
-        for (final lt in texts) {
-          final id = lt['id'] as String? ?? '';
-          final lname = lt['name'] as String? ?? id;
-          final text = lt['text'] as String? ?? '';
-          if (text.isEmpty) continue;
-          parts.add('');
-          parts.add('--- $lname (SPDX: $id) ---');
-          parts.add('');
-          parts.add(text);
-        }
+      if (adblockNotice(dep) case (final package, final text)) {
+        yield _PerLineLicenseEntry([package], text: text);
       }
-      yield _PerLineLicenseEntry(
-        ['$name (Rust crate, transitive via adblock-rust)'],
-        text: parts.join('\n'),
-      );
     }
   });
+}
+
+/// One entry of the adblock library's blob as the licences page shows it: a
+/// crate the library links, or the redirect scripts its build takes in, each
+/// with its own licence files, which carry its copyright notices, or the
+/// canonical SPDX text and its authors for one that ships none. Null for an
+/// entry with no name.
+(String, String)? adblockNotice(Map<String, dynamic> dep) {
+  final name = dep['name'] as String? ?? '';
+  if (name.isEmpty) return null;
+  final version = dep['version'] as String? ?? '';
+  final license = dep['license'] as String? ?? '<unspecified>';
+  final repo = dep['repository'] as String? ?? '';
+  final desc = dep['description'] as String? ?? '';
+  final texts = (dep['license_texts'] as List? ?? const [])
+      .cast<Map<String, dynamic>>();
+  final files = switch (dep['license_files']) {
+    final List list => [
+        for (final f in list)
+          if (f case {'name': final String name, 'text': final String text})
+            (name, text),
+      ],
+    _ => const <(String, String)>[],
+  };
+  final authors = switch (dep['authors']) {
+    final List list => [
+        for (final a in list)
+          if (a case final String author) author,
+      ],
+    _ => const <String>[],
+  };
+
+  final parts = <String>[
+    if (desc.isNotEmpty) desc,
+    '',
+    'Version: $version',
+    'License: $license',
+    if (files.isEmpty && authors.isNotEmpty) 'Authors: ${authors.join(', ')}',
+    if (repo.isNotEmpty) 'Source: $repo',
+    if (repo.isEmpty) 'Source: https://crates.io/crates/$name',
+  ];
+  if (files.isNotEmpty) {
+    for (final (fileName, text) in files) {
+      parts
+        ..add('')
+        ..add('--- $fileName ---')
+        ..add('')
+        ..add(text);
+    }
+  } else if (texts.isEmpty) {
+    parts.add('');
+    parts.add(
+        'Canonical SPDX license text was not resolvable for "$license". '
+        'See the upstream source above for the original.');
+  } else {
+    for (final lt in texts) {
+      final id = lt['id'] as String? ?? '';
+      final lname = lt['name'] as String? ?? id;
+      final text = lt['text'] as String? ?? '';
+      if (text.isEmpty) continue;
+      parts.add('');
+      parts.add('--- $lname (SPDX: $id) ---');
+      parts.add('');
+      parts.add(text);
+    }
+  }
+  final package = switch (dep['kind']) {
+    'redirect-resources' => '$name (redirect scripts the content blocker serves)',
+    _ => '$name (Rust crate, transitive via adblock-rust)',
+  };
+  return (package, parts.join('\n'));
 }
 
 const String _podNotices = 'assets/native_notices/pods.md';

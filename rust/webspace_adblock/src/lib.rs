@@ -27,6 +27,8 @@ use std::ffi::CStr;
 #[cfg(target_os = "android")]
 mod jni;
 mod redirect_resources;
+#[cfg(test)]
+mod sha256;
 use std::slice;
 
 use adblock::content_blocking::{CbRule, CbType};
@@ -737,7 +739,7 @@ mod tests {
     #[test]
     fn a_redirect_to_a_resource_outside_the_pool_blocks() {
         let engine_ptr = rules_to_engine_with_resources(
-            "||tracker.example.com^$redirect=google-analytics_ga.js\n", true);
+            "||tracker.example.com^$redirect=click2load.html\n", true);
         let engine = unsafe { &(*engine_ptr).inner };
         let request = adblock::request::Request::new(
             "https://tracker.example.com/ga.js",
