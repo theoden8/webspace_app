@@ -18,6 +18,7 @@ on:
       - .github/workflows/flatpak.yml
       - scripts/build_flatpak.sh
       - scripts/verify_webkit_shipped.sh
+      - tool/check_bundle_licences.js
       - tool/check_source_offer.js
       - linux/**
       - pubspec.lock
@@ -27,6 +28,7 @@ on:
       - .github/workflows/flatpak.yml
       - scripts/build_flatpak.sh
       - scripts/verify_webkit_shipped.sh
+      - tool/check_bundle_licences.js
       - tool/check_source_offer.js
       - linux/**
       - pubspec.lock
@@ -77,11 +79,14 @@ jobs:
       - name: Build
         run: bash scripts/build_flatpak.sh "${{ github.event.pull_request.head.sha || github.sha }}"
 
-      # What the built /app holds: WebKit a library a user can replace, with
-      # PDF.js's OFL fonts (LICENSE-001, LICENSE-004), and the source its
-      # notices offer one Software Heritage keeps.
+      # What the built /app holds: every copyright file in it names a licence
+      # the policy lets ship and no GNU notice sits outside the notices
+      # (LICENSE-001), WebKit is a library a user can replace, with PDF.js's
+      # OFL fonts, and the source its notices offer is one Software Heritage
+      # keeps (LICENSE-004).
       - name: Check the flatpak's licences
         run: |
+          node tool/check_bundle_licences.js build/flatpak/app/files
           bash scripts/verify_webkit_shipped.sh build/flatpak/app/files webspace
           node tool/check_source_offer.js build/flatpak/app/files
 
