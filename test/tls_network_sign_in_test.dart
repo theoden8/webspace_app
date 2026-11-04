@@ -77,13 +77,17 @@ void main() {
     NetworkSignIn.instance = NetworkSignIn(read: () async => verdict);
   });
 
+  /// A rejected handshake as Android and Linux deliver it, after the OS's
+  /// verdict, whatever host runs the test.
   Future<inapp.ServerTrustAuthResponseAction?> answer(
     String host, {
     required WebViewHostHooks? hooks,
     inapp.SslCertificate? cert,
   }) async {
     final response = await WebViewTls.handleServerTrust(null,
-        challenge: _challenge(host, cert: cert ?? _cert()), hooks: hooks);
+        challenge: _challenge(host, cert: cert ?? _cert()),
+        hooks: hooks,
+        apple: false);
     return response?.action;
   }
 
@@ -121,10 +125,37 @@ void main() {
       final host = _Host(trust: () async => true);
       expect(
           await WebViewTls.handleSslLoadError(
-              view: null, url: 'https://discord.com/app', hooks: host.hooks),
+              view: null,
+              url: 'https://discord.com/app',
+              hooks: host.hooks,
+              apple: false),
           isFalse);
       expect(host.asked, isEmpty);
       expect(host.told, hasLength(1));
+    });
+
+    test('on iOS and macOS the OS decides, and none of it runs', () async {
+      var read = false;
+      NetworkSignIn.instance = NetworkSignIn(read: () async {
+        read = true;
+        return SignInRequired(NetworkKey.android('100'));
+      });
+      final host = _Host(trust: () async => true);
+      final response = await WebViewTls.handleServerTrust(null,
+          challenge: _challenge('discord.com', cert: _cert()),
+          hooks: host.hooks,
+          apple: true);
+      expect(response, isNull, reason: 'null defers the verdict to the OS');
+      expect(
+          await WebViewTls.handleSslLoadError(
+              view: null,
+              url: 'https://discord.com/app',
+              hooks: host.hooks,
+              apple: true),
+          isFalse);
+      expect(read, isFalse);
+      expect(host.asked, isEmpty);
+      expect(host.told, isEmpty);
     });
 
     test('a webview no one sees keeps the notice for one that is', () async {

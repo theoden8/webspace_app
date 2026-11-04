@@ -40,10 +40,13 @@ abstract final class WebViewTls {
   ///     post-failure (`WebViewClient.onReceivedSslError` /
   ///     `load-failed-with-tls-errors`), so the callback only runs when
   ///     the OS has rejected the cert. Prompt the user inline.
+  ///
+  /// [apple] is the host's when null; a test names it.
   static Future<inapp.ServerTrustAuthResponse?> handleServerTrust(
     WebViewController? view, {
     required inapp.ServerTrustChallenge challenge,
     required WebViewHostHooks? hooks,
+    bool? apple,
   }) async {
     final space = challenge.protectionSpace;
     final host = space.host;
@@ -70,7 +73,7 @@ abstract final class WebViewTls {
     // remain useful for Android post-failure and for dart:io
     // `HttpClient.badCertificateCallback` (favicon fetch, etc.), but
     // querying them in this code path on Apple was log noise at best.
-    if (hostIsIOS || hostIsMacOS) {
+    if (apple ?? _hostIsApple) {
       return null;
     }
     if (await _heldForSignIn(host, port: port, cert: cert, hooks: hooks)) {
@@ -167,6 +170,9 @@ abstract final class WebViewTls {
     return inapp.ServerTrustAuthResponse(
         action: inapp.ServerTrustAuthResponseAction.PROCEED);
   }
+
+  /// iOS and macOS, where the OS decides every certificate (TLS-009).
+  static bool get _hostIsApple => hostIsIOS || hostIsMacOS;
 
   static String _certCacheKey(String host, {required int port}) =>
       '${host.toLowerCase()}:$port';
@@ -337,10 +343,13 @@ abstract final class WebViewTls {
   ///   * Not pinned — show the prompt; on approval pin the cached
   ///     cert and reload. The reload's trust callback finds the pin
   ///     and returns PROCEED.
+  ///
+  /// [apple] is the host's when null; a test names it.
   static Future<bool> handleSslLoadError({
     required WebViewController? view,
     required String url,
     required WebViewHostHooks? hooks,
+    bool? apple,
   }) async {
     // Modern Apple platforms (macOS 15+, iOS 26+) reject self-signed
     // certs at the `nw_protocol_boringssl` layer regardless of the
@@ -353,7 +362,7 @@ abstract final class WebViewTls {
     // unknown-CA sites fail closed here. Users can install the cert
     // manually (Keychain Access on macOS, Settings → General →
     // Certificate Trust Settings on iOS).
-    if (hostIsMacOS || hostIsIOS) {
+    if (apple ?? _hostIsApple) {
       return false;
     }
     final uri = Uri.tryParse(url);
