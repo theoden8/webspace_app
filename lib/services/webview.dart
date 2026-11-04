@@ -1748,7 +1748,7 @@ class WebViewFactory {
           final handled = await WebViewTls.handleSslLoadError(
             view: view,
             url: reqUrl,
-            prompt: config.hooks.untrustedCertificate,
+            hooks: config.hooks,
           );
           if (handled) return;
         }
@@ -1857,7 +1857,7 @@ class WebViewFactory {
         }
       },
       onReceivedServerTrustAuthRequest: (controller, challenge) =>
-          WebViewTls.handleServerTrust(view, challenge: challenge, prompt: config.hooks.untrustedCertificate),
+          WebViewTls.handleServerTrust(view, challenge: challenge, hooks: config.hooks),
       onReceivedHttpAuthRequest: (controller, challenge) =>
           answerHttpAuthChallenge(
             routerIdentity: routerIdentityForConfig(config),

@@ -57,7 +57,7 @@ Settings on iOS).
 
 ## Solution
 
-Three coordinated pieces:
+Four coordinated pieces:
 
 1. **`_handleServerTrust` (lib/services/webview.dart)** — pinned certs
    PROCEED; on iOS/macOS unpinned certs **return `null`** from the
@@ -74,7 +74,11 @@ Three coordinated pieces:
    the prompt, pins on approval, reloads the URL. Bails out if the host
    is already pinned (stale event from the original failed nav after we
    reloaded).
-3. **`TrustedHostsService` (lib/services/trusted_hosts_service.dart)** —
+3. **`WebViewTls._ask` / `_heldForSignIn` (lib/services/webview_tls.dart)** —
+   every prompt passes through them: none while the OS reports a captive
+   portal ([`NetworkSignIn`](../../../lib/services/network_sign_in.dart),
+   TLS-012), and one per certificate per run (TLS-013).
+4. **`TrustedHostsService` (lib/services/trusted_hosts_service.dart)** —
    persists `(host, port, sha256)` triples to SharedPreferences. The
    webview path and `HttpClient.badCertificateCallback` both consult it.
 
@@ -374,6 +378,58 @@ failure at the site.
 **Then** no trust prompt is shown
 **And** the load is reported failed like any other
 
+### Requirement: TLS-012 - A network that wants a sign-in is not a certificate prompt
+
+While the OS says the device's network holds traffic for a sign-in page (a
+captive portal), the app SHALL NOT ask about, pin, or accept on a pin any
+certificate the OS rejected: it is the portal's, not the site's. It SHALL
+cancel the load and tell the user once per network to sign in. The verdict is
+the OS's own (Android's `NET_CAPABILITY_CAPTIVE_PORTAL`, NetworkManager's
+`NM_CONNECTIVITY_PORTAL`); the app sends no probe.
+
+#### Scenario: A plane's Wi-Fi before signing in
+
+**Given** the device's Wi-Fi is a captive portal that answers HTTPS with a certificate for `securelogin.arubanetworks.com`
+**And** Android marks the network `NET_CAPABILITY_CAPTIVE_PORTAL`
+**When** a loaded site's requests to `discord.com` and `cdn.discordapp.com` are rejected by the OS, and retried
+**Then** no "Untrusted certificate" dialog is shown and nothing is pinned
+**And** one "Sign in to the network" notice names `discord.com` and the certificate's `securelogin.arubanetworks.com`
+**And** a pin the user made earlier for that certificate is not honoured
+
+#### Scenario: The notice, once per network, where it is seen
+
+**Given** the OS reports a portal on a network
+**When** a popup or a background check meets a rejected certificate there
+**Then** it cancels without telling the user
+**And** the first site webview that does tells them once, with a button to the OS's Wi-Fi settings where it has them
+**And** after a reconnect, which is a new network, it tells them again
+
+Lineage: [BUG-043](../../../docs/bugs/043-certificate-prompt-flood.md).
+
+#### Scenario: After signing in
+
+**Given** the user signed in and the OS no longer reports a portal
+**When** a self-signed host's certificate is rejected
+**Then** the trust prompt is shown as TLS-002 says
+
+### Requirement: TLS-013 - A declined certificate is asked about once
+
+The app SHALL NOT put a certificate to the user again in a run once they
+declined it, for any host, and SHALL put one certificate to them at most once
+at a time. A certificate is known by its SHA-256 fingerprint, or by host:port
+where the platform gave no DER (TLS-006).
+
+One interceptor's certificate answers for every host a page loads, and each
+retry is another rejection; asking per host and per retry floods the user
+until a tap lets it in. A decline stands until the app restarts.
+
+#### Scenario: One certificate behind many hosts
+
+**Given** no portal is reported and the network answers `discord.com` and `cdn.discordapp.com` with one certificate
+**When** the user declines the prompt for `discord.com`
+**Then** the rejection for `cdn.discordapp.com` and every retry are cancelled without a prompt
+**And** a different certificate is still asked about
+
 ---
 
 ## Implementation Notes
@@ -423,6 +479,8 @@ against existing pins.
 | Cert rotation MITM (attacker swaps cert mid-session) | Yes       | Pin mismatch re-prompts before any data leaks   |
 | Backup file leaks pinned hosts                  | N/A       | Pins identify hosts the user accepted; not secret |
 | User taps "Trust this site" on a phishing page  | No        | Out of scope — same threat model as desktop browsers |
+| Captive portal answers for every site           | Yes       | OS portal verdict: no prompt, no pin, no pin honoured (TLS-012) |
+| Prompt fatigue until the user taps "Trust"      | Partial   | A declined certificate is not asked about again in the run (TLS-013) |
 
 ---
 
@@ -434,6 +492,9 @@ against existing pins.
 - `test/trusted_hosts_service_test.dart` — pure-Dart unit tests
 - `test/outbound_http_trust_test.dart` — `HttpClient.badCertificateCallback` against a local self-signed HTTPS server
 - `integration_test/tls_trust_prompt_test.dart` — drives WKWebView against a local self-signed HTTPS server
+- `lib/services/network_sign_in.dart` — the OS's captive portal verdict (TLS-012)
+- `android/app/src/main/kotlin/org/codeberg/theoden8/webspace/NetworkSignInPlugin.kt` — Android's half of it
+- `test/tls_network_sign_in_test.dart` — TLS-012 and TLS-013 through `WebViewTls` with a fake verdict
 
 ### Modified
 - `lib/services/webview.dart` — `_handleServerTrust` defers on iOS/macOS; `_handleSslLoadError` post-failure prompt + reload; `onReceivedError` wires the SSL branch

@@ -6,9 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/network_sign_in.dart';
 import 'package:webspace/services/proxy_leg_failure.dart';
 import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/webview_host_hooks.dart';
 
 /// How a site webview answers a certificate the OS rejected: the user's
 /// trust prompt, the pinned exceptions, and the reload after a refused load.
@@ -41,9 +43,7 @@ abstract final class WebViewTls {
   static Future<inapp.ServerTrustAuthResponse?> handleServerTrust(
     WebViewController? view, {
     required inapp.ServerTrustChallenge challenge,
-    required Future<bool> Function(String host,
-            {required int port, required inapp.SslCertificate? certificate})?
-        prompt,
+    required WebViewHostHooks? hooks,
   }) async {
     final space = challenge.protectionSpace;
     final host = space.host;
@@ -72,6 +72,10 @@ abstract final class WebViewTls {
     // querying them in this code path on Apple was log noise at best.
     if (hostIsIOS || hostIsMacOS) {
       return null;
+    }
+    if (await _heldForSignIn(host, port: port, cert: cert, hooks: hooks)) {
+      return inapp.ServerTrustAuthResponse(
+          action: inapp.ServerTrustAuthResponseAction.CANCEL);
     }
     if (TrustedHostsService.instance.isTrusted(
       host: host,
@@ -123,17 +127,16 @@ abstract final class WebViewTls {
     }
     // Post-failure platforms (Android, Linux): the OS already rejected
     // the chain. Prompt the user now.
-    if (prompt == null) {
+    if (hooks == null) {
       LogTag.tls.debug(
           'untrusted cert for $host:$port and no host UI — cancelling load',
           sensitive: true);
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.CANCEL);
     }
-    final approved = await prompt(host, port: port, certificate: cert);
+    final approved = await _ask(host,
+        port: port, cert: cert, fingerprint: fingerprint, hooks: hooks);
     if (!approved) {
-      LogTag.tls.debug(
-          'user rejected untrusted cert for $host:$port', sensitive: true);
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.CANCEL);
     }
@@ -167,6 +170,77 @@ abstract final class WebViewTls {
 
   static String _certCacheKey(String host, {required int port}) =>
       '${host.toLowerCase()}:$port';
+
+  /// Whether the OS says the device's network holds traffic for a sign-in
+  /// page (TLS-012). Its certificate then answers in place of every site, so
+  /// none is asked about, pinned or let through on a pin: trusting it hands
+  /// the site's cookies to the network. The user is told to sign in instead,
+  /// once per network, however many hosts and retries fail behind it.
+  static Future<bool> _heldForSignIn(String host,
+      {required int port,
+      required inapp.SslCertificate? cert,
+      required WebViewHostHooks? hooks}) async {
+    final network = switch (await NetworkSignIn.instance.verdict()) {
+      SignInRequired(:final network) => network,
+      NoSignIn() => null,
+    };
+    if (network == null) return false;
+    LogTag.tls.debug(
+        'rejected cert for $host:$port while the network wants a sign-in — '
+        'not asking, not pinning', sensitive: true);
+    if (hooks != null && NetworkSignIn.instance.firstNotice(network)) {
+      unawaited(hooks.networkSignIn(
+          (host: host, answeredAs: cert?.issuedTo?.CName?.trim())));
+    }
+    return true;
+  }
+
+  /// Certificates the user declined in this run, by fingerprint, or by
+  /// host:port where the platform gave no DER (TLS-013).
+  static final Set<String> _declined = {};
+
+  /// Certificates whose prompt is on screen, keyed as [_declined].
+  static final Set<String> _asking = {};
+
+  /// Puts a certificate the OS rejected to the user, at most once at a time
+  /// and never again in this run once they declined it, for any host
+  /// (TLS-013): one interceptor's certificate answers for every host a page
+  /// loads, and each retry would otherwise ask again until a tap lets it in.
+  static Future<bool> _ask(String host,
+      {required int port,
+      required inapp.SslCertificate? cert,
+      required String? fingerprint,
+      required WebViewHostHooks hooks}) async {
+    final key = fingerprint != null
+        ? 'sha256:$fingerprint'
+        : 'host:${_certCacheKey(host, port: port)}';
+    if (_declined.contains(key)) {
+      LogTag.tls.debug(
+          'untrusted cert for $host:$port was declined before — not asking '
+          'again', sensitive: true);
+      return false;
+    }
+    if (!_asking.add(key)) return false;
+    try {
+      final approved = await hooks.untrustedCertificate(host,
+          port: port, certificate: cert);
+      if (!approved) {
+        _declined.add(key);
+        LogTag.tls.debug(
+            'user rejected untrusted cert for $host:$port', sensitive: true);
+      }
+      return approved;
+    } finally {
+      _asking.remove(key);
+    }
+  }
+
+  /// Forgets the certificates [_ask] remembers.
+  @visibleForTesting
+  static void resetForTest() {
+    _declined.clear();
+    _asking.clear();
+  }
 
   static bool _isLoopbackHost(String host) {
     final h = host.toLowerCase();
@@ -266,9 +340,7 @@ abstract final class WebViewTls {
   static Future<bool> handleSslLoadError({
     required WebViewController? view,
     required String url,
-    required Future<bool> Function(String host,
-            {required int port, required inapp.SslCertificate? certificate})?
-        prompt,
+    required WebViewHostHooks? hooks,
   }) async {
     // Modern Apple platforms (macOS 15+, iOS 26+) reject self-signed
     // certs at the `nw_protocol_boringssl` layer regardless of the
@@ -292,6 +364,9 @@ abstract final class WebViewTls {
     final cert = _sslCertificateCache[key];
     final fingerprint =
         TrustedHostsService.fingerprintFromInappCertificate(cert);
+    if (await _heldForSignIn(host, port: port, cert: cert, hooks: hooks)) {
+      return false;
+    }
     if (TrustedHostsService.instance.isTrusted(
       host: host,
       port: port,
@@ -312,15 +387,12 @@ abstract final class WebViewTls {
       }));
       return true;
     }
-    if (prompt == null) return false;
+    if (hooks == null) return false;
     if (!_inflightSslPrompts.add(key)) return true;
     try {
-      final approved = await prompt(host, port: port, certificate: cert);
-      if (!approved) {
-        LogTag.tls.debug(
-            'user rejected untrusted cert for $host:$port', sensitive: true);
-        return false;
-      }
+      final approved = await _ask(host,
+          port: port, cert: cert, fingerprint: fingerprint, hooks: hooks);
+      if (!approved) return false;
       if (fingerprint == null) {
         LogTag.tls.debug(
             'user trusted cert for $host:$port but DER missing — cannot pin, load will fail again',

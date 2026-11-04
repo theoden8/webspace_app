@@ -28,6 +28,7 @@ SiteHooks _hooks() => SiteHooks(
         confirmScriptFetch: (_) async => false,
         untrustedCertificate: (_, {required port, required certificate}) async =>
             false,
+        networkSignIn: (_) async {},
         httpAuth: (_) async => null,
         media: FakePrompter(),
       ),

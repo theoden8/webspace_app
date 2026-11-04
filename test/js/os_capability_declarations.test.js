@@ -31,6 +31,7 @@ test('Android declares exactly the permissions it needs', () => {
   assert.deepEqual(declared, [
     'android.permission.ACCESS_COARSE_LOCATION',
     'android.permission.ACCESS_FINE_LOCATION',
+    'android.permission.ACCESS_NETWORK_STATE',
     'android.permission.CAMERA',
     'android.permission.CREDENTIAL_MANAGER_QUERY_CANDIDATE_CREDENTIALS',
     'android.permission.CREDENTIAL_MANAGER_SET_ORIGIN',
@@ -60,6 +61,10 @@ test('Android declares exactly the permissions it needs', () => {
   // with an origin, and the app only asserts one for the calling frame
   // (PASSKEY-004).
   assert.ok(declared.includes('android.permission.CREDENTIAL_MANAGER_SET_ORIGIN'));
+  // Held for the captive portal verdict (TLS-012): ConnectivityManager says
+  // whether a sign-in page holds the network back, so its certificate is not
+  // put to the user as one to trust. Normal protection level, read-only.
+  assert.ok(declared.includes('android.permission.ACCESS_NETWORK_STATE'));
 });
 
 test('iOS declares exactly the usage descriptions it needs', () => {

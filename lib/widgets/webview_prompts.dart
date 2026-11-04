@@ -5,6 +5,7 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_grant_engine.dart';
+import 'package:webspace/services/network_sign_in.dart';
 import 'package:webspace/services/popup_webview.dart';
 import 'package:webspace/services/virtual_media_picker.dart';
 import 'package:webspace/settings/capture.dart';
@@ -97,6 +98,13 @@ class DialogWebViewPrompts implements MediaPrompter {
       port: port,
       certificate: certificate,
     );
+  }
+
+  /// Stable callback for the notice that the network wants a sign-in
+  /// (TLS-012), shared by parent and nested webviews.
+  Future<void> networkSignIn(SignInNotice notice) {
+    if (!context.mounted) return Future.value();
+    return showNetworkSignIn(context, notice: notice);
   }
 
   /// Stable callback for the HTTP authentication sign-in prompt, shared by
