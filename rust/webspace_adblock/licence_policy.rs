@@ -114,6 +114,26 @@ impl Policy {
     }
 }
 
+/// A component the build pulls in outside Cargo, as its row in
+/// components.tsv reads it.
+pub struct Component {
+    pub licence: String,
+    pub ships: Ships,
+}
+
+/// The row of components.tsv for [source].
+pub fn component(source: &str) -> Component {
+    let at = legal("components.tsv");
+    let text = read(&at);
+    let cols = rows(&text)
+        .find(|cols| cols[0].trim() == source)
+        .unwrap_or_else(|| panic!("LICENSE-001: {} has no row for {source}", at.display()));
+    Component {
+        licence: cols.get(1).map_or("", |l| l.trim()).to_string(),
+        ships: Ships::parse(cols.get(2).copied().unwrap_or(""), &at),
+    }
+}
+
 struct Parser<'a> {
     tokens: &'a [String],
     at: usize,

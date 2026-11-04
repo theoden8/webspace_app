@@ -81,6 +81,31 @@ void main() {
     ]);
   });
 
+  test('the redirect scripts the adblock build takes in are listed apart from its crates (LICENSE-003)', () {
+    const licence = 'Copyright (c) 2021-2023 Duck Duck Go, Inc.\n\n'
+        'This work as a whole is licensed under the Apache License, Version 2.0';
+    final (package, text) = adblockNotice({
+      'kind': 'redirect-resources',
+      'name': 'DuckDuckGo tracker-surrogates',
+      'version': '1cca57fa1edc945f208423d478c1d2aa50655141',
+      'license': 'Apache-2.0 AND MPL-2.0',
+      'repository': 'https://github.com/duckduckgo/tracker-surrogates',
+      'description': 'Scripts that stand in for the APIs of trackers and ad libraries.',
+      'authors': <Object>[],
+      'license_files': [
+        {'name': 'LICENSE.md', 'text': licence},
+      ],
+      'license_texts': <Object>[],
+    })!;
+    expect(package, 'DuckDuckGo tracker-surrogates (redirect scripts the content blocker serves)');
+    expect(text, contains('License: Apache-2.0 AND MPL-2.0'));
+    expect(text, contains('Source: https://github.com/duckduckgo/tracker-surrogates'));
+    expect(text, contains('--- LICENSE.md ---\n\n$licence'));
+    expect(adblockNotice({'kind': 'crate', 'name': 'adblock', 'license': 'MPL-2.0'})?.$1,
+        'adblock (Rust crate, transitive via adblock-rust)');
+    expect(adblockNotice({'kind': 'crate', 'name': ''}), isNull);
+  });
+
   test('the README names EasyList and adblock-rust (CB-007)', () {
     final readme = File('README.md').readAsStringSync();
     expect(readme, contains('EasyList'));

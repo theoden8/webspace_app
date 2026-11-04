@@ -607,8 +607,8 @@ class FastSubresourceInterceptor(
             //   * matched rule has no $redirect= option
             //   * resource name in the rule isn't in the loaded pool
             // The empty-body path is the legacy / status-quo block; the
-            // redirect path serves the stub the rule names (an empty
-            // script, a transparent image).
+            // redirect path serves the resource the rule names (an empty
+            // script, a transparent image, a stand-in for a tracker's API).
             if (decision == Decision.BLOCKED_ABP && AdblockEngineNative.active) {
                 val headers = request.headers ?: emptyMap()
                 val sourceUrl = stripRootDot(headers["Referer"] ?: headers["referer"] ?: "")

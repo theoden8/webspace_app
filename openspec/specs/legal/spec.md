@@ -130,7 +130,8 @@ a build file pulls in outside pub and Cargo has a row in
 - **WHEN** a dependency is added to `pubspec.yaml`, a Cargo manifest, a
   Podfile, a Gradle file or a build script
 - **THEN** `test/js/licence_policy.test.js` (pub packages, pods, Gradle,
-  downloads) or `rust/webspace_adblock/build.rs` (crates) fails until its
+  downloads) or `rust/webspace_adblock/build.rs` (crates, and the tracker
+  surrogates it downloads, by their `components.tsv` row) fails until its
   licence, read from its source, is one `licences.tsv` allows for how it
   ships
 
@@ -200,7 +201,7 @@ collects:
 | Graph | Collector |
 |---|---|
 | pub packages | `LicenseRegistry`, which reads each package's root `LICENSE` |
-| Rust crates | the adblock build's blob: each linked crate's licence files, or its SPDX text where it ships none |
+| Rust crates | the adblock build's blob: each linked crate's licence files, or its SPDX text where it ships none; and the licence file of the tracker surrogates the build takes in for its `$redirect=` pool (CB-010), under the licence their `components.tsv` row reads |
 | pods (iOS, macOS) | CocoaPods' acknowledgements, copied by each Podfile's `post_integrate` into `assets/native_notices/pods.md` |
 | Maven artifacts (Android) | `android/app/maven_licences.gradle`, into `assets/native_notices/maven.json` |
 
