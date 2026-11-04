@@ -242,10 +242,11 @@ function checkoutOf(body) {
 // Debian package keeps its own, which the app's licences page reads
 // (bundled_notices_io.dart). Both libraries are under the LGPL, so each call
 // names the commit it was built from, read off the part's own checkout of it,
-// and makes the source offer LGPL asks for (LICENSE-004); libwpe's tree
-// carries no LGPL text, so its call gives the build host's. WebKit's call also
-// holds its third-party directories to the audited table and says what the
-// build changed.
+// and makes the source offer LGPL asks for (LICENSE-004); libwpe's call names
+// every licence of its tree and gives the build host's texts of the two it
+// carries none of, and its keysyms.h's X11 notices. WebKit's call also holds
+// its third-party directories to the audited table and says what the build
+// changed.
 function noticeRefusals(text) {
   const out = [];
   const offered = [
@@ -255,8 +256,10 @@ function noticeRefusals(text) {
   for (const [part, dest, extra] of [
     ['libwpe', 'libwpe', [
       ...offered,
-      '--license "BSD-2-clause and LGPL-2+"',
+      '--license "BSD-2-clause and LGPL-2+ and Apache-2.0 and MIT-open-group and HPND"',
       '--licence-text /usr/share/common-licenses/LGPL-2',
+      '--licence-text /usr/share/common-licenses/Apache-2.0',
+      '--notice-of include/wpe/keysyms.h',
     ]],
     ['wpewebkit', 'wpewebkit', [
       ...offered,
@@ -316,10 +319,17 @@ test("the snap's libwpe ships as the LGPL asks: its text, and its source named a
   assert.deepEqual(libwpe(' --offer \\\n', ' \\\n'), ['libwpe lacks --offer'], 'libwpe without its source offer');
   assert.deepEqual(libwpe(/--revision "\$\(git -C [^\n]*\n/, '--revision 1.16.3 \\\n'),
     ['libwpe lacks --revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)"'], 'a revision not read off the checkout');
-  assert.deepEqual(libwpe('--license "BSD-2-clause and LGPL-2+"', '--license BSD-2-clause'),
-    ['libwpe lacks --license "BSD-2-clause and LGPL-2+"'], 'the LGPL of key-unicode.c left unnamed');
-  assert.deepEqual(libwpe(' \\\n        --licence-text /usr/share/common-licenses/LGPL-2\n', '\n'),
-    ['libwpe lacks --licence-text /usr/share/common-licenses/LGPL-2'], 'the LGPL named, its text not given');
+  const line = '--license "BSD-2-clause and LGPL-2+ and Apache-2.0 and MIT-open-group and HPND"';
+  for (const [left, why] of [
+    ['--license "BSD-2-clause and Apache-2.0 and MIT-open-group and HPND"', 'the LGPL of key-unicode.c'],
+    ['--license "BSD-2-clause and LGPL-2+ and MIT-open-group and HPND"', 'gamepad.c\'s Apache-2.0'],
+    ['--license "BSD-2-clause and LGPL-2+ and Apache-2.0"', 'keysyms.h\'s X11 notices'],
+  ]) assert.deepEqual(libwpe(line, left), [`libwpe lacks ${line}`], `${why} left unnamed`);
+  for (const [option, why] of [
+    ['--licence-text /usr/share/common-licenses/LGPL-2', 'the LGPL named, its text not given'],
+    ['--licence-text /usr/share/common-licenses/Apache-2.0', 'Apache-2.0 named, its text not given'],
+    ['--notice-of include/wpe/keysyms.h', 'the X11 notices left in the header'],
+  ]) assert.deepEqual(libwpe(` \\\n        ${option}`, ''), [`libwpe lacks ${option}`], why);
   assert.deepEqual(libwpe(/^ {4}source: \S+\n {4}source-commit: \S+\n/m, '    source: https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz\n'), [
     'libwpe is not a checkout of one commit, so its HEAD is not the source it offers',
     "libwpe's notices name https://github.com/WebPlatformForEmbedded/libwpe.git, not the https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz it pulls",

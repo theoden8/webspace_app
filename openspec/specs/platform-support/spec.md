@@ -351,7 +351,8 @@ desktop entry and metainfo are the bundle's (PLATFORM-008).
   audited table `linux/webkit_third_party.tsv` as it builds, and libwpe and
   WebKit lay their notices out in `usr/share/doc/` as a Debian package does,
   each with the source offer LGPL asks for, libwpe's with the build host's
-  LGPL text its tree lacks (LICENSE-003, LICENSE-004).
+  LGPL and Apache-2.0 texts and the header notice its tree has no file of
+  (LICENSE-003, LICENSE-004).
 - **One instance (PLATFORM-011):** a dbus slot gives the snap its application
   ID on the session bus, the one name strict confinement lets it own.
 - **Permissions:** each plug names what needs it, and none grants the home
