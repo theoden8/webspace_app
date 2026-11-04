@@ -1,6 +1,7 @@
 package org.codeberg.theoden8.webspace.proxy
 
 import org.codeberg.theoden8.webspace.Guarded
+import org.codeberg.theoden8.webspace.describe
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -259,7 +260,7 @@ class ProxyRelay(
                 status.contentEquals(STATUS_PREFIX)
             }
         } catch (e: IOException) {
-            log("serving check got no answer (${e.javaClass.simpleName})")
+            log("serving check got no answer: ${describe(e)}")
             false
         }
     }
@@ -411,7 +412,7 @@ class ProxyRelay(
                 socket
             }
         } catch (e: Exception) {
-            log("could not bind $ip: ${e.javaClass.simpleName}")
+            log("could not bind $ip: ${describe(e)}")
             runCatching { socket.close() }
             null
         }
@@ -438,6 +439,7 @@ class ProxyRelay(
                 }
             } catch (e: Exception) {
                 reached.set(false)
+                log("self-test connect to ${addr.address?.hostAddress}:${addr.port} failed: ${describe(e)}")
             }
         }, "proxy-relay-self-test").apply { isDaemon = true }
         probe.start()
@@ -488,7 +490,7 @@ class ProxyRelay(
                 try {
                     adopted = handle(client)
                 } catch (e: Exception) {
-                    log("client handling failed: ${e.javaClass.simpleName}")
+                    log("client handling failed: ${describe(e)}")
                 } finally {
                     if (!adopted) runCatching { client.close() }
                 }
@@ -504,7 +506,7 @@ class ProxyRelay(
     private fun peerAllowed(peerPort: Int): Boolean {
         if (peerCheckUnavailable) return true
         val check: (Int, Int) -> PeerVerdict =
-            peerCheck ?: { p, r -> readPeerVerdict(p, r, ownUid) }
+            peerCheck ?: { p, r -> readPeerVerdict(p, r, ownUid, log = ::log) }
         return when (check(peerPort, boundPort)) {
             PeerVerdict.OWN -> true
             PeerVerdict.FOREIGN -> {
@@ -594,8 +596,15 @@ class ProxyRelay(
         val (host, hostPort) = if (isConnect) {
             parseAuthority(target, 443)
         } else {
-            val uri = runCatching { URI(target) }.getOrNull()
-            if (uri?.host == null) {
+            val uri = try {
+                URI(target)
+            } catch (e: URISyntaxException) {
+                log("rejected a request target that is no URI: ${describe(e)}")
+                writeStatus(cout, 400, "Bad Request")
+                return null
+            }
+            if (uri.host == null) {
+                log("rejected a request target with no host: $target")
                 writeStatus(cout, 400, "Bad Request")
                 return null
             }
@@ -710,6 +719,7 @@ class ProxyRelay(
                 val requestBody = try {
                     HttpFraming.requestBody(request.headers)
                 } catch (e: MalformedMessage) {
+                    log("rejected a request whose body length is unreadable: ${describe(e)}")
                     writeStatus(cout, 400, "Bad Request")
                     return false
                 }
@@ -774,6 +784,7 @@ class ProxyRelay(
                 val next = try {
                     readPreamble(cin)
                 } catch (e: SocketTimeoutException) {
+                    log("closed a plain-http connection idle for ${KEEP_ALIVE_IDLE_MS / 1000} s: ${describe(e)}")
                     null
                 } ?: return false
                 request = admit(next, cout) ?: return false
@@ -817,6 +828,7 @@ class ProxyRelay(
         } catch (e: MalformedMessage) {
             throw e
         } catch (e: IOException) {
+            log("${request.method} ${request.host}:${request.port} for ${request.lease.route.siteId} got no response: ${describe(e)}")
             null
         }
     }
@@ -908,6 +920,7 @@ class ProxyRelay(
         val uri = try {
             URI(scheme, null, host, port, null, null, null)
         } catch (e: URISyntaxException) {
+            log("$host is no URI host, so the system proxy is asked as for an unnamed one: ${describe(e)}")
             URI(scheme, null, UNNAMED_HOST, port, null, null, null)
         }
         val proxy = systemProxy(uri)
@@ -1098,9 +1111,10 @@ class ProxyRelay(
         // Convert absolute-form ("GET http://host/path HTTP/1.1") to
         // origin-form ("GET /path HTTP/1.1") for the tunneled origin server.
         val parts = requestLine.split(" ")
-        val uri = runCatching { URI(target) }.getOrNull()
-        val path = uri?.rawPath?.takeIf { it.isNotEmpty() } ?: "/"
-        val query = uri?.rawQuery?.let { "?$it" } ?: ""
+        // Admitted, so it parsed in [admit].
+        val uri = URI(target)
+        val path = uri.rawPath?.takeIf { it.isNotEmpty() } ?: "/"
+        val query = uri.rawQuery?.let { "?$it" } ?: ""
         val sb = StringBuilder()
         sb.append(parts[0]).append(" ").append(path).append(query).append(" ")
             .append(parts.getOrElse(2) { "HTTP/1.1" }).append("\r\n")
@@ -1139,7 +1153,7 @@ class ProxyRelay(
     private fun pump(a: Socket, aIn: InputStream, b: Socket, bIn: InputStream, upstreamFirst: Int): Pair<Direction, Direction> {
         fun ended(sent: Direction, from: Socket, to: Socket) {
             if (sent.failed) {
-                abortOnClose(a, b)
+                abortOnClose(a, b, log = ::log)
                 runCatching { a.close() }
                 runCatching { b.close() }
             } else {
@@ -1258,7 +1272,7 @@ class ProxyRelay(
     }
 
     private fun writeChallenge(out: OutputStream, realm: String) {
-        runCatching {
+        try {
             out.write(
                 (
                     "HTTP/1.1 407 Proxy Authentication Required\r\n" +
@@ -1268,6 +1282,8 @@ class ProxyRelay(
                     ).toByteArray(Charsets.ISO_8859_1)
             )
             out.flush()
+        } catch (e: IOException) {
+            log("answering 407 failed: ${describe(e)}")
         }
     }
 
@@ -1277,9 +1293,11 @@ class ProxyRelay(
     }
 
     private fun writeStatus(out: OutputStream, code: Int, reason: String) {
-        runCatching {
+        try {
             out.write("HTTP/1.1 $code $reason\r\nConnection: close\r\n\r\n".toByteArray(Charsets.ISO_8859_1))
             out.flush()
+        } catch (e: IOException) {
+            log("answering $code failed: ${describe(e)}")
         }
     }
 
@@ -1326,9 +1344,16 @@ class ProxyRelay(
 
         private val PROC_NET_TCP = listOf("/proc/net/tcp", "/proc/net/tcp6")
 
-        private fun readPeerVerdict(peerPort: Int, relayPort: Int, ownUid: Int?): PeerVerdict =
+        private fun readPeerVerdict(peerPort: Int, relayPort: Int, ownUid: Int?, log: (String) -> Unit): PeerVerdict =
             peerVerdict(
-                PROC_NET_TCP.map { path -> runCatching { File(path).readText() }.getOrNull() },
+                PROC_NET_TCP.map { path ->
+                    try {
+                        File(path).readText()
+                    } catch (e: IOException) {
+                        log("reading $path failed: ${describe(e)}")
+                        null
+                    }
+                },
                 peerPort,
                 relayPort,
                 ownUid,

@@ -1,6 +1,7 @@
 package org.codeberg.theoden8.webspace.proxy
 
 import org.codeberg.theoden8.webspace.Guarded
+import org.codeberg.theoden8.webspace.describe
 import java.io.IOException
 import java.nio.Buffer
 import java.nio.ByteBuffer
@@ -169,7 +170,7 @@ internal class Splicer(
                 }
             }
         } catch (e: IOException) {
-            log("splice thread failed: ${e.javaClass.simpleName}")
+            log("splice thread failed: ${describe(e)}")
         } finally {
             if (!clean) {
                 // Whatever ended the thread, nothing it held stays open and
@@ -216,7 +217,7 @@ internal class Splicer(
             step(pair)
         } catch (e: IOException) {
             closeQuietly(h.a, h.b)
-            log("tunnel ${h.label} could not be spliced (${e.javaClass.simpleName})")
+            log("tunnel ${h.label} could not be spliced: ${describe(e)}")
             false
         }
     }
@@ -282,7 +283,7 @@ internal class Splicer(
     private fun close(pair: Pair, cause: String? = null) {
         pair.keyA.cancel()
         pair.keyB.cancel()
-        if (pair.ab.failed || pair.ba.failed) abortOnClose(pair.a.socket(), pair.b.socket())
+        if (pair.ab.failed || pair.ba.failed) abortOnClose(pair.a.socket(), pair.b.socket(), log = log)
         closeQuietly(pair.a, pair.b)
         log(Direction.ended(pair.label, startedAt = pair.startedAt, up = pair.ab.sent, down = pair.ba.sent, cause = cause))
     }

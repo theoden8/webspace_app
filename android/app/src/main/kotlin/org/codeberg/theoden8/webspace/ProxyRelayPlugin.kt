@@ -3,6 +3,7 @@ package org.codeberg.theoden8.webspace
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
+import android.util.Log
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import org.codeberg.theoden8.webspace.proxy.ProxyRelay
@@ -35,6 +36,7 @@ class ProxyRelayPlugin(flutterEngine: FlutterEngine) {
         logger = { msg ->
             mainHandler.post {
                 runCatching { channel.invokeMethod("logEvent", mapOf("msg" to msg)) }
+                    .onFailure { Log.w(TAG, "a relay log line was dropped: ${describe(it)}") }
             }
         },
         ownUid = Process.myUid(),
@@ -74,7 +76,7 @@ class ProxyRelayPlugin(flutterEngine: FlutterEngine) {
                         // Bind failure: report it so Dart can fail closed
                         // rather than clearing the override (which would
                         // leak a direct connection).
-                        result.error("RELAY_START_FAILED", e.message, null)
+                        result.error("RELAY_START_FAILED", describe(e), null)
                     }
                 }
                 "startRouter" -> {
@@ -87,7 +89,7 @@ class ProxyRelayPlugin(flutterEngine: FlutterEngine) {
                         val localPort = relay.startRouter(realm)
                         result.success(mapOf("host" to relay.host, "port" to localPort))
                     } catch (e: Exception) {
-                        result.error("RELAY_START_FAILED", e.message, null)
+                        result.error("RELAY_START_FAILED", describe(e), null)
                     }
                 }
                 "setRoutes" -> {
@@ -170,5 +172,6 @@ class ProxyRelayPlugin(flutterEngine: FlutterEngine) {
 
     companion object {
         const val CHANNEL = "org.codeberg.theoden8.webspace/proxy_relay"
+        private const val TAG = "WebspaceProxyRelay"
     }
 }

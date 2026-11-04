@@ -1,6 +1,7 @@
 package org.codeberg.theoden8.webspace.proxy
 
 import java.io.IOException
+import org.codeberg.theoden8.webspace.describe
 import java.net.Socket
 import java.net.SocketException
 
@@ -65,9 +66,6 @@ internal class Direction(val sender: String, val receiver: String, first: Int) {
             val first = ended.minByOrNull { it.endedAt } ?: return "neither side closed"
             return if (ended.size == 2) "the ${first.sender} closed first" else "the ${first.sender} closed"
         }
-
-        private fun describe(e: IOException): String =
-            listOfNotNull(e.javaClass.simpleName, e.message).joinToString(": ")
     }
 }
 
@@ -77,12 +75,13 @@ internal class Direction(val sender: String, val receiver: String, first: Int) {
  * would with no relay between them, rather than as a close. Chromium names
  * the two apart (`ERR_CONNECTION_RESET`, `ERR_CONNECTION_CLOSED`).
  */
-internal fun abortOnClose(vararg sockets: Socket) {
+internal fun abortOnClose(vararg sockets: Socket, log: (String) -> Unit) {
     for (s in sockets) {
         try {
             s.setSoLinger(true, 0)
         } catch (e: SocketException) {
-            // Already closed: nothing left to reset.
+            log("could not make a close a reset: ${describe(e)}")
         }
     }
 }
+

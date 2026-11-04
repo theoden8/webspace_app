@@ -190,7 +190,7 @@ internal object BackgroundLogFile {
                     }
                 }
             } catch (e: InterruptedException) {
-                row("refreshWork", "query interrupted")
+                row("refreshWork", "query interrupted: ${describe(e)}")
             }
             main.post { done(rows) }
         }
