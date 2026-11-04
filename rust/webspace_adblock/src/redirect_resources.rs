@@ -6,10 +6,13 @@
 // serves the body as a `data:` URL in place of the blocked request. A rule
 // naming a resource that is not here blocks the request outright
 // (adblock-rust's `Blocker`), as it does with the pool switched off. The pool
-// holds two kinds:
+// holds three kinds:
 //   * bodies that do nothing: an empty script, page, text, stylesheet or JSON
 //     value, a transparent image, a silent sound, an empty ad playlist, made
 //     here;
+//   * scripts that stand in for a library's API, written here from that
+//     library's own documentation, each in ../resources/ with what it stands
+//     in for in its header;
 //   * DuckDuckGo's tracker surrogates (`SURROGATES`), which build.rs takes at
 //     a pinned commit, file by file as ../surrogates.tsv pins them.
 
@@ -60,6 +63,22 @@ const STUBS: &[Stub] = &[
         mime: MimeType::AudioMp3, body: Body::SilentMp3 { seconds: 0.1 } },
     Stub { name: "noop-0.5s.mp3", aliases: &[],
         mime: MimeType::AudioMp3, body: Body::SilentMp3 { seconds: 0.5 } },
+    Stub { name: "nofab.js", aliases: &["fuckadblock.js-3.2.0", "nobab.js", "bab-defuser.js"],
+        mime: MimeType::ApplicationJavascript, body: Body::Text(include_str!("../resources/nofab.js")) },
+    Stub { name: "noeval.js", aliases: &[],
+        mime: MimeType::ApplicationJavascript, body: Body::Text(include_str!("../resources/noeval.js")) },
+    Stub { name: "noeval-silent.js", aliases: &["silent-noeval.js"],
+        mime: MimeType::ApplicationJavascript, body: Body::Text(include_str!("../resources/noeval-silent.js")) },
+    Stub { name: "popads.js", aliases: &["popads.net.js"],
+        mime: MimeType::ApplicationJavascript, body: Body::Text(include_str!("../resources/popads.js")) },
+    Stub { name: "prebid-ads.js", aliases: &[],
+        mime: MimeType::ApplicationJavascript, body: Body::Text(include_str!("../resources/prebid-ads.js")) },
+    Stub { name: "fingerprint2.js", aliases: &[],
+        mime: MimeType::ApplicationJavascript, body: Body::Text(include_str!("../resources/fingerprint2.js")) },
+    Stub { name: "fingerprint3.js", aliases: &[],
+        mime: MimeType::ApplicationJavascript, body: Body::Text(include_str!("../resources/fingerprint3.js")) },
+    Stub { name: "ampproject_v0.js", aliases: &["ampproject.org/v0.js"],
+        mime: MimeType::ApplicationJavascript, body: Body::Text(include_str!("../resources/ampproject_v0.js")) },
 ];
 
 include!(concat!(env!("OUT_DIR"), "/surrogates.rs"));
@@ -340,5 +359,20 @@ mod tests {
         }
         assert!(served > 0, "surrogates.tsv names no script");
         assert_eq!(SURROGATES.len(), served, "a surrogate surrogates.tsv does not name");
+    }
+
+    #[test]
+    fn each_script_in_resources_is_served_under_its_name_cb_010() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("resources");
+        let mut files: Vec<_> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().path()).collect();
+        files.sort();
+        assert!(!files.is_empty(), "{} holds no script", dir.display());
+        for file in files {
+            let name = file.file_name().unwrap().to_str().unwrap();
+            let stub = STUBS.iter().find(|s| s.name == name)
+                .unwrap_or_else(|| panic!("resources/{name} is served under no name"));
+            assert_eq!(stub.body.bytes(), std::fs::read(&file).unwrap(), "{name} is served another body");
+            assert_eq!(stub.mime, MimeType::ApplicationJavascript, "{name}");
+        }
     }
 }
