@@ -72,6 +72,7 @@ primitives:
 | obfs4 | lyrebird's `doc/obfs4-spec.txt` | X25519 with Elligator 2 (RFC 7748, RFC 9380), HMAC-SHA-256, SipHash-2-4, XSalsa20-Poly1305 |
 | snowflake | the Snowflake paper and its source | WebRTC's DTLS (RFC 6347) |
 | webtunnel | HTTPS | TLS (RFC 8446) |
+| meek_lite | meek's README and the domain fronting paper (PoPETs 2015) | TLS (RFC 5246, RFC 8446), with a browser's ClientHello from uTLS |
 | dnstt | its published design | the Noise framework's `Noise_NK_25519_ChaChaPoly_BLAKE2s` (RFC 7748, RFC 8439, RFC 7693) |
 
 **`true` is not the cautious alternative.** It obliges an
