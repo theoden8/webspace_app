@@ -527,9 +527,21 @@ Existing sites without `contentBlockEnabled` in their stored JSON SHALL default 
 
 ---
 
-### Requirement: CB-010 - Redirect Stub Pool Toggle
+### Requirement: CB-010 - Redirect Resource Pool Toggle
 
-The system SHALL serve `$redirect=` rules from a pool of stubs (`rust/webspace_adblock/src/redirect_resources.rs`), under the names filter lists give them: bodies that do nothing (an empty script, page, text, stylesheet and JSON value, transparent GIF and PNG images, silent MP3s, a VMAP playlist with no ad breaks). A rule naming a resource outside the pool SHALL block the request. The pool SHALL be gated behind a user-facing toggle persisted as `useUboResources` (default: `true`).
+The system SHALL serve `$redirect=` and `$rewrite=abp-resource:` rules from a pool of resources ([`redirect_resources.rs`](../../../rust/webspace_adblock/src/redirect_resources.rs)), under the names filter lists give them: uBlock Origin's resource names and their aliases, as its Resources Library documents them, and Adblock Plus's `abp-resource:` names, as its filter documentation lists them. The pool holds three kinds:
+
+| Kind | What | Where from |
+|---|---|---|
+| Bodies that do nothing | an empty script, page, text, stylesheet and JSON value; transparent GIF and PNG images; silent MP3s; `noop-1s.mp4`, a second of the same MP3 silence in an MP4 track; a VMAP playlist with no ad breaks | made by `redirect_resources.rs` |
+| Stand-ins written here | FuckAdBlock and BlockAdBlock that never detect (`nofab.js`, also served as `nobab.js`), `eval()` that runs nothing (`noeval.js`, `noeval-silent.js`), `popads.js`, `prebid-ads.js`, FingerprintJS 2 and 3 that collect nothing (`fingerprint2.js`, `fingerprint3.js`), the AMP boilerplate lifted (`ampproject_v0.js`) | [`rust/webspace_adblock/resources/`](../../../rust/webspace_adblock/resources/), each written from the public documentation of what it stands in for, which its header names along with the behaviour it gives |
+| DuckDuckGo's tracker surrogates | stand-ins for Google Analytics (`ga.js`, `analytics.js`, `inpage_linkid.js`, `cx/api.js`), Tag Manager, Publisher Tags, IMA, AdSense, Amazon's ad tags, DoubleClick's ad status, comScore, Chartbeat and Outbrain | `duckduckgo/tracker-surrogates` (Apache-2.0; its files from Mozilla's webcompat shims and uBlock Origin's `google-ima.js` MPL-2.0), taken by `rust/webspace_adblock/build.rs` at the commit it pins |
+
+Each surrogate SHALL be held to the SHA-256 that [`surrogates.tsv`](../../../rust/webspace_adblock/surrogates.tsv) pins beside the names it is served under, and a fetch that fails or a file whose digest differs SHALL fail the build, never leave the pool without it. A build with no network SHALL name a checkout of the pinned commit in `WEBSPACE_SURROGATES_SOURCE`, held to the same digests. Nothing of the upstream tree is committed; its licence file reaches the licences page from the build (LICENSE-003), and its row in `components.tsv` holds the licence and the pin (LICENSE-001).
+
+No resource SHALL come from GPL code: uBlock Origin's own resources, AdGuard's redirects and the surrogates of Privacy Badger and NoScript are not used, and a name is taken from documentation, never from their code. Left out, so that a rule naming one blocks: `nobab2.js`, `hd-main.js` and `popads-dummy.js`, whose behaviour no public documentation states; `click2load.html`, uBlock Origin's click-to-load page, which needs its interface.
+
+A rule naming a resource outside the pool SHALL block the request. The pool SHALL be gated behind a user-facing toggle persisted as `useUboResources` (default: `true`).
 
 #### Scenario: Default on
 
@@ -541,8 +553,29 @@ The system SHALL serve `$redirect=` rules from a pool of stubs (`rust/webspace_a
 **Given** the toggle is on
 **And** a filter rule contains `$redirect=noopjs` or similar
 **When** a matching request is intercepted
-**Then** `ContentBlockerService.redirectFor` returns a `data:` URL with the matching stub body (noop.js, 1x1.gif)
+**Then** `ContentBlockerService.redirectFor` returns a `data:` URL with the matching body (noop.js, 1x1.gif)
 **And** the request is served the stub instead of being dropped
+
+#### Scenario: A surrogate stands in for the library the page expects
+
+**Given** the toggle is on
+**And** a filter rule contains `$redirect=google-analytics_analytics.js` or one of its aliases
+**When** the page's request for Google Analytics' `analytics.js` is intercepted
+**Then** it is served DuckDuckGo's surrogate, which defines `ga` and calls the callbacks the page passed it
+**And** every name and alias in the pool serves its body through the engine (`every_name_and_alias_serves_its_body_cb_010`)
+
+#### Scenario: A surrogate's file is not the one pinned
+
+**Given** a file `surrogates.tsv` names is missing at the pinned commit, cannot be fetched, or has another SHA-256
+**When** the adblock library builds, online or from `WEBSPACE_SURROGATES_SOURCE`
+**Then** the build fails, naming each such file
+**And** what the library compiled in is held to the same digests (`each_surrogate_is_the_file_surrogates_tsv_pins_cb_010`)
+
+#### Scenario: A stand-in written here gives the API its header documents
+
+**Given** a script in `rust/webspace_adblock/resources/`
+**Then** it is served under its file name (`each_script_in_resources_is_served_under_its_name_cb_010`)
+**And** in a page it adds only the globals it stands in for and gives them the documented behaviour (`test/js/redirect_scripts.test.js`)
 
 #### Scenario: A resource outside the pool blocks
 
@@ -1322,7 +1355,7 @@ npm run test:browser                                     # shims in real Chromiu
 3. Tap "Update All", verify all lists download
 4. Open a news site, verify ad slots are hidden before they paint
 5. Open LinkedIn, verify "Promoted" posts are hidden (engine procedural `:has-text()` rules)
-6. Toggle "Serve uBO redirect stubs" off, reload a tracker-heavy site, verify some tracker scripts now drop instead of returning stubs (sites may break — that's the trade-off the user opted into)
+6. Toggle "Serve uBO redirect stubs" off, reload a tracker-heavy site, verify some tracker scripts now drop instead of returning stubs or surrogates (sites may break — that's the trade-off the user opted into)
 7. Open site Settings, disable Content Blocker, reload page, verify ads and promoted content reappear
 8. Add a custom filter list via "Add Custom List" dialog, verify it can be downloaded, toggled, and removed
 9. Check Licenses page shows "EasyList filter lists (filter data)" + adblock-rust transitive deps
