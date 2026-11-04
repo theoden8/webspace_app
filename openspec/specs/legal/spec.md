@@ -3,7 +3,10 @@
 ## Purpose
 
 Two positions the project has to keep true as code changes: the App Store
-encryption declaration, and MIT as the licence of the shipped work.
+encryption declaration, and the licences of the shipped work. The app's own
+code is MIT, except `rust/webspace_adblock` (MPL-2.0) and `go/hiddenkey`
+(BSD-3-Clause); the artwork is under `assets/LICENSE` (CC BY-NC-SA 4.0).
+Each is the maintainer's choice and stays as it is.
 
 ## Status
 
