@@ -71,11 +71,14 @@ class.
   serialise by the sites instead of their slots. Standalone (fixed scenario).
 - **`process_route.tla`** + `process_route*.cfg` — the process-wide proxy rule's own
   timing (PROXY-008, BUG-037), as `ProcessRoute` runs it: claims that take a ticket and wait
-  for the rule's turn, writes out one at a time, releases at any moment. `Inv_Covers` (a
-  page sends only on its own route), `Inv_NoGhost` (the rule lists only what runs),
-  `Inv_Assert` (the code's assert holds); the `readd`, `midwrite` and `noturn` demonstrators
-  list a released occupant, void a claim only during its write, and let two writes out at
-  once. Standalone: which sites run when is `activation.tla`'s.
+  for the rule's turn, writes out one at a time, releases at any moment, and a let-go
+  webview's vacate, which holds the turn until its page is gone (`Leave`, `Gone`,
+  `Vacated`: Android destroys a disposed view only after about:blank). `Inv_Covers` (a page,
+  a let-go one included, sends only on the route in force), `Inv_NoGhost` (the rule lists
+  only what runs or is leaving), `Inv_Assert` (the code's assert holds); the `readd`,
+  `midwrite`, `noturn` and `quietonly` demonstrators list a released occupant, void a claim
+  only during its write, let two writes out at once, and end a vacate before the native
+  destroy. Standalone: which sites run when is `activation.tla`'s.
 - **`relay_routes.tla`** + `relay_routes*.cfg` — the router relay's route tables and the
   challenges they answer (PROXY-034), as `ProxyRouterService` runs them: tables asked for
   and installed through one queue, a credential's challenge waiting in the same queue.
