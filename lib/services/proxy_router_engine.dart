@@ -220,32 +220,36 @@ class ProxyRouterEngine {
     return table;
   }
 
-  /// Serialise [routes] for the platform channel.
+  /// Serialise [routes] for the platform channel, with why each route left
+  /// out was.
   ///
-  /// A malformed address resolves to no entry at all rather than to a
-  /// direct route: silently downgrading a site the user proxied is the
+  /// A route that cannot be carried resolves to no entry at all rather than
+  /// to a direct one: silently downgrading a site the user proxied is the
   /// leak this whole feature exists to prevent, and an absent credential
   /// makes the relay answer 502.
-  static Map<String, Map<String, Object?>> toWire(
-    Map<String, ProxyRoute> routes,
-  ) {
+  static RouteWire toWire(Map<String, ProxyRoute> routes) {
     final wire = <String, Map<String, Object?>>{};
-    for (final entry in routes.entries) {
-      final encoded = _encodeUpstream(entry.value);
-      if (encoded != null) wire[entry.key] = encoded;
+    final dropped = <RouterIdentity, String>{};
+    for (final MapEntry(key: credential, value: route) in routes.entries) {
+      switch (_encodeUpstream(route)) {
+        case _Wire(:final entry):
+          wire[credential] = entry;
+        case _Dropped(:final why):
+          dropped[route.identity] = why;
+      }
     }
-    return wire;
+    return (routes: wire, dropped: dropped);
   }
 
-  static Map<String, Object?>? _encodeUpstream(ProxyRoute route) {
+  static _Encoded _encodeUpstream(ProxyRoute route) {
     final proxy = route.upstream;
     if (proxy.type == ProxyType.DEFAULT) {
-      return {
+      return _Wire({
         'siteId': route.identity,
         'type': 'direct',
         'host': '',
         'port': 0,
-      };
+      });
     }
     // A TOR setting keeps the user's previous manual proxy address so
     // switching back restores it (PROXY-010). Encoding that leftover address
@@ -262,36 +266,65 @@ class ProxyRouterEngine {
       return switch (expandTorProxy(proxy)) {
         TorRouteUp(:final socks) => switch (_encodeUpstream(
             ProxyRoute(identity: route.identity, upstream: socks))) {
-          final wire? => {...wire, 'early': true},
-          null => null,
+          _Wire(:final entry) => _Wire({...entry, 'early': true}),
+          _Dropped(:final why) => _Dropped('Tor serves no usable SOCKS '
+              'address: $why'),
         },
-        TorRouteBlocked() => null,
+        TorRouteBlocked(:final reason) =>
+          _Dropped('its route is Tor, and $reason'),
       };
     }
-    // Same leftover-address hazard as TOR: an unresolved library route still
-    // holds the manual address the site had before, which is not its route.
-    if (proxy.type == ProxyType.SAVED ||
-        proxy.type == ProxyType.GATEWAY ||
-        proxy.credentialsId != null) {
-      return null;
+    // Same leftover-address hazard as TOR: an unresolved route still holds
+    // the manual address the site had before, which is not its route. What
+    // resolution leaves as SAVED is a library entry that does not resolve or
+    // an interface the traffic cannot leave by (`egressRoute`).
+    if (proxy.type == ProxyType.SAVED || proxy.type == ProxyType.GATEWAY) {
+      return const _Dropped('its proxy resolves to no route: a library '
+          'entry that does not resolve, or an interface it cannot leave by');
+    }
+    if (proxy.credentialsId != null) {
+      return const _Dropped('its saved credentials sign in to no gateway');
     }
     final parsed = splitProxyAddress(proxy.address);
-    if (parsed == null) return null;
-    final host = parsed.host;
-    final port = parsed.port;
-    return {
+    if (parsed == null) {
+      return _Dropped('its proxy address "${proxy.address ?? ''}" is not '
+          'host:port');
+    }
+    return _Wire({
       'siteId': route.identity,
       'type': switch (proxy.type) {
         ProxyType.HTTPS => 'https',
         ProxyType.SOCKS5 => 'socks5',
         _ => 'http',
       },
-      'host': host,
-      'port': port,
+      'host': parsed.host,
+      'port': parsed.port,
       'username': proxy.username,
       'password': proxy.password,
-    };
+    });
   }
+}
+
+/// The relay's route table as the platform channel takes it, and why each
+/// site left out of it was: the relay answers such a site 502.
+typedef RouteWire = ({
+  Map<String, Map<String, Object?>> routes,
+  Map<RouterIdentity, String> dropped,
+});
+
+/// One route as the relay takes it, or why it cannot be carried.
+sealed class _Encoded {
+  const _Encoded();
+}
+
+final class _Wire extends _Encoded {
+  const _Wire(this.entry);
+  final Map<String, Object?> entry;
+}
+
+final class _Dropped extends _Encoded {
+  const _Dropped(this.why);
+  final String why;
 }
 
 /// One site's resolved upstream, keyed in the relay by its credential.

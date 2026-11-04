@@ -279,7 +279,7 @@ void main() {
           tokens: {RouterIdentity.ofSite(SiteId('plain')): state.tokenFor(RouterIdentity.ofSite(SiteId('plain')))},
         ),
       );
-      expect(wire[state.credentialFor(RouterIdentity.ofSite(SiteId('plain')))]!['type'], 'direct');
+      expect(wire.routes[state.credentialFor(RouterIdentity.ofSite(SiteId('plain')))]!['type'], 'direct');
     });
 
     test('a DEFAULT site inherits the app-global proxy (PROXY-009)', () {
@@ -293,7 +293,7 @@ void main() {
           tokens: {RouterIdentity.ofSite(SiteId('plain')): state.tokenFor(RouterIdentity.ofSite(SiteId('plain')))},
         ),
       );
-      final entry = wire[state.credentialFor(RouterIdentity.ofSite(SiteId('plain')))]!;
+      final entry = wire.routes[state.credentialFor(RouterIdentity.ofSite(SiteId('plain')))]!;
       expect(entry['type'], 'http');
       expect(entry['host'], '10.0.0.1');
       expect(entry['port'], 8080);
@@ -319,7 +319,10 @@ void main() {
             tokens: {RouterIdentity.ofSite(SiteId('a')): state.tokenFor(RouterIdentity.ofSite(SiteId('a')))},
           ),
         );
-        expect(wire, isEmpty, reason: '"$bad" must not produce a route');
+        expect(wire.routes, isEmpty, reason: '"$bad" must not produce a route');
+        expect(wire.dropped[RouterIdentity.ofSite(SiteId('a'))],
+            contains('is not host:port'),
+            reason: 'the log names why the site has no route');
       }
     });
 
@@ -334,7 +337,7 @@ void main() {
           tokens: {RouterIdentity.ofSite(SiteId('a')): state.tokenFor(RouterIdentity.ofSite(SiteId('a')))},
         ),
       );
-      final entry = wire[state.credentialFor(RouterIdentity.ofSite(SiteId('a')))]!;
+      final entry = wire.routes[state.credentialFor(RouterIdentity.ofSite(SiteId('a')))]!;
       expect(entry['type'], 'socks5');
       expect(entry['username'], 'alice');
       expect(entry['password'], 's3cret');
@@ -360,10 +363,10 @@ void main() {
         },
         tokens: {tor: state.tokenFor(tor), socks: state.tokenFor(socks)},
       ));
-      final torEntry = wire[state.credentialFor(tor)]!;
+      final torEntry = wire.routes[state.credentialFor(tor)]!;
       expect(torEntry['type'], 'socks5');
       expect(torEntry['early'], isTrue);
-      final socksEntry = wire[state.credentialFor(socks)]!;
+      final socksEntry = wire.routes[state.credentialFor(socks)]!;
       expect(socksEntry['type'], 'socks5');
       expect(socksEntry['early'], isNull,
           reason: 'a plain SOCKS5 proxy is answered after its reply');
@@ -383,7 +386,11 @@ void main() {
           tokens: {RouterIdentity.ofSite(SiteId('a')): state.tokenFor(RouterIdentity.ofSite(SiteId('a')))},
         ),
       );
-      expect(wire, isEmpty);
+      expect(wire.routes, isEmpty);
+      expect(wire.dropped[RouterIdentity.ofSite(SiteId('a'))],
+          startsWith('its route is Tor, and '),
+          reason: 'Tor not serving is named as such, not as a malformed '
+              'route');
     });
 
     test('a DEFAULT site inheriting a global TOR gets no route either', () {
@@ -397,7 +404,8 @@ void main() {
           tokens: {RouterIdentity.ofSite(SiteId('plain')): state.tokenFor(RouterIdentity.ofSite(SiteId('plain')))},
         ),
       );
-      expect(wire, isEmpty);
+      expect(wire.routes, isEmpty);
+      expect(wire.dropped.keys, [RouterIdentity.ofSite(SiteId('plain'))]);
     });
 
     test('an IPv6 proxy address keeps its host intact', () {
@@ -408,7 +416,7 @@ void main() {
           tokens: {RouterIdentity.ofSite(SiteId('a')): state.tokenFor(RouterIdentity.ofSite(SiteId('a')))},
         ),
       );
-      expect(wire[state.credentialFor(RouterIdentity.ofSite(SiteId('a')))]!['host'], '[::1]');
+      expect(wire.routes[state.credentialFor(RouterIdentity.ofSite(SiteId('a')))]!['host'], '[::1]');
     });
   });
 
