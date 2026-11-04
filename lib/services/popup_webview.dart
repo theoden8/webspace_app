@@ -271,7 +271,7 @@ abstract final class PopupWebView {
       // verification iframe would be more confusing than the cancel
       // it falls back to.
       onReceivedServerTrustAuthRequest: (controller, challenge) =>
-          WebViewTls.handleServerTrust(view, challenge: challenge, prompt: null),
+          WebViewTls.handleServerTrust(view, challenge: challenge, hooks: null),
       // A popup is the same site in a dialog, so it presents the same
       // router credential (PROXY-013) and the same saved sign-ins.
       onReceivedHttpAuthRequest: (controller, challenge) =>

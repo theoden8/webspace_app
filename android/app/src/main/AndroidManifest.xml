@@ -1,5 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- TLS-012: reads whether the network is a captive portal, as Android
+         already found it, so a sign-in page answering for a site is not put
+         to the user as a certificate to trust. Normal protection level,
+         granted at install; it reads network state, never the network's name. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- BGAUDIO-006: media foreground service so a site with "Background audio"
          enabled keeps playing (and shows a media notification with transport

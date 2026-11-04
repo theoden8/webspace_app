@@ -80,6 +80,7 @@ WebViewHostHooks bareHooks({
       confirmScriptFetch: (_) async => false,
       untrustedCertificate: (_, {required port, required certificate}) async =>
           false,
+      networkSignIn: (_) async {},
       httpAuth: httpAuth ?? (_) async => null,
       media: _NoPrompts(),
     );

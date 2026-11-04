@@ -412,7 +412,7 @@ test('NOTIF-016: a headless check stays on the site and is granted nothing', () 
     'onCreateWindow: (_, _) async => false,',
     'inapp.PermissionResponseAction.DENY',
     'allow: false',
-    'WebViewTls.handleServerTrust(null, challenge: challenge, prompt: null)',
+    'WebViewTls.handleServerTrust(null, challenge: challenge, hooks: null)',
     'WebInterceptNative.attachToHeadless(',
   ]) {
     assert.ok(body.includes(check), `headless check lacks ${check}`);

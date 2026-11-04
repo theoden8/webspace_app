@@ -632,6 +632,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     },
     confirmScriptFetch: _prompts.confirmScriptFetch,
     untrustedCertificate: _prompts.untrustedCertificate,
+    networkSignIn: _prompts.networkSignIn,
     httpAuth: _prompts.httpAuth,
     media: _prompts,
   );

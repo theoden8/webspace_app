@@ -6,6 +6,7 @@ import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_grant_engine.dart';
+import 'package:webspace/services/network_sign_in.dart';
 import 'package:webspace/services/popup_webview.dart' show PopupKind;
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/origin_choices.dart';
@@ -30,6 +31,7 @@ final class WebViewHostHooks {
     required this.externalScheme,
     required this.confirmScriptFetch,
     required this.untrustedCertificate,
+    required this.networkSignIn,
     required this.httpAuth,
     required this.media,
   });
@@ -83,6 +85,10 @@ final class WebViewHostHooks {
   final Future<bool> Function(String host,
       {required int port,
       required inapp.SslCertificate? certificate}) untrustedCertificate;
+
+  /// Tells the user the network holds traffic back for its sign-in page,
+  /// which answered a site's connection in the site's place (TLS-012).
+  final Future<void> Function(SignInNotice notice) networkSignIn;
   final HttpAuthPrompt httpAuth;
 
   /// The capture and protected-content popups behind every [GrantStore].
@@ -104,6 +110,7 @@ final class WebViewHostHooks {
         confirmScriptFetch: (_) async => false,
         untrustedCertificate:
             (_, {required port, required certificate}) async => false,
+        networkSignIn: (_) async {},
         httpAuth: (_) async => null,
         media: const _Declines(),
       );

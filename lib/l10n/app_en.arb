@@ -250,6 +250,24 @@
   "@untrustedCertTrustConfirm": {
     "description": "Confirm button that approves proceeding with an untrusted certificate and pins it as trusted."
   },
+  "networkSignInTitle": "Sign in to the network",
+  "@networkSignInTitle": {
+    "description": "Title of the dialog shown instead of the untrusted certificate prompt when the device's network (hotel or in-flight Wi-Fi) holds traffic back until the user signs in on its own page."
+  },
+  "networkSignInBody": "The network you are on answered for {host} with its own sign-in page, as hotel and in-flight Wi-Fi do. Sign in to the network, then reload the site.",
+  "@networkSignInBody": {
+    "description": "Body of the network sign-in dialog. The network (a captive portal) intercepted the connection to the site named by host; the user should sign in to the Wi-Fi network and then reload the site.",
+    "placeholders": {
+      "host": {
+        "type": "String",
+        "example": "discord.com"
+      }
+    }
+  },
+  "networkSignInOpenSettings": "Wi-Fi settings",
+  "@networkSignInOpenSettings": {
+    "description": "Button in the network sign-in dialog that opens the system's Wi-Fi settings, where tapping the network opens its sign-in page."
+  },
   "downloadButtonRecentTooltip": "{count} recent downloads",
   "@downloadButtonRecentTooltip": {
     "description": "Tooltip on the downloads app-bar button when idle, showing the number of recent finished downloads.",

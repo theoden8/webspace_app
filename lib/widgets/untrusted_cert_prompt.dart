@@ -2,20 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/services/network_sign_in.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
+import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
-
-/// Re-entrancy guard: a single TLS challenge can fire repeatedly while
-/// the dialog is still on screen (e.g. parallel sub-resources). Without
-/// this, a user with a self-signed site would see a stack of identical
-/// "trust this cert?" dialogs.
-final Set<String> _pendingPrompts = <String>{};
 
 /// Shows the "untrusted certificate" confirmation dialog. Returns `true`
 /// if the user opts to proceed; the caller is responsible for persisting
 /// the trust decision via [TrustedHostsService] (the webview wiring in
 /// [WebViewFactory] does this automatically when the platform surfaced
-/// the cert's DER bytes).
+/// the cert's DER bytes). One dialog per certificate at a time is
+/// `WebViewTls`'s to keep (TLS-013).
 ///
 /// The same dialog is reused by every code path that builds a
 /// [WebViewConfig], so a self-signed-cert prompt looks identical whether
@@ -27,50 +24,84 @@ Future<bool> promptUntrustedCertificate(
   required int port,
   required inapp.SslCertificate? certificate,
 }) async {
-  final key = '$host:$port';
-  if (_pendingPrompts.contains(key)) return false;
-  _pendingPrompts.add(key);
-  try {
-    if (!context.mounted) return false;
-    final loc = AppLocalizations.of(context);
-    final fingerprint =
-        TrustedHostsService.fingerprintFromInappCertificate(certificate);
-    final issuedTo = certificate?.issuedTo?.CName?.trim();
-    final issuedBy = certificate?.issuedBy?.CName?.trim();
-    final notAfter = certificate?.validNotAfterDate;
-    return await confirm(
+  if (!context.mounted) return false;
+  final loc = AppLocalizations.of(context);
+  final fingerprint =
+      TrustedHostsService.fingerprintFromInappCertificate(certificate);
+  final issuedTo = certificate?.issuedTo?.CName?.trim();
+  final issuedBy = certificate?.issuedBy?.CName?.trim();
+  final notAfter = certificate?.validNotAfterDate;
+  return await confirm(
+    context,
+    title: loc.untrustedCertTitle,
+    content: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(loc.untrustedCertBody(host, port)),
+        const SizedBox(height: 8),
+        Text(loc.untrustedCertWarning),
+        const SizedBox(height: 12),
+        if (issuedTo != null && issuedTo.isNotEmpty)
+          _CertField(label: loc.untrustedCertIssuedTo, value: issuedTo),
+        if (issuedBy != null && issuedBy.isNotEmpty)
+          _CertField(label: loc.untrustedCertIssuedBy, value: issuedBy),
+        if (notAfter != null)
+          _CertField(
+            label: loc.untrustedCertExpires,
+            value: notAfter.toIso8601String().split('T').first,
+          ),
+        if (fingerprint != null)
+          _CertField(
+            label: loc.untrustedCertSha256,
+            value: _formatFingerprint(fingerprint),
+          ),
+      ],
+    ),
+    confirmLabel: loc.untrustedCertTrustConfirm,
+    destructive: false,
+  );
+}
+
+/// Tells the user the network holds traffic back for its sign-in page, which
+/// answered [notice]'s host in the site's place (TLS-012), and opens the OS's
+/// Wi-Fi settings where it has them.
+Future<void> showNetworkSignIn(
+  BuildContext context, {
+  required SignInNotice notice,
+}) async {
+  if (!context.mounted) return;
+  final loc = AppLocalizations.of(context);
+  final answeredAs = notice.answeredAs;
+  final content = Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(loc.networkSignInBody(notice.host)),
+      if (answeredAs != null && answeredAs.isNotEmpty) ...[
+        const SizedBox(height: Spacing.md),
+        _CertField(label: loc.untrustedCertIssuedTo, value: answeredAs),
+      ],
+    ],
+  );
+  if (!NetworkSignIn.canOpenSignIn) {
+    await choose<bool>(
       context,
-      title: loc.untrustedCertTitle,
-      content: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(loc.untrustedCertBody(host, port)),
-          const SizedBox(height: 8),
-          Text(loc.untrustedCertWarning),
-          const SizedBox(height: 12),
-          if (issuedTo != null && issuedTo.isNotEmpty)
-            _CertField(label: loc.untrustedCertIssuedTo, value: issuedTo),
-          if (issuedBy != null && issuedBy.isNotEmpty)
-            _CertField(label: loc.untrustedCertIssuedBy, value: issuedBy),
-          if (notAfter != null)
-            _CertField(
-              label: loc.untrustedCertExpires,
-              value: notAfter.toIso8601String().split('T').first,
-            ),
-          if (fingerprint != null)
-            _CertField(
-              label: loc.untrustedCertSha256,
-              value: _formatFingerprint(fingerprint),
-            ),
-        ],
-      ),
-      confirmLabel: loc.untrustedCertTrustConfirm,
-      destructive: false,
+      title: loc.networkSignInTitle,
+      content: content,
+      options: [(true, loc.commonOk)],
     );
-  } finally {
-    _pendingPrompts.remove(key);
+    return;
   }
+  final open = await confirm(
+    context,
+    title: loc.networkSignInTitle,
+    content: content,
+    confirmLabel: loc.networkSignInOpenSettings,
+    destructive: false,
+    cancelLabel: loc.commonClose,
+  );
+  if (open) await NetworkSignIn.openSignIn();
 }
 
 class _CertField extends StatelessWidget {

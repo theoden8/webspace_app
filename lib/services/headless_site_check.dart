@@ -125,7 +125,7 @@ abstract final class HeadlessSiteChecks {
       // No view: an https upgrade the certificate refuses has no plaintext
       // fallback to load in a check.
       onReceivedServerTrustAuthRequest: (_, challenge) =>
-          WebViewTls.handleServerTrust(null, challenge: challenge, prompt: null),
+          WebViewTls.handleServerTrust(null, challenge: challenge, hooks: null),
       onReceivedHttpAuthRequest: (controller, challenge) =>
           answerHttpAuthChallenge(
             routerIdentity: routerIdentityForConfig(config),
