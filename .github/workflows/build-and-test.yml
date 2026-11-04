@@ -757,7 +757,10 @@ jobs:
       # the runner binary — no explicit step needed.
       - name: Build Linux
         run: |
-          fvm flutter build linux --release
+          # flutter says only "Build process failed" when a CMake step fails;
+          # building again with CMake shows the failing command and its output.
+          fvm flutter build linux --release \
+            || { cmake --build build/linux/x64/release 2>&1 | tail -n 200; exit 1; }
           bash scripts/verify_adblock_shipped.sh linux
 
       # LICENSE-001 over what the bundle ships outside pub and Cargo: each
