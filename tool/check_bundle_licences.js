@@ -5,7 +5,8 @@
 // libraries tor's build copies beside it as lib/tor/docs/<package>.txt) names
 // only licences openspec/specs/legal/licences.tsv lets ship as a shared
 // library, read through debian_licences.tsv; and no file the package ships
-// outside its notices carries a GNU licence's notice.
+// outside its notices carries a GNU licence's notice, but a debug source of a
+// library whose copyright file names the LGPL, under the LGPL alone.
 //
 //   node tool/check_bundle_licences.js <unpacked package or bundle directory>
 
@@ -81,11 +82,19 @@ function copyrightFiles(root) {
   return out;
 }
 
+// flatpak-builder keeps a module's debug info and sources under
+// lib/debug/source/<module>/, split into a .Debug extension the bundle leaves
+// out; a source there under the LGPL is its library's, whose notices, in the
+// flatpak's share/doc or a snap's usr/share/doc, must name the LGPL.
+const DEBUG_SOURCE = /^lib\/debug\/source\/([^/]+)\//;
+const copyrightsOf = (pkg) => [`share/doc/${pkg}/copyright`, `usr/share/doc/${pkg}/copyright`];
+
 /** What [root] ships that LICENSE-001 refuses, one line each. */
 function refusals(root, { table = names(), licences = L.policy() } = {}) {
   const out = [];
   const files = copyrightFiles(root);
   if (files.length === 0) out.push(`${root}: no copyright file at all`);
+  const lgpl = new Set();
   for (const { file, pkg } of files) {
     const rel = path.relative(root, file);
     const { expressions, unknown } = licencesOf(fs.readFileSync(file, 'utf8'), { pkg, table });
@@ -95,6 +104,7 @@ function refusals(root, { table = names(), licences = L.policy() } = {}) {
         out.push(`${rel}: ${e}`);
       }
     }
+    if (expressions.some((e) => /(^|[\s(])LGPL-/.test(e))) lgpl.add(rel);
   }
   const notices = new Set(files.map((f) => path.dirname(f.file)));
   const walk = (dir) => {
@@ -103,7 +113,10 @@ function refusals(root, { table = names(), licences = L.policy() } = {}) {
       if (e.isDirectory()) {
         if (!notices.has(at) && !/(^|\/)(doc|docs|licenses|licences)$/.test(at)) walk(at);
       } else if (e.isFile() && L.readingOf(at, { licenceFile: false }).includes('a GNU licence')) {
-        out.push(`${path.relative(root, at)}: carries a GNU licence's notice`);
+        const rel = path.relative(root, at);
+        const pkg = rel.match(DEBUG_SOURCE)?.[1];
+        const lgplDebugSource = pkg && copyrightsOf(pkg).some((n) => lgpl.has(n)) && L.namesOnlyLgpl(at);
+        if (!lgplDebugSource) out.push(`${rel}: carries a GNU licence's notice`);
       }
     }
   };

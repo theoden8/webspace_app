@@ -146,6 +146,19 @@ a build file pulls in outside pub and Cargo has a row in
   `scripts/verify_tor_framework.sh` on a framework that links the GPL-only
   parts of tor
 
+#### Scenario: A build root keeps a library's debug sources
+
+- **WHEN** a built root holds a library's sources under
+  `lib/debug/source/<library>/`, as flatpak-builder leaves them for the
+  `.Debug` extension a bundle leaves out
+- **THEN** a file there carrying a GNU notice passes
+  `tool/check_bundle_licences.js` only when every GNU licence it names is the
+  Lesser or Library GPL and the library's copyright file in the same root
+  (`share/doc/<library>/copyright` or `usr/share/doc/<library>/copyright`)
+  names an LGPL
+- **AND** a GPL notice there, or one in a library whose notices name no LGPL,
+  still fails (`test/js/bundle_licences.test.js`)
+
 #### Scenario: A Go module is compiled into the Apple builds' transports
 
 - **WHEN** `go/iptproxy/build.sh` links a Go module into IPtProxy.xcframework

@@ -74,6 +74,46 @@ test('LICENSE-001 a shipped file carrying a GNU notice is refused, a notice unde
   assert.deepEqual(B.refusals(root), ["usr/lib/helper.sh: carries a GNU licence's notice"]);
 });
 
+// libwpe's src/key-unicode.c header, adapted from GDK's gdkkeyuni.c.
+const LGPL_NOTICE = ` * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2 of the License, or (at your option) any later version.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library. If not, see <http://www.gnu.org/licenses/>.
+`;
+const GPL_NOTICE = LGPL_NOTICE.replaceAll('GNU Lesser General Public\n *', 'GNU General Public\n *');
+const KEY_UNICODE = 'lib/debug/source/libwpe/src/key-unicode.c';
+
+test("LICENSE-001 a flatpak's debug source under the LGPL passes once its library's notices name the LGPL", (t) => {
+  const before = pkg(t, { 'share/doc/libwpe/copyright': dep5(['*', 'BSD-2-clause']), [KEY_UNICODE]: LGPL_NOTICE });
+  assert.deepEqual(B.refusals(before), [`${KEY_UNICODE}: carries a GNU licence's notice`],
+    'libwpe as it was: its notices name no LGPL');
+  const lgpl = dep5(['*', 'BSD-2-clause and LGPL-2+']);
+  assert.deepEqual(B.refusals(pkg(t, { 'share/doc/libwpe/copyright': lgpl, [KEY_UNICODE]: LGPL_NOTICE })), []);
+  assert.deepEqual(B.refusals(pkg(t, { 'usr/share/doc/libwpe/copyright': lgpl, [KEY_UNICODE]: LGPL_NOTICE })), [],
+    'notices where a snap keeps them');
+});
+
+test('LICENSE-001 a debug source is let through only under the LGPL, and only its own library\'s', (t) => {
+  const lgpl = dep5(['*', 'BSD-2-clause and LGPL-2+']);
+  assert.deepEqual(B.refusals(pkg(t, { 'share/doc/libwpe/copyright': lgpl, [KEY_UNICODE]: GPL_NOTICE })),
+    [`${KEY_UNICODE}: carries a GNU licence's notice`], 'a GPL notice in a debug source');
+  assert.deepEqual(B.refusals(pkg(t, { 'share/doc/libwpe/copyright': lgpl, [KEY_UNICODE]: LGPL_NOTICE + GPL_NOTICE })),
+    [`${KEY_UNICODE}: carries a GNU licence's notice`], 'the GPL named beside the LGPL');
+  const other = 'lib/debug/source/libother/a.c';
+  assert.deepEqual(B.refusals(pkg(t, { 'share/doc/libwpe/copyright': lgpl, [other]: LGPL_NOTICE })),
+    [`${other}: carries a GNU licence's notice`], 'a debug source of a library with no notices');
+  assert.deepEqual(B.refusals(pkg(t, {
+    'share/doc/libwpe/copyright': lgpl, 'share/doc/libother/copyright': dep5(['*', 'Expat']), [other]: LGPL_NOTICE,
+  })), [`${other}: carries a GNU licence's notice`], 'another library\'s LGPL does not cover it');
+  assert.deepEqual(B.refusals(pkg(t, { 'share/doc/libwpe/copyright': lgpl, 'lib/libwpe/key-unicode.c': LGPL_NOTICE })),
+    ["lib/libwpe/key-unicode.c: carries a GNU licence's notice"], 'an LGPL source shipped outside the debug sources');
+  assert.deepEqual(B.refusals(pkg(t, { 'share/doc/libwpe/copyright': lgpl, [`opt/${KEY_UNICODE}`]: LGPL_NOTICE })),
+    [`opt/${KEY_UNICODE}: carries a GNU licence's notice`], 'a debug source tree below the root');
+});
+
 test('every build-only row names the files it covers and why (LICENSE-001)', () => {
   const rows = B.names();
   assert.ok(rows.length > 20, `${B.NAMES} read no rows`);
