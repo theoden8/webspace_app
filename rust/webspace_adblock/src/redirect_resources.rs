@@ -8,8 +8,8 @@
 // (adblock-rust's `Blocker`), as it does with the pool switched off. The pool
 // holds three kinds:
 //   * bodies that do nothing: an empty script, page, text, stylesheet or JSON
-//     value, a transparent image, a silent sound, an empty ad playlist, made
-//     here;
+//     value, a transparent image, a silent sound or video, an empty ad
+//     playlist, made here;
 //   * scripts that stand in for a library's API, written here from that
 //     library's own documentation, each in ../resources/ with what it stands
 //     in for in its header;
@@ -31,6 +31,7 @@ enum Body {
     Gif,
     Png { width: u32, height: u32 },
     SilentMp3 { seconds: f64 },
+    SilentMp4 { seconds: f64 },
 }
 
 const STUBS: &[Stub] = &[
@@ -63,6 +64,8 @@ const STUBS: &[Stub] = &[
         mime: MimeType::AudioMp3, body: Body::SilentMp3 { seconds: 0.1 } },
     Stub { name: "noop-0.5s.mp3", aliases: &[],
         mime: MimeType::AudioMp3, body: Body::SilentMp3 { seconds: 0.5 } },
+    Stub { name: "noop-1s.mp4", aliases: &[],
+        mime: MimeType::VideoMp4, body: Body::SilentMp4 { seconds: 1.0 } },
     Stub { name: "nofab.js", aliases: &["fuckadblock.js-3.2.0", "nobab.js", "bab-defuser.js"],
         mime: MimeType::ApplicationJavascript, body: Body::Text(include_str!("../resources/nofab.js")) },
     Stub { name: "noeval.js", aliases: &[],
@@ -106,6 +109,7 @@ impl Body {
             Body::Gif => TRANSPARENT_GIF.to_vec(),
             Body::Png { width, height } => transparent_png(*width, *height),
             Body::SilentMp3 { seconds } => silent_mp3(*seconds),
+            Body::SilentMp4 { seconds } => silent_mp4(*seconds),
         }
     }
 }
@@ -159,8 +163,11 @@ fn png_chunk(png: &mut Vec<u8>, kind: &[u8; 4], data: &[u8]) {
 }
 
 const MP3_HEADER: [u8; 4] = [0xff, 0xfb, 0x10, 0xc0];
-const MP3_FRAME_LEN: usize = 144 * 32_000 / 44_100;
-const MP3_FRAME_SECONDS: f64 = 1152.0 / 44_100.0;
+const MP3_RATE: u32 = 44_100;
+const MP3_BITRATE: u32 = 32_000;
+const MP3_FRAME_SAMPLES: u32 = 1152;
+const MP3_FRAME_LEN: usize = (144 * MP3_BITRATE / MP3_RATE) as usize;
+const MP3_FRAME_SECONDS: f64 = MP3_FRAME_SAMPLES as f64 / MP3_RATE as f64;
 
 /// [seconds] of MPEG-1 Layer III silence, to the nearest frame: 32 kbit/s,
 /// 44.1 kHz, mono, no CRC. Each frame is its header and zeros, so its side
@@ -173,6 +180,76 @@ fn silent_mp3(seconds: f64) -> Vec<u8> {
         mp3.resize(mp3.len() + MP3_FRAME_LEN - MP3_HEADER.len(), 0);
     }
     mp3
+}
+
+/// The same silence as an MP4 file (ISO/IEC 14496-12), its one track the MP3
+/// frames as samples, object type 0x6B (MPEG-1 audio in ISO/IEC 14496-1's
+/// registry), every box version 0 and the movie data last.
+fn silent_mp4(seconds: f64) -> Vec<u8> {
+    let mdat = silent_mp3(seconds);
+    let frames = (mdat.len() / MP3_FRAME_LEN) as u32;
+    let ftyp = mp4_box(b"ftyp", [&b"isom"[..], &0x200u32.to_be_bytes(), b"isom", b"iso2", b"mp41"].concat());
+    let head = ftyp.len() + mp4_moov(frames, 0).len() + 8;
+    [ftyp, mp4_moov(frames, head as u32), mp4_box(b"mdat", mdat)].concat()
+}
+
+/// The movie box of [frames] MP3 frames stored from file offset [data_at].
+fn mp4_moov(frames: u32, data_at: u32) -> Vec<u8> {
+    let be = u32::to_be_bytes;
+    let samples = frames * MP3_FRAME_SAMPLES;
+    let millis = (samples as u64 * 1000 + MP3_RATE as u64 / 2) / MP3_RATE as u64;
+    let millis = be(millis as u32);
+    let unity: Vec<u8> = [0x0001_0000u32, 0, 0, 0, 0x0001_0000, 0, 0, 0, 0x4000_0000]
+        .iter()
+        .flat_map(|v| v.to_be_bytes())
+        .collect();
+    let volume = 0x0100u16.to_be_bytes();
+    // creation and modification times, then the timescale and duration
+    let mvhd = full_box(b"mvhd", 0, [&[0; 8][..], &be(1000), &millis, &be(0x0001_0000), &volume,
+        &[0; 10], &unity, &[0; 24], &be(2)].concat());
+    // flags: enabled, in the movie
+    let tkhd = full_box(b"tkhd", 3, [&[0; 8][..], &be(1), &[0; 4], &millis, &[0; 12], &volume,
+        &[0; 2], &unity, &[0; 8]].concat());
+    // 0x55c4 is the language `und`, three letters of five bits
+    let mdhd = full_box(b"mdhd", 0, [&[0; 8][..], &be(MP3_RATE), &be(samples), &0x55c4u16.to_be_bytes(),
+        &[0; 2]].concat());
+    let hdlr = full_box(b"hdlr", 0, [&[0; 4][..], b"soun", &[0; 12], b"SoundHandler\0"].concat());
+    let smhd = full_box(b"smhd", 0, vec![0; 4]);
+    // one data reference, flag 1: the data is in this file
+    let dinf = mp4_box(b"dinf", full_box(b"dref", 0, [&be(1)[..], &full_box(b"url ", 1, Vec::new())].concat()));
+    // ES_ID 1; object type 0x6B, stream type 5 (audio) with its reserved bit,
+    // a frame's buffer and bitrates; SL config 2, as an MP4 file has it
+    let decoder = mp4_descriptor(4, [&[0x6b, 0x15][..], &be(MP3_FRAME_LEN as u32)[1..], &be(MP3_BITRATE),
+        &be(MP3_BITRATE)].concat());
+    let esds = full_box(b"esds", 0, mp4_descriptor(3, [&[0, 1, 0][..], &decoder, &mp4_descriptor(6, vec![2])].concat()));
+    // data reference 1; one channel of 16-bit samples at the frames' rate
+    let mp4a = mp4_box(b"mp4a", [&[0; 6][..], &1u16.to_be_bytes(), &[0; 8], &1u16.to_be_bytes(),
+        &16u16.to_be_bytes(), &[0; 4], &be(MP3_RATE << 16), &esds].concat());
+    let stbl = mp4_box(b"stbl", [
+        full_box(b"stsd", 0, [&be(1)[..], &mp4a].concat()),
+        full_box(b"stts", 0, [be(1), be(frames), be(MP3_FRAME_SAMPLES)].concat()),
+        full_box(b"stsc", 0, [be(1), be(1), be(frames), be(1)].concat()),
+        full_box(b"stsz", 0, [be(MP3_FRAME_LEN as u32), be(frames)].concat()),
+        full_box(b"stco", 0, [be(1), be(data_at)].concat()),
+    ].concat());
+    let minf = mp4_box(b"minf", [smhd, dinf, stbl].concat());
+    let mdia = mp4_box(b"mdia", [mdhd, hdlr, minf].concat());
+    mp4_box(b"moov", [mvhd, mp4_box(b"trak", [tkhd, mdia].concat())].concat())
+}
+
+fn mp4_box(kind: &[u8; 4], payload: Vec<u8>) -> Vec<u8> {
+    [&((8 + payload.len()) as u32).to_be_bytes()[..], kind, &payload].concat()
+}
+
+/// A box with a version, always 0, and [flags].
+fn full_box(kind: &[u8; 4], flags: u32, payload: Vec<u8>) -> Vec<u8> {
+    mp4_box(kind, [&flags.to_be_bytes()[..], &payload].concat())
+}
+
+/// An MPEG-4 descriptor of [tag], its length in one byte.
+fn mp4_descriptor(tag: u8, body: Vec<u8>) -> Vec<u8> {
+    assert!(body.len() < 0x80, "a one-byte length");
+    [&[tag, body.len() as u8][..], &body].concat()
 }
 
 /// CRC-32 as PNG defines it (ISO 3309, reflected, polynomial 0xEDB88320).
@@ -338,6 +415,87 @@ mod tests {
             checked += 1;
         }
         assert_eq!(checked, 2);
+    }
+
+    /// The boxes laid end to end in [bytes], each its kind and payload.
+    fn boxes(bytes: &[u8]) -> Vec<(&[u8], &[u8])> {
+        let mut out = Vec::new();
+        let mut at = 0;
+        while at < bytes.len() {
+            let len = u32_at(bytes, at) as usize;
+            assert!(len >= 8 && at + len <= bytes.len(), "the box at {at} runs past its parent");
+            out.push((&bytes[at + 4..at + 8], &bytes[at + 8..at + len]));
+            at += len;
+        }
+        out
+    }
+
+    /// The payloads of the boxes in [bytes], which are exactly [kinds].
+    fn children<'a>(bytes: &'a [u8], kinds: &[&[u8; 4]]) -> Vec<&'a [u8]> {
+        let found = boxes(bytes);
+        let got: Vec<&[u8]> = found.iter().map(|(kind, _)| *kind).collect();
+        let want: Vec<&[u8]> = kinds.iter().map(|k| &k[..]).collect();
+        assert_eq!(got, want);
+        found.into_iter().map(|(_, payload)| payload).collect()
+    }
+
+    fn u32_at(bytes: &[u8], at: usize) -> u32 {
+        u32::from_be_bytes(bytes[at..at + 4].try_into().unwrap())
+    }
+
+    #[test]
+    fn the_mp4_is_a_second_of_the_mp3_silence() {
+        let stub = STUBS.iter().find(|s| matches!(s.body, Body::SilentMp4 { .. })).unwrap();
+        let Body::SilentMp4 { seconds } = stub.body else { unreachable!() };
+        assert_eq!(stub.name, format!("noop-{seconds}s.mp4"));
+        let mp4 = stub.body.bytes();
+        let [ftyp, moov, mdat] = children(&mp4, &[b"ftyp", b"moov", b"mdat"])[..] else { unreachable!() };
+        assert_eq!(&ftyp[..4], b"isom");
+
+        let [mvhd, trak] = children(moov, &[b"mvhd", b"trak"])[..] else { unreachable!() };
+        let [tkhd, mdia] = children(trak, &[b"tkhd", b"mdia"])[..] else { unreachable!() };
+        let [mdhd, hdlr, minf] = children(mdia, &[b"mdhd", b"hdlr", b"minf"])[..] else { unreachable!() };
+        let [_, _, stbl] = children(minf, &[b"smhd", b"dinf", b"stbl"])[..] else { unreachable!() };
+        let [stsd, stts, stsc, stsz, stco] =
+            children(stbl, &[b"stsd", b"stts", b"stsc", b"stsz", b"stco"])[..] else { unreachable!() };
+
+        // the frames: each a silent MP3 frame, as many as the tables count
+        assert_eq!(mdat, &silent_mp3(seconds)[..]);
+        let frames = (mdat.len() / MP3_FRAME_LEN) as u32;
+        assert_eq!(&stts[4..], &[1, frames, 1152].map(u32::to_be_bytes).concat()[..], "one run of 1152-sample frames");
+        assert_eq!(&stsc[4..], &[1, 1, frames, 1].map(u32::to_be_bytes).concat()[..], "one chunk of every frame");
+        assert_eq!(&stsz[4..], &[104, frames].map(u32::to_be_bytes).concat()[..], "every frame 104 bytes");
+        assert_eq!(&stco[4..8], &1u32.to_be_bytes());
+        let mdat_at = mp4.len() - mdat.len();
+        assert_eq!(u32_at(stco, 8) as usize, mdat_at, "the chunk starts where mdat's data does");
+
+        // the clocks: the media's in samples, the movie's and the track's in ms
+        assert_eq!(u32_at(mdhd, 12), 44_100);
+        let samples = u32_at(mdhd, 16);
+        assert_eq!(samples, frames * 1152);
+        assert!((samples as f64 / 44_100.0 - seconds).abs() <= 1152.0 / 44_100.0 / 2.0,
+            "lasts the nearest whole frames to {seconds}s");
+        assert_eq!(u32_at(mvhd, 12), 1000);
+        let millis = u32_at(mvhd, 16);
+        assert_eq!(millis, (samples as f64 * 1000.0 / 44_100.0).round() as u32);
+        assert_eq!(u32_at(tkhd, 0) & 0xff_ffff, 3, "the track is enabled and in the movie");
+        assert_eq!(u32_at(tkhd, 12), 1, "track 1");
+        assert_eq!(u32_at(tkhd, 20), millis);
+        assert_eq!(u32_at(mvhd, 96), 2, "the next track id");
+        assert_eq!(&hdlr[8..12], b"soun");
+
+        // the sample entry: MP3 (object type 0x6B), one channel at 44.1 kHz
+        assert_eq!(u32_at(stsd, 4), 1, "one sample entry");
+        let [mp4a] = children(&stsd[8..], &[b"mp4a"])[..] else { unreachable!() };
+        assert_eq!(&mp4a[6..8], &1u16.to_be_bytes(), "data reference 1");
+        assert_eq!(&mp4a[16..18], &1u16.to_be_bytes(), "one channel");
+        assert_eq!(u32_at(mp4a, 24) >> 16, 44_100);
+        let [esds] = children(&mp4a[28..], &[b"esds"])[..] else { unreachable!() };
+        let es = &esds[4..];
+        assert_eq!((es[0], es[1] as usize), (3, es.len() - 2), "an ES descriptor, the whole box");
+        let decoder = &es[5..];
+        assert_eq!((decoder[0], decoder[2], decoder[3] >> 2), (4, 0x6b, 5), "MPEG-1 audio, an audio stream");
+        assert_eq!(&decoder[2 + decoder[1] as usize..], &[6, 1, 2], "then the SL config MP4 files carry");
     }
 
     // build.rs takes each surrogate as surrogates.tsv pins it; this holds what
