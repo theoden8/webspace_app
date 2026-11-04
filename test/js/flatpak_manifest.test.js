@@ -1,17 +1,20 @@
 // The flatpak manifest repeats values other files own, and flatpak-builder
 // reads YAML that cannot import them. So this gate holds each copy to its
 // owner: the Flutter version (.fvmrc), the Rust toolchain
-// (rust-toolchain.toml), the tor source release linux/tor.cmake pins, and the
-// app ID, which
-// reaches APPLICATION_ID in linux/CMakeLists.txt through
-// WEBSPACE_APPLICATION_ID. The manifest builds as committed, so a packaging
-// repository that runs flatpak-flutter on it gets every one of them.
+// (rust-toolchain.toml), the tor source release linux/tor.cmake pins, the
+// tracker surrogates commit rust/webspace_adblock/build.rs pins, libwpe's
+// notices as the snap writes them, and the app ID, which reaches
+// APPLICATION_ID in linux/CMakeLists.txt through WEBSPACE_APPLICATION_ID. The
+// manifest builds as committed, so a packaging repository that runs
+// flatpak-flutter on it gets every one of them.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const YAML = require('yaml');
 const { read, exists } = require('./helpers/source');
+const L = require('./helpers/licences');
+const B = require('../../tool/check_bundle_licences');
 
 const MANIFEST = 'linux/flatpak/flatpak-flutter.yml';
 const manifest = read(MANIFEST);
@@ -66,6 +69,35 @@ test('the manifest gives the build the tor source release tor.cmake pins (TOR-02
     `${MANIFEST} does not name the tarball in WEBSPACE_TOR_SOURCE once, for every arch`);
   assert.match(manifest, /^ {6}- bash scripts\/verify_tor_shipped\.sh "\$BUNDLE"$/m,
     `${MANIFEST} does not check the tor it bundles on every arch`);
+});
+
+// build.rs fetches the surrogates it serves, which a build with no network
+// cannot: the manifest checks out the commit it pins and names the checkout.
+function surrogateRefusals(doc) {
+  const rs = read('rust/webspace_adblock/build.rs');
+  const repo = rs.match(/^const SURROGATES_REPO: &str = "([^"]+)";$/m)?.[1];
+  const commit = rs.match(/^const SURROGATES_COMMIT: &str = "([0-9a-f]{40})";$/m)?.[1];
+  assert.ok(repo && commit, 'rust/webspace_adblock/build.rs pins no surrogates repository and commit');
+  const app = doc.modules.find((m) => typeof m === 'object' && m.name === appId.split('.').pop());
+  const out = [];
+  const checkout = app.sources.find((src) => src.url === repo);
+  if (!checkout) return [`the app module does not check out ${repo}`];
+  if (checkout.type !== 'git' || checkout.commit !== commit) out.push(`${repo} is not checked out at ${commit}`);
+  const named = app['build-options']?.env?.WEBSPACE_SURROGATES_SOURCE;
+  const at = `/run/build/${app.name}/${checkout.dest}`;
+  if (named !== at) out.push(`WEBSPACE_SURROGATES_SOURCE is ${named}, not the checkout at ${at}`);
+  return out;
+}
+
+test('the manifest gives the build the tracker surrogates build.rs pins (CB-010)', () => {
+  assert.deepEqual(surrogateRefusals(parsed), []);
+  const planted = (from, to) => surrogateRefusals(YAML.parse(manifest.replace(from, to)));
+  assert.deepEqual(planted('commit: 1cca57fa1edc945f208423d478c1d2aa50655141', 'branch: main'),
+    ['https://github.com/duckduckgo/tracker-surrogates.git is not checked out at 1cca57fa1edc945f208423d478c1d2aa50655141'],
+    'the surrogates at a branch');
+  assert.deepEqual(planted(/^ {8}WEBSPACE_SURROGATES_SOURCE: .*\n/m, ''),
+    ['WEBSPACE_SURROGATES_SOURCE is undefined, not the checkout at /run/build/webspace_app/flatpak-sources/tracker-surrogates'],
+    'a checkout the build is not told of');
 });
 
 // The binary's GApplication id names its Wayland window and its desktop files,
@@ -182,3 +214,89 @@ test('libwpe and WebKit write their notices where the app reads a flatpak\'s (LI
   }
   assert.match(webkit, / --third-party \.\.\/webkit_third_party\.tsv /, 'WebKit\'s third-party trees are not held to the table');
 });
+
+// The flag [flag]'s values in an install_notices.sh call, quoted or not.
+const flagValues = (call, flag) => [...call.matchAll(new RegExp(` ${flag} ("[^"]+"|\\S+)`, 'g'))].map((m) => m[1]);
+
+// The snap's libwpe call, read off its part.
+const snapLibwpe = (() => {
+  const build = YAML.parse(read('snap/snapcraft.yaml')).parts.libwpe['override-build'];
+  return build.slice(build.indexOf('install_notices.sh')).replace(/\\\n\s*/g, '');
+})();
+
+// libwpe's src/key-unicode.c is under the LGPL, so the flatpak's libwpe ships
+// as the snap's does (LICENSE-004): its call names the git source and commit
+// the module builds and makes the offer, with the snap's licences and header
+// notice, and gives the SDK's texts of the licences the snap gives its host's.
+function libwpeRefusals(doc) {
+  const mod = doc.modules.find((m) => typeof m === 'object' && m.name === 'libwpe');
+  const call = (mod['post-install'] ?? []).find((c) => c.startsWith('bash ../install_notices.sh ')) ?? '';
+  const one = (text, flag) => flagValues(text, flag)[0];
+  const out = [];
+  const checkout = mod.sources.find((src) => src.type === 'git');
+  if (!checkout?.commit) out.push('libwpe is not a git checkout of one commit');
+  if (one(call, '--source') !== checkout?.url) out.push(`libwpe's notices name ${one(call, '--source')}, not the ${checkout?.url} it pulls`);
+  if (one(call, '--revision') !== checkout?.commit) out.push(`libwpe's notices name ${one(call, '--revision')}, not the commit it builds`);
+  if (!/ --offer( |$)/.test(call)) out.push('libwpe makes no offer of its source');
+  for (const flag of ['--license', '--notice-of']) {
+    const ours = flagValues(call, flag).join(' ');
+    const snaps = flagValues(snapLibwpe, flag).join(' ');
+    if (ours !== snaps) out.push(`libwpe's ${flag} is ${ours || 'absent'}, the snap's ${snaps}`);
+  }
+  const family = (text) => (/LGPL/.test(path.basename(text)) ? 'LGPL' : /Apache-2\.0/.test(path.basename(text)) ? 'Apache-2.0' : text);
+  const texts = flagValues(call, '--licence-text');
+  const ours = texts.map(family).sort().join(' ');
+  const snaps = flagValues(snapLibwpe, '--licence-text').map(family).sort().join(' ');
+  if (ours !== snaps) out.push(`libwpe gives the texts of ${ours || 'nothing'}, the snap ${snaps}`);
+  for (const text of texts) if (!text.startsWith('/usr/share/licenses/')) out.push(`${text} is not a licence text of the SDK`);
+  return out;
+}
+
+test("the flatpak's libwpe ships as the snap's does: its texts, and its source named and offered (LICENSE-004)", () => {
+  assert.deepEqual(libwpeRefusals(parsed), []);
+  const planted = (from, to) => libwpeRefusals(YAML.parse(manifest.replace(from, to)));
+  assert.deepEqual(planted(' and HPND" --offer\n', ' and HPND"\n'), ['libwpe makes no offer of its source'], 'no offer');
+  assert.deepEqual(planted('--revision e0814ca7d4f87594a46732ebd309494872d2520e', '--revision 1.16.3'),
+    ["libwpe's notices name 1.16.3, not the commit it builds"], 'a revision that is not the commit');
+  assert.deepEqual(planted(/- type: git\n {8}url: https:\/\/github\.com\/WebPlatformForEmbedded\/libwpe\.git\n {8}commit: \S+\n/,
+    '- type: archive\n        url: https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz\n'), [
+    'libwpe is not a git checkout of one commit',
+    "libwpe's notices name https://github.com/WebPlatformForEmbedded/libwpe.git, not the undefined it pulls",
+    "libwpe's notices name e0814ca7d4f87594a46732ebd309494872d2520e, not the commit it builds",
+  ], 'libwpe from its release tarball');
+  assert.deepEqual(planted(' and Apache-2.0 and MIT-open-group and HPND" --offer', ' and MIT-open-group and HPND" --offer'), [
+    'libwpe\'s --license is "BSD-2-clause and LGPL-2+ and MIT-open-group and HPND", the snap\'s "BSD-2-clause and LGPL-2+ and Apache-2.0 and MIT-open-group and HPND"',
+  ], "gamepad.c's Apache-2.0 left unnamed");
+  assert.deepEqual(planted(/\n {8}--notice-of include\/wpe\/keysyms\.h/, ''),
+    ["libwpe's --notice-of is absent, the snap's include/wpe/keysyms.h"], 'the X11 notices left in the header');
+  assert.deepEqual(planted(/\n {8}--licence-text \S+Apache-2\.0\.txt/, ''),
+    ['libwpe gives the texts of LGPL, the snap Apache-2.0 LGPL'], 'Apache-2.0 named, its text not given');
+});
+
+// What each library's notices name and what its components.tsv row was read
+// as are one fact, as in the snap: the --license of its call, read through
+// debian_licences.tsv, names the ids of the row its --source keys.
+function licenceGaps(doc, { components = L.registry() } = {}) {
+  const out = [];
+  for (const name of ['libwpe', 'wpewebkit']) {
+    const mod = doc.modules.find((m) => typeof m === 'object' && m.name === name);
+    const call = (mod['post-install'] ?? []).find((c) => c.startsWith('bash ../install_notices.sh ')) ?? '';
+    const named = (flagValues(call, '--license')[0] ?? '').replace(/^"|"$/g, '');
+    const ids = new Set(named.split(/\s+(?:and|or)\s+|,\s*/i).filter(Boolean)
+      .map((n) => B.spdxOf(n, { pkg: name, files: ['*'], table: B.names() }) ?? `(${n}, a name ${B.NAMES} does not read)`));
+    const row = components.get(`url:${flagValues(call, '--source')[0]}`);
+    const read = new Set((row?.licence ?? '').split(/\s+(?:AND|OR)\s+|[()]/).map((id) => id.trim()).filter(Boolean));
+    for (const id of ids) if (!read.has(id)) out.push(`${name}: its notices name ${id}, its row in ${L.COMPONENTS} does not`);
+    for (const id of read) if (!ids.has(id)) out.push(`${name}: its row in ${L.COMPONENTS} names ${id}, its notices do not`);
+  }
+  return out;
+}
+
+test("each library's notices name the licences its components row does (LICENSE-001, LICENSE-003)", () => {
+  assert.deepEqual(licenceGaps(parsed), []);
+  assert.deepEqual(licenceGaps(YAML.parse(manifest.replace(' and HPND" --offer', '" --offer'))),
+    [`libwpe: its row in ${L.COMPONENTS} names HPND, its notices do not`], 'a licence the notices leave out');
+  assert.deepEqual(licenceGaps(YAML.parse(manifest.replace(' and OFL-1.1"', '"'))),
+    [`wpewebkit: its row in ${L.COMPONENTS} names OFL-1.1, its notices do not`], "the fonts' OFL left out of WebKit's");
+});
+

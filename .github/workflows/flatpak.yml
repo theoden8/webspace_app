@@ -19,6 +19,9 @@ on:
       - scripts/build_flatpak.sh
       - scripts/verify_webkit_shipped.sh
       - tool/check_bundle_licences.js
+      - test/js/helpers/licences.js
+      - test/js/helpers/dart_blocks.js
+      - test/js/helpers/source.js
       - tool/check_source_offer.js
       - linux/**
       - pubspec.lock
@@ -29,6 +32,9 @@ on:
       - scripts/build_flatpak.sh
       - scripts/verify_webkit_shipped.sh
       - tool/check_bundle_licences.js
+      - test/js/helpers/licences.js
+      - test/js/helpers/dart_blocks.js
+      - test/js/helpers/source.js
       - tool/check_source_offer.js
       - linux/**
       - pubspec.lock

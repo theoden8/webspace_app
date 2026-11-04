@@ -364,17 +364,23 @@ to a check.
   (`tool/check_source_offer.js`, which asks about every copyright file that
   makes the offer)
 
-#### Scenario: The flatpak bundles WebKit
+#### Scenario: The flatpak bundles WebKit and libwpe
 
 - **WHEN** the flatpak is built
-- **THEN** its `/app` holds `libWPEWebKit-2.0.so` as a file of its own that a
-  library of the app's names as `NEEDED`, with PDF.js's fonts of the OFL
-  release (`scripts/verify_webkit_shipped.sh`)
+- **THEN** its `/app` holds `libWPEWebKit-2.0.so` and `libwpe-1.0.so` as files
+  of their own that a library of the app's names as `NEEDED`, WebKit's with
+  PDF.js's fonts of the OFL release (`scripts/verify_webkit_shipped.sh`)
 - **AND** `/app/share/doc/wpewebkit/copyright` names WebKit's source and
-  commit, what the build changed and the offer, and libwpe's notices sit
-  beside it (`test/js/flatpak_manifest.test.js`)
-- **AND** Software Heritage holds that commit and its tree, asked about the
-  built flatpak's own copyright file (`tool/check_source_offer.js`)
+  commit, what the build changed and the offer
+  (`test/js/flatpak_manifest.test.js`)
+- **AND** libwpe is built from git at the commit the snap's is, and
+  `/app/share/doc/libwpe/copyright` names that source and commit, the snap's
+  licences and header notice, and carries the offer, with the SDK's LGPL and
+  Apache-2.0 texts in `licences/` (`test/js/flatpak_manifest.test.js`)
+- **AND** each library's notices name the licences its row in
+  `components.tsv` was read as (`test/js/flatpak_manifest.test.js`)
+- **AND** Software Heritage holds each commit and its tree, asked about the
+  built flatpak's own copyright files (`tool/check_source_offer.js`)
 
 #### Scenario: WebKit's pin moves to a commit the archive does not hold yet
 

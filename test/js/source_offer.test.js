@@ -207,7 +207,9 @@ test('LICENSE-004 CI asks the archive about the flatpak it built', () => {
   const build = workflow.indexOf('- name: Build\n');
   const check = workflow.indexOf('node tool/check_source_offer.js build/flatpak/app/files');
   assert.ok(build >= 0 && check > build, 'CI does not check the built flatpak\'s offer');
-  for (const trigger of workflow.match(/^ {4}paths:\n(?: {6}- .*\n)+/gm) ?? []) {
-    assert.match(trigger, /- tool\/check_source_offer\.js/, 'a change to the check does not run the flatpak job');
-  }
+  const tools = ['tool/check_bundle_licences.js', 'tool/check_source_offer.js'];
+  for (const tool of tools) assert.ok(workflow.includes(`node ${tool} `), `the flatpak job does not run ${tool}`);
+  assert.deepEqual(untriggered(workflow, tools), [], 'a change to these does not run the flatpak job');
+  assert.deepEqual(untriggered(workflow.replace('      - test/js/helpers/source.js\n', ''), tools),
+    ['test/js/helpers/source.js'], 'the helper the licence check loads, left out of one list');
 });
