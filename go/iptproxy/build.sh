@@ -24,9 +24,10 @@
 #                       built framework carries hiddenkey, go/meekutls's round
 #                       tripper and no GPL package. With IPTPROXY_PREPARED=1,
 #                       the tree already there instead
-#   build.sh upstream   lyrebird at its tag, unmodified, built into
-#                       $IPTPROXY_WORK/bin/lyrebird-upstream: the interop
-#                       test's server (interop/), never part of the framework
+#   build.sh upstream   lyrebird at its tag, unmodified, and meek-server at
+#                       its commit, built into $IPTPROXY_WORK/bin: the
+#                       interop tests' servers (interop/), never part of the
+#                       framework
 #
 # Each source is fetched at a pinned commit and its files checked against a
 # SHA-256 (tree_sha256) before anything reads them; the Go modules under them
@@ -63,6 +64,12 @@ LYREBIRD_SHA256=3a3129455403ab44fd5d6f03a1ddcba15c270c33d0d5193bd23509ed5c968e7f
 DNSTT_URL=https://github.com/tladesignz/dnstt.git
 DNSTT_COMMIT=f1b9b97a269f83bad41d2ceef291b4d2c161cd11
 DNSTT_SHA256=0a2abeccdc26137acb1ba9888cb42e395ee0ea25ccfbb1ff0dfdf387c168e60f
+
+# meek (CC0-1.0): meek-server, the meek interop test's server. Only it,
+# go.mod, go.sum and COPYING are fetched; nothing of it is in the framework.
+MEEK_URL=https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/meek.git
+MEEK_COMMIT=d8ee8e88c5d73ced19c78f884a868114a8421170
+MEEK_SHA256=d0918a7f5571f8b9307d769d4208f101d22db9c7ff9e23801a6f69a7400f3210
 
 # lyrebird's GPL parts, and the licence file that covers only them.
 GPL_PATHS='internal/x25519ell2 transports/meeklite/transport.go LICENSE-GPL3.txt'
@@ -335,6 +342,9 @@ upstream() {
 	fetch "$work/upstream-lyrebird" "$LYREBIRD_URL" "refs/tags/$LYREBIRD_TAG" \
 		"$LYREBIRD_COMMIT" "$LYREBIRD_SHA256"
 	(cd "$work/upstream-lyrebird" && go build -trimpath -o "$work/bin/lyrebird-upstream" ./cmd/lyrebird)
+	fetch "$work/upstream-meek" "$MEEK_URL" "$MEEK_COMMIT" "$MEEK_COMMIT" "$MEEK_SHA256" \
+		COPYING go.mod go.sum meek-server
+	(cd "$work/upstream-meek" && go build -trimpath -o "$work/bin/meek-server" ./meek-server)
 }
 
 case "${1:-}" in

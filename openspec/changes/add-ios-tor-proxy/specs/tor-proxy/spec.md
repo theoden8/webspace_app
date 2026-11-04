@@ -930,7 +930,10 @@ in it (LICENSE-001), which runs all five: its obfs4 takes its Elligator 2 key
 hiding from `go/hiddenkey`, and its meek_lite its uTLS round tripper from
 `go/meekutls`. The obfs4 client SHALL complete its handshake with lyrebird as
 the Tor Project releases it, the server a bridge runs, for any representative
-it sends.
+it sends. The meek_lite client SHALL carry data both ways through meek-server
+as the Tor Project releases it, the server behind a meek bridge's front, with
+the hello its line names, in the protocol the server chooses (h2 or
+HTTP/1.1).
 
 The configuration applied at start SHALL be the persisted one, read by
 the engine itself rather than pushed in by a caller. Bridges are kept in
@@ -1029,6 +1032,18 @@ is covered by LEAK-015.
   again, each time with a fresh session key
 - **THEN** every handshake completes and data crosses the bridge both ways
 - **AND** the representatives it sent took both values of bits 254 and 255
+
+#### Scenario: A released meek server accepts the Apple client
+
+- **GIVEN** meek-server as released, serving HTTPS with a certificate for a
+  front under a root the system trusts
+- **WHEN** the meek_lite client `IPtProxy.xcframework` carries connects
+  through that front, once with the built-in line's hello
+  (`utls=HelloRandomizedALPN`) and once with Chrome's, a line's default
+- **THEN** each connection dials the front, and data crosses the bridge both
+  ways
+- **AND** where a server chooses h2 the requests go as h2, and where it
+  chooses HTTP/1.1 as HTTP/1.1, every connection with the uTLS hello
 
 #### Scenario: Snowflake with no user line still has something to dial
 

@@ -1028,12 +1028,12 @@ jobs:
           if-no-files-found: ignore
 
   # The bridge transports the Apple app builds in (go/iptproxy): lyrebird's
-  # obfs4 over go/hiddenkey against lyrebird as released, which is what a
-  # bridge runs (TOR-016), meek_lite's round tripper (go/meekutls), and the
-  # licence gate over their sources (LICENSE-001). Linux, minutes: the Apple
-  # job builds the framework itself.
+  # obfs4 over go/hiddenkey against lyrebird as released, and its meek_lite
+  # over go/meekutls against meek-server as released, which is what bridges
+  # run (TOR-016), and the licence gate over their sources (LICENSE-001).
+  # Linux, minutes: the Apple job builds the framework itself.
   bridge-transports:
-    name: Bridge transports (obfs4 interop, meekutls, licences)
+    name: Bridge transports (obfs4 and meek interop, licences)
     runs-on: ubuntu-latest
     needs: plan
     if: needs.plan.outputs.apple == 'true'
@@ -1057,12 +1057,13 @@ jobs:
         run: go test -count=1 -race ./...
       - name: Fetch and patch the transports, check their licences (LICENSE-001)
         run: sh go/iptproxy/build.sh check
-      - name: Build lyrebird as released, the test's server
+      - name: Build lyrebird and meek-server as released, the tests' servers
         run: sh go/iptproxy/build.sh upstream
-      - name: obfs4 handshakes with upstream lyrebird (TOR-016)
+      - name: obfs4 and meek_lite with upstream servers (TOR-016)
         working-directory: go/iptproxy/interop
         env:
           LYREBIRD_UPSTREAM: ${{ github.workspace }}/go/iptproxy/build/bin/lyrebird-upstream
+          MEEK_SERVER: ${{ github.workspace }}/go/iptproxy/build/bin/meek-server
         run: go test -count=1 -v ./...
 
   build-apple:

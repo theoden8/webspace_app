@@ -20,7 +20,7 @@ const ACTION = '.github/actions/apple-toolchain/action.yml';
 const WORKFLOW = '.github/workflows/build-and-test.yml';
 const PODFILES = ['ios/Podfile', 'macos/Podfile'];
 const MEEKUTLS = 'go/meekutls/meekutls.go';
-const SOURCES = ['IPTPROXY', 'LYREBIRD', 'DNSTT'];
+const SOURCES = ['IPTPROXY', 'LYREBIRD', 'DNSTT', 'MEEK'];
 // What of lyrebird is GPL, and the packages among them.
 const GPL = ['internal/x25519ell2', 'transports/meeklite/transport.go', 'LICENSE-GPL3.txt'];
 const GPL_PACKAGES = ['lyrebird/internal/x25519ell2'];
@@ -209,7 +209,9 @@ function ciProblems({ sh, action, workflow, podfiles }) {
   if (!/LYREBIRD_UPSTREAM: .*\/go\/iptproxy\/build\/bin\/lyrebird-upstream\n/.test(body)) {
     out.push('the interop test is not given the upstream server');
   }
-
+  if (!/MEEK_SERVER: .*\/go\/iptproxy\/build\/bin\/meek-server\n/.test(body)) {
+    out.push('the interop test is not given meek-server');
+  }
   for (const [rel, podfile] of Object.entries(podfiles)) {
     if (!/^ {2}pod 'IPtProxy', :path => '\.\.\/go\/iptproxy'$/m.test(podfile)) out.push(`${rel} does not link go/iptproxy`);
     if (/pod 'IPtProxy', '/.test(podfile)) out.push(`${rel} takes IPtProxy from trunk, whose framework is GPL`);
@@ -250,7 +252,9 @@ test('nothing fetched or built under go/iptproxy is committed', () => {
     BUILD,
     'go/iptproxy/interop/go.mod',
     'go/iptproxy/interop/go.sum',
+    'go/iptproxy/interop/meek_interop_test.go',
     'go/iptproxy/interop/obfs4_interop_test.go',
+    'go/iptproxy/interop/pt_server_test.go',
     PATCH,
     'go/iptproxy/licences.tsv',
   ].sort(), 'a file here other than the inputs: a fetched tree or a build output is a derivative');
@@ -298,6 +302,8 @@ test('each rule catches the mistake it is for', () => {
   caught(ciProblems({ ...ci, action: swap(ci.action, 'run: |\n        sh go/iptproxy/build.sh check', 'run: |\n        true') }),
     'no check after the build');
   caught(ciProblems({ ...ci, action: swap(ci.action, ", 'go/meekutls/meekutls.go'", '') }), 'a cache key without meekutls.go');
+  caught(ciProblems({ ...ci, workflow: swap(ci.workflow, '          MEEK_SERVER:', '          MEEK_SERVER_UNUSED:') }),
+    'the meek interop without its server');
   caught(ciProblems({ ...ci, workflow: swap(ci.workflow, 'working-directory: go/meekutls\n', 'working-directory: go/hiddenkey\n') }),
     'meekutls untested');
   caught(ciProblems({ ...ci, podfiles: { ...ci.podfiles, 'ios/Podfile': swap(ci.podfiles['ios/Podfile'],
