@@ -923,7 +923,9 @@ bridges can plausibly fix (`censored`, `bootstrapTimeout`).
 
 Where Tor itself is blocked, a bridge is the only route in, so the app
 SHALL let the user configure pluggable transports: obfs4, snowflake,
-meek_lite, webtunnel and dnstt, run by IPtProxy.
+meek_lite, webtunnel and dnstt, each run by a transport program the platform
+has. On Linux that is one on the machine (TOR-027); the Apple app builds none
+in, so there bridges keep Tor from starting until one is.
 
 The configuration applied at start SHALL be the persisted one, read by
 the engine itself rather than pushed in by a caller. Bridges are kept in
@@ -947,15 +949,16 @@ appears once per line, so the options SHALL travel as an ordered list of
 pairs and reach tor through its argument vector, never through a
 name-keyed map that would keep only the last line.
 
-A transport that fails to start SHALL NOT abort the run: it yields no
-bridge options, and tor comes up without bridges rather than not at all.
-On a censored network that then fails at bootstrap and is reported as
-`censored` (TOR-015), which is the honest outcome.
+With bridges on, a transport that does not start (none runs here, or it
+failed) SHALL keep Tor from starting, and the failure SHALL name the
+transport. Tor without the bridges the user turned on would bootstrap to the
+public relays from their own address, which is what the bridges are there to
+hide.
 
 Snowflake SHALL be usable without the user supplying a line. Its
 rendezvous parameters — broker URL, domain fronts, STUN servers — ride
-the bridge line as SOCKS arguments and IPtProxy defaults every one of
-them to empty, so the app SHALL supply the Tor Project's published
+the bridge line as SOCKS arguments and a transport runner defaults every
+one of them to empty, so the app SHALL supply the Tor Project's published
 built-in snowflake line when the user has none. `UseBridges 1` with no
 `Bridge` line is not a working default; it leaves tor with nothing to
 dial.
@@ -1007,12 +1010,12 @@ is covered by LEAK-015.
 - **WHEN** the user turns bridges off and the runtime restarts
 - **THEN** no bridge options are sent, rather than the previous set
 
-#### Scenario: A transport that will not start does not stop tor
+#### Scenario: A transport that will not start keeps tor off
 
 - **GIVEN** bridges are enabled
 - **AND** starting the transport fails or reports port 0
-- **THEN** no bridge options are produced
-- **AND** tor still starts
+- **THEN** tor is not started
+- **AND** Tor reports an error naming the transport
 
 #### Scenario: Snowflake with no user line still has something to dial
 
@@ -1948,8 +1951,7 @@ DataDirectory in the app's cache directory (PLATFORM-010).
 `__OwningControllerProcess` and `TAKEOWNERSHIP` SHALL make tor exit with the
 app however it ends, so no tor outlives the process that started it. A
 pluggable transport SHALL run under the managed-transport protocol
-(`pt-spec.txt`), its SOCKS port answered to the engine as IPtProxy's is on
-Apple; the programs tried for each transport are named by an exhaustive
+(`pt-spec.txt`), its SOCKS port answered to the engine; the programs tried for each transport are named by an exhaustive
 switch, and a transport no program here runs answers 0 (TOR-016).
 
 **One launch is not the ceiling.** A child process leaves nothing behind in

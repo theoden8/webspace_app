@@ -104,7 +104,7 @@ class FakeTorRuntime implements TorRuntime {
     return transportPort;
   }
 
-  /// Models IPtProxy: a fresh listener on a fresh port.
+  /// Models a transport runner: a fresh listener on a fresh port.
   @override
   Future<int> restartTransport(String transport) async {
     if (transportError != null) throw transportError!;

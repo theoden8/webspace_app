@@ -58,10 +58,12 @@ test('a reopen brings the bridge transport back with tor', () => {
   assert.ok(restart > 0 && lines > restart,
     'the transport starts again first, and tor gets lines naming its new port');
 
-  const start = blockAfter(swift, 'private func startTransport(');
-  assert.match(start, /if restart, self\.startedTransports\.contains\(name\) \{\s*controller\.stop\(name\)/,
-    'a restart stops the dead transport, or start answers its old port');
-  assert.match(swift, /case "restartTransport":[\s\S]{0,200}restart: true/);
+  // The Apple app builds no transport in, so both starts answer 0, on which
+  // the engine keeps tor off rather than dialling a dead port (TOR-016).
+  // A transport built in again has to stop the dead one on a restart, or
+  // its start answers the old port.
+  assert.match(swift, /case "startTransport", "restartTransport":[\s\S]{0,400}result\(0\)/,
+    'the plugin answers a transport start it cannot make with 0');
 
   const cycle = blockAfter(swift, 'func cycleNetwork(');
   assert.match(cycle,

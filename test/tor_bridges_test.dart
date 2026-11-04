@@ -25,7 +25,7 @@ const _obfs4 =
     'obfs4 192.0.2.10:9443 A1B2C3D4E5F60718293A4B5C6D7E8F9012345678 '
     'cert=abcdEFGH1234ijklMNOP5678qrstUVWX90yzABcdEFghIJklMNop iat-mode=0';
 
-// A dnstt line as IPtProxy's client reads it (key, domain and address are
+// A dnstt line as dnstt's client reads it (key, domain and address are
 // invented). The address is a placeholder tor needs; the lookups go to doh=.
 const _dnstt =
     'dnstt 192.0.2.30:1 A1B2C3D4E5F60718293A4B5C6D7E8F9012345678 '
@@ -219,7 +219,7 @@ void main() {
     });
 
     test('snowflake with no lines falls back to the built-in bridge', () {
-      // IPtProxy's Controller defaults every snowflake rendezvous field to
+      // A transport runner defaults every snowflake rendezvous field to
       // the empty string, so UseBridges with no Bridge line leaves tor with
       // nothing to dial rather than reaching a working default.
       const cfg = TorBridgeConfig(
@@ -314,7 +314,7 @@ void main() {
     });
 
     test('produces nothing when the transport never got a port', () {
-      // IPtProxy reports 0 when the transport failed to start; emitting a
+      // A runtime reports 0 when no transport started; emitting a
       // plugin line pointing at port 0 would hang bootstrap instead of
       // failing loudly.
       final cfg = TorBridgeConfig(
@@ -453,11 +453,11 @@ void main() {
       await engine.dispose();
     });
 
-    test('a transport that will not start yields no bridge options',
-        () async {
-      // Port 0 means the transport died. Emitting a ClientTransportPlugin
-      // pointing at it would hang bootstrap dialling a dead port; coming up
-      // without bridges fails visibly instead, and classifies as `censored`.
+    // Port 0 means no transport runs here. Coming up without the bridges
+    // the user turned on would reach the public relays from their own
+    // address, which the bridges are there to hide, so tor stays off.
+    test('TOR-016 a bridge transport that will not start keeps tor from '
+        'starting', () async {
       final runtime = FakeTorRuntime()..transportPort = 0;
       final engine = TorEngine(runtime: runtime, sessionSecret: 's');
       engine.setBridges(TorBridgeConfig(
@@ -468,12 +468,15 @@ void main() {
 
       await engine.acquire(TorSiteHolder(SiteId('site-a')));
 
-      expect(runtime.torrcOptions, isEmpty);
-      expect(runtime.startCalls, 1, reason: 'tor still starts, without bridges');
+      expect(runtime.startCalls, 0, reason: 'no bootstrap without the bridges');
+      final status = engine.status;
+      expect(status, isA<TorErrored>());
+      expect((status as TorErrored).message, contains('obfs4'));
       await engine.dispose();
     });
 
-    test('a transport that throws does not stop tor starting', () async {
+    test('TOR-016 a bridge transport that throws keeps tor from starting',
+        () async {
       final runtime = FakeTorRuntime()
         ..transportError = const TorRuntimeFailure('no go');
       final engine = TorEngine(runtime: runtime, sessionSecret: 's');
@@ -485,10 +488,8 @@ void main() {
 
       await engine.acquire(TorSiteHolder(SiteId('site-a')));
 
-      expect(runtime.torrcOptions, isEmpty);
-      expect(runtime.startCalls, 1);
-      expect(engine.status, isNot(isA<TorErrored>()),
-          reason: 'a dead transport is not itself a fatal Tor failure');
+      expect(runtime.startCalls, 0, reason: 'no bootstrap without the bridges');
+      expect(engine.status, isA<TorErrored>());
       await engine.dispose();
     });
 

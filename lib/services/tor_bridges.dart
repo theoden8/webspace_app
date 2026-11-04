@@ -12,8 +12,7 @@
 
 import 'package:webspace/services/tor_failure.dart' show TorFailureKind;
 
-/// Transports IPtProxy 5.x can run (its `Obfs4`, `Snowflake`, `MeekLite`,
-/// `Webtunnel` and `Dnstt` constants). The wire names are tor's, and are what
+/// The pluggable transports a bridge can use. The wire names are tor's, and are what
 /// both `ClientTransportPlugin` and the first token of a bridge line use, so
 /// they are not free to rename.
 enum TorTransport {
@@ -81,8 +80,8 @@ enum TorTransport {
 /// The snowflake bridge used when the user supplied none.
 ///
 /// Snowflake's rendezvous parameters — broker URL, domain fronts, STUN
-/// servers — ride the bridge line as SOCKS arguments, and IPtProxy's
-/// `Controller` defaults every one of them to the empty string. So
+/// servers — ride the bridge line as SOCKS arguments, and a transport
+/// runner defaults every one of them to the empty string. So
 /// `UseBridges 1` with a snowflake `ClientTransportPlugin` and no `Bridge`
 /// line does not fall back to a working default; it leaves tor with
 /// nothing to dial. This is the Tor Project's published built-in line, the
@@ -213,8 +212,8 @@ TorBridgeParseResult parseTorBridgeLine(String input) {
         TorBridgeParseError.missingCertificate);
   }
 
-  // The keys dnstt's client reads (dnstt-client/lib/client.go in the fork
-  // IPtProxy builds); it rejects the SOCKS request when any is absent.
+  // The keys dnstt's client reads (dnstt-client/lib/client.go); it rejects
+  // the SOCKS request when any is absent.
   if (transport == TorTransport.dnstt &&
       !(has('pubkey') &&
           has('domain') &&
@@ -304,7 +303,7 @@ class TorBridgeConfig {
 }
 
 /// The torrc options that put [config] into force, given the local SOCKS
-/// port IPtProxy reported for the transport.
+/// port the transport reported.
 ///
 /// Returned as ordered key/value pairs rather than a formatted string: the
 /// Swift side hands them to `TorConfiguration.options`, and building a torrc

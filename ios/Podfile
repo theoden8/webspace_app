@@ -67,14 +67,6 @@ target 'Runner' do
   # SOCKS5 auth, so Android could not do per-site circuit isolation and
   # keeps its manual Orbot row instead.
   pod 'Tor', '409.11.2'
-  # Pluggable transports for bridges (TOR-016): Lyrebird (obfs4, meek_lite,
-  # webtunnel) and Snowflake. Exact version for the same reason as Tor.
-  #
-  # Unlike Tor, this pod has no prebuilt binary: its prepare_command runs
-  # build.sh, which clones dnstt at a pinned ref and cross-compiles the Go
-  # sources with gomobile. So `pod install` needs Go 1.24+ and network
-  # access, and the Apple build is minutes longer.
-  pod 'IPtProxy', '5.5.1'
 
   target 'RunnerTests' do
     inherit! :search_paths
@@ -179,8 +171,8 @@ post_install do |installer|
         # An empty string is truthy in Ruby, so the nil guard alone turned a
         # committed `OTHER_LDFLAGS = ""` into [""] -- a target-level value
         # that shadows the Pods xcconfig instead of inheriting it, and with
-        # it every flag a pod declares (IPtProxy's `s.libraries = 'resolv'`
-        # is why the macOS link failed on the Go runtime's res_9_* symbols).
+        # it every flag a pod declares (a pod's `s.libraries` among them: a
+        # Go pod's `resolv` once failed the macOS link on res_9_* symbols).
         ldflags = nil if ldflags.respond_to?(:empty?) && ldflags.empty?
         ldflags = ['$(inherited)'] unless ldflags
         ldflags = [ldflags] unless ldflags.is_a?(Array)
