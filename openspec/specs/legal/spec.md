@@ -226,11 +226,11 @@ components that are not a package in any graph.
 A library a Linux package builds from source and bundles (WPE WebKit and
 libwpe in the snap and the flatpak) SHALL carry its notices in the package as
 a Debian package does: `usr/share/doc/<name>/copyright` naming its source and
-revision and its licence, every licence file of its source tree and the
-copyright lines of its sources beside it, written at build time by
-`linux/install_notices.sh`. The licences page SHALL list every such notice
-the package carries, so the app's own notices name the libraries LGPL-2.1
-section 6 asks them to.
+revision and its licence, every licence file of its source tree, the text of
+an LGPL it names that the tree does not carry, and the copyright lines of its
+sources beside it, written at build time by `linux/install_notices.sh`. The
+licences page SHALL list every such notice the package carries, so the app's
+own notices name the libraries LGPL-2.1 section 6 asks them to.
 
 #### Scenario: New pub package or crate
 
@@ -266,7 +266,9 @@ system (WPE WebKit in the snap) SHALL ship as LGPL-2.1 section 6 asks:
   so a user can put a modified build in its place; never linked into the app
   or a plugin.
 - **Notices:** its licence and copyright notices in the package and on the
-  licences page (LICENSE-003).
+  licences page (LICENSE-003), with the text of the LGPL it is under: its
+  tree's, or the build host's where the tree names the LGPL only in a source
+  file's header, as libwpe's does.
 - **Source:** its copyright file names the source, the commit built and
   anything the build changed in it first, and carries a written offer, valid
   for at least three years, of a complete machine-readable copy of that source
@@ -289,6 +291,14 @@ to a check.
   commit and carries the offer (`test/js/snap_manifest.test.js`)
 - **AND** Software Heritage holds that commit and its tree, asked about the
   installed snap's own copyright file (`tool/check_source_offer.js`)
+
+#### Scenario: A bundled library's notices name the LGPL its tree has no text of
+
+- **WHEN** `linux/install_notices.sh` writes a copyright file whose licence
+  names an LGPL and no licence file of the tree is a GNU Lesser or Library GPL
+- **THEN** it fails unless `--lgpl-text` gives one from the build host, and it
+  refuses a `--lgpl-text` that is missing, is not a GNU Lesser or Library GPL,
+  or would replace a licence file of the tree (`test/js/source_offer.test.js`)
 
 #### Scenario: WebKit's pin moves to a commit the archive does not hold yet
 

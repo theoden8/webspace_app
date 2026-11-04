@@ -12,13 +12,20 @@
 #
 #   install_notices.sh --src DIR --dest DIR --name NAME --source URL \
 #     --revision REV --license 'LGPL-2.1+ and BSD-2-clause' \
-#     [--third-party TABLE] [--offer] [--changed WHAT]
+#     [--third-party TABLE] [--offer] [--changed WHAT] [--lgpl-text FILE]...
 #
 # --changed names what the build changed in the tree before compiling it, so
 # the copyright file does not claim the source as it is.
+#
+# An LGPL that --license names travels with its text, as the LGPL asks; a tree
+# that names it only in a source file's header carries none, so --lgpl-text
+# adds the build host's copy to licences/. Each must be a GNU Lesser (or
+# Library) General Public License, and an LGPL named with no such text among
+# licences/ fails the build.
 set -euo pipefail
 
 src='' dest='' name='' source='' revision='' license='' table='' offer=no changed=''
+lgpl_texts=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --src) src=$2; shift 2 ;;
@@ -30,6 +37,7 @@ while [ $# -gt 0 ]; do
     --third-party) table=$2; shift 2 ;;
     --offer) offer=yes; shift ;;
     --changed) changed=$2; shift 2 ;;
+    --lgpl-text) lgpl_texts+=("$2"); shift 2 ;;
     *) echo "install_notices.sh: unknown argument $1" >&2; exit 2 ;;
   esac
 done
@@ -42,6 +50,20 @@ if [ "$offer" = yes ] && ! [[ "$revision" =~ ^[0-9a-f]{40}$ ]]; then
   echo "install_notices.sh: --offer needs --revision to be a commit; got $revision" >&2
   exit 2
 fi
+
+# Whether [file] is the text of a GNU Lesser GPL, or of the Library GPL, as
+# version 2 is titled: its first line that is not blank is the heading.
+is_lgpl_text() {
+  [ -f "$1" ] && awk 'NF { found = 1; ok = /^[[:space:]]*GNU (LESSER|LIBRARY) GENERAL PUBLIC LICENSE[[:space:]]*$/; exit }
+    END { exit !(found && ok) }' "$1"
+}
+for text in ${lgpl_texts[@]+"${lgpl_texts[@]}"}; do
+  [ -f "$text" ] || { echo "install_notices.sh: --lgpl-text $text is not a file" >&2; exit 2; }
+  is_lgpl_text "$text" || {
+    echo "install_notices.sh: --lgpl-text $text is not the text of a GNU Lesser or Library General Public License" >&2
+    exit 2
+  }
+done
 
 skipped=''
 if [ -n "$table" ]; then
@@ -74,6 +96,22 @@ while IFS= read -r rel; do
   count=$((count + 1))
 done < <(printf '%s\n' "$files" | grep -i -E '(^|/)(licen[cs]e|copying|notice)[^/]*$')
 [ "$count" -gt 0 ] || { echo "install_notices.sh: no licence file under $src" >&2; exit 1; }
+for text in ${lgpl_texts[@]+"${lgpl_texts[@]}"}; do
+  to="$dest/licences/$(basename "$text")"
+  [ ! -e "$to" ] || { echo "install_notices.sh: --lgpl-text $text would replace the tree's $to" >&2; exit 1; }
+  install -m 644 "$text" "$to"
+  count=$((count + 1))
+done
+if [[ "$license" == *LGPL* ]]; then
+  carried=no
+  while IFS= read -r -d '' file; do
+    if is_lgpl_text "$file"; then carried=yes; break; fi
+  done < <(find "$dest/licences" -type f -print0)
+  [ "$carried" = yes ] || {
+    echo "install_notices.sh: --license names an LGPL, and no licence file of $src is its text; give the build host's with --lgpl-text" >&2
+    exit 1
+  }
+fi
 
 # Most of a tree names its copyright holders in each file's header, not in a
 # licence file, and the licences ask for those notices to travel with the
@@ -93,6 +131,9 @@ done < <(printf '%s\n' "$files" | grep -i -E '(^|/)(licen[cs]e|copying|notice)[^
     echo "Comment: Built as it is from $source at $revision."
   fi
   echo " The licence files of that source tree are in licences/ beside this file."
+  for text in ${lgpl_texts[@]+"${lgpl_texts[@]}"}; do
+    echo " licences/$(basename "$text") is the build host's text of the GNU LGPL, which the tree names but does not carry."
+  done
   if [ "$offer" = yes ]; then
     echo ' .'
     echo " For at least three years from the day you received this copy, the"
