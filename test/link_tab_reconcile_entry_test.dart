@@ -41,24 +41,21 @@ void main() {
       final deferral = body.indexOf('if (_gate.busy) {');
       expect(deferral, isNot(-1));
       expect(body.indexOf('_gate.deferUntilIdle('), greaterThan(deferral));
-      expect(body.indexOf('await _gate.run('), greaterThan(deferral),
+      expect(body.indexOf('await _gate.hold('), greaterThan(deferral),
           reason: 'the gate releases in its own finally, or the deferred run '
               'never comes and every tab handler is locked out');
       expect(body, contains('if (_host.mounted) unawaited(reconcileLinkTabs());'),
           reason: 'the deferred run must not outlive the page');
     });
 
-    test('rewrites every tab list in one pass with no await inside', () {
+    test("reads a site's flips and runs its reroute with no await between", () {
       final flips = body.indexOf('final flips = _linkFlips();');
       expect(flips, isNot(-1));
       final step = body.indexOf('tabInputs.runInput(c, from: TabPlace.reroute)');
-      final rest = body.indexOf('commit: const Commit.unmodeled(Unmodeled.identityChange),');
       expect(step, greaterThan(flips));
-      expect(rest, greaterThan(flips));
       expect(body.substring(flips, step), isNot(contains('await')),
           reason: 'an await between reading what a tab runs as and '
               'rewriting it lets a tab switch in between');
-      expect(body.substring(flips, rest), isNot(contains('await navStates')));
       for (final pass in [
         tabsBody('List<LinkFlip> _linkFlips('),
         tabsBody('Map<TabId, String> _applyFlips('),
@@ -93,7 +90,6 @@ void main() {
       final key = apply.indexOf('dropped[tab.id] = owner.stateKeyForTab(tab.id);');
       expect(key, isNot(-1));
       expect(key, lessThan(flip));
-      expect(body, contains('await navStates.removeState(key);'));
       expect(tabs, contains('_flow.from(c).dropped[_eachClosing.it.run(c)]!'),
           reason: "the reroute's removals take the keys the flips read");
       // A pending debounced capture would write the old page's bytes after.
@@ -111,16 +107,20 @@ void main() {
           greaterThan(apply.indexOf('SiteTab.hostCell.write(')),
           reason: 'a plan between the two would read the new identity\'s '
               'route for a webview still on the old one');
-      expect(apply, contains('if (moves && retire) _sites.retired(model, commit: commit);'));
     });
 
     test('a vanished opener leaves the tab where it is', () {
+      final apply = bodyIn(
+        File('lib/controllers/site_runtime.dart').readAsStringSync(),
+        signature: 'void apply(SiteSetChange change',
+      );
       expect(
-        RegExp(r'_sites\.byId\(tab\.openerSiteId!\) != null\)[^}]*continue;\s*\}\s*'
-                r'SiteTab\.openerCell\.write\(\s*at: tab,\s*to: null,',
-                dotAll: true)
-            .hasMatch(tabsBody('bool _forgetGoneOpeners(')),
+        RegExp(r'if \(t\.openerSiteId case final o\? when byId\(o\) == null\) \{\s*'
+                r'SiteTab\.openerCell\.write\(at: t, to: null, commit: commit\);')
+            .hasMatch(apply),
         isTrue,
+        reason: 'it forgets the opener in the commit that takes it, and '
+            'keeps the site the tab runs as',
       );
     });
 

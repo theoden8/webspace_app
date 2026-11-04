@@ -122,6 +122,30 @@ extension Function2Expr<K, J, V, W> on Expr<Map<K, Map<J, V>>, W> {
     tla: '[${tlaOperand(tla)} EXCEPT ![${k.tla}][${at.tla}] = ${to.tla}]',
     reads: reads + k.reads + at.reads + to.reads,
   );
+
+  /// `[k \in DOMAIN F |-> [j \in DOMAIN F[k] |-> to]]`: every entry
+  /// recomputed, [k] and [j] naming its keys.
+  Expr<Map<K, Map<J, V>>, W> remap(
+    Bound<K, W> k, {
+    required Bound<J, W> j,
+    required Expr<V, W> to,
+  }) => Expr._(
+    run: (c) => {
+      for (final MapEntry(key: x, value: inner) in run(c).entries)
+        x: k._with(
+          c,
+          value: x,
+          body: () => {
+            for (final y in inner.keys)
+              y: j._with(c, value: y, body: () => to.run(c)),
+          },
+        ),
+    },
+    tla:
+        '[${k.name} \\in DOMAIN ${tlaOperand(tla)} |-> '
+        '[${j.name} \\in DOMAIN ${tlaOperand(tla)}[${k.name}] |-> ${to.tla}]]',
+    reads: reads + to.reads,
+  );
 }
 
 /// A function of functions of functions, `F[k][j][i]` (`file`, keyed by
@@ -363,6 +387,62 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
   Expr<List<List<E>>, W> choices({
     required Expr<int, W> size,
     required List<E> Function(StepView<W> c) taken,
+  }) => _subsets(
+    tla:
+        '{C \\in SUBSET ${tlaOperand(tla)} : '
+        'Cardinality(C) = ${tlaOperand(size.tla)}}',
+    holds: (c, {required pick, required all}) => pick.length == size.run(c),
+    taken: taken,
+    reads: reads + size.reads,
+  );
+
+  /// `{C \in SUBSET S : m \in C /\ (C # S \/ whole)}`: the sets drawn from
+  /// this one that hold [member], all of it only where [whole] holds.
+  Expr<List<List<E>>, W> choicesHolding({
+    required Expr<E, W> member,
+    required Expr<bool, W> whole,
+    required List<E> Function(StepView<W> c) taken,
+  }) {
+    final s = tlaOperand(tla);
+    return _subsets(
+      tla:
+          '{C \\in SUBSET $s : ${tlaOperand(member.tla)} \\in C '
+          '/\\ (C # $s \\/ ${tlaOperand(whole.tla)})}',
+      holds: (c, {required pick, required all}) =>
+          pick.contains(member.run(c)) &&
+          (pick.length < all.length || whole.run(c)),
+      taken: taken,
+      reads: reads + member.reads + whole.reads,
+    );
+  }
+
+  /// `{x \in SUBSET S : holds}`: the sets drawn from this one where [holds]
+  /// does, [x] naming each.
+  Expr<List<List<E>>, W> choicesWhere(
+    Bound<List<E>, W> x, {
+    required Expr<bool, W> holds,
+    required List<E> Function(StepView<W> c) taken,
+  }) => _subsets(
+    tla:
+        '{${x.name} \\in SUBSET ${tlaOperand(tla)} : ${tlaOperand(holds.tla)}}',
+    holds: (c, {required pick, required all}) =>
+        x._with(c, value: pick, body: () => holds.run(c)),
+    taken: taken,
+    reads: reads + holds.reads,
+  );
+
+  /// The sets [tla] draws from this one: the model may take any, the code
+  /// takes [taken], asserted to be a set of these that [holds].
+  Expr<List<List<E>>, W> _subsets({
+    required String tla,
+    required bool Function(
+      StepView<W> c, {
+      required List<E> pick,
+      required Set<E> all,
+    })
+    holds,
+    required List<E> Function(StepView<W> c) taken,
+    required Reads reads,
   }) => Expr._(
     run: (c) {
       final pick = taken(c);
@@ -370,43 +450,11 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
         final all = run(c).toSet();
         return pick.toSet().length == pick.length &&
             all.containsAll(pick) &&
-            pick.length == size.run(c);
-      }(), 'the code took $pick, which ${choicesTla(size)} does not offer');
+            holds(c, pick: pick, all: all);
+      }(), 'the code took $pick, which $tla does not offer');
       return [pick];
     },
-    tla: choicesTla(size),
-    reads: reads + size.reads,
+    tla: tla,
+    reads: reads,
   );
-
-  String choicesTla(Expr<int, Object?> size) =>
-      '{C \\in SUBSET ${tlaOperand(tla)} : Cardinality(C) = ${tlaOperand(size.tla)}}';
-
-  /// `{C \in SUBSET S : m \in C /\ (C # S \/ whole)}`: the sets drawn from
-  /// this one that hold [member], all of it only where [whole] holds. The
-  /// model may take any; the code takes [taken], asserted to be one of them.
-  Expr<List<List<E>>, W> choicesHolding({
-    required Expr<E, W> member,
-    required Expr<bool, W> whole,
-    required List<E> Function(StepView<W> c) taken,
-  }) {
-    final s = tlaOperand(tla);
-    final tlaText =
-        '{C \\in SUBSET $s : ${tlaOperand(member.tla)} \\in C '
-        '/\\ (C # $s \\/ ${tlaOperand(whole.tla)})}';
-    return Expr._(
-      run: (c) {
-        final pick = taken(c);
-        assert(() {
-          final all = run(c).toSet();
-          return pick.toSet().length == pick.length &&
-              all.containsAll(pick) &&
-              pick.contains(member.run(c)) &&
-              (pick.length < all.length || whole.run(c));
-        }(), 'the code took $pick, which $tlaText does not offer');
-        return [pick];
-      },
-      tla: tlaText,
-      reads: reads + member.reads + whole.reads,
-    );
-  }
 }

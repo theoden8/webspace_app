@@ -206,13 +206,15 @@ final class Delete extends SiteAction {
   String toString() => 'Delete()';
 }
 
-/// Site 1's routing switch flips and its settings close (LIR-034): the
-/// commit reconciles its link tab, which runs as site 3 with routing on
-/// and as site 1 off (`reconcileLinkTabs`).
+/// Site [site]'s routing switch flips and its settings close (LIR-034):
+/// the commit reconciles the link tabs it opened, in any site's tree, each
+/// running as the site its link leads to with routing on and as [site]
+/// off (`reconcileLinkTabs`). Site 1's link tab runs as site 3 with it on.
 final class Reroute extends SiteAction {
-  const Reroute();
+  const Reroute({this.site = 1});
+  final int site;
   @override
-  String toString() => 'Reroute()';
+  String toString() => site == 1 ? 'Reroute()' : 'Reroute(site: $site)';
 }
 
 /// The platform answers the call at [pick] among those waiting, taken
@@ -1201,6 +1203,12 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
             if (h != null) (t, h.siteId),
         ]),
       ),
+      ModelVar.opener => each(
+        (m) => FrameValues([
+          for (final MapEntry(key: t, value: o) in tabs.linkOpeners(m).entries)
+            if (o != null) (t, o.siteId),
+        ]),
+      ),
       ModelVar.nested => (sites.nested?.siteId,),
       ModelVar.headless => ids(sites.headless),
       ModelVar.fore => sites.fore,
@@ -1380,6 +1388,19 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
             switch (listed(m, n: n)) {
               final t? => switch (tabs.linkHosts(m)[t.id]) {
                 final h? => _siteNumber(h),
+                null => 0,
+              },
+              null => 0,
+            },
+        ],
+    ];
+    out['opener'] = [
+      for (final m in bySite)
+        [
+          for (final n in numbers)
+            switch (listed(m, n: n)) {
+              final t? => switch (tabs.linkOpeners(m)[t.id]) {
+                final o? => _siteNumber(o),
                 null => 0,
               },
               null => 0,
@@ -1945,6 +1966,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// for: numbered below the frame's, so the script's keep their numbers.
   int _nextSpawned = _frameFlow - 1;
 
+  /// The inputs code asks for again once a flow it ran has ended: numbered
+  /// past any script's, so each is an input of its own.
+  int _nextAsked = 1 << 20;
+
   Future<void> _activate(WebViewModel? target) {
     final work = activation.activate(target);
     final id = ++_activations;
@@ -2084,7 +2109,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
             owner,
             url: runs.initUrl,
             hostSiteId: _childHost(owner, runs: runs, follows: follows),
-            openerSiteId: follows ? owner.siteId : null,
+            // The site the page it came from ran as (LIR-034).
+            openerSiteId: follows ? owner.runningIdentity.siteId : null,
             homeUrl: follows ? runs.initUrl : null,
           ));
         }
@@ -2096,7 +2122,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
             owner,
             url: runs.initUrl,
             hostSiteId: _childHost(owner, runs: runs, follows: follows),
-            openerSiteId: follows ? owner.siteId : null,
+            // The site the page it came from ran as (LIR-034).
+            openerSiteId: follows ? owner.runningIdentity.siteId : null,
             homeUrl: follows ? runs.initUrl : null,
           ));
         }
@@ -2159,10 +2186,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       // A reroute requested while a tab handler holds the gate runs once it
       // lets go (TabHandlingGate.deferUntilIdle), as one landing then would;
       // the model lands one only on a free gate.
-      case Reroute():
+      case Reroute(:final site):
         if (rehosts && !tabs.busy) {
           for (final m in sites.models) {
-            if (_siteNumber(m) != 1) continue;
+            if (_siteNumber(m) != site) continue;
             m.externalLinkMode = ExternalLinkMode.inApp;
             m.routeOutboundLinks = !m.routeOutboundLinks;
           }
@@ -2199,9 +2226,15 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// The site a child of [owner]'s into [runs]' domain runs as: a link tab
   /// that [follows] its opener's routing runs as [runs] only while [owner]
   /// routes outbound links (LIR-034).
+  /// A link tab runs as its link's site while its opener, the site the page
+  /// ran as, routes outbound links, and as the opener otherwise (LIR-034).
   SiteId _childHost(WebViewModel owner,
-          {required WebViewModel runs, required bool follows}) =>
-      !follows || owner.effectiveRouteOutboundLinks ? runs.siteId : owner.siteId;
+          {required WebViewModel runs, required bool follows}) {
+    final opener = owner.runningIdentity;
+    return !follows || opener.effectiveRouteOutboundLinks
+        ? runs.siteId
+        : opener.siteId;
+  }
 
   /// A tab input on a site off screen takes the handler's other path, an
   /// activation inside the tab gate, which activation.tla does not hold:
@@ -3074,6 +3107,14 @@ final class _WalkTabsHost implements TabsHost {
 
   @override
   void offerOpenTab(WebViewModel model, {required TabId tabId}) {}
+
+  /// An input of its own, as the model takes it.
+  @override
+  Future<void> askAgain(Future<void> Function() input) {
+    final work = inFlow(flow: world._nextAsked++, input);
+    world._track(work);
+    return work;
+  }
 
   @override
   List<DispatchableSite> tabHostsIn(

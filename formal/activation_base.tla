@@ -112,7 +112,8 @@ site == << rows, loaded, current, version, marker, tier, nested, headless, fore 
 sessions == << jar, stored, signedIn >>
 turn == << holder, queue >>
 ghosts == << newest, evictedShown, seen >>
-tabVars == << tabs, active, built, hist, queued, file, minted, host, link >>
+tabVars == << tabs, active, built, hist, queued, file, minted, host, link,
+             opener >>
 blocking == << dns, told >>
 archived == << gone, views, boxes >>
 vars == << site, sessions, turn, fl, inputs, ghosts, last, tabVars, blocking,

@@ -55,6 +55,7 @@ abstract interface class TabState {
   String? get url;
   bool get subtree;
   abstract SiteTab? fresh;
+  SiteId? get namedOpener;
   abstract TabCloseResult? result;
   abstract bool rebound;
   abstract bool commitAfter;
@@ -165,6 +166,12 @@ final class TabFlow implements Capturing, TabState {
   /// a duplicate's copy.
   @override
   SiteTab? fresh;
+
+  /// The site a child tab's press named as its opener, the input's own
+  /// payload, which [fresh] carries as it lands (LIR-034). The input reads
+  /// it here: a tab no list holds is no tab of the model's `opener`.
+  @override
+  SiteId? namedOpener;
 
   /// The close the engine decided.
   @override

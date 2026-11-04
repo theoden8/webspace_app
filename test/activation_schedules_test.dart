@@ -627,6 +627,22 @@ const _childAlphabet = <SiteAction>[
 
 const _childLength = 2;
 
+/// Link tabs whose opener is not their owner (LIR-034), in the child world:
+/// one a page site 1's slot showed as site 2 opened, moved by site 2's
+/// switch; and site 1's switch moving its own link tab and one it opened
+/// in site 2's tree, one site's tabs a time.
+const _openerRegressions =
+    <String, ({List<SiteAction> setup, List<SiteAction> script})>{
+      "a hosted page's link tab follows the host's switch": (
+        setup: [Tap(0), ChildTab(0, host: 1), ChildTab(0, host: 2, follows: true)],
+        script: [Reroute(site: 2), Tap(1)],
+      ),
+      "one switch moves its link tabs in two sites' trees": (
+        setup: [Tap(1), ChildTab(1, host: 0), ChildTab(1, host: 2, follows: true)],
+        script: [Reroute(), Tap(0)],
+      ),
+    };
+
 /// A tab race the code once lost, at two preemptions.
 const _tabRegressions =
     <String, ({List<SiteAction> setup, List<SiteAction> script})>{
@@ -1326,6 +1342,24 @@ void main() {
         await _expectEvery(
           world: () => ActivationWorld(_mixed, spaces: _spaces),
           setup: _spaceSetups['home, slot 2 signed in behind']!,
+          script: script,
+          preemptions: _onePast,
+        );
+      });
+    }
+  });
+
+  group('opener regressions', () {
+    for (final MapEntry(key: name, value: (:setup, :script))
+        in _openerRegressions.entries) {
+      _scheduleTest(name, body: () async {
+        await _expectEvery(
+          world: () => ActivationWorld(
+            _mixedContainers,
+            proxies: _proxied['mismatched proxies'],
+            rehosts: true,
+          ),
+          setup: setup,
           script: script,
           preemptions: _onePast,
         );

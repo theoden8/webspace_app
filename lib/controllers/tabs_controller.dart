@@ -63,6 +63,11 @@ abstract interface class TabsHost implements PageHost {
 
   /// [model] left the loaded set outside the unload funnel, for [why].
   void noteUnloaded(WebViewModel model, {required String why});
+
+  /// Runs [input], one the controller asks for once the flow before it has
+  /// ended: the page runs it as is, and the walks run it as an input of its
+  /// own, which only this seam lets them number.
+  Future<void> askAgain(Future<void> Function() input);
 }
 
 /// A site's tabs (TAB-002..TAB-019): one container and one webview per site,
@@ -274,10 +279,9 @@ class TabsController {
   /// import. While a tab change is running it waits for it (TabHandlingGate),
   /// since both rewrite tab lists across awaits.
   ///
-  /// The flips one site's switch makes in its own tree are the
-  /// [TabTable.tabInputs] reroute and its removals; any other set of flips
-  /// (several sites' at once, as an import may, or tabs another site opened)
-  /// runs as the same writes in a commit no step takes yet.
+  /// One site's tabs move a time, as the [TabTable.tabInputs] reroute and
+  /// its removals: what a tab runs as is read and rewritten in the input's
+  /// turn, and the next site's are read again once the first's have moved.
   Future<void> reconcileLinkTabs() async {
     if (_gate.busy) {
       _gate.deferUntilIdle(() {
@@ -285,32 +289,18 @@ class TabsController {
       });
       return;
     }
-    // One synchronous pass over every tab list: nothing can interleave
-    // between reading what a tab runs as and rewriting it.
-    final forgot = _forgetGoneOpeners();
     final flips = _linkFlips();
-    if (_oneSiteReroutes(flips) case final owner?) {
-      final c = StepContext(TabFlow(this, site: owner)..flips = flips);
-      final next = TabTable.tabInputs.runInput(c, from: TabPlace.reroute);
-      if (next == TabPlace.done) return;
-      await _gate.hold(() => _runTabFlow(c, from: next));
-      return;
-    }
-    if (flips.isEmpty && !forgot) return;
-    await _gate.run(() async {
-      final dropped = _applyFlips(
-        flips,
-        commit: const Commit.unmodeled(Unmodeled.identityChange),
-        retire: true,
-        loadedBefore: {..._sites.loaded},
-      );
-      for (final key in dropped.values) {
-        await navStates.removeState(key);
-      }
-      if (!_host.mounted) return;
-      _host.rebuild();
-      await _host.commitSites(const SitesEdited());
-    });
+    if (flips.isEmpty) return;
+    final owner = flips.first.owner;
+    final c = StepContext(TabFlow(this, site: owner)
+      ..flips = [
+        for (final f in flips)
+          if (identical(f.owner, owner)) f,
+      ]);
+    final next = TabTable.tabInputs.runInput(c, from: TabPlace.reroute);
+    if (next == TabPlace.done) return;
+    await _gate.hold(() => _runTabFlow(c, from: next));
+    if (_host.mounted) await _host.askAgain(reconcileLinkTabs);
   }
 
   /// The site [tab], a tab of [owner] a link of [opener]'s opened, runs as
@@ -342,6 +332,32 @@ class TabsController {
     for (final tab in owner.tabs) tab.id: _linkOf(owner, tab: tab),
   };
 
+  /// The listed site whose routing switch each of [owner]'s tabs follows,
+  /// the model's `opener[s]` (LIR-034): null for a tab no link opened.
+  Map<TabId, WebViewModel?> linkOpeners(WebViewModel owner) => {
+    for (final tab in owner.tabs) tab.id: _openerOf(tab),
+  };
+
+  WebViewModel? _openerOf(SiteTab tab) =>
+      tab.followsOpener ? _sites.byId(tab.openerSiteId!) : null;
+
+  /// [_openerOf] for the child tab [flow] lands, as its press named it:
+  /// both child inputs set [TabFlow.namedOpener] from what the tab is built
+  /// with.
+  WebViewModel? _namedOpener(TabState flow) {
+    final named = flow.namedOpener;
+    return named != null && flow.fresh?.homeUrl != null
+        ? _sites.byId(named)
+        : null;
+  }
+
+  /// The openers of [owner]'s link tabs whose routing switch is on now
+  /// (LIR-013, LIR-034).
+  List<WebViewModel> routingOpeners(WebViewModel owner) => [
+    for (final o in linkOpeners(owner).values.nonNulls.toSet())
+      if (o.effectiveRouteOutboundLinks) o,
+  ];
+
   /// [linkHosts]' entry for [tab] of [owner]'s, listed or about to be.
   WebViewModel? _linkOf(WebViewModel owner, {required SiteTab tab}) =>
       switch (tab.followsOpener ? _sites.byId(tab.openerSiteId!) : null) {
@@ -350,26 +366,6 @@ class TabsController {
               owner,
         null => null,
       };
-
-  /// A link tab whose opener is gone: nothing decides for it any more, so it
-  /// keeps the container it has (LIR-023 closes it if that is gone).
-  bool _forgetGoneOpeners() {
-    var forgot = false;
-    for (final owner in _sites.models) {
-      for (final tab in owner.tabs) {
-        if (!tab.followsOpener || _sites.byId(tab.openerSiteId!) != null) {
-          continue;
-        }
-        SiteTab.openerCell.write(
-          at: tab,
-          to: null,
-          commit: const Commit.unmodeled(Unmodeled.siteSet),
-        );
-        forgot = true;
-      }
-    }
-    return forgot;
-  }
 
   /// Each link tab whose host its opener's switch moves, with the host it
   /// takes (null for its owner).
@@ -393,37 +389,15 @@ class TabsController {
               ),
   ];
 
-  /// The site whose switch [flips] are, when they are the model's reroute:
-  /// one site's own link tabs, every one its switch moves.
-  WebViewModel? _oneSiteReroutes(List<LinkFlip> flips) {
-    if (flips.isEmpty) return null;
-    final owner = flips.first.owner;
-    if (flips.any((f) => !identical(f.owner, owner) || !identical(f.opener, owner))) {
-      return null;
-    }
-    final links = linkHosts(owner);
-    final flipping = {
-      for (final t in owner.tabs)
-        if (links[t.id] case final h? when !identical(h, owner)) t.id,
-    };
-    return flipping.length == flips.length &&
-            flips.every((f) => flipping.contains(f.tab.id))
-        ? owner
-        : null;
-  }
-
   /// [flips] written in [commit], each tab's old key returned for its file's
   /// removal. A slot that runs as another site from this turn lets its
   /// webview go in the same turn (LIR-024): a plan between the two would
   /// read the new identity's route for a webview on the old one. Across a
-  /// rule another site shares ([TabCalls.movesRule]) the slot also leaves
-  /// the loaded sites ([retire], where no step's write takes it out), so
-  /// nothing builds it on its new route beside the sites it contends with,
-  /// and it opens again.
+  /// rule another site shares ([TabCalls.movesRule]) the reroute's arm has
+  /// taken the slot out of the loaded sites, and its spawn opens it again.
   Map<TabId, String> _applyFlips(
     List<LinkFlip> flips, {
     required Commit commit,
-    required bool retire,
     required Set<WebViewModel> loadedBefore,
   }) {
     final dropped = <TabId, String>{};
@@ -443,12 +417,10 @@ class TabsController {
     for (final MapEntry(key: model, value: from) in movedFrom.entries) {
       final moves =
           TabCalls(this).movesRule(from: from, to: model.runningIdentity);
-      if (moves && retire) _sites.retired(model, commit: commit);
       if (moves && loadedBefore.contains(model)) {
         _host.noteUnloaded(model, why: 'identity change');
       }
       model.disposeWebView(commit: commit);
-      if (moves && retire) _reopen(model);
     }
     return dropped;
   }
@@ -462,23 +434,10 @@ class TabsController {
       ..dropped = _applyFlips(
         flow.flips,
         commit: c.commit,
-        retire: false,
         loadedBefore: flow.loadedBefore,
       )
       ..commitAfter = true;
     _host.rebuild();
-  }
-
-  /// [model] runs as another site from this turn. On screen, or opening for an
-  /// activation planned for the identity it left ([TabTable._reopened]), it is
-  /// activated again in the same turn, the input before any await: the new
-  /// activation plans for the new route and supersedes the old, and no event
-  /// sees the screen on a site neither loaded nor opening. A step's reroute
-  /// does this as its [Spawn].
-  void _reopen(WebViewModel model) {
-    final c = StepContext(TabFlow(this, site: model));
-    TabTable._site.put(c, value: model);
-    if (TabTable._reopened.run(c)) unawaited(_host.activate(model));
   }
 
   /// Show [model]'s [tabId]. Used by the tab list, and by Back going back along
@@ -712,7 +671,9 @@ class TabsController {
       openerSiteId: openerSiteId,
       homeUrl: homeUrl,
     );
-    final c = StepContext(TabFlow(this, site: owner)..fresh = tab);
+    final c = StepContext(TabFlow(this, site: owner)
+      ..fresh = tab
+      ..namedOpener = openerSiteId);
     final next = TabTable.tabInputs.runInput(c, from: TabPlace.childTab);
     if (next == TabPlace.done) return;
     LogTag.tabs.debug('Opened a child tab of "${owner.name}"'
@@ -825,7 +786,9 @@ class TabsController {
     if (!_host.mounted || !_sites.models.contains(model)) return;
     final tab = child();
     if (tab == null) return;
-    final c = StepContext(TabFlow(this, site: model)..fresh = tab);
+    final c = StepContext(TabFlow(this, site: model)
+      ..fresh = tab
+      ..namedOpener = tab.openerSiteId);
     final next = TabTable.tabInputs.runInput(c, from: TabPlace.parkChild);
     await _gate.hold(() => _runTabFlow(c, from: next));
   }

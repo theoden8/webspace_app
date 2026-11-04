@@ -8,6 +8,7 @@ import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/archive_storage.dart';
 import 'package:webspace/services/process_route.dart';
+import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
@@ -67,6 +68,26 @@ void main() {
       r.applied(SiteRemoved(a));
       expect(r.current, isNull);
       expect(_loadedIds(r), ['b']);
+    });
+
+    test('a site that leaves the list leaves the tabs it opened following '
+        'nothing, in that commit (LIR-034)', () {
+      final a = _site(SiteId('a'));
+      final b = _site(SiteId('b'));
+      final opened = SiteTab(
+        url: 'https://c.test/x',
+        homeUrl: 'https://c.test/x',
+        openerSiteId: a.siteId,
+        hostSiteId: a.siteId,
+      );
+      b.setTabs([...b.tabs, opened]);
+      final r = _runtime([a, b]);
+      r.applied(SiteRemoved(a));
+      expect(opened.openerSiteId, isNull);
+      expect(opened.followsOpener, isFalse);
+      expect(opened.hostSiteId, a.siteId,
+          reason: 'it keeps the site it runs as; LIR-023 decides whether it '
+              'may stay');
     });
 
     test('a move in the "All" order takes the loaded sites with it', () {

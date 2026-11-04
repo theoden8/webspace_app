@@ -88,6 +88,11 @@ enum HandPaired implements Pairing {
   /// none (`0`) for one no link opened (LIR-034).
   childLinks,
 
+  /// The site whose switch a child tab follows, which its handler names as
+  /// the link is pressed: the page's, or the tab it is a sibling of; none
+  /// (`0`) for one no link opened (LIR-034).
+  childOpeners,
+
   /// The tabs a landing may name: the site's, and a fresh one while the
   /// pool has one.
   landingTabs,

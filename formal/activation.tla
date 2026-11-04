@@ -142,10 +142,13 @@ Init ==
     /\ file = [s \in Sites |-> [t \in TabIds |-> [h \in Sites |-> 0]]]
     /\ minted = [s \in Sites |-> IF s \in Tabbed THEN 2 ELSE 1]
     /\ host = [s \in Sites |-> [t \in TabIds |-> s]]
-    \* A link tab a world starts with runs as its opener, routing off.
+    \* A link tab a world starts with was opened by its site and runs as it,
+    \* routing off.
     /\ link = [s \in Sites |-> [t \in TabIds |->
                 IF \E l \in Links : l.s = s /\ l.t = t
                 THEN (CHOOSE l \in Links : l.s = s /\ l.t = t).h ELSE 0]]
+    /\ opener = [s \in Sites |-> [t \in TabIds |->
+                IF \E l \in Links : l.s = s /\ l.t = t THEN s ELSE 0]]
     /\ dns = [lvl |-> 0, levels |-> {}]
     /\ told = [s \in Sites |-> -1]
     /\ gone = {}
@@ -270,7 +273,8 @@ LetGo(s) ==
     /\ hist' = [hist EXCEPT ![s] = 0]
     /\ Did("LetGo", 0, "", s)
     /\ UNCHANGED << site, sessions, turn, fl, inputs, ghosts, tabs, active,
-                    queued, file, minted, host, link, blocking, archived >>
+                    queued, file, minted, host, link, opener, blocking,
+                    archived >>
 
 \* The frame builds a let-go site's webview again, for its active tab and
 \* from the back stack queued for it, as a commit's frame does
@@ -286,7 +290,7 @@ Reframe(s) ==
     /\ queued' = Taken(s, loaded)
     /\ Did("Reframe", 0, "", s)
     /\ UNCHANGED << site, sessions, turn, fl, inputs, ghosts, tabs, active,
-                    file, minted, host, link, blocking, archived >>
+                    file, minted, host, link, opener, blocking, archived >>
 
 -----------------------------------------------------------------------------
 

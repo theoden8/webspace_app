@@ -44,6 +44,11 @@ final class TabVars {
   static Mutable<Map<WebViewModel, Map<TabId, WebViewModel?>>, W> linkFn<W>() =>
       Mutable.remote(ModelVar.link);
 
+  /// `opener` whole, for the writes a child, a duplicate and a close print;
+  /// the code's is the list's, or a tab's own ([SiteTab.openerCell]).
+  static Mutable<Map<WebViewModel, Map<TabId, WebViewModel?>>, W> openerFn<W>() =>
+      Mutable.remote(ModelVar.opener);
+
   /// The site [s]'s slot runs as (`RunsAs`, LIR-018): the host of its
   /// active tab ([WebViewModel.runningIdentity]).
   static Def<WebViewModel, W> runsAs<W>() {
@@ -65,6 +70,7 @@ final class TabVars {
   }) {
     final t = Bound<TabId, W>('t');
     final gone = tabs<W>().at(s).less(kept);
+    final none = Expr.constant<WebViewModel?, W>(null, tla: '0');
     return [
       hostFn<W>().becomes(
         hostFn<W>().value.except(
@@ -72,13 +78,39 @@ final class TabVars {
           to: hostFn<W>().value.at(s).exceptEach(gone, x: t, to: s),
         ),
       ),
+      for (final f in [linkFn<W>(), openerFn<W>()])
+        f.becomes(
+          f.value.except(s, to: f.value.at(s).exceptEach(gone, x: t, to: none)),
+        ),
+    ];
+  }
+
+  /// What a commit that takes [gone] off the list leaves the tabs they
+  /// opened following, in that step (LIR-034, `SiteRuntime.apply`):
+  /// nothing, so they have no link; and a tab whose link led to one of
+  /// them runs as its opener while that routes, its link's one host gone.
+  static List<Write<W>> openersGone<W>(Expr<Iterable<WebViewModel>, W> gone) {
+    final o = Bound<WebViewModel, W>('go');
+    final t = Bound<TabId, W>('gt');
+    final none = Expr.constant<WebViewModel?, W>(null, tla: '0');
+    final by = openerFn<W>().value.at(o.it).at(t.it);
+    final to = linkFn<W>().value.at(o.it).at(t.it);
+    return [
+      openerFn<W>().becomes(
+        openerFn<W>().value.remap(
+          o,
+          j: t,
+          to: Expr.choose(when: gone.has(by), then: none, otherwise: by),
+        ),
+      ),
       linkFn<W>().becomes(
-        linkFn<W>().value.except(
-          s,
-          to: linkFn<W>().value.at(s).exceptEach(
-            gone,
-            x: t,
-            to: Expr.constant<WebViewModel?, W>(null, tla: '0'),
+        linkFn<W>().value.remap(
+          o,
+          j: t,
+          to: Expr.choose(
+            when: gone.has(by),
+            then: none,
+            otherwise: Expr.choose(when: gone.has(to), then: by, otherwise: to),
           ),
         ),
       ),
