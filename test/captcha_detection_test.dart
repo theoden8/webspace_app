@@ -118,12 +118,26 @@ void main() {
         );
       });
 
-      test('/recaptcha/ on googleapis.com is detected', () {
+      test('/recaptcha/ on www.recaptcha.net is detected', () {
         expect(
-          WebViewFactory.isCaptchaChallenge('https://www.googleapis.com/recaptcha/v3/siteVerify'),
+          WebViewFactory.isCaptchaChallenge('https://www.recaptcha.net/recaptcha/api2/anchor?k=abc'),
           isTrue,
         );
       });
+
+      // SEC-042: these hosts serve HTML anyone uploads, so a path there is
+      // nobody's claim to be a challenge.
+      for (final url in [
+        'https://storage.googleapis.com/bucket/recaptcha/x.html',
+        'https://www.googleapis.com/recaptcha/v3/siteVerify',
+        'https://sites.google.com/view/x/recaptcha/y',
+        'https://evil.google.com/recaptcha/api2/anchor',
+        'https://www.google.com/x/recaptcha/y',
+      ]) {
+        test('CAPTCHA-007 / SEC-042: $url is NOT detected', () {
+          expect(WebViewFactory.isCaptchaChallenge(url), isFalse);
+        });
+      }
 
       test('/recaptcha/ on evil.com is NOT detected', () {
         expect(
