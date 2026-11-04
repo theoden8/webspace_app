@@ -195,7 +195,8 @@ sealed class GrantStore {
     required Standing standing,
   }) {
     final mode = kind.grantOf(media.capture).mode;
-    if (standing == Standing.own || _takesSite(mode.state, standing)) {
+    if (standing == Standing.own ||
+        _takesSite(mode.state, standing: standing)) {
       return mode;
     }
     return switch (origins.choices.of(
@@ -211,7 +212,10 @@ sealed class GrantStore {
   /// Whether a document of another origin takes the site's [state] rather
   /// than an answer of its own: a block holds for every origin, and a frame
   /// the site's page embedded takes the site's file (CAM-014 / MIC-016).
-  static bool _takesSite(SitePermissionState state, Standing standing) =>
+  static bool _takesSite(
+    SitePermissionState state, {
+    required Standing standing,
+  }) =>
       switch (state) {
         SitePermissionState.blocked => true,
         SitePermissionState.simulated => standing == Standing.embedded,
@@ -234,7 +238,7 @@ sealed class GrantStore {
     if (!isSiteActive()) return (mode: kind.block, source: null);
     final current = kind.grantOf(media.capture);
     if (standing != Standing.own) {
-      if (_takesSite(current.mode.state, standing)) {
+      if (_takesSite(current.mode.state, standing: standing)) {
         return (
           mode: current.mode,
           source: current.mode == kind.block ? null : current.source,
