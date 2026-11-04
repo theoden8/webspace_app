@@ -14,7 +14,7 @@ Pod::Spec.new do |s|
     they'd be dropped from the framework's export table.
   DESC
   s.homepage         = 'https://github.com/theoden8/webspace_app'
-  s.license          = { :type => 'MPL-2.0' }
+  s.license          = { :type => 'MIT' }
   s.author           = { 'theoden8' => 'theoden8@tutamail.com' }
   s.source           = { :path => '.' }
 

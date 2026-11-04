@@ -3,7 +3,9 @@
 ## Purpose
 
 Two positions the project has to keep true as code changes: the App Store
-encryption declaration, and MIT as the licence of the shipped work.
+encryption declaration, and the licences of the shipped work. The app's own
+code is MIT, except `go/hiddenkey` (BSD-3-Clause). The artwork is under
+`assets/LICENSE` (CC BY-NC-SA 4.0), which stays as it is.
 
 ## Status
 
@@ -30,8 +32,10 @@ EXPORT-002 and EXPORT-003; revisit it if either stops holding.
 HKDF-SHA-256 and HMAC-SHA-256 in
 [archive_crypto.dart](../../../lib/services/archive_crypto.dart), AES-GCM over the
 stores kept at rest in
-[keychain_aead.dart](../../../lib/services/keychain_aead.dart), and
-links tor's TLS and OpenSSL. Apple's OS-provided and authentication-only
+[keychain_aead.dart](../../../lib/services/keychain_aead.dart), X25519 key
+pairs hidden by Elligator 2 for obfs4's handshake in
+[go/hiddenkey](../../../go/hiddenkey/README.md) (the Apple builds' bridge
+transports), and links tor's TLS and OpenSSL. Apple's OS-provided and authentication-only
 exemptions describe none of that. Reasoning from *those* exemptions is what
 led #344 to flip the key to `true`; they were never the basis here.
 
@@ -41,7 +45,7 @@ Coordinator, but only for source code that "provides or performs
 *non-standard cryptography*" — an EAR term of art for proprietary or
 unpublished algorithms. EXPORT-002 confines the app to published standards
 (FIPS 197, NIST SP 800-38D, RFC 9106, RFC 5869, RFC 2104, RFC 8446,
-RFC 7748/8032), so 742.15(b)(2) does not reach it and there is nothing to
+RFC 7748/8032, RFC 9380), so 742.15(b)(2) does not reach it and there is nothing to
 file. This is the whole reason the app owes no paperwork despite shipping a
 lot of cryptography, and it is the first thing to re-check when EXPORT-002
 is amended.
@@ -58,6 +62,17 @@ under it are AES, SHA-2, Curve25519 (RFC 7748), Ed25519 (RFC 8032) and TLS
 is not non-standard cryptography. A future component that is *unpublished*
 fails on the second limb no matter how standard its primitives are, and that
 is the case to watch for.
+
+**The Apple builds' bridge transports clear the same way.** IPtProxy's
+transports are published protocols with published source, over published
+primitives:
+
+| Transport | Protocol | Primitives |
+|---|---|---|
+| obfs4 | lyrebird's `doc/obfs4-spec.txt` | X25519 with Elligator 2 (RFC 7748, RFC 9380), HMAC-SHA-256, SipHash-2-4, XSalsa20-Poly1305 |
+| snowflake | the Snowflake paper and its source | WebRTC's DTLS (RFC 6347) |
+| webtunnel | HTTPS | TLS (RFC 8446) |
+| dnstt | its published design | the Noise framework's `Noise_NK_25519_ChaChaPoly_BLAKE2s` (RFC 7748, RFC 8439, RFC 7693) |
 
 **`true` is not the cautious alternative.** It obliges an
 `ITSEncryptionExportComplianceCode`, which Apple issues only after approving
@@ -87,13 +102,15 @@ gates the two keys against each other on the fastlane deploy lanes.
 ### Requirement: EXPORT-002 - Standard primitives only
 
 Cryptography the app implements itself SHALL use published standard
-primitives: AES-GCM, HMAC-SHA-256, HKDF-SHA-256, Argon2id.
+primitives: AES-GCM, HMAC-SHA-256, HKDF-SHA-256, Argon2id, X25519
+(RFC 7748) and Elligator 2 on Curve25519 (RFC 9380).
 
 #### Scenario: A feature adds encryption, key derivation, or a MAC
 
 - **THEN** it uses a primitive named above
 - **AND** the construction is written down in the spec that owns it (the
-  archive's is ARCH-002)
+  archive's is ARCH-002; obfs4's key hiding is TOR-016's, its wire format
+  in `go/hiddenkey/README.md`)
 
 ---
 

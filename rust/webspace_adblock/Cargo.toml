@@ -3,7 +3,7 @@ name = "webspace_adblock"
 version = "0.1.0"
 edition = "2021"
 description = "C FFI surface around the `adblock` crate (Brave's adblock-rust engine), tailored for WebSpace's content blocker."
-license = "MPL-2.0"
+license = "MIT"
 publish = false
 
 [lib]

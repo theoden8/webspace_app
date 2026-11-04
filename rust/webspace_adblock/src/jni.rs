@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: MIT
 //
 // JNI bridge so the Android `FastSubresourceInterceptor` (Kotlin)
 // can consult the adblock-rust engine WITHOUT a Dart roundtrip per
