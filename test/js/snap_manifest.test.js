@@ -256,7 +256,7 @@ function noticeRefusals(text) {
     ['libwpe', 'libwpe', [
       ...offered,
       '--license "BSD-2-clause and LGPL-2+"',
-      '--lgpl-text /usr/share/common-licenses/LGPL-2',
+      '--licence-text /usr/share/common-licenses/LGPL-2',
     ]],
     ['wpewebkit', 'wpewebkit', [
       ...offered,
@@ -318,8 +318,8 @@ test("the snap's libwpe ships as the LGPL asks: its text, and its source named a
     ['libwpe lacks --revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)"'], 'a revision not read off the checkout');
   assert.deepEqual(libwpe('--license "BSD-2-clause and LGPL-2+"', '--license BSD-2-clause'),
     ['libwpe lacks --license "BSD-2-clause and LGPL-2+"'], 'the LGPL of key-unicode.c left unnamed');
-  assert.deepEqual(libwpe(' \\\n        --lgpl-text /usr/share/common-licenses/LGPL-2\n', '\n'),
-    ['libwpe lacks --lgpl-text /usr/share/common-licenses/LGPL-2'], 'the LGPL named, its text not given');
+  assert.deepEqual(libwpe(' \\\n        --licence-text /usr/share/common-licenses/LGPL-2\n', '\n'),
+    ['libwpe lacks --licence-text /usr/share/common-licenses/LGPL-2'], 'the LGPL named, its text not given');
   assert.deepEqual(libwpe(/^ {4}source: \S+\n {4}source-commit: \S+\n/m, '    source: https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz\n'), [
     'libwpe is not a checkout of one commit, so its HEAD is not the source it offers',
     "libwpe's notices name https://github.com/WebPlatformForEmbedded/libwpe.git, not the https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz it pulls",

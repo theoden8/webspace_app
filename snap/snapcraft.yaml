@@ -85,7 +85,7 @@ parts:
         --name libwpe --source https://github.com/WebPlatformForEmbedded/libwpe.git \
         --revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)" \
         --license "BSD-2-clause and LGPL-2+" --offer \
-        --lgpl-text /usr/share/common-licenses/LGPL-2
+        --licence-text /usr/share/common-licenses/LGPL-2
     build-packages:
       - git
       - libegl-dev
