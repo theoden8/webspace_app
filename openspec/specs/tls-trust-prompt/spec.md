@@ -133,9 +133,11 @@ identical dialogs. iOS and macOS are excluded — see TLS-009.
 #### Scenario: Prompt re-entrancy is coalesced
 
 **Given** a TLS handshake to `self-signed.example.com:443` fires two error events in rapid succession (main frame + favicon probe)
-**When** both events reach `_handleSslLoadError`
+**When** both reach the trust callback while the first prompt is on screen
 **Then** only one dialog is shown
-**And** the second invocation returns `true` immediately (treated as handled by the in-flight prompt)
+**And** the second is cancelled without asking (`WebViewTls._ask` asks about one certificate at a time)
+
+Tests: `test/webview_tls_test.dart` ("TLS-002"), `test/tls_network_sign_in_test.dart` ("is asked about once at a time").
 
 ---
 
@@ -146,15 +148,16 @@ that are already pinned. After the user pins a cert and the URL is
 reloaded, the platform MAY deliver the original failed-nav callback
 late; the redundant prompt MUST NOT be re-shown.
 
-#### Scenario: iOS delivers a stale `didFailProvisionalNavigation` after reload
+#### Scenario: A stale load error arrives after the pin
 
-**Given** `_handleSslLoadError` has just persisted a pin for `self-signed.example.com:443` and called `controller.loadUrl(...)`
-**And** the reload's trust callback returned `PROCEED` ("pinned cert accepted" logged)
-**When** WKWebView fires a late `onReceivedError` for the original failed navigation
-**Then** `_handleSslLoadError` looks up the cached cert via `_sslCertificateCache[host:port]`
-**And** checks `TrustedHostsService.isTrusted` with the cached fingerprint
-**And** the pin matches, so the prompt is NOT re-shown
-**And** a `[TLS/debug] ignoring stale ssl error for ... — already pinned` log line is emitted
+**Given** the trust callback saw the certificate for `self-signed.example.com:443`, which the user pinned
+**When** the platform delivers a late load error for the original failed navigation, once or several times
+**Then** `WebViewTls.handleSslLoadError` reads the certificate the trust callback cached, finds the pin matches, and does not prompt
+**And** it reloads the page once for the burst (`_claimReloadGuard`, 10 s), not once an error
+
+iOS and macOS never reach this path (TLS-009).
+
+Test: `test/webview_tls_test.dart` ("TLS-003").
 
 ---
 
