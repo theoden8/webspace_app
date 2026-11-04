@@ -1027,7 +1027,7 @@ Home button pressed
 #### `lib/services/webview.dart`
 - `onUpdateVisitedHistory` — fires on all history changes including BFCache restorations
 - `onLoadStop` — fires on page load completion, may miss BFCache on iOS
-- `_hasUserGesture()` — platform-specific gesture detection for navigation actions
+- `NavigationActionReading.byUserGesture` (`navigation_action_reading.dart`) — platform-specific gesture detection for navigation actions
 - `WebViewController.canGoBack()` / `.goBack()` — delegates to flutter_inappwebview
 
 ---

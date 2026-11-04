@@ -159,11 +159,11 @@ void main() {
       expect(home, NavigationDecision.blockSilent);
       expect(
           NavigationDecisionEngine.stepFor(home,
-              returnsToOwner: false, signInReturn: true),
+              returnsToOwner: false, landing: OpenerLanding.signIn),
           NavigationStep.returnToOwner);
       expect(
           NavigationDecisionEngine.stepFor(NavigationDecision.blockOpenNested,
-              returnsToOwner: false, signInReturn: true),
+              returnsToOwner: false, landing: OpenerLanding.signIn),
           NavigationStep.returnToOwner,
           reason: 'a tap home returns too');
     });
@@ -172,14 +172,14 @@ void main() {
         () {
       expect(
           NavigationDecisionEngine.stepFor(NavigationDecision.blockSilent,
-              returnsToOwner: true),
+              returnsToOwner: true, landing: OpenerLanding.none),
           NavigationStep.drop);
     });
 
     test('a site in the background returns nothing', () {
       expect(
           NavigationDecisionEngine.stepFor(NavigationDecision.blockSuppressed,
-              returnsToOwner: false, signInReturn: true),
+              returnsToOwner: false, landing: OpenerLanding.signIn),
           NavigationStep.drop);
     });
   });
@@ -236,9 +236,9 @@ void main() {
 
     test('only an asked hop returns a sign-in tab; a late one stays put', () {
       final f = flat(model);
-      expect(f, contains("via:'shouldOverrideUrlLoading',signInReturn:signInReturns(url));"));
-      expect(f, contains('returnsToOwner:!signInTab&&returnsToOwner(url),signInReturn:signInReturn'));
-      expect(f, contains("decision!=null&&!signInReturns(url)&&!dispatch(decision,url:url,hadGesture:handled.hadGesture,via:'onUrlChanged')"));
+      expect(f, contains("via:'shouldOverrideUrlLoading',landing:!signInReturns(url)?OpenerLanding.none:replayable?OpenerLanding.signIn:OpenerLanding.stays);"));
+      expect(f, contains('returnsToOwner:!signInTab&&returnsToOwner(url),landing:landing'));
+      expect(f, contains("decision!=null&&!signInReturns(url)&&!dispatch(decision,url:url,hadGesture:handled.hadGesture,via:'onUrlChanged',landing:OpenerLanding.none)"));
       expect(f, contains('signInHosts:signInTab?PopupKind.isSignInUrl:null'));
     });
   });

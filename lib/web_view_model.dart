@@ -1173,14 +1173,20 @@ bool dispatch(NavigationDecision decision,
     {required String url,
     required bool hadGesture,
     required String via,
-    bool signInReturn = false}) {
+    required OpenerLanding landing}) {
       LogTag.webView.debug('$via -> ${decision.name} $url', sensitive: true);
-      if (NavigationDecisionEngine.stepFor(decision,
-              returnsToOwner: !signInTab && returnsToOwner(url),
-              signInReturn: signInReturn) ==
-          NavigationStep.returnToOwner) {
-        onReturnToOwner?.call(url);
-        return false;
+      switch (NavigationDecisionEngine.stepFor(decision,
+          returnsToOwner: !signInTab && returnsToOwner(url),
+          landing: landing)) {
+        case NavigationStep.returnToOwner:
+          onReturnToOwner?.call(url);
+          return false;
+        case NavigationStep.loadHere:
+          return true;
+        case NavigationStep.drop:
+          return false;
+        case NavigationStep.route:
+          break;
       }
       bool takenOver() => hooks.routeOutbound(this, url: url, decision: decision, hadGesture: hadGesture);
       switch (decision) {
@@ -1329,7 +1335,8 @@ bool dispatch(NavigationDecision decision,
             blockedNavigation = blocked;
             hooks.host.rebuild();
           },
-          shouldOverrideUrlLoading: (url, {required hasGesture, required frame}) {
+          shouldOverrideUrlLoading: (url,
+              {required hasGesture, required frame, required replayable}) {
             LogTag.webView.debug(
                 'shouldOverrideUrlLoading: site="$name" (siteId: $siteId) initUrl=$initUrl request=$url hasGesture=$hasGesture',
                 sensitive: true);
@@ -1352,7 +1359,11 @@ bool dispatch(NavigationDecision decision,
                 url: url,
                 hadGesture: result.hadGesture,
                 via: 'shouldOverrideUrlLoading',
-                signInReturn: signInReturns(url));
+                landing: !signInReturns(url)
+                    ? OpenerLanding.none
+                    : replayable
+                        ? OpenerLanding.signIn
+                        : OpenerLanding.stays);
           },
           onReloadIssued: () => onReloadIssued?.call(),
           onMainFrameLoad: resumeReload.noteLoad,
@@ -1413,7 +1424,7 @@ bool dispatch(NavigationDecision decision,
             if (decision != null &&
                 !signInReturns(url) &&
                 !dispatch(decision, url: url, hadGesture: handled.hadGesture,
-                    via: 'onUrlChanged')) {
+                    via: 'onUrlChanged', landing: OpenerLanding.none)) {
               return;
             }
             final currentNotifyUrl = urlChangedState.currentUrl;

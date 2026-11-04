@@ -16,7 +16,12 @@ import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/popup_webview.dart' show PopupKind;
 import 'package:webspace/services/navigation_decision_engine.dart'
-    show NavigationDecision, NavigationDecisionEngine, NavigationFrame, NavigationStep;
+    show
+        NavigationDecision,
+        NavigationDecisionEngine,
+        NavigationFrame,
+        NavigationStep,
+        OpenerLanding;
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/page_title.dart';
 import 'package:webspace/services/reentry_guard.dart';
@@ -997,6 +1002,7 @@ class LinkController {
       returnsToOwner: (model.runsHostedTab || model.runsForeignTab) &&
           model.effectiveTabsEnabled &&
           getNormalizedDomain(url) == getNormalizedDomain(model.initUrl),
+      landing: OpenerLanding.none,
     );
     switch (step) {
       case NavigationStep.drop:
@@ -1035,6 +1041,32 @@ class LinkController {
     if (!_host.mounted || model.activeTabId != opener) return;
     await _tabs.closeTab(model, tabId: signIn.id);
     await _loadInActiveTab(model, url: url);
+  }
+
+  /// NESTED-017: whether [owner]'s [tabId], which a nested screen was opened
+  /// over, can still load a link the screen hands back: the tab is open and
+  /// the site has a webview to load it in.
+  bool takesBack(WebViewModel owner, {required TabId tabId}) =>
+      _host.mounted &&
+      _sites.models.contains(owner) &&
+      owner.tabs.any((t) => t.id == tabId) &&
+      _host.controllerOf(owner) != null;
+
+  /// NESTED-017: a nested screen opened over [owner]'s [tabId] has closed
+  /// into it, and that tab, shown again if another took the slot, loads
+  /// [url], as a browser's window closes into the page that opened it.
+  Future<void> returnFromNested(WebViewModel owner,
+      {required TabId tabId, required String url}) async {
+    if (!_host.mounted || !_sites.models.contains(owner)) return;
+    if (owner.activeTabId != tabId) {
+      if (!owner.tabs.any((t) => t.id == tabId)) return;
+      await _tabs.openTab(owner, tabId: tabId);
+      if (!_host.mounted || owner.activeTabId != tabId) return;
+    }
+    LogTag.linkIntent.debug(
+        'nested screen over ${owner.siteId} returns $url to $tabId',
+        sensitive: true);
+    await _loadInActiveTab(owner, url: url);
   }
 
   Future<void> _loadInActiveTab(WebViewModel model, {required String url}) async {

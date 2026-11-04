@@ -67,9 +67,14 @@ class WebViewConfig {
   final Function(String url)? onUrlChanged;
   final Function(List<Cookie> cookies)? onCookiesChanged;
   final Function(int activeMatch, {required int totalMatches})? onFindResult;
-  final Function(String url,
+  /// Whether this webview loads [url]. [replayable] is false where loading
+  /// the URL again would not make the request asked (a form's submission, a
+  /// method other than GET), so a surface that would hand it to another
+  /// webview loads it itself (NESTED-016, NESTED-017).
+  final bool Function(String url,
       {required bool hasGesture,
-      required NavigationFrame frame})? shouldOverrideUrlLoading;
+      required NavigationFrame frame,
+      required bool replayable})? shouldOverrideUrlLoading;
   /// Fires when a main-frame navigation, the first load among them, was
   /// cancelled because the app could not establish that it would go through
   /// this site's proxy (LEAK-010), or because it named an onion service and

@@ -41,6 +41,7 @@ import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/web_extension_native.dart';
 import 'package:webspace/services/icon_link_watcher_shim.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
+import 'package:webspace/services/navigation_action_reading.dart';
 import 'package:webspace/services/opensearch_engine.dart';
 import 'package:webspace/services/search_link_watcher_shim.dart';
 import 'package:webspace/services/site_icon_engine.dart';
@@ -140,17 +141,6 @@ class WebViewFactory {
     final h = view.physicalSize.height / view.devicePixelRatio;
     if (w <= 0 || h <= 0) return (0, 0);
     return (math.min(w, h), math.max(w, h));
-  }
-
-  static bool _hasUserGesture(inapp.NavigationAction action) {
-    if (hostIsAndroid || hostIsLinux) {
-      return action.hasGesture ?? true;
-    }
-    if (hostIsIOS || hostIsMacOS) {
-      return action.navigationType == inapp.NavigationType.LINK_ACTIVATED ||
-             action.navigationType == inapp.NavigationType.FORM_SUBMITTED;
-    }
-    return true;
   }
 
   /// Whether a frame may not navigate to [url] at all: an `about:` page
@@ -1095,7 +1085,7 @@ class WebViewFactory {
             if (frame != NavigationFrame.top) {
               return inapp.NavigationActionPolicy.CANCEL;
             }
-            final hasGesture = _hasUserGesture(navigationAction);
+            final hasGesture = navigationAction.byUserGesture;
             // Loop guard (EXT-007): x.com re-fires its Safari bounce on
             // every page render — resolving it again would reload the
             // fallback forever. A script-driven re-fire inside the
@@ -1115,7 +1105,7 @@ class WebViewFactory {
             bool allow = true;
             if (config.shouldOverrideUrlLoading != null) {
               allow = config.shouldOverrideUrlLoading!(resolved,
-                  hasGesture: hasGesture, frame: frame);
+                  hasGesture: hasGesture, frame: frame, replayable: true);
             }
             if (allow && !refused(resolved)) {
               unawaited(controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved))));
@@ -1215,13 +1205,15 @@ class WebViewFactory {
         }
         navigationBoundary.onNavigation(url,
             frame: frame,
-            hasGesture: _hasUserGesture(navigationAction),
+            hasGesture: navigationAction.byUserGesture,
             isRedirect: navigationAction.isRedirect);
         if (config.shouldOverrideUrlLoading != null) {
-          final hasGesture = _hasUserGesture(navigationAction);
+          final hasGesture = navigationAction.byUserGesture;
           final allow =
               config.shouldOverrideUrlLoading!(url,
-                  hasGesture: hasGesture, frame: frame);
+                  hasGesture: hasGesture,
+                  frame: frame,
+                  replayable: navigationAction.replayable);
           if (!allow) return inapp.NavigationActionPolicy.CANCEL;
         }
         // Fail closed where the platform cannot be shown to put this request
@@ -1385,7 +1377,7 @@ class WebViewFactory {
               sensitive: true);
           final resolved = ExternalUrlParser.toWebUrl(externalInfo);
           if (resolved != null) {
-            final hasGesture = _hasUserGesture(createWindowAction);
+            final hasGesture = createWindowAction.byUserGesture;
             // Same loop guard as shouldOverrideUrlLoading (EXT-007).
             if (!hasGesture &&
                 ExternalUrlSuppressor.isSuppressedInfo(externalInfo)) {
@@ -1402,7 +1394,8 @@ class WebViewFactory {
             if (config.shouldOverrideUrlLoading != null) {
               allow = config.shouldOverrideUrlLoading!(resolved,
                   hasGesture: hasGesture,
-                  frame: NavigationFrame.top);
+                  frame: NavigationFrame.top,
+                  replayable: true);
             }
             // A window this webview did not ask for by gesture never loads
             // into it (NESTED-013); a real target="_blank" tap is rewritten
@@ -1423,10 +1416,12 @@ class WebViewFactory {
         // Script-initiated window.open() (analytics, Stripe) have no user
         // gesture and are silently blocked by the auto-redirect check.
         if (url.startsWith('http') && config.shouldOverrideUrlLoading != null) {
-          final hasGesture = _hasUserGesture(createWindowAction);
+          final hasGesture = createWindowAction.byUserGesture;
           final allow =
               config.shouldOverrideUrlLoading!(url,
-                  hasGesture: hasGesture, frame: NavigationFrame.top);
+                  hasGesture: hasGesture,
+                  frame: NavigationFrame.top,
+                  replayable: true);
           if (allow && hasGesture && !refused(url)) {
             // Same-domain target="_blank": load in current webview
             unawaited(controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(url))));
@@ -1801,7 +1796,9 @@ class WebViewFactory {
           unawaited(Future.microtask(() async {
             final bool allow = config.shouldOverrideUrlLoading
                     ?.call(resolved,
-                        hasGesture: false, frame: NavigationFrame.top) ??
+                        hasGesture: false,
+                        frame: NavigationFrame.top,
+                        replayable: true) ??
                 true;
             await view?.loadUrl(allow ? resolved : 'about:blank');
           }));

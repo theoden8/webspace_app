@@ -260,8 +260,10 @@ enum NavigationStep {
   /// It is dropped: no gesture, or a site in the background.
   drop,
 
-  /// A hosted or foreign tab's link back into its owner's domain opens as the
-  /// owner's child tab instead (S6 of the web search design).
+  /// It goes back to the site it belongs to instead: a hosted or foreign
+  /// tab's link into its owner's domain opens as the owner's child tab (S6 of
+  /// the web search design), and a surface that closes into what opened it
+  /// does so ([OpenerLanding]).
   returnToOwner,
 
   /// Routing gets it first (LIR-014, LIR-032); what routing leaves, the
@@ -269,28 +271,75 @@ enum NavigationStep {
   route,
 }
 
+/// Whether a navigation lands back in what opened the surface it is asked
+/// in, which the surface then closes into, tapped or not: the page that sends
+/// it there does so by itself.
+enum OpenerLanding {
+  /// It does not: the decision stands.
+  none,
+
+  /// A sign-in tab's hop into the site it signs in to (NESTED-016). A hop its
+  /// boundary keeps still loads in place, since the provider's sign-in hosts
+  /// may share the site's domain.
+  signIn,
+
+  /// A nested screen's hop into the domain of the tab it was opened over
+  /// (NESTED-017). Nothing keeps it in place: that tab is where the site's
+  /// pages load.
+  nested,
+
+  /// Either, where it cannot be handed over: a form's submission, whose body
+  /// a load of its URL would drop, or a nested screen under another route,
+  /// which cannot close. It loads where it is, which runs as the site.
+  stays,
+}
+
 /// The engine is stateless. Gesture state lives on the caller as a
 /// mutable `DateTime?`; the engine reads it as an input and returns an
 /// optional update descriptor the caller applies after the call.
 class NavigationDecisionEngine {
   /// The step [decision] leads to. [returnsToOwner] is whether the URL is in
-  /// the owner's domain while the slot runs a hosted or foreign tab;
-  /// [signInReturn], whether a sign-in tab's hop lands back in the site it
-  /// signs in to, where the provider sends it with no tap (NESTED-016).
+  /// the owner's domain while the slot runs a hosted or foreign tab, which
+  /// returns on a tap only; [landing], whether it lands back in what opened
+  /// this surface. A site in the background returns nothing.
   static NavigationStep stepFor(
     NavigationDecision decision, {
     required bool returnsToOwner,
-    bool signInReturn = false,
+    required OpenerLanding landing,
   }) =>
-      switch (decision) {
-        NavigationDecision.allow => NavigationStep.loadHere,
-        NavigationDecision.blockSilent when signInReturn =>
+      switch ((decision, landing)) {
+        (NavigationDecision.blockSuppressed, _) => NavigationStep.drop,
+        (_, OpenerLanding.stays) => NavigationStep.loadHere,
+        (NavigationDecision.allow, OpenerLanding.nested) =>
           NavigationStep.returnToOwner,
-        NavigationDecision.blockSilent ||
-        NavigationDecision.blockSuppressed =>
+        (NavigationDecision.allow, _) => NavigationStep.loadHere,
+        (_, OpenerLanding.signIn || OpenerLanding.nested) =>
+          NavigationStep.returnToOwner,
+        (NavigationDecision.blockSilent, OpenerLanding.none) =>
           NavigationStep.drop,
-        _ when returnsToOwner || signInReturn => NavigationStep.returnToOwner,
-        _ => NavigationStep.route,
+        (_, OpenerLanding.none) when returnsToOwner =>
+          NavigationStep.returnToOwner,
+        (_, OpenerLanding.none) => NavigationStep.route,
+      };
+
+  /// Where a nested screen's navigation lands (NESTED-017): back in the tab
+  /// it was opened over when a top-frame navigation reaches that tab's
+  /// domain, [intoOpener]. A frame's own load, or one the platform only
+  /// guessed was the page's, is not the screen leaving. It is handed over
+  /// only when it can be loaded again as it was asked ([replayable]) and the
+  /// screen is the route on top, which can close ([onTop]).
+  static OpenerLanding nestedLanding({
+    required bool intoOpener,
+    required NavigationFrame frame,
+    required bool replayable,
+    required bool onTop,
+  }) =>
+      switch ((intoOpener, frame)) {
+        (true, NavigationFrame.top) =>
+          replayable && onTop ? OpenerLanding.nested : OpenerLanding.stays,
+        (true, NavigationFrame.sub || NavigationFrame.unverified) ||
+        (false, _) =>
+          OpenerLanding.none,
       };
 
   /// Where [mainFrameInferred], a reported main frame is a guess (the Linux
