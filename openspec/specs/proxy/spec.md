@@ -1965,6 +1965,28 @@ than drop it. A relay that stops answering then says when. Lineage:
 - **THEN** router mode is down for the run and a proxied site shows the block
 - **AND** the rule is not taken off the relay
 
+### Requirement: PROXY-034 - A change of the app-wide proxy reaches the relay before any webview is rebuilt
+
+The app-wide proxy SHALL change only through its save. A value read from it
+or handed to it SHALL NOT stay tied to the stored one, so an edit of the
+settings form before a save moves nothing, and the save that follows sees
+the change it applies: its route refresh and its webview reset run.
+
+In router mode (PROXY-013), a change of the app-wide proxy SHALL have the
+relay take the routes it implies before the loaded webviews are let go, so
+a webview rebuilt for the change presents a credential the relay already
+routes, rather than one it answers as unknown.
+
+#### Scenario: The app-wide proxy is switched back while its routes were dropped
+
+- **GIVEN** router mode runs and the app-wide proxy is Tor, which nothing
+  answers, so every site following it has no route
+- **WHEN** the user picks no proxy and the setting saves
+- **THEN** the save reports a change, and the relay takes a direct route for
+  each site following the app-wide proxy
+- **AND** only then are the loaded webviews let go, so none is rebuilt while
+  the relay still answers its credential as unknown
+
 ## Data Model
 
 ### ProxyType Enum

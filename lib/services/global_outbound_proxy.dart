@@ -33,9 +33,15 @@ class GlobalOutboundProxy {
   /// Before [initialize] there is no answer: DEFAULT would send a download
   /// direct past the proxy the user set (LEAK-004), so a read then is an
   /// error rather than a guess.
+  ///
+  /// A copy: the app-wide proxy changes only through [update]. A reader that
+  /// edited the stored value in place (the settings form did) moved the proxy
+  /// with no save, so the save that followed saw nothing to apply (PROXY-034).
   static UserProxySettings get current =>
-      _current ??
-      (throw StateError('the app-wide proxy was read before it loaded (LEAK-004)'));
+      (_current ??
+              (throw StateError(
+                  'the app-wide proxy was read before it loaded (LEAK-004)')))
+          .copy();
 
   /// Secure-storage handle for the password component. Tests may override.
   static ProxyPasswordSecureStorage _passwordStore =
@@ -71,7 +77,7 @@ class GlobalOutboundProxy {
 
   /// Update both the in-memory cache and the persisted value.
   static Future<void> update(UserProxySettings settings) async {
-    _current = settings;
+    _current = settings.copy();
     // toJson carries no password: that goes to secure storage below.
     await AppPref.globalOutboundProxy.set(jsonEncode(settings.toJson()));
     await _passwordStore.savePassword(
@@ -90,7 +96,7 @@ class GlobalOutboundProxy {
   /// A value with nothing persisted behind it: a test's, or the design
   /// gallery's, which loads no storage.
   static void setInMemory(UserProxySettings settings) {
-    _current = settings;
+    _current = settings.copy();
   }
 }
 

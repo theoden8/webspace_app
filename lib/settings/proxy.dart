@@ -79,6 +79,13 @@ class UserProxySettings {
     this.leavesBy = const SystemRouting(),
   });
 
+  /// An independent value equal to this one, so a holder that hands its
+  /// settings out keeps its own: through the serializers, so a field they
+  /// carry cannot be left out, and the password beside them, which they
+  /// never carry (PWD-005).
+  UserProxySettings copy() =>
+      UserProxySettings.fromJson(toJson())..password = password;
+
   /// Which route these settings name, for telling two apart (PROXY-008).
   ///
   /// DEFAULT is "no proxy" whatever stale fields it kept from an earlier

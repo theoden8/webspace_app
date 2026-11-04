@@ -1017,7 +1017,8 @@ class _WebSpacePageState extends State<WebSpacePage>
             unawaited(_shell.saveGlobalUserScripts());
             _resets.resetAll();
           },
-          onOutboundProxyChanged: () { unawaited(_network.refreshRoutes()); _resets.resetAll(); },
+          onOutboundProxyChanged: () =>
+              unawaited(_network.appProxyChanged(letGo: _resets.resetAll)),
           siteProxies: () => [
             for (final m in _sites.models) m.proxySettings,
           ],

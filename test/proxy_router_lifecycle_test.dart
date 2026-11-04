@@ -122,6 +122,32 @@ void main() {
       }
     });
 
+    test('PROXY-034: a change of the app-wide proxy lets the webviews go only '
+        'once the relay routes it', () async {
+      // A site with no proxy of its own follows the app-wide one (PROXY-009).
+      final follows = WebViewModel(initUrl: 'https://two.test');
+      final (sites: _, :network) = page([
+        WebViewModel(initUrl: 'https://one.test', proxySettings: http('10.0.0.1:8080')),
+        follows,
+      ]);
+      await network.activateRouter(launch: launch);
+      String? hostOf(Map<String, Map<String, Object?>> table) => [
+            for (final route in table.values)
+              if (route['siteId'] == follows.siteId) route['host'] as String?,
+          ].single;
+      expect(hostOf(relay.installed), '');
+
+      GlobalOutboundProxy.setInMemory(http('10.9.9.9:3128'));
+      String? routedAtLetGo;
+      await network.appProxyChanged(
+        letGo: () => routedAtLetGo = hostOf(relay.installed),
+      );
+      expect(routedAtLetGo, '10.9.9.9',
+          reason: 'a webview rebuilt before the relay took the new route '
+              'presents a credential it does not route (the device log, '
+              '"rejecting connection bearing an unknown proxy credential")');
+    });
+
     test('a route refresh before the launch has decided leaves the start to '
         'it (PROXY-015)', () async {
       // The restore's own commit refreshes the routes before the launch

@@ -5,7 +5,9 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
+import 'package:webspace/settings/network_interface.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/proxy_ids.dart';
 
 import 'helpers/mock_secure_storage.dart';
 import 'helpers/fake_outbound.dart';
@@ -182,6 +184,39 @@ void main() {
       expect(GlobalOutboundProxy.current.address, '192.168.1.10:8080');
       expect(GlobalOutboundProxy.current.username, 'alice');
       expect(GlobalOutboundProxy.current.password, 'secret');
+    });
+
+    test('PROXY-034: the app-wide proxy moves only through update: neither '
+        'the value saved nor a value read is the stored one', () async {
+      SharedPreferences.setMockInitialValues({});
+      await GlobalOutboundProxy.initialize();
+      final saved = UserProxySettings(type: ProxyType.TOR);
+      await GlobalOutboundProxy.update(saved);
+
+      // The settings form kept what it saved and edited it as the user
+      // picked another type, which moved the stored proxy with no save.
+      saved.type = ProxyType.DEFAULT;
+      expect(GlobalOutboundProxy.current.type, ProxyType.TOR);
+      GlobalOutboundProxy.current.type = ProxyType.DEFAULT;
+      expect(GlobalOutboundProxy.current.type, ProxyType.TOR);
+    });
+
+    test('a copy carries every field, the password included', () {
+      final full = UserProxySettings(
+        type: ProxyType.SOCKS5,
+        address: '10.0.0.1:1080',
+        username: 'u',
+        password: 'p',
+        torExitCountry: 'de',
+        savedProxyId: SavedProxyId('saved-1'),
+        gatewayId: GatewayId('gw-1'),
+        credentialsId: CredentialsId('cred-1'),
+        leavesBy: NamedInterface(InterfaceName.parse('tun0')!),
+      );
+      final copy = full.copy();
+      expect(identical(copy, full), isFalse);
+      expect(copy.toJson(), full.toJson());
+      expect(copy.password, 'p');
     });
 
     test('password is stored in secure storage, not SharedPreferences', () async {
