@@ -1029,10 +1029,11 @@ jobs:
 
   # The bridge transports the Apple app builds in (go/iptproxy): lyrebird's
   # obfs4 over go/hiddenkey against lyrebird as released, which is what a
-  # bridge runs (TOR-016), and the licence gate over their sources
-  # (LICENSE-001). Linux, minutes: the Apple job builds the framework itself.
+  # bridge runs (TOR-016), meek_lite's round tripper (go/meekutls), and the
+  # licence gate over their sources (LICENSE-001). Linux, minutes: the Apple
+  # job builds the framework itself.
   bridge-transports:
-    name: Bridge transports (obfs4 interop, licences)
+    name: Bridge transports (obfs4 interop, meekutls, licences)
     runs-on: ubuntu-latest
     needs: plan
     if: needs.plan.outputs.apple == 'true'
@@ -1051,6 +1052,9 @@ jobs:
         run: |
           ./fetch-monocypher.sh
           go test ./...
+      - name: Test meekutls
+        working-directory: go/meekutls
+        run: go test -count=1 -race ./...
       - name: Fetch and patch the transports, check their licences (LICENSE-001)
         run: sh go/iptproxy/build.sh check
       - name: Build lyrebird as released, the test's server

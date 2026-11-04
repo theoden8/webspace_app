@@ -1077,8 +1077,7 @@ class TorControllerPlugin: NSObject {
   ///
   /// 0 on every failure path, which is Dart's "no transport": the engine
   /// then keeps tor off rather than letting it bootstrap without the bridges
-  /// the user turned on (TOR-016). meek_lite answers 0 too, since
-  /// go/iptproxy/build.sh builds IPtProxy without it.
+  /// the user turned on (TOR-016).
   ///
   /// With [restart], a running transport is stopped first, so it comes back
   /// on a fresh listener: the old one was a loopback TCP socket, which a

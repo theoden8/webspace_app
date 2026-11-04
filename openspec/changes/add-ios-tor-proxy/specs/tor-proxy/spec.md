@@ -926,11 +926,11 @@ SHALL let the user configure pluggable transports: obfs4, snowflake,
 meek_lite, webtunnel and dnstt, each run by a transport program the platform
 has. On Linux that is one on the machine (TOR-027). On iOS and macOS it is
 IPtProxy, built from pinned sources by `go/iptproxy/build.sh` with no GPL code
-in it (LICENSE-001): its obfs4 takes its Elligator 2 key hiding from
-`go/hiddenkey`, and it runs obfs4, webtunnel, snowflake and dnstt but not
-meek_lite, so there a meek_lite bridge keeps Tor from starting. The obfs4
-client SHALL complete its handshake with lyrebird as the Tor Project releases
-it, the server a bridge runs, for any representative it sends.
+in it (LICENSE-001), which runs all five: its obfs4 takes its Elligator 2 key
+hiding from `go/hiddenkey`, and its meek_lite its uTLS round tripper from
+`go/meekutls`. The obfs4 client SHALL complete its handshake with lyrebird as
+the Tor Project releases it, the server a bridge runs, for any representative
+it sends.
 
 The configuration applied at start SHALL be the persisted one, read by
 the engine itself rather than pushed in by a caller. Bridges are kept in

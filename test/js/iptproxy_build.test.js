@@ -1,8 +1,9 @@
 // LICENSE-001 and TOR-016 gate over go/iptproxy, the build of the bridge
-// transports the Apple app links. lyrebird's two GPL parts are deleted before
-// anything reads its tree and nothing brings them back, meek_lite is not
-// registered, every source is pinned by commit and SHA-256, and CI builds
-// and checks what the Podfiles link.
+// transports the Apple app links. lyrebird's GPL parts are deleted before
+// anything reads its tree and nothing brings them back, meek_lite stays
+// registered with go/meekutls's round tripper in its GPL file's place, every
+// source is pinned by commit and SHA-256, and CI builds and checks what the
+// Podfiles link.
 //
 // Rung 5: a shell script and a patch have no type, and the build runs only on
 // a macOS runner. What Go actually compiles is held by `build.sh check`
@@ -18,8 +19,11 @@ const PATCH = 'go/iptproxy/iptproxy.patch';
 const ACTION = '.github/actions/apple-toolchain/action.yml';
 const WORKFLOW = '.github/workflows/build-and-test.yml';
 const PODFILES = ['ios/Podfile', 'macos/Podfile'];
+const MEEKUTLS = 'go/meekutls/meekutls.go';
 const SOURCES = ['IPTPROXY', 'LYREBIRD', 'DNSTT'];
-const GPL = ['internal/x25519ell2', 'transports/meeklite'];
+// What of lyrebird is GPL, and the packages among them.
+const GPL = ['internal/x25519ell2', 'transports/meeklite/transport.go', 'LICENSE-GPL3.txt'];
+const GPL_PACKAGES = ['lyrebird/internal/x25519ell2'];
 const MODULE = 'gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird';
 
 /** The body of shell function `name`, from its header to the closing brace. */
@@ -36,7 +40,7 @@ const joined = (sh) => sh.replace(/\\\n\s*/g, ' ');
 /** The single-quoted value the script assigns to `name`, or ''. */
 const quoted = (sh, name) => sh.match(new RegExp(`^${name}='([^']*)'$`, 'm'))?.[1] ?? '';
 
-function buildProblems(sh) {
+function buildProblems(sh, meekutls = read(MEEKUTLS)) {
   const out = [];
   const one = joined(sh);
   for (const s of SOURCES) {
@@ -58,7 +62,25 @@ function buildProblems(sh) {
   const packages = quoted(sh, 'GPL_PACKAGES').split('|');
   for (const p of GPL) {
     if (!paths.includes(p)) out.push(`GPL_PATHS leaves ${p} in the tree`);
-    if (!packages.includes(`lyrebird/${p}`)) out.push(`GPL_PACKAGES does not refuse lyrebird/${p}`);
+  }
+  for (const p of GPL_PACKAGES) {
+    if (!packages.includes(p)) out.push(`GPL_PACKAGES does not refuse ${p}`);
+  }
+  if (paths.includes('transports/meeklite') || packages.includes('lyrebird/transports/meeklite')) {
+    out.push('all of meek_lite is deleted, where only transport.go is GPL');
+  }
+
+  // meek_lite: go/meekutls's file in transport.go's place, which check holds
+  // the tree and the framework to.
+  const placed = sh.match(/^MEEKUTLS=(\S+)$/m)?.[1];
+  const symbol = quoted(sh, 'MEEKUTLS_SYMBOL');
+  if (placed !== 'transports/meeklite/meekutls.go') out.push('go/meekutls/meekutls.go is not put in meeklite');
+  const method = symbol.match(/^lyrebird\/transports\/meeklite\.\(\*(\w+)\)\.(\w+)$/);
+  if (!method || !meekutls.includes(`\nfunc (rt *${method[1]}) ${method[2]}(`)) {
+    out.push(`MEEKUTLS_SYMBOL ${symbol} names no method ${MEEKUTLS} declares`);
+  }
+  if (!/^package meeklite$/m.test(meekutls) || !/\nfunc newRoundTripper\(/.test(meekutls)) {
+    out.push(`${MEEKUTLS} does not declare meeklite's newRoundTripper, which meek.go calls`);
   }
   const prepare = fn(sh, 'prepare');
   const deletion = prepare.search(/for p in \$GPL_PATHS; do[^]*?rm -rf "\$\{src:\?\}\/lyrebird\/\$p"/);
@@ -73,10 +95,27 @@ function buildProblems(sh) {
   if (!/grep -rliE "\$GPL_TEXT" "\$src"/.test(prepare.slice(patch))) {
     out.push('prepare does not refuse a tree with a file naming a GNU licence');
   }
+  const copy = prepare.indexOf('cp "$meekutls/meekutls.go" "$src/lyrebird/$MEEKUTLS"');
+  if (copy < 0 || (deletion >= 0 && copy < deletion) || copy > patch) {
+    out.push('prepare does not put go/meekutls/meekutls.go in meeklite after the deletion');
+  }
 
   const check = fn(sh, 'check');
   if (!/grep -E "\$GPL_PACKAGES"/.test(check)) out.push('check does not refuse a compiled GPL package');
   if (!/grep -qE "\$GPL_PACKAGES" "\$bin"/.test(check)) out.push('check does not scan the built framework');
+  if (!/grep -qF "\$MEEKUTLS_SYMBOL" "\$bin"/.test(check)) out.push('check does not look for go/meekutls in the framework');
+  if (!/\[ ! -e "\$meek\/transport\.go" \][^\n]*\n[^\n]*die "lyrebird's GPL transport\.go/.test(check)) {
+    out.push('check does not refuse a meek_lite with lyrebird\'s transport.go');
+  }
+  if (!/grep -q "\/\$MEEKUTLS\\\$" "\$work\/files\.compiled" \|\|/.test(check)) {
+    out.push('check does not refuse a meek_lite built without go/meekutls');
+  }
+  if (!/cmp -s "\$meekutls\/meekutls\.go" "\$src\/lyrebird\/\$MEEKUTLS" \|\|/.test(check)) {
+    out.push('check does not hold the tree\'s meekutls.go to go/meekutls\'s');
+  }
+  if (!/for dir in "\$meekutls" "\$here\/interop"; do/.test(check)) {
+    out.push('check does not hold go/meekutls and interop/ to the framework\'s module versions');
+  }
   const targets = quoted(sh, 'TARGETS').split(/\s+/);
   for (const t of ['ios/arm64/ios', 'ios/amd64/ios', 'darwin/arm64/macos', 'darwin/amd64/macos']) {
     if (!targets.includes(t)) out.push(`check does not list ${t}`);
@@ -119,12 +158,11 @@ function patchProblems(diff) {
       || !has('lyrebird/common/ntor/ntor.go', 'added', /^\tx25519ell2 "webspace\.local\/hiddenkey"$/)) {
     out.push('the ntor handshake does not import hiddenkey in place of x25519ell2');
   }
-  if (!has('lyrebird/transports/transports.go', 'removed', /^\t\tnew\(meeklite\.Transport\),$/)
-      || !has('lyrebird/transports/transports.go', 'removed', new RegExp(`"${MODULE}/transports/meeklite"`))) {
-    out.push('meeklite is still registered in lyrebird');
+  if (has('lyrebird/transports/transports.go', 'removed', /meeklite/)) {
+    out.push('the patch takes meek_lite out of lyrebird\'s registry');
   }
-  if (!has('IPtProxy.go/controller.go', 'removed', /^\tMeekLite = "meek_lite"$/)) {
-    out.push('IPtProxy still names MeekLite');
+  if (has('IPtProxy.go/controller.go', 'removed', /MeekLite/)) {
+    out.push('the patch takes MeekLite out of IPtProxy');
   }
   for (const [module, dir] of [[MODULE, '../lyrebird'], ['webspace.local/hiddenkey', '../hiddenkey']]) {
     if (!has('IPtProxy.go/go.mod', 'added', new RegExp(`^replace ${module.replace(/\./g, '\\.')} => ${dir.replace(/\./g, '\\.')}$`))) {
@@ -133,7 +171,7 @@ function patchProblems(diff) {
   }
   for (const [path, { added }] of Object.entries(files)) {
     for (const line of added) {
-      if (/x25519ell2"|meeklite|MeekLite|meek_lite/.test(line)) out.push(`${path} adds ${line.trim()}`);
+      if (/x25519ell2"/.test(line)) out.push(`${path} adds ${line.trim()}`);
     }
   }
   return out;
@@ -141,8 +179,8 @@ function patchProblems(diff) {
 
 /** The repo paths the shell function `inputs` hashes. */
 function buildInputs(sh) {
-  return [...joined(fn(sh, 'inputs')).matchAll(/"\$(here|hiddenkey)\/([^"]+)"/g)]
-    .map(([, dir, file]) => `go/${dir === 'here' ? 'iptproxy' : 'hiddenkey'}/${file}`)
+  return [...joined(fn(sh, 'inputs')).matchAll(/"\$(here|hiddenkey|meekutls)\/([^"]+)"/g)]
+    .map(([, dir, file]) => `go/${dir === 'here' ? 'iptproxy' : dir}/${file}`)
     .sort();
 }
 
@@ -165,9 +203,13 @@ function ciProblems({ sh, action, workflow, podfiles }) {
   for (const step of ['sh go/iptproxy/build.sh check', 'sh go/iptproxy/build.sh upstream', 'go test -count=1']) {
     if (!body.includes(step)) out.push(`the bridge-transports job does not run ${step}`);
   }
+  if (!/working-directory: go\/meekutls\n\s+run: go test /.test(body)) {
+    out.push('the bridge-transports job does not test go/meekutls');
+  }
   if (!/LYREBIRD_UPSTREAM: .*\/go\/iptproxy\/build\/bin\/lyrebird-upstream\n/.test(body)) {
     out.push('the interop test is not given the upstream server');
   }
+
   for (const [rel, podfile] of Object.entries(podfiles)) {
     if (!/^ {2}pod 'IPtProxy', :path => '\.\.\/go\/iptproxy'$/m.test(podfile)) out.push(`${rel} does not link go/iptproxy`);
     if (/pod 'IPtProxy', '/.test(podfile)) out.push(`${rel} takes IPtProxy from trunk, whose framework is GPL`);
@@ -190,7 +232,7 @@ test('LICENSE-001 lyrebird\'s GPL parts are deleted before anything reads its tr
   assert.deepEqual(buildProblems(sh), []);
 });
 
-test('LICENSE-001 the patch takes the handshake to hiddenkey and meek out (TOR-016)', () => {
+test('LICENSE-001 the patch takes the handshake to hiddenkey and leaves meek_lite in (TOR-016)', () => {
   assert.deepEqual(patchProblems(diff), []);
 });
 
@@ -222,8 +264,17 @@ test('each rule catches the mistake it is for', () => {
   };
   const caught = (problems, what) => assert.ok(problems.length > 0, `${what} went uncaught`);
 
-  caught(buildProblems(swap(sh, ' transports/meeklite ', ' ')), 'meeklite kept');
-  caught(buildProblems(swap(sh, "|lyrebird/transports/meeklite'", "'")), 'meeklite compiled unrefused');
+  caught(buildProblems(swap(sh, ' transports/meeklite/transport.go ', ' ')), 'transport.go kept');
+  caught(buildProblems(swap(sh, ' transports/meeklite/transport.go ', ' transports/meeklite ')), 'all of meek_lite deleted');
+  caught(buildProblems(swap(sh, "GPL_PACKAGES='lyrebird/internal/x25519ell2'", "GPL_PACKAGES=''")), 'x25519ell2 compiled unrefused');
+  caught(buildProblems(swap(sh, '\tcp "$meekutls/meekutls.go" "$src/lyrebird/$MEEKUTLS"\n', '')), 'meekutls.go not copied');
+  caught(buildProblems(swap(sh, '(*meekutlsRoundTripper).RoundTrip', '(*roundTripper).RoundTrip')), 'a symbol meekutls.go lacks');
+  caught(buildProblems(sh, read(MEEKUTLS).replace('func newRoundTripper(', 'func newUTLSRoundTripper(')),
+    'meekutls.go without what meek.go calls');
+  caught(buildProblems(swap(sh, 'grep -qF "$MEEKUTLS_SYMBOL" "$bin"', 'true')), 'a framework without meekutls');
+  caught(buildProblems(swap(sh, '[ ! -e "$meek/transport.go" ] && ', '')), 'transport.go in the tree unrefused');
+  caught(buildProblems(swap(sh, 'for dir in "$meekutls" "$here/interop"; do', 'for dir in "$meekutls"; do')),
+    'interop on other versions');
   caught(buildProblems(sh.replace(/^LYREBIRD_SHA256=\S+$/m, 'LYREBIRD_SHA256=')), 'an unpinned lyrebird');
   caught(buildProblems(sh.replace(/^DNSTT_COMMIT=\S+$/m, 'DNSTT_COMMIT=master')), 'dnstt by branch');
   caught(buildProblems(swap(sh, '"$DNSTT_COMMIT" "$DNSTT_SHA256"', '"$DNSTT_COMMIT" ""')), 'dnstt fetched unchecked');
@@ -236,15 +287,19 @@ test('each rule catches the mistake it is for', () => {
   caught(buildProblems(swap(sh, prepare, prepare.replace('\tpatch -d', '\t(cd "$src/IPtProxy.go" && go list ./...)\n\tpatch -d'))),
     'go before the checks');
 
-  caught(patchProblems(swap(diff, '-\t\tnew(meeklite.Transport),\n', ' \t\tnew(meeklite.Transport),\n')),
-    'meek still registered');
+  caught(patchProblems(`${diff}--- a/lyrebird/transports/transports.go\n+++ b/lyrebird/transports/transports.go\n`
+    + '@@ -91,1 +90,0 @@\n-\t\tnew(meeklite.Transport),\n'), 'meek taken out of the registry');
   caught(patchProblems(swap(diff, '+\tx25519ell2 "webspace.local/hiddenkey"\n', '')), 'no hiddenkey import');
-  caught(patchProblems(`${diff}+\t"${MODULE}/transports/meeklite"\n`), 'meeklite added back');
-  caught(patchProblems(swap(diff, '-\tMeekLite = "meek_lite"\n', ' \tMeekLite = "meek_lite"\n')), 'MeekLite kept');
+  caught(patchProblems(`${diff}+\t"${MODULE}/internal/x25519ell2"\n`), 'x25519ell2 added back');
+  caught(patchProblems(`${diff}--- a/IPtProxy.go/controller.go\n+++ b/IPtProxy.go/controller.go\n`
+    + '@@ -101,1 +100,0 @@\n-\tMeekLite = "meek_lite"\n'), 'MeekLite dropped');
 
   caught(ciProblems({ ...ci, action: swap(ci.action, "'go/iptproxy/iptproxy.patch', ", '') }), 'a cache key short of an input');
   caught(ciProblems({ ...ci, action: swap(ci.action, 'run: |\n        sh go/iptproxy/build.sh check', 'run: |\n        true') }),
     'no check after the build');
+  caught(ciProblems({ ...ci, action: swap(ci.action, ", 'go/meekutls/meekutls.go'", '') }), 'a cache key without meekutls.go');
+  caught(ciProblems({ ...ci, workflow: swap(ci.workflow, 'working-directory: go/meekutls\n', 'working-directory: go/hiddenkey\n') }),
+    'meekutls untested');
   caught(ciProblems({ ...ci, podfiles: { ...ci.podfiles, 'ios/Podfile': swap(ci.podfiles['ios/Podfile'],
     "pod 'IPtProxy', :path => '../go/iptproxy'", "pod 'IPtProxy', '5.5.1'") } }), 'the trunk pod');
 });

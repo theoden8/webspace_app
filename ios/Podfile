@@ -82,9 +82,9 @@ target 'Runner' do
   # SOCKS5 auth, so Android could not do per-site circuit isolation and
   # keeps its manual Orbot row instead.
   pod 'Tor', '409.11.2'
-  # Pluggable transports for bridges (TOR-016): obfs4, webtunnel, snowflake
-  # and dnstt, built from IPtProxy's source with nothing GPL in it
-  # (LICENSE-001); meek_lite is not built in. Its pins live in build.sh.
+  # Pluggable transports for bridges (TOR-016): obfs4, meek_lite, webtunnel,
+  # snowflake and dnstt, built from IPtProxy's source with nothing GPL in it
+  # (LICENSE-001). Its pins live in build.sh.
   pod 'IPtProxy', :path => '../go/iptproxy'
 
   target 'RunnerTests' do
