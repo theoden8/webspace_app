@@ -109,15 +109,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
   void initState() {
     super.initState();
     final current = GlobalOutboundProxy.current;
-    _outboundProxy = UserProxySettings(
-      type: current.type,
-      address: current.address,
-      username: current.username,
-      password: current.password,
-      savedProxyId: current.savedProxyId,
-      gatewayId: current.gatewayId,
-      credentialsId: current.credentialsId,
-    );
+    _outboundProxy = current;
     _outboundProxyAddressController.text = current.address ?? '';
     _outboundProxyUsernameController.text = current.username ?? '';
     _outboundProxyPasswordController.text = current.password ?? '';
@@ -292,21 +284,22 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
                 torExternal: TorService.instance.isExternal,
                 onChanged: (choice) {
                   setState(() {
-                    _outboundProxy.type = choice.type;
-                    if (choice.type == ProxyType.SAVED) {
-                      _outboundProxy.savedProxyId = choice.savedProxyId;
-                    }
-                    if (choice.type == ProxyType.GATEWAY) {
-                      _outboundProxy.gatewayId = choice.gatewayId;
-                    }
+                    final picked = _outboundProxy.copyWith(
+                      type: choice.type,
+                      savedProxyId: choice.type == ProxyType.SAVED
+                          ? (choice.savedProxyId,)
+                          : null,
+                      gatewayId: choice.type == ProxyType.GATEWAY
+                          ? (choice.gatewayId,)
+                          : null,
+                    );
                     // Saved credentials stay only with a gateway they list.
-                    final credentials = ProxyLibrary.credentialsById(
-                        _outboundProxy.credentialsId);
-                    if (choice.type != ProxyType.GATEWAY ||
-                        !(credentials?.fits(_outboundProxy.gatewayId) ??
-                            false)) {
-                      _outboundProxy.credentialsId = null;
-                    }
+                    final credentials =
+                        ProxyLibrary.credentialsById(picked.credentialsId);
+                    _outboundProxy = choice.type != ProxyType.GATEWAY ||
+                            !(credentials?.fits(picked.gatewayId) ?? false)
+                        ? picked.copyWith(credentialsId: (null,))
+                        : picked;
                   });
                   unawaited(_saveOutboundProxy());
                 },
@@ -342,7 +335,8 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
                 addressHint: loc.appSettingsProxyAddressHint,
                 addressHelper: loc.appSettingsProxyAddressHelper,
                 onCredentialsChanged: (id) {
-                  setState(() => _outboundProxy.credentialsId = id);
+                  setState(() => _outboundProxy =
+                      _outboundProxy.copyWith(credentialsId: (id,)));
                   unawaited(_saveOutboundProxy());
                 },
                 onEditingComplete: _saveOutboundProxy,

@@ -195,7 +195,7 @@ void main() {
     });
 
     test('a reference keeps no leftover manual address', () {
-      final s = _gateway(GatewayId('gone'))..address = '9.9.9.9:1080';
+      final s = _gateway(GatewayId('gone')).copyWith(address: ('9.9.9.9:1080',));
       expect(OutboundProxy.ofApp(s).resolved.address, isNull);
     });
   });

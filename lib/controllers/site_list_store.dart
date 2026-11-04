@@ -106,7 +106,7 @@ class SiteListStore {
       }
       final pwd = secureProxyPasswords[ProxyPasswordKey.site(m.siteId)];
       if (pwd != null && pwd.isNotEmpty) {
-        m.proxySettings.password = pwd;
+        m.proxySettings = m.proxySettings.copyWith(password: (pwd,));
         hydratedCount++;
       }
     }

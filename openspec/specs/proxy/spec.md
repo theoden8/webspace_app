@@ -1967,10 +1967,13 @@ than drop it. A relay that stops answering then says when. Lineage:
 
 ### Requirement: PROXY-034 - A change of the app-wide proxy reaches the relay before any webview is rebuilt
 
-The app-wide proxy SHALL change only through its save. A value read from it
-or handed to it SHALL NOT stay tied to the stored one, so an edit of the
-settings form before a save moves nothing, and the save that follows sees
-the change it applies: its route refresh and its webview reset run.
+A proxy setting SHALL be a value: no holder of one (the app-wide proxy, a
+site, a saved proxy, a settings form) can have it changed under it, so the
+app-wide proxy and a site's proxy change only through their saves. An edit
+of a settings form before a save moves nothing, and the save that follows
+sees the change it applies: its route refresh and its webview reset run.
+Every field of `UserProxySettings` is final, so a write in place does not
+compile, and a change is a new value made by `copyWith`.
 
 In router mode (PROXY-013), a change of the app-wide proxy SHALL have the
 relay take the routes it implies before the loaded webviews are let go, so

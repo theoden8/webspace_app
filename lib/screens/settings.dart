@@ -413,18 +413,9 @@ class _SettingsScreenState extends State<SettingsScreen>
   /// Mirror [widget.webViewModel] into the form state.
   void _loadFromModel() {
     final m = widget.webViewModel;
-    final p = PlatformInfo.isProxySupported ? m.proxySettings : null;
-    _proxySettings = UserProxySettings(
-      type: p?.type ?? ProxyType.DEFAULT,
-      address: p?.address,
-      username: p?.username,
-      password: p?.password,
-      torExitCountry: p?.torExitCountry,
-      savedProxyId: p?.savedProxyId,
-      gatewayId: p?.gatewayId,
-      credentialsId: p?.credentialsId,
-      leavesBy: p?.leavesBy ?? const SystemRouting(),
-    );
+    _proxySettings = PlatformInfo.isProxySupported
+        ? m.proxySettings
+        : UserProxySettings(type: ProxyType.DEFAULT);
     // effectiveUserAgent so a preset site's field shows the string the
     // webview actually sends (current version), not the stored snapshot.
     // Empty means "no override": the webview default shows as a hint, never
@@ -1015,12 +1006,14 @@ class _SettingsScreenState extends State<SettingsScreen>
         trackingProtectionEnabled: _trackingProtectionEnabled,
         appProxySet: GlobalOutboundProxy.current.type != ProxyType.DEFAULT,
         onChanged: (values) => setState(() {
-          _proxySettings.type = values.proxyType;
-          _proxySettings.torExitCountry = values.torExitCountry;
-          _proxySettings.savedProxyId = values.savedProxyId;
-          _proxySettings.gatewayId = values.gatewayId;
-          _proxySettings.credentialsId = values.credentialsId;
-          _proxySettings.leavesBy = values.leavesBy;
+          _proxySettings = _proxySettings.copyWith(
+            type: values.proxyType,
+            torExitCountry: (values.torExitCountry,),
+            savedProxyId: (values.savedProxyId,),
+            gatewayId: (values.gatewayId,),
+            credentialsId: (values.credentialsId,),
+            leavesBy: values.leavesBy,
+          );
           _webRtcPolicy = values.webRtcPolicy;
         }),
       ));

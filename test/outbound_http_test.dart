@@ -186,22 +186,8 @@ void main() {
       expect(GlobalOutboundProxy.current.password, 'secret');
     });
 
-    test('PROXY-034: the app-wide proxy moves only through update: neither '
-        'the value saved nor a value read is the stored one', () async {
-      SharedPreferences.setMockInitialValues({});
-      await GlobalOutboundProxy.initialize();
-      final saved = UserProxySettings(type: ProxyType.TOR);
-      await GlobalOutboundProxy.update(saved);
-
-      // The settings form kept what it saved and edited it as the user
-      // picked another type, which moved the stored proxy with no save.
-      saved.type = ProxyType.DEFAULT;
-      expect(GlobalOutboundProxy.current.type, ProxyType.TOR);
-      GlobalOutboundProxy.current.type = ProxyType.DEFAULT;
-      expect(GlobalOutboundProxy.current.type, ProxyType.TOR);
-    });
-
-    test('a copy carries every field, the password included', () {
+    test('copyWith carries every field it is not given, the password '
+        'included, and clears a field given as null', () {
       final full = UserProxySettings(
         type: ProxyType.SOCKS5,
         address: '10.0.0.1:1080',
@@ -213,10 +199,13 @@ void main() {
         credentialsId: CredentialsId('cred-1'),
         leavesBy: NamedInterface(InterfaceName.parse('tun0')!),
       );
-      final copy = full.copy();
-      expect(identical(copy, full), isFalse);
-      expect(copy.toJson(), full.toJson());
-      expect(copy.password, 'p');
+      final same = full.copyWith();
+      expect(same.toJson(), full.toJson());
+      expect(same.password, 'p');
+      final cleared = full.copyWith(type: ProxyType.HTTP, credentialsId: (null,));
+      expect(cleared.type, ProxyType.HTTP);
+      expect(cleared.credentialsId, isNull);
+      expect(cleared.gatewayId, full.gatewayId);
     });
 
     test('password is stored in secure storage, not SharedPreferences', () async {

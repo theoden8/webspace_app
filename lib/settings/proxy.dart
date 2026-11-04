@@ -27,11 +27,14 @@ typedef ProxyRouteKey = ({
   String? password,
 });
 
+/// A proxy setting as a value: every field is final, so a holder that hands
+/// one out cannot have it changed under it, and a change is a new value made
+/// by [copyWith] (PROXY-034).
 class UserProxySettings {
-  ProxyType type;
-  String? address;
-  String? username;
-  String? password;
+  final ProxyType type;
+  final String? address;
+  final String? username;
+  final String? password;
 
   /// ISO 3166-1 alpha-2 country the site's Tor traffic must exit from, or
   /// null for no constraint. Meaningful only under [ProxyType.TOR].
@@ -46,26 +49,26 @@ class UserProxySettings {
   /// fails, never that it leaves from elsewhere. Because `ExitNodes` is a
   /// global tor option, two loaded sites pinned to different countries
   /// cannot coexist — see TOR-014.
-  String? torExitCountry;
+  final String? torExitCountry;
 
   /// The saved proxy this setting names. Meaningful only under
   /// [ProxyType.SAVED]; kept across a switch to another type for the same
   /// reason the manual fields are (PROXY-010).
-  SavedProxyId? savedProxyId;
+  final SavedProxyId? savedProxyId;
 
   /// The saved gateway this setting connects to. Meaningful only under
   /// [ProxyType.GATEWAY].
-  GatewayId? gatewayId;
+  final GatewayId? gatewayId;
 
   /// Saved credentials to sign in with instead of [username] and
   /// [password]. Only a saved gateway the credentials list can take them;
   /// any other pairing fails closed.
-  CredentialsId? credentialsId;
+  final CredentialsId? credentialsId;
 
   /// The interface the traffic leaves by (network-interface NETIF-001). Here
   /// for the reason [torExitCountry] is: every seam that takes the proxy
   /// takes it, the nested webview's among them.
-  InterfaceChoice leavesBy;
+  final InterfaceChoice leavesBy;
 
   UserProxySettings({
     required this.type,
@@ -79,12 +82,47 @@ class UserProxySettings {
     this.leavesBy = const SystemRouting(),
   });
 
-  /// An independent value equal to this one, so a holder that hands its
-  /// settings out keeps its own: through the serializers, so a field they
-  /// carry cannot be left out, and the password beside them, which they
-  /// never carry (PWD-005).
-  UserProxySettings copy() =>
-      UserProxySettings.fromJson(toJson())..password = password;
+  /// Every field, each required: a field added to the class does not
+  /// compile until [copyWith] carries it.
+  const UserProxySettings._all({
+    required this.type,
+    required this.address,
+    required this.username,
+    required this.password,
+    required this.torExitCountry,
+    required this.savedProxyId,
+    required this.gatewayId,
+    required this.credentialsId,
+    required this.leavesBy,
+  });
+
+  /// These settings with the given fields replaced. A nullable field comes
+  /// as a one-element record, so clearing it (`credentialsId: (null,)`) is
+  /// told apart from leaving it out.
+  UserProxySettings copyWith({
+    ProxyType? type,
+    (String?,)? address,
+    (String?,)? username,
+    (String?,)? password,
+    (String?,)? torExitCountry,
+    (SavedProxyId?,)? savedProxyId,
+    (GatewayId?,)? gatewayId,
+    (CredentialsId?,)? credentialsId,
+    InterfaceChoice? leavesBy,
+  }) =>
+      UserProxySettings._all(
+        type: type ?? this.type,
+        address: address == null ? this.address : address.$1,
+        username: username == null ? this.username : username.$1,
+        password: password == null ? this.password : password.$1,
+        torExitCountry:
+            torExitCountry == null ? this.torExitCountry : torExitCountry.$1,
+        savedProxyId: savedProxyId == null ? this.savedProxyId : savedProxyId.$1,
+        gatewayId: gatewayId == null ? this.gatewayId : gatewayId.$1,
+        credentialsId:
+            credentialsId == null ? this.credentialsId : credentialsId.$1,
+        leavesBy: leavesBy ?? this.leavesBy,
+      );
 
   /// Which route these settings name, for telling two apart (PROXY-008).
   ///
