@@ -322,6 +322,9 @@ to a check.
   of its tree, and carries the offer, with the build host's LGPL-2 and
   Apache-2.0 texts and keysyms.h's notice in `licences/`
   (`test/js/snap_manifest.test.js`)
+- **AND** each library's notices name the licences its row in
+  `components.tsv` was read as, no more and no fewer
+  (`test/js/snap_manifest.test.js`)
 - **AND** Software Heritage holds that commit and its tree
   (`tool/check_source_offer.js`, which asks about every copyright file that
   makes the offer)

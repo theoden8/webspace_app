@@ -8,6 +8,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const { REPO, read } = require('./helpers/source');
+const L = require('./helpers/licences');
+const B = require('../../tool/check_bundle_licences');
 
 const MANIFEST = 'snap/snapcraft.yaml';
 const manifest = read(MANIFEST);
@@ -338,6 +340,38 @@ test("the snap's libwpe ships as the LGPL asks: its text, and its source named a
   assert.ok(check.includes('$mount/usr/lib/*/libwpe-1.0.so.*'), 'scripts/check_snap.sh does not require libwpe as a file of its own');
   assert.ok(check.includes("grep -q '(NEEDED).*\\[libwpe-1\\.0\\.so'"),
     'scripts/check_snap.sh does not require a library of the snap to load libwpe at run time');
+});
+
+// What each library's notices name and what its components.tsv row was read
+// as are one fact: the --license of its install_notices.sh call, read through
+// debian_licences.tsv, names the ids of the row its --source keys, no more and
+// no fewer.
+function licenceGaps(text, { components = L.registry(), table = B.names() } = {}) {
+  const out = [];
+  for (const part of ['libwpe', 'wpewebkit']) {
+    const body = text.slice(...partSpan(text, part));
+    const source = body.match(/--source (\S+)/)?.[1];
+    const named = body.match(/--license "([^"]+)"/)?.[1] ?? body.match(/--license (\S+)/)?.[1] ?? '';
+    const ids = new Set(named.split(/\s+(?:and|or)\s+|,\s*/i).filter(Boolean)
+      .map((name) => B.spdxOf(name, { pkg: part, files: ['*'], table }) ?? `(${name}, a name ${B.NAMES} does not read)`));
+    const row = components.get(`url:${source}`);
+    const read = new Set((row?.licence ?? '').split(/\s+(?:AND|OR)\s+|[()]/).map((id) => id.trim()).filter(Boolean));
+    for (const id of ids) if (!read.has(id)) out.push(`${part}: its notices name ${id}, its row in ${L.COMPONENTS} does not`);
+    for (const id of read) if (!ids.has(id)) out.push(`${part}: its row in ${L.COMPONENTS} names ${id}, its notices do not`);
+  }
+  return out;
+}
+
+test("each library's notices name the licences its components row does (LICENSE-001, LICENSE-003)", () => {
+  assert.deepEqual(licenceGaps(manifest), []);
+  const components = L.registry();
+  const webkit = components.get('url:https://github.com/WebKit/WebKit.git');
+  const narrowed = new Map(components).set('url:https://github.com/WebKit/WebKit.git',
+    { ...webkit, licence: webkit.licence.replace(' AND BSD-2-Clause-Patent', '') });
+  assert.deepEqual(licenceGaps(manifest, { components: narrowed }),
+    [`wpewebkit: its notices name BSD-2-Clause-Patent, its row in ${L.COMPONENTS} does not`], 'WebKit\'s row as it was read');
+  assert.deepEqual(licenceGaps(inPart(manifest, 'libwpe', ' and HPND"', '"')),
+    [`libwpe: its row in ${L.COMPONENTS} names HPND, its notices do not`], 'a licence the notices leave out');
 });
 
 test('every third-party tree of WebKit under the GPL is one the build leaves out (LICENSE-001)', () => {
