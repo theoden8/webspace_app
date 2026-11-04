@@ -56,7 +56,7 @@ github.com/wlynxg/anet	BSD-3-Clause
 github.com/xtaci/kcp-go/v5	MIT
 github.com/xtaci/smux	MIT
 gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/goptlib	CC0-1.0
-gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird	BSD-2-Clause AND BSD-3-Clause
+gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird	BSD-2-Clause AND BSD-3-Clause AND CC0-1.0
 gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/ptutil	BSD-3-Clause
 gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/v2	BSD-3-Clause
 gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/webtunnel	MIT

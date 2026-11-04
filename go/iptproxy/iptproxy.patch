@@ -1,25 +1,13 @@
 iptproxy.patch: what go/iptproxy/build.sh changes in the sources it fetches,
 applied with patch -p1 in the tree it prepares, after it deletes lyrebird's
-internal/x25519ell2 and transports/meeklite (LICENSE-001). Each file keeps
-its own licence: IPtProxy's MIT, lyrebird's BSD-2-Clause.
+internal/x25519ell2 and transports/meeklite/transport.go (LICENSE-001) and
+puts go/meekutls/meekutls.go in the latter's place. Each file keeps its own
+licence: IPtProxy's MIT, lyrebird's BSD-2-Clause.
 
 * lyrebird/common/ntor/ntor.go: obfs4's handshake takes its Elligator 2 key
   hiding from go/hiddenkey.
-* lyrebird/transports/transports.go, IPtProxy.go/controller.go: no meek_lite.
 * IPtProxy.go/go.mod: lyrebird at its tag and hiddenkey, from the trees beside it.
 
---- a/IPtProxy.go/controller.go
-+++ b/IPtProxy.go/controller.go
-@@ -98,9 +98,6 @@
- 	// Obfs4 - Transport implemented in Lyrebird.
- 	Obfs4 = "obfs4"
- 
--	// MeekLite - Transport implemented in Lyrebird.
--	MeekLite = "meek_lite"
--
- 	// Webtunnel - Transport implemented in Lyrebird.
- 	Webtunnel = "webtunnel"
- 
 --- a/IPtProxy.go/go.mod
 +++ b/IPtProxy.go/go.mod
 @@ -6,11 +6,16 @@
@@ -51,21 +39,3 @@ its own licence: IPtProxy's MIT, lyrebird's BSD-2-Clause.
  )
  
  const (
---- a/lyrebird/transports/transports.go
-+++ b/lyrebird/transports/transports.go
-@@ -37,7 +37,6 @@
- 	"gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird/transports/webtunnel"
- 
- 	"gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird/transports/base"
--	"gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird/transports/meeklite"
- 	"gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird/transports/obfs2"
- 	"gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird/transports/obfs3"
- 	"gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird/transports/obfs4"
-@@ -88,7 +87,6 @@
- // Init initializes all of the integrated transports.
- func Init() error {
- 	for _, v := range []base.Transport{
--		new(meeklite.Transport),
- 		new(obfs2.Transport),
- 		new(obfs3.Transport),
- 		new(obfs4.Transport),

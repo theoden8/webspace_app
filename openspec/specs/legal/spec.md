@@ -171,6 +171,14 @@ a build file pulls in outside pub and Cargo has a row in
   `go/iptproxy/licences.tsv` with its licence read from its licence files,
   and `test/js/licence_policy.test.js` fails unless `licences.tsv` lets that
   licence link
+- **AND** a GPL file in a module is deleted before anything reads the tree,
+  and what the rest of the module needs of it is our own: lyrebird's
+  `internal/x25519ell2` comes from `go/hiddenkey`, and its meek_lite's
+  `transports/meeklite/transport.go` from `go/meekutls/meekutls.go`, adapted
+  from meek's CC0 code without reading the GPL file (`go/meekutls/PROVENANCE.md`)
+- **AND** `build.sh check` fails while `transport.go` is in the tree, while
+  meek_lite is built without `go/meekutls`'s file, and on a framework that
+  does not carry its round tripper
 
 #### Scenario: A component moves to another version
 

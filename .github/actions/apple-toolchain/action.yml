@@ -123,7 +123,7 @@ runs:
           go/iptproxy/IPtProxy.xcframework
           go/iptproxy/IPtProxy.inputs
           go/iptproxy/LICENSES.txt
-        key: iptproxy-${{ runner.os }}-${{ hashFiles('go/iptproxy/.go-version', 'go/iptproxy/build.sh', 'go/iptproxy/iptproxy.patch', 'go/iptproxy/licences.tsv', 'go/hiddenkey/hiddenkey.go', 'go/hiddenkey/go.mod', 'go/hiddenkey/fetch-monocypher.sh') }}
+        key: iptproxy-${{ runner.os }}-${{ hashFiles('go/iptproxy/.go-version', 'go/iptproxy/build.sh', 'go/iptproxy/iptproxy.patch', 'go/iptproxy/licences.tsv', 'go/hiddenkey/hiddenkey.go', 'go/hiddenkey/go.mod', 'go/hiddenkey/fetch-monocypher.sh', 'go/meekutls/meekutls.go', 'go/meekutls/LICENSE') }}
 
     - name: Build IPtProxy.xcframework (TOR-016)
       shell: bash

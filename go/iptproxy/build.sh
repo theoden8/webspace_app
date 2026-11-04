@@ -2,12 +2,13 @@
 # IPtProxy.xcframework, the pluggable transports the Apple app runs for Tor
 # bridges (TOR-016), built from source with no GPL code in it (LICENSE-001).
 #
-# IPtProxy (MIT) wraps lyrebird's obfs4 and webtunnel, snowflake and dnstt
-# for gomobile. Two parts of lyrebird are GPL and are deleted before anything
-# reads the tree: internal/x25519ell2, whose two functions obfs4's ntor
-# handshake takes from go/hiddenkey instead, and transports/meeklite, so
-# meek_lite is not built in. iptproxy.patch points the handshake at hiddenkey
-# and takes meek out of lyrebird's registry and IPtProxy's constants.
+# IPtProxy (MIT) wraps lyrebird's obfs4, meek_lite and webtunnel, snowflake
+# and dnstt for gomobile. Two parts of lyrebird are GPL and are deleted before
+# anything reads the tree: internal/x25519ell2, whose two functions obfs4's
+# ntor handshake takes from go/hiddenkey instead, and meek_lite's uTLS round
+# tripper, transports/meeklite/transport.go, whose one function the rest of
+# meek_lite takes from go/meekutls/meekutls.go, copied in beside it.
+# iptproxy.patch points the handshake at hiddenkey.
 #
 #   build.sh            bind IPtProxy.xcframework and collect LICENSES.txt
 #                       beside this script, after prepare and check; nothing
@@ -16,16 +17,22 @@
 #   build.sh check      prepare, then fail unless every package a target
 #                       compiles is in a module licences.tsv names, none is a
 #                       GPL package and no file it is built from names a GNU
-#                       licence; and unless a built framework carries
-#                       hiddenkey and neither GPL package. With
-#                       IPTPROXY_PREPARED=1, the tree already there instead
-#   build.sh upstream   lyrebird at its tag, unmodified, built into
-#                       $IPTPROXY_WORK/bin/lyrebird-upstream: the interop
-#                       test's server (interop/), never part of the framework
+#                       licence; unless meek_lite is built with
+#                       go/meekutls/meekutls.go and not transport.go; unless
+#                       go/meekutls and interop/ build against the modules
+#                       the framework compiles, at its versions; and unless a
+#                       built framework carries hiddenkey, go/meekutls's round
+#                       tripper and no GPL package. With IPTPROXY_PREPARED=1,
+#                       the tree already there instead
+#   build.sh upstream   lyrebird at its tag, unmodified, and meek-server at
+#                       its commit, built into $IPTPROXY_WORK/bin: the
+#                       interop tests' servers (interop/), never part of the
+#                       framework
 #
 # Each source is fetched at a pinned commit and its files checked against a
 # SHA-256 (tree_sha256) before anything reads them; the Go modules under them
 # against IPtProxy's go.sum; Monocypher by go/hiddenkey/fetch-monocypher.sh.
+# go/meekutls/meekutls.go is ours, committed, adapted from meek's CC0 code.
 # gomobile and gobind are built from the golang.org/x/mobile that go.sum
 # pins. The Go is .go-version's. Nothing fetched or built here is committed:
 # the trees go to $IPTPROXY_WORK, build/ by default.
@@ -33,6 +40,7 @@ set -eu
 
 here=$(cd "$(dirname "$0")" && pwd)
 hiddenkey=$(cd "$here/../hiddenkey" && pwd)
+meekutls=$(cd "$here/../meekutls" && pwd)
 work=${IPTPROXY_WORK:-$here/build}
 prepared=${IPTPROXY_PREPARED:-}
 src=$work/src
@@ -57,10 +65,23 @@ DNSTT_URL=https://github.com/tladesignz/dnstt.git
 DNSTT_COMMIT=f1b9b97a269f83bad41d2ceef291b4d2c161cd11
 DNSTT_SHA256=0a2abeccdc26137acb1ba9888cb42e395ee0ea25ccfbb1ff0dfdf387c168e60f
 
+# meek (CC0-1.0): meek-server, the meek interop test's server. Only it,
+# go.mod, go.sum and COPYING are fetched; nothing of it is in the framework.
+MEEK_URL=https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/meek.git
+MEEK_COMMIT=d8ee8e88c5d73ced19c78f884a868114a8421170
+MEEK_SHA256=d0918a7f5571f8b9307d769d4208f101d22db9c7ff9e23801a6f69a7400f3210
+
 # lyrebird's GPL parts, and the licence file that covers only them.
-GPL_PATHS='internal/x25519ell2 transports/meeklite LICENSE-GPL3.txt'
-# Their packages, as go list and a binary's symbols name them.
-GPL_PACKAGES='lyrebird/internal/x25519ell2|lyrebird/transports/meeklite'
+GPL_PATHS='internal/x25519ell2 transports/meeklite/transport.go LICENSE-GPL3.txt'
+# The packages among them, as go list and a binary's symbols name them:
+# meeklite stays, less its GPL file.
+GPL_PACKAGES='lyrebird/internal/x25519ell2'
+# go/meekutls's round tripper in lyrebird's tree, in transport.go's place,
+# and its licence where the notices are collected from.
+MEEKUTLS=transports/meeklite/meekutls.go
+MEEKUTLS_LICENSE=LICENSE-meekutls
+# Its type, as a binary's symbols name it.
+MEEKUTLS_SYMBOL='lyrebird/transports/meeklite.(*meekutlsRoundTripper).RoundTrip'
 # How a file names a GNU licence.
 GPL_TEXT='GNU (Affero |Lesser |Library )?General Public Licen[cs]e|SPDX-License-Identifier:.*GPL'
 # IPtProxy's snowflake proxy, which carries other people's traffic: the app
@@ -146,6 +167,8 @@ prepare() {
 	for f in LICENSE go.mod hiddenkey.go monocypher.c monocypher.h; do
 		cp "$hiddenkey/$f" "$src/hiddenkey/"
 	done
+	cp "$meekutls/meekutls.go" "$src/lyrebird/$MEEKUTLS"
+	cp "$meekutls/LICENSE" "$src/lyrebird/$MEEKUTLS_LICENSE"
 
 	patch -d "$src" -p1 -N -F0 -s <"$here/iptproxy.patch" ||
 		die "iptproxy.patch does not apply to these sources"
@@ -217,6 +240,28 @@ $stale"
 	[ -z "$named" ] || die "these files the framework is built from name a GNU licence:
 $named"
 
+	# meek_lite: lyrebird's BSD files and go/meekutls's round tripper.
+	meek=$src/lyrebird/${MEEKUTLS%/*}
+	[ ! -e "$meek/transport.go" ] && ! grep -q '/transports/meeklite/transport\.go$' "$work/files.compiled" ||
+		die "lyrebird's GPL transport.go is in meek_lite (LICENSE-001)"
+	grep -q "/$MEEKUTLS\$" "$work/files.compiled" ||
+		die "meek_lite is not built with go/meekutls/meekutls.go (TOR-016)"
+	cmp -s "$meekutls/meekutls.go" "$src/lyrebird/$MEEKUTLS" ||
+		die "lyrebird/$MEEKUTLS is not go/meekutls/meekutls.go"
+
+	# What go/meekutls's and interop/'s tests build against is what the
+	# framework compiles, at the versions it compiles.
+	for dir in "$meekutls" "$here/interop"; do
+		(cd "$dir" && go list -deps -test -f '{{with .Module}}{{if not .Main}}{{.Path}} {{.Version}}{{end}}{{end}}' ./...) |
+			grep -v '^$' | LC_ALL=C sort -u >"$work/modules.tested"
+		[ -s "$work/modules.tested" ] || die "go list found no module $dir builds against"
+		while read -r module version; do
+			built=$(cd "$src/IPtProxy.go" && go list -m -f '{{.Version}}' "$module" 2>/dev/null || true)
+			[ "$built" = "$version" ] ||
+				die "$dir builds against $module $version, the framework ${built:-not at all}"
+		done <"$work/modules.tested"
+	done
+
 	if [ -d "$out" ]; then
 		bins=$(find "$out" -type f -name IPtProxy)
 		[ -n "$bins" ] || die "$out holds no IPtProxy binary"
@@ -224,6 +269,8 @@ $named"
 			grep -q 'webspace.local/hiddenkey' "$bin" ||
 				die "$bin names no package of hiddenkey, so this scan cannot see package paths"
 			! grep -qE "$GPL_PACKAGES" "$bin" || die "$bin carries a GPL package (LICENSE-001)"
+			grep -qF "$MEEKUTLS_SYMBOL" "$bin" ||
+				die "$bin carries no meek_lite built with go/meekutls (TOR-016)"
 		done
 	fi
 	echo "build.sh: $(wc -l <"$work/modules.compiled" | tr -d ' ') modules, $(wc -l <"$work/files.compiled" | tr -d ' ') files, no GPL (LICENSE-001)"
@@ -233,7 +280,7 @@ $named"
 inputs() {
 	for f in "$here/build.sh" "$here/iptproxy.patch" "$here/.go-version" \
 		"$here/licences.tsv" "$hiddenkey/hiddenkey.go" "$hiddenkey/go.mod" \
-		"$hiddenkey/fetch-monocypher.sh"; do
+		"$hiddenkey/fetch-monocypher.sh" "$meekutls/meekutls.go" "$meekutls/LICENSE"; do
 		sha256 "$f"
 	done | sha256
 }
@@ -244,7 +291,8 @@ collect_notices() {
 	tab=$(printf '\t')
 	{
 		echo "IPtProxy.xcframework: IPtProxy $IPTPROXY_TAG with $LYREBIRD_TAG less its GPL"
-		echo "parts, dnstt $DNSTT_COMMIT and go/hiddenkey, built by go/iptproxy/build.sh."
+		echo "parts, dnstt $DNSTT_COMMIT, go/hiddenkey and go/meekutls, built by"
+		echo "go/iptproxy/build.sh."
 		grep -v '^#' "$here/licences.tsv" | grep -v '^$' | while IFS=$tab read -r module licence; do
 			echo
 			echo "================================================================================"
@@ -294,6 +342,9 @@ upstream() {
 	fetch "$work/upstream-lyrebird" "$LYREBIRD_URL" "refs/tags/$LYREBIRD_TAG" \
 		"$LYREBIRD_COMMIT" "$LYREBIRD_SHA256"
 	(cd "$work/upstream-lyrebird" && go build -trimpath -o "$work/bin/lyrebird-upstream" ./cmd/lyrebird)
+	fetch "$work/upstream-meek" "$MEEK_URL" "$MEEK_COMMIT" "$MEEK_COMMIT" "$MEEK_SHA256" \
+		COPYING go.mod go.sum meek-server
+	(cd "$work/upstream-meek" && go build -trimpath -o "$work/bin/meek-server" ./meek-server)
 }
 
 case "${1:-}" in
