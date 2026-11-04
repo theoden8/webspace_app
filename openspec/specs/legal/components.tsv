@@ -27,6 +27,10 @@ url:https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz	BSD-2-Clause	shared		its
 url:https://github.com/WebKit/WebKit.git	LGPL-2.1-or-later AND BSD-2-Clause AND Apache-2.0 AND BSD-3-Clause AND MIT AND CC0-1.0 AND OFL-1.1	shared	c22ba3278caac6a1fc8b0c7a10f04db1ffc44982	WebKit's LGPL-2.1 and BSD licence files and PDF.js's (Source/ThirdParty/pdfjs), its Liberation Sans fonts replaced by the OFL release (linux/pdfjs_fonts.sh); it ships as libWPEWebKit's own .so
 url:https://github.com/flutter/flutter.git	BSD-3-Clause	linked		its LICENSE; the engine's third-party notices reach the licences page through LicenseRegistry
 url:https://sh.rustup.rs	MIT OR Apache-2.0	build		rustup's LICENSE files
+url:https://github.com/tladesignz/IPtProxy.git	MIT	linked	d4878bf7729902c1fb5e319d3b043c81388e0720	its LICENSE at 5.5.1; go/iptproxy/build.sh takes IPtProxy.go/ and LICENSE alone, and every Go module it compiles in has a row in go/iptproxy/licences.tsv
+url:https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird.git	BSD-2-Clause AND BSD-3-Clause	linked	0b10edbb61e0ca6fb70c7d57aeaabf315f1fade1	its LICENSE at lyrebird-0.8.1; build.sh deletes the GPL-3.0 parts (internal/x25519ell2, transports/meeklite, LICENSE-GPL3.txt) before it builds, and build.sh check fails on a framework that compiles them
+url:https://github.com/tladesignz/dnstt.git	CC0-1.0	linked	f1b9b97a269f83bad41d2ceef291b4d2c161cd11	its COPYING at the commit IPtProxy 5.5.1's submodule names
+url:https://github.com/LoupVaillant/Monocypher.git	CC0-1.0 OR BSD-2-Clause	linked	4.0.3	its LICENCE.md at 4.0.3; go/hiddenkey/fetch-monocypher.sh checks monocypher.c and monocypher.h by SHA-256
 gradle:androidx.activity:activity	Apache-2.0	linked		its POM
 gradle:androidx.annotation:annotation	Apache-2.0	linked		its POM
 gradle:androidx.appcompat:appcompat	Apache-2.0	linked		its POM

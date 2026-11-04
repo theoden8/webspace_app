@@ -1,10 +1,12 @@
 // LICENSE-001 over what a build takes in: every third-party component a
 // build file pulls in outside pub and Cargo (a pod, a Gradle dependency, a
-// download in a CMake file, the snap or build.rs, the app's or a plugin's)
+// download in a CMake file, the snap, build.rs or a script under go/, the
+// app's or a plugin's)
 // has a row in openspec/specs/legal/components.tsv with its licence as read
 // from its source, every file a pub package the app depends on builds into
-// it says a licence that lets it link, and either licence lets it ship the
-// way it does (openspec/specs/legal/licences.tsv). Crates are held by
+// it and every Go module the Apple builds' IPtProxy compiles in says a
+// licence that lets it link, and each licence lets it ship the way it does
+// (openspec/specs/legal/licences.tsv). Crates are held by
 // rust/webspace_adblock/build.rs. Rung 5: what a build fetches is text in its
 // build files, which no type sees. The pub half reads .dart_tool, so it needs
 // `flutter pub get`; CI fails without it.
@@ -49,6 +51,16 @@ test('LICENSE-001 every component ships under a licence that lets it ship that w
 test('LICENSE-001 every file a pub package builds into the app may link', needsPub, () => {
   assert.deepEqual(L.pubRefusals(packages, components), [],
     `${L.LICENCES} lets none of these link; a licence the readings cannot judge is read by hand into a pub: row of ${L.COMPONENTS}`);
+});
+
+// go/iptproxy/build.sh check holds go/iptproxy/licences.tsv to the modules
+// gomobile links into IPtProxy.xcframework; this holds each licence there.
+test('LICENSE-001 every Go module the Apple builds link may link', () => {
+  const refused = L.goModules()
+    .filter(([module, licence]) => !L.allows(licence, { ships: 'linked', component: `go:${module}` }))
+    .map(([module, licence]) => `${module}: ${licence || '(none)'}`);
+  assert.deepEqual(refused, [], `${L.LICENCES} lets none of these link; read again the module's licence files`);
+  assert.ok(L.goModules().length > 0, `${L.GO_MODULES} lists no module`);
 });
 
 // Flutter's notices carry each package's root LICENSE alone; what else a
@@ -124,6 +136,11 @@ test('each rule catches the mistake it is for', (t) => {
     ['gradle:org.example:lib']);
   assert.deepEqual(L.urls('# https://in.a/comment\nfile(DOWNLOAD "https://example.org/a.tar.gz"\nset(X 1) # see https://a.trailing/comment'),
     ['url:https://example.org/a.tar.gz']);
+  assert.deepEqual(L.urls('R=${R:-https://example.org/r.git}\nU=https://example.org/v-${V}.tar.gz'),
+    ['url:https://example.org/r.git', 'url:https://example.org/v-${V}.tar.gz'], "a shell default's brace is not the URL's");
+  assert.deepEqual(L.goModules('example.org/m\tMIT AND GPL-3.0-or-later\nexample.org/n\n')
+    .filter(([module, licence]) => !L.allows(licence, { ships: 'linked', component: `go:${module}` })),
+  [['example.org/m', 'MIT AND GPL-3.0-or-later'], ['example.org/n', '']], 'a GPL Go module, and one with no licence');
 
   const planted = L.pullSites([['ios/Podfile.lock', ['pod:Lyre']]]);
   assert.deepEqual([...planted.keys()].filter((s) => !components.has(s)), ['pod:Lyre'],

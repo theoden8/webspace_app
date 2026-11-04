@@ -1,6 +1,8 @@
 # The licence of each Go module compiled into IPtProxy.xcframework, as an
 # SPDX expression read from its licence files. build.sh check fails on a
-# compiled module missing here and on a line naming one no longer compiled.
+# compiled module missing here and on a line naming one no longer compiled;
+# test/js/licence_policy.test.js fails on a licence that
+# openspec/specs/legal/licences.tsv does not let link (LICENSE-001).
 github.com/andybalholm/brotli	MIT
 github.com/aws/aws-sdk-go-v2	Apache-2.0
 github.com/aws/aws-sdk-go-v2/config	Apache-2.0

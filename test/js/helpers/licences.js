@@ -12,6 +12,7 @@ const { abs, read, exists, files } = require('./source');
 const LICENCES = 'openspec/specs/legal/licences.tsv';
 const COMPONENTS = 'openspec/specs/legal/components.tsv';
 const CASES = 'openspec/specs/legal/licence_cases.tsv';
+const GO_MODULES = 'go/iptproxy/licences.tsv';
 
 /** The rows of a TSV, comments and blank lines left out. */
 function rows(text) {
@@ -110,8 +111,8 @@ function pinsOf({ files = buildFiles().map(([rel]) => rel), packages = null } = 
         out.set(source, url.replace(/\$\{(\w+)\}/g, (all, v) => vars.get(v) ?? all));
       } else if (url.endsWith('.git')) {
         const after = text.slice(text.indexOf(url)).split('\n').slice(0, 20).join('\n');
-        const sha = after.match(/\b[0-9a-f]{40}\b/)?.[0];
-        if (sha) out.set(source, sha);
+        const pin = after.match(/\b[0-9a-f]{40}\b/)?.[0] ?? after.match(/^\w*_TAG=(?:\$\{\w+:-)?([^\s}]+)/m)?.[1];
+        if (pin) out.set(source, pin);
       }
     }
   }
@@ -161,7 +162,12 @@ function urls(text) {
     .split('\n')
     .map((l) => l.replace(/(?:^|\s)(?:#|\/\/)(?:\s.*)?$/, ''))
     .join('\n')
-    .matchAll(/https?:\/\/[^\s"'`)\\]+/g)].map((m) => `url:${m[0]}`);
+    .matchAll(/https?:\/\/[^\s"'`)\\]+/g)]
+    .map(([url]) => {
+      let out = url;
+      while (out.endsWith('}') && out.split('}').length > out.split('${').length) out = out.slice(0, -1);
+      return `url:${out}`;
+    });
 }
 
 /** The app's build files a component can come in by, each with what it pulls in. */
@@ -179,6 +185,10 @@ function buildFiles() {
   }
   if (exists('linux/flatpak')) {
     for (const rel of files('linux/flatpak', /\.ya?ml$/)) out.push([rel, urls]);
+  }
+  // The build/ a script works in holds the upstream trees it fetched.
+  if (exists('go')) {
+    for (const rel of files('go', /\.sh$/).filter((f) => !f.includes('/build/'))) out.push([rel, urls]);
   }
   return out.map(([rel, readOf]) => [rel, readOf(read(rel))]);
 }
@@ -456,6 +466,14 @@ function podAttributionGaps({ components, attributed = attributions() }) {
 }
 
 /** source -> the build files that pull it in. */
+/**
+ * [module, licence] of each Go module the Apple builds' IPtProxy compiles in,
+ * as go/iptproxy/build.sh check holds the list to what gomobile links.
+ */
+function goModules(text = read(GO_MODULES)) {
+  return rows(text).map(([module, licence]) => [module.trim(), (licence ?? '').trim()]);
+}
+
 function pullSites(inputs = buildFiles()) {
   const out = new Map();
   for (const [rel, sources] of inputs) {
@@ -469,7 +487,7 @@ function pullSites(inputs = buildFiles()) {
 }
 
 module.exports = {
-  LICENCES, COMPONENTS, CASES, rows, policy, allows, registry, pinsOf, staleReads, pods, gradle, urls, pullSites,
+  LICENCES, COMPONENTS, CASES, GO_MODULES, rows, goModules, policy, allows, registry, pinsOf, staleReads, pods, gradle, urls, pullSites,
   buildFiles, shippedFiles, pubPackages, pluginBuildFiles, pubRefusals, licencesIn, readingOf,
   ATTRIBUTIONS, attributions, pubNotices, attributionGaps, podAttributionGaps,
 };

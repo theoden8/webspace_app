@@ -146,6 +146,14 @@ a build file pulls in outside pub and Cargo has a row in
   `scripts/verify_tor_framework.sh` on a framework that links the GPL-only
   parts of tor
 
+#### Scenario: A Go module is compiled into the Apple builds' transports
+
+- **WHEN** `go/iptproxy/build.sh` links a Go module into IPtProxy.xcframework
+- **THEN** `build.sh check` fails unless the module has a row in
+  `go/iptproxy/licences.tsv` with its licence read from its licence files,
+  and `test/js/licence_policy.test.js` fails unless `licences.tsv` lets that
+  licence link
+
 #### Scenario: A component moves to another version
 
 - **WHEN** a pod, a pub package or a download changes version
