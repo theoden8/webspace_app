@@ -76,6 +76,14 @@ class.
   `Inv_Assert` (the code's assert holds); the `readd`, `midwrite` and `noturn` demonstrators
   list a released occupant, void a claim only during its write, and let two writes out at
   once. Standalone: which sites run when is `activation.tla`'s.
+- **`relay_routes.tla`** + `relay_routes*.cfg` — the router relay's route tables and the
+  challenges they answer (PROXY-034), as `ProxyRouterService` runs them: tables asked for
+  and installed through one queue, a credential's challenge waiting in the same queue.
+  `Inv_Latest` (once nothing is in flight the relay holds the last table asked for) and
+  `Inv_Refused` (a challenge is refused only for a site that table does not route); the
+  `unordered` and `nowait` demonstrators let installs overtake each other and answer a
+  challenge as it arrives, the code before PROXY-034. Standalone: who asks for which table,
+  and when, is the app's.
 - **`retention.tla`** + `retention*.cfg` — memory-pressure cascade picker (PAUSE-006).
   `Inv_CurrentKept` (the active site is never evicted) + `Inv_NotifLast` (higher-retention /
   notification sites are evicted last); the `starve` demonstrator evicts a retained site early

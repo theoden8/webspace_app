@@ -420,6 +420,18 @@ expect process_route_reach_voidedturn.cfg process_route.tla "Reach_VoidedTurn is
 expect process_route_reach_claimedagain.cfg process_route.tla "Reach_ClaimedAgain is violated" \
   "a site claiming again while its old claim waits is reachable"
 
+section "RELAY ROUTES" "the router relay's route tables and the challenges they answer (PROXY-034)"
+expect relay_routes.cfg relay_routes.tla "No error has been found" \
+  "the relay ends on the last table, and a challenge is refused only for a site it does not route"
+expect relay_routes_unordered.cfg relay_routes.tla "Inv_Latest is violated" \
+  "installs that do not wait for each other let an older table land last (caught)"
+expect relay_routes_nowait.cfg relay_routes.tla "Inv_Refused is violated" \
+  "a challenge answered as it arrives refuses a site whose route is in flight (caught)"
+expect relay_routes_reach_refused.cfg relay_routes.tla "Reach_Refused is violated" \
+  "a challenge refused for a site no table routes is reachable"
+expect relay_routes_reach_waited.cfg relay_routes.tla "Reach_Waited is violated" \
+  "a challenge that waited for its site's route is reachable"
+
 section "RETENTION" "memory-pressure cascade + notification retention (PAUSE-006)"
 expect retention.cfg retention.tla "No error has been found" \
   "current is never evicted and notification sites are evicted last"
