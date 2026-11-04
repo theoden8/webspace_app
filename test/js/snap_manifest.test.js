@@ -176,3 +176,110 @@ test('the snap restates no version .fvmrc or rust-toolchain.toml pins', () => {
   assert.match(manifest, /\.fvmrc\)"$/m, `${MANIFEST} does not read the Flutter version from .fvmrc`);
   assert.match(manifest, /rust-toolchain\.toml\)"$/m, `${MANIFEST} does not read the Rust channel from rust-toolchain.toml`);
 });
+
+// What WebKit compiles in is decided by its build options, which no type
+// reads: libwebrtc trees this table has not read (linux/webkit_third_party.tsv),
+// and PDF.js, whose standard fonts are Liberation Sans 1.07.4 under GPL-2.0
+// until linux/pdfjs_fonts.sh replaces them, before cmake configures the tree.
+function webkitBuildRefusals(text) {
+  const out = [];
+  for (const option of ['ENABLE_WEB_RTC', 'USE_LIBWEBRTC', 'ENABLE_EXPERIMENTAL_FEATURES']) {
+    if (new RegExp(`-D${option}=ON\\b`).test(text)) out.push(`-D${option}=ON`);
+  }
+  const start = text.indexOf('\n  wpewebkit:\n');
+  const part = text.slice(start, text.indexOf('\n\n  ', start + 1));
+  if (!/^ {8}-DENABLE_PDFJS=(ON|OFF)$/m.test(part)) out.push('ENABLE_PDFJS is left to its default');
+  if (/^ {8}-DENABLE_PDFJS=ON$/m.test(part)) {
+    const swap = part.indexOf('bash "$CRAFT_PROJECT_DIR/linux/pdfjs_fonts.sh" --src "$CRAFT_PART_SRC"');
+    if (swap < 0 || swap > part.indexOf('cmake -S')) out.push('PDF.js ships its fonts as WebKit has them');
+    if (!/^ {6}- fonts-liberation$/m.test(part)) out.push('fonts-liberation is not a build package');
+  }
+  return out;
+}
+
+test('WebKit is built without the parts whose licence it may not ship (LICENSE-001)', () => {
+  assert.deepEqual(webkitBuildRefusals(manifest), []);
+  const check = read('scripts/check_snap.sh');
+  assert.ok(check.includes("grep -a -q 'Liberation Fonts license' \"$webkit\""),
+    'scripts/check_snap.sh does not refuse a library carrying Liberation 1.x');
+  assert.ok(check.includes("grep -a -q 'Licensed under the SIL Open Font License' \"$webkit\""),
+    'scripts/check_snap.sh does not require the OFL fonts in the library');
+  const unswapped = manifest.replace(/^ {6}changed="\$\(bash "\$CRAFT_PROJECT_DIR\/linux\/pdfjs_fonts\.sh"[^\n]*\n/m, '');
+  assert.deepEqual(webkitBuildRefusals(unswapped), ['PDF.js ships its fonts as WebKit has them'],
+    'PDF.js with its own fonts');
+  assert.deepEqual(webkitBuildRefusals(manifest.replace(/^ {6}- fonts-liberation\n/m, '')),
+    ['fonts-liberation is not a build package'], 'the replacement fonts not installed');
+  assert.deepEqual(webkitBuildRefusals(manifest.replace(/^ {8}-DENABLE_PDFJS=ON\n/m, '')),
+    ['ENABLE_PDFJS is left to its default'], 'PDF.js on by WebKit\'s default, unseen');
+  assert.deepEqual(webkitBuildRefusals(manifest.replace('-DUSE_SYSTEM_UNIFDEF=OFF', '-DUSE_SYSTEM_UNIFDEF=OFF -DENABLE_WEB_RTC=ON')),
+    ['-DENABLE_WEB_RTC=ON'], 'WebRTC on');
+});
+
+// linux/install_notices.sh writes a built library's notices where a staged
+// Debian package keeps its own, which the app's licences page reads
+// (bundled_notices_io.dart). WebKit's call also holds its third-party
+// directories to the audited table, names the commit it was built from and
+// makes the source offer LGPL asks for (LICENSE-004).
+function noticeRefusals(text) {
+  const out = [];
+  for (const [part, dest, extra] of [
+    ['libwpe', 'libwpe', []],
+    ['wpewebkit', 'wpewebkit', [
+      '--third-party "$CRAFT_PROJECT_DIR/linux/webkit_third_party.tsv"',
+      '--revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)"',
+      '--offer',
+      '--changed "$changed"',
+    ]],
+  ]) {
+    const start = text.indexOf(`\n  ${part}:\n`);
+    const end = text.indexOf('\n\n  ', start + 1);
+    const body = start < 0 ? '' : text.slice(start, end < 0 ? text.length : end);
+    if (!body.includes('bash "$CRAFT_PROJECT_DIR/linux/install_notices.sh"')) {
+      out.push(`${part} writes no notices`);
+      continue;
+    }
+    if (!body.includes(`--dest "$CRAFT_PART_INSTALL/usr/share/doc/${dest}"`)) out.push(`${part}'s notices are not in usr/share/doc/${dest}`);
+    for (const flag of extra) if (!body.includes(flag)) out.push(`${part} lacks ${flag}`);
+  }
+  if (/^ {6}- -usr\/share\/doc\b/m.test(text)) out.push('a part leaves usr/share/doc out of the snap');
+  return out;
+}
+
+test('each library the snap builds ships its notices (LICENSE-003)', () => {
+  assert.deepEqual(noticeRefusals(manifest), []);
+  assert.deepEqual(noticeRefusals(manifest.replace('      - -usr/include\n', '      - -usr/include\n      - -usr/share/doc\n')),
+    ['a part leaves usr/share/doc out of the snap'], 'the notices primed out');
+});
+
+test("the snap's WebKit is a library a user can replace, its source named and offered (LICENSE-004)", () => {
+  assert.deepEqual(noticeRefusals(manifest.replace(' --offer \\\n', ' \\\n')), ['wpewebkit lacks --offer'],
+    'WebKit without its source offer');
+  assert.deepEqual(noticeRefusals(manifest.replace(/--revision "\$\(git -C [^\n]*\n/, '--revision main \\\n')),
+    ['wpewebkit lacks --revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)"'], 'a revision not read off the checkout');
+  assert.deepEqual(noticeRefusals(manifest.replace(' \\\n        --changed "$changed"\n', '\n')),
+    ['wpewebkit lacks --changed "$changed"'], 'a copyright file that hides the fonts it replaced');
+  const notices = read('linux/install_notices.sh');
+  for (const line of ['echo "Source: $source"', 'Built as it is from $source at $revision.',
+    'For at least three years from the day you received this copy']) {
+    assert.ok(notices.includes(line), `linux/install_notices.sh no longer writes: ${line}`);
+  }
+  const check = read('scripts/check_snap.sh');
+  assert.ok(check.includes("grep -q '(NEEDED).*\\[libWPEWebKit-2\\.0\\.so'"),
+    'scripts/check_snap.sh does not require a library of the app to load WebKit at run time');
+  assert.ok(check.includes('$mount/usr/lib/*/libWPEWebKit-2.0.so.*'),
+    'scripts/check_snap.sh does not require WebKit as a file of its own');
+  assert.match(read('.github/workflows/snap.yml'), /^ +bash scripts\/check_snap\.sh$/m, 'CI does not run scripts/check_snap.sh');
+});
+
+test('every third-party tree of WebKit under the GPL is one the build leaves out (LICENSE-001)', () => {
+  const rows = read('linux/webkit_third_party.tsv').split('\n')
+    .filter((l) => l && !l.startsWith('#')).map((l) => l.split('\t'));
+  assert.ok(rows.length > 10, 'linux/webkit_third_party.tsv read no rows');
+  const shipped = rows.filter(([, licence, built]) => /(^|[^L])GPL/.test(licence) && built !== 'no')
+    .map(([path]) => path);
+  assert.deepEqual(shipped, [], 'these trees are under the GPL and marked as compiled in');
+  for (const [path, , built, why] of rows) {
+    assert.match(built, /^(yes|no)$/, `${path}: built is ${built}`);
+    assert.ok(why, `${path} says nothing about why`);
+  }
+});

@@ -343,7 +343,14 @@ desktop entry and metainfo are the bundle's (PLATFORM-008).
   reads through weak symbols, for `/usr`. A release build of WebKit runs its helper
   processes only from the directory it was configured with, so the snap's
   layout binds that directory, the injected bundle's and the inspector
-  resources' to the snap's copies.
+  resources' to the snap's copies. WebKit is built with PDF.js, whose
+  Liberation Sans 1.07.4 fonts, under GPL-2.0 and compiled into the library,
+  `linux/pdfjs_fonts.sh` replaces before the build with Ubuntu's 2.x release
+  under the OFL (LICENSE-001); the snap check reads the built library for
+  either. Its `Source/ThirdParty` is held to the
+  audited table `linux/webkit_third_party.tsv` as it builds, and libwpe and
+  WebKit lay their notices out in `usr/share/doc/` as a Debian package does,
+  WebKit's with the source offer LGPL asks for (LICENSE-003, LICENSE-004).
 - **One instance (PLATFORM-011):** a dbus slot gives the snap its application
   ID on the session bus, the one name strict confinement lets it own.
 - **Permissions:** each plug names what needs it, and none grants the home

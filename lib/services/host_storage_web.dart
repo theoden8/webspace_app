@@ -23,6 +23,9 @@ TorCookieRead? createTorCookieRead() => null;
 ManagedTorRuntime? createManagedTorRuntime() => null;
 Future<List<(String, String)>> managedTorNotices() async => const [];
 
+/// No package bundles libraries beside the app on web.
+Future<List<(String, String)>> bundledNotices() async => const [];
+
 /// No cache directory on web: downloaded caches simply stay empty, which
 /// leaves the depending services in their no-data state.
 Future<String?> hostReadCacheText(String name) async => null;

@@ -4,7 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'package:webspace/services/adblock_engine.dart';
-import 'package:webspace/services/host_storage.dart' show managedTorNotices;
+import 'package:webspace/services/host_storage.dart'
+    show bundledNotices, managedTorNotices;
 
 /// LicenseEntry that emits one [LicenseParagraph] per source line,
 /// so structural single line breaks (license titles, numbered
@@ -42,8 +43,8 @@ class _PerLineLicenseEntry extends LicenseEntry {
 }
 
 /// Registers the licences of everything the app bundles that is not a Dart
-/// package: the artwork and data files, the Rust crates in adblock-rust, and
-/// the Linux build's tor.
+/// package: the artwork and data files, the Rust crates in adblock-rust, the
+/// Linux build's tor, and the libraries a Linux package bundles.
 void registerLicenses() {
   // The pubspec asset glob pulls each `.txt` under `assets/licenses/` in.
   const customLicenses = <(List<String>, String)>[
@@ -73,6 +74,14 @@ void registerLicenses() {
   // installed them; absent from every other build.
   LicenseRegistry.addLicense(() async* {
     for (final (package, text) in await managedTorNotices()) {
+      yield _PerLineLicenseEntry([package], text: text);
+    }
+  });
+
+  // The libraries a snap or a flatpak bundles beside the app, WPE WebKit and
+  // libwpe among them, which LGPL-2.1 asks the app's own notices to name.
+  LicenseRegistry.addLicense(() async* {
+    for (final (package, text) in await bundledNotices()) {
       yield _PerLineLicenseEntry([package], text: text);
     }
   });

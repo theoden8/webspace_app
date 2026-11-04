@@ -72,6 +72,14 @@ parts:
       - --prefix=/usr
       - --buildtype=release
       - -Dbuild-docs=false
+    # Its notices, as a Debian package carries its own (LICENSE-003).
+    override-build: |
+      craftctl default
+      bash "$CRAFT_PROJECT_DIR/linux/install_notices.sh" \
+        --src "$CRAFT_PART_SRC" --dest "$CRAFT_PART_INSTALL/usr/share/doc/libwpe" \
+        --name libwpe --source https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz \
+        --revision "sha256 c880fa8d607b2aa6eadde7d6d6302b1396ebc38368fe2332fa20e193c7ee1420" \
+        --license BSD-2-clause
     build-packages:
       - libegl-dev
       - libxkbcommon-dev
@@ -117,8 +125,14 @@ parts:
     # subtargets, and the network process's compiles stop waiting for the
     # WebKitDirectoryInputStreamData.h WebKit generates, a race a 4-job build
     # loses.
+    # PDF.js's Liberation Sans fonts are 1.07.4, under GPL-2.0, and WebKit
+    # compiles them into the library; linux/pdfjs_fonts.sh replaces them with
+    # Ubuntu's 2.x release, under the OFL, before the build (LICENSE-001).
     override-build: |
       export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+      changed="$(bash "$CRAFT_PROJECT_DIR/linux/pdfjs_fonts.sh" --src "$CRAFT_PART_SRC" \
+        --fonts /usr/share/fonts/truetype/liberation \
+        --copyright /usr/share/doc/fonts-liberation/copyright)"
       export PKG_CONFIG_PATH="$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig"
       export CMAKE_PREFIX_PATH="$CRAFT_STAGE/usr"
       unset LD_LIBRARY_PATH PYTHONPATH GI_TYPELIB_PATH ACLOCAL_PATH \
@@ -140,13 +154,22 @@ parts:
         -DENABLE_WPE_PLATFORM_DRM=OFF \
         -DUSE_LIBBACKTRACE=OFF \
         -DUSE_SYSTEM_SYSPROF_CAPTURE=OFF \
-        -DUSE_SYSTEM_UNIFDEF=OFF
+        -DUSE_SYSTEM_UNIFDEF=OFF \
+        -DENABLE_PDFJS=ON
       cmake --build wpe -- -j"$CRAFT_PARALLEL_BUILD_COUNT"
       ccache --show-stats
       DESTDIR="$CRAFT_PART_INSTALL" cmake --install wpe
+      bash "$CRAFT_PROJECT_DIR/linux/install_notices.sh" \
+        --src "$CRAFT_PART_SRC" --dest "$CRAFT_PART_INSTALL/usr/share/doc/wpewebkit" \
+        --name "WPE WebKit" --source https://github.com/WebKit/WebKit.git \
+        --revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)" \
+        --license "LGPL-2.1+ and LGPL-2+ and BSD-2-clause and BSD-2-Clause-Patent and BSD-3-clause and Expat and Apache-2.0 and BSL-1.0 and ISC and CC0-1.0 and OFL-1.1" \
+        --third-party "$CRAFT_PROJECT_DIR/linux/webkit_third_party.tsv" --offer \
+        --changed "$changed"
     build-packages:
       - ccache
       - clang
+      - fonts-liberation
       - git
       - gperf
       - ninja-build
