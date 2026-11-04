@@ -1978,7 +1978,12 @@ compile, and a change is a new value made by `copyWith`.
 In router mode (PROXY-013), a change of the app-wide proxy SHALL have the
 relay take the routes it implies before the loaded webviews are let go, so
 a webview rebuilt for the change presents a credential the relay already
-routes, rather than one it answers as unknown.
+routes, rather than one it answers as unknown. Route tables SHALL be
+installed one at a time, in the order they were asked for, and the relay's
+challenge to a credential SHALL be answered only once any table in flight
+has landed: a webview that reaches the relay first (one built before the
+change, or a site that just joined) waits a moment for its route instead of
+failing with `ERR_TUNNEL_CONNECTION_FAILED`.
 
 #### Scenario: The app-wide proxy is switched back while its routes were dropped
 

@@ -20,6 +20,9 @@ class FakeRelay implements ProxyRelayApi {
   /// When false, `setRoutes` rejects the table.
   bool acceptsRoutes = true;
 
+  /// When set, `setRoutes` installs once it completes.
+  Future<void>? routesAfter;
+
   /// The address the fake reports binding. A random 127/8 one, as the
   /// real relay picks, so nothing can quietly assume 127.0.0.1.
   static const String boundHost = '127.63.9.212';
@@ -54,6 +57,7 @@ class FakeRelay implements ProxyRelayApi {
 
   @override
   Future<bool> setRoutes(Map<String, Map<String, Object?>> routes) async {
+    await routesAfter;
     if (!acceptsRoutes) return false;
     installed = routes;
     return true;

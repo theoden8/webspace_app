@@ -97,6 +97,12 @@ class ProxyRouterService {
   /// The identities the relay routes right now.
   Set<RouterIdentity> _routed = const {};
 
+  /// Route tables installed one at a time, in the order they were asked
+  /// for, so an older table cannot land after a newer one; and a credential
+  /// presented while one is in flight is answered once it lands
+  /// ([attributed], PROXY-034).
+  final SerialQueue _installs = SerialQueue('routeInstalls');
+
   void setRelayForTest(ProxyRelayApi relay) {
     _relayOverride = relay;
   }
@@ -368,7 +374,12 @@ class ProxyRouterService {
   /// later service-worker request, which cannot answer a challenge itself
   /// (`AwHttpAuthHandler` cancels with no `WebContents`), already has a
   /// credential to send.
+  ///
+  /// A table in flight is waited for first: right after a proxy change
+  /// the relay holds the old one, and a credential it does not route yet
+  /// would be refused for good (PROXY-034).
   Future<bool> attributed(RouterIdentity identity) async {
+    await _installs.run(() async {});
     if (!isActive || !_routed.contains(identity)) return false;
     final attribution = _attribution;
     if (attribution == null) return true;
@@ -416,6 +427,12 @@ class ProxyRouterService {
   }
 
   Future<bool> _installRoutes(
+    Map<RouterIdentity, UserProxySettings> perSiteProxies,
+  ) =>
+      _installs.run(() => _installNow(perSiteProxies));
+
+  @Held(#_installs)
+  Future<bool> _installNow(
     Map<RouterIdentity, UserProxySettings> perSiteProxies,
   ) async {
     final state = _state;

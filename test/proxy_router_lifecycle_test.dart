@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,6 +12,7 @@ import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_coverage_engine.dart';
 import 'package:webspace/services/proxy_refused.dart';
+import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/webview.dart';
@@ -146,6 +149,37 @@ void main() {
           reason: 'a webview rebuilt before the relay took the new route '
               'presents a credential it does not route (the device log, '
               '"rejecting connection bearing an unknown proxy credential")');
+    });
+
+    test('PROXY-034: a credential challenged while its route is in flight is '
+        'answered once the route lands, not refused', () async {
+      final (:sites, :network) = page([
+        WebViewModel(initUrl: 'https://one.test', proxySettings: http('10.0.0.1:8080')),
+      ]);
+      await network.activateRouter(launch: launch);
+
+      // A site joins and its webview's first request reaches the relay while
+      // the table that routes it is still on its way there.
+      final joined = WebViewModel(initUrl: 'https://two.test');
+      sites.applied(SitesLoaded([...sites.models, joined]));
+      final lands = Completer<void>();
+      relay.routesAfter = lands.future;
+      final refreshed = network.refreshRoutes();
+      await pumpEventQueue();
+      var answered = false;
+      final challenge = router
+          .attributed(RouterIdentity.ofSite(joined.siteId))
+          .then((ok) => answered = ok);
+      await pumpEventQueue();
+      expect(answered, isFalse, reason: 'nothing is answered before the table lands');
+
+      lands.complete();
+      await refreshed;
+      await challenge;
+      expect(answered, isTrue,
+          reason: 'refused, the page fails with ERR_TUNNEL_CONNECTION_FAILED '
+              'though its route is a moment away (the device log, "rejecting '
+              'connection bearing an unknown proxy credential")');
     });
 
     test('a route refresh before the launch has decided leaves the start to '
