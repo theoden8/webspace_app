@@ -317,7 +317,7 @@ test("the snap's WebKit is a library a user can replace, its source named and of
   const check = read('scripts/verify_webkit_shipped.sh');
   assert.ok(check.includes("grep -q '(NEEDED).*\\[libWPEWebKit-2\\.0\\.so'"),
     'scripts/verify_webkit_shipped.sh does not require a library of the app to load WebKit at run time');
-  assert.ok(check.includes("find \"$root\" -name 'libWPEWebKit-2.0.so.*' -type f"),
+  assert.ok(check.includes("find -H \"$root\" -name 'libWPEWebKit-2.0.so.*' -type f"),
     'scripts/verify_webkit_shipped.sh does not require WebKit as a file of its own');
   assert.match(read('.github/workflows/snap.yml'), /^ +bash scripts\/check_snap\.sh$/m, 'CI does not run scripts/check_snap.sh');
 });
@@ -345,7 +345,7 @@ test("the snap's libwpe ships as the LGPL asks: its text, and its source named a
     "libwpe's notices name https://github.com/WebPlatformForEmbedded/libwpe.git, not the https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz it pulls",
   ], 'libwpe from its release tarball, where git would read the project\'s own HEAD');
   const check = read('scripts/verify_webkit_shipped.sh');
-  assert.ok(check.includes("find \"$root\" -name 'libwpe-1.0.so.*' -type f"),
+  assert.ok(check.includes("find -H \"$root\" -name 'libwpe-1.0.so.*' -type f"),
     'scripts/verify_webkit_shipped.sh does not require libwpe as a file of its own');
   assert.ok(check.includes("grep -q '(NEEDED).*\\[libwpe-1\\.0\\.so'"),
     'scripts/verify_webkit_shipped.sh does not require a library of the package to load libwpe at run time');
