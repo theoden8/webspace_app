@@ -203,6 +203,12 @@ class WebInterceptPlugin(
         }
     }
 
+    /// A line of the interceptor's (or of [ServiceWorkerBlockers], under its
+    /// own [tag]) in the app's log. Its lines name hosts, so they stay out of
+    /// logcat (AppLog.Tag.webIntercept).
+    private fun log(tag: String, message: String) =
+        AppLog.debug(AppLog.Tag.webIntercept, if (tag == "WebIntercept") message else "$tag: $message")
+
     /// Attaches the interceptor to [webView] for the site [call] names, at
     /// the level and LocalCDN setting it names, and to that view alone: a
     /// view is labelled only by its own attach, so a site's sub-resources
