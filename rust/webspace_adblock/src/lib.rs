@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: MIT
 //
 // C FFI surface around Brave's `adblock` crate, tailored for WebSpace.
 //

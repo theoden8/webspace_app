@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MPL-2.0
+// SPDX-License-Identifier: MIT
 //
 // The bodies `$redirect=` and `$rewrite=abp-resource:` rules name. A filter
 // list asks for one by the name its syntax gives it (the
