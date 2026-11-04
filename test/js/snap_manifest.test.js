@@ -207,11 +207,13 @@ function webkitBuildRefusals(text) {
 
 test('WebKit is built without the parts whose licence it may not ship (LICENSE-001)', () => {
   assert.deepEqual(webkitBuildRefusals(manifest), []);
-  const check = read('scripts/check_snap.sh');
+  const check = read('scripts/verify_webkit_shipped.sh');
   assert.ok(check.includes("grep -a -q 'Liberation Fonts license' \"$webkit\""),
-    'scripts/check_snap.sh does not refuse a library carrying Liberation 1.x');
+    'scripts/verify_webkit_shipped.sh does not refuse a library carrying Liberation 1.x');
   assert.ok(check.includes("grep -a -q 'Licensed under the SIL Open Font License' \"$webkit\""),
-    'scripts/check_snap.sh does not require the OFL fonts in the library');
+    'scripts/verify_webkit_shipped.sh does not require the OFL fonts in the library');
+  assert.match(read('scripts/check_snap.sh'), /^bash "\$root\/scripts\/verify_webkit_shipped\.sh" "\$mount" opt\/webspace$/m,
+    'scripts/check_snap.sh does not check the WebKit the snap carries');
   const unswapped = manifest.replace(/^ {6}changed="\$\(bash "\$CRAFT_PROJECT_DIR\/linux\/pdfjs_fonts\.sh"[^\n]*\n/m, '');
   assert.deepEqual(webkitBuildRefusals(unswapped), ['PDF.js ships its fonts as WebKit has them'],
     'PDF.js with its own fonts');
@@ -312,11 +314,11 @@ test("the snap's WebKit is a library a user can replace, its source named and of
     'For at least three years from the day you received this copy']) {
     assert.ok(notices.includes(line), `linux/install_notices.sh no longer writes: ${line}`);
   }
-  const check = read('scripts/check_snap.sh');
+  const check = read('scripts/verify_webkit_shipped.sh');
   assert.ok(check.includes("grep -q '(NEEDED).*\\[libWPEWebKit-2\\.0\\.so'"),
-    'scripts/check_snap.sh does not require a library of the app to load WebKit at run time');
-  assert.ok(check.includes('$mount/usr/lib/*/libWPEWebKit-2.0.so.*'),
-    'scripts/check_snap.sh does not require WebKit as a file of its own');
+    'scripts/verify_webkit_shipped.sh does not require a library of the app to load WebKit at run time');
+  assert.ok(check.includes("find \"$root\" -name 'libWPEWebKit-2.0.so.*' -type f"),
+    'scripts/verify_webkit_shipped.sh does not require WebKit as a file of its own');
   assert.match(read('.github/workflows/snap.yml'), /^ +bash scripts\/check_snap\.sh$/m, 'CI does not run scripts/check_snap.sh');
 });
 
@@ -342,10 +344,11 @@ test("the snap's libwpe ships as the LGPL asks: its text, and its source named a
     'libwpe is not a checkout of one commit, so its HEAD is not the source it offers',
     "libwpe's notices name https://github.com/WebPlatformForEmbedded/libwpe.git, not the https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz it pulls",
   ], 'libwpe from its release tarball, where git would read the project\'s own HEAD');
-  const check = read('scripts/check_snap.sh');
-  assert.ok(check.includes('$mount/usr/lib/*/libwpe-1.0.so.*'), 'scripts/check_snap.sh does not require libwpe as a file of its own');
+  const check = read('scripts/verify_webkit_shipped.sh');
+  assert.ok(check.includes("find \"$root\" -name 'libwpe-1.0.so.*' -type f"),
+    'scripts/verify_webkit_shipped.sh does not require libwpe as a file of its own');
   assert.ok(check.includes("grep -q '(NEEDED).*\\[libwpe-1\\.0\\.so'"),
-    'scripts/check_snap.sh does not require a library of the snap to load libwpe at run time');
+    'scripts/verify_webkit_shipped.sh does not require a library of the package to load libwpe at run time');
 });
 
 // What each library's notices name and what its components.tsv row was read
