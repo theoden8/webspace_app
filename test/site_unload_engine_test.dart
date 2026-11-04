@@ -109,10 +109,12 @@ class _ContainerPage implements ResidencyHost {
   /// Slot -> the site it runs as, for slots showing a hosted tab.
   final Map<int, WebViewModel> hosted = {};
 
+  // Names each slot's site itself: SlotIdentities.of would read it off tabs
+  // this fake does not build.
   @override
-  List<WebViewModel> identities() => [
+  SlotIdentities identities() => [
     for (var i = 0; i < models.length; i++) hosted[i] ?? models[i],
-  ];
+  ] as SlotIdentities;
 
   @override
   SiteRetentionPriority priorityOf(int index) => retention(index);
@@ -686,7 +688,7 @@ void main() {
     }) => SiteUnloadEngine.indicesToUnloadForProxyMismatch(
       runsAs: target,
       sites: models,
-      models: models,
+      models: SlotIdentities.of(models),
       loadedIndices: loaded ?? {for (var i = 0; i < models.length; i++) i},
       pageIndices: const {},
       topology: topology ?? _processGlobal,
@@ -977,7 +979,7 @@ void main() {
     }) => SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
       runsAs: target,
       sites: models,
-      models: models,
+      models: SlotIdentities.of(models),
       loadedIndices: loaded,
       pageIndices: const {},
     );
@@ -1120,7 +1122,7 @@ void main() {
     test('the pin in force follows the loaded set', () {
       final models = _sites([_tor('de'), _tor(), _socks('p:9')]);
       String? nodes(Set<int> indices) =>
-          SiteUnloadEngine.torExitNodesFor(indices: indices, models: models);
+          SiteUnloadEngine.torExitNodesFor(indices: indices, models: SlotIdentities.of(models));
       expect(nodes({0}), '{de}');
       expect(
         nodes({1}),
@@ -1142,12 +1144,12 @@ void main() {
         final order = <int>{1, 0, 2};
         final anchor = SiteUnloadEngine.torExitAnchor(
           indices: order,
-          models: models,
+          models: SlotIdentities.of(models),
         );
         expect(anchor, 1);
         expect(mismatch(models, target: anchor!, loaded: {0, 1, 2}), {0});
         expect(
-          SiteUnloadEngine.torExitNodesFor(indices: order, models: models),
+          SiteUnloadEngine.torExitNodesFor(indices: order, models: SlotIdentities.of(models)),
           '{ca}',
         );
       },
@@ -1158,11 +1160,11 @@ void main() {
       () {
         final models = _sites([_socks('p:9'), _tor('dk'), _tor()]);
         expect(
-          SiteUnloadEngine.torExitAnchor(indices: {0, 2, 1}, models: models),
+          SiteUnloadEngine.torExitAnchor(indices: {0, 2, 1}, models: SlotIdentities.of(models)),
           2,
         );
         expect(
-          SiteUnloadEngine.torExitAnchor(indices: {0}, models: models),
+          SiteUnloadEngine.torExitAnchor(indices: {0}, models: SlotIdentities.of(models)),
           isNull,
         );
       },
@@ -1173,7 +1175,7 @@ void main() {
       // loaded and the pin must survive the reconciliation.
       final models = _sites([_socks('p:9'), _tor('de')]);
       expect(
-        SiteUnloadEngine.torExitNodesFor(indices: {0, 1}, models: models),
+        SiteUnloadEngine.torExitNodesFor(indices: {0, 1}, models: SlotIdentities.of(models)),
         '{de}',
       );
     });
@@ -1185,7 +1187,7 @@ void main() {
       bool archiveOnly(Set<int> indices) =>
           SiteUnloadEngine.torExitPinIsArchiveOnly(
             indices: indices,
-            models: models,
+            models: SlotIdentities.of(models),
           );
       expect(archiveOnly({0}), isTrue);
       expect(
@@ -1200,7 +1202,7 @@ void main() {
     test('the pin ignores out-of-range indices', () {
       final models = _sites([_tor('de')]);
       expect(
-        SiteUnloadEngine.torExitNodesFor(indices: {-1, 9, 0}, models: models),
+        SiteUnloadEngine.torExitNodesFor(indices: {-1, 9, 0}, models: SlotIdentities.of(models)),
         '{de}',
       );
     });

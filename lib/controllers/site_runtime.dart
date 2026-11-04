@@ -10,6 +10,7 @@ import 'package:webspace/services/model_names.dart';
 import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/site_retention_priority.dart';
+import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -337,9 +338,5 @@ class SiteRuntime {
     return models[evictionOrder(rows, priorityOf: retentionPriority).first];
   }
 
-  /// What each slot runs as, index-aligned with [models] (LIR-024): the host
-  /// of its active tab, or the site itself.
-  List<WebViewModel> slotIdentities() => [
-    for (final m in models) m.runningIdentity,
-  ];
+  SlotIdentities slotIdentities() => SlotIdentities.of(models);
 }

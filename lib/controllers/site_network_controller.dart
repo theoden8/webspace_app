@@ -241,16 +241,15 @@ class SiteNetworkController {
     syncTorExitPin(order);
   }
 
-  /// The sites the Tor screen may name, each with the country it pins, read
-  /// the way [syncTorExitPin] reads it. Archive-tier sites are left out, so
-  /// the screen counts them without naming them.
+  /// The sites the Tor screen may name, each with the country its own
+  /// settings pin. Archive-tier sites are left out, so the screen counts them
+  /// without naming them.
   Map<SiteId, TorSiteLabel> torSites() => {
-        for (final (i, model) in _sites.models.indexed)
+        for (final model in _sites.models)
           if (!model.isArchiveTier)
             model.siteId: (
               name: model.getDisplayName(),
-              exitNodes: SiteUnloadEngine.torExitNodesFor(
-                  indices: [i], models: _sites.models),
+              exitNodes: SiteUnloadEngine.torExitNodesOf(model),
             ),
       };
 

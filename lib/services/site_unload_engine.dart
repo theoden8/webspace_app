@@ -121,12 +121,20 @@ const ResidencyCaps kResidencyCaps = (
   resident: kMaxResidentSites,
 );
 
+/// What each slot runs as, row-aligned with the sites it was read from
+/// (LIR-024): a slot showing a hosted tab reads as its host. Only [of] makes
+/// one, so an engine handed the sites where it wants the slots does not
+/// compile.
+extension type const SlotIdentities._(List<WebViewModel> _slots)
+    implements List<WebViewModel> {
+  SlotIdentities.of(List<WebViewModel> sites)
+      : this._([for (final m in sites) m.runningIdentity]);
+}
+
 abstract interface class ResidencyHost implements SiteUnloadHost {
   ResidencyCaps get caps;
 
-  /// What each slot runs as (LIR-024): a slot showing a hosted tab reads as
-  /// its host.
-  List<WebViewModel> identities();
+  SlotIdentities identities();
 
   ProxyTopology get proxyTopology;
 
@@ -937,7 +945,7 @@ class SiteUnloadEngine {
   static Set<int> indicesToUnloadForProxyMismatch({
     required int runsAs,
     required List<WebViewModel> sites,
-    required List<WebViewModel> models,
+    required SlotIdentities models,
     required Set<int> loadedIndices,
     required Set<int> pageIndices,
     required ProxyTopology topology,
@@ -1108,7 +1116,7 @@ class SiteUnloadEngine {
   static Set<int> indicesToUnloadForTorExitMismatch({
     required int runsAs,
     required List<WebViewModel> sites,
-    required List<WebViewModel> models,
+    required SlotIdentities models,
     required Set<int> loadedIndices,
     required Set<int> pageIndices,
   }) => _overSlots(
@@ -1137,16 +1145,23 @@ class SiteUnloadEngine {
   /// the pin instead of leaving it applied to whatever loads next.
   static String? torExitNodesFor({
     required Iterable<int> indices,
-    required List<WebViewModel> models,
+    required SlotIdentities models,
   }) {
     for (final i in indices) {
       if (i < 0 || i >= models.length) continue;
-      final pin = _torExitPin(models[i]);
-      if (pin == null) continue;
-      return pin == _torUnpinned ? null : pin;
+      if (_torExitPin(models[i]) == null) continue;
+      return torExitNodesOf(models[i]);
     }
     return null;
   }
+
+  /// The `ExitNodes` value [site]'s own settings ask for: null when it pins
+  /// no country or does not route through Tor.
+  static String? torExitNodesOf(WebViewModel site) =>
+      switch (_torExitPin(site)) {
+        _torUnpinned => null,
+        final pin => pin,
+      };
 
   /// The site whose exit constraint wins among [indices], in their order:
   /// the first that routes through Tor. Null when none does.
@@ -1156,7 +1171,7 @@ class SiteUnloadEngine {
   /// loaded Tor site agreeing with the pin that goes into force.
   static int? torExitAnchor({
     required Iterable<int> indices,
-    required List<WebViewModel> models,
+    required SlotIdentities models,
   }) {
     for (final i in indices) {
       if (i < 0 || i >= models.length) continue;
@@ -1173,7 +1188,7 @@ class SiteUnloadEngine {
   /// would say an archived site was. False when no Tor site is among them.
   static bool torExitPinIsArchiveOnly({
     required Iterable<int> indices,
-    required List<WebViewModel> models,
+    required SlotIdentities models,
   }) {
     var any = false;
     for (final i in indices) {

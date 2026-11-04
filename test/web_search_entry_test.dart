@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/compile_probe.dart';
+
 /// LIR-028 to LIR-031 and the hosted-tab plumbing it lands on (LIR-018 to LIR-024).
 /// Structural, because the page and its controllers are not constructible
 /// from a unit test.
@@ -165,44 +167,33 @@ void main() {
           reason: 'the commit, through the page\'s host');
     });
 
-    test('proxy and Tor engines read what each slot runs as (LIR-024)', () {
-      for (final engine in [
-        'indicesToUnloadForProxyMismatch(',
-        'indicesToUnloadForTorExitMismatch(',
-        'torExitAnchor(',
-        'torExitNodesFor(',
-        'torExitPinIsArchiveOnly(',
-      ]) {
-        for (final m in RegExp(RegExp.escape(engine)).allMatches(main)) {
-          final call = main.substring(m.start, main.indexOf(');', m.start));
-          expect(call, contains('_sites.slotIdentities('),
-              reason: '$engine at ${m.start} reads the sites, not the slots');
-        }
+    // What each slot runs as is a SlotIdentities, which only SlotIdentities.of
+    // makes, so the engines cannot be handed the sites where they want the
+    // slots: the sites in their place do not compile.
+    test('proxy and Tor engines read what each slot runs as (LIR-024)', () async {
+      Future<void> rejects(String file,
+          {required String from,
+          required String to,
+          required String error}) async {
+        final source = File(file).readAsStringSync();
+        final planted = source.replaceAll(from, to);
+        expect(planted, isNot(source), reason: 'the mistake must be planted in $file');
+        expect(await errorsIn(source, at: file), isEmpty);
+        expect(await errorsIn(planted, at: file), contains(error),
+            reason: '$file: $to must not compile');
       }
-      expect(
-          File('lib/screens/webspace_page_residency.dart').readAsStringSync(),
-          contains('state._sites.slotIdentities()'),
-          reason: 'the residency host hands the plan the slots');
-      final plan = bodyOf(
-        File('lib/services/site_unload_engine.dart').readAsStringSync(),
-        signature: 'static ResidencyPlan plan(',
-      );
-      expect(plan, contains('final identities = host.identities();'),
-          reason: 'the plan reads what each slot runs as from its host');
-      for (final engine in [
-        'indicesToUnloadForProxyMismatch(',
-        'indicesToUnloadForTorExitMismatch(',
-        'torExitAnchor(',
-      ]) {
-        final calls = RegExp(RegExp.escape(engine)).allMatches(plan).toList();
-        expect(calls, isNotEmpty, reason: 'the plan no longer calls $engine');
-        for (final m in calls) {
-          final call = plan.substring(m.start, plan.indexOf(')', m.start));
-          expect(call, contains('models: identities'),
-              reason: '$engine in the plan reads the sites, not the slots');
-        }
-      }
-    });
+
+      await rejects('lib/controllers/site_network_controller.dart',
+          from: 'models: identities', to: 'models: _sites.models',
+          error: 'argument_type_not_assignable');
+      await rejects('lib/services/site_unload_engine.dart',
+          from: 'models: identities', to: 'models: models',
+          error: 'argument_type_not_assignable');
+      await rejects('lib/controllers/site_network_controller.dart',
+          from: 'SiteUnloadEngine.torExitNodesOf(model)',
+          to: 'SiteUnloadEngine.torExitNodesFor(indices: [0], models: _sites.models)',
+          error: 'argument_type_not_assignable');
+    }, timeout: const Timeout(Duration(minutes: 4)));
 
     test('routing from a hosted tab uses the host as source', () {
       expect(

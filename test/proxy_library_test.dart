@@ -209,7 +209,7 @@ void main() {
       return SiteUnloadEngine.indicesToUnloadForProxyMismatch(
         runsAs: 0,
         sites: sites,
-        models: sites,
+        models: SlotIdentities.of(sites),
         loadedIndices: {for (var i = 1; i < proxies.length; i++) i},
         pageIndices: const {},
         topology: ProxyTopology.of(

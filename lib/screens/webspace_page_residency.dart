@@ -27,7 +27,7 @@ class _ResidencyHost implements ResidencyHost {
       state._background.noteUnloaded(model, reason: reason.label);
 
   @override
-  List<WebViewModel> identities() => state._sites.slotIdentities();
+  SlotIdentities identities() => state._sites.slotIdentities();
 
   @override
   SiteRetentionPriority priorityOf(int index) =>

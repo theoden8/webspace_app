@@ -46,7 +46,7 @@ Tasks for hosted tabs and reattach (LIR-018 to LIR-027). The tab model itself (T
 
 - [x] 6.1 `SiteUnloadEngine.indicesToUnloadForProxyMismatch`, `indicesToUnloadForTorExitMismatch`, `torExitNodesFor` gain `identityOf(int index)` (default `models[i]`); router mode's `sharesDefaultSession` reads the identity. *The engines take `_slotIdentities()` as their model list instead of an `identityOf` parameter.*
 - [x] 6.2 Visible-slot rebind to a mismatched identity runs the PROXY-008 sequence first and fails closed; a background-slot rebind to a mismatched identity leaves the slot disposed and out of `_loadedIndices`.
-- [ ] 6.3 Tests in `test/site_unload_engine_test.dart` and `test/proxy_mechanism_parity_test.dart`: identity-based eviction, the host's own slot kept when proxies agree, background rebind left unloaded, Tor pin read from the identity. *Covered by the structural check that every engine call site reads `_slotIdentities(`.*
+- [ ] 6.3 Tests in `test/site_unload_engine_test.dart` and `test/proxy_mechanism_parity_test.dart`: identity-based eviction, the host's own slot kept when proxies agree, background rebind left unloaded, Tor pin read from the identity. *Covered by the type: the engines take a `SlotIdentities`, which only `SlotIdentities.of` makes, so the sites in its place do not compile (planted in `test/web_search_entry_test.dart`).*
 
 ## 7. Reattach instruments: engine
 

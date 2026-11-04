@@ -37,12 +37,7 @@ import 'package:analyzer/file_system/overlay_file_system.dart';
 import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-String _sdk() {
-  final root = Platform.environment['FLUTTER_ROOT'];
-  if (root != null && root.isNotEmpty) return '$root/bin/cache/dart-sdk';
-  final at = Platform.resolvedExecutable.indexOf('/bin/cache/');
-  return '${Platform.resolvedExecutable.substring(0, at)}/bin/cache/dart-sdk';
-}
+import 'helpers/compile_probe.dart';
 
 /// A port's code reading a variable it does not declare, with the calls
 /// that reach the read.
@@ -681,7 +676,7 @@ final Future<({List<PortRead> undeclared, List<String> unchecked})> _analysis =
       final contexts = AnalysisContextCollection(
         includedPaths: [lib],
         resourceProvider: files,
-        sdkPath: _sdk(),
+        sdkPath: dartSdk(),
       );
       try {
         return await portReads(

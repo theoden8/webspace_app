@@ -87,7 +87,7 @@ final class FakeResidency implements ResidencyHost {
   void noteUnloaded(WebViewModel model, {required UnloadReason reason}) {}
 
   @override
-  List<WebViewModel> identities() => sites.slotIdentities();
+  SlotIdentities identities() => sites.slotIdentities();
 
   @override
   SiteRetentionPriority priorityOf(int index) =>

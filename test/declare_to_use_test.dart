@@ -14,49 +14,10 @@
 
 import 'dart:io';
 
-import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
-import 'package:analyzer/dart/analysis/results.dart';
-import 'package:analyzer/diagnostic/diagnostic.dart';
-import 'package:analyzer/file_system/overlay_file_system.dart';
-import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/step_table.dart';
 
-String _sdk() {
-  final root = Platform.environment['FLUTTER_ROOT'];
-  if (root != null && root.isNotEmpty) return '$root/bin/cache/dart-sdk';
-  final at = Platform.resolvedExecutable.indexOf('/bin/cache/');
-  return '${Platform.resolvedExecutable.substring(0, at)}/bin/cache/dart-sdk';
-}
-
-Future<List<String>> _errorsIn(
-  String source, {
-  String at = 'test/_declare_to_use_probe.dart',
-  Map<String, String> overlays = const {},
-}) async {
-  final path = '${Directory.current.path}/$at';
-  final files = OverlayResourceProvider(PhysicalResourceProvider.INSTANCE)
-    ..setOverlay(path, content: source, modificationStamp: 0);
-  for (final MapEntry(:key, :value) in overlays.entries) {
-    files.setOverlay('${Directory.current.path}/$key',
-        content: value, modificationStamp: 0);
-  }
-  final contexts = AnalysisContextCollection(
-    includedPaths: [path],
-    resourceProvider: files,
-    sdkPath: _sdk(),
-  );
-  try {
-    final unit = await contexts.contextFor(path).currentSession.getResolvedUnit(path);
-    expect(unit, isA<ResolvedUnitResult>());
-    return [
-      for (final d in (unit as ResolvedUnitResult).diagnostics)
-        if (d.severity == Severity.error) d.diagnosticCode.lowerCaseName,
-    ];
-  } finally {
-    await contexts.dispose();
-  }
-}
+import 'helpers/compile_probe.dart';
 
 const _site = '''
 import 'dart:typed_data';
@@ -84,15 +45,15 @@ void main() {
   parityProbe('the compiler must require a reader', type: 'TRUE'),''');
     expect(added, isNot(names), reason: 'the planted variable must be inserted');
     final source = File(reader).readAsStringSync();
-    expect(await _errorsIn(source, at: reader), isEmpty);
+    expect(await errorsIn(source, at: reader), isEmpty);
     expect(
-      await _errorsIn(source, at: reader, overlays: {owner: added}),
+      await errorsIn(source, at: reader, overlays: {owner: added}),
       contains('non_exhaustive_switch_expression'),
     );
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   test('step code that reaches the world does not compile', () async {
-    final errors = await _errorsIn('''
+    final errors = await errorsIn('''
 $_world
 final reach = Expr.op<int, W>(P.p, tla: 'loaded', run: (c) => c.world.loaded, reads: Reads.none);
 ''');
@@ -101,7 +62,7 @@ final reach = Expr.op<int, W>(P.p, tla: 'loaded', run: (c) => c.world.loaded, re
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   test("a call's code that reaches the world does not compile", () async {
-    final errors = await _errorsIn('''
+    final errors = await errorsIn('''
 $_world
 final port = Port<W, W>('w', reads: {ModelVar.loaded}, changes: const {}, of: (w) => w);
 final call = Call.on(port, run: (c) async => c.world.loaded, writes: const []);
@@ -111,7 +72,7 @@ final call = Call.on(port, run: (c) async => c.world.loaded, writes: const []);
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   test('a value of the model built outside the core does not compile', () async {
-    final errors = await _errorsIn('''
+    final errors = await errorsIn('''
 $_world
 final raw = Expr<bool, W>(run: (_) => true, tla: 'FALSE', reads: Reads.none);
 ''');
@@ -120,7 +81,7 @@ final raw = Expr<bool, W>(run: (_) => true, tla: 'FALSE', reads: Reads.none);
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   test('a hand pairing that names no pairing does not compile', () async {
-    final errors = await _errorsIn('''
+    final errors = await errorsIn('''
 $_world
 final unnamed = Expr.handPaired<bool, W>(tla: 'FALSE', run: (_) => false, reads: Reads.none);
 final op = Expr.op<bool, W>(tla: 'FALSE', run: (_) => false, reads: Reads.none);
@@ -130,7 +91,7 @@ final op = Expr.op<bool, W>(tla: 'FALSE', run: (_) => false, reads: Reads.none);
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   test('the same pair named as hand-paired compiles', () async {
-    final errors = await _errorsIn('''
+    final errors = await errorsIn('''
 $_world
 final named = Expr.handPaired<bool, W>(P.p, tla: 'FALSE', run: (_) => false, reads: Reads.none);
 final op = Expr.op<bool, W>(P.p, tla: 'FALSE', run: (_) => false, reads: Reads.none);
@@ -139,7 +100,7 @@ final op = Expr.op<bool, W>(P.p, tla: 'FALSE', run: (_) => false, reads: Reads.n
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   test('the same read through a declared port compiles', () async {
-    final errors = await _errorsIn('''
+    final errors = await errorsIn('''
 $_world
 final port = Port<W, W>('w', reads: {ModelVar.loaded}, changes: const {}, of: (w) => w);
 final reach = Expr.op<int, W>(P.p, tla: 'loaded', run: (c) => port.from(c).loaded, reads: Reads.none);
@@ -149,7 +110,7 @@ final call = Call.on(port, run: (c) async => c.api.loaded, writes: const []);
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   test("a site's variables written outside a commit do not compile", () async {
-    final errors = await _errorsIn('''
+    final errors = await errorsIn('''
 $_site
 void f(WebViewModel m) {
   m.tabs = m.tabs;
@@ -171,7 +132,7 @@ void f(WebViewModel m) {
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   test("the runner's commit cannot be made outside it", () async {
-    final errors = await _errorsIn('''
+    final errors = await errorsIn('''
 $_site
 void f(WebViewModel m) =>
     WebViewModel.tabsCell.write(at: m, to: m.tabs, commit: const Commit._());
@@ -181,7 +142,7 @@ void f(WebViewModel m) =>
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   test('the same write under a named debt compiles', () async {
-    final errors = await _errorsIn('''
+    final errors = await errorsIn('''
 $_site
 void f(WebViewModel m) {
   WebViewModel.tabsCell.write(
