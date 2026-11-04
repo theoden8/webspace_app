@@ -26,6 +26,7 @@ use std::ffi::CStr;
 
 #[cfg(target_os = "android")]
 mod jni;
+mod redirect_resources;
 use std::slice;
 
 use adblock::content_blocking::{CbRule, CbType};
@@ -33,14 +34,7 @@ use adblock::filters::network::{NetworkFilter, NetworkFilterMask};
 use adblock::Engine as AdblockEngine;
 use adblock::lists::{FilterSet, ParseOptions, RuleTypes};
 use adblock::request::Request;
-use adblock::resources::Resource;
 
-/// adblock-rust resource bundle, fetched at build time from
-/// github.com/brave/adblock-resources at a pinned commit (see
-/// `build.rs`). Empty `[]` when the fetcher couldn't reach the
-/// upstream (offline build) — engine then runs without
-/// `$redirect=` support. Pre-baked into the .so via `include_str!`;
-/// no runtime file IO, no committed third-party data.
 /// JSON list of transitive Rust dependencies + SPDX licenses, produced
 /// by build.rs via `cargo metadata`. Surfaced through
 /// [`ws_dep_licenses_json`].
@@ -56,21 +50,6 @@ static DEP_LICENSES_JSON_CSTR: std::sync::LazyLock<std::ffi::CString> =
         std::ffi::CString::new(DEP_LICENSES_JSON)
             .unwrap_or_else(|_| std::ffi::CString::new("[]").unwrap())
     });
-
-const UBO_RESOURCES_JSON: &str = include_str!(
-    concat!(env!("OUT_DIR"), "/ubo_resources.json")
-);
-
-fn load_ubo_resources() -> Vec<Resource> {
-    serde_json::from_str(UBO_RESOURCES_JSON).unwrap_or_else(|e| {
-        eprintln!(
-            "[webspace_adblock] failed to parse embedded uBO resources: {} — \
-             $redirect= rules will silently miss",
-            e
-        );
-        Vec::new()
-    })
-}
 
 /// Opaque engine handle. Heap-allocated via `Box`; the C side sees
 /// only a `*mut Engine` and never dereferences it. cbindgen prefixes
@@ -106,25 +85,19 @@ pub extern "C" fn ws_engine_new(
     let mut filter_set = FilterSet::new(false);
     filter_set.add_filter_list(text.to_string(), ParseOptions::default());
     let mut engine = AdblockEngine::new_with_filter_set(filter_set);
-    // `enable_ubo_resources` gates the uBO web_accessible_resources pool
-    // embedded at build time (see build.rs). When off, $redirect= rules
-    // become drop-the-request (engine.redirect_for returns None for every
-    // URL). Useful when a downstream wants the rule engine without the
-    // bundled resource payload — e.g. a paranoid user who'd rather see
-    // empty bodies than a stub from a third-party tarball.
+    // `enable_ubo_resources` gates the redirect stubs (redirect_resources.rs).
+    // When off, $redirect= rules become drop-the-request (engine.redirect_for
+    // returns None for every URL).
     if enable_ubo_resources {
-        let resources = load_ubo_resources();
-        if !resources.is_empty() {
-            engine.use_resources(resources);
-        }
+        engine.use_resources(redirect_resources::all());
     }
     Box::into_raw(Box::new(Engine { inner: engine }))
 }
 
 /// Build an engine from the binary blob produced by [`ws_engine_serialize`].
 /// Skips the multi-megabyte ABP rule parse — same observable engine
-/// state, just hydrated from flatbuffers instead of text. The uBO
-/// resource pool is not part of the serialized format, so we re-apply
+/// state, just hydrated from flatbuffers instead of text. The redirect
+/// stubs are not part of the serialized format, so we re-apply
 /// it here (gated on `enable_ubo_resources` the same way `ws_engine_new`
 /// is).
 ///
@@ -150,10 +123,7 @@ pub extern "C" fn ws_engine_new_from_serialized(
         return std::ptr::null_mut();
     }
     if enable_ubo_resources {
-        let resources = load_ubo_resources();
-        if !resources.is_empty() {
-            engine.use_resources(resources);
-        }
+        engine.use_resources(redirect_resources::all());
     }
     Box::into_raw(Box::new(Engine { inner: engine }))
 }
@@ -714,7 +684,7 @@ mod tests {
 
     #[test]
     fn redirect_rules_return_data_url_when_resources_loaded() {
-        // With uBO's web_accessible_resources vendored + loaded via
+        // With the stubs loaded via
         // engine.use_resources(...) in `ws_engine_new`, a rule like
         // `$redirect=noopjs` should surface the redirect resource on
         // matching requests. Without resources the redirect field
@@ -737,8 +707,7 @@ mod tests {
         assert!(result.should_block(), "rule must match");
         assert!(result.redirect.is_some(),
             "engine.use_resources(...) must populate the resource pool — \
-             redirect was None despite ubo_resources.json being included. \
-             Did the embedded JSON parse fail?");
+             redirect was None with the stubs loaded");
         let redirect = result.redirect.unwrap();
         assert!(redirect.starts_with("data:"),
             "redirect must be a data: URL; got: {}",
@@ -748,8 +717,8 @@ mod tests {
 
     #[test]
     fn abp_rewrite_serves_the_aliased_redirect_resource() {
-        // ABP lists write `$rewrite=abp-resource:<name>`; uBO ships the
-        // `abp-resource:` names as aliases of its own resources.
+        // ABP lists write `$rewrite=abp-resource:<name>`; the stubs carry
+        // the `abp-resource:` names as aliases.
         let engine_ptr = rules_to_engine_with_resources(
             "||tracker.example.com^$rewrite=abp-resource:blank-js\n", true);
         let engine = unsafe { &(*engine_ptr).inner };
@@ -761,7 +730,24 @@ mod tests {
         ).unwrap();
         let redirect = engine.check_network_request(&request).redirect;
         assert!(redirect.is_some_and(|r| r.starts_with("data:")),
-            "$rewrite= must resolve through the bundled uBO aliases");
+            "$rewrite= must resolve through the stubs' aliases");
+        ws_engine_free(engine_ptr);
+    }
+
+    #[test]
+    fn a_redirect_to_a_resource_outside_the_pool_blocks() {
+        let engine_ptr = rules_to_engine_with_resources(
+            "||tracker.example.com^$redirect=google-analytics_ga.js\n", true);
+        let engine = unsafe { &(*engine_ptr).inner };
+        let request = adblock::request::Request::new(
+            "https://tracker.example.com/ga.js",
+            "https://news.com/",
+            "script",
+            "",
+        ).unwrap();
+        let result = engine.check_network_request(&request);
+        assert!(result.should_block(), "the rule still blocks");
+        assert!(result.redirect.is_none(), "no stub is served for it");
         ws_engine_free(engine_ptr);
     }
 

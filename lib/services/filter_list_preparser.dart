@@ -1,17 +1,94 @@
-/// uBlock Origin's filter-list pre-parser directives, which adblock-rust
-/// does not implement: its parser reads every `!` line as a comment, so
-/// without this an `!#include` pulls in nothing and both branches of an
-/// `!#if` are compiled.
-///
-/// Ported from uBO's `utils.preparser` (`static-filtering-parser.js`) and
-/// `assets.fetchFilterList` (`assets.js`); the token table, the expression
-/// grammar and the include restrictions match uBO so a list written for it
-/// resolves the same way here.
+/// Resolves a filter list's pre-parser directives (CB-017) before the list
+/// reaches adblock-rust, which reads every `!` line as a comment:
+/// `!#include` when the list is downloaded ([expandFilterListIncludes]),
+/// `!#if` / `!#else` / `!#endif` when the engine is built
+/// ([pruneFilterList]), so a list is stored whole and the environment is
+/// applied where it runs.
 library;
 
-/// uBO's token table: directive token -> the environment name it tests.
-/// `'false'` means the token never holds.
-const Map<String, String> _kTokens = {
+/// The traits of the engine the rules run in, as `!#if` tokens test them:
+/// `ublock` always, since the engine takes uBO syntax and scriptlets;
+/// `chromium` on Android; `safari` on the WebKit hosts; `mobile` on Android
+/// and iOS.
+Set<String> preparserEnv({
+  required bool android,
+  required bool ios,
+  required bool macos,
+  required bool linux,
+}) => Set.unmodifiable({
+  'ublock',
+  if (android) 'chromium',
+  if (ios || macos || linux) 'safari',
+  if (android || ios) 'mobile',
+});
+
+/// Whether an `!#if` expression holds in [env], or null when it does not
+/// parse or names a token neither [_tokenNeeds] nor [_neverHolds] knows, so
+/// the block keeps both branches. An unknown `cap_` token is false.
+bool? evaluatePreparserExpr(String expr, {required Set<String> env}) {
+  final tokens = _tokensOf(expr);
+  if (tokens == null || tokens.length > _maxExprTokens) return null;
+  return _ExprParser(tokens, env: env).whole();
+}
+
+/// [content] without the lines under a branch that is false in [env], and
+/// without its directive lines; [content] itself when it has no directive.
+String pruneFilterList(String content, {required Set<String> env}) {
+  final blocks = _Blocks(env: env);
+  final out = StringBuffer();
+  var resolved = false;
+  for (final line in _lines(content)) {
+    switch (_directiveOf(line)) {
+      case null:
+        if (blocks.live) out.write(line);
+      case final _Conditional directive:
+        resolved = true;
+        blocks.take(directive);
+      case _Include():
+        resolved = true;
+    }
+  }
+  return resolved ? out.toString() : content;
+}
+
+/// [content], the list downloaded from [url], with each `!#include` under a
+/// branch that is not false in [env] replaced by the sublist it names,
+/// expanded the same way. A path that could leave the directory of the list
+/// naming it is dropped unfetched, and a sublist already fetched is not
+/// fetched again.
+///
+/// Throws [FilterListIncludeError] for a sublist [fetch] returns null for,
+/// or for one past [maxSublists] fetches.
+Future<String> expandFilterListIncludes(
+  String content, {
+  required String url,
+  required Set<String> env,
+  required Future<String?> Function(String url) fetch,
+  int maxSublists = 64,
+}) {
+  final top = Uri.parse(url);
+  return _Expansion(
+    env: env,
+    fetch: fetch,
+    maxSublists: maxSublists,
+    top: top,
+  ).expand(content, base: top);
+}
+
+/// A sublist that could not be fetched, or one past the bound, which fails
+/// the whole download that named it.
+class FilterListIncludeError implements Exception {
+  FilterListIncludeError(this.url);
+
+  final String url;
+
+  @override
+  String toString() => 'FilterListIncludeError: $url';
+}
+
+/// The `!#if` tokens that hold when the environment names the trait each
+/// maps to.
+const Map<String, String> _tokenNeeds = {
   'ext_ublock': 'ublock',
   'ext_ubol': 'ubol',
   'ext_devbuild': 'devbuild',
@@ -25,215 +102,285 @@ const Map<String, String> _kTokens = {
   'env_safari': 'safari',
   'cap_html_filtering': 'html_filtering',
   'cap_ipaddress': 'ipaddress',
-  'false': 'false',
-  'ext_abp': 'false',
   'adguard': 'adguard',
-  'adguard_app_android': 'false',
-  'adguard_app_cli': 'false',
-  'adguard_app_ios': 'false',
-  'adguard_app_mac': 'false',
-  'adguard_app_windows': 'false',
-  'adguard_ext_android_cb': 'false',
   'adguard_ext_chromium': 'chromium',
   'adguard_ext_chromium_mv3': 'mv3',
   'adguard_ext_edge': 'edge',
   'adguard_ext_firefox': 'firefox',
   'adguard_ext_opera': 'chromium',
-  'adguard_ext_safari': 'false',
 };
 
-/// The environment this app presents to `!#if`. The engine accepts uBO
-/// syntax and scriptlets, so `ublock` holds; the rest names the webview
-/// engine the rules will run in, not a browser product.
-Set<String> preparserEnv({
-  required bool android,
-  required bool ios,
-  required bool macos,
-  required bool linux,
-}) =>
-    {
-      'ublock',
-      if (android) 'chromium',
-      if (ios || macos || linux) 'safari',
-      if (android || ios) 'mobile',
-    };
+/// The `!#if` tokens that never hold here: other blockers and their builds.
+const Set<String> _neverHolds = {
+  'false',
+  'ext_abp',
+  'adguard_app_android',
+  'adguard_app_cli',
+  'adguard_app_ios',
+  'adguard_app_mac',
+  'adguard_app_windows',
+  'adguard_ext_android_cb',
+  'adguard_ext_safari',
+};
 
-/// Evaluates one `!#if` expression. Null means uBO would not recognise it,
-/// in which case the block is kept, as uBO keeps it.
-bool? evaluatePreparserExpr(String expr, {required Set<String> env}) {
-  var e = expr.trim();
-  if (e.startsWith('(') && e.endsWith(')')) e = e.substring(1, e.length - 1);
-  final matches =
-      RegExp(r'(?:(?:&&|\|\|)\s+)?\S+').allMatches(e).map((m) => m[0]!).toList();
-  if (matches.isEmpty) return null;
-  if (matches.first.startsWith('|') || matches.first.startsWith('&')) {
-    return null;
+/// Whether [token] holds in [env]; null for a token neither table knows,
+/// except that a capability nobody declared is absent.
+bool? _tokenHolds(String token, {required Set<String> env}) {
+  if (_neverHolds.contains(token)) return false;
+  final trait = _tokenNeeds[token];
+  if (trait != null) return env.contains(trait);
+  return token.startsWith('cap_') ? false : null;
+}
+
+/// The longest expression taken, so a hostile list cannot nest one deep
+/// enough to exhaust the parser's stack; a longer one is taken as unparsed.
+const int _maxExprTokens = 256;
+
+const Set<String> _operators = {'!', '&&', '||', '(', ')'};
+
+final RegExp _exprToken = RegExp(r'\s*(&&|\|\||[!()]|\w+)');
+
+/// [expr] as operators and tokens, or null where it holds anything else.
+List<String>? _tokensOf(String expr) {
+  final tokens = <String>[];
+  var at = 0;
+  for (
+    var match = _exprToken.matchAsPrefix(expr);
+    match != null;
+    match = _exprToken.matchAsPrefix(expr, match.end)
+  ) {
+    tokens.add(match[1]!);
+    at = match.end;
   }
-  var result = _evaluateToken(matches.first, env: env);
-  for (var i = 1; i < matches.length; i++) {
-    final parts = matches[i].split(RegExp(r' +'));
-    if (parts.length != 2) return null;
-    final state = _evaluateToken(parts[1], env: env);
-    if (state == null) return null;
-    // JS semantics of uBO's `result || state` / `result && state` with an
-    // undefined first operand.
-    if (parts[0] == '||') {
-      result = (result ?? false) || state;
-    } else if (parts[0] == '&&') {
-      result = result == null ? null : result && state;
-    } else {
+  return expr.substring(at).trim().isEmpty ? tokens : null;
+}
+
+/// A recursive descent over one expression: `||` over `&&` over `!` over a
+/// token or a parenthesized expression. Null, for an expression that does
+/// not parse or a token that is not known, ends the descent and is the
+/// answer.
+final class _ExprParser {
+  _ExprParser(this._tokens, {required this.env});
+
+  final List<String> _tokens;
+  final Set<String> env;
+  var _at = 0;
+
+  bool? whole() {
+    final value = _or();
+    return _at == _tokens.length ? value : null;
+  }
+
+  bool? _or() {
+    var value = _and();
+    while (value != null && _take('||')) {
+      final right = _and();
+      value = right == null ? null : value || right;
+    }
+    return value;
+  }
+
+  bool? _and() {
+    var value = _operand();
+    while (value != null && _take('&&')) {
+      final right = _operand();
+      value = right == null ? null : value && right;
+    }
+    return value;
+  }
+
+  bool? _operand() {
+    if (_take('!')) {
+      final value = _operand();
+      return value == null ? null : !value;
+    }
+    if (_take('(')) {
+      final value = _or();
+      return _take(')') ? value : null;
+    }
+    if (_at == _tokens.length || _operators.contains(_tokens[_at])) {
       return null;
     }
+    return _tokenHolds(_tokens[_at++], env: env);
   }
-  return result;
-}
 
-bool? _evaluateToken(String token, {required Set<String> env}) {
-  final not = token.startsWith('!');
-  if (not) token = token.substring(1);
-  var state = _kTokens[token];
-  if (state == null) {
-    if (!token.startsWith('cap_')) return null;
-    state = 'false';
+  bool _take(String operator) {
+    if (_at == _tokens.length || _tokens[_at] != operator) return false;
+    _at++;
+    return true;
   }
-  return (state == 'false' && not) || (env.contains(state) != not);
 }
 
-class _IfFrame {
-  bool known;
-  bool discard;
-  int pos;
-  _IfFrame({required this.known, required this.discard, required this.pos});
+/// A directive line of a filter list.
+sealed class _Directive {
+  const _Directive();
 }
 
-/// Offsets that alternately start a kept and a discarded span, beginning
-/// with a kept span at 0 and ending at `content.length`. Same contract as
-/// uBO's `splitter`.
-List<int> _splitter(String content, {required Set<String> env}) {
-  final reIf = RegExp(r'^!#(if|else|endif)\b([^\n]*)(?:[\n\r]+|$)',
-      multiLine: true);
-  final stack = <_IfFrame>[];
-  final parts = <int>[0];
-  var discard = false;
+final class _Include extends _Directive {
+  const _Include(this.path);
 
-  bool shouldDiscard() => stack.any((f) => f.known && f.discard);
+  final String path;
+}
 
-  void begif(_IfFrame f) {
-    if (!discard && f.known && f.discard) {
-      parts.add(f.pos);
-      discard = true;
+/// A directive that opens, turns or closes an `!#if` block.
+sealed class _Conditional extends _Directive {
+  const _Conditional();
+}
+
+final class _If extends _Conditional {
+  const _If(this.expr);
+
+  final String expr;
+}
+
+final class _Else extends _Conditional {
+  const _Else();
+}
+
+final class _EndIf extends _Conditional {
+  const _EndIf();
+}
+
+final RegExp _directive = RegExp(r'^!#(if|else|endif|include)\b\s*(.*)$');
+
+/// The directive [line] carries, or null for any other line.
+_Directive? _directiveOf(String line) {
+  if (!line.contains('!#')) return null;
+  final match = _directive.firstMatch(line.trim());
+  if (match == null) return null;
+  final argument = match[2]!;
+  return switch (match[1]!) {
+    'if' => _If(argument),
+    'else' => const _Else(),
+    'endif' => const _EndIf(),
+    _ => _Include(argument),
+  };
+}
+
+/// The `!#if` blocks open at a line of one list, innermost last, each as the
+/// value of the branch the line is in: null where the expression is unknown
+/// and both branches stay.
+final class _Blocks {
+  _Blocks({required this.env});
+
+  final Set<String> env;
+  final List<bool?> _open = [];
+
+  /// Whether the line is in no false branch.
+  bool get live => !_open.contains(false);
+
+  int get depth => _open.length;
+
+  /// Applies [directive]; false for an `!#else` or `!#endif` that closes no
+  /// block, which changes nothing.
+  bool take(_Conditional directive) {
+    switch (directive) {
+      case _If(:final expr):
+        _open.add(evaluatePreparserExpr(expr, env: env));
+        return true;
+      case _Else():
+        if (_open.isEmpty) return false;
+        final holds = _open.last;
+        _open.last = holds == null ? null : !holds;
+        return true;
+      case _EndIf():
+        if (_open.isEmpty) return false;
+        _open.removeLast();
+        return true;
     }
-    stack.add(f);
   }
-
-  void endif(Match m) {
-    if (stack.isNotEmpty) stack.removeLast();
-    if (discard && !shouldDiscard()) {
-      parts.add(m.end);
-      discard = false;
-    }
-  }
-
-  for (final m in reIf.allMatches(content)) {
-    switch (m[1]) {
-      case 'if':
-        final result = evaluatePreparserExpr(m[2]!.trim(), env: env);
-        begif(_IfFrame(known: result != null, discard: result == false, pos: m.start));
-      case 'else':
-        if (stack.isEmpty) break;
-        final f = stack.last;
-        endif(m);
-        f.discard = !f.discard;
-        f.pos = m.start;
-        begif(f);
-      case 'endif':
-        endif(m);
-    }
-  }
-  parts.add(content.length);
-  return parts;
 }
 
-/// Drops the spans a false `!#if` excludes.
-String pruneFilterList(String content, {required Set<String> env}) {
-  if (!content.contains('!#')) return content;
-  final parts = _splitter(content, env: env);
-  final out = StringBuffer();
-  for (var i = 0; i + 1 < parts.length; i += 2) {
-    if (i > 0) out.write('\n');
-    out.write(content.substring(parts[i], parts[i + 1]));
+/// [content]'s lines, each with the line break it came with.
+Iterable<String> _lines(String content) sync* {
+  var start = 0;
+  while (start < content.length) {
+    final end = content.indexOf('\n', start);
+    final next = end < 0 ? content.length : end + 1;
+    yield content.substring(start, next);
+    start = next;
   }
-  return out.toString();
 }
 
-/// An `!#include` that uBO would refuse: an absolute URL, or a path that
-/// climbs out of the parent list's directory. The percent-encoded dot is
-/// refused too, since a server may decode it into `..`.
-bool _refusedIncludePath(String path) {
-  if (Uri.tryParse(path)?.hasScheme ?? false) return true;
-  if (path.contains('..')) return true;
-  if (path.toLowerCase().contains('%2e')) return true;
-  if (path.contains('\\')) return true;
-  return false;
+String _lineBreakOf(String line) => line.endsWith('\r\n')
+    ? '\r\n'
+    : line.endsWith('\n')
+    ? '\n'
+    : '';
+
+/// The sublist an `!#include` path names in the directory of the list at
+/// [base], or null for a path that could leave it: an absolute URL, one from
+/// the host's root, a climb, or what a server may decode into one.
+Uri? _sublistUrl(String path, {required Uri base}) {
+  if (path.startsWith('/') ||
+      path.contains('..') ||
+      path.contains(r'\') ||
+      path.toLowerCase().contains('%2e')) {
+    return null;
+  }
+  final relative = Uri.tryParse(path);
+  if (relative == null || relative.hasScheme || relative.path.isEmpty) {
+    return null;
+  }
+  final url = base.resolveUri(relative);
+  assert(
+    url.toString().startsWith(base.resolve('.').toString()),
+    'a refused path is the only way out of the directory',
+  );
+  return url;
 }
 
-/// Thrown when an included sublist cannot be fetched. uBO fails the whole
-/// list in that case rather than compiling a partial one.
-class FilterListIncludeError implements Exception {
-  final String url;
-  FilterListIncludeError(this.url);
-  @override
-  String toString() => 'FilterListIncludeError: $url';
-}
+/// One download's expansion: the sublists it has fetched, shared by every
+/// list it reaches, so each is fetched once and their count is bounded.
+///
+/// An expanded list's `!#if` blocks are closed at its end and its unmatched
+/// `!#else` and `!#endif` dropped, so a sublist's blocks end where it ends,
+/// as they did when its own includes were decided.
+final class _Expansion {
+  _Expansion({
+    required this.env,
+    required this.fetch,
+    required this.maxSublists,
+    required Uri top,
+  }) : _seen = {top.toString()};
 
-/// Inlines every `!#include` outside a false `!#if`, recursively, each
-/// sublist resolved against the URL of the list that names it. A sublist
-/// is fetched at most once. [maxSublists] bounds what one list can make the
-/// app download.
-Future<String> expandFilterListIncludes(
-  String content, {
-  required String url,
-  required Set<String> env,
-  required Future<String?> Function(String url) fetch,
-  int maxSublists = 64,
-}) async {
-  final seen = <String>{};
+  final Set<String> env;
+  final Future<String?> Function(String url) fetch;
+  final int maxSublists;
+  final Set<String> _seen;
+  var _fetched = 0;
 
-  Future<String> expand(String text, {required String parentUrl}) async {
-    if (!text.contains('!#include')) return text;
-    final slash = parentUrl.lastIndexOf('/');
-    if (slash < 0) return text;
-    final base = parentUrl.substring(0, slash + 1);
-    final reInclude =
-        RegExp(r'^!#include +(\S+)[^\n\r]*(?:[\n\r]+|$)', multiLine: true);
-    final parts = _splitter(text, env: env);
+  Future<String> expand(String content, {required Uri base}) async {
+    final blocks = _Blocks(env: env);
     final out = StringBuffer();
-    for (var i = 0; i + 1 < parts.length; i++) {
-      final slice = text.substring(parts[i], parts[i + 1]);
-      if (i.isOdd) {
-        out.write(slice);
-        continue;
+    for (final line in _lines(content)) {
+      switch (_directiveOf(line)) {
+        case null:
+          out.write(line);
+        case final _Conditional directive:
+          if (blocks.take(directive)) out.write(line);
+        case _Include(:final path):
+          final url = blocks.live ? _sublistUrl(path, base: base) : null;
+          if (url != null && _seen.add(url.toString())) {
+            final sublist = await _sublist(url);
+            out.write(sublist);
+            if (sublist.isNotEmpty && !sublist.endsWith('\n')) {
+              out.write(_lineBreakOf(line));
+            }
+          }
       }
-      var last = 0;
-      for (final m in reInclude.allMatches(slice)) {
-        final path = m[1]!.trim();
-        if (_refusedIncludePath(path)) continue;
-        final subUrl = base + path;
-        if (!seen.add(subUrl)) continue;
-        if (seen.length > maxSublists) throw FilterListIncludeError(subUrl);
-        final body = await fetch(subUrl);
-        if (body == null) throw FilterListIncludeError(subUrl);
-        out
-          ..write(slice.substring(last, m.end))
-          ..write('! >>>>>>>> $subUrl\n')
-          ..write(await expand('${body.trimRight()}\n', parentUrl: subUrl))
-          ..write('! <<<<<<<< $subUrl\n');
-        last = m.end;
-      }
-      out.write(last == 0 ? slice : slice.substring(last));
     }
-    return out.toString();
+    final text = out.toString();
+    if (blocks.depth == 0) return text;
+    final lineBreak = text.isEmpty || text.endsWith('\n') ? '' : '\n';
+    return '$text$lineBreak${'!#endif\n' * blocks.depth}';
   }
 
-  return expand(content, parentUrl: url);
+  Future<String> _sublist(Uri url) async {
+    if (_fetched >= maxSublists) throw FilterListIncludeError(url.toString());
+    _fetched++;
+    final body = await fetch(url.toString());
+    if (body == null) throw FilterListIncludeError(url.toString());
+    return expand(body, base: url);
+  }
 }

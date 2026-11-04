@@ -770,6 +770,7 @@ name = "webspace_adblock"
 version = "0.1.0"
 dependencies = [
  "adblock",
+ "base64",
  "jni",
  "license",
  "serde_json",
