@@ -1,0 +1,8 @@
+Chrome UX Report (CrUX) top sites
+
+The ranking of popular origins is Google's Chrome UX Report, published as
+monthly lists by the crux-top-lists project. The app downloads a list on the
+device to complete a typed address.
+
+Source: https://github.com/zakird/crux-top-lists
+Chrome UX Report: https://developer.chrome.com/docs/crux

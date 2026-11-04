@@ -61,6 +61,49 @@ void registerLicenses() {
       'assets/licenses/ipfire_location.txt'
     ),
     (['Kagi Bangs (site search list data)'], 'assets/licenses/kagi_bangs.txt'),
+    (
+      ['timezone-boundary-builder (time zone data)'],
+      'assets/licenses/timezone_boundary_builder.txt'
+    ),
+    (
+      ['Chrome UX Report top sites (address completion data)'],
+      'assets/licenses/crux_top_lists.txt'
+    ),
+    (
+      ['StevenBlack hosts, porn-only (domain data)'],
+      'assets/licenses/stevenblack_hosts.txt'
+    ),
+    (
+      ['uBlock Origin filter list index (backup import data)'],
+      'assets/licenses/ubo_assets.txt'
+    ),
+    (
+      ['Public Suffix List (compiled in through the psl crate)'],
+      'assets/licenses/public_suffix_list.txt'
+    ),
+    // What pub packages compile in beside their own code, whose notices
+    // Flutter's collection of each root LICENSE leaves out
+    // (openspec/specs/legal/attributions.tsv).
+    (['archive (the code it ported)'], 'assets/licenses/archive_other.txt'),
+    (['image (the code it ported)'], 'assets/licenses/image_other.txt'),
+    (['Unicode data (in characters)'], 'assets/licenses/unicode_data.txt'),
+    (
+      ['Bouncy Castle (in pointycastle)'],
+      'assets/licenses/pointycastle_bouncycastle.txt'
+    ),
+    (['scrypt (in pointycastle)'], 'assets/licenses/pointycastle_scrypt.txt'),
+    (['Apache httpd mime.types (in mime)'], 'assets/licenses/mime_httpd.txt'),
+    (['FMDB (in sqflite_darwin)'], 'assets/licenses/fmdb.txt'),
+    (['zxing-cpp (in flutter_zxing)'], 'assets/licenses/zxing_cpp.txt'),
+    (['zint (in flutter_zxing)'], 'assets/licenses/zint.txt'),
+    (
+      ['nlohmann/json (in flutter_secure_storage_linux)'],
+      'assets/licenses/nlohmann_json.txt'
+    ),
+    (
+      ['Tor.framework (tor, libevent, OpenSSL, XZ Utils)'],
+      'assets/licenses/tor_framework_components.txt'
+    ),
   ];
   for (final (packages, assetPath) in customLicenses) {
     LicenseRegistry.addLicense(() async* {
@@ -68,6 +111,26 @@ void registerLicenses() {
       yield _PerLineLicenseEntry(packages, text: text);
     });
   }
+
+  // The pods an Apple build links, from the acknowledgements its Podfile lays
+  // out at pod install, and the Maven artifacts an Android build links, from
+  // what android/app/maven_licences.gradle lists; each shown only on its own
+  // platform, so one left from a build for another is not.
+  LicenseRegistry.addLicense(() async* {
+    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    final assets = manifest.listAssets();
+    if (defaultTargetPlatform == TargetPlatform.android && assets.contains(_mavenNotices)) {
+      for (final (artifact, text) in mavenNotices(await rootBundle.loadString(_mavenNotices))) {
+        yield _PerLineLicenseEntry(['$artifact (Maven)'], text: text);
+      }
+    }
+    final apple = defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS;
+    if (!apple || !assets.contains(_podNotices)) return;
+    for (final (pod, text) in podNotices(await rootBundle.loadString(_podNotices))) {
+      yield _PerLineLicenseEntry(['$pod (pod)'], text: text);
+    }
+  });
 
   // The Linux build's tor and its libraries, from the notices the build lays
   // out beside it (linux/tor_build.sh, TOR-027). Read where the build
@@ -86,13 +149,10 @@ void registerLicenses() {
     }
   });
 
-  // Transitive Rust dependency attribution. Loaded from the
-  // adblock_rust shared library's static metadata blob (see
-  // rust/webspace_adblock/build.rs). Surfaces every crate
-  // adblock-rust pulls in (regex, serde, flatbuffers, idna, …) with
-  // its SPDX license + canonical SPDX text (sourced at build time
-  // via the `license` crate's vendored license-list-data, NOT
-  // hand-typed). Dual-licensed crates ship every relevant text.
+  // Every crate the adblock library links, from the blob its build embeds
+  // (rust/webspace_adblock/build.rs): each with its own licence files, which
+  // carry its copyright notices, or the canonical SPDX text and its authors
+  // for one that ships none.
   LicenseRegistry.addLicense(() async* {
     for (final dep in AdblockEngine.depLicenses()) {
       final name = dep['name'] as String? ?? '';
@@ -103,16 +163,40 @@ void registerLicenses() {
       final desc = dep['description'] as String? ?? '';
       final texts = (dep['license_texts'] as List? ?? const [])
           .cast<Map<String, dynamic>>();
+      final files = switch (dep['license_files']) {
+        final List list => [
+            for (final f in list)
+              if (f case {'name': final String name, 'text': final String text})
+                (name, text),
+          ],
+        _ => const <(String, String)>[],
+      };
+      final authors = switch (dep['authors']) {
+        final List list => [
+            for (final a in list)
+              if (a case final String author) author,
+          ],
+        _ => const <String>[],
+      };
 
       final parts = <String>[
         if (desc.isNotEmpty) desc,
         '',
         'Version: $version',
         'License: $license',
+        if (files.isEmpty && authors.isNotEmpty) 'Authors: ${authors.join(', ')}',
         if (repo.isNotEmpty) 'Source: $repo',
         if (repo.isEmpty) 'Source: https://crates.io/crates/$name',
       ];
-      if (texts.isEmpty) {
+      if (files.isNotEmpty) {
+        for (final (fileName, text) in files) {
+          parts
+            ..add('')
+            ..add('--- $fileName ---')
+            ..add('')
+            ..add(text);
+        }
+      } else if (texts.isEmpty) {
         parts.add('');
         parts.add(
             'Canonical SPDX license text was not resolvable for "$license". '
@@ -135,4 +219,58 @@ void registerLicenses() {
       );
     }
   });
+}
+
+const String _podNotices = 'assets/native_notices/pods.md';
+const String _mavenNotices = 'assets/native_notices/maven.json';
+
+/// Each Maven artifact and the licences its POM names, from what
+/// android/app/maven_licences.gradle writes; an entry of the wrong shape
+/// reads as absent.
+List<(String, String)> mavenNotices(String json) => [
+      if (jsonDecode(json) case final List entries)
+        for (final entry in entries)
+          if (entry
+              case {
+                'group': final String group,
+                'artifact': final String artifact,
+                'version': final String version,
+                'licences': final List licences,
+              })
+            (
+              '$group:$artifact',
+              [
+                'Version: $version',
+                for (final licence in licences)
+                  if (licence case {'name': final String name, 'url': final String url})
+                    url.isEmpty ? 'License: $name' : 'License: $name ($url)',
+              ].join('\n'),
+            ),
+    ];
+
+/// Each pod and its licence from the acknowledgements CocoaPods writes
+/// (`Pods-Runner-acknowledgements.markdown`): a `## <pod>` heading, then its
+/// licence, up to the next heading or CocoaPods' closing line.
+List<(String, String)> podNotices(String markdown) {
+  final out = <(String, String)>[];
+  String? pod;
+  final text = StringBuffer();
+  void close() {
+    if (pod case final name?) out.add((name, text.toString().trim()));
+    text.clear();
+  }
+
+  for (final line in const LineSplitter().convert(markdown)) {
+    if (line.startsWith('## ')) {
+      close();
+      pod = line.substring(3).trim();
+    } else if (line.startsWith('Generated by CocoaPods')) {
+      close();
+      pod = null;
+    } else if (pod != null) {
+      text.writeln(line);
+    }
+  }
+  close();
+  return out;
 }

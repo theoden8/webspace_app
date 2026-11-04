@@ -1,0 +1,20 @@
+# Notices that pub packages ship and Flutter's own licence collection, which
+# reads each package's root LICENSE alone, leaves out (LICENSE-003): a licence
+# file deeper in a package's shipped tree, or a package whose sources carry
+# SPDX licences its root LICENSE does not grant; and the texts under
+# assets/licenses that carry each to the licences page. test/js/licence_policy.test.js
+# holds every such notice to a row here or to a `build` row of components.tsv,
+# a file row's text to the assets it names, and a package row's licences.
+# A pod row carries what a pod compiles in beside its own code, whose own
+# licence CocoaPods' acknowledgements bring (the Podfiles' post_integrate).
+pub:archive/LICENSE-other.md	assets/licenses/archive_other.txt
+pub:characters/third_party/Unicode_Consortium/UNICODE_LICENSE.txt	assets/licenses/unicode_data.txt
+pub:flutter_secure_storage_linux	assets/licenses/nlohmann_json.txt
+pub:flutter_zxing	assets/licenses/zxing_cpp.txt assets/licenses/zint.txt
+pub:flutter_zxing/src/zxing/zint/LICENSE	assets/licenses/zint.txt
+pub:image/LICENSE-other.md	assets/licenses/image_other.txt
+pub:mime/third_party/httpd/LICENSE	assets/licenses/mime_httpd.txt
+pub:pointycastle/licenses/LICENSE-BouncyCastle.html	assets/licenses/pointycastle_bouncycastle.txt
+pub:pointycastle/licenses/LICENSE-scrypt.txt	assets/licenses/pointycastle_scrypt.txt
+pub:sqflite_darwin/darwin/FMDB_LICENSE.txt	assets/licenses/fmdb.txt
+pod:Tor	assets/licenses/tor_framework_components.txt

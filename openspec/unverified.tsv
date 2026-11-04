@@ -108,6 +108,9 @@ LANG-003	no check: no widget test of the per-site language picker (System defaul
 LANG-005	no check: no test or gate asserts the header and the override are built without platform branching
 # lazy-webview-loading
 LAZY-004	no check: no test returns to a visited site and asserts its webview was kept without a reload; the integration test covers only the forward visit
+# legal
+EXPORT-002	no check: nothing fails a cryptographic primitive outside the listed ones; review is the gate
+EXPORT-003	process: building a release from the published source at its tag is a release step (docs/releasing.md); no test builds a tag
 # link-intent-routing
 LIR-005	no check: the ACTION_SEND filter, URL extraction from shared text and no-NEW_TASK flag are native; no Kotlin, manifest gate or integration test covers them
 LIR-006	no check: the iOS Share Extension has no test; ios/RunnerTests holds only a placeholder
@@ -116,6 +119,17 @@ LIR-020	no check: the 'Open in new tab as {site}' long-press rows are not built 
 LIR-021	no check: 'Keep as tab' on a nested screen is not built (inactive-tabs tasks 4.3, 4.4 open)
 LIR-025	no check: 'Move to site...' and TabLifecycleEngine.moveSubtree are not built (inactive-tabs tasks 7.1, 8.1 open)
 LIR-027	no check: 'Run as...' and TabLifecycleEngine.changeHost are not built (inactive-tabs tasks 7.3, 8.1 open)
+# localcdn
+LCDN-003	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
+LCDN-004	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
+LCDN-005	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
+LCDN-006	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
+LCDN-008	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
+LCDN-009	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
+LCDN-010	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
+LCDN-012	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
+LCDN-013	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
+LCDN-014	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
 # localization
 L10N-005	process: describes how the migration proceeds (file by file, exempt only shrinking); exempt is now empty and nothing can run 'only grows' (partly: test/js/l10n_no_hardcoded_text.test.js, "UI files contain no hardcoded user-facing text")
 L10N-006	no check: no test asserts WebSpaceApp's MaterialApp sets localizationsDelegates, supportedLocales and onGenerateTitle; app tests that find localized text would fail only incidentally (partly: test/site_menu_app_test.dart, "Developer Tools from the ${tabStrip ? 'bottom bar' : 'app bar'} menu can simulate a background refresh")
@@ -147,6 +161,16 @@ PLATFORM-004	process: a dependency-selection policy; no gate audits pubspec for 
 PLATFORM-005	process: describes a future migration procedure, not current behaviour a test could run
 # proxy-password-secure-storage
 PWD-006	no check: no test makes the keystore write throw for ProxyPasswordSecureStorage and checks that an error is logged, the in-memory password still works, and prefs carry no password
+# screenshots
+SCREENSHOT-001	no check names it: the screenshot jobs run the generators, and no test cites it
+SCREENSHOT-002	no check names it: the screenshot jobs run the generators, and no test cites it
+SCREENSHOT-003	no check names it: the screenshot jobs run the generators, and no test cites it
+SCREENSHOT-004	no check names it: the screenshot jobs run the generators, and no test cites it
+SCREENSHOT-005	no check names it: the screenshot jobs run the generators, and no test cites it
+SCREENSHOT-006	no check names it: the screenshot jobs run the generators, and no test cites it
+SCREENSHOT-007	no check names it: the screenshot jobs run the generators, and no test cites it
+SCREENSHOT-009	no check names it: the screenshot jobs run the generators, and no test cites it
+SCREENSHOT-010	no check names it: the screenshot jobs run the generators, and no test cites it
 # settings-backup
 BACKUP-006	no check: no test builds the import confirmation dialog and asserts the site/webspace counts, export date, cookie note, proxy address or script count it shows (partly: test/proxy_library_test.dart, "an app-wide proxy from the library shows its address")
 BACKUP-008	no check: no test opens a site and asserts Import/Export (App Settings) is absent; tests only assert it is present on the webspaces list

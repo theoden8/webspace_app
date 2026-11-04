@@ -1,0 +1,11 @@
+Mozilla Public License 2.0
+
+The Public Suffix List, compiled into the content blocker's library through
+the psl crate, which adblock-rust uses to tell a site's registrable domain.
+
+This Source Code Form is subject to the terms of the Mozilla Public License,
+v. 2.0. If a copy of the MPL was not distributed with this file, You can
+obtain one at https://mozilla.org/MPL/2.0/.
+
+Source: https://publicsuffix.org/list/public_suffix_list.dat
+The crate's copy: https://github.com/addr-rs/psl

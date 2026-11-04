@@ -1,0 +1,36 @@
+# The licences a shipped component may be under (LICENSE-001): an SPDX id,
+# a tab, how the component may ship under it, and optionally a tab and the
+# only components that may use it. A licence not listed is refused.
+#   linked   compiled or linked into the app, or shipped beside it
+#   shared   only as a separately shipped shared library the user can replace
+# LicenseRef-build-only stands for a licence a Debian copyright file names for
+# files that build its package and are not in it (debian_licences.tsv).
+# test/js/licence_policy.test.js and rust/webspace_adblock/build.rs read this.
+0BSD	linked
+Apache-2.0	linked
+Apache-2.0 WITH LLVM-exception	linked
+BSD-2-Clause	linked
+BSD-3-Clause	linked
+BSL-1.0	linked
+CC0-1.0	linked
+ISC	linked
+MIT	linked
+MPL-2.0	linked
+OFL-1.1	linked
+Unicode-3.0	linked
+Unicode-DFS-2016	linked
+Unlicense	linked
+Zlib	linked
+BSD-2-Clause-Patent	linked
+BSD-3-Clause-Clear	linked
+IJG	linked
+NTP	linked
+LicenseRef-public-domain	linked
+LicenseRef-build-only	linked	deb:libevent-2.1-7t64 deb:libssl3t64
+LGPL-2.0-only	shared
+LGPL-2.0-or-later	shared
+LGPL-2.1-only	shared
+LGPL-2.1-or-later	shared
+LGPL-3.0-only	shared
+LGPL-3.0-or-later	shared
+GPL-2.0-only WITH Classpath-exception-2.0	linked	gradle:com.android.tools:desugar_jdk_libs

@@ -71,6 +71,8 @@ ios/fastlane/README.md
 **/fastlane/report.xml
 **/fastlane/test_output/
 **/fastlane/screenshots/
+# The framing font, which both Fastfiles download where it is missing.
+screenshots/Righteous-Regular.ttf
 **/fastlane/Preview.html
 screenshots
 
@@ -96,3 +98,7 @@ rust/webspace_adblock/cocoapods/keep_alive.c
 # Design mailbox pulled out of the Claude Design project for servicing.
 # The request is the design side's state, not the repo's.
 /_requests/
+
+# The notices pod install lays out for the licences page (ios/Podfile).
+assets/native_notices/*
+!assets/native_notices/.gitkeep

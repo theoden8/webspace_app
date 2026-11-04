@@ -1,0 +1,25 @@
+# How a POM names a licence, and the SPDX id it stands for in licences.tsv
+# (LICENSE-001); tool/check_maven_licences.js reads the artifacts the Android
+# build links (android/app/maven_licences.gradle) through it. Columns: a
+# case-insensitive pattern over the licence's name and URL, the SPDX id; the
+# first pattern that matches wins, so a narrower one comes first. A row whose
+# pattern is `gradle:<group>:<artifact>` is that artifact's licence read by
+# hand, for a POM that names none, with why. A licence no row matches fails.
+general public license, version 2, with the classpath exception	GPL-2.0-only WITH Classpath-exception-2.0
+lesser general public license	LGPL
+affero	AGPL
+general public license|\bgpl\b	GPL
+eclipse public license|\bepl\b	EPL
+common development and distribution|\bcddl\b	CDDL
+apache.*2\.0|apache-2\.0|apache\.org/licenses/license-2\.0	Apache-2.0
+\bmit\b|opensource\.org/licenses/mit	MIT
+bsd[ -]3|3-clause|new bsd|revised bsd	BSD-3-Clause
+bsd[ -]2|2-clause|simplified bsd|freebsd	BSD-2-Clause
+\bbsd\b	BSD-3-Clause
+mozilla public license|\bmpl\b	MPL-2.0
+unicode	Unicode-3.0
+\bcc0\b|public domain	CC0-1.0
+gradle:io.flutter:flutter_embedding_release	BSD-3-Clause	the Flutter engine's Java embedding; its POM names no licence; Flutter's LICENSE, the engine's own notices reach the page through LicenseRegistry
+gradle:io.flutter:arm64_v8a_release	BSD-3-Clause	the Flutter engine for arm64-v8a; its POM names no licence; Flutter's LICENSE, the engine's own notices reach the page through LicenseRegistry
+gradle:io.flutter:armeabi_v7a_release	BSD-3-Clause	the Flutter engine for armeabi-v7a; its POM names no licence; Flutter's LICENSE, the engine's own notices reach the page through LicenseRegistry
+gradle:io.flutter:x86_64_release	BSD-3-Clause	the Flutter engine for x86_64; its POM names no licence; Flutter's LICENSE, the engine's own notices reach the page through LicenseRegistry

@@ -216,11 +216,6 @@ jobs:
       # dart:io through a service instead of through a platform seam.
       - name: Check UI files still compile for web
         run: npm run design:check
-      # JS shim + localization tests (jsdom + node:test). Node-only, so
-      # they belong in this lightweight checks job rather than gated behind
-      # a platform build; runs early to fail fast.
-      - name: Run JS shim tests
-        run: npm run test:js
       - name: Set up Swift for the plugin type-check
         uses: swift-actions/setup-swift@v2
         continue-on-error: true
@@ -269,6 +264,12 @@ jobs:
         run: fvm flutter pub get --enforce-lockfile
       - name: Generate localizations
         run: fvm dart tool/gen_l10n.dart
+      # JS shim + localization tests (jsdom + node:test). Node-only, so
+      # they belong in this lightweight checks job rather than gated behind
+      # a platform build. After pub get: the licence gate reads the packages
+      # it resolved (LICENSE-001).
+      - name: Run JS shim tests
+        run: npm run test:js
       # Errors only: the lints analysis_options.yaml raises to `error` fail
       # here, and the warnings and infos the code already carries do not.
       # `dart analyze`, since `flutter analyze` drops what an analyzer plugin
@@ -456,6 +457,9 @@ jobs:
           # actually shipped in the APK (Android links it over JNI, so this
           # is the .so-presence analog of the iOS/macOS/Linux ws_* check).
           bash scripts/verify_adblock_shipped.sh android
+          # LICENSE-001 over every Maven artifact the build linked, transitive
+          # ones included, as android/app/maven_licences.gradle listed them.
+          node tool/check_maven_licences.js assets/native_notices/maven.json
 
       - name: Verify APK is free of Google Mobile Services
         # Per openspec/specs/per-site-profiles/spec.md PROF-007, no shipped
@@ -745,6 +749,13 @@ jobs:
         run: |
           fvm flutter build linux --release
           bash scripts/verify_adblock_shipped.sh linux
+
+      # LICENSE-001 over what the bundle ships outside pub and Cargo: each
+      # library tor's build copies beside it, by its Debian copyright file.
+      - name: Check the bundle's licences
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends nodejs
+          node tool/check_bundle_licences.js build/linux/x64/release/bundle
 
       # The built-in Tor (TOR-027): the bundle carries the tor linux/tor.cmake
       # built from source, its libraries and notices, no GeoIP table
@@ -1090,6 +1101,7 @@ jobs:
         run: |
           fvm flutter build ipa --release --no-codesign --flavor direct
           bash scripts/verify_adblock_shipped.sh ios
+          bash scripts/verify_tor_framework.sh ios/Pods
           bash scripts/check_extension_search.sh present \
             build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/App
           # --no-codesign builds the archive and then skips the export
@@ -1115,6 +1127,7 @@ jobs:
         run: |
           fvm flutter build macos --release
           bash scripts/verify_adblock_shipped.sh macos
+          bash scripts/verify_tor_framework.sh macos/Pods
           bash scripts/check_extension_search.sh absent \
             build/macos/Build/Products/Release/webspace.app/Contents/Frameworks/App.framework/App
           bash scripts/sign_macos.sh adhoc

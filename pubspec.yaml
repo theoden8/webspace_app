@@ -172,6 +172,8 @@ flutter:
   assets:
     - assets/LICENSE
     - assets/licenses/
+    # What the Podfiles lay out at pod install (Apple builds only).
+    - assets/native_notices/
     - assets/webspace_icon.png
     - assets/webspace_icon_dark.png
     # The desktop tray's pictures (NOTIF-019).
