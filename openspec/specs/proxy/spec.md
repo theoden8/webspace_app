@@ -248,10 +248,14 @@ two Android bindings a run takes, once (PROXY-027).
 Disposed means quiet, not only dropped. The Android plugin destroys a
 native webview only after it has loaded `about:blank`, and until then it can
 still send: on the emulator its icon fetch left through the next site's proxy
-once the override had flipped. Every webview that runs as a site SHALL
-therefore keep its site's place on the process-wide rule until it has been
-told to load nothing more from the network and to stop what it is loading,
-and an override write asked for meanwhile SHALL wait for that: the site's own webview, a nested screen
+once the override had flipped, after it had been told to stop. Every
+webview that runs as a site SHALL therefore keep its site's place on the
+process-wide rule until it has been told to load nothing more from the
+network, to stop what it is loading, and its native view has been destroyed
+(the fork answers `whenWebViewDestroyed` once it has, on Android and Linux),
+and an override write asked for meanwhile SHALL wait for that, for at most
+a few seconds, so a destroy that never comes does not hold every later
+switch: the site's own webview, a nested screen
 opened as the site (whose route's future completes before it leaves the
 tree), and a background wake's headless check of it (NOTIF-016). A popup a
 page opened holds no place of its own: it runs on its opener's, so it SHALL
@@ -296,6 +300,8 @@ which is partitioned per `siteId`
 **When** Site A is disposed so that Site B, on proxy P2, can load
 **Then** Site A's webview is told to block network loads and to stop what
 it is loading before `ProxyController.setProxyOverride` applies P2
+**And** P2 is applied only once the plugin reports Site A's native webview
+destroyed, or the wait for it has run out
 **And** no request for Site A reaches P2, an icon fetched while the plugin
 tears the webview down included
 
@@ -305,7 +311,8 @@ tears the webview down included
 **When** a nested screen running as Site A pops, or a background wake ends
 its headless check of Site A
 **Then** that webview is told to block network loads and to stop what it
-is loading before Site A leaves the process-wide rule
+is loading, and its native view is destroyed, before Site A leaves the
+process-wide rule
 **And** an override write for another proxy asked for meanwhile waits
 
 #### Scenario: Android — a popup goes with the webview that opened it

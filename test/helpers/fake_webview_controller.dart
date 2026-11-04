@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -84,6 +85,13 @@ class FakeWebViewController extends Fake implements WebViewController {
     await Future<void>.value();
     stopped = true;
   }
+
+  /// Holds [destroyed] until a test completes it; destroyed at once when
+  /// null.
+  Completer<void>? destroyGate;
+
+  @override
+  Future<void> destroyed() => destroyGate?.future ?? Future<void>.value();
 
   @override
   Future<HistoryEntry?> backEntry() {

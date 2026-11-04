@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/process_route.dart';
 import 'package:webspace/services/proxy_refused.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/site_ids.dart';
+
+import 'helpers/fake_leaving_view.dart';
 
 ProxyRouteKey _route(String address) =>
     (type: ProxyType.HTTP, address: address, username: null, password: null);
@@ -173,26 +176,51 @@ void main() {
 
   // On device the plugin keeps a disposed webview loading until it has
   // loaded about:blank, and an icon it fetched then left through the next
-  // site's proxy (proxy_one_rule_test).
-  test('a webview that goes holds the rule until it loads nothing more '
+  // site's proxy (proxy_one_rule_test). The rule waits for the native
+  // destroy, not only for the stop: the mistake process_route.tla names
+  // quietonly, which this test plants by completing only the quiet.
+  test('a webview that goes holds the rule until it is quiet and destroyed '
       '(PROXY-008)', () async {
     final rule = ProcessRoute();
     await rule.claim(_webview('a'), route: p1, write: () async {});
-    final quiet = Completer<void>();
+    final view = FakeLeavingView(
+        quietGate: Completer<void>(), destroyGate: Completer<void>());
     final order = <String>[];
-    final gone = rule.leave(_webview('a'), quiet: () async {
-      await quiet.future;
-      order.add('quiet');
-    });
+    final gone = rule.leave(_webview('a'), view: view);
     final moved = rule.claim(_webview('b'), route: p2,
         write: () async => order.add('moved'));
     await pumpEventQueue();
-    expect(order, isEmpty, reason: "a may still send on p1");
+    expect(order, isEmpty, reason: 'a may still send on p1');
+    view.quietGate!.complete();
+    await pumpEventQueue();
+    expect(view.done, ['quiet']);
+    expect(order, isEmpty,
+        reason: 'a quiet page still sends until its native view is destroyed');
     expect(rule.occupants.keys, {_webview('a')});
-    quiet.complete();
+    view.destroyGate!.complete();
     await Future.wait([gone, moved]);
-    expect(order, ['quiet', 'moved']);
+    expect(view.done, ['quiet', 'destroyed']);
+    expect(order, ['moved']);
     expect(rule.occupants.keys, {_webview('b')});
+  });
+
+  test('a destroy that never comes holds the rule no longer than its wait',
+      () {
+    fakeAsync((time) {
+      final rule = ProcessRoute();
+      unawaited(rule.claim(_webview('a'), route: p1, write: () async {}));
+      time.flushMicrotasks();
+      final order = <String>[];
+      unawaited(rule.leave(_webview('a'),
+          view: FakeLeavingView(destroyGate: Completer<void>())));
+      unawaited(rule.claim(_webview('b'), route: p2,
+          write: () async => order.add('moved')));
+      time.elapse(ProcessRoute.destroyWait - const Duration(milliseconds: 1));
+      expect(order, isEmpty);
+      time.elapse(const Duration(milliseconds: 1));
+      expect(order, ['moved']);
+      expect(rule.occupants.keys, {_webview('b')});
+    });
   });
 
   test('a webview that goes voids the claim it had not written yet',
@@ -204,7 +232,7 @@ void main() {
     var wrote = false;
     final pending = rule.claim(_webview('a'), route: p1,
         write: () async => wrote = true);
-    final gone = rule.leave(_webview('a'), quiet: () async {});
+    final gone = rule.leave(_webview('a'), view: FakeLeavingView());
     slow.complete();
     await Future.wait([first, pending, gone]);
     expect(wrote, isFalse, reason: 'a went before its turn');

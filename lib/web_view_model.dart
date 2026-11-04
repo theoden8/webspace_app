@@ -1635,7 +1635,7 @@ bool dispatch(NavigationDecision decision,
         'Renderer gone for "$name" (siteId: $siteId, didCrash: $didCrash) — recreating');
     // A dead renderer loads nothing more, so nothing is left to quiet.
     _letGoOfWebView(
-      quiet: null,
+      view: null,
       commit: const Commit.environment(Environment.letGo),
     );
     stateSetterF?.call();
@@ -1778,20 +1778,20 @@ bool dispatch(NavigationDecision decision,
     LogTag.webView.debug(
         'disposeWebView called for "$name" (siteId: $siteId)\n${StackTrace.current}',
         sensitive: true);
-    _letGoOfWebView(quiet: controller?.quiet, commit: commit);
+    _letGoOfWebView(view: controller, commit: commit);
   }
 
   /// The webview and its controller go, and with them what they held: the
-  /// route, once [quiet] has stopped what the page loads (at once with
-  /// nothing to stop), the tab the webview was built for, the resume
-  /// reload, the site's media session and its screen share.
+  /// route, once [view] is quiet and destroyed (at once with no view to
+  /// wait for), the tab the webview was built for, the resume reload, the
+  /// site's media session and its screen share.
   void _letGoOfWebView({
-    required Future<void> Function()? quiet,
+    required LeavingView? view,
     required Commit commit,
   }) {
     _webview = null;
     _controller = null;
-    unawaited(ProcessRoute.instance.leave(routeClaim.occupant, quiet: quiet));
+    unawaited(ProcessRoute.instance.leave(routeClaim.occupant, view: view));
     tabBinding.unbind(commit: commit);
     resumeReload.reset();
     // The player this site's media session was speaking for is gone with the

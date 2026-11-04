@@ -11,6 +11,7 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/keyboard_shortcuts.dart';
 import 'package:webspace/services/media_grant_engine.dart';
+import 'package:webspace/services/process_route.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/services/connectivity_service.dart';
@@ -67,9 +68,16 @@ enum _NestedMenuAction {
 class NestedScreenWebView {
   WebViewController? Function() _current = () => null;
 
-  /// Load nothing more from the network and stop what it loads; nothing when
-  /// no webview was built.
-  Future<void> quiet() async => _current()?.quiet();
+  /// Load nothing more from the network, stop what it loads, and wait for
+  /// the native view's destroy, as a site's own webview does when it leaves
+  /// the process-wide rule (`ProcessRoute.leave`); nothing when no webview
+  /// was built.
+  Future<void> letGo() async {
+    final view = _current();
+    if (view == null) return;
+    await view.quiet();
+    await ProcessRoute.untilDestroyed(view.destroyed(), what: 'a nested screen');
+  }
 }
 
 /// The tab a nested screen was opened over, running as the site the screen
