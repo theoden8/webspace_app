@@ -924,8 +924,13 @@ bridges can plausibly fix (`censored`, `bootstrapTimeout`).
 Where Tor itself is blocked, a bridge is the only route in, so the app
 SHALL let the user configure pluggable transports: obfs4, snowflake,
 meek_lite, webtunnel and dnstt, each run by a transport program the platform
-has. On Linux that is one on the machine (TOR-027); the Apple app builds none
-in, so there bridges keep Tor from starting until one is.
+has. On Linux that is one on the machine (TOR-027). On iOS and macOS it is
+IPtProxy, built from pinned sources by `go/iptproxy/build.sh` with no GPL code
+in it (LICENSE-001): its obfs4 takes its Elligator 2 key hiding from
+`go/hiddenkey`, and it runs obfs4, webtunnel, snowflake and dnstt but not
+meek_lite, so there a meek_lite bridge keeps Tor from starting. The obfs4
+client SHALL complete its handshake with lyrebird as the Tor Project releases
+it, the server a bridge runs, for any representative it sends.
 
 The configuration applied at start SHALL be the persisted one, read by
 the engine itself rather than pushed in by a caller. Bridges are kept in
@@ -1016,6 +1021,14 @@ is covered by LEAK-015.
 - **AND** starting the transport fails or reports port 0
 - **THEN** tor is not started
 - **AND** Tor reports an error naming the transport
+
+#### Scenario: A released obfs4 bridge accepts the Apple client
+
+- **GIVEN** lyrebird as released, serving obfs4 with a fresh identity
+- **WHEN** the obfs4 client `IPtProxy.xcframework` carries dials it again and
+  again, each time with a fresh session key
+- **THEN** every handshake completes and data crosses the bridge both ways
+- **AND** the representatives it sent took both values of bits 254 and 255
 
 #### Scenario: Snowflake with no user line still has something to dial
 
@@ -1953,7 +1966,8 @@ DataDirectory in the app's cache directory (PLATFORM-010).
 `__OwningControllerProcess` and `TAKEOWNERSHIP` SHALL make tor exit with the
 app however it ends, so no tor outlives the process that started it. A
 pluggable transport SHALL run under the managed-transport protocol
-(`pt-spec.txt`), its SOCKS port answered to the engine; the programs tried for each transport are named by an exhaustive
+(`pt-spec.txt`), its SOCKS port answered to the engine as IPtProxy's is on
+Apple; the programs tried for each transport are named by an exhaustive
 switch, and a transport no program here runs answers 0 (TOR-016).
 
 **One launch is not the ceiling.** A child process leaves nothing behind in

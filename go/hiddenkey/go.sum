@@ -1,0 +1,6 @@
+filippo.io/edwards25519 v1.1.0 h1:FNf4tywRC1HmFuKW5xopWpigGjJKiJSV0Cqo0cJWDaA=
+filippo.io/edwards25519 v1.1.0/go.mod h1:BxyFTGdWcka3PhytdK4V28tE5sGfRvvvRV7EaN4VDT4=
+gitlab.com/yawning/edwards25519-extra v0.0.0-20231005122941-2149dcafc266 h1:IvjshROr8z24+UCiOe/90cUWt3QDr8Rt+VkUjZsn+i0=
+gitlab.com/yawning/edwards25519-extra v0.0.0-20231005122941-2149dcafc266/go.mod h1:K/3SQWdJL6udzwInHk1gaYaECYxMp9dDayniPq6gCSo=
+golang.org/x/crypto v0.33.0 h1:IOBPskki6Lysi0lo9qQvbxiQ+FvsCC/YWOecCHAixus=
+golang.org/x/crypto v0.33.0/go.mod h1:bVdXmD7IV/4GdElGPozy6U7lWdRXA4qyRVGJV57uQ5M=

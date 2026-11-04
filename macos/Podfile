@@ -52,6 +52,17 @@ end
 
 ensure_webspace_adblock_built
 
+# See ios/Podfile: the bridge transports' pod, built from source by
+# go/iptproxy/build.sh, which returns at once while its build is current.
+def ensure_iptproxy_built
+  script = File.expand_path('../go/iptproxy/build.sh', __dir__)
+  unless system('sh', script)
+    raise '[webspace] go/iptproxy/build.sh failed, see output above'
+  end
+end
+
+ensure_iptproxy_built
+
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
@@ -65,6 +76,7 @@ target 'Runner' do
   # also the only platform whose integration tier can run the real
   # control-port handshake (TOR-021).
   pod 'Tor', '409.11.2'
+  pod 'IPtProxy', :path => '../go/iptproxy'
 
   target 'RunnerTests' do
     inherit! :search_paths
@@ -145,8 +157,8 @@ post_install do |installer|
         # An empty string is truthy in Ruby, so the nil guard alone turned a
         # committed `OTHER_LDFLAGS = ""` into [""] -- a target-level value
         # that shadows the Pods xcconfig instead of inheriting it, and with
-        # it every flag a pod declares (a pod's `s.libraries` among them: a
-        # Go pod's `resolv` once failed the macOS link on res_9_* symbols).
+        # it every flag a pod declares (IPtProxy's `s.libraries = 'resolv'`
+        # is why the macOS link failed on the Go runtime's res_9_* symbols).
         ldflags = nil if ldflags.respond_to?(:empty?) && ldflags.empty?
         ldflags = ['$(inherited)'] unless ldflags
         ldflags = [ldflags] unless ldflags.is_a?(Array)

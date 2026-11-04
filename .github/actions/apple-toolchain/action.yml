@@ -1,9 +1,10 @@
 name: Apple toolchain
 description: >-
   Flutter from .fvmrc with the project's packages and localizations,
-  CocoaPods, and the Rust adblock
-  library the webspace_adblock pod vendors. Shared by the iOS and macOS build
-  and the Apple screenshots, which build the same app.
+  CocoaPods, the Rust adblock library the webspace_adblock pod vendors, and
+  the IPtProxy framework the bridge transports' pod vendors, built with the Go
+  go/iptproxy/.go-version names. Shared by the iOS and macOS build and the
+  Apple screenshots, which build the same app.
 runs:
   using: composite
   steps:
@@ -103,3 +104,38 @@ runs:
       run: |
         bash scripts/build_rust.sh apple
         ls -la rust/webspace_adblock/cocoapods/
+
+    # IPtProxy, the pluggable transports for Tor bridges (TOR-016), is a pod
+    # we own at go/iptproxy/, built from pinned sources with gomobile; the Go
+    # is the one .go-version names, as rust-toolchain.toml names the Rust.
+    - name: Setup Go (for go/iptproxy)
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: go/iptproxy/.go-version
+        cache: false
+
+    # Keyed on what the build reads, and nothing restored on a miss: build.sh
+    # stamps the framework with the same inputs and rebuilds on any other.
+    - name: Cache IPtProxy.xcframework
+      uses: ./.github/actions/master-cache
+      with:
+        path: |
+          go/iptproxy/IPtProxy.xcframework
+          go/iptproxy/IPtProxy.inputs
+          go/iptproxy/LICENSES.txt
+        key: iptproxy-${{ runner.os }}-${{ hashFiles('go/iptproxy/.go-version', 'go/iptproxy/build.sh', 'go/iptproxy/iptproxy.patch', 'go/iptproxy/licences.tsv', 'go/hiddenkey/hiddenkey.go', 'go/hiddenkey/go.mod', 'go/hiddenkey/fetch-monocypher.sh') }}
+
+    - name: Build IPtProxy.xcframework (TOR-016)
+      shell: bash
+      run: sh go/iptproxy/build.sh
+
+    # LICENSE-001: go list over every package the framework is built from,
+    # and the framework itself, whether built above or restored.
+    - name: Check IPtProxy for GPL code (LICENSE-001)
+      shell: bash
+      run: |
+        sh go/iptproxy/build.sh check
+        # Nothing after this reads them, and the macOS job's integration
+        # loop is short of disk: the Podfiles' build.sh finds its stamp current.
+        go clean -cache -modcache
+        rm -rf go/iptproxy/build

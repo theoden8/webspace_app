@@ -290,6 +290,11 @@ test('macOS carries the same pinned runtime as iOS', () => {
     assert.equal(mac[1], ios[1],
       `${pod} is pinned to ${mac[1]} on macOS and ${ios[1]} on iOS`);
   }
+  // The bridge transports are one local pod, whose pins are go/iptproxy's.
+  for (const [rel, pods] of [['ios/Podfile', iosPods], ['macos/Podfile', macPods]]) {
+    assert.match(pods, /^ {2}pod 'IPtProxy', :path => '\.\.\/go\/iptproxy'$/m,
+      `${rel} must take IPtProxy from go/iptproxy`);
+  }
 
   // The Tor pod is a macOS 11 pod; anything lower does not install, and a
   // project floor below the Podfile's links a module built for a newer OS
@@ -378,8 +383,11 @@ test('the plugin type-checks somewhere cheaper than a device build', () => {
   // The stubs name the version they came from; a pod bump has to land in
   // both places or this fails.
   const iosPods = read('ios/Podfile');
-  for (const pod of ['Tor']) {
-    const version = iosPods.match(new RegExp(`pod '${pod}', '([0-9.]+)'`))[1];
+  const versions = {
+    Tor: iosPods.match(/pod 'Tor', '([0-9.]+)'/)[1],
+    IPtProxy: read('go/iptproxy/build.sh').match(/^IPTPROXY_TAG=(\S+)$/m)[1],
+  };
+  for (const [pod, version] of Object.entries(versions)) {
     const stubRel = `tool/swift_typecheck/stub_${pod}.swift`;
     const stub = read(stubRel);
     assert.ok(stub.includes(`${pod} ${version}`),
@@ -389,8 +397,8 @@ test('the plugin type-checks somewhere cheaper than a device build', () => {
 });
 
 test('the macOS Runner inherits the pods\' linker flags', () => {
-  // A pod's `s.libraries` reaches the app only through the Pods xcconfig
-  // (a Go pod's `resolv` once did). The macOS Runner carried
+  // IPtProxy declares `s.libraries = 'resolv'`, which reaches the app only
+  // through the Pods xcconfig. The macOS Runner carried
   // `OTHER_LDFLAGS = ""` at target level, which shadows that xcconfig, and
   // the Podfile hook that rewrites the setting kept the shadow: "" is truthy
   // in Ruby, so its nil guard produced [""] rather than ["$(inherited)"].

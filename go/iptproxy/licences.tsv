@@ -1,0 +1,68 @@
+# The licence of each Go module compiled into IPtProxy.xcframework, as an
+# SPDX expression read from its licence files. build.sh check fails on a
+# compiled module missing here and on a line naming one no longer compiled.
+github.com/andybalholm/brotli	MIT
+github.com/aws/aws-sdk-go-v2	Apache-2.0
+github.com/aws/aws-sdk-go-v2/config	Apache-2.0
+github.com/aws/aws-sdk-go-v2/credentials	Apache-2.0
+github.com/aws/aws-sdk-go-v2/feature/ec2/imds	Apache-2.0
+github.com/aws/aws-sdk-go-v2/internal/configsources	Apache-2.0
+github.com/aws/aws-sdk-go-v2/internal/endpoints/v2	Apache-2.0
+github.com/aws/aws-sdk-go-v2/internal/ini	Apache-2.0
+github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding	Apache-2.0
+github.com/aws/aws-sdk-go-v2/service/internal/presigned-url	Apache-2.0
+github.com/aws/aws-sdk-go-v2/service/signin	Apache-2.0
+github.com/aws/aws-sdk-go-v2/service/sqs	Apache-2.0
+github.com/aws/aws-sdk-go-v2/service/sso	Apache-2.0
+github.com/aws/aws-sdk-go-v2/service/ssooidc	Apache-2.0
+github.com/aws/aws-sdk-go-v2/service/sts	Apache-2.0
+github.com/aws/smithy-go	Apache-2.0
+github.com/dchest/siphash	CC0-1.0
+github.com/flynn/noise	BSD-3-Clause
+github.com/golang/mock	Apache-2.0
+github.com/google/uuid	BSD-3-Clause
+github.com/klauspost/compress	BSD-3-Clause AND Apache-2.0 AND MIT
+github.com/klauspost/cpuid/v2	MIT
+github.com/klauspost/reedsolomon	MIT
+github.com/miekg/dns	BSD-3-Clause
+github.com/patrickmn/go-cache	MIT
+github.com/pion/datachannel	MIT
+github.com/pion/dtls/v3	MIT
+github.com/pion/ice/v4	MIT
+github.com/pion/interceptor	MIT
+github.com/pion/logging	MIT
+github.com/pion/mdns/v2	MIT
+github.com/pion/randutil	MIT
+github.com/pion/rtcp	MIT
+github.com/pion/rtp	MIT
+github.com/pion/sctp	MIT
+github.com/pion/sdp/v3	MIT
+github.com/pion/srtp/v3	MIT
+github.com/pion/stun/v3	MIT AND BSD-3-Clause
+github.com/pion/transport/v4	MIT AND BSD-3-Clause
+github.com/pion/turn/v4	MIT
+github.com/pion/webrtc/v4	MIT
+github.com/pkg/errors	BSD-2-Clause
+github.com/realclientip/realclientip-go	0BSD
+github.com/refraction-networking/utls	BSD-3-Clause
+github.com/theodorsm/covert-dtls	MIT
+github.com/tjfoc/gmsm	Apache-2.0
+github.com/tladesignz/IPtProxy.git	MIT
+github.com/txthinking/runnergroup	MIT
+github.com/txthinking/socks5	MIT
+github.com/wlynxg/anet	BSD-3-Clause
+github.com/xtaci/kcp-go/v5	MIT
+github.com/xtaci/smux	MIT
+gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/goptlib	CC0-1.0
+gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird	BSD-2-Clause AND BSD-3-Clause
+gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/ptutil	BSD-3-Clause
+gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/v2	BSD-3-Clause
+gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/webtunnel	MIT
+golang.org/x/crypto	BSD-3-Clause
+golang.org/x/mobile	BSD-3-Clause
+golang.org/x/net	BSD-3-Clause
+golang.org/x/sys	BSD-3-Clause
+golang.org/x/text	BSD-3-Clause
+golang.org/x/time	BSD-3-Clause
+webspace.local/hiddenkey	BSD-3-Clause AND (CC0-1.0 OR BSD-2-Clause)
+www.bamsoftware.com/git/dnstt.git	CC0-1.0

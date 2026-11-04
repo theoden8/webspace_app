@@ -10,6 +10,7 @@
 #endif
 
 import Foundation
+import IPtProxy
 import Tor
 
 /// How many log lines the plugin keeps for a subscriber that has not
@@ -210,6 +211,16 @@ class TorControllerPlugin: NSObject {
   /// path behind it for up to a second and a half.
   private let attachQueue = DispatchQueue(label: "org.codeberg.theoden8.webspace.tor.attach")
 
+  /// Sole owner of `ptController` and `startedTransports`, and the only
+  /// place IPtProxy's blocking Go calls run. Nothing outside
+  /// `startTransport`/`stopTransports` reads or writes that pair, so the
+  /// pluggable-transport state shares nothing with `stateQueue`'s — the
+  /// none-shared half of BUG-007 rather than a second lock over the same
+  /// fields.
+  private let ptQueue = DispatchQueue(label: "org.codeberg.theoden8.webspace.tor.pt")
+  private var ptController: IPtProxyController?
+  private var startedTransports: Set<String> = []
+
   private var thread: TorThread?
 
   /// A tor asked to exit whose thread has not finished yet. Only one tor
@@ -327,11 +338,12 @@ class TorControllerPlugin: NSObject {
         self?.pendingTorrcOptions = pairs
         DispatchQueue.main.async { result(nil) }
       }
-    case "startTransport", "restartTransport":
-      // No pluggable transport is built into the app, so none starts: 0 is
-      // "no transport", on which the engine keeps tor off rather than
-      // connecting without the bridges the user turned on (TOR-016).
-      result(0)
+    case "startTransport":
+      let name = (call.arguments as? [String: Any])?["transport"] as? String ?? ""
+      startTransport(name, restart: false, result: result)
+    case "restartTransport":
+      let name = (call.arguments as? [String: Any])?["transport"] as? String ?? ""
+      startTransport(name, restart: true, result: result)
     case "setExitCountry":
       let args = call.arguments as? [String: Any]
       setExitCountry(
@@ -1015,6 +1027,12 @@ class TorControllerPlugin: NSObject {
   }
 
   private func stop() {
+    // Outside the stateQueue hop: the transports are owned by ptQueue and
+    // nothing on the tor teardown path reads them. A restart's stop and the
+    // startTransport that follows it land on that one serial queue in the
+    // order they were issued, which is what makes the transport come back
+    // on a fresh port rather than a stale one.
+    stopTransports()
     stateQueue.async { [weak self] in
       guard let self = self else { return }
       // Idempotent: a stop racing the idle-stop timer must not double-free
@@ -1049,6 +1067,90 @@ class TorControllerPlugin: NSObject {
       if let url = self.logFileURL { try? FileManager.default.removeItem(at: url) }
       self.logFileURL = nil
       self.logFileOffset = 0
+    }
+  }
+
+  // MARK: - Pluggable transports
+
+  /// Start `name` and answer with the loopback port its SOCKS listener
+  /// bound to, or 0.
+  ///
+  /// 0 on every failure path, which is Dart's "no transport": the engine
+  /// then keeps tor off rather than letting it bootstrap without the bridges
+  /// the user turned on (TOR-016). meek_lite answers 0 too, since
+  /// go/iptproxy/build.sh builds IPtProxy without it.
+  ///
+  /// With [restart], a running transport is stopped first, so it comes back
+  /// on a fresh listener: the old one was a loopback TCP socket, which a
+  /// suspension kills with tor's own (TOR-024).
+  private func startTransport(
+    _ name: String, restart: Bool, result: @escaping FlutterResult
+  ) {
+    guard !name.isEmpty else { result(0); return }
+    ptQueue.async { [weak self] in
+      guard let self = self else {
+        DispatchQueue.main.async { result(0) }
+        return
+      }
+      let answer: (Int) -> Void = { port in
+        DispatchQueue.main.async { result(port) }
+      }
+
+      if self.ptController == nil {
+        // Not the Tor data directory: IPtProxy writes transport state and
+        // its own log here, and pointing it at tor's would put two
+        // processes' state in one place.
+        let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+          .appendingPathComponent("PluggableTransports", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // Logging off and the address scrubber on: the transport log would
+        // otherwise record which bridges this device dials, in the clear,
+        // in the app container.
+        self.ptController = IPtProxyController(
+          dir.path, enableLogging: false, unsafeLogging: false,
+          logLevel: "ERROR", transportEvents: nil)
+      }
+      guard let controller = self.ptController else { answer(0); return }
+
+      if restart, self.startedTransports.contains(name) {
+        controller.stop(name)
+        self.startedTransports.remove(name)
+      }
+      // Idempotent otherwise: an acquire and a Retry both apply the bridge
+      // config, and starting a running transport throws rather than
+      // returning the port it already has.
+      if !self.startedTransports.contains(name) {
+        do {
+          // No proxy: an upstream proxy in front of the transport is a
+          // configuration this app does not offer, and snowflake and dnstt
+          // reject one outright.
+          try controller.start(name, proxy: nil)
+          self.startedTransports.insert(name)
+        } catch {
+          self.note(
+            restart
+              ? "Pluggable transport \(name) did not start again."
+              : "Pluggable transport \(name) failed to start; Tor stays off.")
+          answer(0)
+          return
+        }
+      }
+      let port = controller.port(name)
+      self.note(
+        restart
+          ? "Pluggable transport \(name) started again on port \(port)."
+          : "Pluggable transport \(name) listening on port \(port).")
+      answer(port)
+    }
+  }
+
+  private func stopTransports() {
+    ptQueue.async { [weak self] in
+      guard let self = self else { return }
+      for name in self.startedTransports {
+        self.ptController?.stop(name)
+      }
+      self.startedTransports.removeAll()
     }
   }
 
