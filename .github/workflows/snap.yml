@@ -20,6 +20,9 @@ on:
     paths:
       - .github/workflows/snap.yml
       - tool/check_bundle_licences.js
+      - test/js/helpers/licences.js
+      - test/js/helpers/dart_blocks.js
+      - test/js/helpers/source.js
       - openspec/specs/legal/**
       - snap/**
       - scripts/check_snap.sh
@@ -31,6 +34,9 @@ on:
     paths:
       - .github/workflows/snap.yml
       - tool/check_bundle_licences.js
+      - test/js/helpers/licences.js
+      - test/js/helpers/dart_blocks.js
+      - test/js/helpers/source.js
       - openspec/specs/legal/**
       - snap/**
       - scripts/check_snap.sh

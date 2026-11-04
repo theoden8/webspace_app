@@ -167,13 +167,35 @@ test('LICENSE-004 an offered source is one Software Heritage holds, with its tre
     /not a commit an archive keeps/, 'a copyright file edited to name a branch');
 });
 
+// [rel] and every file of the repository it loads, through relative requires.
+function loads(rel, seen = new Set()) {
+  if (seen.has(rel)) return seen;
+  seen.add(rel);
+  for (const [, wanted] of read(rel).matchAll(/require\('(\.\.?\/[^']+)'\)/g)) {
+    const at = path.posix.join(path.posix.dirname(rel), wanted);
+    loads(at.endsWith('.js') ? at : `${at}.js`, seen);
+  }
+  return seen;
+}
+
+// Each trigger list of [workflow]'s, less the files of [tools] and what they
+// load that it leaves out.
+function untriggered(workflow, tools) {
+  const needed = new Set(tools.flatMap((tool) => [...loads(tool)]));
+  const lists = workflow.match(/^ {4}paths:\n(?: {6}- .*\n)+/gm) ?? [];
+  assert.ok(lists.length > 0, 'the workflow has no paths: list');
+  return lists.flatMap((list) => [...needed].filter((file) => !list.includes(`      - ${file}\n`)));
+}
+
 test('LICENSE-004 CI asks the archive about the snap it built', () => {
   const workflow = read('.github/workflows/snap.yml');
   const install = workflow.indexOf('- name: Install the snap');
   const check = workflow.indexOf('node tool/check_source_offer.js "/snap/$snap_name/current"');
   assert.ok(install >= 0 && check > install, 'CI does not check the installed snap\'s offer');
-  for (const trigger of workflow.match(/^ {4}paths:\n(?: {6}- .*\n)+/gm) ?? []) {
-    assert.match(trigger, /- tool\/check_source_offer\.js/, 'a change to the check does not run the snap job');
-  }
+  const tools = ['tool/check_bundle_licences.js', 'tool/check_source_offer.js'];
+  for (const tool of tools) assert.ok(workflow.includes(`node ${tool} `), `the snap job does not run ${tool}`);
+  assert.deepEqual(untriggered(workflow, tools), [], 'a change to these does not run the snap job');
+  assert.deepEqual(untriggered(workflow.replace('      - test/js/helpers/licences.js\n', ''), tools),
+    ['test/js/helpers/licences.js'], 'the helper the licence check loads, left out of one list');
   assert.equal(execFileSync('node', ['-e', 'console.log(typeof fetch)'], { encoding: 'utf8' }).trim(), 'function');
 });
