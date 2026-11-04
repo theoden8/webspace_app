@@ -1,8 +1,8 @@
 // The flatpak manifest repeats values other files own, and flatpak-builder
 // reads YAML that cannot import them. So this gate holds each copy to its
 // owner: the Flutter version (.fvmrc), the Rust toolchain
-// (rust-toolchain.toml), the uBO commit build.rs embeds (UBO_COMMIT), the
-// Tor Expert Bundle linux/tor_bundle.cmake pins, and the app ID, which
+// (rust-toolchain.toml), the tor source release linux/tor.cmake pins, and the
+// app ID, which
 // reaches APPLICATION_ID in linux/CMakeLists.txt through
 // WEBSPACE_APPLICATION_ID. The manifest builds as committed, so a packaging
 // repository that runs flatpak-flutter on it gets every one of them.
@@ -36,13 +36,6 @@ test('the manifest builds the Flutter version .fvmrc pins', () => {
   );
 });
 
-test('the manifest checks out the uBO commit build.rs embeds', () => {
-  const embedded = read('rust/webspace_adblock/build.rs')
-    .match(/^const UBO_COMMIT: &str = "([0-9a-f]{40})";$/m)?.[1];
-  assert.ok(embedded, 'UBO_COMMIT not found in build.rs');
-  assert.equal(sourceRef('https://github.com/gorhill/uBlock.git', 'commit'), embedded);
-});
-
 test('the manifest builds with the Rust toolchain rust-toolchain.toml pins', () => {
   const channel = read('rust-toolchain.toml').match(/^channel\s*=\s*"([^"]+)"\s*$/m)?.[1];
   assert.ok(channel, 'channel not found in rust-toolchain.toml');
@@ -53,24 +46,22 @@ test('the manifest builds with the Rust toolchain rust-toolchain.toml pins', () 
     [channel], `${MANIFEST} does not set RUSTUP_TOOLCHAIN to rust-toolchain.toml's channel`);
 });
 
-// flatpak-builder gives the build no network, so tor_bundle.cmake's download
-// fails there: the manifest fetches the archive and names it.
-test('the manifest gives the build the Tor Expert Bundle tor_bundle.cmake pins (TOR-027)', () => {
-  const pins = Object.fromEntries([...read('linux/tor_bundle.cmake')
-    .matchAll(/set\(\s*(TOR_EXPERT_BUNDLE_\w+)\s+"([^"]+)"\s*\)/g)].map((m) => [m[1], m[2]]));
-  const version = pins.TOR_EXPERT_BUNDLE_VERSION;
-  const sha256 = pins.TOR_EXPERT_BUNDLE_SHA256;
-  assert.ok(version && sha256, 'linux/tor_bundle.cmake pins no version and SHA-256');
-  const archive = `tor-expert-bundle-linux-x86_64-${version}.tar.gz`;
-  const url = `https://dist.torproject.org/torbrowser/${version}/${archive}`;
-  assert.equal(sourceRef(url, 'sha256'), sha256, `${MANIFEST}: ${archive} is not at the pinned SHA-256`);
+// flatpak-builder gives the build no network, so tor.cmake's download fails
+// there: the manifest fetches the source release and names it.
+test('the manifest gives the build the tor source release tor.cmake pins (TOR-027)', () => {
+  const cmake = read('linux/tor.cmake');
+  const version = cmake.match(/^set\(TOR_VERSION "([^"]+)"\)$/m)?.[1];
+  const sha256 = cmake.match(/^set\(TOR_SOURCE_SHA256\s+"([0-9a-f]{64})"\)$/m)?.[1];
+  assert.ok(version && sha256, 'linux/tor.cmake pins no version and SHA-256');
+  const tarball = `tor-${version}.tar.gz`;
+  const url = `https://archive.torproject.org/tor-package-archive/${tarball}`;
+  assert.equal(sourceRef(url, 'sha256'), sha256, `${MANIFEST}: ${tarball} is not at the pinned SHA-256`);
   assert.equal(sourceRef(url, 'dest'), 'flatpak-sources');
-  const at = manifest.indexOf(`url: ${url}`);
-  assert.match(manifest.slice(at), /^url: \S+\n(?: {8}.*\n)*? {8}only-arches:\n {10}- x86_64\n/,
-    `${MANIFEST}: ${archive} is not limited to x86_64, the one arch the Tor Project builds it for`);
-  const named = manifest.match(/^ {8}x86_64:\n {10}env:\n(?: {12}.*\n)*? {12}WEBSPACE_TOR_BUNDLE: (\S+)$/m)?.[1];
-  assert.equal(named, `/run/build/${appId.split('.').pop()}/flatpak-sources/${archive}`,
-    `${MANIFEST} does not name the archive in WEBSPACE_TOR_BUNDLE for x86_64`);
+  const named = [...manifest.matchAll(/^\s*WEBSPACE_TOR_SOURCE: (\S+)$/gm)].map((m) => m[1]);
+  assert.deepEqual(named, [`/run/build/${appId.split('.').pop()}/flatpak-sources/${tarball}`],
+    `${MANIFEST} does not name the tarball in WEBSPACE_TOR_SOURCE once, for every arch`);
+  assert.match(manifest, /^ {6}- bash scripts\/verify_tor_shipped\.sh "\$BUNDLE"$/m,
+    `${MANIFEST} does not check the tor it bundles on every arch`);
 });
 
 // The binary's GApplication id names its Wayland window and its desktop files,

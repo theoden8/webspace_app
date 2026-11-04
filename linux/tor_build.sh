@@ -89,6 +89,11 @@ while [ "${#queue[@]}" -gt 0 ]; do
       echo "tor_build.sh: $file links $lib, which ldd does not find" >&2
       exit 1
     fi
+    # In a flatpak build /usr is the runtime, which every install of the app
+    # has, so its libraries are not copied, and their notices are its own.
+    if [ -n "${FLATPAK_ID:-}" ] && [[ "$path" == /usr/* ]]; then
+      continue
+    fi
     cp -L "$path" "$out/$lib"
     chmod 644 "$out/$lib"
     notice "$path"
