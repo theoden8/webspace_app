@@ -14,6 +14,7 @@ AGPL-3.0-only	linked	crate:a	refused
 LGPL-2.1-or-later	linked	crate:a	refused
 LGPL-2.1-or-later	shared	url:b	allowed
 LGPL-2.1-or-later AND BSD-2-Clause	shared	url:b	allowed
+LGPL-2.0-or-later AND BSD-2-Clause AND Apache-2.0 AND MIT-open-group AND HPND	shared	url:b	allowed
 GPL-2.0-only WITH Classpath-exception-2.0	linked	gradle:com.android.tools:desugar_jdk_libs	allowed
 GPL-2.0-only WITH Classpath-exception-2.0	linked	gradle:other:lib	refused
 Proprietary	linked	crate:a	refused

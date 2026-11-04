@@ -9,6 +9,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const B = require('../../tool/check_bundle_licences');
+const L = require('./helpers/licences');
 const { read } = require('./helpers/source');
 
 function pkg(t, files) {
@@ -112,6 +113,24 @@ test('LICENSE-001 a debug source is let through only under the LGPL, and only it
     ["lib/libwpe/key-unicode.c: carries a GNU licence's notice"], 'an LGPL source shipped outside the debug sources');
   assert.deepEqual(B.refusals(pkg(t, { 'share/doc/libwpe/copyright': lgpl, [`opt/${KEY_UNICODE}`]: LGPL_NOTICE })),
     [`opt/${KEY_UNICODE}: carries a GNU licence's notice`], 'a debug source tree below the root');
+});
+
+// libwpe's licences: its COPYING, key-unicode.c's LGPL, gamepad.c's Apache-2.0,
+// and keysyms.h's X11 notices, The Open Group's and Digital's.
+test("LICENSE-001 libwpe's notices name licences the tables read and let ship", (t) => {
+  const root = pkg(t, { 'usr/share/doc/libwpe/copyright': dep5(['*', 'BSD-2-clause and LGPL-2+ and Apache-2.0 and MIT-open-group and HPND']) });
+  assert.deepEqual(B.refusals(root), []);
+  const rows = read(B.NAMES);
+  for (const name of ['MIT-open-group', 'HPND']) {
+    const table = B.names(rows.replace(new RegExp(`^${name}\\t${name}\\n`, 'm'), ''));
+    assert.deepEqual(B.refusals(root, { table }),
+      [`usr/share/doc/libwpe/copyright: ${name} is a name ${B.NAMES} does not read`], `${name} unread`);
+    const licences = L.policy();
+    licences.delete(name);
+    assert.deepEqual(B.refusals(root, { licences }),
+      ['usr/share/doc/libwpe/copyright: BSD-2-Clause AND LGPL-2.0-or-later AND Apache-2.0 AND MIT-open-group AND HPND'],
+      `${name} not allowed`);
+  }
 });
 
 test('every build-only row names the files it covers and why (LICENSE-001)', () => {
