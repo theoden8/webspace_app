@@ -1038,6 +1038,16 @@ Tests: `test/webview_controller_lifetime_test.dart` ("an app-wide download reach
 
 Tests: `test/view_blockers_test.dart`; `test/activation_schedules_test.dart` ("DNS downloads"), replayed against the model by `formal/trace/check_steps.sh`; `formal/check.sh` (`activation_dns*.cfg`, the `foldbeforelevel` mutant).
 
+#### Scenario: A background wake's check follows the lists as a site's webview does
+
+**Given** a background wake checks a notification site in a headless webview (NOTIF-016), whose interceptor attached at the level the site resolved to then
+**When** a download the user started lands while the check loads, and moves the level the site resolves to
+**Then** the check's interceptor is attached again at the new level: it is one of the views the lists tell, by its headless id, from its attach until its dispose
+**And** on iOS and macOS its page fetches the bloom again, as a site's webview does (DNS-023)
+**And** a check that has been disposed is told nothing
+
+Tests: `test/headless_check_blockers_test.dart`; `test/activation_schedules_test.dart` ("a DNS download landing beside a wake's checks"), replayed against the model, whose `ViewBuilt` takes a site a wake lists.
+
 ### Requirement: DNS-023 - WebKit Pages Follow a List Change
 
 On iOS and macOS the sub-resource interceptor SHALL be injected into every

@@ -49,7 +49,7 @@ enum EnvAction {
   viewBuilt(
     next: r'\E s \in Sites : ViewBuilt(s)',
     coverage: 'ViewBuilt',
-    reads: {ModelVar.dns, ModelVar.loaded, ModelVar.told},
+    reads: {ModelVar.dns, ModelVar.headless, ModelVar.loaded, ModelVar.told},
     writes: {ModelVar.told},
     needs: {(of: ModelConst.dnsLevels, set: true)},
   ),
@@ -58,7 +58,7 @@ enum EnvAction {
   viewGone(
     next: r'\E s \in Sites : ViewGone(s)',
     coverage: 'ViewGone',
-    reads: {ModelVar.loaded, ModelVar.told},
+    reads: {ModelVar.told},
     writes: {ModelVar.told},
     needs: {(of: ModelConst.dnsLevels, set: true)},
   ),

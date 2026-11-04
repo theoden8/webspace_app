@@ -41,11 +41,11 @@ void main() {
   });
 
   void buildAll() {
-    dns.views.built(#follows,
+    dns.views.built(const OnPlatformView(#follows),
         site: follows, siteLevel: null, localCdn: false, contentBlock: true);
-    dns.views.built(#asksTwo,
+    dns.views.built(const OnPlatformView(#asksTwo),
         site: asksTwo, siteLevel: 2, localCdn: false, contentBlock: true);
-    dns.views.built(#off,
+    dns.views.built(const OnPlatformView(#off),
         site: off, siteLevel: kDnsLevelOff, localCdn: true, contentBlock: true);
   }
 
@@ -88,17 +88,17 @@ void main() {
 
   test('a view that has gone is told nothing', () async {
     buildAll();
-    dns.views.gone(#follows);
+    dns.views.gone(const OnPlatformView(#follows));
     await dns.downloadList(1);
     expect(dns.views.told.containsKey(follows), isFalse);
     expect([for (final a in sent) a.blockers.site], isNot(contains(follows)));
   });
 
   test('a build attaches with the blockers its view is told again with', () {
-    final attach = dns.views.built(#cdn,
+    final attach = dns.views.built(const OnPlatformView(#cdn),
         site: follows, siteLevel: null, localCdn: true, contentBlock: false);
     expect(attach, (
-      view: #cdn,
+      view: const OnPlatformView(#cdn),
       blockers: (
         site: follows,
         dnsLevel: 0,
@@ -110,7 +110,7 @@ void main() {
 
   test('a view keeps its LocalCDN and filter-list flags when it is told again',
       () async {
-    dns.views.built(#cdn,
+    dns.views.built(const OnPlatformView(#cdn),
         site: follows, siteLevel: null, localCdn: true, contentBlock: false);
     await dns.downloadList(1);
     expect(sent.single.blockers.localCdn, isTrue);

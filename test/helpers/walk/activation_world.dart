@@ -36,6 +36,7 @@ import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
+import 'package:webspace/services/view_blockers.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
@@ -841,29 +842,46 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   /// The frame between two events, as far as DNS sees it: a loaded site's
   /// webview attaches at its site's level, and one whose site has gone is
-  /// dropped (`ViewBuilt`, `ViewGone`).
+  /// dropped.
   void _frameViews() {
+    if (dns == null) return;
+    for (final m in _bySite) {
+      final live = sites.loaded.contains(m);
+      if (live && _framed.add(m)) {
+        _view(OnPlatformView(m), of: m, up: true);
+      } else if (!live && _framed.remove(m)) {
+        _view(OnPlatformView(m), of: m, up: false);
+      }
+    }
+  }
+
+  /// The sites whose webview a frame attached.
+  final Set<WebViewModel> _framed = {};
+
+  /// [view] of site [of] attaches ([up]) or goes, as the platform reports
+  /// it: a frame's webview, or a wake's check as its open and its dispose
+  /// do. The model's `told` is a site's, so a site's first view to attach is
+  /// its `ViewBuilt` and its last to go its `ViewGone`.
+  void _view(InterceptedView view, {required WebViewModel of, required bool up}) {
     final levels = dns?.siteLevels;
     if (levels == null) return;
     final views = DnsBlockService.instance.views;
+    final had = views.told.containsKey(of.siteId);
     inFlow(flow: _frameFlow, () {
-      for (final m in _bySite) {
-        final live = sites.loaded.contains(m);
-        final attached = views.told.containsKey(m.siteId);
-        if (live && !attached) {
-          views.built(
-            m,
-            site: m.siteId,
-            siteLevel: levels[_siteNumber(m) - 1],
-            localCdn: false,
-            contentBlock: false,
-          );
-          ActivationSteps.mark(ActivationStep.viewBuilt, site: m);
-        } else if (!live && attached) {
-          views.gone(m);
-          ActivationSteps.mark(ActivationStep.viewGone, site: m);
-        }
+      if (up) {
+        views.built(
+          view,
+          site: of.siteId,
+          siteLevel: levels[_siteNumber(of) - 1],
+          localCdn: false,
+          contentBlock: false,
+        );
+      } else {
+        views.gone(view);
       }
+      final has = views.told.containsKey(of.siteId);
+      if (!had && has) ActivationSteps.mark(ActivationStep.viewBuilt, site: of);
+      if (had && !has) ActivationSteps.mark(ActivationStep.viewGone, site: of);
     });
   }
 
@@ -3018,7 +3036,12 @@ final class _WalkWake implements BackgroundWakeHost<WebViewModel> {
   @override
   void closeAllHeadless() => unawaited(world._route.vacateEvery(
     RouteUse.headless,
-    close: () => Future.wait([..._opening]),
+    close: () async {
+      await Future.wait([..._opening]);
+      for (final siteId in [..._checks]) {
+        _checkGone(siteId);
+      }
+    },
   ));
 
   @override
@@ -3067,17 +3090,33 @@ final class _WalkWake implements BackgroundWakeHost<WebViewModel> {
     _opening.add(ended.future);
     try {
       await world.gate.pace(PlatformCall.headlessOpen);
-      return world.sites.fore ? WakeSkip.appInForeground : null;
+      if (world.sites.fore) return WakeSkip.appInForeground;
+      _checks.add(siteId);
+      world._view(OnHeadless('$siteId'), of: siteOf(siteId), up: true);
+      return null;
     } finally {
       _opening.remove(ended.future);
       ended.complete();
     }
   }
 
+  /// The checks open, each one of the views the DNS lists tell, as the
+  /// page's checks are (`HeadlessSiteCheck.follow`).
+  final Set<SiteId> _checks = {};
+
+  void _checkGone(SiteId siteId) {
+    if (_checks.remove(siteId)) {
+      world._view(OnHeadless('$siteId'), of: siteOf(siteId), up: false);
+    }
+  }
+
   @override
   Future<void> closeHeadless(SiteId siteId) => world._route.vacate(
     [(use: RouteUse.headless, site: siteId)],
-    close: () => world.gate.pace(PlatformCall.headlessClose),
+    close: () async {
+      _checkGone(siteId);
+      await world.gate.pace(PlatformCall.headlessClose);
+    },
   );
 
   @override

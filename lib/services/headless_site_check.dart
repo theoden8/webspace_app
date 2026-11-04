@@ -1,13 +1,15 @@
 import 'dart:async';
 import 'dart:collection';
-import 'package:webspace/platform/host_platform.dart';
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show VoidCallback, visibleForTesting;
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/background_wake_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
+import 'package:webspace/services/blocker_follow.dart';
+import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/web_intercept_native.dart';
+import 'package:webspace/services/view_blockers.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/http_auth_challenge.dart';
@@ -156,27 +158,16 @@ abstract final class HeadlessSiteChecks {
       return (null, WakeSkip.headlessFailed);
     }
     check._controller = controller;
-    // Android blocks sub-resources in a native interceptor, attached here by
-    // the webview's id so it carries this site's id and level, not those of
-    // whichever site next asks to attach. Without one a site that blocks
-    // would load the page's trackers unfiltered, so its load never starts.
-    if (hostIsAndroid) {
-      final attached = await WebInterceptNative.attachToHeadless(
-        headless,
-        blockers: (
-          site: posture.siteId,
-          dnsLevel: config.effectiveDnsLevel,
-          localCdn: posture.blocking.localCdn,
-          contentBlock: posture.blocking.contentBlock,
-        ),
-      );
-      if (!attached &&
-          (posture.blocking.dns ||
-              posture.blocking.contentBlock ||
-              posture.blocking.localCdn)) {
-        await check.dispose();
-        return (null, WakeSkip.blockersNotAttached);
-      }
+    // Android blocks sub-resources in a native interceptor. Without one a
+    // site that blocks would load the page's trackers unfiltered, so its
+    // load never starts.
+    final attached = await check.follow(config, headlessId: headless.id);
+    if (!attached &&
+        (posture.blocking.dns ||
+            posture.blocking.contentBlock ||
+            posture.blocking.localCdn)) {
+      await check.dispose();
+      return (null, WakeSkip.blockersNotAttached);
     }
     final home = Uri.tryParse(config.initialUrl);
     final url = posture.blocking.httpsUpgrade &&
@@ -223,12 +214,40 @@ class HeadlessSiteCheck {
   late final inapp.HeadlessInAppWebView _webview;
   late final inapp.InAppWebViewSettings _settings;
   inapp.InAppWebViewController? _controller;
+  VoidCallback? _unfollow;
   bool _loading = false;
   bool _gone = false;
   bool _disposed = false;
 
   /// Null once the page is gone: disposed, or its renderer died.
   bool? get isLoading => _gone || _disposed ? null : _loading;
+
+  /// Follows the blockers' data from here to [dispose], as a site's webview
+  /// does ([followBlockerData]). On Android its interceptor is
+  /// attached by its headless id, so it carries this site's id and level
+  /// rather than those of whichever site next asks to attach, and is one of
+  /// [ViewBlockers]', told its site's level as the lists move (DNS-022). True
+  /// once attached, or where no interceptor attaches.
+  Future<bool> follow(WebViewConfig config, {required String headlessId}) {
+    final view = OnHeadless(headlessId);
+    _unfollow = followBlockerData(
+      config,
+      view: view,
+      evaluate: (js) async => _controller?.evaluateJavascript(source: js),
+      live: () => isLoading != null,
+    );
+    if (!WebInterceptNative.isSupported) return Future.value(true);
+    final posture = config.posture;
+    return WebInterceptNative.attach(
+      DnsBlockService.instance.views.built(
+        view,
+        site: posture.siteId,
+        siteLevel: config.siteDnsAsk,
+        localCdn: posture.blocking.localCdn,
+        contentBlock: posture.blocking.contentBlock,
+      ),
+    );
+  }
 
   Future<String?> title() async {
     final c = _controller;
@@ -243,6 +262,7 @@ class HeadlessSiteCheck {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    _unfollow?.call();
     if (_controller case final controller? when markNetworkBlocked(_settings)) {
       try {
         await controller.setSettings(settings: _settings);

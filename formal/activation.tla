@@ -236,14 +236,16 @@ ClearJar ==
 \* (DnsBlockService.effectiveLevelFor).
 Eff(s) == ResolveLevel(SiteLevel[s], dns.lvl, dns.levels)
 
-\* A frame builds a loaded site's webview, which attaches its native
-\* interceptor at the level its site resolves to now; a frame drops one
-\* whose site has gone (ViewBlockers.built, gone). Only where DNS is in
-\* play: the other configs build no view.
+\* A frame builds a loaded site's webview, and a wake's open a check of a
+\* site it lists, which attaches its native interceptor at the level its
+\* site resolves to now (ViewBlockers.built). A view goes at any moment: a
+\* frame drops one whose site has gone or lets one go while its site stays
+\* loaded, and a check goes at its dispose (ViewBlockers.gone). Only where
+\* DNS is in play: the other configs build no view.
 ViewBuilt(s) ==
     /\ Calm
     /\ DnsLevels # {}
-    /\ s \in loaded
+    /\ s \in loaded \cup headless
     /\ told[s] = -1
     /\ told' = [told EXCEPT ![s] = Eff(s)]
     /\ Did("ViewBuilt", 0, "", s)
@@ -252,7 +254,6 @@ ViewBuilt(s) ==
 
 ViewGone(s) ==
     /\ Calm
-    /\ s \notin loaded
     /\ told[s] # -1
     /\ told' = [told EXCEPT ![s] = -1]
     /\ Did("ViewGone", 0, "", s)

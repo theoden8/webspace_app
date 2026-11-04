@@ -13,6 +13,7 @@ import 'package:webspace/services/http_auth_challenge.dart';
 import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/services/webview_tls.dart';
 import 'package:webspace/services/web_intercept_native.dart';
+import 'package:webspace/services/view_blockers.dart';
 import 'package:webspace/services/page_scripts.dart';
 import 'package:webspace/services/page_handlers.dart';
 import 'package:webspace/services/media_grant_engine.dart';
@@ -176,7 +177,7 @@ abstract final class PopupWebView {
       desktopMode: page.desktopMode,
     );
     PlatformWebViewController? view;
-    Object? attachedView;
+    InterceptedView? attachedView;
     ViewKey? shareView;
     // A popup decides for itself as a nested screen does: a page in it is
     // not the one the user answered for the site, so a remembered `real`
@@ -207,10 +208,10 @@ abstract final class PopupWebView {
         // the interceptor attaches as soon as the view exists.
         // It is one of the site's views, told its level as the lists move
         // (DNS-022).
-        final viewId = controller.getViewId();
-        if (WebInterceptNative.isSupported && viewId != null) {
-          attachedView = viewId as Object;
-          unawaited(WebInterceptNative.attachToView(
+        if (controller.getViewId() case final Object id
+            when WebInterceptNative.isSupported) {
+          final viewId = attachedView = OnPlatformView(id);
+          unawaited(WebInterceptNative.attach(
             DnsBlockService.instance.views.built(
               viewId,
               site: parent.posture.siteId,

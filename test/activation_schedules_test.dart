@@ -167,6 +167,15 @@ const _wakeAlphabet = <SiteAction>[
   Foreground(),
 ];
 
+/// A DNS level the user downloads that lands while a background wake's
+/// checks load: each check is one of the views the lists tell as they move
+/// (DNS-022, NOTIF-016). A download starts only on screen.
+const _dnsWakeAlphabet = <SiteAction>[
+  DnsAddLevel(1),
+  Background(),
+  Wake(),
+];
+
 /// A link opening the site on another route beside a background wake
 /// (BUG-037): the app may leave the screen while the open waits on the
 /// proxy, and the wake's checks ask the rule beside an open in flight.
@@ -1064,6 +1073,21 @@ void main() {
         await _expectEvery(
           world: () => ActivationWorld(_mixedContainers, dns: _dnsSites),
           setup: _oneSignedIn,
+          script: script,
+          preemptions: _preemptions,
+        );
+      }
+    }
+  });
+
+  _scheduleTest("mixed, containers, a DNS download landing beside a wake's "
+      'checks: every schedule holds', body: () async {
+    for (var length = 1; length <= _dnsLength; length++) {
+      for (final script in _scripts(length, alphabet: _dnsWakeAlphabet)) {
+        await _expectEvery(
+          world: () =>
+              ActivationWorld(_mixedContainers, dns: _dnsSites, wakes: true),
+          setup: const [],
           script: script,
           preemptions: _preemptions,
         );
