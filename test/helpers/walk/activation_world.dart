@@ -3036,7 +3036,7 @@ final class _WalkResidency implements ResidencyHost {
       world._noteUnloaded(model, reason: reason);
 
   @override
-  List<WebViewModel> identities() => world.sites.slotIdentities();
+  SlotIdentities identities() => world.sites.slotIdentities();
 
   @override
   SiteRetentionPriority priorityOf(int index) =>

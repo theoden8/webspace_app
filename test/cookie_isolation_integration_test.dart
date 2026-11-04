@@ -64,7 +64,7 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
   void noteUnloaded(WebViewModel model, {required UnloadReason reason}) {}
 
   @override
-  List<WebViewModel> identities() => sites;
+  SlotIdentities identities() => SlotIdentities.of(sites);
 
   @override
   SiteRetentionPriority priorityOf(int index) => index == currentIndex
