@@ -1,6 +1,7 @@
 #!/bin/sh
 # IPtProxy.xcframework, the pluggable transports the Apple app runs for Tor
-# bridges (TOR-016), built from source with no GPL code in it (LICENSE-001).
+# bridges (TOR-016), and lyrebird's own program, which the Linux built-in Tor
+# runs (TOR-027), built from source with no GPL code in either (LICENSE-001).
 #
 # IPtProxy (MIT) wraps lyrebird's obfs4, meek_lite and webtunnel, snowflake
 # and dnstt for gomobile. Two parts of lyrebird are GPL and are deleted before
@@ -28,6 +29,19 @@
 #                       its commit, built into $IPTPROXY_WORK/bin: the
 #                       interop tests' servers (interop/), never part of the
 #                       framework
+#   build.sh lyrebird <dir>
+#                       after prepare and check, lyrebird's own program from
+#                       the tree they patch, for this machine, into
+#                       <dir>/pluggable_transports/lyrebird with its notice
+#                       at <dir>/docs/lyrebird.txt, as linux/tor.cmake
+#                       installs them beside tor; then check-lyrebird.
+#                       Nothing to do while both were built from these inputs
+#   build.sh check-lyrebird <dir>
+#                       fail unless <dir>'s lyrebird is that program, names
+#                       hiddenkey's package and go/meekutls's round tripper
+#                       and no GPL package, and compiles only modules
+#                       licences.tsv names, each with its notice in
+#                       docs/lyrebird.txt (scripts/verify_tor_shipped.sh)
 #
 # Each source is fetched at a pinned commit and its files checked against a
 # SHA-256 (tree_sha256) before anything reads them; the Go modules under them
@@ -91,10 +105,16 @@ UNUSED='IPtProxy.go/kindness.go'
 # gomobile's Apple targets as go list sees them: GOOS/GOARCH/the tag gomobile
 # adds to -tags=netcgo (golang.org/x/mobile cmd/gomobile/env.go).
 TARGETS='ios/arm64/ios ios/amd64/ios darwin/arm64/macos darwin/amd64/macos'
+# lyrebird's own program, and the GOOS/GOARCH linux/tor.cmake builds it for.
+LYREBIRD_CMD=gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird/cmd/lyrebird
+LINUX_TARGETS='linux/amd64 linux/arm64'
 
 : "${GOTOOLCHAIN:=go$(cat "$here/.go-version")}"
 export GOTOOLCHAIN
-export GOFLAGS=-mod=readonly
+# No VCS stamps: the trees build.sh fetches keep no .git, so Go would read
+# the app checkout's, which git refuses where it does not own the checkout
+# (CI's Linux container), and every go list and go build here would fail.
+export GOFLAGS='-mod=readonly -buildvcs=false'
 
 die() {
 	echo "build.sh: $*" >&2
@@ -185,16 +205,23 @@ prepare() {
 	prepared=1
 }
 
-# go list in IPtProxy's module, once per target, over the packages the
-# framework is built from: IPtProxy's and the one the bindings gomobile
-# generates import.
+# go list in IPtProxy's module over what is built from it: once per Apple
+# target, the packages the framework is built from (IPtProxy's and the one the
+# bindings gomobile generates import), and once per Linux target, lyrebird's
+# own program.
 list() {
-	for t in $TARGETS; do
-		goos=${t%%/*} rest=${t#*/}
-		goarch=${rest%%/*} tag=${rest#*/}
-		(cd "$src/IPtProxy.go" && GOOS=$goos GOARCH=$goarch CGO_ENABLED=1 \
-			go list -deps -tags "netcgo,$tag" -f "$1" . golang.org/x/mobile/bind/seq)
-	done | LC_ALL=C sort -u
+	{
+		for t in $TARGETS; do
+			goos=${t%%/*} rest=${t#*/}
+			goarch=${rest%%/*} tag=${rest#*/}
+			(cd "$src/IPtProxy.go" && GOOS=$goos GOARCH=$goarch CGO_ENABLED=1 \
+				go list -deps -tags "netcgo,$tag" -f "$1" . golang.org/x/mobile/bind/seq)
+		done
+		for t in $LINUX_TARGETS; do
+			(cd "$src/IPtProxy.go" && GOOS=${t%/*} GOARCH=${t#*/} CGO_ENABLED=1 \
+				go list -deps -f "$1" "$LYREBIRD_CMD")
+		done
+	} | LC_ALL=C sort -u
 }
 
 module_dir() {
@@ -265,15 +292,53 @@ $named"
 	if [ -d "$out" ]; then
 		bins=$(find "$out" -type f -name IPtProxy)
 		[ -n "$bins" ] || die "$out holds no IPtProxy binary"
-		for bin in $bins; do
-			grep -q 'webspace.local/hiddenkey' "$bin" ||
-				die "$bin names no package of hiddenkey, so this scan cannot see package paths"
-			! grep -qE "$GPL_PACKAGES" "$bin" || die "$bin carries a GPL package (LICENSE-001)"
-			grep -qF "$MEEKUTLS_SYMBOL" "$bin" ||
-				die "$bin carries no meek_lite built with go/meekutls (TOR-016)"
+		for b in $bins; do
+			scan "$b"
 		done
 	fi
 	echo "build.sh: $(wc -l <"$work/modules.compiled" | tr -d ' ') modules, $(wc -l <"$work/files.compiled" | tr -d ' ') files, no GPL (LICENSE-001)"
+}
+
+# scan BIN: fail unless BIN names hiddenkey's package, which shows the scan
+# sees package paths, and go/meekutls's round tripper, and no GPL package.
+scan() {
+	bin=$1
+	grep -q 'webspace.local/hiddenkey' "$bin" ||
+		die "$bin names no package of hiddenkey, so this scan cannot see package paths"
+	! grep -qE "$GPL_PACKAGES" "$bin" || die "$bin carries a GPL package (LICENSE-001)"
+	grep -qF "$MEEKUTLS_SYMBOL" "$bin" ||
+		die "$bin carries no meek_lite built with go/meekutls (TOR-016)"
+}
+
+# The modules `go version -m` says BIN compiled in: its own and each dep.
+program_modules() {
+	go version -m "$1" | awk '$1 == "mod" || $1 == "dep" { print $2 }' | LC_ALL=C sort -u
+}
+
+check_lyrebird() {
+	[ -n "${1:-}" ] || die "usage: build.sh check-lyrebird <dir>"
+	bin=$1/pluggable_transports/lyrebird
+	notice=$1/docs/lyrebird.txt
+	[ -x "$bin" ] || die "$bin is missing or not executable"
+	[ -f "$notice" ] || die "$notice is missing"
+	info=$(go version -m "$bin") || die "go version -m cannot read $bin"
+	[ "$(printf '%s\n' "$info" | awk '$1 == "path" { print $2 }')" = "$LYREBIRD_CMD" ] ||
+		die "$bin is not $LYREBIRD_CMD"
+	scan "$bin"
+	modules=$(program_modules "$bin")
+	[ -n "$modules" ] || die "go version -m names no module $bin compiled in"
+	table=$(listed)
+	for module in $modules; do
+		printf '%s\n' "$table" | grep -qxF "$module" ||
+			die "$bin compiles in $module, which has no licence in licences.tsv (LICENSE-001)"
+		awk -v m="$module " 'index($0, m) == 1 { found = 1 } END { exit !found }' "$notice" ||
+			die "$notice carries no notice for $module"
+	done
+	version=$(printf '%s\n' "$info" | sed -n '1s/^[^:]*: //p')
+	grep -q "^Go $version, " "$notice" || die "$notice carries no notice for Go $version"
+	ran=$("$bin" -version) || die "$bin does not run here"
+	[ "$ran" = "lyrebird ${LYREBIRD_TAG#lyrebird-}" ] || die "$bin is $ran, not $LYREBIRD_TAG"
+	echo "build.sh: $bin, $(printf '%s\n' "$modules" | wc -l | tr -d ' ') modules, no GPL (LICENSE-001)"
 }
 
 # What a framework is built from: while it matches the one built, it is current.
@@ -285,15 +350,17 @@ inputs() {
 	done | sha256
 }
 
-# Each compiled module's licence files, and Go's, under the licence
-# licences.tsv names for it.
-collect_notices() {
+# notices FILE HEADER MODULE...: HEADER, then each MODULE's licence files
+# under the licence licences.tsv names for it, then Go's, into FILE.
+notices() {
+	file=$1 header=$2
+	shift 2
 	tab=$(printf '\t')
 	{
-		echo "IPtProxy.xcframework: IPtProxy $IPTPROXY_TAG with $LYREBIRD_TAG less its GPL"
-		echo "parts, dnstt $DNSTT_COMMIT, go/hiddenkey and go/meekutls, built by"
-		echo "go/iptproxy/build.sh."
-		grep -v '^#' "$here/licences.tsv" | grep -v '^$' | while IFS=$tab read -r module licence; do
+		printf '%s\n' "$header"
+		for module; do
+			licence=$(grep -v '^#' "$here/licences.tsv" | awk -F "$tab" -v m="$module" '$1 == m { print $2 }')
+			[ -n "$licence" ] || die "$module has no licence in licences.tsv"
 			echo
 			echo "================================================================================"
 			echo "$(cd "$src/IPtProxy.go" && go list -m -f '{{.Path}} {{.Version}}{{with .Replace}} => {{.Path}}{{end}}' "$module"): $licence"
@@ -311,7 +378,14 @@ collect_notices() {
 		echo "================================================================================"
 		echo
 		cat "$(go env GOROOT)/LICENSE"
-	} >"$1"
+	} >"$file"
+}
+
+# Each module licences.tsv names, which check holds to those compiled in.
+collect_notices() {
+	notices "$1" "IPtProxy.xcframework: IPtProxy $IPTPROXY_TAG with $LYREBIRD_TAG less its GPL
+parts, dnstt $DNSTT_COMMIT, go/hiddenkey and go/meekutls, built by
+go/iptproxy/build.sh." $(grep -v '^#' "$here/licences.tsv" | grep -v '^$' | cut -f1)
 }
 
 bind() {
@@ -347,10 +421,37 @@ upstream() {
 	(cd "$work/upstream-meek" && go build -trimpath -o "$work/bin/meek-server" ./meek-server)
 }
 
+# The program for this machine; its notice names each module it compiled in.
+build_lyrebird() {
+	[ -n "${1:-}" ] || die "usage: build.sh lyrebird <dir>"
+	mkdir -p "$1"
+	dest=$(cd "$1" && pwd)
+	stamp=$(inputs)
+	if [ -x "$dest/pluggable_transports/lyrebird" ] && [ -f "$dest/docs/lyrebird.txt" ] &&
+		[ "$(cat "$dest.inputs" 2>/dev/null || true)" = "$stamp" ]; then
+		echo "build.sh: $dest/pluggable_transports/lyrebird is current"
+		return
+	fi
+	prepare
+	check
+	rm -rf "$dest/pluggable_transports" "$dest/docs/lyrebird.txt" "$dest.inputs"
+	mkdir -p "$dest/pluggable_transports" "$dest/docs"
+	# The version lyrebird's own Makefile stamps, which it reports to tor.
+	(cd "$src/IPtProxy.go" && CGO_ENABLED=1 go build -trimpath \
+		-ldflags="-s -w -X main.lyrebirdVersion=${LYREBIRD_TAG#lyrebird-}" \
+		-o "$dest/pluggable_transports/lyrebird" "$LYREBIRD_CMD")
+	notices "$dest/docs/lyrebird.txt" "lyrebird: $LYREBIRD_TAG's own program less its GPL parts, with go/hiddenkey
+and go/meekutls, built by go/iptproxy/build.sh." $(program_modules "$dest/pluggable_transports/lyrebird")
+	check_lyrebird "$dest"
+	echo "$stamp" >"$dest.inputs"
+}
+
 case "${1:-}" in
 '') bind ;;
 prepare) prepare ;;
 check) check ;;
 upstream) upstream ;;
-*) die "usage: build.sh [prepare|check|upstream]" ;;
+lyrebird) build_lyrebird "${2:-}" ;;
+check-lyrebird) check_lyrebird "${2:-}" ;;
+*) die "usage: build.sh [prepare|check|upstream|lyrebird <dir>|check-lyrebird <dir>]" ;;
 esac

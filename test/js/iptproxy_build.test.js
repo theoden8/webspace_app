@@ -1,9 +1,10 @@
 // LICENSE-001 and TOR-016 gate over go/iptproxy, the build of the bridge
-// transports the Apple app links. lyrebird's GPL parts are deleted before
-// anything reads its tree and nothing brings them back, meek_lite stays
-// registered with go/meekutls's round tripper in its GPL file's place, every
-// source is pinned by commit and SHA-256, and CI builds and checks what the
-// Podfiles link.
+// transports the Apple app links and of the lyrebird the Linux bundle ships
+// beside tor (TOR-027). lyrebird's GPL parts are deleted before anything reads
+// its tree and nothing brings them back, meek_lite stays registered with
+// go/meekutls's round tripper in its GPL file's place, every source is pinned
+// by commit and SHA-256, both builds are checked as the framework is, and CI
+// builds and checks what the Podfiles link.
 //
 // Rung 5: a shell script and a patch have no type, and the build runs only on
 // a macOS runner. What Go actually compiles is held by `build.sh check`
@@ -101,9 +102,12 @@ function buildProblems(sh, meekutls = read(MEEKUTLS)) {
   }
 
   const check = fn(sh, 'check');
+  const scan = fn(sh, 'scan');
   if (!/grep -E "\$GPL_PACKAGES"/.test(check)) out.push('check does not refuse a compiled GPL package');
-  if (!/grep -qE "\$GPL_PACKAGES" "\$bin"/.test(check)) out.push('check does not scan the built framework');
-  if (!/grep -qF "\$MEEKUTLS_SYMBOL" "\$bin"/.test(check)) out.push('check does not look for go/meekutls in the framework');
+  if (!/grep -q 'webspace\.local\/hiddenkey' "\$bin" \|\|/.test(scan)) out.push('scan does not show it can see package paths');
+  if (!/! grep -qE "\$GPL_PACKAGES" "\$bin" \|\| die/.test(scan)) out.push('scan does not refuse a GPL package in a binary');
+  if (!/grep -qF "\$MEEKUTLS_SYMBOL" "\$bin" \|\|/.test(scan)) out.push('scan does not look for go/meekutls in a binary');
+  if (!/for b in \$bins; do\n\t+scan "\$b"/.test(check)) out.push('check does not scan the built framework');
   if (!/\[ ! -e "\$meek\/transport\.go" \][^\n]*\n[^\n]*die "lyrebird's GPL transport\.go/.test(check)) {
     out.push('check does not refuse a meek_lite with lyrebird\'s transport.go');
   }
@@ -120,6 +124,38 @@ function buildProblems(sh, meekutls = read(MEEKUTLS)) {
   for (const t of ['ios/arm64/ios', 'ios/amd64/ios', 'darwin/arm64/macos', 'darwin/amd64/macos']) {
     if (!targets.includes(t)) out.push(`check does not list ${t}`);
   }
+
+  // lyrebird's own program for Linux: listed by check as the framework is,
+  // built from the tree check passed, and held by check-lyrebird to the same
+  // scan, licences.tsv and its notice.
+  if (sh.match(/^LYREBIRD_CMD=(\S+)$/m)?.[1] !== `${MODULE}/cmd/lyrebird`) out.push('LYREBIRD_CMD is not lyrebird\'s program');
+  const linux = quoted(sh, 'LINUX_TARGETS').split(/\s+/);
+  for (const t of ['linux/amd64', 'linux/arm64']) {
+    if (!linux.includes(t)) out.push(`check does not list lyrebird for ${t}`);
+  }
+  if (!/for t in \$LINUX_TARGETS; do[^]*?go list -deps -f "\$1" "\$LYREBIRD_CMD"/.test(fn(sh, 'list'))) {
+    out.push('check does not list what lyrebird\'s program compiles');
+  }
+  const program = fn(sh, 'build_lyrebird');
+  const built = program.search(/\(cd "\$src\/IPtProxy\.go" && CGO_ENABLED=1 go build -trimpath \\\n(\t*[^\n]*\\\n)*\t*-o "\$dest\/pluggable_transports\/lyrebird" "\$LYREBIRD_CMD"\)/);
+  if (built < 0) out.push('build.sh lyrebird does not build LYREBIRD_CMD in IPtProxy\'s module');
+  const before = program.slice(0, Math.max(built, 0));
+  if (!/\n\tprepare\n\tcheck\n/.test(before)) out.push('build.sh lyrebird builds before prepare and check');
+  if (!/notices "\$dest\/docs\/lyrebird\.txt" [^]*\$\(program_modules "\$dest\/pluggable_transports\/lyrebird"\)/.test(program)) {
+    out.push('lyrebird\'s notice is not of the modules it compiled');
+  }
+  if (program.indexOf('check_lyrebird "$dest"') < built) out.push('build.sh lyrebird does not check what it built');
+  const held = fn(sh, 'check_lyrebird');
+  for (const [rule, why] of [
+    [/awk '\$1 == "path" \{ print \$2 \}'\)" = "\$LYREBIRD_CMD" \] \|\|/, 'is lyrebird\'s program'],
+    [/\n\tscan "\$bin"\n/, 'passes scan'],
+    [/grep -qxF "\$module" \|\|\n\t+die/, 'compiles only modules licences.tsv names'],
+    [/index\(\$0, m\) == 1[^\n]*"\$notice" \|\|\n\t+die/, 'carries each module\'s notice'],
+    [/grep -q "\^Go \$version, " "\$notice" \|\| die/, 'carries Go\'s notice'],
+    [/\[ "\$ran" = "lyrebird \$\{LYREBIRD_TAG#lyrebird-\}" \] \|\| die/, 'runs here as the pinned version'],
+  ]) {
+    if (!rule.test(held)) out.push(`check-lyrebird does not check that the program ${why}`);
+  }
   const bind = fn(sh, 'bind');
   if (bind.indexOf('check') < 0 || bind.indexOf('check') > bind.indexOf('gomobile bind')) {
     out.push('bind does not check before it binds');
@@ -128,7 +164,9 @@ function buildProblems(sh, meekutls = read(MEEKUTLS)) {
   if (!/go install \S* ?golang\.org\/x\/mobile\/cmd\/gomobile golang\.org\/x\/mobile\/cmd\/gobind/.test(one)) {
     out.push('gomobile and gobind are not installed from the module');
   }
-  if (!/^export GOFLAGS=-mod=readonly$/m.test(sh)) out.push('Go may change go.mod or go.sum');
+  if (!/^export GOFLAGS='-mod=readonly -buildvcs=false'$/m.test(sh)) {
+    out.push('Go may change go.mod or go.sum, or read the checkout\'s git state');
+  }
   if (!/^: "\$\{GOTOOLCHAIN:=go\$\(cat "\$here\/\.go-version"\)\}"$/m.test(sh)) out.push('the Go is not .go-version');
   return out;
 }
@@ -276,6 +314,24 @@ test('each rule catches the mistake it is for', () => {
   caught(buildProblems(sh, read(MEEKUTLS).replace('func newRoundTripper(', 'func newUTLSRoundTripper(')),
     'meekutls.go without what meek.go calls');
   caught(buildProblems(swap(sh, 'grep -qF "$MEEKUTLS_SYMBOL" "$bin"', 'true')), 'a framework without meekutls');
+  caught(buildProblems(swap(sh, '! grep -qE "$GPL_PACKAGES" "$bin" || die', 'true || die')), 'a binary with x25519ell2');
+  caught(buildProblems(swap(sh, '\t\tscan "$b"\n', '\t\t:\n')), 'the framework unscanned');
+  caught(buildProblems(swap(sh, "LINUX_TARGETS='linux/amd64 linux/arm64'", "LINUX_TARGETS='linux/amd64'")),
+    'lyrebird for arm64 unlisted');
+  caught(buildProblems(swap(sh, 'go list -deps -f "$1" "$LYREBIRD_CMD"', 'true')), 'lyrebird\'s program unlisted');
+  caught(buildProblems(swap(sh, '\tprepare\n\tcheck\n\trm -rf "$dest/', '\tprepare\n\trm -rf "$dest/')),
+    'lyrebird built unchecked');
+  caught(buildProblems(swap(sh, '-o "$dest/pluggable_transports/lyrebird" "$LYREBIRD_CMD"',
+    '-o "$dest/pluggable_transports/lyrebird" ./cmd/lyrebird')), 'lyrebird built from its own module');
+  caught(buildProblems(swap(sh, '$(program_modules "$dest/pluggable_transports/lyrebird")',
+    '$(listed)')), 'a notice of other modules than it compiled');
+  caught(buildProblems(swap(sh, '\tcheck_lyrebird "$dest"\n', '')), 'lyrebird shipped unchecked');
+  caught(buildProblems(swap(sh, '[ "$ran" = "lyrebird ${LYREBIRD_TAG#lyrebird-}" ] || die', 'true || die')),
+    'lyrebird never run');
+  caught(buildProblems(swap(sh, '\tscan "$bin"\n\tmodules=', '\tmodules=')), 'lyrebird unscanned');
+  caught(buildProblems(swap(sh, 'grep -qxF "$module" ||', 'true ||')), 'lyrebird with an unlisted module');
+  caught(buildProblems(swap(sh, '"$notice" ||\n\t\t\tdie "$notice carries no notice for $module"',
+    '"$notice" || true')), 'a module without its notice');
   caught(buildProblems(swap(sh, '[ ! -e "$meek/transport.go" ] && ', '')), 'transport.go in the tree unrefused');
   caught(buildProblems(swap(sh, 'for dir in "$meekutls" "$here/interop"; do', 'for dir in "$meekutls"; do')),
     'interop on other versions');
@@ -286,7 +342,8 @@ test('each rule catches the mistake it is for', () => {
   caught(buildProblems(swap(sh, '[ "$got" = "$want" ] || die', ':')), 'a tree never hashed');
   caught(buildProblems(swap(sh, 'go install', 'go run golang.org/x/mobile/cmd/gomobile@latest; go install')),
     'gomobile@latest');
-  caught(buildProblems(swap(sh, 'export GOFLAGS=-mod=readonly', 'export GOFLAGS=-mod=mod')), 'go.sum rewritten');
+  caught(buildProblems(swap(sh, "export GOFLAGS='-mod=readonly", "export GOFLAGS='-mod=mod")), 'go.sum rewritten');
+  caught(buildProblems(swap(sh, " -buildvcs=false'", "'")), 'Go reading the checkout\'s git state');
   const prepare = fn(sh, 'prepare');
   caught(buildProblems(swap(sh, prepare, prepare.replace('\tpatch -d', '\t(cd "$src/IPtProxy.go" && go list ./...)\n\tpatch -d'))),
     'go before the checks');
