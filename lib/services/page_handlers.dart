@@ -379,29 +379,42 @@ abstract final class PageHandlers {
       });
     }
     // Registered whether or not a list is loaded, so allowed requests are
-    // tallied too. One verdict per host the page loaded from.
+    // tallied too: how many requests the page loaded from each host, by its
+    // resource timing. What loaded went out.
     controller.addJavaScriptHandler(handlerName: 'blockResourceLoadedBatch', callback: (args) {
-      if (args.isEmpty || args[0] is! List) return null;
-      for (final h in args[0] as List) {
-        if (h is! String || h.isEmpty) continue;
-        judgeAndRecord(config, query: HostQuery(h));
+      if (args.isEmpty || args[0] is! Map) return null;
+      for (final MapEntry(:key, :value) in (args[0] as Map).entries) {
+        if (key is String && key.isNotEmpty && value is int && value > 0) {
+          recordPageLoads(config, host: key, count: value);
+        }
       }
       return null;
     });
     if (!hostIsAndroid) {
       // The WebKit interceptor's questions about Bloom hits, as many as one
-      // burst of the page's requests asked, answered in order. The page's
-      // source URL is the hosting page, so `$domain=` rules apply.
+      // burst of the page's requests asked, answered in order, each judged
+      // as the request type it names. The page's source URL is the hosting
+      // page, so `$domain=` rules apply.
       controller.addJavaScriptHandler(handlerName: 'blockCheckBatch', callback: (args) {
         if (args.isEmpty || args[0] is! List) return const <Object>[];
         final sourceUrl = page.sourceUrl() ?? '';
         return pageBlockReplies(
           args[0] as List,
-          judge: (url) => judgeAndRecord(
-            config,
-            query: UrlQuery(url, sourceUrl: sourceUrl, requestType: 'other'),
-          ),
+          judge: (request) =>
+              judgePageAsk(config, request: request, sourceUrl: sourceUrl),
         );
+      });
+      // What the interceptor blocked from its cache, saw fail, or was told
+      // WebKit's rule lists blocked: counted, never answered.
+      controller.addJavaScriptHandler(handlerName: 'blockRecordBatch', callback: (args) {
+        if (args.isEmpty || args[0] is! List) return null;
+        final sourceUrl = page.sourceUrl() ?? '';
+        for (final entry in args[0] as List) {
+          if (PageReport.parse(entry) case final report?) {
+            recordPageReport(config, report: report, sourceUrl: sourceUrl);
+          }
+        }
+        return null;
       });
       // One-shot merged Bloom filter delivery to JS. Bloom bits only: the
       // handler is reachable from any page, so nothing host-identifying

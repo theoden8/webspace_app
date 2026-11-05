@@ -18,7 +18,7 @@ const SAMPLES = {
   }),
   blob_download_click_intercept: pageJs('blob_download_click_intercept'),
   blob_url_capture: pageJs('blob_url_capture'),
-  block_js_interceptor: pageJs('block_js_interceptor'),
+  block_js_interceptor: pageJs('block_js_interceptor', { webKitReports: false }),
   block_resource_observer: pageJs('block_resource_observer'),
   camera_stream: CAPTURE.CAMERA,
   clearurl_share: pageJs('clearurl_share'),

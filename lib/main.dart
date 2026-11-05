@@ -33,6 +33,7 @@ import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/egress_relay.dart';
 import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/services/webkit_block_reports.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/native_log.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
@@ -208,6 +209,11 @@ void main([List<String> args = const []]) async {
   await native.routeServiceWorkers(
       throughBlockers: ExperimentalFeaturesService.instance
           .isEnabled(ExperimentalFeature.serviceWorkers));
+  // Before the first webview: every page of the run counts WebKit's blocks
+  // one way, so the switch applies from the next launch (CB-023).
+  await WebKitBlockReports.start(
+      wanted: ExperimentalFeaturesService.instance
+          .isEnabled(ExperimentalFeature.webKitBlockReports));
   // Opt-in weekly Firefox-version auto-refresh (DM-004), left running: a
   // download, so after the proxy, the saved proxies and the choice of tor it
   // may go through (LEAK-004). Preset UAs re-render from the cached version

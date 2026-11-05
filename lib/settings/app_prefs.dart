@@ -87,6 +87,10 @@ enum AppPref<T extends Object> {
   // CB-022: a site's service workers through its blockers on Android, read
   // once at launch.
   experimentalServiceWorkers('experimentalServiceWorkers', fallback: false),
+  // CB-023: WebKit's own reports of what its rule lists block, outside the
+  // App Store only, read once at launch.
+  experimentalWebKitBlockReports('experimentalWebKitBlockReports',
+      fallback: false),
   // TOR-025: Tor sites through a tor already running on the device. The key
   // keeps the name it shipped under as an Experimental switch.
   externalTor('experimentalExternalTor', fallback: false),

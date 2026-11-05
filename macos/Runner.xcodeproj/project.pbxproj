@@ -36,6 +36,7 @@
 		7AC2A0000000000000000S02 /* ScreenSharePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000S01 /* ScreenSharePlugin.swift */; };
 		7AC2A0000000000000000T02 /* TorControllerPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000T01 /* TorControllerPlugin.swift */; };
 		C0471E5100000000000000C4 /* ContentRuleListPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0471E5100000000000000C3 /* ContentRuleListPlugin.swift */; };
+		C0471E5100000000000000D4 /* WebKitBlockReports.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0471E5100000000000000D3 /* WebKitBlockReports.swift */; };
 		7AC2A0000000000000000W02 /* WindowCapturePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000W01 /* WindowCapturePlugin.swift */; };
 		7B0F0000000000000000001E /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B0F0000000000000000000A /* ShareViewController.swift */; };
 		7B0F0000000000000000001F /* ShareExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 7B0F00000000000000000009 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -120,6 +121,7 @@
 		7AC2A0000000000000000S01 /* ScreenSharePlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ScreenSharePlugin.swift; sourceTree = "<group>"; };
 		7AC2A0000000000000000T01 /* TorControllerPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = TorControllerPlugin.swift; path = ../ios/Runner/TorControllerPlugin.swift; sourceTree = SOURCE_ROOT; };
 		C0471E5100000000000000C3 /* ContentRuleListPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = ContentRuleListPlugin.swift; path = ../ios/Runner/ContentRuleListPlugin.swift; sourceTree = SOURCE_ROOT; };
+		C0471E5100000000000000D3 /* WebKitBlockReports.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = WebKitBlockReports.swift; path = ../ios/Runner/WebKitBlockReports.swift; sourceTree = SOURCE_ROOT; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		7B0F00000000000000000009 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		7B0F0000000000000000000A /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
@@ -238,6 +240,7 @@
 				7AC2A0000000000000000001 /* ShortcutsPlugin.swift */,
 				7AC2A0000000000000000T01 /* TorControllerPlugin.swift */,
 				C0471E5100000000000000C3 /* ContentRuleListPlugin.swift */,
+				C0471E5100000000000000D3 /* WebKitBlockReports.swift */,
 				7AC2A0000000000000000003 /* WebSpaceAppIntents.swift */,
 				7AC2A0000000000000000005 /* AppGroup.swift */,
 				7AC2A0000000000000000007 /* ShareIntentPlugin.swift */,
@@ -584,6 +587,7 @@
 				7AC2A0000000000000000002 /* ShortcutsPlugin.swift in Sources */,
 				7AC2A0000000000000000T02 /* TorControllerPlugin.swift in Sources */,
 				C0471E5100000000000000C4 /* ContentRuleListPlugin.swift in Sources */,
+				C0471E5100000000000000D4 /* WebKitBlockReports.swift in Sources */,
 				7AC2A0000000000000000004 /* WebSpaceAppIntents.swift in Sources */,
 				7AC2A0000000000000000006 /* AppGroup.swift in Sources */,
 				7AC2A0000000000000000008 /* ShareIntentPlugin.swift in Sources */,
@@ -1314,6 +1318,7 @@
 					"-Wl,-weak_framework,ScreenCaptureKit",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "$(WEBSPACE_PROVISIONING_PROFILE)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) WEBSPACE_DIRECT";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};
@@ -1353,6 +1358,7 @@
 					"-Wl,-weak_framework,ScreenCaptureKit",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "$(WEBSPACE_PROVISIONING_PROFILE)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) WEBSPACE_DIRECT";
 				SWIFT_VERSION = 5.0;
 			};
 			name = "Release-direct";
@@ -1391,6 +1397,7 @@
 					"-Wl,-weak_framework,ScreenCaptureKit",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "$(WEBSPACE_PROVISIONING_PROFILE)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) WEBSPACE_DIRECT";
 				SWIFT_VERSION = 5.0;
 			};
 			name = "Profile-direct";

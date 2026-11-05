@@ -134,13 +134,21 @@ void main() {
   });
 
   group('pageBlockReplies', () {
-    test('one reply per URL of the batch, in its order', () {
-      final judged = <String>[];
+    Map<String, Object> ask(String url, {String type = 'image', bool issued = false}) =>
+        {'url': url, 'type': type, 'issued': issued};
+
+    test('one reply per ask of the batch, in its order, each judged as its type', () {
+      final judged = <PageRequest>[];
       final replies = pageBlockReplies(
-        ['https://a.example/1', 7, 'https://b.example/2', 'https://c.example/3'],
-        judge: (url) {
-          judged.add(url);
-          return switch (Uri.parse(url).host) {
+        [
+          ask('https://a.example/1'),
+          7,
+          ask('https://b.example/2', type: 'script', issued: true),
+          ask('https://c.example/3', type: 'xhr'),
+        ],
+        judge: (request) {
+          judged.add(request);
+          return switch (Uri.parse(request.url).host) {
             'a.example' => const Allowed(),
             'b.example' => const Blocked(BlockSource.abp),
             _ => const Redirect('data:text/javascript,'),
@@ -148,13 +156,119 @@ void main() {
         },
       );
       expect(replies, [false, false, true, 'data:text/javascript,']);
-      expect(judged,
-          ['https://a.example/1', 'https://b.example/2', 'https://c.example/3'],
-          reason: 'each URL judged once, so each is recorded once');
+      expect(judged, [
+        (url: 'https://a.example/1', requestType: 'image', issued: false),
+        (url: 'https://b.example/2', requestType: 'script', issued: true),
+        (url: 'https://c.example/3', requestType: 'xhr', issued: false),
+      ], reason: 'each ask judged once, so each is recorded once');
     });
 
     test('an empty batch asks nothing', () {
       expect(pageBlockReplies(const [], judge: (_) => fail('judged')), isEmpty);
     });
   });
+
+  group('countsForPage (CB-012)', () {
+    const before = (url: 'https://a.example/x', requestType: 'xhr', issued: false);
+    const issued = (url: 'https://a.example/x', requestType: 'script', issued: true);
+    const dns = Blocked(BlockSource.dns);
+    const dnsAlsoAbp = Blocked(BlockSource.dns, alsoAbp: true);
+    const abp = Blocked(BlockSource.abp);
+
+    bool counts(PageRequest r,
+            {required BlockVerdict verdict, bool webKitReports = false}) =>
+        countsForPage(r, verdict: verdict, webKitReports: webKitReports);
+
+    test('a request let through counts where it loads, never at the ask', () {
+      expect(counts(before, verdict: const Allowed()), isFalse);
+      expect(counts(issued, verdict: const Allowed()), isFalse);
+    });
+
+    test('a block made before the request went out counts, whichever list', () {
+      expect(counts(before, verdict: dns), isTrue);
+      expect(counts(before, verdict: abp), isTrue);
+      expect(counts(before, verdict: abp, webKitReports: true), isTrue);
+    });
+
+    test('an issued request counts only as WebKit\'s filter lists stopped it', () {
+      expect(counts(issued, verdict: abp), isTrue);
+      expect(counts(issued, verdict: dnsAlsoAbp), isTrue);
+      expect(counts(issued, verdict: const Redirect('data:,')), isTrue);
+      expect(counts(issued, verdict: dns), isFalse,
+          reason: 'the DNS list is not in WebKit\'s rule lists, so it went out');
+    });
+
+    test('where WebKit reports its blocks, an issued request is left to the report', () {
+      expect(counts(issued, verdict: abp, webKitReports: true), isFalse);
+      expect(counts(issued, verdict: dnsAlsoAbp, webKitReports: true), isFalse);
+    });
+  });
+
+  group('PageReport.parse', () {
+    test('reads each kind and refuses what is none', () {
+      expect(
+          PageReport.parse({'why': 'webkit', 'url': 'https://a.example/b'}),
+          isA<WebKitBlocked>().having((r) => r.url, 'url', 'https://a.example/b'));
+      expect(
+          PageReport.parse({
+            'why': 'failed',
+            'url': 'https://a.example/i.png',
+            'type': 'image',
+            'issued': true,
+          }),
+          isA<PageSaw>().having((r) => r.request, 'request',
+              (url: 'https://a.example/i.png', requestType: 'image', issued: true)));
+      expect(PageReport.parse({'why': 'cached', 'url': 'https://a.example/'}), isNull,
+          reason: 'a page report names its type and whether it was issued');
+      expect(PageReport.parse({'why': 'other', 'url': 'https://a.example/'}), isNull);
+      expect(PageReport.parse('https://a.example/'), isNull);
+    });
+  });
+
+  group('BlockDecision.reported (CB-023)', () {
+    test('a URL the DNS list names is DNS\'s, and the filter lists\' too', () {
+      final r = BlockDecision.reported('https://t.example/p.gif',
+          sourceUrl: 'https://site.example/',
+          policy: _on,
+          lists: _Lists(dnsHosts: {'t.example'}));
+      expect(r?.verdict.source, BlockSource.dns);
+      expect(r?.verdict.alsoAbp, isTrue);
+    });
+
+    test('else the filter lists\', under the first type a rule matches', () {
+      final lists = _TypedLists(blocks: {('https://ads.example/b', 'xhr')});
+      final r = BlockDecision.reported('https://ads.example/b',
+          sourceUrl: 'https://site.example/', policy: _on, lists: lists);
+      expect(r?.verdict.source, BlockSource.abp);
+      expect(r?.query.requestType, 'xhr');
+      expect(r?.query.sourceUrl, 'https://site.example/');
+    });
+
+    test('a URL no list names records nothing, so a forged report is dropped', () {
+      expect(
+          BlockDecision.reported('https://news.example/',
+              sourceUrl: 'https://site.example/', policy: _on, lists: _Lists()),
+          isNull);
+    });
+
+    test('with content blocking off, only DNS can claim it', () {
+      final r = BlockDecision.reported('https://ads.example/b',
+          sourceUrl: 'https://site.example/',
+          policy: (dnsLevel: 3, contentBlock: false),
+          lists: _TypedLists(blocks: {('https://ads.example/b', 'xhr')}));
+      expect(r, isNull);
+    });
+  });
+}
+
+/// Filter lists whose rules each match one URL as one request type.
+class _TypedLists extends _Lists {
+  _TypedLists({required this.blocks});
+
+  final Set<(String, String)> blocks;
+
+  @override
+  bool abpBlocksUrl(String url,
+          {required String sourceUrl, required String requestType}) =>
+      blocks.contains((url, requestType));
 }

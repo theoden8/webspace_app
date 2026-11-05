@@ -30,6 +30,7 @@
 		A11C0DE100000000000000P2 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A11C0DE100000000000000P1 /* PrivacyInfo.xcprivacy */; };
 		A11C0DE100000000000000T2 /* TorControllerPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11C0DE100000000000000T1 /* TorControllerPlugin.swift */; };
 		C0471E5100000000000000C2 /* ContentRuleListPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0471E5100000000000000C1 /* ContentRuleListPlugin.swift */; };
+		C0471E5100000000000000D2 /* WebKitBlockReports.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0471E5100000000000000D1 /* WebKitBlockReports.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -107,6 +108,7 @@
 		A11C0DE100000000000000P1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		A11C0DE100000000000000T1 /* TorControllerPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TorControllerPlugin.swift; sourceTree = "<group>"; };
 		C0471E5100000000000000C1 /* ContentRuleListPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContentRuleListPlugin.swift; sourceTree = "<group>"; };
+		C0471E5100000000000000D1 /* WebKitBlockReports.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WebKitBlockReports.swift; sourceTree = "<group>"; };
 		A873FC68CB535DFAC8A0FA03 /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
 		AF0440126314710B9355C1DF /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		BEB686F40D1F327FFB98EB57 /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -246,6 +248,7 @@
 				7AC300002ED2DC5600515830 /* MediaSessionPlugin.swift */,
 				A11C0DE100000000000000T1 /* TorControllerPlugin.swift */,
 				C0471E5100000000000000C1 /* ContentRuleListPlugin.swift */,
+				C0471E5100000000000000D1 /* WebKitBlockReports.swift */,
 				7AC200002ED2DC5600515820 /* ShortcutsPlugin.swift */,
 				7AC200022ED2DC5600515821 /* WebSpaceAppIntents.swift */,
 				7AC200042ED2DC5600515822 /* AppGroup.swift */,
@@ -516,6 +519,7 @@
 				7AC300012ED2DC5600515830 /* MediaSessionPlugin.swift in Sources */,
 				A11C0DE100000000000000T2 /* TorControllerPlugin.swift in Sources */,
 				C0471E5100000000000000C2 /* ContentRuleListPlugin.swift in Sources */,
+				C0471E5100000000000000D2 /* WebKitBlockReports.swift in Sources */,
 				7AC200012ED2DC5600515820 /* ShortcutsPlugin.swift in Sources */,
 				7AC200032ED2DC5600515821 /* WebSpaceAppIntents.swift in Sources */,
 				7AC200052ED2DC5600515822 /* AppGroup.swift in Sources */,
@@ -1310,6 +1314,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = org.codeberg.theoden8.webspace;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) WEBSPACE_DIRECT";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -1339,6 +1344,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = org.codeberg.theoden8.webspace;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) WEBSPACE_DIRECT";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -1367,6 +1373,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = org.codeberg.theoden8.webspace;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) WEBSPACE_DIRECT";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";

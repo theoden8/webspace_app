@@ -7,6 +7,11 @@ import 'package:webspace/services/content_rule_list_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/utils/concurrency.dart';
 
+/// The Runner's `ContentRuleListPlugin` on iOS and macOS: the store the
+/// webviews attach from, and WebKit's reports of what it blocks (CB-023).
+const appleContentRuleListChannel =
+    MethodChannel('org.codeberg.theoden8.webspace/content_rule_lists');
+
 /// WebKit's store of compiled content rule lists.
 abstract interface class ContentRuleListStore {
   /// Every identifier the store holds, ours or not.
@@ -32,9 +37,7 @@ class MethodChannelContentRuleListStore implements ContentRuleListStore {
           ),
         )
       : hostIsIOS || hostIsMacOS
-      ? const MethodChannelContentRuleListStore._(
-          MethodChannel('org.codeberg.theoden8.webspace/content_rule_lists'),
-        )
+      ? const MethodChannelContentRuleListStore._(appleContentRuleListChannel)
       : null;
 
   final MethodChannel _channel;

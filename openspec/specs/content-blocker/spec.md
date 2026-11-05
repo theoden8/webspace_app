@@ -731,8 +731,25 @@ interceptor's drained block events, every repeat a drain folds counted.
 The developer tools SHALL read those stats alone and keep no count of engine
 decisions of their own, so the Blocking log (DNS-014), the stats banner and
 the protection report cannot disagree about what the engine blocked. A
-request the DNS blocklist already blocked is DNS's, and the engine is not
-asked about it (CB-003, "Source attribution when DNS + ABP both match").
+request the DNS blocklist already blocked is DNS's; the engine is asked about
+it only to mark it as one the filter lists also stop (CB-003, "Source
+attribution when DNS + ABP both match").
+
+The unit of every count SHALL be one request the page made, counted once,
+where its outcome is known:
+
+| Outcome | Counted by |
+|---|---|
+| goes out (allowed) | Android: the native interceptor. WebKit: the resource observer, once per resource the page loaded, the top frame's own document included |
+| a navigation stopped | the navigation check that stops it (`judgeNavigation`), which counts nothing it lets go ahead |
+| blocked in the page before it is sent (WebKit) | the page interceptor's ask, or its report of a block its host cache answered (`countsForPage`) |
+| blocked by WebKit's content rule lists | WebKit's report where there is one (CB-023), else the page interceptor's ask about an element WebKit had already issued, counted only for a verdict the rule lists share (they hold the filter lists, not the DNS list), or a load error on such an element no ask covered |
+| blocked natively (Android) | the native interceptor |
+
+So `allowed` equals the requests that went out, and `blocked` the requests
+made less those. A count that disagrees with what a server saw arrive is a
+bug, held by `integration_test/block_accounting_test.dart` on every engine CI
+runs, whose list of known gaps only shrinks.
 
 History: a second set of counters kept by `ContentBlockerService` for an ABP
 tab of their own fell behind the site's stats on every consult path added
@@ -784,6 +801,29 @@ matched" and "a DNS verdict cannot name a matched request";
 `SiteEventInboxTest.anAbpBlockNamesTheRequestItsRuleMatched`;
 `test/block_stats_integration_test.dart`, "an ABP block drained with its URL
 is named by its host alone".
+
+#### Scenario: The counts add up to what arrived
+
+**Given** a page served from a loopback server whose every request is declared (its document, parsed and appended sub-resources, fetches, some the filter lists block, some on a host the DNS list names, one both stop)
+**When** the page has loaded in a site's webview with both blockers on
+**Then** the site's `allowed` equals the requests the server received
+**And** `blocked` equals the requests the page made less those received
+**And** `blockedByDns`, `blockedByAbp` and the DNS blocks the filter lists also stop equal the declaration's
+
+Test: `integration_test/block_accounting_test.dart` (the Android emulator tier
+`scripts/run_android_block_accounting_tests.sh`, and the Linux and macOS
+desktop jobs).
+
+#### Scenario: Each request counts once on WebKit
+
+**Given** the WebKit page interceptor asks the app about a request
+**Then** a verdict that lets it go counts nothing at the ask, since the resource observer counts it where it loads
+**And** a block made before the request went out counts at the ask, and a repeat its host cache answers counts through `blockRecordBatch`
+**And** a request WebKit had already issued counts as blocked only for a filter-list verdict, and not at all where WebKit reports its blocks itself
+**And** a load error the page saw counts only when a list names the request and no ask covered it, so one that fires before the observer asks is left to the ask
+**And** each ask names the request's type in the engine's words, so a rule limited to scripts or images is judged as WebKit judges it
+
+Test: `test/block_decision_test.dart`, "countsForPage"; `test/js/block_interceptor_shim.test.js`.
 
 #### Scenario: A Dart path cannot ask the engine outside the funnel
 
@@ -1122,7 +1162,7 @@ attach from, and found again by name on later launches; a webview only names the
 (`contentRuleListIdentifiers`, a setting of the webview fork). The page
 interceptor and the cosmetic pass keep running: the lists carry no cosmetic
 rules, redirects, `$csp`, `$removeparam` or scriptlets, and WebKit reports no
-match back. No switch gates them: Linux ran them behind an Experimental switch
+match back to an App Store build (a direct build can ask it to, CB-023). No switch gates them: Linux ran them behind an Experimental switch
 (DEVTOOLS-011) until they graduated, and its stored value is no longer read.
 
 The rule set is named by the head of the engine inputs key, so a change of
@@ -1261,6 +1301,53 @@ which tells whether the app-wide block at launch reaches a site's container.
 **And** the log says whether its service workers had the network
 
 Tests: `android/app/src/test/kotlin/org/codeberg/theoden8/webspace/ServiceWorkerBlockersTest.kt`.
+
+
+### Requirement: CB-023 - WebKit's Own Block Reports (Experimental, Direct Builds)
+
+An iOS or macOS build made with `--flavor direct` SHALL be able to count each
+request one of the app's content rule lists (CB-020) blocks as WebKit itself
+reports it, which covers what the page interceptor never sees: loads a
+stylesheet starts, beacons, workers, the parser's preloads. WebKit reports
+through `_webView:contentRuleListWithIdentifier:performedAction:forURL:`, a
+navigation delegate method Apple does not publish, so:
+
+- the Runner compiles the code (`ios/Runner/WebKitBlockReports.swift`, both
+  Runners) only into the `-direct` configurations (`WEBSPACE_DIRECT`), and a
+  build for either App Store carries no part of it;
+  `scripts/check_webkit_block_reports.sh` checks a built app, in CI and in
+  `sign_macos.sh mas`, and `test/js/webkit_block_reports_build.test.js` holds
+  the Swift, the Xcode projects and both checks to each other;
+- it runs only while developer mode and its Experimental switch are on
+  (DEVTOOLS-011), read once at launch (`WebKitBlockReports.start`), so every
+  page of a run counts one way.
+
+The method is added to the webview plugin's view class as the Runner
+creates its plugins, before any view sets itself as its own navigation
+delegate, since WebKit asks then, once, whether the delegate answers it. It
+counts `blockedLoad` actions of the app's own lists (`wcrl-`), a URL's loads
+being its calls over the lists that reported it (WebKit calls once per list
+that acted), and hands them to the page interceptor, which passes them to the
+app beside its own reports (`blockRecordBatch`, `why: webkit`).
+
+#### Scenario: A reported block counts once, in the site's order
+
+**Given** WebKit reports a URL one of the app's lists blocked
+**Then** it counts once against DNS when the DNS list names it, marked as one the filter lists also stop, else against the filter lists, under the first request type one of their rules matches (`BlockDecision.reported`)
+**And** a URL no list names counts nothing, so a page that calls the hand-off itself records no block a list did not make
+**And** the page interceptor counts no ask about an element WebKit had already issued and reports no load errors, which the report counts instead
+
+Test: `test/block_decision_test.dart`, "BlockDecision.reported";
+`test/js/block_interceptor_shim.test.js`, "where WebKit reports its blocks".
+
+#### Scenario: An App Store build carries none of it
+
+**Given** an iOS or macOS build made without `--flavor direct`
+**Then** the Runner's binary does not contain the method's name
+**And** `reportBlocks` answers false, so the switch is not offered and the pages count as without it
+
+Test: `test/js/webkit_block_reports_build.test.js`; on the built apps,
+`scripts/check_webkit_block_reports.sh` in the Apple CI job.
 
 ## Implementation Details
 
