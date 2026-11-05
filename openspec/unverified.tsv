@@ -26,8 +26,6 @@ BGAUDIO-004	no check: no test asserts SiteRuntime.retentionPriority puts a backg
 # block-statistics
 STATS-003	no check: no test of the report's range total, per-day chart, category shares, all-time/since line, the empty state, or the badge using the accent rather than colorScheme.error (partly: test/block_stats_service_test.dart, "reset zeroes the persisted payload")
 # captcha-support
-CAPTCHA-001	no check: no test builds WebViewFactory.siteSettings and asserts javaScriptEnabled, domStorageEnabled and databaseEnabled are set
-CAPTCHA-003	no check: no test asserts allowFileAccess and allowContentAccess on the settings the factory builds
 CAPTCHA-006	no check: no test shows a per-site third-party-cookie toggle reaching thirdPartyCookiesEnabled or a cross-site cookie being accepted; only the posture resolution is checked (partly: test/site_posture_test.dart, "$cell: container follows tier and TP (ETP-024, ARCH-006/007)")
 # clearurls
 # configurable-suggested-sites
@@ -53,7 +51,6 @@ DNS-007	no check: DnsBlocklistDataset.status ("<level> - <count> domains" / "Not
 DNS-015	no check: no test renders the per-site settings DNS stats chips, or checks that they are absent when nothing was recorded
 # downloads
 DL-001	no check: no gate reads AndroidManifest.xml for the flutter_inappwebview_android FileProvider or its FILE_PROVIDER_PATHS resource, and no native test drives getOutputUri
-DL-002	no check: no test asserts useOnDownloadStart is true on the shared settings, that onDownloadStartRequest is wired in both the root and nested webview, or that stopLoading runs
 # external-scheme-handling
 EXT-003	no check: no test drives the webview's shouldOverrideUrlLoading, onCreateWindow or onReceivedError with an intent; the silent same/cross-domain routing in lib/services/webview.dart is untested
 EXT-005	no check: lib/widgets/external_url_prompt.dart has no test; nothing asserts 'Open in browser' loads via loadInWebView rather than url_launcher
