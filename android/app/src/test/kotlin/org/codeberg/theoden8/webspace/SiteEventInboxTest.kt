@@ -91,6 +91,36 @@ class SiteEventInboxTest {
     }
 
     @Test
+    fun anAbpBlockNamesTheRequestItsRuleMatched() {
+        // A filter rule matches a URL: two blocked paths on one host are two
+        // rows with their own URLs, while the host's allowed requests stay
+        // one row keyed by host (CB-012).
+        val blocks = SiteEventInbox<BlockEvent> { _, _ -> }
+        val stats = AbpRequest("https://api.example.com/stats", "https://example.com/", "xmlhttprequest")
+        val pixel = AbpRequest("https://api.example.com/pixel.gif", "https://example.com/", "image")
+        repeat(2) { blocks.record("a", BlockEvent("api.example.com", true, "abp", stats)) }
+        blocks.record("a", BlockEvent("api.example.com", true, "abp", pixel))
+        repeat(4) { blocks.record("a", BlockEvent("api.example.com", false, null)) }
+        val rows = blocks.take("a").map { (event, count) -> event.toChannel(count) }
+        assertEquals(
+            listOf(
+                mapOf(
+                    "host" to "api.example.com", "blocked" to true, "source" to "abp",
+                    "url" to "https://api.example.com/stats", "sourceUrl" to "https://example.com/",
+                    "requestType" to "xmlhttprequest", "count" to 2,
+                ),
+                mapOf(
+                    "host" to "api.example.com", "blocked" to true, "source" to "abp",
+                    "url" to "https://api.example.com/pixel.gif", "sourceUrl" to "https://example.com/",
+                    "requestType" to "image", "count" to 1,
+                ),
+                mapOf("host" to "api.example.com", "blocked" to false, "count" to 4),
+            ),
+            rows,
+        )
+    }
+
+    @Test
     fun concurrentRecordersLoseNothingAndLeaveNoSiteMute() {
         // The production shape: several IO threads record across sites while
         // the main thread answers each wake by draining. Every event recorded

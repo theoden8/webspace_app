@@ -592,6 +592,7 @@ the engine alone in `integration_test/blocker_warning_test.dart`.
 **Given** the log holds a request the DNS blocklist blocked and one an ABP filter list blocked
 **When** the user views the Blocking tab
 **Then** the first row is tagged DNS and the second ABP
+**And** the ABP row names the request type and URL its rule matched in place of the host (CB-012)
 **And** an allowed row carries no tag
 
 #### Scenario: Filter by verdict
@@ -612,8 +613,8 @@ the engine alone in `integration_test/blocker_warning_test.dart`.
 **Given** entries are recorded
 **When** the user taps "Copy"
 **Then** only the entries the filter chip and the search query leave visible are
-copied to the clipboard, as `[timestamp] ALLOWED domain` or
-`[timestamp] BLOCKED DNS domain` / `[timestamp] BLOCKED ABP domain`
+copied to the clipboard, as `[timestamp] ALLOWED domain`,
+`[timestamp] BLOCKED DNS domain` or `[timestamp] BLOCKED ABP type url`
 **And** the Copy button is disabled when those filters leave no entries
 
 ---

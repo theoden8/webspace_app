@@ -1112,7 +1112,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     final filter = _blockingFilter;
     final entries = stats.log
         .where((e) =>
-            (filter == null || filter.admits(e)) && _matchesSearch(e.domain))
+            (filter == null || filter.admits(e)) && _matchesSearch(_requestOf(e)))
         .toList();
 
     return Column(
@@ -1147,14 +1147,18 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   String _blockingCopyLine(DnsLogEntry e) {
-    final verdict = switch ((e.blocked, e.source)) {
-      (false, _) => 'ALLOWED',
-      (true, null) => 'BLOCKED',
-      (true, final BlockSource source) =>
-        'BLOCKED ${source.name.toUpperCase()}',
+    final verdict = switch (e.source) {
+      null => 'ALLOWED',
+      final source => 'BLOCKED ${source.name.toUpperCase()}',
     };
-    return '[${_formatTimeMs(e.timestamp)}] $verdict ${e.domain}';
+    return '[${_formatTimeMs(e.timestamp)}] $verdict ${_requestOf(e)}';
   }
+
+  /// What a row names: the request an ABP rule matched, else the host.
+  String _requestOf(DnsLogEntry e) => switch (e.matched) {
+        null => e.domain,
+        final matched => '${matched.requestType} ${matched.url}',
+      };
 
   Widget _buildBlockingFilters(DnsStats stats) {
     final loc = AppLocalizations.of(context);
@@ -1186,7 +1190,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   Widget _buildBlockingEntry(DnsLogEntry entry) {
-    final line = '[${_formatTimeMs(entry.timestamp)}] ${entry.domain}';
+    final line = '[${_formatTimeMs(entry.timestamp)}] ${_requestOf(entry)}';
     final color = entry.blocked
         ? Colors.red
         : Theme.of(context).textTheme.bodyMedium?.color;

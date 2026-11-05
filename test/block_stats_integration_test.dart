@@ -202,6 +202,26 @@ void main() {
           'ads.example');
     });
 
+    test('an ABP block drained with its URL is named by its host alone', () {
+      // The URL is for the session's Blocking log; the persisted report
+      // names hosts, never a request's path or query.
+      WebInterceptNative.applyBlockEvents(SiteId('site-1'), list: [
+        {
+          'host': 'ads.example',
+          'blocked': true,
+          'source': 'abp',
+          'url': 'https://ads.example/pixel.gif?uid=42',
+          'sourceUrl': 'https://news.example/',
+          'requestType': 'image',
+          'count': 2,
+        },
+      ]);
+
+      final items = stats.detail.topItems(BlockCategory.filterList);
+      expect(items.single.label, 'ads.example');
+      expect(items.single.count, 2);
+    });
+
     test('a locally served CDN request is named by its origin', () {
       LocalCdnService.instance.recordReplacement(SiteId('site-1'),
           url: 'https://cdn.example/lib/jquery.js');

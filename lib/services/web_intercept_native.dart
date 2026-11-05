@@ -59,8 +59,9 @@ class WebInterceptNative {
   ///
   /// Split out of [_drainBlockEvents] so the payload contract with
   /// `WebInterceptPlugin.drainBlockEvents` (`{host, blocked, source, count}`,
-  /// with `source` absent for allowed requests) is testable without an
-  /// Android device: the fetch is platform-gated, the accounting is not.
+  /// with `source` absent for allowed requests, and an ABP block's
+  /// `url`, `sourceUrl` and `requestType` beside them) is testable without
+  /// an Android device: the fetch is platform-gated, the accounting is not.
   @visibleForTesting
   static void applyBlockEvents(SiteId siteId, {required List<dynamic> list}) {
     for (final entry in list) {
@@ -75,11 +76,26 @@ class WebInterceptNative {
         _ => null,
       };
       if (host is! String || verdict == null) continue;
-      // Native dedupes by host across the drain window: `count` is the
+      // Native dedupes by verdict across the drain window: `count` is the
       // repeats since the last drain, absent from an older codec.
       final count = entry['count'] is int ? entry['count'] as int : 1;
+      final query = switch ((
+        verdict,
+        entry['url'],
+        entry['sourceUrl'],
+        entry['requestType'],
+      )) {
+        (
+          Blocked(source: BlockSource.abp),
+          final String url,
+          final String sourceUrl,
+          final String requestType,
+        ) =>
+          UrlQuery(url, sourceUrl: sourceUrl, requestType: requestType),
+        _ => HostQuery(host),
+      };
       DnsBlockService.instance.recordVerdict(siteId,
-          query: HostQuery(host), verdict: verdict, count: count);
+          query: query, verdict: verdict, count: count);
     }
   }
 

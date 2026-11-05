@@ -200,21 +200,36 @@ void main() {
       expect(clipboard.single.contains('example.com'), isFalse);
     });
 
-    testWidgets('an engine block drained from Android reaches the log as ABP, every repeat counted (CB-012)',
+    testWidgets('an engine block drained from Android reaches the log as ABP, naming the request its rule matched (CB-012)',
         (tester) async {
       WebInterceptNative.applyBlockEvents(site, list: [
-        {'host': 'api.github.com', 'blocked': true, 'source': 'abp', 'count': 3},
+        {
+          'host': 'api.github.com',
+          'blocked': true,
+          'source': 'abp',
+          'url': 'https://api.github.com/_private/browser/stats',
+          'sourceUrl': 'https://github.com/',
+          'requestType': 'xmlhttprequest',
+          'count': 3,
+        },
         {'host': 'tracker.net', 'blocked': true, 'source': 'dns', 'count': 1},
-        {'host': 'github.com', 'blocked': false, 'count': 5},
+        {'host': 'api.github.com', 'blocked': false, 'count': 5},
       ]);
 
       await openBlocking(tester);
+      expect(
+          find.textContaining(
+              'xmlhttprequest https://api.github.com/_private/browser/stats'),
+          findsOneWidget);
       await tester.tap(find.widgetWithText(FilterChip, 'ABP (3)'));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('devtools-blocking-copy')));
       await tester.pumpAndSettle();
 
-      expect(clipboard.single, contains('BLOCKED ABP api.github.com'));
+      expect(
+          clipboard.single,
+          contains('BLOCKED ABP xmlhttprequest '
+              'https://api.github.com/_private/browser/stats'));
       expect(clipboard.single.contains('tracker.net'), isFalse);
       expect(find.widgetWithText(FilterChip, 'Allowed (5)'), findsOneWidget);
     });

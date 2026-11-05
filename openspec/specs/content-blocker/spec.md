@@ -740,14 +740,31 @@ without them, and was removed for it
 
 #### Scenario: An Android native engine block reaches the log
 
-**Given** the native interceptor drains an `abp`-sourced block event for a host with `count: k`
+**Given** the native interceptor drains an `abp`-sourced block event with `count: k`
 **Then** the site's `blockedByAbp` advances by `k`
-**And** the Blocking log shows one row for the host, tagged ABP
-**And** its ABP filter chip counts `k`
+**And** the Blocking log shows one row tagged ABP, with its ABP filter chip counting `k`
 
 Test: `test/dev_tools_copy_test.dart`, "an engine block drained from Android
 reaches the log as ABP"; the report's side in
 `test/block_stats_integration_test.dart`.
+
+#### Scenario: An ABP row names the request its rule matched
+
+A filter rule matches a URL, not a host, so a row naming only the host reads
+as a block of the whole domain when one path on it was blocked.
+
+**Given** the engine blocks `https://api.example.com/_private/stats` while other requests to `api.example.com` go out
+**Then** the Android interceptor's block event carries the request the engine judged (`url`, `sourceUrl`, `requestType`), and each blocked URL is its own event in a drain
+**And** every platform records an ABP verdict on a URL with that request (`DnsLogEntry.matched`)
+**And** the Blocking log row reads `xmlhttprequest https://api.example.com/_private/stats`, while the allowed requests stay one row per host
+**And** a DNS block or an allowed request is never logged with a URL, since its verdict is the host's (an assert in `DnsStats.record`)
+**And** the protection report still names the host alone (STATS-008), so no path or query reaches its encrypted store
+
+Test: `test/dns_stats_test.dart`, "an ABP block keeps the request its rule
+matched" and "a DNS verdict cannot name a matched request";
+`SiteEventInboxTest.anAbpBlockNamesTheRequestItsRuleMatched`;
+`test/block_stats_integration_test.dart`, "an ABP block drained with its URL
+is named by its host alone".
 
 #### Scenario: A Dart path cannot ask the engine outside the funnel
 
