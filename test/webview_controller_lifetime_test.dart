@@ -174,9 +174,10 @@ WebViewHostHooks _hooks({
 SiteHooks _siteHooks({
   Future<void> Function(WebViewModel source, {required String url})?
       firstPageLoaded,
+  WebViewHostHooks? host,
 }) =>
     SiteHooks(
-      host: _hooks(),
+      host: host ?? _hooks(),
       onScreen: (_) => true,
       routeOutbound:
           (_, {required url, required decision, required hadGesture}) => false,
@@ -1071,6 +1072,33 @@ void main() {
       await over(native, refuses: (_) => true).reload();
       expect(native.calls, isEmpty);
     });
+  });
+
+  testWidgets(
+      'ISO-011: a cookie the site blocks is deleted from the jar after a load, '
+      'and not mirrored', (tester) async {
+    final jar = MockCookieManager();
+    final url = Uri.parse('https://example.com/');
+    for (final name in ['_ga', 'session']) {
+      await jar.setCookie(url: url, name: name, value: 'v');
+    }
+    final site = WebViewModel(initUrl: url.toString())
+      ..blockedCookies = {
+        const BlockedCookie(name: '_ga', domain: 'example.com'),
+      };
+    await tester.pumpWidget(MaterialApp(
+      home: site.getWebView(
+        _siteHooks(host: _hooks(isolation: () => fakeSharedJar(cookies: jar))),
+        cacheFirst: false,
+      ),
+    ));
+    final (:params, :native) = await _attach(tester);
+    await tester.runAsync(() async {
+      params.onLoadStop!(native, inapp.WebUri(url.toString()));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    expect(jar.all.map((c) => c.name), ['session']);
+    expect(site.cookies.map((c) => c.name), ['session']);
   });
 
   group('a cookie jar that fails (ISO-014, CONT-009)', () {

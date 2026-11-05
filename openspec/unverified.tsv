@@ -147,7 +147,6 @@ PASSKEY-014	no check: no gate asserts the committed iOS/macOS entitlements omit 
 # per-site-containers
 # per-site-cookie-isolation
 ISO-007	no check: no test asserts a nested screen uses the shared jar with no capture or restore; the activation walks open nested screens but assert nothing about the cookie jar for them
-ISO-011	no check: only the isCookieBlocked predicate and blockedCookies serialization are tested; no test asserts a blocked cookie is skipped on restore (cookie_isolation.dart) or deleted after a load (onCookiesChanged) (partly: test/cookie_blocking_test.dart, "isCookieBlocked filters matching cookies")
 # per-site-location
 LOC-006	no check: no test drives LocationPicker (no tile request before 'Load map', manual entry, OSM user agent and attribution); only the osmTileUrl pref's persistence is tested (partly: test/app_prefs_test.dart, "outside demo mode a pref persists under its declared type")
 LOC-008	no check: no test drives the picker's 'Use current location' button, its distinct failure messages or its hiding; the service test checks only the Dart channel wrapper and the gate checks isSupported excludes macOS/Linux (partly: test/current_location_service_test.dart, "coarse + permission_denied surfaces as permissionDenied (no GPS escalation)")
@@ -185,12 +184,6 @@ QR-005	no check: no widget test of the Share QR action: its visibility for http(
 QR-006	no check: no widget test of the Add Site QR icon, the scanner/paste routing or the inline decode error; only the codec's hydrate step (fresh siteId, no cookies or scripts, no password) is checked (partly: test/site_settings_qr_codec_test.dart, "encode then decode is a no-op for the shareable subset")
 QR-007	process: records a known limitation (no per-field type validation) rather than behaviour to guard, and is partly overtaken: decode now type-checks proxySettings (SEC-005)
 # tls-trust-prompt
-TLS-001	no check: no test drives WebViewTls.handleServerTrust to assert it returns null (defers to the OS) for a host the platform trusts
-TLS-002	no check: no test drives the untrusted-cert prompt or asserts a second concurrent SSL error is coalesced into the in-flight prompt
-TLS-003	no check: no test drives handleSslLoadError with a cached cert whose pin matches to assert the stale error shows no prompt
-TLS-006	no check: no test asserts fingerprintFromInappCertificate returns null for missing/empty DER or that approval then persists no pin (partly: test/trusted_hosts_service_test.dart, "null fingerprint is never trusted (no proof, no pass)")
-TLS-008	no check: no test drives the trustedHostsResetForOsDefaultV1 one-shot clear or asserts it is skipped once the flag is set
-TLS-009	no check: Apple-only branch (hostIsIOS || hostIsMacOS) in handleServerTrust/handleSslLoadError; no tier asserts no prompt, reload or pin on iOS/macOS
 # tor-proxy
 TOR-005	no check: nothing checks that the Rebuild circuits button calls the engine, that the native side sends SIGNAL NEWNYM, or that the exit changes while non-Tor sites are untouched (partly: test/tor_engine_test.dart, "rebuildCircuits is a no-op unless the runtime is up")
 TOR-006	no check: no test covers TorService staying up through the iOS grace window, or a wake awaiting Tor before reloading a Tor notification site (partly: test/background_wake_engine_test.dart, "a route that will not apply starts no headless load")

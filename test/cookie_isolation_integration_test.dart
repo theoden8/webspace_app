@@ -1418,6 +1418,32 @@ void main() {
           reason: 'stale activation must not restore its cookies after a newer one supersedes it');
     });
 
+    test('ISO-011: a restore skips the cookies the site blocks', () async {
+      harness.addSite('https://example.com', name: 'Example');
+      harness.sites[0].blockedCookies = {
+        const BlockedCookie(name: '_ga', domain: 'example.com'),
+      };
+      await harness.storage
+          .saveCookiesForSite(harness.sites[0].siteId, cookies: [
+        Cookie(name: '_ga', value: 'tracker', domain: 'example.com'),
+        Cookie(name: 'ex', value: 'example_val', domain: 'example.com'),
+      ]);
+
+      final v = ++harness.version;
+      await harness.engine.restoreCookiesForSite(
+        site: harness.sites[0],
+        vars: harness.vars,
+        versionAtEntry: v,
+      );
+
+      final names = [
+        for (final c in await harness.cookieManager
+            .getCookies(url: Uri.parse('https://example.com')))
+          c.name,
+      ];
+      expect(names, ['ex']);
+    });
+
     test('current activation completes when version is stable', () async {
       harness.addSite('https://example.com', name: 'Example');
       await harness.storage

@@ -403,12 +403,16 @@ The system SHALL allow blocking specific cookies by name + domain on a per-site 
 **Then** `onCookiesChanged` filters out `_ga` and deletes it from CookieManager
 **And** the cookie does not appear in `model.cookies`
 
+Test: `test/webview_controller_lifetime_test.dart` ("ISO-011: a cookie the site blocks is deleted from the jar after a load").
+
 #### Scenario: Blocked cookie skipped during restore
 
 **Given** Site A has `_ga` blocked and stored cookies include `_ga`
 **When** Site A is activated and `_restoreCookiesForSite()` runs
 **Then** `_ga` is NOT set in CookieManager
 **And** other non-blocked cookies are restored normally
+
+Test: `test/cookie_isolation_integration_test.dart` ("ISO-011: a restore skips the cookies the site blocks").
 
 #### Scenario: Unblock a cookie
 
