@@ -11,6 +11,7 @@ import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/settings/site_suggestion.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/theme/app_theme.dart';
+import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
 /// What the page saves beside its sites: the theme, the global user scripts,
@@ -21,20 +22,30 @@ class ShellStore {
 
   final SiteRuntime _sites;
 
-  AppThemeSettings theme = const AppThemeSettings();
+  AppThemeSettings _theme = const AppThemeSettings();
+
+  /// The app's theme; every site's webview follows it unless the site sets
+  /// its own, so setting it sets [WebViewModel.appTheme] too.
+  AppThemeSettings get theme => _theme;
+  set theme(AppThemeSettings value) {
+    _theme = value;
+    WebViewModel.appTheme = value.themeMode.webViewTheme;
+  }
   List<UserScriptConfig> globalUserScripts = [];
   List<SiteSuggestion> suggestedSites = [];
 
-  /// Reads the theme, carrying over the two formats before it.
+  /// Reads the theme, carrying over the two formats before it; with none
+  /// saved, the default, which the sites follow too.
   void loadTheme(SharedPreferences prefs) {
+    var read = const AppThemeSettings();
     final savedThemeSettings = readPrefAs<int>(prefs, key: 'themeSettings');
     if (savedThemeSettings != null) {
-      theme = AppThemeSettings.fromStorageIndex(savedThemeSettings);
+      read = AppThemeSettings.fromStorageIndex(savedThemeSettings);
     } else {
       // Try to migrate from old appTheme format
       final savedAppTheme = readPrefAs<int>(prefs, key: 'appTheme');
       if (savedAppTheme != null && savedAppTheme < AppTheme.values.length) {
-        theme = AppTheme.values[savedAppTheme].settings;
+        read = AppTheme.values[savedAppTheme].settings;
       } else {
         // Migrate from old themeMode if exists
         final oldThemeMode = readPrefAs<int>(prefs, key: 'themeMode');
@@ -42,20 +53,21 @@ class ShellStore {
           // Map old ThemeMode to new settings (assuming green was the old color)
           switch (oldThemeMode) {
             case 0: // ThemeMode.system
-              theme = AppThemeSettings(themeMode: ThemeMode.system, accentColor: AccentColor.green);
+              read = AppThemeSettings(themeMode: ThemeMode.system, accentColor: AccentColor.green);
               break;
             case 1: // ThemeMode.light
-              theme = AppThemeSettings(themeMode: ThemeMode.light, accentColor: AccentColor.green);
+              read = AppThemeSettings(themeMode: ThemeMode.light, accentColor: AccentColor.green);
               break;
             case 2: // ThemeMode.dark
-              theme = AppThemeSettings(themeMode: ThemeMode.dark, accentColor: AccentColor.green);
+              read = AppThemeSettings(themeMode: ThemeMode.dark, accentColor: AccentColor.green);
               break;
             default:
-              theme = const AppThemeSettings();
+              read = const AppThemeSettings();
           }
         }
       }
     }
+    theme = read;
   }
 
   Future<void> saveCurrentIndex() async {

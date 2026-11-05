@@ -828,13 +828,15 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
   /// notification sites navigate while another site is current.
   VoidCallback? onNavigationCommitted;
   FindMatchesResult findMatches = FindMatchesResult();
-  /// The app's theme as the page last handed it over, set before the first
-  /// build (the light default would otherwise flash a file import's prelude).
-  WebViewTheme _appTheme = WebViewTheme.light;
+  /// The app's theme, which every site follows unless it sets its own
+  /// (HINTS-001): one value for all of them, written by the app's theme
+  /// (`ShellStore.theme`), so a site from any source (an add, an import, an
+  /// archive's open) follows it from its first build.
+  static WebViewTheme appTheme = WebViewTheme.light;
 
   /// What this site's pages are told to prefer: its own [theme], else the
   /// app's. A file import's prelude reads it to paint a matching first frame.
-  WebViewTheme get effectiveTheme => Scoped.fromStored(theme).resolve(_appTheme);
+  WebViewTheme get effectiveTheme => Scoped.fromStored(theme).resolve(appTheme);
 
   /// The UA string webviews are actually built with: presets render fresh
   /// at the current Firefox version; custom strings pass through verbatim.
@@ -1093,8 +1095,8 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
     ];
   }
 
-  Future<void> setAppTheme(WebViewTheme appTheme) async {
-    _appTheme = appTheme;
+  /// Tells a live webview the theme it follows now (HINTS-003).
+  Future<void> reapplyTheme() async {
     if (webview != null) await controller?.setThemePreference(effectiveTheme);
   }
 

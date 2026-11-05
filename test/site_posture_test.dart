@@ -151,14 +151,15 @@ void main() {
   });
 
   test('the theme follows the app until the site picks its own (HINTS-006)',
-      () async {
+      () {
+    addTearDown(() => WebViewModel.appTheme = WebViewTheme.light);
     final site = _site(tp: false, archived: false);
-    await site.setAppTheme(WebViewTheme.dark);
+    WebViewModel.appTheme = WebViewTheme.dark;
     expect(_posture(site).page.theme, WebViewTheme.dark);
     site.theme = WebViewTheme.light;
     expect(_posture(site).page.theme, WebViewTheme.light);
     expect(_posture(site).forNested().page.theme, WebViewTheme.light);
-    await site.setAppTheme(WebViewTheme.system);
+    WebViewModel.appTheme = WebViewTheme.system;
     expect(_posture(site).page.theme, WebViewTheme.light);
   });
 

@@ -4,7 +4,7 @@
 // list can mutate (add/delete/reorder) between the engine's awaits. These tests
 // inject exactly those mutations at each await point via the fake host, and the
 // host asserts the engine never acts on a dead site (preload /
-// setSpoofTimezone / applyTheme on a deleted siteId is an INVARIANT failure).
+// setSpoofTimezone on a deleted siteId is an INVARIANT failure).
 //
 // This is the test that would have caught the stale-index races the engine
 // replaced: revert the engine to index-based and the "delete during await"
@@ -48,7 +48,6 @@ class _FakeHost implements DeferredStartupHost {
       (_, {required longitude}) => 'Etc/UTC';
   final List<String> markedLoaded = [];
   final List<String> tzSet = [];
-  final List<String> themed = [];
   final List<({Set<String> active, Set<String> nonIncognito})> sweeps = [];
   final List<String> opLog = []; // 'persist' / 'sweep' — to assert ordering
 
@@ -58,7 +57,6 @@ class _FakeHost implements DeferredStartupHost {
 
   // Await-point hooks: run *inside* the awaited call, i.e. "during the await".
   void Function(String siteId)? onPreload;
-  void Function(String siteId)? onApplyTheme;
   void Function()? onSettle;
   void Function()? onLoadDataset;
 
@@ -121,13 +119,6 @@ class _FakeHost implements DeferredStartupHost {
   @override
   Future<void> launchedSiteLoaded() => launchLoad.future;
 
-  @override
-  Future<void> applyTheme(String siteId) async {
-    expect(isLive(siteId), isTrue,
-        reason: 'INVARIANT: applyTheme on dead site $siteId');
-    themed.add(siteId);
-    onApplyTheme?.call(siteId);
-  }
 
 
   @override
@@ -349,36 +340,6 @@ void main() {
       await DeferredStartupEngine.refreshLocationTimezones(host);
       expect(host.tzSet, isEmpty);
       expect(host.persists, 0);
-    });
-  });
-
-  group('themeRemaining', () {
-    test('themes the live sites not themed before the first paint', () async {
-      final host = _FakeHost(
-          [_FakeSite(SiteId('a')), _FakeSite(SiteId('b')), _FakeSite(SiteId('c'), incognito: true)]);
-      await DeferredStartupEngine.themeRemaining(host,
-          alreadyThemedSiteIds: {SiteId('a')});
-      expect(host.themed.toSet(), {'b', 'c'}, reason: 'a already themed');
-    });
-
-    test('site deleted during theming is skipped, not themed', () async {
-      final host = _FakeHost([_FakeSite(SiteId('a')), _FakeSite(SiteId('b'))]);
-      host.onApplyTheme = (siteId) {
-        if (siteId == 'a') host.delete('b');
-      };
-      await DeferredStartupEngine.themeRemaining(host,
-          alreadyThemedSiteIds: const {});
-      expect(host.themed, ['a'], reason: 'b deleted before it was themed');
-    });
-
-    test('unmount mid-theming stops it', () async {
-      final host = _FakeHost([_FakeSite(SiteId('a')), _FakeSite(SiteId('b'))]);
-      host.onApplyTheme = (siteId) {
-        if (siteId == 'a') host.mountedFlag = false;
-      };
-      await DeferredStartupEngine.themeRemaining(host,
-          alreadyThemedSiteIds: const {});
-      expect(host.themed, ['a']);
     });
   });
 

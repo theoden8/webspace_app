@@ -65,8 +65,6 @@ abstract class DeferredStartupHost {
   /// when the launch opened none.
   Future<void> launchedSiteLoaded();
 
-  Future<void> applyTheme(SiteId siteId);
-
   Future<bool> loadTimezoneDataset();
   String? resolveTimezone(double latitude, {required double longitude});
 
@@ -97,7 +95,7 @@ class DeferredStartupEngine {
   DeferredStartupEngine._();
 
   /// Auto-load notification sites off the first-frame path, one at a time,
-  /// each preloaded once [themeRemaining] has themed it. A preload an
+  /// each a preload. A preload an
   /// activation is in the way of, or that an input superseded, is tried
   /// again once activations settle; a site deleted meanwhile is skipped,
   /// never addressed by a stale position.
@@ -151,23 +149,6 @@ class DeferredStartupEngine {
     if (changed) await host.persist();
   }
 
-  /// Themes the models not themed before the first paint, by siteId, so a
-  /// site deleted meanwhile is skipped. Their controllers are not built yet;
-  /// a build's first document picks its prelude from the theme, so it runs
-  /// before the notification sites preload.
-  static Future<void> themeRemaining(
-    DeferredStartupHost host, {
-    required Set<SiteId> alreadyThemedSiteIds,
-  }) async {
-    final ids = [for (final s in host.currentSites()) s.siteId];
-    for (final siteId in ids) {
-      if (!host.isMounted) return;
-      if (alreadyThemedSiteIds.contains(siteId) || !host.isLive(siteId)) {
-        continue;
-      }
-      await host.applyTheme(siteId);
-    }
-  }
 
   /// Writes the load-time migration back, then sweeps orphan storage against
   /// the LIVE site sets, so a site added since launch is not reclaimed.

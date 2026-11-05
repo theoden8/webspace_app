@@ -18,7 +18,6 @@ enum LaunchMark {
   sitesOnPage('sites on page'),
   shortcutsPruned('shortcuts pruned'),
   launchTarget('launch target'),
-  themed('themed'),
   routes('routes'),
   activated('site activated'),
   webViewBuilt('webview built'),
