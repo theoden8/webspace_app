@@ -123,6 +123,16 @@ Finder closeButtonOf(String text) => find.descendant(
       matching: find.byTooltip('Close tab'),
     );
 
+/// The site whose container marks the row showing [text] (TAB-018).
+WebViewModel markedAs(WidgetTester tester, {required String text}) => tester
+    .widget<ContainerMark>(find.descendant(
+      of: find
+          .ancestor(of: find.text(text).first, matching: find.byType(InkWell))
+          .first,
+      matching: find.byType(ContainerMark),
+    ))
+    .site;
+
 /// A site with [urls] as root tabs, the first one active.
 WebViewModel siteWithRoots(String name, {required List<String> urls}) {
   final m = WebViewModel(initUrl: urls.first, name: name);
@@ -256,20 +266,21 @@ void main() {
   });
 
   group('TAB-016 — drag a site heading to reorder sites', () {
-    const gh = 'GitHub · 1 tab';
-    const md = 'Mastodon · 1 tab';
-    const wp = 'Wikipedia · 1 tab';
+    const gh = 'GitHub · 2 tabs';
+    const md = 'Mastodon · 2 tabs';
+    const wp = 'Wikipedia · 2 tabs';
 
-    /// Three sites in the All sites view. The host fake reorders as the
+    /// Three sites in the All sites view, two tabs each, so each has a
+    /// heading (a one-tab site is a row, TAB-021). The host fake reorders as the
     /// drawer does and renumbers every site, as reordering "All" does.
 Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
     WidgetTester tester,
     {bool refuse = false,
     void Function(WebViewModel site, {required TabId tabId})? onOpenTab}) async {
       final models = [
-        siteWithChain('GitHub', urls: ['https://github.com/']),
-        siteWithChain('Mastodon', urls: ['https://mastodon.social/']),
-        siteWithChain('Wikipedia', urls: ['https://en.wikipedia.org/']),
+        siteWithChain('GitHub', urls: ['https://github.com/', 'https://github.com/pulls']),
+        siteWithChain('Mastodon', urls: ['https://mastodon.social/', 'https://mastodon.social/@a']),
+        siteWithChain('Wikipedia', urls: ['https://en.wikipedia.org/', 'https://en.wikipedia.org/wiki/Tab']),
       ];
       final current = models.first;
       List<TabsSheetSite> sites() => [
@@ -378,8 +389,8 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
 
     testWidgets('without a host reorder the headings are not draggable',
         (tester) async {
-      final a = siteWithChain('GitHub', urls: ['https://github.com/']);
-      final b = siteWithChain('Mastodon', urls: ['https://mastodon.social/']);
+      final a = siteWithChain('GitHub', urls: ['https://github.com/', 'https://github.com/pulls']);
+      final b = siteWithChain('Mastodon', urls: ['https://mastodon.social/', 'https://mastodon.social/@a']);
       await pumpSheet(tester, sites: [
         TabsSheetSite(model: a, isCurrent: true, isLoaded: true),
         TabsSheetSite(model: b, isCurrent: false, isLoaded: false),
@@ -658,9 +669,10 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
 
       await tester.tap(find.text('All sites'));
       await tester.pump();
-      // Both sites' headings are present once the scope widens.
-      expect(find.text('GitHub · 1 tab'), findsWidgets);
-      expect(find.text('Mastodon · 1 tab'), findsOneWidget);
+      // Both sites are listed once the scope widens, each on one tab, so
+      // each is one row under its name (TAB-021).
+      expect(find.text('GitHub'), findsOneWidget);
+      expect(find.text('Mastodon'), findsOneWidget);
     });
 
     testWidgets(
@@ -681,9 +693,9 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       expect(find.text('Work'), findsOneWidget);
       expect(find.text('This site'), findsNothing);
       expect(find.text('New tab'), findsNothing);
-      expect(find.text('GitHub · 1 tab'), findsOneWidget);
-      expect(find.text('Mastodon · 1 tab'), findsOneWidget);
-      await tester.tap(find.text('https://mastodon.social/'));
+      expect(find.text('GitHub'), findsOneWidget);
+      expect(find.text('Mastodon'), findsOneWidget);
+      await tester.tap(find.text('Mastodon'));
       expect(opened, same(b));
     });
 
@@ -719,8 +731,8 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       expect(strengthOf(tester, text: 'https://github.com/pulls'), lessThan(1));
       expect(
           strengthOf(tester, text: 'https://mastodon.social/@a'), lessThan(1));
-      expect(
-          strengthOf(tester, text: 'https://en.wikipedia.org/'), lessThan(1));
+      expect(strengthOf(tester, text: 'Wikipedia'), lessThan(1),
+          reason: 'a one-tab site is one row under its name (TAB-021)');
       // The fade has no words on screen; a screen reader gets them instead.
       expect(find.text('open'), findsNothing);
       expect(find.text('loaded'), findsNothing);
@@ -802,15 +814,6 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
           TabsSheetSite(model: ddg, isCurrent: true, isLoaded: true),
           TabsSheetSite(model: gh, isCurrent: false, isLoaded: false),
         ];
-
-    WebViewModel markedAs(WidgetTester tester, {required String text}) => tester
-        .widget<ContainerMark>(find.descendant(
-          of: find
-              .ancestor(of: find.text(text).first, matching: find.byType(InkWell))
-              .first,
-          matching: find.byType(ContainerMark),
-        ))
-        .site;
 
     bool draggable(String text) => find
         .ancestor(
@@ -1135,6 +1138,155 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       expect(opened, ['h']);
       expect(find.text('open sheet'), findsOneWidget,
           reason: 'the second tap must not pop the page under the sheet');
+    });
+  });
+
+  group('TAB-021 — the sheet fits the tabs it lists', () {
+    WebViewModel titled(String name, {required String url, required String title}) {
+      final m = WebViewModel(initUrl: url, name: name);
+      m.setTabs([SiteTab.primary(url: url, title: title)]);
+      return m;
+    }
+
+    double rowHeight(WidgetTester tester, {required String text}) => tester
+        .getSize(find
+            .ancestor(of: find.text(text).first, matching: find.byType(InkWell))
+            .first)
+        .height;
+
+    testWidgets('a one-tab site is one row under its name, with no heading',
+        (tester) async {
+      final gh = siteWithChain('GitHub',
+          urls: ['https://github.com/', 'https://github.com/pulls']);
+      final hn = titled('Hacker News',
+          url: 'https://news.ycombinator.com/', title: 'Hacker News');
+      final wiki = titled('Wikipedia',
+          url: 'https://en.wikipedia.org/wiki/Tab', title: 'Tab (interface)');
+      await pumpSheet(tester, sites: [
+        TabsSheetSite(model: gh, isCurrent: true, isLoaded: true),
+        TabsSheetSite(model: hn, isCurrent: false, isLoaded: false),
+        TabsSheetSite(model: wiki, isCurrent: false, isLoaded: false),
+      ]);
+      await tester.tap(find.text('All sites'));
+      await tester.pumpAndSettle();
+      expect(find.text('GitHub · 2 tabs'), findsWidgets,
+          reason: 'a site with two tabs keeps its heading');
+      expect(find.text('Hacker News · 1 tab'), findsNothing);
+      expect(find.text('Wikipedia · 1 tab'), findsNothing);
+      expect(find.text('Wikipedia'), findsOneWidget);
+      expect(find.text('Tab (interface)'), findsOneWidget,
+          reason: 'the second line is the page');
+      expect(find.text('Hacker News'), findsOneWidget,
+          reason: 'a title that repeats the name is not said twice');
+      expect(find.text('news.ycombinator.com'), findsOneWidget);
+      expect(markedAs(tester, text: 'Wikipedia'), same(wiki));
+    });
+
+    testWidgets('a long press on a one-tab row moves its site (TAB-016)',
+        (tester) async {
+      final gh = siteWithChain('GitHub', urls: ['https://github.com/']);
+      final md = siteWithChain('Mastodon', urls: ['https://mastodon.social/']);
+      final moves = <(String, String)>[];
+      await pumpSheet(
+        tester,
+        sites: [
+          TabsSheetSite(model: gh, isCurrent: true, isLoaded: true),
+          TabsSheetSite(model: md, isCurrent: false, isLoaded: false),
+        ],
+        onMoveSite: (id, {required ontoSiteId}) {
+          moves.add((id, ontoSiteId));
+          return null;
+        },
+      );
+      await tester.tap(find.text('All sites'));
+      await tester.pumpAndSettle();
+      final gesture = await tester.startGesture(tester.getCenter(find.text('Mastodon')));
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+      final end = tester.getCenter(find.text('GitHub').last);
+      await gesture.moveTo(end - const Offset(0, 1));
+      await tester.pump();
+      await gesture.moveTo(end);
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(moves, [(md.siteId, gh.siteId)]);
+    });
+
+    testWidgets('rows keep their comfortable spacing while every row fits',
+        (tester) async {
+      final site = siteWithChain('GitHub', urls: [
+        'https://github.com/',
+        'https://github.com/pulls',
+        'https://github.com/pull/601',
+      ]);
+      await pumpSheet(tester, sites: [
+        TabsSheetSite(model: site, isCurrent: true, isLoaded: true),
+      ]);
+      await tester.pumpAndSettle();
+      expect(rowHeight(tester, text: 'https://github.com/pulls'),
+          kMinInteractiveDimension);
+    });
+
+    testWidgets('a list that would scroll opens compact and stays so after a '
+        'close', (tester) async {
+      final site = siteWithRoots('GitHub', urls: [
+        for (var i = 0; i < 24; i++) 'https://github.com/p$i',
+      ]);
+      List<TabsSheetSite> sites() =>
+          [TabsSheetSite(model: site, isCurrent: true, isLoaded: true)];
+      await pumpSheet(tester, sites: sites(), onCloseTab: (m, {required tabId}) async {
+        m.setTabs([for (final t in m.tabs) if (t.id != tabId) t]);
+        return (sites: sites(), wayBack: null);
+      });
+      await tester.pumpAndSettle();
+      final compact = rowHeight(tester, text: 'https://github.com/p1');
+      expect(compact, lessThan(kMinInteractiveDimension));
+      for (var i = 4; i < 24; i++) {
+        await tester.tap(closeButtonOf('https://github.com/p$i'));
+        await tester.pumpAndSettle();
+      }
+      expect(site.tabs, hasLength(4));
+      expect(rowHeight(tester, text: 'https://github.com/p1'), compact,
+          reason: 'the spacing holds while the sheet is up');
+    });
+
+    testWidgets('a tree with no nesting keeps no column for chevrons',
+        (tester) async {
+      final flat = siteWithRoots('Flat',
+          urls: ['https://a.example/', 'https://a.example/b']);
+      final nested = siteWithChain('Nested',
+          urls: ['https://b.example/', 'https://b.example/c']);
+      double markX(String text) => tester
+          .getTopLeft(find.descendant(
+              of: find.ancestor(of: find.text(text), matching: find.byType(InkWell)).first,
+              matching: find.byType(ContainerMark)))
+          .dx;
+      await pumpSheet(tester, sites: [
+        TabsSheetSite(model: flat, isCurrent: true, isLoaded: true),
+        TabsSheetSite(model: nested, isCurrent: false, isLoaded: false),
+      ]);
+      await tester.tap(find.text('All sites'));
+      await tester.pumpAndSettle();
+      expect(markX('https://b.example/') - markX('https://a.example/'),
+          TapTargets.compact - Spacing.sm);
+    });
+
+    testWidgets('the scope switch sits under the list, the note at its end',
+        (tester) async {
+      final a = siteWithChain('GitHub', urls: ['https://github.com/']);
+      final b = siteWithChain('Mastodon', urls: ['https://mastodon.social/']);
+      await pumpSheet(tester, sites: [
+        TabsSheetSite(model: a, isCurrent: true, isLoaded: true),
+        TabsSheetSite(model: b, isCurrent: false, isLoaded: false),
+      ]);
+      final list = tester.getRect(find.byType(ListView));
+      expect(tester.getTopLeft(find.byType(SegmentedButton<bool>)).dy,
+          greaterThanOrEqualTo(list.bottom));
+      expect(
+          find.descendant(
+              of: find.byType(ListView),
+              matching: find.textContaining('One tab per site')),
+          findsOneWidget);
     });
   });
 }

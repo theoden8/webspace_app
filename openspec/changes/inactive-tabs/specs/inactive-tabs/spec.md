@@ -321,7 +321,8 @@ asked from the sheet while a tab change is running SHALL wait for it to end
 and then run, rather than be dropped as busy.
 
 Where more than one site is shown, the sheet SHALL also offer an "All sites"
-scope listing every site's tree under its own heading. That scope is the
+scope listing every site's tree under its own heading, a site with one tab
+as one row (TAB-021). That scope is the
 whole-app tab view; the drawer, which lays sites out as a grid of tiles rather
 than a list of rows, SHALL carry only the count. Strip chips and drawer tiles
 SHALL show a count pill when a site has more than one tab, and nothing when it
@@ -915,3 +916,36 @@ row.
 - **GIVEN** GitHub's active tab has no back history
 - **WHEN** the user long-presses Back
 - **THEN** no tab is created
+
+---
+
+### Requirement: TAB-021 - The sheet fits the tabs it lists
+
+In the All sites scope and in a webspace's tab tree (WEBSPACE-004), a site with
+one tab SHALL be one row with no heading: its first line SHALL name the site
+and its second the page, by its title, or by its domain where the title only
+repeats the site's name, prefixed by the site it runs as where that differs
+(TAB-018). A long press on that row SHALL drag the site, as a heading does
+(TAB-016). A site with two or more tabs SHALL keep its heading and tree. A tree
+with no nesting SHALL keep no column for collapse chevrons.
+
+The sheet SHALL set its rows comfortably while every row fits without
+scrolling, and compactly once the list would scroll: compact removes the space
+around each row and tightens the indent, the headings and the drop target
+under a tree, and SHALL NOT shrink any button. The sheet SHALL decide when it
+opens and when its scope changes, and SHALL keep that spacing while it is up,
+so a close never moves the rows under the finger. The This site / All sites
+switch SHALL sit under the list, and the memory note SHALL be the list's last
+line.
+
+#### Scenario: Ten sites with a tab each
+
+- **GIVEN** ten sites, each on one tab
+- **WHEN** the user opens All sites on a phone
+- **THEN** each site is one row with its name and its page, and all ten are on screen
+
+#### Scenario: A long list opens compact
+
+- **GIVEN** a site with two dozen tabs
+- **WHEN** the user opens its Tabs sheet and closes tabs until the rest would fit
+- **THEN** the rows are set compactly from the start and stay so while the sheet is up

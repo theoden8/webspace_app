@@ -317,6 +317,53 @@ abstract final class TabRows {
   static const double autoScrollStep = 8;
 }
 
+/// How tightly the Tabs sheet sets its rows (TAB-021): comfortable while
+/// every row fits, compact once the list would scroll. Compact takes only
+/// space around the rows; no button shrinks.
+enum TabRowDensity {
+  comfortable(
+    rowPadding: Spacing.xs,
+    indent: Spacing.lg,
+    headingTop: Spacing.md,
+    headingBottom: Spacing.xs,
+    endTarget: Spacing.xl,
+    foldPadding: Spacing.sm,
+  ),
+  compact(
+    rowPadding: 0,
+    indent: Spacing.md,
+    headingTop: Spacing.sm,
+    headingBottom: Radii.xs,
+    endTarget: Spacing.md,
+    foldPadding: Spacing.xs,
+  );
+
+  const TabRowDensity({
+    required this.rowPadding,
+    required this.indent,
+    required this.headingTop,
+    required this.headingBottom,
+    required this.endTarget,
+    required this.foldPadding,
+  });
+
+  /// Above and below a row's own height, which its close button sets.
+  final double rowPadding;
+
+  /// How far each level of a tree sits in.
+  final double indent;
+
+  /// Around a site's heading.
+  final double headingTop;
+  final double headingBottom;
+
+  /// The drop target under a tree's last row (TAB-015).
+  final double endTarget;
+
+  /// Above and below the line that unfolds another site's tree.
+  final double foldPadding;
+}
+
 /// One colour per container (TAB-018): a tab row is marked with the colour of
 /// the container it runs in, so which container a tab uses is never a guess.
 /// Two sets, the same hues in order, each holding 3:1 against the surfaces of
