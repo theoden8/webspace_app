@@ -99,11 +99,17 @@ Widget action(IconData icon, {required VoidCallback onPressed}) => IconButton(
                     enabled: true,
                     child: Card(
                       margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      color: isSelected
-                          ? Theme.of(context).colorScheme.secondary.withOpacity(0.15)
-                          : null,
+                      // The tint goes on the tile: a translucent card colour
+                      // lets the card's own shadow show through it.
+                      clipBehavior: Clip.antiAlias,
                       elevation: isSelected ? 4 : 1,
                       child: ListTile(
+                        tileColor: isSelected
+                            ? Theme.of(context)
+                                .colorScheme
+                                .secondary
+                                .withValues(alpha: 0.15)
+                            : null,
                         leading: Icon(
                           webspace.glyph?.icon ?? Icons.workspaces,
                           color: isSelected
@@ -123,25 +129,16 @@ Widget action(IconData icon, {required VoidCallback onPressed}) => IconButton(
                           children: [
                             if (!isAll) ...[
                               action(Icons.edit, onPressed: () => onEditWebspace(webspace)),
-                              Container(
-                                color: Theme.of(context).cardTheme.color ??
-                                       Theme.of(context).cardColor,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    action(Icons.delete,
-                                        onPressed: () => onDeleteWebspace(webspace)),
-                                    ReorderableDragStartListener(
-                                      index: index,
-                                      child: Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 12),
-                                        child: Icon(
-                                          Icons.drag_handle,
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                              action(Icons.delete,
+                                  onPressed: () => onDeleteWebspace(webspace)),
+                              ReorderableDragStartListener(
+                                index: index,
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 12),
+                                  child: Icon(
+                                    Icons.drag_handle,
+                                    color: Colors.grey,
+                                  ),
                                 ),
                               ),
                             ],
