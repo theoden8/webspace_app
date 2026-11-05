@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/block_decision.dart';
-import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/log_service.dart';
@@ -81,13 +80,6 @@ class WebInterceptNative {
       final count = entry['count'] is int ? entry['count'] as int : 1;
       DnsBlockService.instance.recordVerdict(siteId,
           query: HostQuery(host), verdict: verdict, count: count);
-      // Engine blocks decided natively never pass through
-      // ContentBlockerService.isBlocked, so fold them into the
-      // DevTools ABP counters here or the ABP tab undercounts.
-      if (verdict.source == BlockSource.abp) {
-        ContentBlockerService.instance
-            .recordNativeEngineBlock(host, count: count);
-      }
     }
   }
 

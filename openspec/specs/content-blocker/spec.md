@@ -718,42 +718,42 @@ or `https`
 
 ---
 
-### Requirement: CB-012 - DevTools Engine Decision Accounting
+### Requirement: CB-012 - Engine Blocks Reach the Site's Blocking Log
 
-Every network-block decision the engine makes SHALL be folded into the
-DevTools ABP tab's counters, regardless of which consult path produced
-it: `isBlocked` (main-doc navigations, JS-bridge `blockCheck`),
-`isHostBlocked` (PerformanceObserver
-per-host attribution), and blocks decided by the Android native JNI
-engine (drained `abp`-sourced block events). The blocked/allowed
-tallies SHALL be cumulative since timing was enabled — they MUST NOT
-decay when the recent-decisions ring buffer rolls over.
+Every network block the engine decides SHALL reach the site's block stats as
+an `abp` verdict through `DnsBlockService.recordVerdict`, on every consult
+path: the Dart paths, which all take their verdict from `BlockDecision.decide`
+and record it with `judgeAndRecord` (navigations, popups, `blockCheckBatch`,
+the PerformanceObserver batch, page-icon fetches), and the Android native
+interceptor's drained block events, every repeat a drain folds counted.
 
-#### Scenario: Cumulative counts survive ring rollover
+The developer tools SHALL read those stats alone and keep no count of engine
+decisions of their own, so the Blocking log (DNS-014), the stats banner and
+the protection report cannot disagree about what the engine blocked. A
+request the DNS blocklist already blocked is DNS's, and the engine is not
+asked about it (CB-003, "Source attribution when DNS + ABP both match").
 
-**Given** timing recording is on and the ring buffer holds 200 samples
-**When** the engine makes 250 blocking decisions
-**Then** `engineBlockedSinceTimingOn` reports all 250
-**And** `recentEngineDecisions` holds only the newest 200 samples
+History: a second set of counters kept by `ContentBlockerService` for an ABP
+tab of their own fell behind the site's stats on every consult path added
+without them, and was removed for it
+([BUG-004](../../../docs/bugs/004-abp-devtools-undercount.md)).
 
-#### Scenario: Host-attribution decisions are recorded
-
-**Given** the PerformanceObserver batch path calls `isHostBlocked(host)`
-**Then** the decision is recorded with requestType `host` and its timing
-**And** the consulted/blocked/allowed counters advance
-
-#### Scenario: Android native engine blocks reach the counters
+#### Scenario: An Android native engine block reaches the log
 
 **Given** the native interceptor drains an `abp`-sourced block event for a host with `count: k`
-**Then** `recordNativeEngineBlock` advances consulted and blocked by `k`
-**And** one sample row is added with requestType `native` and no timing (`micros == null`)
-**And** the ABP tab's avg/max timing chips ignore untimed samples
+**Then** the site's `blockedByAbp` advances by `k`
+**And** the Blocking log shows one row for the host, tagged ABP
+**And** its ABP filter chip counts `k`
 
-#### Scenario: Timing off pauses accounting
+Test: `test/dev_tools_copy_test.dart`, "an engine block drained from Android
+reaches the log as ABP"; the report's side in
+`test/block_stats_integration_test.dart`.
 
-**Given** the user turns timing recording off in the ABP tab
-**Then** no decisions (Dart or native) are recorded
-**And** re-enabling resets the consulted/blocked/allowed counters to zero
+#### Scenario: A Dart path cannot ask the engine outside the funnel
+
+**Given** a Dart path that needs to know whether the engine blocks a request
+**Then** it asks `BlockDecision.decide` through `_LiveBlockLists`, whose verdict `judgeAndRecord` records
+**And** a direct call of `ContentBlockerService.isBlocked` or `isHostBlocked` elsewhere fails `test/js/block_verdict_funnel.test.js`
 
 ---
 

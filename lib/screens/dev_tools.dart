@@ -39,12 +39,12 @@ typedef VoidAsyncCallback = Future<void> Function();
 /// Two concrete implementations:
 ///
 /// - [WebViewModelDevToolsHost] for top-level sites (`WebViewModel`-backed):
-///   exposes per-site state (cookie blocking, scripts) and DNS stats.
+///   exposes per-site state (cookie blocking, scripts) and block stats.
 /// - [NestedDevToolsHost] for [InAppWebViewScreen] popups (no
 ///   `WebViewModel`): exposes only console + JS eval + HTML export.
 ///
 /// `blockedCookies == null` is the sentinel for "no per-site state" and
-/// hides the Cookies, Scripts, and DNS surfaces.
+/// hides the Cookies, Scripts, and Blocking surfaces.
 abstract class DevToolsHost {
   String get name;
   SiteId? get siteId;
@@ -240,9 +240,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   /// leave its length wrong.
   final bool _developerMode = DeveloperModeService.instance.enabled;
 
-  /// Filter for DNS log: null = all, true = blocked only, false = allowed only.
-  bool? _dnsFilter;
-  final ScrollController _dnsScrollController = ScrollController();
+  _BlockingFilter? _blockingFilter;
+  final ScrollController _blockingScrollController = ScrollController();
 
   @override
   void initState() {
@@ -266,7 +265,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     }
     _consoleScrollController.dispose();
     _logScrollController.dispose();
-    _dnsScrollController.dispose();
+    _blockingScrollController.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
     _evalController.dispose();
@@ -307,10 +306,10 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       if (_hasHost) (Icons.terminal, loc.devToolsTabConsole, _buildConsoleTab()),
       if (_hasSiteState)
         (Icons.cookie_outlined, loc.devToolsTabCookies, _buildCookiesTab()),
-      if (_hasSiteState && DnsBlockService.instance.hasBlocklist)
-        (Icons.shield_outlined, loc.devToolsTabDns, _buildDnsTab()),
-      if (ContentBlockerService.instance.usingRustEngine)
-        (Icons.speed, loc.devToolsTabAbp, _buildAbpTab()),
+      if (_hasSiteState &&
+          (DnsBlockService.instance.hasBlocklist ||
+              ContentBlockerService.instance.hasRules))
+        (Icons.shield_outlined, loc.devToolsTabBlocking, _buildBlockingTab()),
       (Icons.list_alt, loc.devToolsTabLogs, _buildAppLogsTab()),
       if (_developerMode)
         (
@@ -1107,19 +1106,19 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     }
   }
 
-  Widget _buildDnsTab() {
+  Widget _buildBlockingTab() {
     final loc = AppLocalizations.of(context);
     final stats = DnsBlockService.instance.statsForSite(widget.host!.siteId!);
+    final filter = _blockingFilter;
     final entries = stats.log
         .where((e) =>
-            (_dnsFilter == null || e.blocked == _dnsFilter) &&
-            _matchesSearch(e.domain))
+            (filter == null || filter.admits(e)) && _matchesSearch(e.domain))
         .toList();
 
     return Column(
       children: [
         DnsStatChips(stats, padding: const EdgeInsets.fromLTRB(12, 8, 12, 4)),
-        _buildDnsFilters(stats),
+        _buildBlockingFilters(stats),
         ToolActions([
           toolButton(Icons.delete_outline, label: loc.devToolsClear,
               onPressed: () => DnsBlockService.instance.clearStatsForSite(widget.host!.siteId!)),
@@ -1127,46 +1126,58 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             Icons.copy,
             label: loc.devToolsCopy,
             onPressed: entries.isEmpty ? null : () {
-              final text = entries
-                  .map((e) =>
-                      '[${_formatTimeMs(e.timestamp)}] ${e.blocked ? 'BLOCKED' : 'ALLOWED'} ${e.domain}')
-                  .join('\n');
+              final text = entries.map(_blockingCopyLine).join('\n');
               unawaited(Clipboard.setData(ClipboardData(text: text)));
-              ScaffoldMessenger.of(context).toast(loc.devToolsDnsLogCopied);
+              ScaffoldMessenger.of(context).toast(loc.devToolsBlockingLogCopied);
             },
-            key: const Key('devtools-dns-copy'),
+            key: const Key('devtools-blocking-copy'),
           ),
         ]),
         Expanded(
           child: LogLines(
             lines: entries,
             searching: _searchQuery.isNotEmpty,
-            empty: loc.devToolsDnsEmpty,
-            line: _buildDnsEntry,
-            controller: _dnsScrollController,
+            empty: loc.devToolsBlockingEmpty,
+            line: _buildBlockingEntry,
+            controller: _blockingScrollController,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildDnsFilters(DnsStats stats) {
+  String _blockingCopyLine(DnsLogEntry e) {
+    final verdict = switch ((e.blocked, e.source)) {
+      (false, _) => 'ALLOWED',
+      (true, null) => 'BLOCKED',
+      (true, final BlockSource source) =>
+        'BLOCKED ${source.name.toUpperCase()}',
+    };
+    return '[${_formatTimeMs(e.timestamp)}] $verdict ${e.domain}';
+  }
+
+  Widget _buildBlockingFilters(DnsStats stats) {
     final loc = AppLocalizations.of(context);
+    final chips = <(_BlockingFilter?, Localized)>[
+      (null, loc.devToolsDnsFilterAll),
+      ((blockedBy: null), loc.devToolsDnsFilterAllowed(stats.allowed)),
+      for (final source in BlockSource.values)
+        (
+          (blockedBy: source),
+          loc.devToolsBlockingFilterBy(source.tag(loc), stats.blockedBy(source)),
+        ),
+    ];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
+      child: Wrap(
         spacing: 6,
         children: [
-          for (final (filter, label) in [
-            (null, loc.devToolsDnsFilterAll),
-            (false, loc.devToolsDnsFilterAllowed(stats.allowed)),
-            (true, loc.devToolsDnsFilterBlocked(stats.blocked)),
-          ])
+          for (final (filter, label) in chips)
             FilterChip(
               label: Text(label, style: const TextStyle(fontSize: 12)),
-              selected: _dnsFilter == filter,
-              onSelected: (_) =>
-                  setState(() => _dnsFilter = _dnsFilter == filter ? null : filter),
+              selected: _blockingFilter == filter,
+              onSelected: (_) => setState(() =>
+                  _blockingFilter = _blockingFilter == filter ? null : filter),
               visualDensity: VisualDensity.compact,
             ),
         ],
@@ -1174,8 +1185,11 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     );
   }
 
-  Widget _buildDnsEntry(DnsLogEntry entry) {
+  Widget _buildBlockingEntry(DnsLogEntry entry) {
     final line = '[${_formatTimeMs(entry.timestamp)}] ${entry.domain}';
+    final color = entry.blocked
+        ? Colors.red
+        : Theme.of(context).textTheme.bodyMedium?.color;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 1),
       child: Row(
@@ -1189,145 +1203,18 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           Expanded(
             child: SelectableText(
               line,
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 11,
-                color: entry.blocked
-                    ? Colors.red
-                    : Theme.of(context).textTheme.bodyMedium?.color,
-              ),
+              style: TextStyle(fontFamily: 'monospace', fontSize: 11, color: color),
             ),
           ),
+          if (entry.source case final source?) ...[
+            const SizedBox(width: 8),
+            Text(
+              source.tag(AppLocalizations.of(context)),
+              style: TextStyle(
+                  fontSize: 10, fontWeight: FontWeight.w600, color: color),
+            ),
+          ],
         ],
-      ),
-    );
-  }
-
-  Widget _buildAbpTab() {
-    final svc = ContentBlockerService.instance;
-    final samples = svc.recentEngineDecisions;
-    final reversed = samples.reversed.toList();
-    // Timing stats come from the sample window; blocked/allowed use the
-    // cumulative counters so they don't decay when the ring rolls over
-    // and include natively-decided blocks that carry no timing.
-    final blockedCount = svc.engineBlockedSinceTimingOn;
-    final allowedCount = svc.engineAllowedSinceTimingOn;
-    int totalMicros = 0;
-    int maxMicros = 0;
-    int timedCount = 0;
-    for (final s in samples) {
-      final micros = s.micros;
-      if (micros == null) continue;
-      timedCount++;
-      totalMicros += micros;
-      if (micros > maxMicros) maxMicros = micros;
-    }
-    final avgMicros = timedCount == 0 ? 0 : totalMicros ~/ timedCount;
-
-    final timingOn = svc.engineTimingEnabled;
-    final consulted = svc.engineConsultedSinceTimingOn;
-    final loc = AppLocalizations.of(context);
-    final avgValue = '$avgMicros µs';
-    final maxValue = '$maxMicros µs';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            children: [
-              StatChip(
-                  svc.usingRustEngine
-                      ? loc.devToolsAbpActive
-                      : loc.devToolsAbpOff,
-                  label: loc.devToolsAbpEngine,
-                  color: svc.usingRustEngine ? Colors.green : Colors.grey),
-              StatChip(timingOn ? loc.devToolsAbpOn : loc.devToolsAbpOff,
-                  label: loc.devToolsAbpRecording,
-                  color: timingOn ? Colors.green : Colors.orange),
-              StatChip('$consulted', label: loc.devToolsAbpConsulted,
-                  color: Colors.blueGrey),
-              StatChip(avgValue, label: loc.devToolsAbpAvg, color: Colors.blueGrey),
-              StatChip(maxValue, label: loc.devToolsAbpMax,
-                  color: maxMicros > 1000 ? Colors.orange : Colors.blueGrey),
-              StatChip('$blockedCount', label: loc.devToolsAbpBlocked, color: Colors.red),
-              StatChip('$allowedCount', label: loc.devToolsAbpAllowed, color: Colors.green),
-              StatChip(
-                  svc.useUboResources ? loc.devToolsAbpOn : loc.devToolsAbpOff,
-                  label: 'uBO',
-                  color: svc.useUboResources ? Colors.green : Colors.grey),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12.0),
-          child: Row(
-            children: [
-              TextButton.icon(
-                icon: const Icon(Icons.refresh, size: 16),
-                label: Text(loc.devToolsRefreshButton),
-                onPressed: () => setState(() {}),
-              ),
-              const Spacer(),
-              if (samples.isNotEmpty)
-                Text(loc.devToolsAbpSampleCount(samples.length),
-                    style: Theme.of(context).textTheme.bodySmall),
-            ],
-          ),
-        ),
-        const Divider(height: 1),
-        Expanded(
-          child: samples.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      consulted == 0
-                          ? loc.devToolsAbpEmptyNotConsulted
-                          : loc.devToolsAbpEmptyBufferRolled(consulted),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                )
-              : ListView.builder(
-                  itemCount: reversed.length,
-                  itemBuilder: (context, i) {
-                    final s = reversed[i];
-                    final urlForSearch = '${s.url} ${s.requestType}';
-                    if (!_matchesSearch(urlForSearch)) {
-                      return const SizedBox.shrink();
-                    }
-                    return _buildAbpRow(s);
-                  },
-                ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAbpRow(EngineDecisionSample s) {
-    final color = s.blocked ? Colors.red.shade400 : Colors.green.shade600;
-    final micros = s.micros;
-    final subtitle =
-        micros == null ? s.requestType : '${s.requestType} · $micros µs';
-    return ListTile(
-      dense: true,
-      leading: Icon(
-        s.blocked ? Icons.block : Icons.check_circle_outline,
-        color: color,
-        size: 20,
-      ),
-      title: Text(
-        s.url,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: Theme.of(context).textTheme.bodySmall,
       ),
     );
   }
@@ -1465,4 +1352,22 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   String _formatTimeMs(DateTime dt) =>
       '${_formatTime(dt)}.${dt.millisecond.toString().padLeft(3, '0')}';
+}
+
+/// Which rows the Blocking tab shows: the allowed requests where
+/// [blockedBy] is null, else the ones [blockedBy] stopped.
+typedef _BlockingFilter = ({BlockSource? blockedBy});
+
+extension on _BlockingFilter {
+  bool admits(DnsLogEntry entry) => switch (blockedBy) {
+        null => !entry.blocked,
+        final source => entry.source == source,
+      };
+}
+
+extension on BlockSource {
+  Localized tag(AppLocalizations loc) => switch (this) {
+        BlockSource.dns => loc.devToolsBlockSourceDns,
+        BlockSource.abp => loc.devToolsBlockSourceAbp,
+      };
 }

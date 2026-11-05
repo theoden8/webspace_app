@@ -1,4 +1,4 @@
-// One verdict per request (CB attribution, BUG-004).
+// One verdict per request (CB attribution, CB-012, BUG-004).
 //
 // Six hand-written copies of "does DNS or ABP block this?" once disagreed on
 // order, on whether the site's toggles applied, and on which DNS level to

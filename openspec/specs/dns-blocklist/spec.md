@@ -513,7 +513,7 @@ The system SHALL track allowed and blocked DNS request counts per site at runtim
 #### Scenario: Clear stats
 
 **Given** DNS stats have been recorded for a site
-**When** the user taps "Clear" in the DNS tab of Developer Tools
+**When** the user taps "Clear" in the Blocking tab of Developer Tools
 **Then** all stats and log entries for that site are reset to zero
 
 ---
@@ -560,41 +560,60 @@ Test: `test/stats_banner_test.dart`; the setting in `test/site_webview_stack_tes
 
 ---
 
-### Requirement: DNS-014 - DNS Query Log in Developer Tools
+### Requirement: DNS-014 - Blocking Log in Developer Tools
 
-Developer Tools SHALL include a DNS tab with a Pi-hole-style query log showing all recorded DNS requests.
+Developer Tools SHALL include a Blocking tab: a Pi-hole-style log of every
+request the site's blockers judged, each allowed or blocked, and a blocked
+one tagged with the blocker that stopped it (DNS for the DNS blocklist, ABP
+for the content blocker's filter lists). It reads the site's block stats
+alone (`DnsBlockService.statsForSite`), where both blockers record their
+verdicts (CB-012), so the two blockers share one log and no second count of
+either exists.
 
-#### Scenario: DNS tab in Developer Tools
+#### Scenario: Blocking tab in Developer Tools
 
-**Given** a DNS blocklist is configured
+**Given** a DNS blocklist is configured, or the content blocker's engine has rules
 **And** the user opens Developer Tools for a site
-**Then** a "DNS" tab with a shield icon is shown
+**Then** a "Blocking" tab with a shield icon is shown
+**And** with neither, the tab is not shown
+
+Test: `test/dev_tools_copy_test.dart`, "the tab is there while a DNS
+blocklist is loaded" and "the tab is gone while neither blocker has data";
+the engine alone in `integration_test/blocker_warning_test.dart`.
 
 #### Scenario: Stats cards
 
-**Given** DNS requests have been recorded for a site
-**When** the user views the DNS tab
+**Given** requests have been recorded for a site
+**When** the user views the Blocking tab
 **Then** four stat cards are shown: Total, Allowed, Blocked, Block %
 
-#### Scenario: Filter by status
+#### Scenario: Each blocked row names its blocker
 
-**Given** the DNS query log contains both allowed and blocked entries
-**When** the user selects the "Blocked" filter chip
-**Then** only blocked entries are shown
-**And** the "Blocked" chip shows the count
+**Given** the log holds a request the DNS blocklist blocked and one an ABP filter list blocked
+**When** the user views the Blocking tab
+**Then** the first row is tagged DNS and the second ABP
+**And** an allowed row carries no tag
+
+#### Scenario: Filter by verdict
+
+**Given** the log contains allowed entries and entries each blocker blocked
+**When** the user selects the "Allowed", "DNS" or "ABP" filter chip
+**Then** only the allowed entries, or only the entries that blocker blocked, are shown
+**And** each chip shows its count
 
 #### Scenario: Search queries
 
-**Given** the DNS query log contains entries
+**Given** the log contains entries
 **When** the user types a domain in the search field
 **Then** only entries matching the search are shown
 
 #### Scenario: Copy log
 
-**Given** DNS entries are recorded
+**Given** entries are recorded
 **When** the user taps "Copy"
-**Then** only the entries the status chip and the search query leave visible are
-copied to the clipboard, in `[timestamp] BLOCKED/ALLOWED domain` format
+**Then** only the entries the filter chip and the search query leave visible are
+copied to the clipboard, as `[timestamp] ALLOWED domain` or
+`[timestamp] BLOCKED DNS domain` / `[timestamp] BLOCKED ABP domain`
 **And** the Copy button is disabled when those filters leave no entries
 
 ---
@@ -1251,7 +1270,7 @@ Reports each host once, in batches, via `addJavaScriptHandler('blockResourceLoad
 - `lib/web_view_model.dart` — Added `dnsBlockEnabled` field, serialization, pass to WebViewConfig with `siteId`
 - `lib/services/webview.dart` — WebViewConfig with siteId, PerformanceObserver injection, native handler attach
 - `lib/screens/settings.dart` — Per-site DNS Blocklist toggle with stats summary chips
-- `lib/screens/dev_tools.dart` — DNS tab with query log, stats cards, filters, copy/clear actions
+- `lib/screens/dev_tools.dart` — Blocking tab with the request log, stats cards, filters, copy/clear actions
 - `lib/screens/app_settings.dart` — Privacy section with slider, download, DNS Block Banner toggle, native domain sync
 - `lib/main.dart` — DnsBlockService + WebInterceptNative initialization, StatsBanner in webview stack
 - `android/app/src/main/kotlin/.../MainActivity.kt` — WebInterceptPlugin registration
@@ -1309,9 +1328,9 @@ Benchmark tests cover:
 11. With DNS blocking enabled, browse a website that loads third-party trackers
 12. Verify the DNS banner appears at the top showing blocked and allowed counts
 13. Tap the banner to expand it, verify recently blocked domains are shown
-14. Open Developer Tools, switch to the DNS tab
-15. Verify stats cards show Total, Allowed, Blocked, Block % with correct values
-16. Use filter chips to show only blocked or only allowed entries
+14. Open Developer Tools, switch to the Blocking tab
+15. Verify stats cards show Total, Allowed, Blocked, Block % with correct values, and each blocked row is tagged DNS or ABP
+16. Use filter chips to show only allowed entries, or only those DNS or ABP blocked
 17. Search for a specific domain in the query log
 18. Tap "Copy" and verify the log is copied to clipboard
 19. Tap "Clear" and verify stats and log are reset
