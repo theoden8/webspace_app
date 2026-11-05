@@ -782,7 +782,10 @@ reach.
 Test: `test/block_decision_test.dart`, "a request both lists block counts
 against DNS, marked as one ABP stops too"; `test/dns_stats_test.dart`;
 `test/dev_tools_copy_test.dart`, "a DNS block ABP would also stop is tagged
-with both"; `SiteEventInboxTest.aDnsBlockSaysWhetherTheEngineWouldStopItToo`.
+with both"; `SiteEventInboxTest.aDnsBlockSaysWhetherTheEngineWouldStopItToo`;
+the Android interceptor's own decision, with a fake engine, in
+`InterceptorDecisionTest` (DNS alone, DNS also ABP, an engine block with its
+request, the engine never asked with content blocking off).
 
 #### Scenario: An ABP row names the request its rule matched
 
@@ -823,7 +826,9 @@ desktop jobs).
 **And** a load error the page saw counts only when a list names the request and no ask covered it, so one that fires before the observer asks is left to the ask
 **And** each ask names the request's type in the engine's words, so a rule limited to scripts or images is judged as WebKit judges it
 
-Test: `test/block_decision_test.dart`, "countsForPage"; `test/js/block_interceptor_shim.test.js`.
+Test: `test/block_decision_test.dart`, "countsForPage"; `test/js/block_interceptor_shim.test.js`;
+that a navigation counts only when stopped, `test/webview_controller_lifetime_test.dart`,
+"an allowed navigation counts nothing".
 
 #### Scenario: A Dart path cannot ask the engine outside the funnel
 
@@ -1338,7 +1343,11 @@ app beside its own reports (`blockRecordBatch`, `why: webkit`).
 **And** the page interceptor counts no ask about an element WebKit had already issued and reports no load errors, which the report counts instead
 
 Test: `test/block_decision_test.dart`, "BlockDecision.reported";
-`test/js/block_interceptor_shim.test.js`, "where WebKit reports its blocks".
+`test/js/block_interceptor_shim.test.js`, "where WebKit reports its blocks";
+the reports-to-loads count (`WebKitBlockedLoads`, a file of its own with no
+WebKit, compiled into every build), `ios/RunnerTests/WebKitBlockedLoadsTests.swift`,
+run headlessly under XCTest on any Swift toolchain by `tool/swift_tests/run.sh`
+(CI's validate job) and in Xcode. The hook itself runs only on a device.
 
 #### Scenario: An App Store build carries none of it
 

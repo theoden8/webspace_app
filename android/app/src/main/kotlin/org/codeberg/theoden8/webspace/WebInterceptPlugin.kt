@@ -470,7 +470,8 @@ class FastSubresourceInterceptor(
     private val cdnTables: LocalCdnTables,
     private val onBlockChecked: (BlockEvent) -> Unit,
     private val onCdnReplaced: (CdnEvent) -> Unit,
-    private val onLog: (String, String) -> Unit = { _, _ -> }
+    private val onLog: (String, String) -> Unit = { _, _ -> },
+    private val engine: RequestEngine = AdblockEngineNative,
 ) : ContentBlockerHandler() {
 
     /// Severity level this site blocks at; 0 when it has DNS blocking off.
@@ -592,7 +593,7 @@ class FastSubresourceInterceptor(
         // would have stopped it too (CB-012).
         var abpBlocked: AbpRequest? = null
         var alsoAbp = false
-        if (abpEnabled && AdblockEngineNative.active) {
+        if (abpEnabled && engine.active) {
             // shouldInterceptRequest runs on chromium's IO thread, so
             // we CANNOT call webView.getUrl() here — WebView methods
             // are main-thread-only and StrictMode flags the violation.
@@ -603,7 +604,7 @@ class FastSubresourceInterceptor(
             val headers = request.headers ?: emptyMap()
             val sourceUrl = stripRootDot(headers["Referer"] ?: headers["referer"] ?: "")
             val requestType = mapResourceType(request)
-            val engineBlocks = AdblockEngineNative.checkUrl(url, sourceUrl, requestType)
+            val engineBlocks = engine.checkUrl(url, sourceUrl, requestType)
             if (decision == Decision.BLOCKED_DNS) {
                 alsoAbp = engineBlocks
             } else if (engineBlocks) {
@@ -642,8 +643,8 @@ class FastSubresourceInterceptor(
             // redirect path serves the resource the rule names (an empty
             // script, a transparent image, a stand-in for a tracker's API).
             val matched = abpBlocked
-            if (matched != null && AdblockEngineNative.active) {
-                val dataUrl = AdblockEngineNative.redirectFor(
+            if (matched != null && engine.active) {
+                val dataUrl = engine.redirectFor(
                     matched.url, matched.sourceUrl, matched.requestType)
                 if (dataUrl != null) {
                     val response = redirectResponseFor(dataUrl)

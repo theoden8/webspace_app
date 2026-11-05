@@ -105,3 +105,25 @@ test(`the Linux type-check reads the Swift with ${CONDITION} too`, () => {
   assert.ok(check.includes('WebKitBlockReports'), 'tool/swift_typecheck skips the Swift');
   assert.ok(check.includes(`-D ${CONDITION}`), `tool/swift_typecheck never defines ${CONDITION}`);
 });
+
+test('tool/swift_tests runs the files the Xcode projects compile, and CI runs it', () => {
+  const linked = [];
+  for (const dir of ['tool/swift_tests/Sources/Runner', 'tool/swift_tests/Tests/RunnerTests']) {
+    for (const name of fs.readdirSync(dir)) {
+      const file = path.join(dir, name);
+      assert.ok(fs.lstatSync(file).isSymbolicLink(),
+        `${file} is a copy: link it to the Runner file Xcode compiles`);
+      assert.ok(fs.existsSync(file), `${file} links to nothing`);
+      linked.push(path.relative('.', fs.realpathSync(file)));
+    }
+  }
+  assert.deepEqual(linked.sort(), [
+    'ios/Runner/WebKitBlockedLoads.swift',
+    'ios/RunnerTests/WebKitBlockedLoadsTests.swift',
+  ]);
+  for (const platform of ['ios', 'macos']) {
+    assert.ok(read(`${platform}/Runner.xcodeproj/project.pbxproj`).includes('WebKitBlockedLoads.swift in Sources'),
+      `${platform}'s Runner does not compile the load counting`);
+  }
+  assert.match(read(WORKFLOW), /run: \.\/tool\/swift_tests\/run\.sh\n/);
+});

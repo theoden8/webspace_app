@@ -223,6 +223,11 @@ jobs:
       - name: Type-check the Apple plugins
         run: ./tool/swift_typecheck/check.sh
 
+      # The Runner's plain Swift under XCTest, headlessly: no Apple SDK
+      # (CB-023's load counting). Fails here without a toolchain.
+      - name: Test the Runner's plain Swift
+        run: ./tool/swift_tests/run.sh
+
       - name: Validate OpenSpec
         run: npx openspec validate --no-interactive --all
       # Flutter also compiles the harness and its negative compiler probes.

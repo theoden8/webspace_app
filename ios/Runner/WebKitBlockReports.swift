@@ -46,22 +46,11 @@
     private static var installed = false
     private static var reporting = false
 
-    /// What one view's lists blocked since the last flush. WebKit calls
-    /// once per list that acted on a load, so a URL's loads are its calls
-    /// over the lists that reported it: each load of it meets the same lists.
+    /// What one view's lists blocked since the last flush.
     private final class Pending {
       weak var webView: WKWebView?
-      var order: [String] = []
-      var seen: [String: (lists: Set<String>, calls: Int)] = [:]
+      var blocked = WebKitBlockedLoads(capacity: batchMax)
       init(_ webView: WKWebView) { self.webView = webView }
-
-      /// Each URL once per load, in the order first reported.
-      var loads: [String] {
-        order.flatMap { url -> [String] in
-          guard let (lists, calls) = seen[url], !lists.isEmpty else { return [] }
-          return Array(repeating: url, count: max(1, calls / lists.count))
-        }
-      }
     }
     private static var pending: [ObjectIdentifier: Pending] = [:]
     private static var flushScheduled = false
@@ -96,14 +85,7 @@
       let key = ObjectIdentifier(webView)
       let batch = pending[key] ?? Pending(webView)
       pending[key] = batch
-      let text = url.absoluteString
-      if let (lists, calls) = batch.seen[text] {
-        batch.seen[text] = (lists.union([identifier]), calls + 1)
-      } else {
-        guard batch.order.count < batchMax else { return }
-        batch.order.append(text)
-        batch.seen[text] = ([identifier], 1)
-      }
+      guard batch.blocked.report(url: url.absoluteString, list: identifier) else { return }
       guard !flushScheduled else { return }
       flushScheduled = true
       DispatchQueue.main.asyncAfter(deadline: .now() + flushDelay) { flush() }
@@ -115,7 +97,7 @@
       pending = [:]
       for batch in ready.values {
         guard let webView = batch.webView,
-          let data = try? JSONSerialization.data(withJSONObject: batch.loads),
+          let data = try? JSONSerialization.data(withJSONObject: batch.blocked.loads),
           let json = String(data: data, encoding: .utf8)
         else { continue }
         webView.evaluateJavaScript(
