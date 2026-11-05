@@ -60,7 +60,7 @@ void main() {
         tokens: {RouterIdentity.ofSite(SiteId('parity')): state.tokenFor(RouterIdentity.ofSite(SiteId('parity')))},
       ),
     );
-    final entry = wire[state.credentialFor(RouterIdentity.ofSite(SiteId('parity')))];
+    final entry = wire.routes[state.credentialFor(RouterIdentity.ofSite(SiteId('parity')))];
     if (entry == null) return null;
     if (entry['type'] == 'direct') return null;
     return (

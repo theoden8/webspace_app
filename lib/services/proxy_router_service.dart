@@ -452,14 +452,12 @@ class ProxyRouterService {
       tokens: tokens,
     );
     final wire = ProxyRouterEngine.toWire(routes);
-    if (wire.length != routes.length) {
-      // A route was dropped for a malformed address. Say so: the site is
-      // about to be answered 502 rather than quietly sent out direct.
-      LogTag.proxy.error(
-          'Dropped ${routes.length - wire.length} malformed route(s); '
-          'those sites will fail closed', sensitive: true);
+    for (final MapEntry(key: identity, value: why) in wire.dropped.entries) {
+      LogTag.proxy.warning(
+          'No route for $identity, so the relay answers it 502: $why',
+          sensitive: true);
     }
-    final ok = await _relay.setRoutes(wire);
+    final ok = await _relay.setRoutes(wire.routes);
     if (!ok) {
       LogTag.proxy.error(
           'Relay rejected the route table; router mode is not active',
@@ -468,7 +466,7 @@ class ProxyRouterService {
     _routed = ok
         ? {
             for (final e in routes.entries)
-              if (wire.containsKey(e.key)) e.value.identity,
+              if (wire.routes.containsKey(e.key)) e.value.identity,
           }
         : const {};
     return ok;
