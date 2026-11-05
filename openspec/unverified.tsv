@@ -156,7 +156,6 @@ SCREENSHOT-007	no check names it: the screenshot jobs run the generators, and no
 SCREENSHOT-009	no check names it: the screenshot jobs run the generators, and no test cites it
 SCREENSHOT-010	no check names it: the screenshot jobs run the generators, and no test cites it
 # settings-backup
-BACKUP-006	no check: no test builds the import confirmation dialog and asserts the site/webspace counts, export date, cookie note, proxy address or script count it shows (partly: test/proxy_library_test.dart, "an app-wide proxy from the library shows its address")
 BACKUP-008	no check: no test opens a site and asserts Import/Export (App Settings) is absent; tests only assert it is present on the webspaces list
 # settings-hints
 HINT-003	no check: it governs how an ARB key is moved (renamed in place keeping each locale's value, deleted only when the hint already says it), which no check can see after the fact; key parity catches only a key missing from a locale, and the hint-title rule holds by construction in HintedTitle with no test (partly: test/js/l10n_coverage.test.js, "${name} has full key + placeholder parity with the template")
