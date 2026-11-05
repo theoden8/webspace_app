@@ -214,10 +214,12 @@ if(FLUTTER_TARGET_PLATFORM MATCHES "arm64$" OR
 else()
   set(WEBSPACE_TOR_ARCH "x64")
 endif()
-# The source is kept in the project's build directory, which the debug and
-# release trees share.
+# The source, and the lyrebird go/iptproxy/build.sh lays out, are kept in the
+# project's build directory, which the debug and release trees share: the
+# second tree built finds lyrebird current and fetches nothing.
 webspace_build_tor("${WEBSPACE_TOR_ARCH}"
   "${CMAKE_CURRENT_SOURCE_DIR}/../build/tor_source"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../build/lyrebird"
   "${INSTALL_BUNDLE_LIB_DIR}/tor")
 
 # Fully re-copy the assets directory on each build to avoid having stale files

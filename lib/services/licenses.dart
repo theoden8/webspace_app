@@ -132,9 +132,10 @@ void registerLicenses() {
     }
   });
 
-  // The Linux build's tor and its libraries, from the notices the build lays
-  // out beside it (linux/tor_build.sh, TOR-027). Read where the build
-  // installed them; absent from every other build.
+  // The Linux build's tor, its libraries and its lyrebird, from the notices
+  // the build lays out beside it (linux/tor_build.sh, go/iptproxy/build.sh
+  // lyrebird; TOR-027). Read where the build installed them; absent from
+  // every other build.
   LicenseRegistry.addLicense(() async* {
     for (final (package, text) in await managedTorNotices()) {
       yield _PerLineLicenseEntry([package], text: text);

@@ -235,6 +235,10 @@ parts:
     source: .
     parse-info:
       - usr/share/metainfo/org.codeberg.theoden8.webspace.metainfo.xml
+    # A go command for the lyrebird linux/tor.cmake builds beside tor
+    # (TOR-016), which fetches the Go go/iptproxy/.go-version names.
+    build-snaps:
+      - go/latest/stable
     build-packages:
       - build-essential
       - ca-certificates

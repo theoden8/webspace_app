@@ -72,6 +72,7 @@ primitives:
 | obfs4 | lyrebird's `doc/obfs4-spec.txt` | X25519 with Elligator 2 (RFC 7748, RFC 9380), HMAC-SHA-256, SipHash-2-4, XSalsa20-Poly1305 |
 | snowflake | the Snowflake paper and its source | WebRTC's DTLS (RFC 6347) |
 | webtunnel | HTTPS | TLS (RFC 8446) |
+| meek_lite | meek's README and the domain fronting paper (PoPETs 2015) | TLS (RFC 5246, RFC 8446), with a browser's ClientHello from uTLS |
 | dnstt | its published design | the Noise framework's `Noise_NK_25519_ChaChaPoly_BLAKE2s` (RFC 7748, RFC 8439, RFC 7693) |
 
 **`true` is not the cautious alternative.** It obliges an
@@ -177,13 +178,20 @@ a build file pulls in outside pub and Cargo has a row in
 - **AND** a GPL notice there, or one in a library whose notices name no LGPL,
   still fails (`test/js/bundle_licences.test.js`)
 
-#### Scenario: A Go module is compiled into the Apple builds' transports
+#### Scenario: A Go module is compiled into the bridge transports
 
-- **WHEN** `go/iptproxy/build.sh` links a Go module into IPtProxy.xcframework
-- **THEN** `build.sh check` fails unless the module has a row in
-  `go/iptproxy/licences.tsv` with its licence read from its licence files,
-  and `test/js/licence_policy.test.js` fails unless `licences.tsv` lets that
-  licence link
+- **WHEN** `go/iptproxy/build.sh` links a Go module into IPtProxy.xcframework,
+  or into the lyrebird the Linux bundle ships beside tor (`build.sh
+  lyrebird`, which `linux/tor.cmake` runs)
+- **THEN** `build.sh check`, which lists both, fails unless the module has a
+  row in `go/iptproxy/licences.tsv` with its licence read from its licence
+  files, and `test/js/licence_policy.test.js` fails unless `licences.tsv` lets
+  that licence link
+- **AND** `scripts/verify_tor_shipped.sh` fails, through `build.sh
+  check-lyrebird`, on a bundled lyrebird that `go version -m` shows compiling
+  a module `licences.tsv` lacks, that names a GPL package of lyrebird's or not
+  hiddenkey's and go/meekutls's, or whose `lib/tor/docs/lyrebird.txt` lacks
+  a module's licence files
 - **AND** a GPL file in a module is deleted before anything reads the tree,
   and what the rest of the module needs of it is our own: lyrebird's
   `internal/x25519ell2` comes from `go/hiddenkey`, and its meek_lite's
