@@ -14,7 +14,7 @@ const { REPO } = require('./helpers/source');
 const cc = spawnSync('cc', ['--version']).status === 0;
 const needsCc = { skip: cc || process.env.CI === 'true' ? false : 'no cc on PATH' };
 
-function pkg(t, { fonts = 'Licensed under the SIL Open Font License', links = true, wpe = true, wpeLinked = true }) {
+function pkg(t, { fonts = 'Licensed under the SIL Open Font License', links = true, wpe = true, wpeLinked = true, debug = false }) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'webkit-shipped-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const lib = path.join(dir, 'rev/usr/lib/x/libWPEWebKit-2.0.so.1.0');
@@ -31,6 +31,13 @@ function pkg(t, { fonts = 'Licensed under the SIL Open Font License', links = tr
   build(['-shared', '-fPIC', '-o', lib, '-Wl,-soname,libWPEWebKit-2.0.so.1', 'wk.c', ...(wpeLinked ? [wpeLib] : [])]);
   build(['-o', 'rev/opt/webspace/webspace_app', 'app.c', `-Wl,-rpath-link,${path.dirname(wpeLib)}`, ...(links ? [lib] : [])]);
   fs.appendFileSync(lib, fonts);
+  if (debug) {
+    // flatpak-builder's split debug info: an ELF of the same name, no fonts.
+    const at = path.join(dir, 'rev/lib/debug/usr/lib/x');
+    fs.mkdirSync(at, { recursive: true });
+    fs.copyFileSync(wpeLib, path.join(at, `${path.basename(wpeLib)}.debug`));
+    fs.copyFileSync(wpeLib, path.join(at, `${path.basename(lib)}.debug`));
+  }
   fs.symlinkSync('rev', path.join(dir, 'current'));
   return path.join(dir, 'current');
 }
@@ -43,6 +50,13 @@ test('LICENSE-004 a WebKit the app loads, with PDF.js\'s OFL fonts, passes under
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /usr\/lib\/x\/libWPEWebKit-2\.0\.so\.1\.0\) is a shared library of its own, loaded by opt\/webspace\/webspace_app/);
   assert.match(r.stdout, /usr\/lib\/x\/libwpe-1\.0\.so\.1\.0\) is a shared library of its own, loaded by usr\/lib\/x\/libWPEWebKit-2\.0\.so\.1\.0/);
+});
+
+test("LICENSE-004 a flatpak's split debug info is not a library the check holds", needsCc, (t) => {
+  const r = run(pkg(t, { debug: true }));
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /^WebKit \(usr\/lib\/x\/libWPEWebKit-2\.0\.so\.1\.0\) /m, 'the debug file read as a WebKit');
+  assert.match(r.stdout, /^libwpe \(usr\/lib\/x\/libwpe-1\.0\.so\.1\.0\) /m, 'the debug file read as a libwpe');
 });
 
 test('LICENSE-001 the check refuses GPL fonts, missing OFL ones, and a WebKit or libwpe nothing loads', needsCc, (t) => {

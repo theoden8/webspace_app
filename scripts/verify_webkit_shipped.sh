@@ -13,8 +13,10 @@ set -euo pipefail
 root="${1:?usage: verify_webkit_shipped.sh <package root> <app directory under it>}"
 app="${2:?usage: verify_webkit_shipped.sh <package root> <app directory under it>}"
 
-# -H: a snap's root is /snap/<name>/current, a symlink to its revision.
-mapfile -t libraries < <(find -H "$root" -name 'libWPEWebKit-2.0.so.*' -type f | sort)
+# -H: a snap's root is /snap/<name>/current, a symlink to its revision. A
+# *.debug file is flatpak-builder's split debug info under lib/debug, which the
+# .Debug extension takes and no loader opens.
+mapfile -t libraries < <(find -H "$root" -name 'libWPEWebKit-2.0.so.*' -type f ! -name '*.debug' | sort)
 [ "${#libraries[@]}" -gt 0 ] \
   || { echo "::error::$root carries no libWPEWebKit-2.0.so of its own" >&2; exit 1; }
 for webkit in "${libraries[@]}"; do
@@ -36,7 +38,7 @@ done
   || { echo "::error::nothing in $root/$app loads WebKit as a shared library" >&2; exit 1; }
 echo "WebKit (${libraries[*]#"$root"/}) is a shared library of its own, loaded by ${loads[*]}"
 
-mapfile -t wpe < <(find -H "$root" -name 'libwpe-1.0.so.*' -type f | sort)
+mapfile -t wpe < <(find -H "$root" -name 'libwpe-1.0.so.*' -type f ! -name '*.debug' | sort)
 [ "${#wpe[@]}" -gt 0 ] \
   || { echo "::error::$root carries no libwpe-1.0.so of its own" >&2; exit 1; }
 wpe_loads=()
