@@ -6,6 +6,7 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/settings/proxy.dart';
 
 import 'helpers/mock_secure_storage.dart';
@@ -236,6 +237,34 @@ void main() {
           await store
               .loadPassword(ProxyPasswordKey.global),
           equals('hunter2'));
+    });
+
+    test('PWD-006: a keystore that refuses the save keeps the password for '
+        'the run, logs an error, and writes none to prefs', () async {
+      LogService.instance.resetForTest();
+      mockSecureStorage.throwOnWrite = true;
+      final prefs = await SharedPreferences.getInstance();
+
+      await GlobalOutboundProxy.update(UserProxySettings(
+        type: ProxyType.HTTP,
+        address: 'corp:3128',
+        username: 'me',
+        password: 'hunter2',
+      ));
+
+      expect(GlobalOutboundProxy.current.password, 'hunter2',
+          reason: 'the in-memory copy carries outbound calls until a restart');
+      final raw = prefs.getString(AppPref.globalOutboundProxy.key)!;
+      expect(raw, isNot(contains('hunter2')),
+          reason: 'no silent fallback to plaintext prefs');
+      expect((jsonDecode(raw) as Map).containsKey('password'), isFalse);
+      expect(
+        LogService.instance
+            .recent({LogTag.proxyPwdStore})
+            .where((e) => e.level == LogLevel.error),
+        isNotEmpty,
+        reason: 'the refusal is logged at error level',
+      );
     });
 
     test('update with null password clears secure storage entry', () async {

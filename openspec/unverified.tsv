@@ -160,7 +160,6 @@ PLATFORM-003	no check: no Linux-tier test checks per-container cookie/storage is
 PLATFORM-004	process: a dependency-selection policy; no gate audits pubspec for package provenance
 PLATFORM-005	process: describes a future migration procedure, not current behaviour a test could run
 # proxy-password-secure-storage
-PWD-006	no check: no test makes the keystore write throw for ProxyPasswordSecureStorage and checks that an error is logged, the in-memory password still works, and prefs carry no password
 # screenshots
 SCREENSHOT-001	no check names it: the screenshot jobs run the generators, and no test cites it
 SCREENSHOT-002	no check names it: the screenshot jobs run the generators, and no test cites it

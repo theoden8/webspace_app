@@ -240,7 +240,7 @@ The system SHALL continue to function when `flutter_secure_storage` is unavailab
 #### Scenario: Secure storage unavailable on save
 
 **Given** a `flutter_secure_storage` `write` call throws
-**When** `ProxyPasswordSecureStorage.saveAll` catches it
+**When** a proxy password is saved through `ProxyPasswordSecureStorage`
 **Then** the failure is logged via `LogService` at `error` level
 **And** the in-memory `UserProxySettings.password` still works for the
 session
