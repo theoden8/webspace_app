@@ -120,7 +120,6 @@ LCDN-013	no check: LocalCdnPerSiteTest serves a cached URL from the interceptor,
 # localization
 L10N-005	process: describes how the migration proceeds (file by file, exempt only shrinking); exempt is now empty and nothing can run 'only grows' (partly: test/js/l10n_no_hardcoded_text.test.js, "UI files contain no hardcoded user-facing text")
 # navigation
-NAV-003	no check: no test or gate asserts drawerEdgeDragWidth is 0 while a webview is visible
 NAV-008	no check: InAppWebViewScreen's onPopInvokedWithResult policy (Android canGoBack, Apple goBack + URL diff), the AppBar back pop and _backGuard are untested; back_gesture_engine_test covers the main page only
 # nested-url-blocking
 NESTED-011	no check: needs the fork's iOS/macOS onCreateWindow decline path to skip loading the request in the parent; no test reads the fork source or runs WKWebView (iOS/macOS-only plugin behaviour that no tier runs)
