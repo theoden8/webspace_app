@@ -165,6 +165,17 @@ const Map<String, String> _retiredKeys = {
       'the Experimental group; the app and each site have their own switch',
   'experimentalDesktopTray': 'NOTIF-019: the tray icon graduated out of the '
       'Experimental group; Keep running when closed alone shows it',
+  'experimentalFolderLibrary': 'WEBSPACE-019: Alternative design graduated '
+      'out of the Experimental group; Legacy design is its switch, which a '
+      'device decides from what it ran and a backup without it restores at '
+      'its default',
+};
+
+/// A pref whose default HEAD changed, and why. A release's minimal backup
+/// carries the default it had, and an import keeps that as the value it is.
+const Map<String, String> _defaultChanged = {
+  'libraryWebspaceLayout': 'WEBSPACE-019: the library starts with its '
+      'webspaces as a list, where it started Automatic',
 };
 
 /// A key whose value is a map keyed by data, not by names a parser reads, and
@@ -588,7 +599,11 @@ void main() {
             written: backup.sites.single)
           ..remove('siteId');
         expect(got, fresh);
-        expect(minimal.appPrefs, resolveExportedAppPrefs(const {}));
+        expect(minimal.appPrefs, {
+          ...resolveExportedAppPrefs(const {}),
+          for (final key in _defaultChanged.keys)
+            if (backup.globalPrefs[key] case final Object written) key: written,
+        });
         expect(minimal.themeStorageIndex, 0);
         expect(minimal.webspaces.single.isAll, isTrue);
         expect(minimal.selectedWebspaceId, WebspaceId.all);

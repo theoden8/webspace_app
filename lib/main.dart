@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
     show ServiceWorkerController;
@@ -47,6 +48,7 @@ import 'package:webspace/services/keyboard_input.dart';
 import 'package:webspace/services/remote_input.dart';
 import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/settings/app_design.dart';
 import 'package:webspace/settings/app_locale.dart';
 
 void main([List<String> args = const []]) async {
@@ -170,6 +172,8 @@ void main([List<String> args = const []]) async {
     // Read directly by the menus rather than plumbed.
     DeveloperModeService.instance.initialize(),
     ExperimentalFeaturesService.instance.initialize(),
+    // Before the first frame, which draws one design or the other.
+    SharedPreferences.getInstance().then(loadLegacyDesign),
     WebExtensionLibrary.instance.initialize(),
     ExternalTorSettings.initialize(),
   ]);

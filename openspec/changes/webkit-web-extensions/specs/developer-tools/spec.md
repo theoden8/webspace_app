@@ -17,7 +17,6 @@ The features are:
 
 | Feature | Switch | Default | Gate |
 |---|---|---|---|
-| Webspace icon groups (`webspaces` WEBSPACE-002) | Alternative design | off | `WebSpacePage`, read on build and rebuilt when the switch or developer mode changes |
 | Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
 | Linux: the filter lists' network rules compiled into WebKit content rule lists (`content-blocker` CB-020) | WebKit content blocking | off | `ContentBlockerService._syncRuleLists`, read on every engine rebuild and when the switch or developer mode changes |
 | iOS 18.4+ and macOS 15.4+: browser extensions the user imports, switched on per site (`web-extensions` WEBEXT-001) | Web extensions | off | `WebViewModel.sitePosture`, read when a site's webview is built, and the App Settings and site Settings screens, read when they are built |
@@ -47,32 +46,23 @@ The tray icon while a close only hides the window (`web-push-notifications` NOTI
 - **GIVEN** an iOS build with developer mode off
 - **WHEN** the user opens App settings
 - **THEN** there is no Experimental group
-- **AND** after unlocking developer mode the Developer section shows it, with Alternative design off and no Tor, WebKit content blocking or Sign-in popups switch
+- **AND** after unlocking developer mode the Developer section shows it, with no Alternative design, Tor, WebKit content blocking or Sign-in popups switch
 
 #### Scenario: Only what this platform can run
 
 - **GIVEN** an Android build whose WebView reports `MULTI_PROFILE`, with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists Alternative design and Texture page rendering, off
+- **THEN** the Experimental group lists Texture page rendering, off
 
 #### Scenario: A platform without the router
 
 - **GIVEN** a Linux build with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists Alternative design and WebKit content blocking, off
-
-#### Scenario: Alternative design is opt-in and follows the gate live
-
-- **GIVEN** the Alternative design switch has never been enabled
-- **WHEN** the app opens with developer mode on or off
-- **THEN** the existing webspace list, app bar, add-site button, and drawer are shown
-- **AND** enabling both developer mode and Alternative design replaces the home screen with the grouped site launcher, without restarting
-- **AND** turning either off restores the existing interface without changing sites, webspaces, or selection
-- **AND** turning developer mode back on restores the grouped site launcher if its switch is still on
+- **THEN** the Experimental group lists WebKit content blocking, off
 
 #### Scenario: Switches survive a backup round trip
 
-- **GIVEN** the Alternative design switch is on and the user exports settings
+- **GIVEN** the Texture page rendering switch is on and the user exports settings
 - **WHEN** that backup is imported
 - **THEN** the switch is on without a restart
 

@@ -13,7 +13,7 @@ The Webspaces feature allows users to organize their saved sites into separate w
 
 ## Requirements
 
-The grouped site launcher is an optional experiment (DEVTOOLS-011). Group grids, their menus, and search below apply only when developer mode and **Alternative design** are both on. With either off, the existing webspace list, inline edit/delete actions, create button, app bar, add-site button, and drawer navigation remain the default. Switching interfaces SHALL preserve sites, webspaces, membership, and the selected webspace.
+The grouped site launcher, the library, is the app's design; App Settings > Appearance's **Legacy design** switch (WEBSPACE-019) brings back the webspace list, inline edit/delete actions, create button, app bar, add-site button, and drawer navigation in its place. Below, "Alternative design" names the library, shown while Legacy design is off, with developer mode on or off: group grids, their menus, and search apply only then. Switching designs SHALL preserve sites, webspaces, membership, and the selected webspace.
 
 ### Requirement: WEBSPACE-001 - Create Multiple Webspaces
 
@@ -22,7 +22,7 @@ Users SHALL be able to create multiple webspaces to organize sites into logical 
 #### Scenario: Create a new webspace
 
 **Given** the user is on the webspaces list screen
-**When** the user taps the create-webspace action (the library toolbar when the experiment is enabled, otherwise the Create Webspace button)
+**When** the user taps the create-webspace action (the library toolbar, or the Create Webspace button in Legacy design)
 **And** enters a name (e.g., "Work")
 **And** selects sites to include
 **And** taps the checkmark icon
@@ -34,7 +34,7 @@ Users SHALL be able to create multiple webspaces to organize sites into logical 
 
 Users SHALL be able to select and switch between webspaces to view filtered sites.
 
-With the experiment enabled, the library SHALL be a home screen of groups, as a phone's is of folders: a group opens as a folder over the group grid (WEBSPACE-008), and there is no bottom navigation. The home header SHALL lead its title with
+Outside Legacy design, the library SHALL be a home screen of groups, as a phone's is of folders: a group opens as a folder over the group grid (WEBSPACE-008), and there is no bottom navigation. The home header SHALL lead its title with
 the app's logo in the chosen accent, SHALL open App Settings, and its add button SHALL offer adding a site or creating a webspace (EDIT-012). On a wide screen the library and an open folder SHALL widen with the window, up to a fixed number of columns. Every tab of every site stays reachable from the tabs sheet of any site on screen (TAB-017).
 
 #### Scenario: Select a webspace
@@ -42,8 +42,8 @@ the app's logo in the chosen accent, SHALL open App Settings, and its add button
 **Given** the user is viewing the webspaces list
 **When** the user taps a webspace
 **Then** that webspace becomes selected
-**And** with the experiment enabled, its sites open in a folder over the group grid without opening the drawer
-**And** with the experiment disabled, its filtered sites open in the existing drawer
+**And** outside Legacy design, its sites open in a folder over the group grid without opening the drawer
+**And** in Legacy design, its filtered sites open in the drawer
 
 ---
 
@@ -56,7 +56,7 @@ The system SHALL provide clear visual indication of which webspace is currently 
 **Given** a webspace is selected
 **When** the user views the webspaces list
 **Then** the selected webspace has an accent highlight and a check
-**And** with the experiment enabled, it appears as a group
+**And** outside Legacy design, it appears as a group
 **And** each group previews up to four site favicons from its actual membership order
 **And** a group with more than four sites previews three favicons and the remaining count
 **And** its site count reflects the current filtered membership, including all sites for the synthetic All group
@@ -132,7 +132,7 @@ Users SHALL be able to edit existing webspaces.
 #### Scenario: Modify webspace contents
 
 **Given** a webspace "Work" exists with sites A and B
-**When** the user chooses Edit (from the group menu when the experiment is enabled, otherwise the inline edit action)
+**When** the user chooses Edit (from the group menu, or the inline edit action in Legacy design)
 **And** adds site C and removes site A
 **And** saves changes
 **Then** "Work" now contains sites B and C
@@ -147,7 +147,7 @@ Users SHALL be able to delete webspaces.
 
 **Given** webspaces "Work" and "Personal" exist
 **And** "Work" is currently selected
-**When** the user chooses Delete for "Work" (from the group menu when the experiment is enabled, otherwise the inline delete action)
+**When** the user chooses Delete for "Work" (from the group menu, or the inline delete action in Legacy design)
 **And** confirms the deletion
 **Then** "Work" is removed
 **And** selection is cleared
@@ -406,9 +406,9 @@ row's icon and close back into it, its card starting at that icon's size and
 colour. Reduced motion SHALL switch at once.
 
 The library's home SHALL hold a switch of its own beside its search, with
-the same three layouts for the webspaces, browsed or found by a search;
-Automatic packs them into the room under the search as it packs a folder's
-sites.
+the same three layouts for the webspaces, browsed or found by a search, List
+to start with (WEBSPACE-019); Automatic packs them into the room under the
+search as it packs a folder's sites.
 Shown as rows, the webspaces read in the same way:
 each its cluster of site icons at the start, its name over its site count,
 and a mark while selected. It SHALL be set app-wide apart from the folders'
@@ -523,6 +523,49 @@ does. Its sites SHALL stay as they were. All's name SHALL only be shown.
 **Then** it is still named Projects
 **When** the user taps the glyph beside the name and picks the code symbol
 **Then** Projects is led by that symbol
+
+### Requirement: WEBSPACE-019 - Legacy Design Is a Switch
+
+App Settings > Appearance SHALL hold a Design group with a **Legacy design**
+switch, its explanation behind a hint (HINT-001), with developer mode on or
+off. On, the app SHALL show the webspace list, the drawer, the app bar and
+the add-site button in place of the library; off, the library. The page
+SHALL follow the switch without a restart, and the library's icon size
+(WEBSPACE-017) SHALL show only while it is off. Developer mode's Experimental
+group SHALL hold no Alternative design switch.
+
+The switch is a global pref that persists and rides a settings backup, off
+to start with. The first launch that knows it SHALL decide it once from what
+the device holds, and store it: a device on which an earlier build saved a
+site or a webspace SHALL keep the design that build showed, the legacy one
+unless developer mode and the Alternative design switch were both on; any
+other device SHALL start in the library. A stored choice SHALL never be
+decided again. A backup written before the switch existed SHALL import it at
+its default, as any pref it lacks (BACKUP-012).
+
+Turning the switch off SHALL start the library at its own layouts, whatever
+they were left at: the home's webspaces as a List and each folder's sites
+Automatic (WEBSPACE-015). Turning it on SHALL leave the layouts as they are.
+
+#### Scenario: A new install starts in the library
+
+**Given** a device on which the app has saved nothing
+**When** the app opens
+**Then** the library shows its webspaces as a list, and Legacy design reads off in Appearance
+
+#### Scenario: An upgrade keeps the legacy design
+
+**Given** a device on which an earlier build saved sites, with Alternative design never switched on
+**When** the app opens after the upgrade
+**Then** the webspace list, the drawer and the app bar are shown, and Legacy design reads on
+**When** the user turns Legacy design off
+**Then** the library shows the webspaces as a list, and a folder opened from it shows its sites Automatic
+
+#### Scenario: An upgrade from Alternative design keeps the library
+
+**Given** a device on which developer mode and Alternative design were both on
+**When** the app opens after the upgrade
+**Then** the library is shown and Legacy design reads off, with developer mode on or off
 
 ---
 

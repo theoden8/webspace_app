@@ -298,12 +298,12 @@ no external store, background schedule, or OS-level UI.
 
 ### Requirement: EDIT-011 - Choose a Site's Webspaces From the Site
 
-With Alternative design enabled (`webspaces`, DEVTOOLS-011), the Edit Site
+With Alternative design enabled (`webspaces`, WEBSPACE-019), the Edit Site
 dialog SHALL list every named webspace, each marked when it holds the site.
 Save SHALL put the site at the end of each webspace it joins, take it out of
 each it leaves, keep every other site's place, and persist the webspaces.
 Cancel SHALL change no membership. "All" is not listed: it holds every site.
-With the experiment off, the dialog SHALL list no webspaces and SHALL leave
+In Legacy design, the dialog SHALL list no webspaces and SHALL leave
 membership to the webspace editor.
 
 #### Scenario: Move a site between webspaces
@@ -324,7 +324,7 @@ adding a site and creating a webspace. The Add Site screen SHALL list every
 named webspace, marked when the site will join it, starting with the folder
 it was opened from marked, or none from the home screen or "All". The new site
 SHALL join exactly the webspaces marked when it is added, at the end of each,
-and not the selected webspace unless it is marked. With the experiment off,
+and not the selected webspace unless it is marked. In Legacy design,
 the screen SHALL list no webspaces and the new site SHALL join the selected
 webspace, as before.
 

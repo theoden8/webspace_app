@@ -266,6 +266,7 @@
     "backOpensMenu": true,
     "httpsUpgradeEnabled": false,
     "blockScreenshots": true,
+    "legacyDesign": true,
     "libraryLayout": "list",
     "libraryWebspaceLayout": "grid",
     "libraryIconSize": 120,

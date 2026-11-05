@@ -12,9 +12,6 @@ enum ExperimentalFeature {
   /// default: every release before it drew pages with hybrid composition.
   textureRendering(AppPref.experimentalTextureRendering),
 
-  /// The grouped site launcher, leaving the existing interface as default.
-  folderLibrary(AppPref.experimentalFolderLibrary),
-
   /// Web extensions per site, where WebKit runs them (WEBEXT-001). New, so
   /// off by default.
   webExtensions(AppPref.experimentalWebExtensions),

@@ -31,6 +31,7 @@ import 'package:webspace/services/startup_restore_engine.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/webview_proxy.dart' show ProxyManager;
+import 'package:webspace/settings/app_design.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/web_view_model.dart';
@@ -186,6 +187,7 @@ class StartupController implements DeferredStartupHost {
   Future<Reached<PrefsLoaded>> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     AppPref.loadAll(prefs);
+    await loadLegacyDesign(prefs);
     // Before any icon draws: one that finds no kept URL searches the site.
     await FaviconUrlCache.initialize();
     _shell.loadTheme(prefs);

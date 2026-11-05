@@ -5579,21 +5579,25 @@
   "@webspaceGlyphPrivacy": {
     "description": "Name read out for one of the symbols a webspace can show beside its name, picked in its edit screen; the symbol shows privacy, security, a padlock."
   },
-  "appSettingsExperimentalFolderLibrary": "Alternative design",
-  "appSettingsExperimentalFolderLibraryHint": "Organize sites into groups in a launcher grid.",
-  "@appSettingsExperimentalFolderLibrary": {
-    "description": "Developer Experimental switch for the optional alternative design. Off by default."
+  "appSettingsDesign": "Design",
+  "@appSettingsDesign": {
+    "description": "Section heading in App Settings, Appearance, over the Legacy design switch and the launcher's icon size: which interface the app's home screen uses."
   },
-  "@appSettingsExperimentalFolderLibraryHint": {
-    "description": "Explanation behind the Alternative design experiment hint button. Each webspace is a cluster of site icons that expands into a launcher grid."
+  "appSettingsLegacyDesign": "Legacy design",
+  "@appSettingsLegacyDesign": {
+    "description": "Title of a switch in App Settings, Appearance, under the Design heading. On: the app shows the interface of earlier versions (a list of webspaces, a side menu of sites, a top app bar) instead of the launcher, which shows webspaces as folders of site icons. Off for new installs; on for people upgrading from a version that showed the older interface."
+  },
+  "appSettingsLegacyDesignHint": "Shows the webspace list, the side menu of sites and the app bar of earlier versions in place of the launcher. Turned off, the launcher shows your webspaces as a list, and each webspace's sites in the Automatic layout.",
+  "@appSettingsLegacyDesignHint": {
+    "description": "Explanation behind the hint button of the Legacy design switch in Appearance. The launcher is the newer home screen, where each webspace opens as a folder of site icons; Automatic is the name of one of its layouts, shown in its layout switch, that picks rows or icons by how many sites fit."
   },
   "appSettingsLibraryIconSize": "Icon size",
   "@appSettingsLibraryIconSize": {
-    "description": "Title of a slider in App Settings, Appearance, under the Alternative design heading: how large the launcher draws every site and webspace icon, shown beside it as a percentage."
+    "description": "Title of a slider in App Settings, Appearance, under the Design heading, shown while Legacy design is off: how large the launcher draws every site and webspace icon, shown beside it as a percentage."
   },
   "appSettingsLibraryIconSizeHint": "How large every site and webspace icon is drawn. Larger icons fit fewer to a row; smaller ones fit more.",
   "@appSettingsLibraryIconSizeHint": {
-    "description": "Explanation behind the hint button of the Icon size slider in Appearance, which sizes all launcher icons in Alternative design at once."
+    "description": "Explanation behind the hint button of the Icon size slider in Appearance, which sizes all launcher icons at once."
   },
   "siteRedirectHomeSuggestion": "This site redirected to {url}. Use this as its homepage? Links to the new domain will also open here.",
   "@siteRedirectHomeSuggestion": {

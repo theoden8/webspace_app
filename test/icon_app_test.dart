@@ -61,8 +61,7 @@ Future<void> _pumpHome(WidgetTester tester, {required WebViewModel site}) =>
         Webspace(id: WebspaceId('work'), name: 'Work', siteIds: [site.siteId]),
       ],
       prefs: {
-        AppPref.developerMode.key: true,
-        AppPref.experimentalFolderLibrary.key: true,
+        AppPref.legacyDesign.key: false,
       },
     );
 

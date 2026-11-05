@@ -49,7 +49,6 @@ import 'package:webspace/screens/block_stats.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_library.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
@@ -150,8 +149,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   final _launchZoom = GlobalKey<LaunchZoomState>();
   final _siteArea = GlobalKey();
   final _urlBar = GlobalKey<UrlBarState>();
-  bool get _folderLibraryEnabled => ExperimentalFeaturesService.instance
-      .isEnabled(ExperimentalFeature.folderLibrary);
+  bool get _libraryDesign => !AppPref.legacyDesign.value;
   final SiteRuntime _sites = SiteRuntime();
   late final ShortcutController _shortcuts = ShortcutController(_sites,
       host: _PageHost(this), prompts: DialogShortcutPrompts(context));
@@ -874,11 +872,11 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
   }
 
-  /// [to] puts [site] on screen; in Alternative design it runs behind the
+  /// [to] puts [site] on screen; in the library it runs behind the
   /// site's card, grown from the site's icon where the library shows it and
   /// faded in where sites show elsewhere, so every switch looks the same.
   Future<void> _throughCard(WebViewModel site, {required CardSwitch to}) async {
-    final zoom = _folderLibraryEnabled ? _launchZoom.currentState : null;
+    final zoom = _libraryDesign ? _launchZoom.currentState : null;
     if (zoom == null || to.shown()) return to.show();
     final icon = _libraryKey.currentState?.siteWell(site.siteId);
     await zoom.open(site, from: _sites.shown == null ? icon : null, to: to);
@@ -1065,7 +1063,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     final loc = AppLocalizations.of(context);
     final currentModel = _sites.shown;
     return CardHandle(
-      onHold: currentModel == null || _kioskLocked || !_folderLibraryEnabled
+      onHold: currentModel == null || _kioskLocked || !_libraryDesign
           ? null
           : (at) => _launchZoom.currentState?.hold(currentModel,
               at: at, to: _library(currentModel), back: _siteOnScreen(currentModel)),
@@ -1077,8 +1075,8 @@ class _WebSpacePageState extends State<WebSpacePage>
               progress: currentModel.loadingProgress,
             ),
       // KIOSK-002: no leading menu button when locked.
-      automaticallyImplyLeading: !_kioskLocked && !_folderLibraryEnabled,
-      leading: !_kioskLocked && _folderLibraryEnabled
+      automaticallyImplyLeading: !_kioskLocked && !_libraryDesign,
+      leading: !_kioskLocked && _libraryDesign
           ? IconButton(
               icon: const Icon(Icons.apps_rounded),
               tooltip: loc.homeBackToWebspaces,
@@ -1265,7 +1263,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       case SiteMenuAction.newTab:
         if (model != null) await _tabs.newTab(model);
       case SiteMenuAction.backToWebspaces:
-        final zoom = _folderLibraryEnabled ? _launchZoom.currentState : null;
+        final zoom = _libraryDesign ? _launchZoom.currentState : null;
         if (model != null && zoom != null) {
           await zoom.close(model, to: _library(model));
         } else {
@@ -1306,8 +1304,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     int listIndexOf() =>
         _sites.filteredIndices().indexOf(_sites.models.indexOf(site));
     final listIndex = listIndexOf();
-    // Alternative design's icons move by dragging, as a launcher's do.
-    final menuMoves = _webspaces.canReorderView && !_folderLibraryEnabled;
+    // The library's icons move by dragging, as a launcher's do.
+    final menuMoves = _webspaces.canReorderView && !_libraryDesign;
     final action = await showSiteListMenu(
       context,
       position: position,
@@ -1438,7 +1436,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       // padding is ~0 and the webview still fills the screen. github #385
       // A tab strip along the top keeps the status bar, and this inset puts
       // the strip under it (FS-012).
-      top: _fullscreen.active || (_folderLibraryEnabled && _sites.shown == null),
+      top: _fullscreen.active || (_libraryDesign && _sites.shown == null),
       bottom: !hasBottomStrip && inputBar == null,
       // Out of fullscreen, inset around a landscape display cutout so chrome
       // and content avoid the notch. In fullscreen let the webview fill the
@@ -1464,7 +1462,7 @@ class _WebSpacePageState extends State<WebSpacePage>
               children: [
                 PageLayer(
                   shown: _sites.shown == null,
-                  child: _folderLibraryEnabled ? WebspaceLibrary(
+                  child: _libraryDesign ? WebspaceLibrary(
                     key: _libraryKey,
                     webspaces: _sites.webspaces,
                     selectedWebspaceId: _sites.selectedWebspaceId,
@@ -1580,7 +1578,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       fit: StackFit.expand,
       children: [
         _buildMainTree(context, webviewIsVisible: webviewIsVisible),
-        if (_folderLibraryEnabled)
+        if (_libraryDesign)
           LaunchZoom(key: _launchZoom, sites: _sites.models, area: _siteArea),
         // Snapshot-time mask: an opaque surface overlays everything so the
         // task-switcher / recents preview never captures archive content
@@ -1629,11 +1627,11 @@ class _WebSpacePageState extends State<WebSpacePage>
       // Disable the drawer edge-swipe whenever a webview is active so the back
       // gesture never opens the drawer. The drawer is reached via the AppBar
       // menu button instead.
-      drawerEdgeDragWidth: _folderLibraryEnabled || webviewIsVisible ? 0 : null,
-      appBar: _fullscreen.active || (_folderLibraryEnabled && !webviewIsVisible)
+      drawerEdgeDragWidth: _libraryDesign || webviewIsVisible ? 0 : null,
+      appBar: _fullscreen.active || (_libraryDesign && !webviewIsVisible)
           ? null : _buildAppBar(),
       // KIOSK-002: a locked shell exposes neither navigation surface.
-      drawer: _kioskLocked || _folderLibraryEnabled ? null : SiteDrawer(
+      drawer: _kioskLocked || _libraryDesign ? null : SiteDrawer(
         accentColor: _shell.theme.accentColor,
         webspace: _selectedWebspace,
         models: _sites.models,
@@ -1649,7 +1647,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         onAddSite: () => unawaited(_editing.addSite()),
       ),
       body: _buildBodyWithBottomBar(),
-      floatingActionButton: _folderLibraryEnabled || webviewIsVisible ? null
+      floatingActionButton: _libraryDesign || webviewIsVisible ? null
           : FloatingActionButton(
               onPressed: () => unawaited(_editing.addSite()),
               child: Icon(Icons.add),
@@ -1811,7 +1809,7 @@ class _PageHost
 
   @override
   void openDrawer() {
-    if (_s._folderLibraryEnabled && _s._sites.shown == null) {
+    if (_s._libraryDesign && _s._sites.shown == null) {
       _s._libraryKey.currentState?.openFolder();
     } else {
       unawaited(openNavigationMenu());
@@ -1820,7 +1818,7 @@ class _PageHost
 
   @override
   Future<void> openNavigationMenu() async {
-    if (_s._folderLibraryEnabled) {
+    if (_s._libraryDesign) {
       await _s._onSiteMenuAction(SiteMenuAction.backToWebspaces);
     } else {
       _s._scaffoldKey.currentState?.openDrawer();

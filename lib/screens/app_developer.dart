@@ -33,9 +33,6 @@ List<(ExperimentalFeature, IconData, Localized title, Localized hint)>
     _experiments(
         AppLocalizations loc) =>
     [
-      (ExperimentalFeature.folderLibrary, Icons.apps_rounded,
-          loc.appSettingsExperimentalFolderLibrary,
-          loc.appSettingsExperimentalFolderLibraryHint),
       if (hostIsAndroid)
         (ExperimentalFeature.textureRendering, Icons.layers_outlined,
             loc.appSettingsExperimentalTextureRendering,
@@ -112,6 +109,7 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
+    final experiments = _experiments(loc);
     return Scaffold(
       appBar: AppBar(title: Text(loc.appSettingsDeveloper)),
       body: ListView(
@@ -143,13 +141,12 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
                 onTap: () => guardedOpen(
                     () => openAppLogs(context, startOnBackground: true))),
           ),
-          // Alternative design runs on every platform, so the group always has a
-          // row.
-          SettingsSection(
-            loc.appSettingsExperimental,
-            hint: loc.appSettingsExperimentalHint,
-          ),
-          for (final (feature, icon, title, hint) in _experiments(loc))
+          if (experiments.isNotEmpty)
+            SettingsSection(
+              loc.appSettingsExperimental,
+              hint: loc.appSettingsExperimentalHint,
+            ),
+          for (final (feature, icon, title, hint) in experiments)
             SettingTile(
               leading: Icon(icon),
               title: title,
