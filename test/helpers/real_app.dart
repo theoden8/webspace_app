@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/app.dart';
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/screens/webspace_page.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
@@ -178,26 +179,73 @@ Future<void> openTabsSheet(WidgetTester tester) async {
 }
 
 /// A tap on a link to [url] in the page on screen, as the platform reports
-/// it: a main-frame navigation with a user gesture. Android reads the gesture
-/// from `hasGesture`, Apple hosts from the navigation type, so both are set
-/// or the tap reads as script-driven on a macOS runner.
+/// it: a main-frame navigation with a user gesture.
 Future<void> tapLink(WidgetTester tester, {required String url}) async {
+  await pageNavigates(tester, url: url, hop: PageHop.tap);
+}
+
+/// How the page on screen asks to go somewhere.
+enum PageHop {
+  /// The user taps a link.
+  tap,
+
+  /// A script sends the page on, with no tap: on Linux, by activating a link,
+  /// since the plugin takes no other navigation as the page's own
+  /// (NESTED-013).
+  script,
+
+  /// The page submits a form by POST.
+  formPost,
+
+  /// An embedded frame loads a page of its own.
+  frame,
+}
+
+/// The page on screen asking to go to [url] by [hop], as the platform
+/// reports it, and what the webview was told. Android and Linux read the
+/// gesture from `hasGesture`, Apple hosts from the navigation type, so both
+/// are set or a tap reads as script-driven on a macOS runner.
+Future<inapp.NavigationActionPolicy?> pageNavigates(
+  WidgetTester tester, {
+  required String url,
+  required PageHop hop,
+}) async {
   final views = find.byType(inapp.InAppWebView).evaluate().toList();
-  expect(views, hasLength(1), reason: 'one page on screen to tap in');
+  expect(views, hasLength(1), reason: 'one page on screen to navigate in');
   final view = views.single.widget as inapp.InAppWebView;
   final controller = await _controllerOf(tester, view: view);
-  await tester.runAsync(() async {
-    await view.platform.params.shouldOverrideUrlLoading!(
-      controller,
-      inapp.NavigationAction(
+  final action = switch (hop) {
+    PageHop.tap => inapp.NavigationAction(
         request: inapp.URLRequest(url: inapp.WebUri(url)),
         isForMainFrame: true,
         hasGesture: true,
         navigationType: inapp.NavigationType.LINK_ACTIVATED,
       ),
-    );
-  });
+    PageHop.script => inapp.NavigationAction(
+        request: inapp.URLRequest(url: inapp.WebUri(url)),
+        isForMainFrame: true,
+        hasGesture: false,
+        navigationType: hostIsLinux
+            ? inapp.NavigationType.LINK_ACTIVATED
+            : inapp.NavigationType.OTHER,
+      ),
+    PageHop.formPost => inapp.NavigationAction(
+        request: inapp.URLRequest(url: inapp.WebUri(url), method: 'POST'),
+        isForMainFrame: true,
+        hasGesture: true,
+        navigationType: inapp.NavigationType.FORM_SUBMITTED,
+      ),
+    PageHop.frame => inapp.NavigationAction(
+        request: inapp.URLRequest(url: inapp.WebUri(url)),
+        isForMainFrame: false,
+        hasGesture: false,
+        navigationType: inapp.NavigationType.OTHER,
+      ),
+  };
+  final policy = await tester.runAsync(() async =>
+      view.platform.params.shouldOverrideUrlLoading!(controller, action));
   await settleRealApp(tester);
+  return policy;
 }
 
 /// The page on screen moving to [url] without a load, as the platform reports

@@ -472,29 +472,116 @@ void main() {
   });
 
   group('stepFor: what every way of opening a URL does next', () {
+    NavigationStep step(NavigationDecision d,
+            {bool back = false, OpenerLanding landing = OpenerLanding.none}) =>
+        NavigationDecisionEngine.stepFor(d,
+            returnsToOwner: back, landing: landing);
+
+    const leaving = [
+      NavigationDecision.blockOpenNested,
+      NavigationDecision.blockOpenExternal,
+      NavigationDecision.blockOutbound,
+    ];
+
     test('a decision to stay loads here, and a dropped one does nothing', () {
       for (final back in [false, true]) {
-        expect(NavigationDecisionEngine.stepFor(NavigationDecision.allow,
-            returnsToOwner: back), NavigationStep.loadHere);
-        expect(NavigationDecisionEngine.stepFor(NavigationDecision.blockSilent,
-            returnsToOwner: back), NavigationStep.drop);
-        expect(NavigationDecisionEngine.stepFor(
-            NavigationDecision.blockSuppressed,
-            returnsToOwner: back), NavigationStep.drop);
+        expect(step(NavigationDecision.allow, back: back),
+            NavigationStep.loadHere);
+        expect(step(NavigationDecision.blockSilent, back: back),
+            NavigationStep.drop);
+        expect(step(NavigationDecision.blockSuppressed, back: back),
+            NavigationStep.drop);
       }
     });
 
     test('anything leaving goes back to the owner first, then to routing', () {
-      for (final d in [
-        NavigationDecision.blockOpenNested,
-        NavigationDecision.blockOpenExternal,
-        NavigationDecision.blockOutbound,
-      ]) {
-        expect(NavigationDecisionEngine.stepFor(d, returnsToOwner: true),
-            NavigationStep.returnToOwner, reason: '$d');
-        expect(NavigationDecisionEngine.stepFor(d, returnsToOwner: false),
-            NavigationStep.route, reason: '$d');
+      for (final d in leaving) {
+        expect(step(d, back: true), NavigationStep.returnToOwner,
+            reason: '$d');
+        expect(step(d), NavigationStep.route, reason: '$d');
       }
+    });
+
+    test('NESTED-017: a nested screen\'s hop home closes it, tapped or not, '
+        'and one it would load in place too', () {
+      for (final d in [
+        NavigationDecision.allow,
+        NavigationDecision.blockSilent,
+        ...leaving,
+      ]) {
+        expect(step(d, landing: OpenerLanding.nested),
+            NavigationStep.returnToOwner,
+            reason: '$d');
+      }
+    });
+
+    test('NESTED-016: a sign-in tab\'s hop its boundary keeps loads in place',
+        () {
+      expect(step(NavigationDecision.allow, landing: OpenerLanding.signIn),
+          NavigationStep.loadHere);
+      for (final d in [NavigationDecision.blockSilent, ...leaving]) {
+        expect(step(d, landing: OpenerLanding.signIn),
+            NavigationStep.returnToOwner,
+            reason: '$d');
+      }
+    });
+
+    test('NESTED-016, NESTED-017: a hop home that cannot be handed over loads '
+        'where it is, tapped or not', () {
+      for (final d in [
+        NavigationDecision.allow,
+        NavigationDecision.blockSilent,
+        ...leaving,
+      ]) {
+        expect(step(d, landing: OpenerLanding.stays), NavigationStep.loadHere,
+            reason: '$d');
+      }
+    });
+
+    test('a site in the background returns nothing and loads nothing', () {
+      for (final landing in OpenerLanding.values) {
+        for (final back in [false, true]) {
+          expect(
+              step(NavigationDecision.blockSuppressed,
+                  back: back, landing: landing),
+              NavigationStep.drop,
+              reason: '$landing');
+        }
+      }
+    });
+  });
+
+  group('NESTED-017: where a nested screen\'s navigation lands', () {
+    OpenerLanding landing({
+      bool intoOpener = true,
+      NavigationFrame frame = NavigationFrame.top,
+      bool replayable = true,
+      bool onTop = true,
+    }) =>
+        NavigationDecisionEngine.nestedLanding(
+          intoOpener: intoOpener,
+          frame: frame,
+          replayable: replayable,
+          onTop: onTop,
+        );
+
+    test('the page reaching the tab\'s domain goes back to the tab', () {
+      expect(landing(), OpenerLanding.nested);
+    });
+
+    test('anywhere else, the decision stands', () {
+      expect(landing(intoOpener: false), OpenerLanding.none);
+    });
+
+    test('a frame\'s own load, or one only guessed to be the page\'s, is not '
+        'the screen leaving (NESTED-013)', () {
+      expect(landing(frame: NavigationFrame.sub), OpenerLanding.none);
+      expect(landing(frame: NavigationFrame.unverified), OpenerLanding.none);
+    });
+
+    test('a form\'s submission, or a screen under another route, stays', () {
+      expect(landing(replayable: false), OpenerLanding.stays);
+      expect(landing(onTop: false), OpenerLanding.stays);
     });
   });
 

@@ -23,6 +23,7 @@ import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/services/tor_service.dart';
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/services/outbound_http_types.dart';
@@ -71,6 +72,24 @@ class NestedScreenWebView {
   Future<void> quiet() async => _current()?.quiet();
 }
 
+/// The tab a nested screen was opened over, running as the site the screen
+/// runs as, which a navigation into its domain closes the screen into
+/// (NESTED-017).
+class NestedOpener {
+  NestedOpener({required String homeUrl, required this.takeBack})
+      : _domain = getNormalizedDomain(homeUrl);
+
+  final String _domain;
+
+  /// Takes [url] for the tab to load once the screen is gone: false when the
+  /// tab can no longer load it, and the screen loads it itself.
+  final bool Function(String url) takeBack;
+
+  /// Whether [url] is a web page in the tab's domain.
+  bool owns(String url) =>
+      Host.ofWebUrl(url) != null && getNormalizedDomain(url) == _domain;
+}
+
 class InAppWebViewScreen extends StatefulWidget {
   final String url;
   final String? homeTitle;
@@ -90,6 +109,12 @@ class InAppWebViewScreen extends StatefulWidget {
   /// opened from has tabs: true when the app takes it as a tab of that site,
   /// and this screen closes (LIR-032). Null for a screen a share opened.
   final bool Function(String url, {required bool hadGesture})? onOpenAsTab;
+
+  /// The tab this screen was opened over (NESTED-017). Null for a screen a
+  /// share opened, and for one that runs as another site than that tab (a
+  /// routed screen, LIR-015), whose links into the tab's domain go as LIR-032
+  /// sends them.
+  final NestedOpener? opener;
 
   /// What the site on screen was running as when this screen opened, for
   /// the site info sheet. Null for a screen a share opened.
@@ -111,6 +136,7 @@ class InAppWebViewScreen extends StatefulWidget {
     this.homeTitle,
     this.showUrlBar = false,
     this.onOpenAsTab,
+    this.opener,
     this.openedFrom,
     this.onShowUrlBarChanged,
   }) : posture = posture.forNested();
@@ -185,9 +211,15 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// 10s propagation window, mirroring the parent webview's closure state.
   DateTime? _lastSameDomainGestureTime;
 
-  /// A link was handed to [InAppWebViewScreen.onOpenAsTab] and this screen is
-  /// closing: nothing else loads or is handed over.
-  bool _handedOffToTab = false;
+  /// A link was handed to [InAppWebViewScreen.onOpenAsTab] or back to
+  /// [InAppWebViewScreen.opener] and this screen is closing: nothing else
+  /// loads or is handed over.
+  bool _handedOff = false;
+
+  void _closeHandedOff() {
+    _handedOff = true;
+    Navigator.of(context).pop();
+  }
 
   /// This screen's own surface: the main page's repaint cannot reach it,
   /// since that toggles an inset around an IndexedStack under this route
@@ -331,10 +363,13 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         },
         // Same decision engine as the parent webview, judged against the
         // page shown here (NESTED-009 for the external-link mode, NESTED-004
-        // for gesture-less hops). A nested screen has nowhere further to
-        // nest, so `blockOpenNested` navigates in place, unless the link is
-        // one of the user's sites and goes back as a tab (LIR-032).
-        shouldOverrideUrlLoading: (url, {required hasGesture, required frame}) {
+        // for gesture-less hops). A hop into the tab this screen was opened
+        // over closes it into that tab first (NESTED-017). A nested screen
+        // has nowhere further to nest, so `blockOpenNested` navigates in
+        // place, unless the link is one of the user's sites and goes back as
+        // a tab (LIR-032).
+        shouldOverrideUrlLoading: (url,
+            {required hasGesture, required frame, required replayable}) {
           final result = NavigationDecisionEngine
               .decideShouldOverrideUrlLoading(
             targetUrl: url,
@@ -349,7 +384,27 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           );
           _lastSameDomainGestureTime = result.gestureUpdate
               .applyTo(_lastSameDomainGestureTime, now: DateTime.now());
-          if (_handedOffToTab) return false;
+          if (_handedOff) return false;
+          final opener = widget.opener;
+          final landing = NavigationDecisionEngine.nestedLanding(
+            intoOpener: opener?.owns(url) ?? false,
+            frame: frame,
+            replayable: replayable,
+            onTop: mounted && (ModalRoute.of(context)?.isCurrent ?? false),
+          );
+          switch (NavigationDecisionEngine.stepFor(result.decision,
+              returnsToOwner: false, landing: landing)) {
+            case NavigationStep.loadHere:
+              return true;
+            case NavigationStep.drop:
+              return false;
+            case NavigationStep.returnToOwner:
+              if (opener == null || !opener.takeBack(url)) return true;
+              _closeHandedOff();
+              return false;
+            case NavigationStep.route:
+              break;
+          }
           switch (result.decision) {
             case NavigationDecision.allow:
               return true;
@@ -358,8 +413,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   (widget.onOpenAsTab
                           ?.call(url, hadGesture: result.hadGesture) ??
                       false)) {
-                _handedOffToTab = true;
-                Navigator.of(context).pop();
+                _closeHandedOff();
                 return false;
               }
               return true;

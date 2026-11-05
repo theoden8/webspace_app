@@ -682,6 +682,24 @@ class _WebSpacePageState extends State<WebSpacePage>
                       url: Uri.parse(link));
                   return true;
                 },
+          // NESTED-017: a screen running as the site its tab runs as closes
+          // into that tab on a hop into its domain; the tab loads it once the
+          // screen is gone.
+          opener: owner == null ||
+                  parentTabId == null ||
+                  !identical(owner.runningIdentity, nestedSite)
+              ? null
+              : NestedOpener(
+                  homeUrl: owner.navigationHomeUrl,
+                  takeBack: (link) {
+                    if (!_links.takesBack(owner, tabId: parentTabId)) {
+                      return false;
+                    }
+                    handOff = () => _links.returnFromNested(owner,
+                        tabId: parentTabId, url: link);
+                    return true;
+                  },
+                ),
           homeTitle: homeTitle,
           posture: posture,
           origins: OriginMemory.of(nestedSite, save: _webViewHooks.save),

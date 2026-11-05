@@ -509,8 +509,9 @@ user-initiated inbound bind picker (link-intent-routing LIR-010).
 #### Scenario: Nested webview honors the setting
 
 **Given** a claimed cross-domain link opened a nested webview while the site is in the `browser` or `block` mode
-**When** the user taps a link in that nested webview pointing to a different domain than the page shown
+**When** the user taps a link in that nested webview pointing to a different domain than the page shown, and not the domain of the tab it was opened over
 **Then** that link opens in the system browser, or is blocked, as the mode says (NESTED-009 applies in nested screens too)
+**And** a link into the tab's own domain closes the screen into that tab instead (NESTED-017)
 
 ---
 
@@ -537,7 +538,10 @@ tab loads the URL, as a browser's sign-in window closes into the page that
 opened it. It needs no tap, since the provider sends it there by itself, but
 a site in the background returns nothing. A landing no callback could ask
 about (one the engine reports only once it loaded) stays in the sign-in tab:
-replaying it would spend the provider's one-time code again. With the tab it
+replaying it would spend the provider's one-time code again. A landing that
+loading its URL again would not repeat (a form's submission, a method other
+than GET, as Apple's `form_post` sign-in returns) loads in the sign-in tab,
+which runs as the site; the page the site sends it on to returns. With the tab it
 was opened from closed, the landing opens as a child tab (S6).
 
 A site without tabs, or with its sign-in popups off, opens the sign-in in a
@@ -564,6 +568,63 @@ nested screen as before.
 **When** its page sends itself to a provider's authorization request
 **Then** the sign-in opens in a nested screen
 
+### Requirement: NESTED-017 - A Nested Screen Heading Back Into Its Site Closes Into Its Tab
+
+A top-level navigation of a nested screen that reaches the domain of the tab
+the screen was opened over (that tab's navigation home, normalized as
+NESTED-007 normalizes it) SHALL close the screen into that tab: the screen
+closes, the tab is shown again if another took the slot, and the tab loads
+the URL, as a browser's window closes into the page that opened it. It goes
+ahead of the site's external link mode (NESTED-009), so the site's own domain
+is never handed to the system browser or blocked from a nested screen, and of
+routing to a tab of another of the user's sites (LIR-032). It holds with the
+site's tabs on or off.
+
+It needs no tap, since the page that sends it home (a payment provider, a
+sign-in without a popup, a "continue to the site" redirect) does so by itself
+(NESTED-004 does not drop it). It needs the screen to be the route on top;
+under another route the navigation loads in the screen. A navigation that
+loading its URL again would not repeat (a form's submission, a method other
+than GET: a 3-D Secure return) SHALL load in the screen, which runs as the
+site, since its body would be lost; the page the site sends it on to closes
+the screen. A frame's own load is not the screen leaving, nor is a main-frame
+load the platform only guessed (NESTED-013), so on Linux a hop home without a
+link click loads in the screen. A landing the engine reports only once it
+loaded stays in the screen, as for a sign-in tab (NESTED-016).
+
+It applies to a screen that runs as the site the tab runs as. A screen a share
+opened came from no tab (LIR-011), and a screen routed to another site
+(LIR-015) runs as that site, so their links into the tab's domain go as
+LIR-032 sends them. When the tab has closed or has no webview, the screen
+loads the URL itself.
+
+#### Scenario: A checkout sends the user back
+
+**Given** a shop site whose tab opened a nested screen at `https://pay.example/checkout`
+**When** the payment page's script sends it to `https://shop.test/paid?order=7`, with no tap
+**Then** the nested screen closes
+**And** the shop's tab loads `https://shop.test/paid?order=7`, and no new tab opens
+
+#### Scenario: A tap home from a nested screen in the browser mode
+
+**Given** a site in the `browser` mode whose claimed domain is open in a nested screen
+**When** the user taps a link there to the site's own domain
+**Then** the nested screen closes and the site's tab loads the link
+**And** the system browser does not open
+
+#### Scenario: A form posted home keeps its body
+
+**Given** a nested screen over a shop's tab, on a bank's 3-D Secure page
+**When** the page posts its form to `https://shop.test/3ds/return`
+**Then** the post loads in the nested screen
+**And** when the shop answers with a redirect to its order page, the screen closes into the tab, which loads it
+
+#### Scenario: A frame of the site's domain
+
+**Given** a nested screen over a site's tab
+**When** an iframe on its page loads a page of the site's domain
+**Then** the screen stays open
+
 ## Implementation
 
 ### Decision Flow in shouldOverrideUrlLoading
@@ -576,6 +637,10 @@ URL received
   ├─ DNS blocklist hit? ────────────── CANCEL
   ├─ Content blocker hit? ──────────── CANCEL
   ├─ ClearURLs rewrite? ───────────── CANCEL (reload cleaned)
+  │
+  ├─ Nested screen, top frame, into its tab's domain (NESTED-017):
+  │   ├─ a form, or the screen covered ── ALLOW (loads in the screen)
+  │   └─ otherwise ─────────────────── CANCEL, screen closes, tab loads it
   │
   ├─ Same domain? ──────────────────── ALLOW
   │
@@ -592,25 +657,12 @@ URL received
 
 ### Gesture Detection
 
-`flutter_inappwebview`'s `NavigationAction` provides platform-specific gesture info. The `_hasUserGesture()` helper normalizes this:
+`flutter_inappwebview`'s `NavigationAction` provides platform-specific gesture info. `NavigationActionReading.byUserGesture` ([navigation_action_reading.dart](../../../lib/services/navigation_action_reading.dart)) normalizes this, and `replayable` says whether loading the URL again repeats the request (NESTED-017):
 
 - **Android / Linux**: `hasGesture` (bool) — `true` when WebKit/WebView's user-gesture indicator was active at the time the navigation was decided. Linux maps to `webkit_navigation_action_is_user_gesture()`. The indicator captures user clicks even when JavaScript intercepts them and calls `location.href` synchronously, which is essential because major search engines (DuckDuckGo, Google) intercept every result-link click for analytics, leaving WebKit's `navigationType` as `OTHER`. Using `navigationType` on Linux therefore over-blocks every cross-domain click from a JS-driven site.
 - **iOS / macOS**: `navigationType` — `LINK_ACTIVATED` or `FORM_SUBMITTED` for user-initiated navigations, `OTHER` for script-initiated. WKWebView reports `OTHER` for JS-intercepted clicks too, so on iOS/macOS those read as script-initiated.
 - **Main frame on Linux**: the plugin cannot tell an iframe's own load from the page's (`webkit_navigation_action_get_frame_name()` is the *target* frame name, NULL for any load an iframe makes of itself), so only a link click is taken as the page navigating (NESTED-013). Any other cross-domain navigation loads in place, unrouted and unrewritten, and the `onUrlChanged` check judges it if it was the page. A link clicked inside an iframe is still taken as top-level. WebKit's `webkit_navigation_action_is_for_main_frame()` retires the inference.
 - **Fallback**: defaults to `true` (allow) on unknown platforms
-
-```dart
-static bool _hasUserGesture(NavigationAction action) {
-  if (Platform.isAndroid || Platform.isLinux) {
-    return action.hasGesture ?? true;
-  }
-  if (Platform.isIOS || Platform.isMacOS) {
-    return action.navigationType == NavigationType.LINK_ACTIVATED ||
-           action.navigationType == NavigationType.FORM_SUBMITTED;
-  }
-  return true;
-}
-```
 
 ### Files
 

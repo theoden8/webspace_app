@@ -76,9 +76,13 @@ void main() {
         branch.replaceAll(RegExp(r'\s'), ''),
         contains(
             'widget.onOpenAsTab?.call(url,hadGesture:result.hadGesture)'));
-    expect(branch, contains('_handedOffToTab = true;'));
-    expect(branch, contains('Navigator.of(context).pop();'));
-    expect(nested, contains('if (_handedOffToTab) return false;'));
+    expect(branch, contains('_closeHandedOff();'));
+    expect(
+        nested.replaceAll(RegExp(r'\s'), ''),
+        contains('void_closeHandedOff(){_handedOff=true;'
+            'Navigator.of(context).pop();}'),
+        reason: 'one way to close: marked, then popped');
+    expect(nested, contains('if (_handedOff) return false;'));
   });
 
   test('the tab opens after the screen is gone, before its opener\'s close',

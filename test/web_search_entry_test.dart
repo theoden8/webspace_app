@@ -259,10 +259,11 @@ void main() {
           start, model.indexOf('  WebViewController? getController('));
       expect(
           body,
-          contains('if (NavigationDecisionEngine.stepFor(decision,\n'
-              '              returnsToOwner: !signInTab && returnsToOwner(url),\n'
-              '              signInReturn: signInReturn) ==\n'
-              '          NavigationStep.returnToOwner) {'),
+          contains('switch (NavigationDecisionEngine.stepFor(decision,\n'
+              '          returnsToOwner: !signInTab && returnsToOwner(url),\n'
+              '          landing: landing)) {\n'
+              '        case NavigationStep.returnToOwner:\n'
+              '          onReturnToOwner?.call(url);'),
           reason: 'every way out, on the tap and the redirect path, asks first; '
               'a sign-in tab returns by its own rule (NESTED-016)');
       expect(
