@@ -269,27 +269,26 @@ LocalCDN resource interception SHALL work on Android via `shouldInterceptRequest
 | `fetch('cdn...')` | Not intercepted | Not intercepted |
 | `XMLHttpRequest` to CDN | Not intercepted | Not intercepted |
 
-### Requirement: LCDN-014 - Per-Site Replacement Counter
+### Requirement: LCDN-014 - Replacements in the Protection Report
 
-The service SHALL track the number of CDN requests replaced from the local cache per site as runtime-only state, so the count is available for future UIs (developer tools, diagnostics) without being surfaced in the stats banner.
+Each CDN request served from the local cache SHALL be counted for its site in
+the protection report's `localCdn` category (STATS-001), named by the host of
+the CDN the page asked for (STATS-008). The site's stats banner, which shows
+the DNS blocklist's blocked and allowed counts, SHALL NOT include it: most
+sites self-host their assets, so it would read 0.
 
 #### Scenario: CDN resource served from cache
 
 - **Given** a site with `localCdnEnabled` is loaded on Android
 - **When** the native `FastSubresourceInterceptor` serves a cached CDN resource for a sub-resource request
-- **Then** the native side emits a `cdnEventsReady` signal and Dart's `WebInterceptNative` drains the events into `LocalCdnService.recordReplacement(siteId)`
-
-#### Scenario: Counter resets on app restart
-
-- **Given** the app is terminated and relaunched
-- **When** per-site replacement counts are queried
-- **Then** all counts start from zero (runtime-only state)
+- **Then** the native side emits a `cdnEventsReady` signal and Dart's `WebInterceptNative` drains the events into `LocalCdnService.recordReplacement(siteId, url:)`
+- **And** the report counts it for the site under the CDN's host
 
 #### Scenario: Stats banner does not display the CDN count
 
 - **Given** LocalCDN replacements have occurred on a site
 - **When** the stats banner is rendered
-- **Then** only DNS blocked / allowed counts are shown — CDN replacements are intentionally not surfaced in the banner because in practice most modern sites self-host assets and the counter would consistently show `0`
+- **Then** only DNS blocked / allowed counts are shown
 
 ## Implementation Details
 

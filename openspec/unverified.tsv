@@ -117,16 +117,12 @@ LIR-021	no check: 'Keep as tab' on a nested screen is not built (inactive-tabs t
 LIR-025	no check: 'Move to site...' and TabLifecycleEngine.moveSubtree are not built (inactive-tabs tasks 7.1, 8.1 open)
 LIR-027	no check: 'Run as...' and TabLifecycleEngine.changeHost are not built (inactive-tabs tasks 7.3, 8.1 open)
 # localcdn
-LCDN-003	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
-LCDN-004	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
-LCDN-005	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
-LCDN-006	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
-LCDN-008	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
-LCDN-009	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
-LCDN-010	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
-LCDN-012	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
-LCDN-013	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
-LCDN-014	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
+LCDN-003	not implemented for a miss: a resource the cache lacks goes to the CDN the page named (WebInterceptPlugin.localCdnResponse returns null, as LocalCdnPerSiteTest.uncachedUrl_goesToTheNetwork pins), so only cached ones keep the original CDN uncontacted; the popular set's cdnjs-only fetch is LCDN-004's check
+LCDN-005	not implemented: nothing fetches a resource on demand; LocalCdnService._downloadAndCache runs only for the popular set, and a miss passes to the original CDN
+LCDN-006	no check: the MIME type is chosen natively (WebInterceptPlugin.contentTypeFor) and no JVM test reads it
+LCDN-008	no check: no widget test renders the per-site LocalCDN row with its cached-resource count or its Tracking Protection lock; site_privacy_screen_test reads the forced value off the model only
+LCDN-009	no check: no widget test drives the App Settings LocalCDN dataset row (download with progress, count, size, date, clear)
+LCDN-013	no check: LocalCdnPerSiteTest serves a cached URL from the interceptor, but nothing checks that fetch/XHR pass through or that Apple platforms load every CDN request unchanged
 # localization
 L10N-005	process: describes how the migration proceeds (file by file, exempt only shrinking); exempt is now empty and nothing can run 'only grows' (partly: test/js/l10n_no_hardcoded_text.test.js, "UI files contain no hardcoded user-facing text")
 L10N-006	no check: no test asserts WebSpaceApp's MaterialApp sets localizationsDelegates, supportedLocales and onGenerateTitle; app tests that find localized text would fail only incidentally (partly: test/site_menu_app_test.dart, "Developer Tools from the ${tabStrip ? 'bottom bar' : 'app bar'} menu can simulate a background refresh")

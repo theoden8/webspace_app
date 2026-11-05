@@ -36,6 +36,13 @@ Map<String, dynamic> _legacyJson([Map<String, dynamic> extra = const {}]) =>
 
 void main() {
   group('WebViewModel', () {
+    test('LCDN-010: a site saved before LocalCDN existed reads it as on', () {
+      final json = _bareJson();
+      expect(json.containsKey('localCdnEnabled'), isFalse);
+      expect(WebViewModel.fromJson(json, stateSetterF: null).localCdnEnabled,
+          isTrue);
+    });
+
     // ETP-001, NOTIF-004
     test('should initialize with default values', () {
       final model = WebViewModel(
