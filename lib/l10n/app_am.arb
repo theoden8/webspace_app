@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "ማገድ",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS፣ እንዲሁም ABP",
   "devToolsTabLogs": "ምዝግቦች",
   "devToolsScriptsTooltip": "ስክሪፕቶች",
   "devToolsExportTooltip": "ላክ",

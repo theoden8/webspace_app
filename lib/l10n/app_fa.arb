@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "مسدودسازی",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS، و همچنین ABP",
   "devToolsTabLogs": "گزارش‌ها",
   "devToolsScriptsTooltip": "اسکریپت‌ها",
   "devToolsExportTooltip": "خروجی",

@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "الحظر",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS، وABP أيضًا",
   "devToolsTabLogs": "السجلات",
   "devToolsScriptsTooltip": "البرامج",
   "devToolsExportTooltip": "تصدير",

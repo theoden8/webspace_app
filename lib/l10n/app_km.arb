@@ -595,6 +595,7 @@
   "devToolsTabBlocking": "ការទប់ស្កាត់",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, ABP ផងដែរ",
   "devToolsTabLogs": "Logs",
   "devToolsScriptsTooltip": "Scripts",
   "devToolsExportTooltip": "Export",

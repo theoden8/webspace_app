@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "Blocco",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, anche ABP",
   "devToolsTabLogs": "Log",
   "devToolsScriptsTooltip": "Script",
   "devToolsExportTooltip": "Esporta",

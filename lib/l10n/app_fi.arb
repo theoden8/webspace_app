@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "Esto",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, myös ABP",
   "devToolsTabLogs": "Lokit",
   "devToolsScriptsTooltip": "Skriptit",
   "devToolsExportTooltip": "Vie",

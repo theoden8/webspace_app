@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "Blokovanie",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, aj ABP",
   "devToolsTabLogs": "Protokoly",
   "devToolsScriptsTooltip": "Skripty",
   "devToolsExportTooltip": "Exportovať",

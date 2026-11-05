@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "Արգելափակում",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, նաև ABP",
   "devToolsTabLogs": "Մատյաններ",
   "devToolsScriptsTooltip": "Սկրիպտներ",
   "devToolsExportTooltip": "Արտահանել",

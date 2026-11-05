@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "ਬਲੌਕਿੰਗ",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, ABP ਵੀ",
   "devToolsTabLogs": "ਲੌਗ",
   "devToolsScriptsTooltip": "ਸਕ੍ਰਿਪਟਾਂ",
   "devToolsExportTooltip": "ਐਕਸਪੋਰਟ ਕਰੋ",

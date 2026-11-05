@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "Blokavimas",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, taip pat ABP",
   "devToolsTabLogs": "Žurnalai",
   "devToolsScriptsTooltip": "Skriptai",
   "devToolsExportTooltip": "Eksportuoti",

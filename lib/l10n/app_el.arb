@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "Αποκλεισμός",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, επίσης ABP",
   "devToolsTabLogs": "Καταγραφές",
   "devToolsScriptsTooltip": "Σενάρια",
   "devToolsExportTooltip": "Εξαγωγή",

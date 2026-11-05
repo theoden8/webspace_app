@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "封鎖",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS，ABP 也會封鎖",
   "devToolsTabLogs": "記錄",
   "devToolsScriptsTooltip": "腳本",
   "devToolsExportTooltip": "匯出",

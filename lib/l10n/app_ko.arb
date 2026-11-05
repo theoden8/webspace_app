@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "차단",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, ABP도",
   "devToolsTabLogs": "로그",
   "devToolsScriptsTooltip": "스크립트",
   "devToolsExportTooltip": "내보내기",

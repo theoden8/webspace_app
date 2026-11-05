@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "തടയൽ",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, ABP-യും",
   "devToolsTabLogs": "ലോഗുകൾ",
   "devToolsScriptsTooltip": "സ്ക്രിപ്റ്റുകൾ",
   "devToolsExportTooltip": "കയറ്റുമതി ചെയ്യുക",

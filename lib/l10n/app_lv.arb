@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "Bloķēšana",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, arī ABP",
   "devToolsTabLogs": "Žurnāli",
   "devToolsScriptsTooltip": "Skripti",
   "devToolsExportTooltip": "Eksportēt",

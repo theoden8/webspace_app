@@ -595,6 +595,7 @@
   "devToolsTabBlocking": "Bllokimi",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, edhe ABP",
   "devToolsTabLogs": "Regjistrat",
   "devToolsScriptsTooltip": "Skriptet",
   "devToolsExportTooltip": "Eksporto",

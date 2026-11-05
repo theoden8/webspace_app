@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "ブロック",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS、ABPでも",
   "devToolsTabLogs": "ログ",
   "devToolsScriptsTooltip": "スクリプト",
   "devToolsExportTooltip": "エクスポート",

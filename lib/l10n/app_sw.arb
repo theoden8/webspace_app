@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "Kuzuia",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, pia ABP",
   "devToolsTabLogs": "Kumbukumbu",
   "devToolsScriptsTooltip": "Hati",
   "devToolsExportTooltip": "Hamisha",

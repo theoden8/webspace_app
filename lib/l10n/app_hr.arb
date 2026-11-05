@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "Blokiranje",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, također ABP",
   "devToolsTabLogs": "Zapisnici",
   "devToolsScriptsTooltip": "Skripte",
   "devToolsExportTooltip": "Izvezi",

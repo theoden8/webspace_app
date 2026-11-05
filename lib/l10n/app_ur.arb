@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "بلاکنگ",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS، ABP بھی",
   "devToolsTabLogs": "لاگز",
   "devToolsScriptsTooltip": "اسکرپٹس",
   "devToolsExportTooltip": "برآمد کریں",

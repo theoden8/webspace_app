@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "Rhwystro",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, ABP hefyd",
   "devToolsTabLogs": "Logiau",
   "devToolsScriptsTooltip": "Sgriptiau",
   "devToolsExportTooltip": "Allforio",

@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "חסימה",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, גם ABP",
   "devToolsTabLogs": "יומנים",
   "devToolsScriptsTooltip": "סקריפטים",
   "devToolsExportTooltip": "ייצא",

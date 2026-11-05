@@ -595,6 +595,7 @@
   "devToolsTabBlocking": "Obstructio",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, etiam ABP",
   "devToolsTabLogs": "Acta",
   "devToolsScriptsTooltip": "Scripta",
   "devToolsExportTooltip": "Exportare",

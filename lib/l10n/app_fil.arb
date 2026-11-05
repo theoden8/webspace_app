@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "Pagba-block",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, pati ABP",
   "devToolsTabLogs": "Mga Log",
   "devToolsScriptsTooltip": "Mga Script",
   "devToolsExportTooltip": "I-export",

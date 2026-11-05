@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "Lokun",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, líka ABP",
   "devToolsTabLogs": "Annálar",
   "devToolsScriptsTooltip": "Forskriftir",
   "devToolsExportTooltip": "Flytja út",

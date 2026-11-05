@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "დაბლოკვა",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, ასევე ABP",
   "devToolsTabLogs": "ჟურნალები",
   "devToolsScriptsTooltip": "სკრიპტები",
   "devToolsExportTooltip": "ექსპორტი",

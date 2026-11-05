@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "నిరోధం",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, ABP కూడా",
   "devToolsTabLogs": "లాగ్‌లు",
   "devToolsScriptsTooltip": "స్క్రిప్ట్‌లు",
   "devToolsExportTooltip": "ఎగుమతి చేయి",

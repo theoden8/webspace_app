@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "Blocáil",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, ABP freisin",
   "devToolsTabLogs": "Logaí",
   "devToolsScriptsTooltip": "Scripteanna",
   "devToolsExportTooltip": "Easpórtáil",

@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "Engelleme",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, ABP de",
   "devToolsTabLogs": "Günlükler",
   "devToolsScriptsTooltip": "Betikler",
   "devToolsExportTooltip": "Dışa aktar",

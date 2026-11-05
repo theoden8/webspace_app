@@ -593,6 +593,7 @@
   "devToolsTabBlocking": "Blokkolás",
   "devToolsBlockSourceDns": "DNS",
   "devToolsBlockSourceAbp": "ABP",
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, ABP is",
   "devToolsTabLogs": "Naplók",
   "devToolsScriptsTooltip": "Szkriptek",
   "devToolsExportTooltip": "Exportálás",
