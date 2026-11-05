@@ -79,6 +79,19 @@ test('the harness still asserts the scheduling contract', () => {
     `${harnessRel} must still assert a WorkManager job exists (NOTIF-005-A)`);
 });
 
+test('the harness reads the tag the wake lines are written under', () => {
+  // The receiver's and the worker's lines go through AppLog (DEVTOOLS-014),
+  // which names a logcat tag from the AppLog.Tag; a filter on any other tag
+  // reads nothing and reports the receiver as never fired.
+  const sink = read('android/app/src/main/kotlin/org/codeberg/theoden8/webspace/AppLog.kt');
+  const prefix = sink.match(/Log\.println\([^,]+,\s*"([^"$]*)\$\{tag\.name\}"/);
+  assert.ok(prefix, 'AppLog writes logcat under a prefix and the tag name');
+  const filter = harness.match(/adb logcat -d -s (\S+):I/);
+  assert.ok(filter, `${harnessRel} reads the wake lines through a tag filter`);
+  assert.equal(filter[1], `${prefix[1]}backgroundTask`,
+    `${harnessRel} must filter on the tag AppLog writes for AppLog.Tag.backgroundTask`);
+});
+
 test('a failed refresh can tell "never ran" from "never reloaded"', () => {
   assert.match(harness, /NotificationRefreshWorker fired/,
     `${harnessRel} must read the worker's own log line before blaming the ` +

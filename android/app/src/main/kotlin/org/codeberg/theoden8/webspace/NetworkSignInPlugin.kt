@@ -46,7 +46,8 @@ class NetworkSignInPlugin(private val activity: Activity, flutterEngine: Flutter
         try {
             activity.startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))
             true
-        } catch (_: ActivityNotFoundException) {
+        } catch (e: ActivityNotFoundException) {
+            AppLog.failed(AppLog.Tag.tls, "opening the Wi-Fi settings", e)
             false
         }
 }

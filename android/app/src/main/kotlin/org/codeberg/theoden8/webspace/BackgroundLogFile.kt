@@ -10,7 +10,6 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
-import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.work.WorkInfo
@@ -72,7 +71,7 @@ internal object BackgroundLogFile {
                 FileOutputStream(f, true).use { it.write("$line\n".toByteArray()) }
                 if (f.length() > COMPACT_AT_BYTES) compact(dir, f)
             } catch (e: IOException) {
-                Log.w(TAG, "append failed: $e")
+                AppLog.failed(AppLog.Tag.backgroundLog, "appending to the background log", e)
             }
         }
     }
@@ -98,7 +97,7 @@ internal object BackgroundLogFile {
                     File(dir, "$FILE_NAME.tmp").delete()
                 }
             } catch (e: IOException) {
-                Log.w(TAG, "setEnabled($enabled) failed: $e")
+                AppLog.failed(AppLog.Tag.backgroundLog, if (enabled) "starting the background log" else "deleting the background log", e)
             }
         }
     }
@@ -110,7 +109,7 @@ internal object BackgroundLogFile {
             try {
                 if (f.exists()) f.writeText("")
             } catch (e: IOException) {
-                Log.w(TAG, "clear failed: $e")
+                AppLog.failed(AppLog.Tag.backgroundLog, "clearing the background log", e)
             }
         }
     }
@@ -124,7 +123,7 @@ internal object BackgroundLogFile {
             val lines = try {
                 if (f.exists()) f.readLines().filter { it.isNotBlank() } else emptyList()
             } catch (e: IOException) {
-                Log.w(TAG, "read failed: $e")
+                AppLog.failed(AppLog.Tag.backgroundLog, "reading the background log", e)
                 null
             }
             main.post { done(lines) }

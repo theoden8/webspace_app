@@ -32,6 +32,10 @@ const CONFINED = {
   [`${ROOT}/CapturePermissionPlugin.kt`]: {
     pending: 'method calls and onRequestPermissionsResult both arrive on the main thread',
   },
+  [`${ROOT}/AppLog.kt`]: {
+    recent: "the sink's State, reached only inside its Guarded monitor",
+    sent: "the sink's State, reached only inside its Guarded monitor",
+  },
   [`${ROOT}/proxy/Splicer.kt`]: {
     pending: "the inbox's queue, reached only inside the splicer's Guarded monitor",
   },

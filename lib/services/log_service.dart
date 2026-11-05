@@ -44,6 +44,7 @@ enum LogTag {
   lifecycle('Lifecycle'),
   linkIntent('LinkIntent'),
   localCdn('LocalCDN'),
+  location('Location'),
   mediaSession('MediaSession'),
   microphone('Microphone'),
   navigation('Navigation'),

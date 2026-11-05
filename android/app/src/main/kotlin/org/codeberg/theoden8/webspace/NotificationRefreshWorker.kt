@@ -1,7 +1,6 @@
 package org.codeberg.theoden8.webspace
 
 import android.content.Context
-import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import kotlinx.coroutines.CancellationException
@@ -24,7 +23,7 @@ class NotificationRefreshWorker(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.Main) {
-        Log.i(TAG, "NotificationRefreshWorker fired")
+        AppLog.info(AppLog.Tag.backgroundTask, "NotificationRefreshWorker fired")
         BackgroundLogFile.record(
             applicationContext,
             "refresh worker fired (attempt ${runAttemptCount + 1})",
@@ -35,7 +34,7 @@ class NotificationRefreshWorker(
         }
         var startedEngine = false
         if (!NotificationRefreshDispatcher.dispatch(onComplete)) {
-            Log.i(TAG, "Flutter engine unreachable; starting one for the wake")
+            AppLog.info(AppLog.Tag.backgroundTask, "Flutter engine unreachable; starting one for the wake")
             BackgroundLogFile.record(
                 applicationContext,
                 "no Flutter engine in this process; starting one for the wake",
@@ -67,14 +66,14 @@ class NotificationRefreshWorker(
             }
             val elapsed = System.currentTimeMillis() - started
             if (result == null) {
-                Log.w(TAG, "Dart did not report completion within ${timeoutMs}ms")
+                AppLog.warning(AppLog.Tag.backgroundTask, "Dart did not report completion within ${timeoutMs}ms")
                 BackgroundLogFile.record(
                     applicationContext,
                     "Dart did not report completion within ${timeoutMs}ms",
                     "warning",
                 )
             } else {
-                Log.i(TAG, "Dart reported refresh complete (success=$result)")
+                AppLog.info(AppLog.Tag.backgroundTask, "Dart reported refresh complete (success=$result)")
                 BackgroundLogFile.record(
                     applicationContext,
                     "Dart reported refresh complete (success=$result) after ${elapsed}ms",
@@ -91,6 +90,5 @@ class NotificationRefreshWorker(
     companion object {
         private const val REFRESH_TIMEOUT_MS = 60_000L
         private const val COLD_REFRESH_TIMEOUT_MS = 120_000L
-        private const val TAG = "WebspaceBgRefresh"
     }
 }

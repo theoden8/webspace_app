@@ -3,7 +3,6 @@ package org.codeberg.theoden8.webspace
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
@@ -130,7 +129,7 @@ class BackgroundTaskAndroidPlugin(
             ExistingPeriodicWorkPolicy.UPDATE,
             request,
         )
-        Log.i(TAG, "scheduled periodic refresh ($UNIQUE_NAME, ${REFRESH_INTERVAL_MINUTES}min)")
+        AppLog.info(AppLog.Tag.backgroundTask, "scheduled periodic refresh ($UNIQUE_NAME, ${REFRESH_INTERVAL_MINUTES}min)")
         BackgroundLogFile.record(
             context,
             "periodic refresh enqueued (every ${REFRESH_INTERVAL_MINUTES}min, " +
@@ -140,7 +139,7 @@ class BackgroundTaskAndroidPlugin(
 
     private fun cancel() {
         WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_NAME)
-        Log.i(TAG, "cancelled periodic refresh ($UNIQUE_NAME)")
+        AppLog.info(AppLog.Tag.backgroundTask, "cancelled periodic refresh ($UNIQUE_NAME)")
         BackgroundLogFile.record(context, "periodic refresh cancelled")
     }
 
@@ -148,7 +147,6 @@ class BackgroundTaskAndroidPlugin(
         const val CHANNEL = "org.codeberg.theoden8.webspace/background_task"
         const val UNIQUE_NAME = "webspace-notification-refresh"
         const val REFRESH_INTERVAL_MINUTES = 15L
-        private const val TAG = "WebspaceBgRefresh"
     }
 }
 
@@ -209,7 +207,7 @@ internal object NotificationRefreshDispatcher {
      */
     fun dispatch(onComplete: (Boolean) -> Unit): Boolean {
         val c = channel ?: run {
-            Log.w("WebspaceBgRefresh", "dispatch: no bound channel (engine gone)")
+            AppLog.warning(AppLog.Tag.backgroundTask, "dispatch: no bound channel (engine gone)")
             return false
         }
         // Resolve any older pending refresh as failed before taking over.
@@ -221,7 +219,7 @@ internal object NotificationRefreshDispatcher {
 
     private fun invoke(c: MethodChannel) {
         mainHandler.post {
-            Log.i("WebspaceBgRefresh", "dispatch: invoking onBackgroundRefresh in Dart")
+            AppLog.info(AppLog.Tag.backgroundTask, "dispatch: invoking onBackgroundRefresh in Dart")
             c.invokeMethod("onBackgroundRefresh", null)
         }
     }

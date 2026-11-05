@@ -3,7 +3,6 @@ package org.codeberg.theoden8.webspace
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
-import android.util.Log
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import org.codeberg.theoden8.webspace.proxy.ProxyRelay
@@ -24,21 +23,15 @@ import org.codeberg.theoden8.webspace.proxy.ProxyRelay
 class ProxyRelayPlugin(flutterEngine: FlutterEngine) {
     private val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
     private val mainHandler = Handler(Looper.getMainLooper())
-    // Forward every relay event to the Dart side so it surfaces in the
-    // in-app Logs tab next to the proxy-apply events — critical for the
-    // container-reach diagnostic (zero accepted connections during a
-    // proxied page load = ProxyController not reaching the container).
-    // Dart files these as sensitive (memory-only, never printed): they name
-    // sites and every proxied destination host, so they must not reach logcat.
+    // Every relay event (accept, upstream connect attempt and result, 502,
+    // start and stop) reaches the in-app Logs tab beside the proxy-apply
+    // events: zero accepted connections during a proxied page load means
+    // ProxyController is not reaching the container. They name sites and
+    // every proxied destination host, so they stay in memory (AppLog).
     // `logger` by name, not as a trailing lambda: ProxyRelay takes a second
     // optional parameter, so a trailing lambda binds to whichever one is last.
     private val relay = ProxyRelay(
-        logger = { msg ->
-            mainHandler.post {
-                runCatching { channel.invokeMethod("logEvent", mapOf("msg" to msg)) }
-                    .onFailure { Log.w(TAG, "a relay log line was dropped: ${describe(it)}") }
-            }
-        },
+        logger = { msg -> AppLog.debug(AppLog.Tag.proxyRelay, msg) },
         ownUid = Process.myUid(),
     )
 
@@ -172,6 +165,5 @@ class ProxyRelayPlugin(flutterEngine: FlutterEngine) {
 
     companion object {
         const val CHANNEL = "org.codeberg.theoden8.webspace/proxy_relay"
-        private const val TAG = "WebspaceProxyRelay"
     }
 }

@@ -224,6 +224,11 @@ class ScreenShareService : Service() {
             reader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 3)
             encoder = Encoder(this, Handler(thread.looper), width, height, request.fps)
             reader.setOnImageAvailableListener(encoder, Handler(thread.looper))
+            fun noDisplay(cause: RuntimeException?): Nothing {
+                reader.close()
+                thread.quitSafely()
+                throw IllegalStateException("Android gave the share no display", cause)
+            }
             display = try {
                 projection.createVirtualDisplay(
                     "webspace-screen-share",
@@ -236,14 +241,10 @@ class ScreenShareService : Service() {
                     null,
                 )
             } catch (e: SecurityException) {
-                null
+                noDisplay(e)
             } catch (e: IllegalStateException) {
-                null
-            } ?: run {
-                reader.close()
-                thread.quitSafely()
-                throw IllegalStateException("Android gave the share no display")
-            }
+                noDisplay(e)
+            } ?: noDisplay(null)
         }
 
         fun release() {
@@ -254,6 +255,7 @@ class ScreenShareService : Service() {
             // encode scheduled for later is dropped by the quit.
             Handler(thread.looper).post {
                 encoder.drop()
+                encoder.reportSkipped()
                 reader.close()
             }
             thread.quitSafely()
@@ -285,10 +287,27 @@ class ScreenShareService : Service() {
         private var lastAt = 0L
         private var seq = 0
 
+        // Frames that failed, and the last failure: a share can fail every
+        // frame, so it is named once, when the share ends, not per frame.
+        private var skipped = 0
+        private var lastFailure: IllegalStateException? = null
+
+        private fun skip(e: IllegalStateException) {
+            skipped++
+            lastFailure = e
+        }
+
+        /** On the capture thread, as the share ends. */
+        fun reportSkipped() {
+            val e = lastFailure ?: return
+            AppLog.failed(AppLog.Tag.screenShare, "capturing $skipped of the share's frames", e)
+        }
+
         override fun onImageAvailable(reader: ImageReader) {
             val image = try {
                 reader.acquireLatestImage()
             } catch (e: IllegalStateException) {
+                skip(e)
                 null
             } ?: return
             held?.close()
@@ -311,6 +330,7 @@ class ScreenShareService : Service() {
             val jpeg = try {
                 encode(image)
             } catch (e: IllegalStateException) {
+                skip(e)
                 null
             } finally {
                 image.close()

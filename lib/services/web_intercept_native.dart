@@ -39,15 +39,6 @@ class WebInterceptNative {
         case 'cdnEventsReady':
           await _drainCdnEvents(SiteId.parse(call.arguments));
           break;
-        case 'log':
-          final args = call.arguments;
-          if (args is Map) {
-            // Native bridge messages may carry per-site hosts / URLs.
-            // Treat as sensitive so they stay out of adb logcat.
-            LogTag.webIntercept
-                .debug((args['message'] as String?) ?? '', sensitive: true);
-          }
-          break;
       }
     });
     return const NativeIntercept._();
