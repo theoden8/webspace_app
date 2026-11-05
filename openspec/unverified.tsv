@@ -40,7 +40,6 @@ DEVTOOLS-001	no check: no test captures a webview console message into the Conso
 DEVTOOLS-003	no check: no test drives Share/Save/Copy HTML or the concurrent-fetch guard
 DEVTOOLS-004	no check: copy and sensitive-copy are tested, but no test checks live streaming, auto-scroll or the App Settings entry (partly: test/dev_tools_copy_test.dart, "App Logs copy")
 DEVTOOLS-005	no check: listener notification and debug passthrough are untested; the cap is tested only on the sensitive ring (partly: test/log_service_test.dart, "respect the per-ring maxEntries cap")
-DEVTOOLS-006	no check: no test opens the scripts bottom sheet or checks its list, copy or empty state
 DEVTOOLS-007	no check: no test drives console eval, its error entry, history or the disabled state
 # dns-blocklist
 DNS-006	no check: no test drives the App Settings DNS row (DnsBlocklistDataset with its slider): nothing checks that moving the slider does not download, that the slider is disabled while a download runs, or that it opens at the downloaded level (partly: test/level_slider_test.dart, "every stop is labelled and the current one stands out")
