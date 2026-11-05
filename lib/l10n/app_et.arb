@@ -1175,6 +1175,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Laseb igal saidil valida oma Võrk-ekraanil võrguliidese, mille kaudu tema liiklus seadmest lahkub, näiteks ühe mitmest VPN-i tunnelist. Sait, mille liides ei tööta, ei laadi midagi, selle asemel et kasutada teist ühendust.",
   "appSettingsExperimentalServiceWorkers": "Service workerid läbi blokeerijate",
   "appSettingsExperimentalServiceWorkersHint": "Kus igal saidil on oma konteiner, laadivad saidi service workerid (taustaskriptid, mida mõned saidid kasutavad võrguühenduseta lehtede, vahemälu ja uuenduste jaoks) läbi selle saidi DNS blokeerimisloendi, filtriloendite ja LocalCDN-i ning võivad jõuda võrku. Jõustub rakenduse järgmisel käivitusel.",
+  "appSettingsExperimentalWebKitBlockReports": "WebKiti blokeeringute loendus",
+  "appSettingsExperimentalWebKitBlockReportsHint": "Loendab iga päringu, mille WebKiti filtriloendid blokeerivad, nii nagu WebKit sellest teatab, ka need, mida leht kunagi ei näe, näiteks stiililehtede pildid ja majakad. See kasutab WebKiti liidest, mida Apple ei avalda, seega pakutakse seda ainult väljaspool App Store'i. Jõustub rakenduse järgmisel käivitusel.",
   "appSettingsExtensions": "Laiendused",
   "appSettingsExtensionsNone": "Ühtegi pole imporditud",
   "appSettingsExtensionsCount": "{count, plural, one{{count} laiendus} other{{count} laiendust}}",

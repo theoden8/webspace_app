@@ -1175,6 +1175,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Ligeann sé do gach suíomh an comhéadan líonra a fhágann a thrácht tríd a roghnú ar a scáileán Líonra, mar thollán VPN amháin as roinnt. Ní lódálann suíomh a bhfuil a chomhéadan síos aon rud in ionad nasc eile a úsáid.",
   "appSettingsExperimentalServiceWorkers": "Oibrithe seirbhíse trí bhactóirí",
   "appSettingsExperimentalServiceWorkersHint": "Nuair atá a choimeádán féin ag gach suíomh, lódálann oibrithe seirbhíse suímh (na scripteanna cúlra a úsáideann roinnt suíomhanna le haghaidh leathanach as líne, taisce agus nuashonruithe) trí Liosta Bactha DNS, liostaí scagaire agus LocalCDN an tsuímh sin, agus is féidir leo an líonra a bhaint amach. Tagann sé i bhfeidhm an chéad uair eile a thosaíonn an aip.",
+  "appSettingsExperimentalWebKitBlockReports": "Áirimh bhacadh WebKit",
+  "appSettingsExperimentalWebKitBlockReportsHint": "Áiríonn sé gach iarratas a bhacann liostaí scagaire WebKit mar a thuairiscíonn WebKit é, lena n-áirítear iarratais nach bhfeiceann an leathanach riamh, amhail íomhánna ó bhileoga stíle agus rabhcháin. Úsáideann sé comhéadan WebKit nach bhfoilsíonn Apple, mar sin ní thairgtear é ach lasmuigh den App Store. Tagann sé i bhfeidhm an chéad uair eile a thosaíonn an aip.",
   "appSettingsExtensions": "Eisínteachtaí",
   "appSettingsExtensionsNone": "Níl aon cheann iompórtáilte",
   "appSettingsExtensionsCount": "{count, plural, one{{count} eisínteacht} two{{count} eisínteacht} few{{count} eisínteacht} many{{count} eisínteacht} other{{count} eisínteacht}}",

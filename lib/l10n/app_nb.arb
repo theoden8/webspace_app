@@ -1175,6 +1175,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Lar hvert nettsted velge på Nettverk-skjermen sin hvilket nettverksgrensesnitt trafikken går ut gjennom, for eksempel tunnelen til ett av flere VPN. Et nettsted med grensesnittet nede laster ingenting i stedet for å bruke en annen tilkobling.",
   "appSettingsExperimentalServiceWorkers": "Service workers gjennom blokkeringer",
   "appSettingsExperimentalServiceWorkersHint": "Der hvert nettsted har sin egen container, lastes et nettsteds service workers (bakgrunnsskriptene noen nettsteder bruker til frakoblede sider, hurtigbuffer og oppdateringer) gjennom nettstedets DNS-blokkeringsliste, filterlister og LocalCDN, og de kan nå nettverket. Trer i kraft neste gang appen starter.",
+  "appSettingsExperimentalWebKitBlockReports": "WebKits blokkeringstall",
+  "appSettingsExperimentalWebKitBlockReportsHint": "Teller hver forespørsel som WebKits filterlister blokkerer, slik WebKit rapporterer den, også de siden aldri ser, som bilder fra stilark og beacons. Den bruker et WebKit-grensesnitt som Apple ikke publiserer, så den tilbys bare utenfor App Store. Trer i kraft neste gang appen starter.",
   "appSettingsExtensions": "Utvidelser",
   "appSettingsExtensionsNone": "Ingen importert",
   "appSettingsExtensionsCount": "{count, plural, one{{count} utvidelse} other{{count} utvidelser}}",

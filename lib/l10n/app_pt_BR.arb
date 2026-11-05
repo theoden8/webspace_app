@@ -1175,6 +1175,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Permite que cada site escolha na tela Rede a interface de rede por onde sai o tráfego, como o túnel de uma VPN entre várias. Um site com a interface fora do ar não carrega nada em vez de usar outra conexão.",
   "appSettingsExperimentalServiceWorkers": "Service workers pelos bloqueadores",
   "appSettingsExperimentalServiceWorkersHint": "Onde cada site tem seu próprio container, os service workers de um site (os scripts em segundo plano que alguns sites usam para páginas offline, cache e atualizações) carregam pela lista de bloqueio DNS, pelas listas de filtros e pelo LocalCDN desse site, e podem acessar a rede. Tem efeito na próxima vez que o app for iniciado.",
+  "appSettingsExperimentalWebKitBlockReports": "Contagem de bloqueios do WebKit",
+  "appSettingsExperimentalWebKitBlockReportsHint": "Conta cada solicitação que as listas de filtros do WebKit bloqueiam do jeito que o WebKit a informa, incluindo as que a página nunca vê, como imagens de folhas de estilo e beacons. Usa uma interface do WebKit que a Apple não publica, então só é oferecido fora da App Store. Tem efeito na próxima vez que o app for iniciado.",
   "appSettingsExtensions": "Extensões",
   "appSettingsExtensionsNone": "Nenhuma importada",
   "appSettingsExtensionsCount": "{count, plural, one{{count} extensão} many{{count} extensões} other{{count} extensões}}",

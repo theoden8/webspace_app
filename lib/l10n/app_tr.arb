@@ -1175,6 +1175,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Her sitenin Ağ ekranında trafiğinin çıktığı ağ arayüzünü, örneğin birkaç VPN'den birinin tünelini seçmesine izin verir. Arayüzü kapalı olan bir site başka bir bağlantı kullanmak yerine hiçbir şey yüklemez.",
   "appSettingsExperimentalServiceWorkers": "Engelleyiciler üzerinden service worker'lar",
   "appSettingsExperimentalServiceWorkersHint": "Her sitenin kendi kapsayıcısı olduğunda, bir sitenin service worker'ları (bazı sitelerin çevrimdışı sayfalar, önbellekleme ve güncellemeler için kullandığı arka plan betikleri) o sitenin DNS Engelleme Listesi, süzgeç listeleri ve LocalCDN üzerinden yüklenir ve ağa erişebilir. Uygulama bir sonraki başlatıldığında geçerli olur.",
+  "appSettingsExperimentalWebKitBlockReports": "WebKit engelleme sayıları",
+  "appSettingsExperimentalWebKitBlockReportsHint": "WebKit'in filtre listelerinin engellediği her isteği WebKit'in bildirdiği şekilde sayar; sayfanın hiç görmediği, stil sayfası görselleri ve işaretçiler gibi istekler de buna dahildir. Apple'ın yayımlamadığı bir WebKit arayüzünü kullandığından yalnızca App Store dışında sunulur. Uygulama bir sonraki başlatıldığında geçerli olur.",
   "appSettingsExtensions": "Uzantılar",
   "appSettingsExtensionsNone": "İçe aktarılan yok",
   "appSettingsExtensionsCount": "{count, plural, one{{count} uzantı} other{{count} uzantı}}",

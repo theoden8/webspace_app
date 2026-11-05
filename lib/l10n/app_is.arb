@@ -1175,6 +1175,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Leyfir hverju vefsvæði að velja á Netkerfi-skjánum sínum netviðmótið sem umferð þess fer út um, til dæmis göng eins af nokkrum VPN. Vefsvæði sem er með viðmótið niðri hleður engu í stað þess að nota aðra tengingu.",
   "appSettingsExperimentalServiceWorkers": "Service workers í gegnum lokanir",
   "appSettingsExperimentalServiceWorkersHint": "Þar sem hver vefur hefur sinn eigin gám hlaðast service workers vefs (bakgrunnsskriftur sem sumir vefir nota fyrir síður án nettengingar, skyndiminni og uppfærslur) í gegnum DNS-bannlista, síunarlista og LocalCDN þess vefs og geta náð til netsins. Tekur gildi næst þegar forritið er ræst.",
+  "appSettingsExperimentalWebKitBlockReports": "Lokunartalningar WebKit",
+  "appSettingsExperimentalWebKitBlockReportsHint": "Telur hverja beiðni sem síulistar WebKit loka á eins og WebKit tilkynnir hana, einnig þær sem síðan sér aldrei, svo sem myndir úr stílsniðum og vita. Notar viðmót í WebKit sem Apple birtir ekki og er því aðeins í boði utan App Store. Tekur gildi næst þegar forritið er ræst.",
   "appSettingsExtensions": "Viðbætur",
   "appSettingsExtensionsNone": "Engin flutt inn",
   "appSettingsExtensionsCount": "{count, plural, one{{count} viðbót} other{{count} viðbætur}}",

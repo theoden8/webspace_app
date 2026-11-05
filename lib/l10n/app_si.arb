@@ -1175,6 +1175,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "එක් එක් අඩවියට තම ජාල තිරයේ තම තදබදය පිටවන ජාල අතුරුමුහුණත තෝරා ගැනීමට ඉඩ දෙයි, VPN කිහිපයකින් එකක උමඟ වැනි. අතුරුමුහුණත අක්‍රිය වූ අඩවිය වෙනත් සම්බන්ධතාවක් භාවිත කරනවා වෙනුවට කිසිවක් පූරණය නොකරයි.",
   "appSettingsExperimentalServiceWorkers": "අවහිරක හරහා සේවා කාර්මිකයන්",
   "appSettingsExperimentalServiceWorkersHint": "එක් එක් අඩවියට තමන්ගේම බහාලුමක් ඇති විට, අඩවියක service worker (සමහර අඩවි නොබැඳි පිටු, හැඹිලිගත කිරීම සහ යාවත්කාලීන සඳහා භාවිත කරන පසුබිම් ස්ක්‍රිප්ට්) එම අඩවියේ DNS අවහිර ලැයිස්තුව, පෙරහන් ලැයිස්තු සහ LocalCDN හරහා පූරණය වන අතර ජාලයට ළඟා විය හැක. ඊළඟ වතාවේ යෙදුම ආරම්භ වන විට බලපැවැත්වේ.",
+  "appSettingsExperimentalWebKitBlockReports": "WebKit අවහිර කිරීම් ගණන",
+  "appSettingsExperimentalWebKitBlockReportsHint": "WebKit වාර්තා කරන ආකාරයට WebKit හි පෙරහන් ලැයිස්තු අවහිර කරන සෑම ඉල්ලීමක්ම ගණන් කරයි, පිටුව කිසි විටෙක නොදකින ඒවා ද ඇතුළුව, උදාහරණයක් ලෙස ශෛලී පත්‍රවල රූප සහ බීකන්. එය Apple ප්‍රකාශයට පත් නොකරන WebKit අතුරුමුහුණතක් භාවිතා කරන බැවින් App Store වෙතින් පිටත පමණක් ලබා දේ. ඊළඟ වතාවේ යෙදුම ආරම්භ වන විට බලපැවැත්වේ.",
   "appSettingsExtensions": "දිගු",
   "appSettingsExtensionsNone": "කිසිවක් ආයාත කර නැත",
   "appSettingsExtensionsCount": "{count, plural, one{දිගු {count}ක්} other{දිගු {count}ක්}}",

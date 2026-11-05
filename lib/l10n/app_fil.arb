@@ -1175,6 +1175,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Hinahayaan ang bawat site na pumili sa Network screen nito ng network interface na dinaraanan palabas ng trapiko nito, gaya ng tunnel ng isa sa ilang VPN. Walang nilo-load ang site na naka-down ang interface sa halip na gumamit ng ibang koneksyon.",
   "appSettingsExperimentalServiceWorkers": "Mga service worker sa pamamagitan ng mga blocker",
   "appSettingsExperimentalServiceWorkersHint": "Kung saan may sariling container ang bawat site, naglo-load ang mga service worker ng isang site (ang mga background script na ginagamit ng ilang site para sa mga offline na pahina, pag-cache at mga update) sa pamamagitan ng DNS Blocklist, mga listahan ng filter at LocalCDN ng site na iyon, at maaari silang umabot sa network. Magkakabisa ito sa susunod na pagbukas ng app.",
+  "appSettingsExperimentalWebKitBlockReports": "Bilang ng mga pag-block ng WebKit",
+  "appSettingsExperimentalWebKitBlockReportsHint": "Binibilang ang bawat kahilingang bina-block ng mga filter list ng WebKit ayon sa ulat ng WebKit, kasama ang mga hindi kailanman nakikita ng pahina, gaya ng mga larawan mula sa stylesheet at mga beacon. Gumagamit ito ng interface ng WebKit na hindi inilalathala ng Apple, kaya iniaalok lang ito sa labas ng App Store. Magkakabisa ito sa susunod na pagbukas ng app.",
   "appSettingsExtensions": "Mga Extension",
   "appSettingsExtensionsNone": "Walang na-import",
   "appSettingsExtensionsCount": "{count, plural, one{{count} extension} other{{count} na extension}}",

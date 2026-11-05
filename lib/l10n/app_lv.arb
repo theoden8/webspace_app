@@ -1175,6 +1175,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Ļauj katrai vietnei savā ekrānā Tīkls izvēlēties tīkla saskarni, pa kuru iziet tās datplūsma, piemēram, viena no vairākiem VPN tuneli. Vietne, kuras saskarne nedarbojas, neko neielādē, nevis izmanto citu savienojumu.",
   "appSettingsExperimentalServiceWorkers": "Service worker caur bloķētājiem",
   "appSettingsExperimentalServiceWorkersHint": "Ja katrai vietnei ir savs konteiners, vietnes service worker (fona skripti, ko dažas vietnes izmanto bezsaistes lapām, kešatmiņai un atjauninājumiem) ielādējas caur šīs vietnes DNS bloķēšanas sarakstu, filtru sarakstiem un LocalCDN un var piekļūt tīklam. Stājas spēkā nākamajā lietotnes palaišanas reizē.",
+  "appSettingsExperimentalWebKitBlockReports": "WebKit bloķējumu skaits",
+  "appSettingsExperimentalWebKitBlockReportsHint": "Saskaita katru pieprasījumu, ko WebKit filtru saraksti bloķē, tā, kā WebKit par to ziņo, arī tos, ko lapa nekad neredz, piemēram, stila lapu attēlus un bākas. Tas izmanto WebKit saskarni, ko Apple nepublicē, tāpēc tas tiek piedāvāts tikai ārpus App Store. Stājas spēkā nākamajā lietotnes palaišanas reizē.",
   "appSettingsExtensions": "Paplašinājumi",
   "appSettingsExtensionsNone": "Nav importēts neviens",
   "appSettingsExtensionsCount": "{count, plural, zero{{count} paplašinājumu} one{{count} paplašinājums} other{{count} paplašinājumi}}",

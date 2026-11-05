@@ -1175,6 +1175,8 @@
   "appSettingsExperimentalNetworkInterfaceHint": "Huruhusu kila tovuti kuchagua kwenye skrini yake ya Mtandao kiolesura cha mtandao ambacho trafiki yake hutokea, kama handaki la VPN moja kati ya kadhaa. Tovuti ambayo kiolesura chake kimezimwa haipakii chochote badala ya kutumia muunganisho mwingine.",
   "appSettingsExperimentalServiceWorkers": "Service workers kupitia vizuizi",
   "appSettingsExperimentalServiceWorkersHint": "Pale ambapo kila tovuti ina chombo chake, service workers wa tovuti (hati za chinichini ambazo baadhi ya tovuti hutumia kwa kurasa za nje ya mtandao, akiba na masasisho) hupakia kupitia Orodha ya Vizuizi vya DNS, orodha za vichujio na LocalCDN ya tovuti hiyo, na wanaweza kufikia mtandao. Huanza kutumika wakati ujao programu itakapoanza.",
+  "appSettingsExperimentalWebKitBlockReports": "Hesabu za vizuizi vya WebKit",
+  "appSettingsExperimentalWebKitBlockReportsHint": "Huhesabu kila ombi ambalo orodha za vichujio za WebKit huzuia kama WebKit inavyoliripoti, pamoja na yale ambayo ukurasa hauyaoni kamwe, kama picha za laha za mitindo na vimulimuli. Hutumia kiolesura cha WebKit ambacho Apple haichapishi, kwa hivyo hutolewa nje ya App Store pekee. Huanza kutumika wakati ujao programu itakapoanza.",
   "appSettingsExtensions": "Viendelezi",
   "appSettingsExtensionsNone": "Hakuna vilivyoletwa",
   "appSettingsExtensionsCount": "{count, plural, one{kiendelezi {count}} other{viendelezi {count}}}",
