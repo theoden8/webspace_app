@@ -125,6 +125,13 @@ Data saved before the opt-in model (where global scripts ran on every site) SHAL
 **When** the app starts
 **Then** `enabledGlobalScriptIds` is NOT modified, even if the user has since opted sites out of scripts
 
+#### Scenario: A script added after a launch with none
+
+**Given** the app first launched with no global scripts (a new install), so the check had nothing to fill
+**And** the user later adds a global script and leaves a site out of it
+**When** the app starts again
+**Then** that site stays out: the first check set the marker whether or not it filled anything
+
 ### Requirement: US-002 - Script Injection
 
 Enabled user scripts SHALL be injected into the webview at the configured injection time.

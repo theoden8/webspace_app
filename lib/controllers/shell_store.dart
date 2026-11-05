@@ -100,22 +100,24 @@ class ShellStore {
   /// Migrate pre-opt-in data: older builds ran every enabled global script
   /// on every site. After switching to per-site opt-in, sites that haven't
   /// declared [WebViewModel.enabledGlobalScriptIds] would silently lose
-  /// their global scripts. For each site with an empty opt-in set, opt it
-  /// into all currently-defined globals once. A marker key prevents this
-  /// running again after the user starts curating per-site opt-ins. True
-  /// when it ran, and the sites need saving.
+  /// their global scripts. On the first launch that checks, each site with
+  /// an empty opt-in set is opted into every global defined then, and the
+  /// marker is set whether or not there was anything to fill: a script added
+  /// later is the opt-in model's, and the sites left out of it are the
+  /// user's choice (US-001d). True when a site was filled and needs saving.
   Future<bool> migrateGlobalScriptOptIn() async {
-    if (globalUserScripts.isEmpty || _sites.models.isEmpty) return false;
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool('globalUserScriptsOptInMigrated') == true) return false;
-    final allIds = globalUserScripts.map((s) => s.id).toSet();
+    final allIds = {for (final s in globalUserScripts) s.id};
+    var filled = false;
     for (final model in _sites.models) {
-      if (model.enabledGlobalScriptIds.isEmpty) {
+      if (allIds.isNotEmpty && model.enabledGlobalScriptIds.isEmpty) {
         model.enabledGlobalScriptIds = {...allIds};
+        filled = true;
       }
     }
     await prefs.setBool('globalUserScriptsOptInMigrated', true);
-    return true;
+    return filled;
   }
 
   Set<SiteId> get archivedSiteIds => {
