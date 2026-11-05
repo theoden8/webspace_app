@@ -155,17 +155,18 @@ restore code path. There is no per-call branching beyond that.
 
 The system SHALL select between `ContainerIsolationEngine` and
 `CookieIsolationEngine` based on a single `ContainerNative.isSupported()`
-check resolved at app startup.
+check resolved at app startup (`Isolation.probe`, which the restore runs
+once): `Containers` where it answers true, `SharedJar` otherwise, and no
+shared jar is built where containers are supported.
 
 #### Scenario: Profile API supported on Android
 
 **Given** the app is launching on Android with a System WebView
   reporting `WebViewFeature.MULTI_PROFILE` true
 **When** `StartupController.restore` runs
-**Then** `_useContainers` resolves to `true`
-**And** every subsequent `activate(site)` skips
-  `SiteActivationEngine.findDomainConflict` and the capture-nuke-
-  restore cycle — superseding the legacy
+**Then** the restore's isolation is `Containers`
+**And** every subsequent `activate(site)` skips the domain conflict
+  (`SiteUnloadEngine`'s `Conflicts`) and the capture-nuke-restore cycle — superseding the legacy
   [ISO-001](../per-site-cookie-isolation/spec.md) mutex
 **And** `activate(site)` calls
   `ContainerIsolationEngine.ensureContainer(target.siteId)` instead
@@ -175,7 +176,7 @@ check resolved at app startup.
 **Given** the app is launching on iOS 17+ or macOS 14+
 **When** `StartupController.restore` runs
 **Then** the native plugin reports `isSupported() == true`
-**And** `_useContainers` resolves to `true`
+**And** the restore's isolation is `Containers`
 **And** the same conflict-skip / engine-selection behavior as Android
   applies — sites with shared base domains can coexist
 
@@ -186,7 +187,7 @@ check resolved at app startup.
 **When** `StartupController.restore` runs
 **Then** `inapp.ContainerController.isClassSupported(platform: TargetPlatform.linux)`
   returns true
-**And** `_useContainers` resolves to `true`
+**And** the restore's isolation is `Containers`
 **And** the WebView is constructed against its per-site
   `WebKitNetworkSession` via `InAppWebViewSettings.containerId`
 **And** sites with shared base domains can coexist
@@ -197,7 +198,7 @@ check resolved at app startup.
   not report `MULTI_PROFILE`, or iOS <17, or macOS <14, or Windows /
   web (or Linux without the fork override resolved)
 **When** `StartupController.restore` runs
-**Then** `_useContainers` resolves to `false`
+**Then** the restore's isolation is `SharedJar`
 **And** `activate` runs the existing capture-nuke-restore flow
   unchanged
 **And** `ContainerIsolationEngine` touches no ProfileStore
