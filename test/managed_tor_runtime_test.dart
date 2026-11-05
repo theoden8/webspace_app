@@ -97,32 +97,34 @@ void main() {
           reason: 'a repeated key stays repeated');
     });
 
+    // On the test's clock: three refused polls take three poll intervals
+    // however slowly the machine runs them.
     test('attaches once the socket answers, takes ownership, and publishes '
-        'the bootstrap as tor reports it', () async {
-      host.refusedConnects = 3;
-      final seen = _recording(runtime);
-      await runtime.start();
-      await _settle();
-      await Future<void>.delayed(kManagedTorAttachPoll * 4);
-      await _settle();
-      expect(host.connects, 4);
-      expect(host.tor.owned, isTrue,
-          reason: 'tor exits when the app lets its control channel go');
-      expect(host.tor.commands, contains('SETEVENTS STATUS_CLIENT'));
+        'the bootstrap as tor reports it', () {
+      fakeAsync((async) {
+        host.refusedConnects = 3;
+        final seen = _recording(runtime);
+        unawaited(runtime.start());
+        async.elapse(kManagedTorAttachPoll * 4);
+        expect(host.connects, 4);
+        expect(host.tor.owned, isTrue,
+            reason: 'tor exits when the app lets its control channel go');
+        expect(host.tor.commands, contains('SETEVENTS STATUS_CLIENT'));
 
-      host.tor.bootstrap(5, tag: 'conn', summary: 'Connecting to a relay');
-      await _settle();
-      host.tor.bootstrap(100, tag: 'done', summary: 'Done');
-      await _settle();
+        host.tor.bootstrap(5, tag: 'conn', summary: 'Connecting to a relay');
+        async.elapse(Duration.zero);
+        host.tor.bootstrap(100, tag: 'done', summary: 'Done');
+        async.elapse(Duration.zero);
 
-      expect(seen.first, isA<TorStarting>());
-      final phases = seen.whereType<TorBootstrapping>().toList();
-      expect(phases.map((s) => s.percent), [0, 5, 100]);
-      expect(phases[1].tag, 'conn');
-      expect(phases[1].summary, 'Connecting to a relay');
-      expect(seen.last, isA<TorUp>());
-      final up = seen.last as TorUp;
-      expect('${up.host}:${up.port}', '127.0.0.1:41337');
+        expect(seen.first, isA<TorStarting>());
+        final phases = seen.whereType<TorBootstrapping>().toList();
+        expect(phases.map((s) => s.percent), [0, 5, 100]);
+        expect(phases[1].tag, 'conn');
+        expect(phases[1].summary, 'Connecting to a relay');
+        expect(seen.last, isA<TorUp>());
+        final up = seen.last as TorUp;
+        expect('${up.host}:${up.port}', '127.0.0.1:41337');
+      });
     });
 
     test('CIRCUIT_ESTABLISHED is done too, and a later phase does not walk '

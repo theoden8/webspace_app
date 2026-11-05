@@ -33,7 +33,6 @@ import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/webview_proxy.dart' show ProxyManager;
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/demo_mode.dart';
-import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// What the cold start asks of the page.
@@ -161,13 +160,10 @@ class StartupController implements DeferredStartupHost {
       if (target == null) return;
       LaunchTimeline.reached(LaunchMark.launchTarget);
       final pins = _shortcuts.refreshPinned(after: onPage);
-      final themed = await _themeLaunch(target, prefs: await prefs);
-      LaunchTimeline.reached(LaunchMark.themed);
       await routes;
       LaunchTimeline.reached(LaunchMark.routes);
       final launched = await _activate(
         target,
-        themed: themed,
         activationVersionAtRestore: activationVersionAtRestore,
       );
       if (launched == null) return;
@@ -180,7 +176,7 @@ class StartupController implements DeferredStartupHost {
         suggested,
         pins,
         swept,
-        _afterLaunch(launched, themed: themed, loaded: await loaded),
+        _afterLaunch(launched, loaded: await loaded),
       ]);
     } finally {
       if (!_launched.isCompleted) _launched.complete(null);
@@ -309,27 +305,10 @@ class StartupController implements DeferredStartupHost {
     return (shortcutSite: shortcutSite, site: shortcutSite ?? tappedSite);
   }
 
-  /// Before the activation so its first build sees the right theme:
-  /// initialHtml picks the dark prelude for a file import from it, and
-  /// models default to light, so a dark theme would otherwise flash white. Only the models built now need it;
-  /// the rest are themed after paint. Returns their siteIds.
-  Future<Set<SiteId>> _themeLaunch(
-    _LaunchTarget target, {
-    required Reached<PrefsLoaded> prefs,
-  }) async {
-    final webViewTheme = _shell.theme.themeMode.webViewTheme;
-    final models = <WebViewModel>{..._sites.loaded, ?target.site};
-    for (final m in models) {
-      await m.setAppTheme(webViewTheme);
-    }
-    return {for (final m in models) m.siteId};
-  }
-
   /// The launched site activated, or the list shown, and the shortcut's
   /// fullscreen policy. Null once the page has gone.
   Future<Reached<Launched>?> _activate(
     _LaunchTarget target, {
-    required Set<SiteId> themed,
     required int activationVersionAtRestore,
   }) async {
     final launchAt = switch (target.site) {
@@ -378,14 +357,9 @@ class StartupController implements DeferredStartupHost {
   /// Off the first paint: what the launched site waits on none of.
   Future<void> _afterLaunch(
     Reached<Launched> launched, {
-    required Set<SiteId> themed,
     required _Loaded loaded,
   }) {
     _launchedProof = launched;
-    final themeRest = DeferredStartupEngine.themeRemaining(
-      this,
-      alreadyThemedSiteIds: themed,
-    );
     final background = _background.install();
     _shortcuts.promptParkedAfterFrame();
     // Every launch, not just on save: iOS queries `suggestedEntities()`
@@ -395,14 +369,13 @@ class StartupController implements DeferredStartupHost {
     _shortcuts.syncSites();
     _background.startForegroundPoll();
     return Future.wait([
-      themeRest,
       background,
       // Notification sites auto-load so they poll and notify without the
-      // user opening them, themed and with their posts wired. Each is a
+      // user opening them, with their posts wired. Each is a
       // preload: on the shared jar its session is restored before its
       // webview is built, and it yields to a same-domain site already loaded
       // (ISO-001).
-      Future.wait([themeRest, background]).then((_) async {
+      background.then((_) async {
         switch (_launch) {
           case ProcessLaunch.user:
             await DeferredStartupEngine.autoLoadNotificationSites(this);
@@ -475,14 +448,6 @@ class StartupController implements DeferredStartupHost {
           [site.firstLoadSettled, cap.future, _disposed.future]);
     } finally {
       timer.cancel();
-    }
-  }
-
-  @override
-  Future<void> applyTheme(SiteId siteId) async {
-    final m = _sites.byId(siteId);
-    if (m != null) {
-      await m.setAppTheme(_shell.theme.themeMode.webViewTheme);
     }
   }
 

@@ -828,13 +828,15 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
   /// notification sites navigate while another site is current.
   VoidCallback? onNavigationCommitted;
   FindMatchesResult findMatches = FindMatchesResult();
-  /// The app's theme as the page last handed it over, set before the first
-  /// build (the light default would otherwise flash a file import's prelude).
-  WebViewTheme _appTheme = WebViewTheme.light;
+  /// The app's theme, which every site follows unless it sets its own
+  /// (HINTS-001): one value for all of them, written by the app's theme
+  /// (`ShellStore.theme`), so a site from any source (an add, an import, an
+  /// archive's open) follows it from its first build.
+  static WebViewTheme appTheme = WebViewTheme.light;
 
   /// What this site's pages are told to prefer: its own [theme], else the
   /// app's. A file import's prelude reads it to paint a matching first frame.
-  WebViewTheme get effectiveTheme => Scoped.fromStored(theme).resolve(_appTheme);
+  WebViewTheme get effectiveTheme => Scoped.fromStored(theme).resolve(appTheme);
 
   /// The UA string webviews are actually built with: presets render fresh
   /// at the current Firefox version; custom strings pass through verbatim.
@@ -1093,8 +1095,8 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
     ];
   }
 
-  Future<void> setAppTheme(WebViewTheme appTheme) async {
-    _appTheme = appTheme;
+  /// Tells a live webview the theme it follows now (HINTS-003).
+  Future<void> reapplyTheme() async {
     if (webview != null) await controller?.setThemePreference(effectiveTheme);
   }
 
@@ -1441,10 +1443,7 @@ bool dispatch(NavigationDecision decision,
               final title = await controller!.getTitle();
               if (controller == null) return;
               if (title != null && title.isNotEmpty) {
-                pageTitle = title;
-                if (!hosted && name == extractDomain(initUrl)) {
-                  name = title;
-                }
+                titleLoaded(title, hosted: hosted);
               }
               // Reapply theme after page load (some sites might override it).
               // Fire-and-forget: don't await. The await chained an
@@ -1875,7 +1874,7 @@ bool dispatch(NavigationDecision decision,
     final ctrl = controller;
     if (ctrl == null) return;
     onReloadIssued?.call();
-    await ctrl.loadUrl(url, language: language);
+    await ctrl.loadUrl(url);
   }
 
   /// User tapped the Stop button. Cancels the in-flight load and eagerly clears
@@ -1956,6 +1955,15 @@ bool dispatch(NavigationDecision decision,
   }
 
   String getDisplayName() => name;
+
+  /// A loaded page's [title]: the active tab's title, and the site's name
+  /// while the site still bears its domain, the name it starts with, so the
+  /// first titled page names it and a name the user gave stays (EDIT-001,
+  /// EDIT-003). A tab [hosted] by another site titles only the tab.
+  void titleLoaded(String title, {required bool hosted}) {
+    pageTitle = title;
+    if (!hosted && name == extractDomain(initUrl)) name = title;
+  }
 
   /// The proxy password is never serialised — same contract as
   /// `isSecure=true` cookies, which are also stripped from exports. See

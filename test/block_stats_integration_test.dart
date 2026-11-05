@@ -166,11 +166,16 @@ void main() {
   });
 
   group('LocalCDN funnel feeds the report', () {
-    test('a cache substitution increments the CDN category', () {
+    test(
+        'LCDN-014: a cache substitution increments the CDN category, not the '
+        'counts the stats banner shows', () {
+      final banner = DnsBlockService.instance.statsForSite(SiteId('site-1'));
       LocalCdnService.instance.recordReplacement(SiteId('site-1'));
       LocalCdnService.instance.recordReplacement(SiteId('site-1'));
 
       expect(stats.engine.allTimeFor(BlockCategory.localCdn), 2);
+      final after = DnsBlockService.instance.statsForSite(SiteId('site-1'));
+      expect((after.blocked, after.allowed), (banner.blocked, banner.allowed));
     });
   });
 

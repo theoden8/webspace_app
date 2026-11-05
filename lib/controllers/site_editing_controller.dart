@@ -5,7 +5,6 @@ import 'package:webspace/controllers/shortcut_controller.dart';
 import 'package:webspace/controllers/site_deletion.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
-import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/page_title.dart';
 import 'package:webspace/services/link_routing_service.dart';
@@ -117,10 +116,6 @@ class SiteEditingController {
   /// one.
   Future<void> registerSite(WebViewModel model,
       {bool activate = true, Set<WebspaceId>? joins}) async {
-    // Before the first build: initialHtml reads effectiveTheme to pick the dark
-    // prelude for a file:// import, which never reloads to live, and the model
-    // defaults to WebViewTheme.light.
-    await model.setAppTheme(_shell.theme.themeMode.webViewTheme);
     await _host.commitSites(SiteAdded(model, joins: joins));
     if (!activate || !_host.mounted) return;
     await _host.activate(model);

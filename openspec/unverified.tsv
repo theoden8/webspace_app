@@ -22,16 +22,12 @@ A11Y-016	process: reading the Play pre-launch report each release is a release s
 ARCH-008	no check: no widget test covers the combined Restore action with its passphrase field, the no-match create prompt, the Close this archive menu item on archive webspaces, or when Close all archives shows
 ARCH-009	no check: _maskBackground in WebSpacePage.didChangeAppLifecycleState implements it, but no test drives an inactive/paused transition with an archive open and checks the mask
 # background-audio
-BGAUDIO-004	no check: no test asserts SiteRuntime.retentionPriority puts a background-audio site in the notification tier, or that it is evicted after ordinary sites (partly: test/site_lifecycle_promotion_engine_test.dart, "keeps the given order within a priority, past where List.sort is no longer stable")
 # block-statistics
 STATS-003	no check: no test of the report's range total, per-day chart, category shares, all-time/since line, the empty state, or the badge using the accent rather than colorScheme.error (partly: test/block_stats_service_test.dart, "reset zeroes the persisted payload")
 # captcha-support
 CAPTCHA-006	no check: no test shows a per-site third-party-cookie toggle reaching thirdPartyCookiesEnabled or a cross-site cookie being accepted; only the posture resolution is checked (partly: test/site_posture_test.dart, "$cell: container follows tier and TP (ETP-024, ARCH-006/007)")
 # clearurls
 # configurable-suggested-sites
-SUGGEST-002	no check: no widget test opens the '+' dialog, checks https:// prefixing or rejects empty fields
-SUGGEST-003	no check: no widget test long-presses a suggestion tile or checks the Remove/Cancel dialog
-SUGGEST-006	no check: no widget test taps a suggestion tile or checks the prefilled add dialog and its incognito toggle
 # content-blocker
 # cookie-secure-storage
 # design-gallery
@@ -42,12 +38,8 @@ DEVTOOLS-001	no check: no test captures a webview console message into the Conso
 DEVTOOLS-003	no check: no test drives Share/Save/Copy HTML or the concurrent-fetch guard
 DEVTOOLS-004	no check: copy and sensitive-copy are tested, but no test checks live streaming, auto-scroll or the App Settings entry (partly: test/dev_tools_copy_test.dart, "App Logs copy")
 DEVTOOLS-005	no check: listener notification and debug passthrough are untested; the cap is tested only on the sensitive ring (partly: test/log_service_test.dart, "respect the per-ring maxEntries cap")
-DEVTOOLS-006	no check: no test opens the scripts bottom sheet or checks its list, copy or empty state
-DEVTOOLS-007	no check: no test drives console eval, its error entry, history or the disabled state
-DEVTOOLS-008	no check: no test opens DevToolsScreen with NestedDevToolsHost or checks which tabs it hides
 # dns-blocklist
 DNS-006	no check: no test drives the App Settings DNS row (DnsBlocklistDataset with its slider): nothing checks that moving the slider does not download, that the slider is disabled while a download runs, or that it opens at the downloaded level (partly: test/level_slider_test.dart, "every stop is labelled and the current one stands out")
-DNS-007	no check: DnsBlocklistDataset.status ("<level> - <count> domains" / "Not configured") is untested; the "Updated:" line is checked only on DatasetTile with a fake dataset (partly: test/dataset_tile_test.dart, "names what is on disk and when it was fetched")
 DNS-015	no check: no test renders the per-site settings DNS stats chips, or checks that they are absent when nothing was recorded
 # downloads
 DL-001	no check: no gate reads AndroidManifest.xml for the flutter_inappwebview_android FileProvider or its FILE_PROVIDER_PATHS resource, and no native test drives getOutputUri
@@ -77,7 +69,6 @@ HS-014	no check: the Swift SiteEntityQuery.entities(for:) live/tombstone/placeho
 ICON-003	no check: no test of the quality scores or of _compareFavicons choosing a colored SVG over PNGs
 ICON-005	no check: no test renders an SVG with @media (prefers-color-scheme: dark) in dark mode; only the rejection of display:none toggles is checked (partly: test/icon_svg_selection_test.dart, "flags CSS display:none theme toggle")
 # inactive-tabs
-TAB-004	no check: no test checks that activating a site (strip or drawer tap, cold start, share arrival) leaves its tab list unchanged, or that Home resets the active tab in place without adding one (partly: test/site_tabs_model_test.dart, "with tabs, a site already at home opens no new tab")
 # incognito-mode
 INC-007	no check: no test checks an incognito site keeps its URL and storage across a webspace switch or background-resume (partly: test/app_lifecycle_engine_test.dart, "URL-ephemeral active site is paused+captured, never reset")
 # integration-tests
@@ -99,11 +90,9 @@ SHIM-TEST-002	no check: nothing stops a test from running its own copy of a scri
 SHIM-TEST-006	no check: no gate asserts each test/browser file uses setupBrowser and evaluateOnNewDocument, nor that a post-load injection carries its comment; preInit ordering is checked only indirectly (partly: test/browser/location_spoof_real.test.js, "WRTC=relay — config.iceTransportPolicy is forced to relay")
 # kiosk-mode
 # language
-LANG-001	no check: no test asserts a load sends 'Accept-Language: <tag>, *;q=0.5' (or no header when unset); only the tag sanitiser is tested
 LANG-003	no check: no widget test of the per-site language picker (System default plus 30+ options) or of the webview being disposed on save
 LANG-005	no check: no test or gate asserts the header and the override are built without platform branching
 # lazy-webview-loading
-LAZY-004	no check: no test returns to a visited site and asserts its webview was kept without a reload; the integration test covers only the forward visit
 # legal
 EXPORT-002	no check: nothing fails a cryptographic primitive outside the listed ones; review is the gate
 EXPORT-003	process: building a release from the published source at its tag is a release step (docs/releasing.md); no test builds a tag
@@ -116,22 +105,15 @@ LIR-021	no check: 'Keep as tab' on a nested screen is not built (inactive-tabs t
 LIR-025	no check: 'Move to site...' and TabLifecycleEngine.moveSubtree are not built (inactive-tabs tasks 7.1, 8.1 open)
 LIR-027	no check: 'Run as...' and TabLifecycleEngine.changeHost are not built (inactive-tabs tasks 7.3, 8.1 open)
 # localcdn
-LCDN-003	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
-LCDN-004	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
-LCDN-005	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
-LCDN-006	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
-LCDN-008	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
-LCDN-009	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
-LCDN-010	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
-LCDN-012	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
-LCDN-013	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
-LCDN-014	no check names it: test/localcdn_service_test.dart covers parts of the service without citing it
+LCDN-003	not implemented for a miss: a resource the cache lacks goes to the CDN the page named (WebInterceptPlugin.localCdnResponse returns null, as LocalCdnPerSiteTest.uncachedUrl_goesToTheNetwork pins), so only cached ones keep the original CDN uncontacted; the popular set's cdnjs-only fetch is LCDN-004's check
+LCDN-005	not implemented: nothing fetches a resource on demand; LocalCdnService._downloadAndCache runs only for the popular set, and a miss passes to the original CDN
+LCDN-006	no check: the MIME type is chosen natively (WebInterceptPlugin.contentTypeFor) and no JVM test reads it
+LCDN-008	no check: no widget test renders the per-site LocalCDN row with its cached-resource count or its Tracking Protection lock; site_privacy_screen_test reads the forced value off the model only
+LCDN-009	no check: no widget test drives the App Settings LocalCDN dataset row (download with progress, count, size, date, clear)
+LCDN-013	no check: LocalCdnPerSiteTest serves a cached URL from the interceptor, but nothing checks that fetch/XHR pass through or that Apple platforms load every CDN request unchanged
 # localization
 L10N-005	process: describes how the migration proceeds (file by file, exempt only shrinking); exempt is now empty and nothing can run 'only grows' (partly: test/js/l10n_no_hardcoded_text.test.js, "UI files contain no hardcoded user-facing text")
-L10N-006	no check: no test asserts WebSpaceApp's MaterialApp sets localizationsDelegates, supportedLocales and onGenerateTitle; app tests that find localized text would fail only incidentally (partly: test/site_menu_app_test.dart, "Developer Tools from the ${tabStrip ? 'bottom bar' : 'app bar'} menu can simulate a background refresh")
 # navigation
-NAV-003	no check: no test or gate asserts drawerEdgeDragWidth is 0 while a webview is visible
-NAV-005	no check: no test drives the site menu's Back button (goBack when canGoBack, no-op otherwise, menu closes)
 NAV-008	no check: InAppWebViewScreen's onPopInvokedWithResult policy (Android canGoBack, Apple goBack + URL diff), the AppBar back pop and _backGuard are untested; back_gesture_engine_test covers the main page only
 # nested-url-blocking
 NESTED-011	no check: needs the fork's iOS/macOS onCreateWindow decline path to skip loading the request in the parent; no test reads the fork source or runs WKWebView (iOS/macOS-only plugin behaviour that no tier runs)
@@ -163,20 +145,13 @@ SCREENSHOT-007	no check names it: the screenshot jobs run the generators, and no
 SCREENSHOT-009	no check names it: the screenshot jobs run the generators, and no test cites it
 SCREENSHOT-010	no check names it: the screenshot jobs run the generators, and no test cites it
 # settings-backup
-BACKUP-006	no check: no test builds the import confirmation dialog and asserts the site/webspace counts, export date, cookie note, proxy address or script count it shows (partly: test/proxy_library_test.dart, "an app-wide proxy from the library shows its address")
-BACKUP-008	no check: no test opens a site and asserts Import/Export (App Settings) is absent; tests only assert it is present on the webspaces list
 # settings-hints
 HINT-003	no check: it governs how an ARB key is moved (renamed in place keeping each locale's value, deleted only when the hint already says it), which no check can see after the fact; key parity catches only a key missing from a locale, and the hint-title rule holds by construction in HintedTitle with no test (partly: test/js/l10n_coverage.test.js, "${name} has full key + placeholder parity with the template")
 # site-behaviour
-BEHAV-002	no check: no test checks the per-site Behaviour row's summary (names of the switches that are on, two then 'N more', 'Nothing enabled', the external-link labels); only the order of the rows is asserted (partly: test/site_settings_network_row_test.dart, "the Network row sits between Behaviour and Privacy")
 # site-editing
-EDIT-001	no check: no test drives the title priority (page title, custom name, domain) through production code; test/integration_test.dart 'WebViewModel name updates from page title' re-implements the rule inline
-EDIT-002	no check: no widget test asserts the page title appears in the app bar, the drawer and the settings screen
 # site-permission-badges
 PERMBADGE-004	no check: no widget test renders a drawer tile (reorderable or static) holding a grant; both paths sharing _SiteGridTileContent is structural only, and the badge tests pump SitePermissionBadges on its own
 # site-settings-qr
-QR-005	no check: no widget test of the Share QR action: its visibility for http(s) vs file:// sites, Copy/Share closing the dialog, or the 240px SizedBox
-QR-006	no check: no widget test of the Add Site QR icon, the scanner/paste routing or the inline decode error; only the codec's hydrate step (fresh siteId, no cookies or scripts, no password) is checked (partly: test/site_settings_qr_codec_test.dart, "encode then decode is a no-op for the shareable subset")
 QR-007	process: records a known limitation (no per-field type validation) rather than behaviour to guard, and is partly overtaken: decode now type-checks proxySettings (SEC-005)
 # tls-trust-prompt
 # tor-proxy
@@ -186,7 +161,6 @@ TOR-012	no check: no gate checks the app name, subtitle, bundle id or metadata f
 # tracking-protection
 ETP-029	no check: not implemented: task 6.3 of upstream-webview-defects is open and no shim or test registers or probes the plugin's console wrappers
 # user-scripts
-US-001d	no check: no test drives the globalUserScriptsOptInMigrated one-time fill or asserts it does not run again
 US-003	no check: no widget test drives the User Scripts screen (per-site vs library mode, delete confirmation, toggle, reorder, Make Global); only the editor's discard guard is tested (partly: test/editor_discard_guard_test.dart, "an unsaved edit asks first, and Keep editing keeps it")
 US-008	no check: not implemented: userscript-metadata tasks 1.2, 4.2 open (the header parser and the run paths' tests)
 US-009	no check: not implemented: userscript-metadata tasks 2.2, 3.2, 4.2, 6.1 open (the match table, the gate, the run paths and the end-to-end test)
@@ -200,16 +174,9 @@ WEBEXT-007	no check: the native refusal of messages to apps needs the macOS inte
 WEBEXT-008	no check: an extension's tab at a page of the site's domains is refused, not yet opened as a nested screen (task 4.5), and the pages shown over the site need the macOS integration test (task 6.1) (partly: test/web_extension_screens_test.dart, "the site's menu lists the extension, which opens its action")
 WEBEXT-010	no check: that a nested screen's and a popup's WKWebView load the same contexts needs the macOS integration test (task 6.1) (partly: test/web_extension_posture_test.dart, "the posture carries the plan, and a nested screen keeps it")
 # web-push-notifications
-NOTIF-001	no check: the Dart webNotificationRequestPermission handler in lib/services/page_handlers.dart that answers from the toggle is untested; the JS test stubs the bridge to 'granted', and the hidden-toggle scenario has no test (partly: test/js/notification_polyfill_shim.test.js, "requestPermission asks the bridge and adopts its answer")
 # web-screen-sharing
-SHARE-016	no check: the strip functions are unit-tested, but nothing checks that the visual pick path runs them before the source lands on the model, nor the PNG-with-XMP case (partly: test/media_metadata_strip_test.dart, "other formats become PNG with the same pixels")
 # webspaces
-WEBSPACE-005	no check: no test restarts the app (or reruns the restore) and asserts the selected webspace and its drawer come back; only the Webspace JSON round-trip is tested (partly: test/webspace_model_test.dart, "JSON round-trip preserves siteIds")
-WEBSPACE-010	no check: no test deletes a site and asserts webspace siteIds/siteIndices shrink and shift; the loaded/active-site scenario alone is tested (partly: test/site_runtime_test.dart, "a delete before the shown site shifts it and the loaded set")
 # webview-hints
-HINTS-001	no check: no test shows the app's theme mode reaching a webview: setThemePreference and the ThemeMode to WebViewTheme mapping in the app are untested (theme_test.dart checks a local copy of the mapping); the shim alone is tested with a fixed config (partly: test/js/theme_color_scheme_shim.test.js, "dark fixture: matchMedia(prefers-color-scheme: dark) → matches=true")
-HINTS-003	no check: no test toggles the theme and asserts every open webview is re-themed, nor that a page load reapplies it; only the startup pass is covered (partly: test/deferred_startup_engine_test.dart, "themes the live sites not themed before the first paint")
-HINTS-004	no check: no test saves a theme mode and reads it back through the app's persistence; 'ThemeMode serialization for SharedPreferences' only asserts Flutter's enum indices
 HINTS-005	no check: no tier runs the theme hint on more than one platform or asserts setThemePreference takes no platform branch
 # webview-pause-lifecycle
 PAUSE-003	process: a documentation rule (doc comments on WebViewController.pause/pauseAllJsTimers saying which is per-instance and which is process-global); no test or gate reads those comments

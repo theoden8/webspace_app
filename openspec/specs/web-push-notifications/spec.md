@@ -7,7 +7,7 @@ TBD - created by archiving change web-push-notifications. Update Purpose after a
 
 ### Requirement: NOTIF-001 - Notification Permission Handling
 
-The system SHALL handle JavaScript `Notification.requestPermission()` calls from web pages and grant or deny based on the per-site notification toggle. Requires container mode (`_useContainers == true`) — iOS 17+ or Android with System WebView 110+.
+The system SHALL handle JavaScript `Notification.requestPermission()` calls from web pages and grant or deny based on the per-site notification toggle. Offered only where each site has a container of its own (the restore's `Containers` witness): iOS 17+, macOS 14+, Linux WPE 2.40+, or an Android WebView reporting `MULTI_PROFILE`.
 
 #### Scenario: Site requests notification permission with toggle enabled
 
@@ -26,7 +26,7 @@ The system SHALL handle JavaScript `Notification.requestPermission()` calls from
 
 #### Scenario: Notification toggles hidden on legacy devices
 
-**Given** container mode is NOT active (`_useContainers == false`)
+**Given** the sites share one cookie jar (`SharedJar`)
 **When** the user opens site settings
 **Then** the `notificationsEnabled` and `backgroundPoll` toggles are not shown
 

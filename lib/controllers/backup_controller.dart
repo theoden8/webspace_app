@@ -317,9 +317,8 @@ class BackupController {
       await suggested_sites.saveSuggestedSites(_shell.suggestedSites);
     }
 
-    final webViewTheme = _shell.theme.themeMode.webViewTheme;
-    for (var webViewModel in _sites.models) {
-      await webViewModel.setAppTheme(webViewTheme);
+    for (final webViewModel in _sites.models) {
+      await webViewModel.reapplyTheme();
     }
 
     final hinted = plan.proxyPasswordsNeeded ||

@@ -375,7 +375,7 @@ class LinkController {
       case SearchLanding.inPlace:
         final controller = _host.controllerOf(owner);
         if (controller == null) return;
-        await controller.loadUrl(url.toString(), language: identity.language);
+        await controller.loadUrl(url.toString());
         if (!_host.mounted) return;
         owner.currentUrl = url.toString();
         await _host.commitSites(const SitesEdited());
@@ -828,7 +828,7 @@ class LinkController {
           sensitive: true);
       return;
     }
-    await controller.loadUrl(a.url, language: model.language);
+    await controller.loadUrl(a.url);
     if (!_host.mounted) return;
     model.currentUrl = a.url;
     await _host.commitSites(const SitesEdited());
@@ -853,7 +853,7 @@ class LinkController {
     if (!_host.mounted) return;
     final controller = _host.controllerOf(model);
     if (controller != null && a.fullUrl != a.home) {
-      await controller.loadUrl(a.fullUrl, language: model.language);
+      await controller.loadUrl(a.fullUrl);
       if (!_host.mounted) return;
       model.currentUrl = a.fullUrl;
       await _host.commitSites(const SitesEdited());
@@ -930,8 +930,7 @@ class LinkController {
     }
     switch (decision) {
       case NavigationDecision.allow:
-        await _host.controllerOf(model)
-            ?.loadUrl(url, language: identity.language);
+        await _host.controllerOf(model)?.loadUrl(url);
       case NavigationDecision.blockOpenNested:
         if (routeOutbound(model,
             url: url,
@@ -1042,7 +1041,7 @@ class LinkController {
     await _tabs.runWhenIdle(() async {
       final controller = _host.controllerOf(model);
       if (controller == null) return;
-      await controller.loadUrl(url, language: model.runningIdentity.language);
+      await controller.loadUrl(url);
       if (!_host.mounted) return;
       model.currentUrl = url;
       await _host.commitSites(const SitesEdited());

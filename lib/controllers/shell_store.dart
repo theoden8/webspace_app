@@ -11,6 +11,7 @@ import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/settings/site_suggestion.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/theme/app_theme.dart';
+import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
 /// What the page saves beside its sites: the theme, the global user scripts,
@@ -21,20 +22,30 @@ class ShellStore {
 
   final SiteRuntime _sites;
 
-  AppThemeSettings theme = const AppThemeSettings();
+  AppThemeSettings _theme = const AppThemeSettings();
+
+  /// The app's theme; every site's webview follows it unless the site sets
+  /// its own, so setting it sets [WebViewModel.appTheme] too.
+  AppThemeSettings get theme => _theme;
+  set theme(AppThemeSettings value) {
+    _theme = value;
+    WebViewModel.appTheme = value.themeMode.webViewTheme;
+  }
   List<UserScriptConfig> globalUserScripts = [];
   List<SiteSuggestion> suggestedSites = [];
 
-  /// Reads the theme, carrying over the two formats before it.
+  /// Reads the theme, carrying over the two formats before it; with none
+  /// saved, the default, which the sites follow too.
   void loadTheme(SharedPreferences prefs) {
+    var read = const AppThemeSettings();
     final savedThemeSettings = readPrefAs<int>(prefs, key: 'themeSettings');
     if (savedThemeSettings != null) {
-      theme = AppThemeSettings.fromStorageIndex(savedThemeSettings);
+      read = AppThemeSettings.fromStorageIndex(savedThemeSettings);
     } else {
       // Try to migrate from old appTheme format
       final savedAppTheme = readPrefAs<int>(prefs, key: 'appTheme');
       if (savedAppTheme != null && savedAppTheme < AppTheme.values.length) {
-        theme = AppTheme.values[savedAppTheme].settings;
+        read = AppTheme.values[savedAppTheme].settings;
       } else {
         // Migrate from old themeMode if exists
         final oldThemeMode = readPrefAs<int>(prefs, key: 'themeMode');
@@ -42,20 +53,21 @@ class ShellStore {
           // Map old ThemeMode to new settings (assuming green was the old color)
           switch (oldThemeMode) {
             case 0: // ThemeMode.system
-              theme = AppThemeSettings(themeMode: ThemeMode.system, accentColor: AccentColor.green);
+              read = AppThemeSettings(themeMode: ThemeMode.system, accentColor: AccentColor.green);
               break;
             case 1: // ThemeMode.light
-              theme = AppThemeSettings(themeMode: ThemeMode.light, accentColor: AccentColor.green);
+              read = AppThemeSettings(themeMode: ThemeMode.light, accentColor: AccentColor.green);
               break;
             case 2: // ThemeMode.dark
-              theme = AppThemeSettings(themeMode: ThemeMode.dark, accentColor: AccentColor.green);
+              read = AppThemeSettings(themeMode: ThemeMode.dark, accentColor: AccentColor.green);
               break;
             default:
-              theme = const AppThemeSettings();
+              read = const AppThemeSettings();
           }
         }
       }
     }
+    theme = read;
   }
 
   Future<void> saveCurrentIndex() async {
@@ -100,22 +112,24 @@ class ShellStore {
   /// Migrate pre-opt-in data: older builds ran every enabled global script
   /// on every site. After switching to per-site opt-in, sites that haven't
   /// declared [WebViewModel.enabledGlobalScriptIds] would silently lose
-  /// their global scripts. For each site with an empty opt-in set, opt it
-  /// into all currently-defined globals once. A marker key prevents this
-  /// running again after the user starts curating per-site opt-ins. True
-  /// when it ran, and the sites need saving.
+  /// their global scripts. On the first launch that checks, each site with
+  /// an empty opt-in set is opted into every global defined then, and the
+  /// marker is set whether or not there was anything to fill: a script added
+  /// later is the opt-in model's, and the sites left out of it are the
+  /// user's choice (US-001d). True when a site was filled and needs saving.
   Future<bool> migrateGlobalScriptOptIn() async {
-    if (globalUserScripts.isEmpty || _sites.models.isEmpty) return false;
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool('globalUserScriptsOptInMigrated') == true) return false;
-    final allIds = globalUserScripts.map((s) => s.id).toSet();
+    final allIds = {for (final s in globalUserScripts) s.id};
+    var filled = false;
     for (final model in _sites.models) {
-      if (model.enabledGlobalScriptIds.isEmpty) {
+      if (allIds.isNotEmpty && model.enabledGlobalScriptIds.isEmpty) {
         model.enabledGlobalScriptIds = {...allIds};
+        filled = true;
       }
     }
     await prefs.setBool('globalUserScriptsOptInMigrated', true);
-    return true;
+    return filled;
   }
 
   Set<SiteId> get archivedSiteIds => {

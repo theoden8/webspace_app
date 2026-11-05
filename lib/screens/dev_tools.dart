@@ -915,26 +915,25 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                               color: Theme.of(context).colorScheme.surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Stack(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                SelectableText(
-                                  script.source.isEmpty ? loc.devToolsScriptEmptySource : script.source,
-                                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-                                ),
-                                Positioned(
-                                  top: 0,
-                                  right: 0,
-                                  child: IconButton(
-                                    icon: const Icon(Icons.copy, size: 16),
-                                    tooltip: loc.devToolsScriptCopySource,
-                                    onPressed: () {
-                                      unawaited(Clipboard.setData(ClipboardData(text: script.source)));
-                                      ScaffoldMessenger.of(context).toast(
-                                        loc.devToolsScriptCopied(script.name),
-                                      );
-                                    },
-                                    visualDensity: VisualDensity.compact,
+                                Expanded(
+                                  child: SelectableText(
+                                    script.source.isEmpty ? loc.devToolsScriptEmptySource : script.source,
+                                    style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
                                   ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.copy, size: 16),
+                                  tooltip: loc.devToolsScriptCopySource,
+                                  onPressed: () {
+                                    unawaited(Clipboard.setData(ClipboardData(text: script.source)));
+                                    ScaffoldMessenger.of(context).toast(
+                                      loc.devToolsScriptCopied(script.name),
+                                    );
+                                  },
+                                  visualDensity: VisualDensity.compact,
                                 ),
                               ],
                             ),

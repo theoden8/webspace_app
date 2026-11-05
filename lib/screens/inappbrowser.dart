@@ -570,7 +570,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         _resumeReload.noteRetryIssued();
         _surface.armCommitLatch();
         _surface.nudge('resume-reissue');
-        await controller.loadUrl(plan.url!, language: widget.posture.page.language);
+        await controller.loadUrl(plan.url!);
         await Future.delayed(ResumeReloadEngine.retryBackoff);
         if (!mounted || _controller == null) return;
       }
@@ -839,7 +839,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                 currentUrl: _currentUrl,
                 onSiteInfo: _showSiteInfo,
                 onUrlSubmitted: (url) {
-                  unawaited(_controller?.loadUrl(url, language: widget.posture.page.language));
+                  unawaited(_controller?.loadUrl(url));
                 },
               ),
             ),

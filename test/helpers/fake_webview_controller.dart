@@ -60,7 +60,7 @@ class FakeWebViewController extends Fake implements WebViewController {
   }
 
   @override
-  Future<void> loadUrl(String url, {String? language}) async =>
+  Future<void> loadUrl(String url) async =>
       calls.add('loadUrl $url');
 
   @override

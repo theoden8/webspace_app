@@ -14,11 +14,15 @@ Users can edit site details and see automatic page title extraction instead of j
 
 ### Requirement: EDIT-001 - Automatic Page Title Display
 
-The system SHALL display page titles with the following priority:
+The system SHALL name a site, wherever its name shows, with the following
+priority:
 
-1. Page title (from HTML `<title>` tag)
-2. Custom name (user-edited)
-3. Domain (extracted from URL)
+1. Custom name (user-edited, EDIT-003)
+2. The title of the first page it loaded that had one (HTML `<title>`)
+3. Domain (extracted from URL), the name a new site starts with
+
+Each load's page title is kept as the active tab's title (EDIT-007). A tab
+another site hosts titles only the tab.
 
 #### Scenario: Display page title from HTML
 
@@ -27,14 +31,21 @@ The system SHALL display page titles with the following priority:
 **Then** "Example Portal" is displayed in the app bar
 **And** "Example Portal" is displayed in the drawer
 
+#### Scenario: A custom name outlasts the page title
+
+**Given** the user named a site "Work Portal"
+**When** a page with `<title>Example Portal</title>` finishes loading
+**Then** the site is still named "Work Portal"
+
 ---
 
 ### Requirement: EDIT-002 - Title Display Locations
 
-Page titles SHALL be displayed in:
+A site's name, which its first titled page gives it (EDIT-001), SHALL be displayed in:
 - App bar (top of screen)
 - Drawer list items
-- Settings screen
+
+The site's Settings screen is titled for what it is, not for the site.
 
 #### Scenario: Show title in multiple locations
 
@@ -130,6 +141,9 @@ no per-`siteId` plaintext file is written (ARCH-006 audit: no disk, background
 scheduling, or OS-UI surface beyond the existing home-shortcut path). The field
 is excluded from the QR share payload (`QrShare.withheld` on its `SiteField`):
 image bytes would blow QR capacity and an icon is device-local cosmetics.
+Since the icon rides backups, the stored PNG SHALL carry none of the picked
+file's metadata: no EXIF, ICC profile or text chunk (where a PNG keeps XMP),
+cleared by the same step as a virtual capture source's (SHARE-016).
 
 #### Scenario: Set a custom icon
 
@@ -149,6 +163,12 @@ renders (drawer list/grid, tab strip, webspace detail, site dispatch)
 **Then** the pinned shortcut uses the custom icon bytes instead of the fetched
 favicon
 **And** a shortcut pinned before the icon was picked takes it too (HS-016)
+
+#### Scenario: A picked image's metadata stays behind
+
+**Given** the user picks a PNG whose XMP text names their device
+**When** processing runs
+**Then** the stored icon has the picked image's pixels and no text, EXIF or ICC chunk
 
 #### Scenario: Revert to the automatic icon
 

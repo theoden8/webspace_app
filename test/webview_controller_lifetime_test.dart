@@ -186,6 +186,7 @@ SiteHooks _siteHooks({
     );
 
 Widget _webView({
+  WebViewModel? site,
   WebViewHostHooks? hooks,
   Key? key,
   bool cacheFirst = false,
@@ -199,7 +200,7 @@ Widget _webView({
         config: WebViewConfig(
           key: key,
           posture:
-              _site.sitePosture(
+              (site ?? _site).sitePosture(
                   globalUserScripts: const <UserScriptConfig>[],
                   isolation: fakeSharedJar()),
           hooks: hooks ?? _hooks(),
@@ -1035,6 +1036,57 @@ void main() {
         inapp.URLRequest(url: inapp.WebUri('file:///Notes.html')));
     await controller.loadUrl('https://example.com/');
     expect(native.calls, ['loadData', 'loadData', 'loadUrl']);
+  });
+
+  // The language rides the webview, not each caller: a load no caller
+  // thought to tell (a TLS reload, a retry after a failed load) asks for the
+  // site's language as the first load did.
+  group('LANG-001: the loads the app issues ask for the site\'s language', () {
+    Future<List<inapp.URLRequest>> loads(
+      WidgetTester tester, {
+      required String? language,
+    }) async {
+      WebViewController? controller;
+      await tester.pumpWidget(_webView(
+        site: WebViewModel(initUrl: 'https://example.com/', language: language),
+        onControllerCreated: (c) => controller = c,
+      ));
+      final first = tester
+          .widget<inapp.InAppWebView>(find.byType(inapp.InAppWebView))
+          .platform
+          .params
+          .initialUrlRequest;
+      final (params: _, :native) = await _attach(tester);
+      await tester.runAsync(() async {
+        await controller!.loadUrl('https://example.com/next');
+        await controller!.loadUrl('about:blank');
+      });
+      return [?first, ...native.requests];
+    }
+
+    testWidgets('LANG-001: a site in Spanish asks for es on every web load',
+        (tester) async {
+      final [first, next, blank] = await loads(tester, language: 'es');
+      for (final request in [first, next]) {
+        expect(request.headers?['Accept-Language'], 'es, *;q=0.5',
+            reason: '${request.url}');
+        expect(request.headers?['DNT'], '1');
+      }
+      expect(next.url.toString(), 'https://example.com/next');
+      expect(blank.url.toString(), 'about:blank');
+      expect(blank.headers, isNull,
+          reason: 'a header on a non-web address can fail the load');
+    });
+
+    testWidgets('LANG-001: a site with no language sends no Accept-Language',
+        (tester) async {
+      final [first, next, _] = await loads(tester, language: null);
+      for (final request in [first, next]) {
+        expect(request.headers?.containsKey('Accept-Language'), isFalse,
+            reason: '${request.url}');
+        expect(request.headers?['Sec-GPC'], '1');
+      }
+    });
   });
 
   group('NAV-018: a reload while a page loads', () {

@@ -22,10 +22,9 @@ import 'package:webspace/services/untrusted_image.dart';
   Uint8List raw, {
   required bool jpeg,
 }) {
-  final decoded = decodeUntrustedImage(raw);
-  if (decoded == null) return null;
-  decoded.exif = img.ExifData();
-  decoded.iccProfile = null;
+  final image = decodeUntrustedImage(raw);
+  if (image == null) return null;
+  final decoded = withoutMetadata(image);
   if (jpeg) {
     return (
       bytes: Uint8List.fromList(img.encodeJpg(decoded, quality: 92)),
@@ -34,6 +33,15 @@ import 'package:webspace/services/untrusted_image.dart';
   }
   return (bytes: Uint8List.fromList(img.encodePng(decoded)), mime: 'image/png');
 }
+
+/// [image] with what a decoder kept of the file's metadata cleared, so an
+/// encoder writes back only pixels: EXIF, the ICC profile, and the text a
+/// PNG keeps in tEXt, iTXt and zTXt chunks, XMP among it (SHARE-016). Every
+/// re-encode of a picked image goes through it.
+img.Image withoutMetadata(img.Image image) => image
+  ..exif = img.ExifData()
+  ..iccProfile = null
+  ..textData = null;
 
 /// [stripImageMetadata] shaped for `compute`: `(bytes, jpeg)`.
 ({Uint8List bytes, String mime})? stripImageMetadataForIsolate(

@@ -90,6 +90,9 @@ Future<void> prepareRealApp(
   FlutterSecureStorage.setMockInitialValues({});
   webViewCalls.clear();
   webViewSettingsWrites.clear();
+  webViewCanGoBack = false;
+  webViewTitle = null;
+  webViewUserScripts.clear();
   _freshDocuments();
   useFakePathProvider(_documents);
   PackageInfo.setMockInitialValues(
@@ -234,7 +237,9 @@ Future<_FakeWebViewController> _controllerOf(
   required inapp.InAppWebView view,
 }) async {
   if (_attached[view] case final known?) return known;
-  final controller = _attached[view] = _FakeWebViewController();
+  final controller = _attached[view] =
+      _FakeWebViewController(
+          opens: '${view.platform.params.initialUrlRequest?.url}');
   await tester.runAsync(() async {
     view.platform.params.onWebViewCreated?.call(controller);
   });
@@ -248,6 +253,16 @@ final Map<inapp.InAppWebView, _FakeWebViewController> _attached =
 /// was pumped, in order: `#reload` for a reload.
 final List<Symbol> webViewCalls = [];
 
+/// What every webview's `canGoBack` answers; false unless a test sets it.
+bool webViewCanGoBack = false;
+
+/// What every webview's `getTitle` answers; none unless a test sets it.
+String? webViewTitle;
+
+/// The user scripts each webview was handed after it was built, in order,
+/// by the address it was built to open.
+final Map<String, List<inapp.UserScript>> webViewUserScripts = {};
+
 /// Each `setSettings` since the app was pumped, with what ran on the
 /// process-wide proxy rule as it was sent.
 final List<({inapp.InAppWebViewSettings settings, Set<RouteOccupant> onRule})>
@@ -259,10 +274,15 @@ Future<void> pressBack(WidgetTester tester) async {
   await settleRealApp(tester);
 }
 
-/// A webview with no page in it: nothing to go back or forward to, nothing
-/// loading,
-/// and every other call answered with nothing.
+/// A webview with no page in it: nothing to go back ([webViewCanGoBack]
+/// aside) or forward to, nothing loading, and every other call answered with
+/// nothing.
 class _FakeWebViewController implements inapp.InAppWebViewController {
+  _FakeWebViewController({required this.opens});
+
+  /// The address its view was built to open.
+  final String opens;
+
   @override
   final inapp.PlatformInAppWebViewController platform =
       FakePlatformController();
@@ -270,7 +290,7 @@ class _FakeWebViewController implements inapp.InAppWebViewController {
   @override
   Future<bool> canGoBack() async {
     webViewCalls.add(#canGoBack);
-    return false;
+    return webViewCanGoBack;
   }
 
   @override
@@ -283,9 +303,17 @@ class _FakeWebViewController implements inapp.InAppWebViewController {
   Future<bool> isLoading() async => false;
 
   @override
+  Future<String?> getTitle() async => webViewTitle;
+
+  @override
   dynamic noSuchMethod(Invocation invocation) {
     if (!invocation.isMethod) return null;
     webViewCalls.add(invocation.memberName);
+    if (invocation.namedArguments[#userScript]
+        case final inapp.UserScript script
+        when invocation.memberName == #addUserScript) {
+      (webViewUserScripts[opens] ??= []).add(script);
+    }
     if (invocation.namedArguments[#settings]
         case final inapp.InAppWebViewSettings settings
         when invocation.memberName == #setSettings) {

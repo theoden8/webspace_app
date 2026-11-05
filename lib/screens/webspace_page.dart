@@ -972,9 +972,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     widget.onThemeSettingsChanged(next);
     await _shell.saveTheme();
     if (!mounted) return;
-    final webViewTheme = next.themeMode.webViewTheme;
     for (final model in List.of(_sites.models)) {
-      await model.setAppTheme(webViewTheme);
+      await model.reapplyTheme();
     }
   }
 

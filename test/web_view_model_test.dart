@@ -36,6 +36,41 @@ Map<String, dynamic> _legacyJson([Map<String, dynamic> extra = const {}]) =>
 
 void main() {
   group('WebViewModel', () {
+    group('EDIT-001: a page title names a site the user has not named', () {
+      test('the first titled page names the site; later ones title the tab',
+          () {
+        final site = WebViewModel(initUrl: 'https://example.com/');
+        site.titleLoaded('Example Portal', hosted: false);
+        expect((site.getDisplayName(), site.pageTitle),
+            ('Example Portal', 'Example Portal'));
+        site.titleLoaded('Inbox (3)', hosted: false);
+        expect((site.getDisplayName(), site.pageTitle),
+            ('Example Portal', 'Inbox (3)'));
+      });
+
+      test('a name the user gave stays (EDIT-003)', () {
+        final site =
+            WebViewModel(initUrl: 'https://example.com/', name: 'Work Portal');
+        site.titleLoaded('Example Portal', hosted: false);
+        expect((site.getDisplayName(), site.pageTitle),
+            ('Work Portal', 'Example Portal'));
+      });
+
+      test('a tab another site hosts titles only the tab', () {
+        final site = WebViewModel(initUrl: 'https://example.com/');
+        site.titleLoaded('Search results', hosted: true);
+        expect((site.getDisplayName(), site.pageTitle),
+            ('example.com', 'Search results'));
+      });
+    });
+
+    test('LCDN-010: a site saved before LocalCDN existed reads it as on', () {
+      final json = _bareJson();
+      expect(json.containsKey('localCdnEnabled'), isFalse);
+      expect(WebViewModel.fromJson(json, stateSetterF: null).localCdnEnabled,
+          isTrue);
+    });
+
     // ETP-001, NOTIF-004
     test('should initialize with default values', () {
       final model = WebViewModel(

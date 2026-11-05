@@ -58,6 +58,28 @@ void main() {
       );
     });
 
+    test(
+        'WEBSPACE-010: a delete takes the site out of every webspace and '
+        'shifts the positions after it', () {
+      final c = _site(SiteId('c'));
+      final r = _runtime(
+          [_site(SiteId('a')), _site(SiteId('b')), c, _site(SiteId('d'))]);
+      final work = Webspace(name: 'Work', siteIds: [SiteId('a'), SiteId('c')]);
+      final personal =
+          Webspace(name: 'Personal', siteIds: [SiteId('c'), SiteId('d')]);
+      r.webspaces.addAll([work, personal]);
+      r.resolveWebspaceIndices();
+      expect(work.siteIndices, [0, 2]);
+      expect(personal.siteIndices, [2, 3]);
+
+      r.applied(SiteRemoved(c));
+
+      expect(work.siteIds, [SiteId('a')]);
+      expect(personal.siteIds, [SiteId('d')]);
+      expect(work.siteIndices, [0]);
+      expect(personal.siteIndices, [2], reason: 'd moved up from 3');
+    });
+
     test('deleting the shown site leaves nothing shown', () {
       final a = _site(SiteId('a'));
       final r = _runtime(

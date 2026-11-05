@@ -56,7 +56,10 @@ abstract class WebViewController {
   /// container and route cookie ops to its per-container jar.
   inapp.InAppWebViewController get nativeController;
 
-  Future<void> loadUrl(String url, {String? language});
+  /// A navigation to [url]; a web address carries the headers the webview
+  /// was built with ([WebViewFactory.navigationHeaders]), its site's
+  /// language among them (LANG-001).
+  Future<void> loadUrl(String url);
   /// False when no load starts: the webview is gone or the platform refused.
   Future<bool> reload();
   Future<Uri?> getUrl();
@@ -373,23 +376,15 @@ class PlatformWebViewController implements WebViewController {
   inapp.InAppWebViewController get nativeController => _c;
 
   @override
-  Future<void> loadUrl(String url, {String? language}) async {
-    final headers = <String, String>{};
+  Future<void> loadUrl(String url) async {
     // HTTP headers are only meaningful for http(s) schemes. Attaching them to
     // non-HTTP URLs (chrome://, about:, file://, data:, javascript:) routes
     // the request through the WebView's HTTP path and can get rejected as
     // "invalid URL".
     final isHttp = url.startsWith('http://') || url.startsWith('https://');
-    if (isHttp) {
-      headers['DNT'] = '1';
-      headers['Sec-GPC'] = '1';
-    }
-    if (language != null && isHttp) {
-      headers['Accept-Language'] = '$language, *;q=0.5';
-    }
     await loadRequest(inapp.URLRequest(
       url: inapp.WebUri(url),
-      headers: headers.isNotEmpty ? headers : null,
+      headers: isHttp && _navigationHeaders.isNotEmpty ? _navigationHeaders : null,
     ));
   }
 

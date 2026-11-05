@@ -125,6 +125,16 @@ void main() {
       expect(back.getPixel(0, 0).r, 0);
     });
 
+    test('a PNG loses the text chunks XMP travels in (SHARE-016)', () {
+      final image = img.Image(width: 2, height: 2)
+        ..textData = {'XML:com.adobe.xmp': '<x:xmpmeta>Phone Co</x:xmpmeta>'};
+      final raw = Uint8List.fromList(img.encodePng(image));
+      expect(String.fromCharCodes(raw), contains('Phone Co'));
+      final out = stripImageMetadata(raw, jpeg: false)!;
+      expect(String.fromCharCodes(out.bytes), isNot(contains('Phone Co')));
+      expect(img.decodePng(out.bytes)!.textData, isNull);
+    });
+
     test('bytes that are not an image are refused', () {
       expect(stripImageMetadata(Uint8List.fromList([1, 2, 3]), jpeg: false),
           isNull);
