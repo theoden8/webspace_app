@@ -100,6 +100,24 @@ test('the manifest gives the build the tracker surrogates build.rs pins (CB-010)
     'a checkout the build is not told of');
 });
 
+// linux/tor.cmake builds lyrebird with Go, which the flatpak's SDK lacks, and
+// verify_tor_shipped.sh requires lyrebird unless WEBSPACE_LYREBIRD=none says
+// the bundle ships no transport (TOR-016).
+function lyrebirdRefusals(doc) {
+  const app = doc.modules.find((m) => typeof m === 'object' && m.name === appId.split('.').pop());
+  const go = (doc['sdk-extensions'] ?? []).some((ext) => /\.golang$/.test(ext));
+  const named = app['build-options']?.env?.WEBSPACE_LYREBIRD;
+  if (!go && named !== 'none') return [`the SDK has no Go, and WEBSPACE_LYREBIRD is ${named}, not none`];
+  return [];
+}
+
+test('the flatpak builds tor with no lyrebird, as its SDK has no Go (TOR-016)', () => {
+  assert.match(read('linux/tor.cmake'), /if\("\$ENV\{WEBSPACE_LYREBIRD\}" STREQUAL "none"\)/, 'linux/tor.cmake no longer reads WEBSPACE_LYREBIRD');
+  assert.deepEqual(lyrebirdRefusals(parsed), []);
+  assert.deepEqual(lyrebirdRefusals(YAML.parse(manifest.replace(/^ {8}WEBSPACE_LYREBIRD: none\n/m, ''))),
+    ['the SDK has no Go, and WEBSPACE_LYREBIRD is undefined, not none'], 'a build that would look for Go');
+});
+
 // The binary's GApplication id names its Wayland window and its desktop files,
 // so it has to be the flatpak's id, not the native build's.
 test('the flatpak builds the app under the manifest id, the native build under its own (PLATFORM-009)', () => {

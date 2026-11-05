@@ -181,6 +181,9 @@ modules:
         # The checkout below, which rust/webspace_adblock/build.rs cannot fetch
         # in a build with no network.
         WEBSPACE_SURROGATES_SOURCE: /run/build/webspace_app/flatpak-sources/tracker-surrogates
+        # The SDK has no Go, so linux/tor.cmake builds no lyrebird, and
+        # verify_tor_shipped.sh holds the bundle to shipping no transport.
+        WEBSPACE_LYREBIRD: none
         # rust-toolchain.toml's channel. Set here, it overrides that file,
         # whose Android targets rustup would otherwise download.
         RUSTUP_TOOLCHAIN: 1.94.1
