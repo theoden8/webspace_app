@@ -1,6 +1,7 @@
 package org.codeberg.theoden8.webspace.proxy
 
 import org.codeberg.theoden8.webspace.Guarded
+import org.codeberg.theoden8.webspace.describe
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -259,7 +260,7 @@ class ProxyRelay(
                 status.contentEquals(STATUS_PREFIX)
             }
         } catch (e: IOException) {
-            log("serving check got no answer (${e.javaClass.simpleName})")
+            log("serving check got no answer: ${describe(e)}")
             false
         }
     }
@@ -411,7 +412,7 @@ class ProxyRelay(
                 socket
             }
         } catch (e: Exception) {
-            log("could not bind $ip: ${e.javaClass.simpleName}")
+            log("could not bind $ip: ${describe(e)}")
             runCatching { socket.close() }
             null
         }
@@ -438,6 +439,7 @@ class ProxyRelay(
                 }
             } catch (e: Exception) {
                 reached.set(false)
+                log("self-test connect to ${addr.address?.hostAddress}:${addr.port} failed: ${describe(e)}")
             }
         }, "proxy-relay-self-test").apply { isDaemon = true }
         probe.start()
@@ -488,7 +490,7 @@ class ProxyRelay(
                 try {
                     adopted = handle(client)
                 } catch (e: Exception) {
-                    log("client handling failed: ${e.javaClass.simpleName}")
+                    log("client handling failed: ${describe(e)}")
                 } finally {
                     if (!adopted) runCatching { client.close() }
                 }
@@ -504,7 +506,7 @@ class ProxyRelay(
     private fun peerAllowed(peerPort: Int): Boolean {
         if (peerCheckUnavailable) return true
         val check: (Int, Int) -> PeerVerdict =
-            peerCheck ?: { p, r -> readPeerVerdict(p, r, ownUid) }
+            peerCheck ?: { p, r -> readPeerVerdict(p, r, ownUid, log = ::log) }
         return when (check(peerPort, boundPort)) {
             PeerVerdict.OWN -> true
             PeerVerdict.FOREIGN -> {
@@ -537,6 +539,13 @@ class ProxyRelay(
         val viaProxy: Boolean
             get() = upstream.type == UpstreamType.HTTP || upstream.type == UpstreamType.HTTPS
         val reach: Reach get() = Reach(upstream, if (viaProxy) null else "$host:$port")
+
+        /** This request's tunnel as its end names it: the site, the target, and the address [socket] reached. */
+        fun tunnel(socket: Socket): String {
+            val at = (socket.remoteSocketAddress as? InetSocketAddress)
+                ?.let { "${it.address?.hostAddress ?: it.hostString}:${it.port}" }
+            return "$method $host:$port for ${lease.route.siteId} via ${upstream.type}" + (at?.let { " at $it" } ?: "")
+        }
     }
 
     /** One upstream connection a run of plain-http requests reuses. */
@@ -587,8 +596,15 @@ class ProxyRelay(
         val (host, hostPort) = if (isConnect) {
             parseAuthority(target, 443)
         } else {
-            val uri = runCatching { URI(target) }.getOrNull()
-            if (uri?.host == null) {
+            val uri = try {
+                URI(target)
+            } catch (e: URISyntaxException) {
+                log("rejected a request target that is no URI: ${describe(e)}")
+                writeStatus(cout, 400, "Bad Request")
+                return null
+            }
+            if (uri.host == null) {
+                log("rejected a request target with no host: $target")
                 writeStatus(cout, 400, "Bad Request")
                 return null
             }
@@ -673,7 +689,7 @@ class ProxyRelay(
         var adopted = false
         try {
             if (!establishedEarly) writeEstablished(cout)
-            adopted = splice(client, cin, upstream, upstreamIn = upstream.getInputStream(), upstreamFirst = EMPTY, lease = request.lease)
+            adopted = splice(client, cin, upstream, upstreamIn = upstream.getInputStream(), upstreamFirst = EMPTY, request = request)
         } finally {
             if (!adopted) runCatching { upstream.close() }
         }
@@ -703,6 +719,7 @@ class ProxyRelay(
                 val requestBody = try {
                     HttpFraming.requestBody(request.headers)
                 } catch (e: MalformedMessage) {
+                    log("rejected a request whose body length is unreadable: ${describe(e)}")
                     writeStatus(cout, 400, "Bad Request")
                     return false
                 }
@@ -744,7 +761,7 @@ class ProxyRelay(
                 while (status in 100..199) {
                     writeHead(cout, head!!)
                     if (status == 101) {
-                        adopted = splice(client, cin, conn.socket, upstreamIn = conn.input, upstreamFirst = conn.input.drainBuffered(), lease = request.lease)
+                        adopted = splice(client, cin, conn.socket, upstreamIn = conn.input, upstreamFirst = conn.input.drainBuffered(), request = request)
                         if (adopted) upstream = null
                         return adopted
                     }
@@ -767,6 +784,7 @@ class ProxyRelay(
                 val next = try {
                     readPreamble(cin)
                 } catch (e: SocketTimeoutException) {
+                    log("closed a plain-http connection idle for ${KEEP_ALIVE_IDLE_MS / 1000} s: ${describe(e)}")
                     null
                 } ?: return false
                 request = admit(next, cout) ?: return false
@@ -810,6 +828,7 @@ class ProxyRelay(
         } catch (e: MalformedMessage) {
             throw e
         } catch (e: IOException) {
+            log("${request.method} ${request.host}:${request.port} for ${request.lease.route.siteId} got no response: ${describe(e)}")
             null
         }
     }
@@ -824,15 +843,17 @@ class ProxyRelay(
         upstream: Socket,
         upstreamIn: InputStream,
         upstreamFirst: ByteArray,
-        lease: Lease,
+        request: Admitted,
     ): Boolean {
+        val lease = request.lease
+        val label = request.tunnel(upstream)
         val a = client.channel
         // A TLS socket layered on a channel's socket reports that channel as
         // its own, and splicing it would skip the TLS layer: bytes meant for
         // inside the session to the proxy would go out in the clear.
         val b = if (upstream is SSLSocket) null else upstream.channel
         if (a != null && b != null) {
-            splicer.adopt(a, b, aFirst = cin.drainBuffered(), bFirst = upstreamFirst, lease = lease)
+            splicer.adopt(a, b, aFirst = cin.drainBuffered(), bFirst = upstreamFirst, lease = lease, label = label)
             return true
         }
         val tunnel = Pumped(lease, client, upstream)
@@ -847,7 +868,17 @@ class ProxyRelay(
                 client.getOutputStream().write(upstreamFirst)
                 client.getOutputStream().flush()
             }
-            pump(client, cin, upstream, upstreamIn)
+            val startedAt = System.nanoTime()
+            val (up, down) = pump(client, cin, upstream, upstreamIn, upstreamFirst = upstreamFirst.size)
+            log(
+                Direction.ended(
+                    label,
+                    startedAt = startedAt,
+                    up = up,
+                    down = down,
+                    cause = if (stale(lease)) Splicer.ROUTE_CHANGED else null,
+                ),
+            )
         } finally {
             pumped.with { remove(tunnel) }
         }
@@ -889,6 +920,7 @@ class ProxyRelay(
         val uri = try {
             URI(scheme, null, host, port, null, null, null)
         } catch (e: URISyntaxException) {
+            log("$host is no URI host, so the system proxy is asked as for an unnamed one: ${describe(e)}")
             URI(scheme, null, UNNAMED_HOST, port, null, null, null)
         }
         val proxy = systemProxy(uri)
@@ -906,7 +938,8 @@ class ProxyRelay(
         // whose first family is unreachable still connects on the next, as
         // it does from Chromium's own stack.
         var failure: IOException? = null
-        for (address in InetAddress.getAllByName(host)) {
+        val addresses = InetAddress.getAllByName(host)
+        for ((i, address) in addresses.withIndex()) {
             val s = SocketChannel.open().socket()
             try {
                 s.connect(InetSocketAddress(address, port), CONNECT_TIMEOUT_MS)
@@ -914,6 +947,7 @@ class ProxyRelay(
             } catch (e: IOException) {
                 runCatching { s.close() }
                 failure = e
+                log("direct connect to ${address.hostAddress}:$port for $host failed (${e.javaClass.simpleName}: ${e.message}), address ${i + 1} of ${addresses.size}")
             }
         }
         throw failure ?: UnknownHostException(host)
@@ -1077,9 +1111,10 @@ class ProxyRelay(
         // Convert absolute-form ("GET http://host/path HTTP/1.1") to
         // origin-form ("GET /path HTTP/1.1") for the tunneled origin server.
         val parts = requestLine.split(" ")
-        val uri = runCatching { URI(target) }.getOrNull()
-        val path = uri?.rawPath?.takeIf { it.isNotEmpty() } ?: "/"
-        val query = uri?.rawQuery?.let { "?$it" } ?: ""
+        // Admitted, so it parsed in [admit].
+        val uri = URI(target)
+        val path = uri.rawPath?.takeIf { it.isNotEmpty() } ?: "/"
+        val query = uri.rawQuery?.let { "?$it" } ?: ""
         val sb = StringBuilder()
         sb.append(parts[0]).append(" ").append(path).append(query).append(" ")
             .append(parts.getOrElse(2) { "HTTP/1.1" }).append("\r\n")
@@ -1109,25 +1144,58 @@ class ProxyRelay(
 
     // --- Byte plumbing ---
 
-    private fun pump(a: Socket, aIn: InputStream, b: Socket, bIn: InputStream) {
-        val ab = pool.submit {
-            runCatching { copy(aIn, b.getOutputStream()) }
-            runCatching { a.shutdownInput() }
-            runCatching { b.shutdownOutput() }
+    /**
+     * Copy both ways between the WebView's side [a] and the upstream [b]
+     * until both end; what each sent. A direction that ends cleanly closes
+     * its half; one that fails resets both sockets, which ends the other
+     * direction too, as the splicer's close does.
+     */
+    private fun pump(a: Socket, aIn: InputStream, b: Socket, bIn: InputStream, upstreamFirst: Int): Pair<Direction, Direction> {
+        fun ended(sent: Direction, from: Socket, to: Socket) {
+            if (sent.failed) {
+                abortOnClose(a, b, log = ::log)
+                runCatching { a.close() }
+                runCatching { b.close() }
+            } else {
+                runCatching { from.shutdownInput() }
+                runCatching { to.shutdownOutput() }
+            }
         }
-        runCatching { copy(bIn, a.getOutputStream()) }
-        runCatching { b.shutdownInput() }
-        runCatching { a.shutdownOutput() }
-        ab.get()
+        val ab = pool.submit<Direction> {
+            copy(aIn, b, Direction(Splicer.CLIENT, Splicer.UPSTREAM, first = 0)).also { ended(it, from = a, to = b) }
+        }
+        val down = copy(bIn, a, Direction(Splicer.UPSTREAM, Splicer.CLIENT, first = upstreamFirst))
+        ended(down, from = b, to = a)
+        return Pair(ab.get(), down)
     }
 
-    private fun copy(src: InputStream, dst: OutputStream) {
+    private fun copy(src: InputStream, dst: Socket, sent: Direction): Direction {
         val buf = ByteArray(16 * 1024)
+        val out = try {
+            dst.getOutputStream()
+        } catch (e: IOException) {
+            sent.end(Ending.WriteFailed(e))
+            return sent
+        }
         while (true) {
-            val n = src.read(buf)
-            if (n < 0) break
-            dst.write(buf, 0, n)
-            dst.flush()
+            val n = try {
+                src.read(buf)
+            } catch (e: IOException) {
+                sent.end(Ending.ReadFailed(e))
+                return sent
+            }
+            if (n < 0) {
+                sent.end(Ending.Closed)
+                return sent
+            }
+            sent.bytes += n
+            try {
+                out.write(buf, 0, n)
+                out.flush()
+            } catch (e: IOException) {
+                sent.end(Ending.WriteFailed(e))
+                return sent
+            }
         }
     }
 
@@ -1204,7 +1272,7 @@ class ProxyRelay(
     }
 
     private fun writeChallenge(out: OutputStream, realm: String) {
-        runCatching {
+        try {
             out.write(
                 (
                     "HTTP/1.1 407 Proxy Authentication Required\r\n" +
@@ -1214,6 +1282,8 @@ class ProxyRelay(
                     ).toByteArray(Charsets.ISO_8859_1)
             )
             out.flush()
+        } catch (e: IOException) {
+            log("answering 407 failed: ${describe(e)}")
         }
     }
 
@@ -1223,9 +1293,11 @@ class ProxyRelay(
     }
 
     private fun writeStatus(out: OutputStream, code: Int, reason: String) {
-        runCatching {
+        try {
             out.write("HTTP/1.1 $code $reason\r\nConnection: close\r\n\r\n".toByteArray(Charsets.ISO_8859_1))
             out.flush()
+        } catch (e: IOException) {
+            log("answering $code failed: ${describe(e)}")
         }
     }
 
@@ -1272,9 +1344,16 @@ class ProxyRelay(
 
         private val PROC_NET_TCP = listOf("/proc/net/tcp", "/proc/net/tcp6")
 
-        private fun readPeerVerdict(peerPort: Int, relayPort: Int, ownUid: Int?): PeerVerdict =
+        private fun readPeerVerdict(peerPort: Int, relayPort: Int, ownUid: Int?, log: (String) -> Unit): PeerVerdict =
             peerVerdict(
-                PROC_NET_TCP.map { path -> runCatching { File(path).readText() }.getOrNull() },
+                PROC_NET_TCP.map { path ->
+                    try {
+                        File(path).readText()
+                    } catch (e: IOException) {
+                        log("reading $path failed: ${describe(e)}")
+                        null
+                    }
+                },
                 peerPort,
                 relayPort,
                 ownUid,

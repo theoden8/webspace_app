@@ -1,6 +1,7 @@
 package org.codeberg.theoden8.webspace.proxy
 
 import org.codeberg.theoden8.webspace.Guarded
+import org.codeberg.theoden8.webspace.describe
 import java.io.IOException
 import java.nio.Buffer
 import java.nio.ByteBuffer
@@ -22,6 +23,12 @@ import java.nio.channels.SocketChannel
  * Each pair carries the lease it was let through on, and a pair whose lease
  * went [stale] is closed: at registration, and at each [sweep] the relay asks
  * for when its route table moves (PROXY-028).
+ *
+ * A pair's close logs one line: how long it lasted, which side ended it and
+ * with what error, and what each side sent, so a page that fails with a
+ * closed connection says whether the WebView or the far side stopped. A side
+ * that failed is passed on as a reset, so the WebView reports the error the
+ * far side gave it, not a clean close of its own.
  */
 internal class Splicer(
     private val log: (String) -> Unit,
@@ -34,6 +41,7 @@ internal class Splicer(
         val aFirst: ByteArray,
         val bFirst: ByteArray,
         val lease: ProxyRelay.Lease,
+        val label: String,
     )
 
     /** Handed over by workers, drained by the splice thread (BUG-007). */
@@ -47,9 +55,10 @@ internal class Splicer(
     private val inbox = Guarded(Inbox())
 
     /**
-     * Take over [a] and [b], both connected and in blocking mode, with the
-     * bytes each side already sent that a worker read past its handshake.
-     * The caller must not touch either channel afterwards.
+     * Take over [a], the WebView's side, and [b], the upstream, both
+     * connected and in blocking mode, with the bytes each side already sent
+     * that a worker read past its handshake. [label] names the tunnel in the
+     * line its end logs. The caller must not touch either channel afterwards.
      */
     fun adopt(
         a: SocketChannel,
@@ -57,9 +66,10 @@ internal class Splicer(
         aFirst: ByteArray = EMPTY,
         bFirst: ByteArray = EMPTY,
         lease: ProxyRelay.Lease,
+        label: String,
     ) {
         val start = inbox.with {
-            pending.addLast(Handoff(a, b, aFirst, bFirst, lease))
+            pending.addLast(Handoff(a, b, aFirst, bFirst, lease, label))
             if (!running) {
                 running = true
                 true
@@ -88,10 +98,11 @@ internal class Splicer(
         }
     }
 
-    private class Flow(val from: SocketChannel, val to: SocketChannel, first: ByteArray) {
+    private class Flow(val from: SocketChannel, val to: SocketChannel, first: ByteArray, val sent: Direction) {
         val buf: ByteBuffer = ByteBuffer.allocate(maxOf(BUFFER, first.size)).put(first)
         var ended = false
         var shut = false
+        val failed: Boolean get() = sent.failed
 
         val done: Boolean get() = shut
         val holds: Boolean get() = buf.position() > 0
@@ -103,9 +114,11 @@ internal class Splicer(
         aFirst: ByteArray,
         bFirst: ByteArray,
         val lease: ProxyRelay.Lease,
+        val label: String,
     ) {
-        val ab = Flow(from = a, to = b, first = aFirst)
-        val ba = Flow(from = b, to = a, first = bFirst)
+        val startedAt = System.nanoTime()
+        val ab = Flow(from = a, to = b, first = aFirst, sent = Direction(CLIENT, UPSTREAM, aFirst.size))
+        val ba = Flow(from = b, to = a, first = bFirst, sent = Direction(UPSTREAM, CLIENT, bFirst.size))
         lateinit var keyA: SelectionKey
         lateinit var keyB: SelectionKey
     }
@@ -157,7 +170,7 @@ internal class Splicer(
                 }
             }
         } catch (e: IOException) {
-            log("splice thread failed: ${e.javaClass.simpleName}")
+            log("splice thread failed: ${describe(e)}")
         } finally {
             if (!clean) {
                 // Whatever ended the thread, nothing it held stays open and
@@ -183,7 +196,7 @@ internal class Splicer(
             .mapNotNull { it.attachment() as? Pair }
             .distinct()
             .filter { stale(it.lease) }
-        gone.forEach { close(it) }
+        gone.forEach { close(it, cause = ROUTE_CHANGED) }
         if (gone.isNotEmpty()) log("closed ${gone.size} tunnel(s) whose route changed")
         return gone.size
     }
@@ -192,17 +205,19 @@ internal class Splicer(
     private fun register(selector: Selector, h: Handoff): Boolean {
         if (stale(h.lease)) {
             closeQuietly(h.a, h.b)
+            log("tunnel ${h.label} closed as it was handed over: $ROUTE_CHANGED")
             return false
         }
         return try {
             h.a.configureBlocking(false)
             h.b.configureBlocking(false)
-            val pair = Pair(h.a, h.b, h.aFirst, h.bFirst, h.lease)
+            val pair = Pair(h.a, h.b, h.aFirst, h.bFirst, h.lease, h.label)
             pair.keyA = h.a.register(selector, 0, pair)
             pair.keyB = h.b.register(selector, 0, pair)
             step(pair)
         } catch (e: IOException) {
             closeQuietly(h.a, h.b)
+            log("tunnel ${h.label} could not be spliced: ${describe(e)}")
             false
         }
     }
@@ -212,14 +227,9 @@ internal class Splicer(
      * the keys for what is left. False once the pair is closed.
      */
     private fun step(pair: Pair): Boolean {
-        try {
-            move(pair.ab)
-            move(pair.ba)
-        } catch (e: IOException) {
-            close(pair)
-            return false
-        }
-        if (pair.ab.done && pair.ba.done) {
+        move(pair.ab)
+        if (!pair.ab.failed) move(pair.ba)
+        if (pair.ab.failed || pair.ba.failed || (pair.ab.done && pair.ba.done)) {
             close(pair)
             return false
         }
@@ -228,21 +238,37 @@ internal class Splicer(
         return true
     }
 
+    /** Move what [flow] can without waiting; a failure is kept on its [Direction]. */
     private fun move(flow: Flow) {
         if (!flow.ended && flow.buf.hasRemaining()) {
-            if (flow.from.read(flow.buf) < 0) flow.ended = true
+            val n = try {
+                flow.from.read(flow.buf)
+            } catch (e: IOException) {
+                flow.sent.end(Ending.ReadFailed(e))
+                return
+            }
+            if (n < 0) {
+                flow.ended = true
+                flow.sent.end(Ending.Closed)
+            } else {
+                flow.sent.bytes += n
+            }
         }
-        if (flow.holds) {
-            // Through Buffer: built against a newer SDK, ByteBuffer.flip()
-            // links to an override older Android releases do not have.
-            (flow.buf as Buffer).flip()
-            flow.to.write(flow.buf)
-            flow.buf.compact()
-        }
-        if (flow.ended && !flow.holds && !flow.shut) {
-            // Through the socket: SocketChannel.shutdownOutput is API 24+.
-            flow.to.socket().shutdownOutput()
-            flow.shut = true
+        try {
+            if (flow.holds) {
+                // Through Buffer: built against a newer SDK, ByteBuffer.flip()
+                // links to an override older Android releases do not have.
+                (flow.buf as Buffer).flip()
+                flow.to.write(flow.buf)
+                flow.buf.compact()
+            }
+            if (flow.ended && !flow.holds && !flow.shut) {
+                // Through the socket: SocketChannel.shutdownOutput is API 24+.
+                flow.to.socket().shutdownOutput()
+                flow.shut = true
+            }
+        } catch (e: IOException) {
+            flow.sent.end(Ending.WriteFailed(e))
         }
     }
 
@@ -254,10 +280,12 @@ internal class Splicer(
         return ops
     }
 
-    private fun close(pair: Pair) {
+    private fun close(pair: Pair, cause: String? = null) {
         pair.keyA.cancel()
         pair.keyB.cancel()
+        if (pair.ab.failed || pair.ba.failed) abortOnClose(pair.a.socket(), pair.b.socket(), log = log)
         closeQuietly(pair.a, pair.b)
+        log(Direction.ended(pair.label, startedAt = pair.startedAt, up = pair.ab.sent, down = pair.ba.sent, cause = cause))
     }
 
     private fun closeQuietly(a: SocketChannel, b: SocketChannel) {
@@ -267,6 +295,9 @@ internal class Splicer(
 
     companion object {
         private const val BUFFER = 32 * 1024
+        const val CLIENT = "client"
+        const val UPSTREAM = "upstream"
+        const val ROUTE_CHANGED = "its route changed"
         private val EMPTY = ByteArray(0)
     }
 }
