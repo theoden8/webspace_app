@@ -15,7 +15,9 @@ import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/network_interface.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
+import 'helpers/isolations.dart';
 
 const _secret = '00112233445566778899aabbccddeeff';
 const _up = EgressUp(host: '127.44.5.6', port: 41000, secret: _secret);
@@ -199,6 +201,34 @@ void main() {
           siteId: SiteId('c'));
       expect(a.routeKey, isNot(b.routeKey));
       expect(a.routeKey, isNot(none.routeKey));
+    });
+
+    // A popup takes its opener's posture, and a wake's headless check is
+    // built from `sitePosture` as the site's webview is (NOTIF-016).
+    test('NETIF-009: a bound site\'s webview, its nested screen and a '
+        'connection made for it all leave by its interface', () {
+      EgressRelay.instance.setInMemory(state: _up);
+      final site = WebViewModel(
+        initUrl: 'https://acme.example',
+        proxySettings:
+            UserProxySettings(type: ProxyType.DEFAULT, leavesBy: _wg0),
+      );
+      final own = site.sitePosture(
+        globalUserScripts: const <UserScriptConfig>[],
+        isolation: fakeContainers(),
+      );
+      final seams = {
+        'its webview': own.container.proxy,
+        'a nested screen': own.forNested().container.proxy,
+        'an icon, a title, a user script, a download': site.outboundProxy,
+      };
+      for (final MapEntry(key: seam, value: proxy) in seams.entries) {
+        final route = proxy.resolved;
+        expect(route.type, ProxyType.SOCKS5, reason: seam);
+        expect(route.address, '${_up.host}:${_up.port}', reason: seam);
+        expect(route.username, endsWith('?if=wg0'), reason: seam);
+        expect(route.password, _secret, reason: seam);
+      }
     });
   });
 

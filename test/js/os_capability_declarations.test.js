@@ -108,6 +108,27 @@ test('macOS holds no location capability at all', () => {
   }
 });
 
+/** The keys an entitlements plist declares. */
+const entitlementKeys = (plist) => uniqueSorted(
+  (plist.match(/<key>([^<]*)<\/key>/g) ?? []).map((k) => k.replace(/<\/?key>/g, '')));
+
+// Apple grants the browser passkey entitlement as a managed capability; a
+// signature that names it with no profile carrying it does not launch, and the
+// CI artifact is ad-hoc signed (docs/releasing-macos.md).
+const BROWSER_PASSKEYS = 'com.apple.developer.web-browser.public-key-credential';
+
+test('PASSKEY-014: no committed entitlements name the browser passkey entitlement', () => {
+  for (const rel of ['ios/Runner/Runner.entitlements',
+                     'macos/Runner/DebugProfile.entitlements',
+                     'macos/Runner/Release.entitlements']) {
+    assert.ok(!entitlementKeys(read(rel)).includes(BROWSER_PASSKEYS),
+      `${rel} names ${BROWSER_PASSKEYS}, which Apple has not granted the team`);
+  }
+  // Planted: the key as a signed build would carry it is read.
+  assert.ok(entitlementKeys(`<dict>\n\t<key>${BROWSER_PASSKEYS}</key>\n\t<true/>\n</dict>`)
+    .includes(BROWSER_PASSKEYS));
+});
+
 test('the platform location service is offered only where a fix is declared', () => {
   // isSupported must not name a platform whose manifest declares nothing for
   // location: that would put a "use current location" button in front of a

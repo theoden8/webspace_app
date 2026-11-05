@@ -527,6 +527,21 @@ void main() {
           inapp.NavigationActionPolicy.CANCEL);
     });
 
+    testWidgets(
+        'CAPTCHA-001, CAPTCHA-003, DL-002: a site webview runs scripts with '
+        'storage, reads files and content, and hears a download', (tester) async {
+      await tester.pumpWidget(_webView());
+      final settings = tester
+          .widget<inapp.InAppWebView>(find.byType(inapp.InAppWebView))
+          .platform.params.initialSettings!;
+      expect(settings.javaScriptEnabled, isTrue);
+      expect(settings.domStorageEnabled, isTrue);
+      expect(settings.databaseEnabled, isTrue);
+      expect(settings.allowFileAccess, isTrue);
+      expect(settings.allowContentAccess, isTrue);
+      expect(settings.useOnDownloadStart, isTrue);
+    });
+
     testWidgets('no request waits on a Dart round trip', (tester) async {
       await tester.pumpWidget(_webView());
       final view =

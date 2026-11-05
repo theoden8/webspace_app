@@ -26,8 +26,6 @@ BGAUDIO-004	no check: no test asserts SiteRuntime.retentionPriority puts a backg
 # block-statistics
 STATS-003	no check: no test of the report's range total, per-day chart, category shares, all-time/since line, the empty state, or the badge using the accent rather than colorScheme.error (partly: test/block_stats_service_test.dart, "reset zeroes the persisted payload")
 # captcha-support
-CAPTCHA-001	no check: no test builds WebViewFactory.siteSettings and asserts javaScriptEnabled, domStorageEnabled and databaseEnabled are set
-CAPTCHA-003	no check: no test asserts allowFileAccess and allowContentAccess on the settings the factory builds
 CAPTCHA-006	no check: no test shows a per-site third-party-cookie toggle reaching thirdPartyCookiesEnabled or a cross-site cookie being accepted; only the posture resolution is checked (partly: test/site_posture_test.dart, "$cell: container follows tier and TP (ETP-024, ARCH-006/007)")
 # clearurls
 # configurable-suggested-sites
@@ -53,7 +51,6 @@ DNS-007	no check: DnsBlocklistDataset.status ("<level> - <count> domains" / "Not
 DNS-015	no check: no test renders the per-site settings DNS stats chips, or checks that they are absent when nothing was recorded
 # downloads
 DL-001	no check: no gate reads AndroidManifest.xml for the flutter_inappwebview_android FileProvider or its FILE_PROVIDER_PATHS resource, and no native test drives getOutputUri
-DL-002	no check: no test asserts useOnDownloadStart is true on the shared settings, that onDownloadStartRequest is wired in both the root and nested webview, or that stopLoading runs
 # external-scheme-handling
 EXT-003	no check: no test drives the webview's shouldOverrideUrlLoading, onCreateWindow or onReceivedError with an intent; the silent same/cross-domain routing in lib/services/webview.dart is untested
 EXT-005	no check: lib/widgets/external_url_prompt.dart has no test; nothing asserts 'Open in browser' loads via loadInWebView rather than url_launcher
@@ -140,10 +137,8 @@ NAV-008	no check: InAppWebViewScreen's onPopInvokedWithResult policy (Android ca
 NESTED-011	no check: needs the fork's iOS/macOS onCreateWindow decline path to skip loading the request in the parent; no test reads the fork source or runs WKWebView (iOS/macOS-only plugin behaviour that no tier runs)
 NESTED-012	process: the requirement is that the spec states the provenance loss (Sec-Fetch-Site: none, no Referer) as accepted behaviour; it is documentation, with nothing to run
 # network-interface
-NETIF-009	no check: OutboundProxy carries the interface to every seam by construction (the posture, every outbound API's proxy:), but no test builds a nested screen, a popup, a headless check or an icon fetch for a bound site and reads the route it took
 NETIF-014	no check: not built yet; an import that names an interface this device lacks lands without a notice, and the site loads nothing until the user picks again (tasks 3.9)
 # passkey-support
-PASSKEY-014	no check: no gate asserts the committed iOS/macOS entitlements omit the browser passkey entitlement (os_capability_declarations and macos_store_declarations check other keys)
 # per-site-containers
 # per-site-cookie-isolation
 ISO-007	no check: no test asserts a nested screen uses the shared jar with no capture or restore; the activation walks open nested screens but assert nothing about the cookie jar for them
@@ -189,7 +184,6 @@ TOR-005	no check: nothing checks that the Rebuild circuits button calls the engi
 TOR-006	no check: no test covers TorService staying up through the iOS grace window, or a wake awaiting Tor before reloading a Tor notification site (partly: test/background_wake_engine_test.dart, "a route that will not apply starts no headless load")
 TOR-012	no check: no gate checks the app name, subtitle, bundle id or metadata for 'Tor', or the assets for an onion mark; ARB wording is review only
 # tracking-protection
-ETP-019	no check: no test reads the InAppWebViewSettings the factory builds; attributionRegistrationBehavior and webViewMediaIntegrityApiStatus are unchecked, and the one live check is Android-only and self-skips elsewhere (partly: integration_test/privacy_settings_test.dart, "tracking protection suppresses the X-Requested-With header")
 ETP-029	no check: not implemented: task 6.3 of upstream-webview-defects is open and no shim or test registers or probes the plugin's console wrappers
 # user-scripts
 US-001d	no check: no test drives the globalUserScriptsOptInMigrated one-time fill or asserts it does not run again

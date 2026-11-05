@@ -753,6 +753,10 @@ void main() {
       );
       await tester.tap(find.widgetWithText(ElevatedButton, 'Add Site'));
       await settleRealApp(tester);
+      // The preview's DNS probe is real I/O raced against a three-second
+      // timeout on the test's clock; a slow resolver (macOS on CI) leaves the
+      // timeout pending unless the clock reaches it.
+      await tester.pump(const Duration(seconds: 3));
       final prefs = await SharedPreferences.getInstance();
       final added = [
         for (final raw in prefs.getStringList('webViewModels')!)
