@@ -1875,7 +1875,7 @@ bool dispatch(NavigationDecision decision,
     final ctrl = controller;
     if (ctrl == null) return;
     onReloadIssued?.call();
-    await ctrl.loadUrl(url, language: language);
+    await ctrl.loadUrl(url);
   }
 
   /// User tapped the Stop button. Cancels the in-flight load and eagerly clears

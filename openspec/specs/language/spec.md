@@ -39,7 +39,14 @@ that gap.
 ### Requirement: LANG-001 - Accept-Language Header
 
 The app SHALL send the user's per-site language preference as the
-`Accept-Language` HTTP header on top-level navigations from that webview.
+`Accept-Language` HTTP header on every top-level navigation the app issues
+on a webview that runs as that site: its first load and every later one (a
+search, a routed link, a retry after a failed load or a trusted
+certificate). The header belongs to the webview, set as it is built, so no
+caller passes it and none can leave it out. A navigation the page starts
+itself (a link, a form, a script) carries no header from the app, and on iOS
+the universal-link bypass reissues a tap with the tap's own headers
+(IOS-UL-004); what script reads is LANG-002's.
 
 The header format is `{tag}, *;q=0.5`, where `{tag}` is a BCP-47 /
 ISO 639-1 code (for example `en`, `es`, `fr`). The `*;q=0.5` fallback
@@ -51,9 +58,16 @@ and the platform default is used.
 #### Scenario: Request content in Spanish
 
 **Given** the user selects Spanish (`es`) for a site
-**When** the webview loads any top-level URL for that site
+**When** the site's webview opens it
 **Then** the request includes header `Accept-Language: es, *;q=0.5`
 **And** the server may respond with Spanish content if available
+
+#### Scenario: A load the app issues later
+
+**Given** the user selects Spanish (`es`) for a site
+**When** the app loads another web address in that site's webview (a retry
+after the user trusts a certificate)
+**Then** the request includes header `Accept-Language: es, *;q=0.5`
 
 #### Scenario: System default language
 
