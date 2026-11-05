@@ -157,7 +157,6 @@ HINT-003	no check: it governs how an ARB key is moved (renamed in place keeping 
 # site-permission-badges
 PERMBADGE-004	no check: no widget test renders a drawer tile (reorderable or static) holding a grant; both paths sharing _SiteGridTileContent is structural only, and the badge tests pump SitePermissionBadges on its own
 # site-settings-qr
-QR-006	no check: no widget test of the Add Site QR icon, the scanner/paste routing or the inline decode error; only the codec's hydrate step (fresh siteId, no cookies or scripts, no password) is checked (partly: test/site_settings_qr_codec_test.dart, "encode then decode is a no-op for the shareable subset")
 QR-007	process: records a known limitation (no per-field type validation) rather than behaviour to guard, and is partly overtaken: decode now type-checks proxySettings (SEC-005)
 # tls-trust-prompt
 # tor-proxy
