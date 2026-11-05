@@ -236,7 +236,7 @@ rules match exactly as before
 **Given** the engine is active on Android with `libwebspace_adblock.so` bundled
 **When** a page issues a sub-resource request
 **Then** `FastSubresourceInterceptor.checkUrl` first walks the DNS host-only set (fast path)
-**And** for hosts the DNS check let through, calls `AdblockEngineNative.checkUrl` with URL + Referer-derived sourceUrl + `Sec-Fetch-Dest`-derived requestType
+**And** while the site's content blocker is on, calls `AdblockEngineNative.checkUrl` with URL + Referer-derived sourceUrl + `Sec-Fetch-Dest`-derived requestType: it decides what the DNS check let through, and of a DNS block only says whether it would have stopped it too (CB-012)
 **And** the JNI layer dispatches to the same adblock-rust engine the Dart side uses
 **And** `$domain=` / path-anchored / `$script` / `$image` / regex rules fire on every sub-resource
 
@@ -287,8 +287,9 @@ Test: `test/js/block_interceptor_shim.test.js`; on a live engine, `integration_t
 **And** the ABP block counter is not incremented for that request
 **And** every path that blocks or counts a request (navigations, popups,
 `blockCheckBatch`, the PerformanceObserver batch, page-icon fetches) takes this
-order through `BlockDecision.decide`, which asks the engine nothing about a
-request DNS already blocked
+order through `BlockDecision.decide`, which asks the engine about a request DNS
+already blocked only to mark it as one the filter lists would stop too
+(`Blocked.alsoAbp`, CB-012), never to count it against them
 
 #### Scenario: Per-source counters preserved in stats
 
@@ -747,6 +748,24 @@ without them, and was removed for it
 Test: `test/dev_tools_copy_test.dart`, "an engine block drained from Android
 reaches the log as ABP"; the report's side in
 `test/block_stats_integration_test.dart`.
+
+#### Scenario: A DNS block the filter lists would also stop is shown as such
+
+The DNS list is asked first and takes the credit, so on its own the ABP count
+says only what ABP caught beyond the DNS list, not how far the filter lists
+reach.
+
+**Given** the site keeps content blocking on and a request is on the DNS blocklist
+**When** the engine would have blocked it too
+**Then** the verdict is a DNS block marked `alsoAbp` (Android's block event carries `alsoAbp: true`)
+**And** it counts once, against DNS, in the site's stats, the banner and the protection report
+**And** the Blocking log tags its row "DNS, also ABP", and the ABP filter chip takes it in and counts it (`DnsStats.stoppedBy`)
+**And** with content blocking off, the engine is not asked
+
+Test: `test/block_decision_test.dart`, "a request both lists block counts
+against DNS, marked as one ABP stops too"; `test/dns_stats_test.dart`;
+`test/dev_tools_copy_test.dart`, "a DNS block ABP would also stop is tagged
+with both"; `SiteEventInboxTest.aDnsBlockSaysWhetherTheEngineWouldStopItToo`.
 
 #### Scenario: An ABP row names the request its rule matched
 

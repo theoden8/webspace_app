@@ -234,6 +234,36 @@ void main() {
       expect(find.widgetWithText(FilterChip, 'Allowed (5)'), findsOneWidget);
     });
 
+    testWidgets('a DNS block ABP would also stop is tagged with both, and the ABP chip takes it in (CB-012)',
+        (tester) async {
+      WebInterceptNative.applyBlockEvents(site, list: [
+        {
+          'host': 'tracker.net',
+          'blocked': true,
+          'source': 'dns',
+          'alsoAbp': true,
+          'count': 4,
+        },
+        {'host': 'dns-only.net', 'blocked': true, 'source': 'dns', 'count': 1},
+        {'host': 'ads.example', 'blocked': true, 'source': 'abp', 'count': 2},
+      ]);
+
+      await openBlocking(tester);
+      expect(find.text('DNS, also ABP'), findsOneWidget);
+      expect(find.widgetWithText(FilterChip, 'DNS (5)'), findsOneWidget);
+      expect(find.widgetWithText(FilterChip, 'ABP (6)'), findsOneWidget,
+          reason: 'ABP stops its own 2 and 4 of the DNS blocks');
+
+      await tester.tap(find.widgetWithText(FilterChip, 'ABP (6)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('devtools-blocking-copy')));
+      await tester.pumpAndSettle();
+
+      expect(clipboard.single, contains('BLOCKED DNS+ABP tracker.net'));
+      expect(clipboard.single, contains('BLOCKED ABP ads.example'));
+      expect(clipboard.single.contains('dns-only.net'), isFalse);
+    });
+
     testWidgets('the tab is there while a DNS blocklist is loaded (DNS-014)',
         (tester) async {
       await pumpDevTools(tester, host: _StubHost(site));

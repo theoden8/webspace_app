@@ -133,6 +133,23 @@ void main() {
       expect(stats.engine.allTimeTotal, 16);
     });
 
+    test('a DNS block the engine would also stop still counts against DNS alone',
+        () {
+      WebInterceptNative.applyBlockEvents(SiteId('site-1'), list: [
+        {
+          'host': 'trk.example',
+          'blocked': true,
+          'source': 'dns',
+          'alsoAbp': true,
+          'count': 4,
+        },
+      ]);
+
+      expect(stats.engine.allTimeFor(BlockCategory.dnsBlocklist), 4);
+      expect(stats.engine.allTimeFor(BlockCategory.filterList), 0);
+      expect(stats.engine.allTimeTotal, 4);
+    });
+
     test('a block that names no list is skipped as malformed', () {
       // The native Decision enum pairs every block with `dns` or `abp`.
       WebInterceptNative.applyBlockEvents(SiteId('site-1'), list: [

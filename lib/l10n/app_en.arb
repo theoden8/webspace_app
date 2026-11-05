@@ -2943,6 +2943,10 @@
   "@devToolsBlockSourceAbp": {
     "description": "Short tag on a row of the developer tools Blocking log: an ABP (Adblock Plus syntax) filter list such as EasyList blocked this request. An acronym, usually kept as is."
   },
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, also ABP",
+  "@devToolsBlockSourceDnsAlsoAbp": {
+    "description": "Short tag on a row of the developer tools Blocking log: the DNS blocklist blocked this request, and an ABP filter list (such as EasyList) would have blocked it too. DNS and ABP are acronyms, usually kept as is."
+  },
   "devToolsTabLogs": "Logs",
   "@devToolsTabLogs": {
     "description": "Tab label for the app logs in developer tools."

@@ -55,13 +55,29 @@ UrlQuery _url(String url) =>
 
 void main() {
   group('BlockDecision.decide', () {
-    test('a host both lists block counts against DNS, and ABP is not asked',
+    test('a request both lists block counts against DNS, marked as one ABP stops too (CB-012)',
         () {
       final lists = _Lists(dnsHosts: {'t.example'}, abpHosts: {'t.example'});
       final v = BlockDecision.decide(_url('https://t.example/x'),
           policy: _on, lists: lists);
-      expect(v, isA<Blocked>());
+      expect(v, isA<Blocked>().having((b) => b.alsoAbp, 'alsoAbp', isTrue));
       expect(v.source, BlockSource.dns);
+    });
+
+    test('a DNS block the filter lists would let through is DNS alone', () {
+      final lists = _Lists(dnsHosts: {'t.example'});
+      final v = BlockDecision.decide(const HostQuery('t.example'),
+          policy: _on, lists: lists);
+      expect(v, isA<Blocked>().having((b) => b.alsoAbp, 'alsoAbp', isFalse));
+      expect(lists.asked, ['dns:t.example@3', 'abp:t.example']);
+    });
+
+    test('with content blocking off a DNS block never asks the filter lists',
+        () {
+      final lists = _Lists(dnsHosts: {'t.example'}, abpHosts: {'t.example'});
+      final v = BlockDecision.decide(_url('https://t.example/x'),
+          policy: (dnsLevel: 3, contentBlock: false), lists: lists);
+      expect(v, isA<Blocked>().having((b) => b.alsoAbp, 'alsoAbp', isFalse));
       expect(lists.asked.where((q) => q.startsWith('abp:')), isEmpty);
     });
 

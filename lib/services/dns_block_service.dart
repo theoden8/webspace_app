@@ -46,14 +46,24 @@ class DnsLogEntry {
   /// rule names a URL, so [domain] alone would read as a whole-domain block.
   final UrlQuery? matched;
 
+  /// A DNS block the filter lists would have stopped too ([Blocked.alsoAbp]).
+  final bool alsoAbp;
+
   const DnsLogEntry({
     required this.timestamp,
     required this.domain,
     required this.source,
     required this.matched,
+    required this.alsoAbp,
   });
 
   bool get blocked => source != null;
+
+  /// Whether [list] stops this request, whichever of the two it counts against.
+  bool stoppedBy(BlockSource list) => switch (list) {
+        BlockSource.dns => source == BlockSource.dns,
+        BlockSource.abp => source == BlockSource.abp || alsoAbp,
+      };
 }
 
 /// Per-site block request statistics (DNS + ABP combined).
@@ -70,6 +80,9 @@ class DnsStats {
   int blocked = 0;
   int blockedByDns = 0;
   int blockedByAbp = 0;
+
+  /// Of [blockedByDns], the requests the filter lists would have stopped too.
+  int blockedByDnsAlsoAbp = 0;
   static const int _maxLogEntries = 500;
 
   final List<DnsLogEntry?> _ring =
@@ -87,6 +100,13 @@ class DnsStats {
   int blockedBy(BlockSource source) => switch (source) {
         BlockSource.dns => blockedByDns,
         BlockSource.abp => blockedByAbp,
+      };
+
+  /// How many requests [list] stops, counting those it shares with the
+  /// other list ([DnsLogEntry.stoppedBy]); [blockedBy] counts each once.
+  int stoppedBy(BlockSource list) => switch (list) {
+        BlockSource.dns => blockedByDns,
+        BlockSource.abp => blockedByAbp + blockedByDnsAlsoAbp,
       };
 
   /// The hosts with the most requests blocked, at most [limit], ties by name.
@@ -123,6 +143,10 @@ class DnsStats {
   void record(String domain,
       {required BlockVerdict verdict, UrlQuery? matched, int count = 1}) {
     final source = verdict.source;
+    final alsoAbp = switch (verdict) {
+      Blocked(:final alsoAbp) => alsoAbp,
+      Allowed() || Redirect() => false,
+    };
     assert(matched == null || source == BlockSource.abp,
         'only an ABP block names the request its rule matched');
     if (count < 1) count = 1;
@@ -132,6 +156,7 @@ class DnsStats {
       case BlockSource.dns:
         blocked += count;
         blockedByDns += count;
+        if (alsoAbp) blockedByDnsAlsoAbp += count;
       case BlockSource.abp:
         blocked += count;
         blockedByAbp += count;
@@ -144,6 +169,7 @@ class DnsStats {
       domain: domain,
       source: source,
       matched: matched,
+      alsoAbp: alsoAbp,
     );
     if (_size < _maxLogEntries) {
       _ring[(_head + _size) % _maxLogEntries] = entry;
@@ -159,6 +185,7 @@ class DnsStats {
     blocked = 0;
     blockedByDns = 0;
     blockedByAbp = 0;
+    blockedByDnsAlsoAbp = 0;
     _blockedHosts.clear();
     for (var i = 0; i < _maxLogEntries; i++) {
       _ring[i] = null;

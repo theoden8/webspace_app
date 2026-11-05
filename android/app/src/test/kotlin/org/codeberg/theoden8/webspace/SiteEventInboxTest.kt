@@ -121,6 +121,23 @@ class SiteEventInboxTest {
     }
 
     @Test
+    fun aDnsBlockSaysWhetherTheEngineWouldStopItToo() {
+        // A request DNS blocked counts against DNS; the engine is asked only
+        // to say whether its rules reach it too (CB-012).
+        val blocks = SiteEventInbox<BlockEvent> { _, _ -> }
+        repeat(3) { blocks.record("a", BlockEvent("t.example", true, "dns", alsoAbp = true)) }
+        blocks.record("a", BlockEvent("t.example", true, "dns"))
+        val rows = blocks.take("a").map { (event, count) -> event.toChannel(count) }
+        assertEquals(
+            listOf(
+                mapOf("host" to "t.example", "blocked" to true, "source" to "dns", "alsoAbp" to true, "count" to 3),
+                mapOf("host" to "t.example", "blocked" to true, "source" to "dns", "count" to 1),
+            ),
+            rows,
+        )
+    }
+
+    @Test
     fun concurrentRecordersLoseNothingAndLeaveNoSiteMute() {
         // The production shape: several IO threads record across sites while
         // the main thread answers each wake by draining. Every event recorded

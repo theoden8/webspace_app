@@ -240,6 +240,22 @@ void main() {
     });
   });
 
+  test('a DNS block the filter lists stop too counts for both lists, against DNS (CB-012)', () {
+    final s = DnsStats()
+      ..record('t.example',
+          verdict: const Blocked(BlockSource.dns, alsoAbp: true), count: 3)
+      ..record('d.example', verdict: const Blocked(BlockSource.dns))
+      ..record('a.example', verdict: const Blocked(BlockSource.abp), count: 2);
+
+    expect(s.blocked, 6, reason: 'every request is counted once');
+    expect(s.blockedBy(BlockSource.dns), 4);
+    expect(s.blockedBy(BlockSource.abp), 2);
+    expect(s.stoppedBy(BlockSource.dns), 4);
+    expect(s.stoppedBy(BlockSource.abp), 5);
+    expect([for (final e in s.log) e.stoppedBy(BlockSource.abp)],
+        [true, false, true]);
+  });
+
   test('a DNS verdict cannot name a matched request (CB-012)', () {
     expect(
         () => DnsStats().record('tracker.example.com',

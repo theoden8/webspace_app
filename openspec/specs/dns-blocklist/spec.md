@@ -593,14 +593,15 @@ the engine alone in `integration_test/blocker_warning_test.dart`.
 **When** the user views the Blocking tab
 **Then** the first row is tagged DNS and the second ABP
 **And** the ABP row names the request type and URL its rule matched in place of the host (CB-012)
+**And** a DNS row the filter lists would have stopped too is tagged "DNS, also ABP" (CB-012)
 **And** an allowed row carries no tag
 
 #### Scenario: Filter by verdict
 
 **Given** the log contains allowed entries and entries each blocker blocked
 **When** the user selects the "Allowed", "DNS" or "ABP" filter chip
-**Then** only the allowed entries, or only the entries that blocker blocked, are shown
-**And** each chip shows its count
+**Then** only the allowed entries, or only the entries that blocker stops, are shown, so the ABP chip also shows the DNS blocks tagged "DNS, also ABP"
+**And** each chip shows its count, so the DNS and ABP counts can add up to more than Blocked
 
 #### Scenario: Search queries
 
@@ -614,7 +615,8 @@ the engine alone in `integration_test/blocker_warning_test.dart`.
 **When** the user taps "Copy"
 **Then** only the entries the filter chip and the search query leave visible are
 copied to the clipboard, as `[timestamp] ALLOWED domain`,
-`[timestamp] BLOCKED DNS domain` or `[timestamp] BLOCKED ABP type url`
+`[timestamp] BLOCKED DNS domain`, `[timestamp] BLOCKED DNS+ABP domain` or
+`[timestamp] BLOCKED ABP type url`
 **And** the Copy button is disabled when those filters leave no entries
 
 ---

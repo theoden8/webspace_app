@@ -59,9 +59,10 @@ class WebInterceptNative {
   ///
   /// Split out of [_drainBlockEvents] so the payload contract with
   /// `WebInterceptPlugin.drainBlockEvents` (`{host, blocked, source, count}`,
-  /// with `source` absent for allowed requests, and an ABP block's
-  /// `url`, `sourceUrl` and `requestType` beside them) is testable without
-  /// an Android device: the fetch is platform-gated, the accounting is not.
+  /// with `source` absent for allowed requests, an ABP block's `url`,
+  /// `sourceUrl` and `requestType` beside them, and `alsoAbp` on a DNS block
+  /// the engine would also have stopped) is testable without an Android
+  /// device: the fetch is platform-gated, the accounting is not.
   @visibleForTesting
   static void applyBlockEvents(SiteId siteId, {required List<dynamic> list}) {
     for (final entry in list) {
@@ -71,7 +72,8 @@ class WebInterceptNative {
       // block naming none is as malformed as a row without a host.
       final verdict = switch ((entry['blocked'], entry['source'])) {
         (false, _) => const Allowed(),
-        (true, 'dns') => const Blocked(BlockSource.dns),
+        (true, 'dns') =>
+          Blocked(BlockSource.dns, alsoAbp: entry['alsoAbp'] == true),
         (true, 'abp') => const Blocked(BlockSource.abp),
         _ => null,
       };

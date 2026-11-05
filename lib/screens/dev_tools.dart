@@ -1147,9 +1147,10 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   String _blockingCopyLine(DnsLogEntry e) {
-    final verdict = switch (e.source) {
-      null => 'ALLOWED',
-      final source => 'BLOCKED ${source.name.toUpperCase()}',
+    final verdict = switch ((e.source, e.alsoAbp)) {
+      (null, _) => 'ALLOWED',
+      (BlockSource.dns, true) => 'BLOCKED DNS+ABP',
+      (final BlockSource source, _) => 'BLOCKED ${source.name.toUpperCase()}',
     };
     return '[${_formatTimeMs(e.timestamp)}] $verdict ${_requestOf(e)}';
   }
@@ -1168,7 +1169,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       for (final source in BlockSource.values)
         (
           (blockedBy: source),
-          loc.devToolsBlockingFilterBy(source.tag(loc), stats.blockedBy(source)),
+          loc.devToolsBlockingFilterBy(source.tag(loc), stats.stoppedBy(source)),
         ),
     ];
     return Padding(
@@ -1210,10 +1211,10 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
               style: TextStyle(fontFamily: 'monospace', fontSize: 11, color: color),
             ),
           ),
-          if (entry.source case final source?) ...[
+          if (entry.tag(AppLocalizations.of(context)) case final tag?) ...[
             const SizedBox(width: 8),
             Text(
-              source.tag(AppLocalizations.of(context)),
+              tag,
               style: TextStyle(
                   fontSize: 10, fontWeight: FontWeight.w600, color: color),
             ),
@@ -1359,13 +1360,24 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 }
 
 /// Which rows the Blocking tab shows: the allowed requests where
-/// [blockedBy] is null, else the ones [blockedBy] stopped.
+/// [blockedBy] is null, else the ones that list stops, whichever list they
+/// count against.
 typedef _BlockingFilter = ({BlockSource? blockedBy});
 
 extension on _BlockingFilter {
   bool admits(DnsLogEntry entry) => switch (blockedBy) {
         null => !entry.blocked,
-        final source => entry.source == source,
+        final list => entry.stoppedBy(list),
+      };
+}
+
+extension on DnsLogEntry {
+  /// The row's tag: the list it counts against, and for a DNS block the
+  /// filter lists would have stopped too, both.
+  Localized? tag(AppLocalizations loc) => switch ((source, alsoAbp)) {
+        (null, _) => null,
+        (BlockSource.dns, true) => loc.devToolsBlockSourceDnsAlsoAbp,
+        (final BlockSource source, _) => source.tag(loc),
       };
 }
 

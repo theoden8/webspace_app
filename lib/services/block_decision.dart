@@ -44,10 +44,17 @@ final class Allowed extends BlockVerdict {
 }
 
 final class Blocked extends BlockVerdict {
-  const Blocked(this.source);
+  const Blocked(this.source, {this.alsoAbp = false})
+      : assert(!alsoAbp || source == BlockSource.dns,
+            'only a DNS block is one the filter lists could also have stopped');
 
   @override
   final BlockSource source;
+
+  /// For a DNS block, whether the filter lists would have stopped the
+  /// request too. It still counts against DNS alone; this shows how far the
+  /// lists reach.
+  final bool alsoAbp;
 }
 
 /// The filter lists serve [url], a `data:` stub, in place of the request
@@ -78,9 +85,10 @@ abstract final class BlockDecision {
   ///
   /// DNS is asked first and wins when both lists match, so a request counts
   /// against one list (CB "Source attribution when DNS + ABP both match"),
-  /// the order Android's native interceptor takes too. The filter lists are
-  /// asked only about what DNS let through, and only when the site keeps
-  /// content blocking on.
+  /// the order Android's native interceptor takes too. While the site keeps
+  /// content blocking on, the filter lists are asked about a DNS block as
+  /// well, only to say whether they would have stopped it too
+  /// ([Blocked.alsoAbp], CB-012), and decide what DNS let through.
   static BlockVerdict decide(
     BlockQuery query, {
     required BlockPolicy policy,
@@ -92,23 +100,31 @@ abstract final class BlockDecision {
           UrlQuery(:final url) => lists.dnsBlocksUrl(url, level: level),
           HostQuery(:final host) => lists.dnsBlocksHost(host, level: level),
         };
-    if (dns) return const Blocked(BlockSource.dns);
-    if (!policy.contentBlock) return const Allowed();
-    switch (query) {
-      case HostQuery(:final host):
-        return lists.abpBlocksHost(host)
-            ? const Blocked(BlockSource.abp)
-            : const Allowed();
-      case UrlQuery(:final url, :final sourceUrl, :final requestType):
-        if (!lists.abpBlocksUrl(url,
-            sourceUrl: sourceUrl, requestType: requestType)) {
-          return const Allowed();
-        }
-        final stub = lists.abpRedirect(url,
-            sourceUrl: sourceUrl, requestType: requestType);
-        return stub == null ? const Blocked(BlockSource.abp) : Redirect(stub);
+    if (dns) {
+      return Blocked(BlockSource.dns,
+          alsoAbp: policy.contentBlock && _abpBlocks(query, lists: lists));
     }
+    if (!policy.contentBlock || !_abpBlocks(query, lists: lists)) {
+      return const Allowed();
+    }
+    return switch (query) {
+      HostQuery() => const Blocked(BlockSource.abp),
+      UrlQuery(:final url, :final sourceUrl, :final requestType) => switch (
+            lists.abpRedirect(url,
+                sourceUrl: sourceUrl, requestType: requestType)) {
+          null => const Blocked(BlockSource.abp),
+          final stub => Redirect(stub),
+        },
+    };
   }
+
+  static bool _abpBlocks(BlockQuery query, {required BlockLists lists}) =>
+      switch (query) {
+        HostQuery(:final host) => lists.abpBlocksHost(host),
+        UrlQuery(:final url, :final sourceUrl, :final requestType) =>
+          lists.abpBlocksUrl(url,
+              sourceUrl: sourceUrl, requestType: requestType),
+      };
 }
 
 /// The WebKit interceptor's reply for each URL of one batch, in order: false
