@@ -13,6 +13,15 @@ import 'package:webspace/settings/proxy.dart';
 abstract interface class ProxyRelayApi {
   Future<({String host, int port})?> startRouter(String realm);
 
+  /// Start or reconfigure the relay for one [upstream], whose credentials it
+  /// injects where the process-wide rule carries a site's own proxy
+  /// (PROXY-008): the loopback address the rule names, with nothing else in
+  /// it, or null when it could not start (LEAK-012).
+  Future<({String host, int port})?> start(
+    UserProxySettings upstream, {
+    required bool answersEarly,
+  });
+
   /// Why the last call failed, for the caller's log line. The relay's own
   /// events are `LogSensitivity.sensitive` and so never reach a CI log,
   /// which made a failed bind unattributable on the one tier that can
@@ -38,9 +47,9 @@ abstract interface class ProxyRelayApi {
 /// Android's `ProxyController` cannot carry proxy credentials, so for a
 /// credentialed upstream we start a native loopback relay
 /// ([`ProxyRelayPlugin`]) and point WebView at `<127/8 host>:<port>` with no
-/// credentials; the relay injects them upstream. Android-only — iOS/macOS
-/// bind credentials to the per-site data store, and Linux/WebKit accepts a
-/// credentialed proxy URI directly.
+/// credentials; the relay injects them upstream. Android-only: iOS, macOS and
+/// Linux bind the proxy, credentials and all, to each site's own store
+/// (PROXY-027).
 class ProxyRelay implements ProxyRelayApi {
   static const MethodChannel _channel =
       MethodChannel('org.codeberg.theoden8.webspace/proxy_relay');
@@ -70,6 +79,7 @@ class ProxyRelay implements ProxyRelayApi {
   ///
   /// [answersEarly] is for tor's SOCKS port only: its `CONNECT` is answered
   /// before tor replies (PROXY-022).
+  @override
   Future<({String host, int port})?> start(
     UserProxySettings upstream, {
     required bool answersEarly,
