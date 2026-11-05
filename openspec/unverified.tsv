@@ -188,7 +188,6 @@ WEBEXT-010	no check: that a nested screen's and a popup's WKWebView load the sam
 # web-screen-sharing
 # webspaces
 # webview-hints
-HINTS-003	no check: no test changes the app theme and asserts every open webview is told it (`reapplyTheme` over the sites in `_applyThemeSettings`), nor that a page load reapplies it; a site's first build reading the app theme is HINTS-001's check (partly: test/app_theme_test.dart, "a site an archive opens follows the app theme from its first build")
 HINTS-005	no check: no tier runs the theme hint on more than one platform or asserts setThemePreference takes no platform branch
 # webview-pause-lifecycle
 PAUSE-003	process: a documentation rule (doc comments on WebViewController.pause/pauseAllJsTimers saying which is per-instance and which is process-global); no test or gate reads those comments
