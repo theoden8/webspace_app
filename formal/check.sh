@@ -27,6 +27,10 @@
 # end, naming each that did not. Each run's time is
 # kept under FORMAL_CACHE (default ~/.cache/webspace-formal) to size the
 # next: the longest start first, with the most workers.
+# FORMAL_RUN_BUDGET=<seconds> gives a run at least the workers its last time
+# needs to end within that much wall time, for a machine that stops a
+# command after a while: there a world the share leaves on one core never
+# ends, and starts again from nothing.
 #
 # A run whose inputs are byte for byte those of one that behaved before
 # (for activation.tla, what of them its world can reach: world_key.py) is
@@ -71,6 +75,8 @@ SHARD_AT=$((10#${BASH_REMATCH[1]})) SHARD_COUNT=$((10#${BASH_REMATCH[2]}))
 COVERAGE_DIR="${FORMAL_COVERAGE:-$MODEL/coverage}"
 SLOTS="${FORMAL_SLOTS:-$(getconf _NPROCESSORS_ONLN)}"
 [ "$SLOTS" -ge 1 ] 2>/dev/null || { echo "FORMAL_SLOTS is not a count of cores: $SLOTS" >&2; exit 2; }
+BUDGET="${FORMAL_RUN_BUDGET:-0}"
+[ "$BUDGET" -ge 0 ] 2>/dev/null || { echo "FORMAL_RUN_BUDGET is not a count of seconds: $BUDGET" >&2; exit 2; }
 PROGRESS="${FORMAL_PROGRESS_SECONDS:-60}"
 [ "$PROGRESS" -ge 1 ] 2>/dev/null || { echo "FORMAL_PROGRESS_SECONDS is not a positive interval: $PROGRESS" >&2; exit 2; }
 CACHE="${FORMAL_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/webspace-formal}"
@@ -161,13 +167,14 @@ key() {
 # core. The longest start first, one with no time yet as long as the
 # mean of those with one. Without a time, split the cores between two runs:
 # starting every cold run with one worker strands the longest on one core.
+# Under FORMAL_RUN_BUDGET a run gets at least its time over the budget.
 plan() {
   local name job secs w cost
   while IFS=$'\t' read -r name job; do
     cost=-1
     if read -r secs w 2>/dev/null <"$TIMES/$name"; then cost=$((secs * w)); fi
     printf '%s\t%s\t%s\n' "$cost" "$name" "$job"
-  done <"$RUNS/jobs" | awk -F'\t' -v OFS='\t' -v slots="$SLOTS" '
+  done <"$RUNS/jobs" | awk -F'\t' -v OFS='\t' -v slots="$SLOTS" -v budget="$BUDGET" '
     { cost[NR] = $1; if ($1 > 0) { total += $1; known++ } name[NR] = $2
       sub(/^[^\t]*\t[^\t]*\t/, ""); job[NR] = $0 }
     END {
@@ -175,6 +182,8 @@ plan() {
       mean = known ? total / known : 0
       for (i = 1; i <= NR; i++) {
         w = cost[i] > 0 ? int((slots * cost[i] + total - 1) / total) : int(slots / 2)
+        if (budget > 0 && cost[i] > 0 && w < int((cost[i] + budget - 1) / budget))
+          w = int((cost[i] + budget - 1) / budget)
         if (NR == 1) w = slots
         if (w < 1) w = 1
         if (w > cap) w = cap
@@ -197,8 +206,10 @@ pool() {
     [ "$cover" != - ] || cover=""
     mkdir -p "$RUNS/$name.tmp"
     echo "$SECONDS $w" >"$RUNS/$name.started"
+    # No run resumes from a checkpoint, and each one copies the state queue
+    # beside it: the largest activation world ran the disk out at its second.
     java "-Djava.io.tmpdir=$RUNS/$name.tmp" ${lib:+"-DTLA-Library=$lib"} -cp "$JAR" \
-      tlc2.TLC -workers "$w" ${cover:+-coverage 100000} \
+      tlc2.TLC -workers "$w" -checkpoint 0 ${cover:+-coverage 100000} \
       -metadir "$RUNS/$name.states" -config "$cfg" "$spec" >"$RUNS/$name.out" 2>&1 &
     running="$running $!:$name:$w:$SECONDS"
     free=$((free - w))
@@ -206,7 +217,10 @@ pool() {
   while [ -n "$running" ]; do reap; done
 }
 
-# reap: marks done each run of the pool's that has ended, and keeps its time.
+# reap: marks done each run of the pool's that has ended, and keeps the time
+# of one that behaved. A run that died (the disk full, a kill) or stopped at
+# an unexpected violation ends early, and its time would hand the world too
+# few workers next time.
 reap() {
   sleep 0.2
   local alive still="" entry pid name w t0 tmp
@@ -215,9 +229,10 @@ reap() {
     IFS=: read -r pid name w t0 <<<"$entry"
     case "$alive" in *" $pid "*) still="$still $entry"; continue ;; esac
     rm -rf "$RUNS/$name.states" "$RUNS/$name.tmp"
-    tmp="$(mktemp "$TIMES/.$name.XXXXXX")"
-    echo "$((SECONDS - t0)) $w" >"$tmp" && mv "$tmp" "$TIMES/$name"
-    remember "$name"
+    if remember "$name"; then
+      tmp="$(mktemp "$TIMES/.$name.XXXXXX")"
+      echo "$((SECONDS - t0)) $w" >"$tmp" && mv "$tmp" "$TIMES/$name"
+    fi
     touch "$RUNS/$name.done"
     free=$((free + w))
   done
@@ -229,7 +244,7 @@ reap() {
 # wait in the list's order behind the longest.
 remember() {
   local name="$1" tmp
-  grep -E "$(cat "$RUNS/$name.expect")" "$RUNS/$name.out" >/dev/null || return 0
+  grep -E "$(cat "$RUNS/$name.expect")" "$RUNS/$name.out" >/dev/null || return 1
   tmp="$(mktemp "$MEMO/.$name.XXXXXX")"
   cp "$RUNS/$name.out" "$tmp" && mv "$tmp" "$MEMO/$(cat "$RUNS/$name.key")"
 }
