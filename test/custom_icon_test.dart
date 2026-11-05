@@ -35,6 +35,19 @@ void main() {
       expect(decoded.height, 40);
     });
 
+    test('EDIT-008: the stored icon keeps none of the picked file\'s metadata',
+        () {
+      final picked = img.Image(width: 40, height: 40)
+        ..textData = {'XML:com.adobe.xmp': '<x:xmpmeta>Phone Co</x:xmpmeta>'};
+      final raw = Uint8List.fromList(img.encodePng(picked));
+      expect(String.fromCharCodes(raw), contains('Phone Co'));
+      final out = processCustomIconImage(raw)!;
+      expect(String.fromCharCodes(out), isNot(contains('Phone Co')));
+      final stored = img.decodePng(out)!;
+      expect(stored.textData, isNull);
+      expect(stored.iccProfile, isNull);
+    });
+
     test('returns null for undecodable bytes', () {
       final garbage = Uint8List.fromList(List<int>.filled(64, 7));
       expect(processCustomIconImage(garbage), isNull);

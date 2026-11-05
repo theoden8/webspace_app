@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show compute;
 import 'package:image/image.dart' as img;
 
+import 'package:webspace/services/media_metadata_strip.dart';
 import 'package:webspace/services/untrusted_image.dart';
 
 /// Longest side of a stored custom icon. Matches the size home-shortcut
@@ -31,7 +32,7 @@ Uint8List? processCustomIconImage(
       interpolation: img.Interpolation.average,
     );
   }
-  return Uint8List.fromList(img.encodePng(decoded));
+  return Uint8List.fromList(img.encodePng(withoutMetadata(decoded)));
 }
 
 /// [processCustomIconImage] off the UI thread — decoding a camera-sized

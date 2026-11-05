@@ -130,6 +130,9 @@ no per-`siteId` plaintext file is written (ARCH-006 audit: no disk, background
 scheduling, or OS-UI surface beyond the existing home-shortcut path). The field
 is excluded from the QR share payload (`QrShare.withheld` on its `SiteField`):
 image bytes would blow QR capacity and an icon is device-local cosmetics.
+Since the icon rides backups, the stored PNG SHALL carry none of the picked
+file's metadata: no EXIF, ICC profile or text chunk (where a PNG keeps XMP),
+cleared by the same step as a virtual capture source's (SHARE-016).
 
 #### Scenario: Set a custom icon
 
@@ -149,6 +152,12 @@ renders (drawer list/grid, tab strip, webspace detail, site dispatch)
 **Then** the pinned shortcut uses the custom icon bytes instead of the fetched
 favicon
 **And** a shortcut pinned before the icon was picked takes it too (HS-016)
+
+#### Scenario: A picked image's metadata stays behind
+
+**Given** the user picks a PNG whose XMP text names their device
+**When** processing runs
+**Then** the stored icon has the picked image's pixels and no text, EXIF or ICC chunk
 
 #### Scenario: Revert to the automatic icon
 
