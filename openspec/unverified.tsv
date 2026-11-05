@@ -156,7 +156,6 @@ SCREENSHOT-010	no check names it: the screenshot jobs run the generators, and no
 # settings-hints
 HINT-003	no check: it governs how an ARB key is moved (renamed in place keeping each locale's value, deleted only when the hint already says it), which no check can see after the fact; key parity catches only a key missing from a locale, and the hint-title rule holds by construction in HintedTitle with no test (partly: test/js/l10n_coverage.test.js, "${name} has full key + placeholder parity with the template")
 # site-behaviour
-BEHAV-002	no check: no test checks the per-site Behaviour row's summary (names of the switches that are on, two then 'N more', 'Nothing enabled', the external-link labels); only the order of the rows is asserted (partly: test/site_settings_network_row_test.dart, "the Network row sits between Behaviour and Privacy")
 # site-editing
 # site-permission-badges
 PERMBADGE-004	no check: no widget test renders a drawer tile (reorderable or static) holding a grant; both paths sharing _SiteGridTileContent is structural only, and the badge tests pump SitePermissionBadges on its own
