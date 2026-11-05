@@ -119,7 +119,6 @@ LCDN-009	no check: no widget test drives the App Settings LocalCDN dataset row (
 LCDN-013	no check: LocalCdnPerSiteTest serves a cached URL from the interceptor, but nothing checks that fetch/XHR pass through or that Apple platforms load every CDN request unchanged
 # localization
 L10N-005	process: describes how the migration proceeds (file by file, exempt only shrinking); exempt is now empty and nothing can run 'only grows' (partly: test/js/l10n_no_hardcoded_text.test.js, "UI files contain no hardcoded user-facing text")
-L10N-006	no check: no test asserts WebSpaceApp's MaterialApp sets localizationsDelegates, supportedLocales and onGenerateTitle; app tests that find localized text would fail only incidentally (partly: test/site_menu_app_test.dart, "Developer Tools from the ${tabStrip ? 'bottom bar' : 'app bar'} menu can simulate a background refresh")
 # navigation
 NAV-003	no check: no test or gate asserts drawerEdgeDragWidth is 0 while a webview is visible
 NAV-005	no check: no test drives the site menu's Back button (goBack when canGoBack, no-op otherwise, menu closes)
