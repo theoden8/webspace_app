@@ -97,7 +97,6 @@ IOS-UL-004	no check: no test asserts the reissued loadUrl carries navigationActi
 IOS-UL-005	no check: no test or gate asserts the bypass is entered only when the host is iOS
 IOS-UL-006	no check: no test asserts a nested InAppWebViewScreen's navigations run through the bypass gate
 # ip-leakage
-LEAK-012	no check: the native relay's injection and 502-not-direct are tested, but nothing asserts the Android ProxyController rule is http://127.0.0.1:<port> with no userinfo or that a relay that fails to start leaves no direct override (ProxyManager's Android branch is untested) (partly: android/app/src/test/kotlin/org/codeberg/theoden8/webspace/proxy/ProxyRelayTest.kt, "failClosed_unreachableUpstreamYields502NotDirect")
 # js-shim-tests
 SHIM-TEST-002	no check: nothing stops a test from running its own copy of a script written as a function; the parity gate only holds pageJs() to PageJs, the lint only catches template copies, and installBrowserPolyfills' stubs are unchecked (partly: test/js/page_js.test.js, "this tier reads lib/js the way PageJs does")
 SHIM-TEST-006	no check: no gate asserts each test/browser file uses setupBrowser and evaluateOnNewDocument, nor that a post-load injection carries its comment; preInit ordering is checked only indirectly (partly: test/browser/location_spoof_real.test.js, "WRTC=relay — config.iceTransportPolicy is forced to relay")

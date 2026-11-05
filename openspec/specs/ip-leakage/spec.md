@@ -653,7 +653,7 @@ fallback) consistent with the SOCKS5 fail-closed posture in LEAK-003.
 
 - **GIVEN** the app runs on Android with a credentialed effective proxy
 - **WHEN** the proxy is applied
-- **THEN** the `ProxyController` rule is `http://127.0.0.1:<port>` with no userinfo
+- **THEN** the `ProxyController` rule is `http://<the relay's 127/8 address>:<port>` with no userinfo
 - **AND** the username and password are present only in the relay's upstream connection
 
 #### Scenario: Relay failure does not leak the IP

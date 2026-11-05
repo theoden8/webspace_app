@@ -30,6 +30,18 @@ class LocalProxyRelayApi implements ProxyRelayApi {
   /// The running relay, for callers that need its endpoint.
   LocalProxyRelay? get relay => _relay;
 
+  /// The in-process relay is the router's alone: a host without Android's
+  /// Kotlin relay binds each site's proxy to its own store (PROXY-027), so no
+  /// rule here ever carries one upstream.
+  @override
+  Future<({String host, int port})?> start(
+    UserProxySettings upstream, {
+    required bool answersEarly,
+  }) async {
+    lastError = 'a single-upstream relay runs only on Android';
+    return null;
+  }
+
   @override
   Future<({String host, int port})?> startRouter(String realm) async {
     final existing = _relay;

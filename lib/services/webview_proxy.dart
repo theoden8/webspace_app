@@ -9,7 +9,6 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/container_proxy_ledger.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/process_route.dart';
-import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/isolation.dart';
@@ -395,7 +394,11 @@ class ProxyManager {
         break;
     }
 
+    // The process-wide binding is Android's `ProxyController` (iOS, macOS and
+    // Linux bind per store and returned above), and its relay is the
+    // router's (LEAK-012).
     final controller = inapp.ProxyController.instance();
+    final relay = ProxyRouterService.instance.relay;
 
     // When the per-site setting is DEFAULT, fall through to the app-global
     // outbound proxy. This keeps webview traffic and Dart-side traffic
@@ -425,7 +428,7 @@ class ProxyManager {
 
     if (effective.type == ProxyType.DEFAULT) {
       await ProcessRoute.instance.claim(occupant, route: route, write: () async {
-        if (hostIsAndroid) await ProxyRelay.instance.stop();
+        await relay.stop();
         LogTag.proxy.info(
             'Clearing proxy override (per-site=DEFAULT, no global proxy set)',
             sensitive: true);
@@ -458,17 +461,15 @@ class ProxyManager {
 
     // Android's ProxyController has no proxy-auth primitive: a rule with
     // embedded `user:pass@` userinfo is rejected by Chromium and the
-    // WebView silently goes direct (leaking the real IP). Route a
-    // credentialed upstream through the native loopback relay and point
-    // WebView at it with NO credentials; the relay injects them upstream.
-    // iOS/macOS never reach here; Linux/WebKit accepts a credentialed
-    // proxy URI directly, so it keeps the inline-credential path below.
+    // WebView silently goes direct (leaking the real IP). A credentialed
+    // upstream goes through the native loopback relay, and the rule names
+    // the relay with NO credentials; the relay injects them upstream. No
+    // rule this writes carries userinfo (LEAK-012).
     final applied = effective;
-    if (hostIsAndroid && applied.hasCredentials) {
+    if (applied.hasCredentials) {
       await ProcessRoute.instance.claim(occupant, route: route, write: () async {
-        final relay = await ProxyRelay.instance
-            .start(applied, answersEarly: viaTor);
-        if (relay == null) {
+        final endpoint = await relay.start(applied, answersEarly: viaTor);
+        if (endpoint == null) {
           LogTag.proxy.error(
               'Auth proxy relay failed to start; refusing to fall back to a '
               'direct connection. Effective: ${applied.describeForLogs()}',
@@ -482,7 +483,9 @@ class ProxyManager {
         final sw = Stopwatch()..start();
         await controller.setProxyOverride(
           settings: inapp.ProxySettings(
-            proxyRules: [inapp.ProxyRule(url: 'http://${relay.host}:${relay.port}')],
+            proxyRules: [
+              inapp.ProxyRule(url: 'http://${endpoint.host}:${endpoint.port}'),
+            ],
             // No `<local>`: it exempts dotless hosts (http://intranet/) from
             // the proxy entirely, and the coverage contract is every byte.
             // Loopback is bypassed by Chromium regardless, which is what
@@ -493,20 +496,18 @@ class ProxyManager {
         overrideActive = true;
         LogTag.proxy.info(
             'Applied proxy override via relay (native call took ${sw.elapsedMilliseconds}ms, '
-            'relay endpoint=${relay.host}:${relay.port})', sensitive: true);
+            'relay endpoint=${endpoint.host}:${endpoint.port})', sensitive: true);
       });
       return;
     }
 
-    final proxyUrl = applied.hasCredentials
-        ? '$scheme://${Uri.encodeComponent(applied.username!)}:${Uri.encodeComponent(applied.password!)}@$host:$port'
-        : '$scheme://$host:$port';
+    final proxyUrl = '$scheme://$host:$port';
 
     await ProcessRoute.instance.claim(occupant, route: route, write: () async {
-      // No credentials (or Linux): point ProxyController straight at the
-      // upstream. Stop any relay left over from a previous credentialed
-      // config so its loopback port isn't left listening.
-      if (hostIsAndroid) await ProxyRelay.instance.stop();
+      // No credentials: point ProxyController straight at the upstream.
+      // Stop any relay left over from a previous credentialed config so its
+      // loopback port isn't left listening.
+      await relay.stop();
       LogTag.proxy.info('Applying proxy override (scheme=$scheme'
           '${fellThrough ? ', via DEFAULT->global fallthrough' : ''}, '
           'effective: ${applied.describeForLogs()})', sensitive: true);

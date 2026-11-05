@@ -1,4 +1,5 @@
 import 'package:webspace/services/proxy_relay.dart';
+import 'package:webspace/settings/proxy.dart';
 
 /// Web twin of the in-process relay adapter (DESIGN-001).
 ///
@@ -19,6 +20,13 @@ class LocalProxyRelayApi implements ProxyRelayApi {
 
   @override
   Future<({String host, int port})?> startRouter(String realm) async => null;
+
+  @override
+  Future<({String host, int port})?> start(
+    UserProxySettings upstream, {
+    required bool answersEarly,
+  }) async =>
+      null;
 
   @override
   Future<bool> setRoutes(Map<String, Map<String, Object?>> routes) async =>

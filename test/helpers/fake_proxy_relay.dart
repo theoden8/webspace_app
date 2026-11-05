@@ -1,5 +1,6 @@
 import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_service.dart';
+import 'package:webspace/settings/proxy.dart';
 
 /// The relay behind the per-site proxy router (PROXY-013), modelling its
 /// wire contract rather than stubbing it away: an unknown credential is a
@@ -49,6 +50,21 @@ class FakeRelay implements ProxyRelayApi {
     return (host: boundHost, port: nextPort);
   }
 
+  /// The upstream the last [start] was for, credentials and all: only the
+  /// relay holds them, never the rule that names it (LEAK-012).
+  UserProxySettings? startedUpstream;
+
+  @override
+  Future<({String host, int port})?> start(
+    UserProxySettings upstream, {
+    required bool answersEarly,
+  }) async {
+    startCalls++;
+    if (!canBind) return null;
+    startedUpstream = upstream;
+    return (host: boundHost, port: nextPort);
+  }
+
   @override
   Future<bool> serving() async {
     servingCalls++;
@@ -81,6 +97,7 @@ class FakeRelay implements ProxyRelayApi {
     stopCalls++;
     installed = {};
     startedRealm = null;
+    startedUpstream = null;
     probes = {};
   }
 

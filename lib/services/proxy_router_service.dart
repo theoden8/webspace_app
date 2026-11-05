@@ -76,6 +76,10 @@ class ProxyRouterService {
   /// one before the platform is ever read.
   ProxyRelayApi get _relay =>
       _relayOverride ??= hostIsAndroid ? ProxyRelay.instance : LocalProxyRelayApi();
+
+  /// The relay this process runs: the router's, and on Android the one the
+  /// process-wide rule names for a site's own credentialed proxy (LEAK-012).
+  ProxyRelayApi get relay => _relay;
   ProxyRouterState? _state;
   String? _host;
   int? _port;
