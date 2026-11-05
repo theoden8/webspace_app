@@ -849,6 +849,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             _tabs.closeFromSheet(site, tabId: tabId, subtree: false, scope: scope),
         onCloseSubtree: (site, {required tabId}) =>
             _tabs.closeFromSheet(site, tabId: tabId, subtree: true, scope: scope),
+        onReopen: (closed) => _tabs.reopenFromSheet(closed, scope: scope),
         onMoveTab: _tabs.moveTab,
         onMoveSite: shown != null && _webspaces.canReorderView ? _moveSiteInTabsSheet : null,
         wayBack: wayBack,

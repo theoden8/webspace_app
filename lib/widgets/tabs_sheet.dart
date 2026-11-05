@@ -29,6 +29,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
+import 'package:webspace/services/recently_closed.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/services/tab_list_engine.dart';
 import 'package:webspace/services/tab_return_engine.dart';
@@ -67,10 +68,17 @@ class TabsSheetSite {
 /// the way back from the tab on screen (TAB-019).
 typedef TabsSheetListing = ({List<TabsSheetSite> sites, TabReturn? wayBack});
 
-/// A close asked from the sheet. Completes once it has landed, with the
-/// listing read afresh.
-typedef TabsSheetClose = Future<TabsSheetListing> Function(WebViewModel site,
+/// What a close asked from the sheet left: the listing read afresh, and
+/// what the close kept for a reopen, if anything (TAB-022).
+typedef TabsSheetClosed = ({TabsSheetListing listing, ClosedTabs? kept});
+
+/// A close asked from the sheet. Completes once it has landed.
+typedef TabsSheetClose = Future<TabsSheetClosed> Function(WebViewModel site,
     {required TabId tabId});
+
+/// A close taken back from the sheet (TAB-022). Completes once its tabs are
+/// back, with the listing read afresh.
+typedef TabsSheetReopen = Future<TabsSheetListing> Function(ClosedTabs closed);
 
 class TabsSheet extends StatefulWidget {
   const TabsSheet({
@@ -82,6 +90,7 @@ class TabsSheet extends StatefulWidget {
     this.onWebSearch,
     required this.onCloseTab,
     required this.onCloseSubtree,
+    this.onReopen,
     this.onMoveTab,
     this.onMoveSite,
     this.wayBack,
@@ -108,6 +117,10 @@ class TabsSheet extends StatefulWidget {
   final VoidCallback? onWebSearch;
   final TabsSheetClose onCloseTab;
   final TabsSheetClose onCloseSubtree;
+
+  /// Takes back a close made here, from the bar each close shows (TAB-022);
+  /// null shows none.
+  final TabsSheetReopen? onReopen;
 
   /// A tab dragged onto a row or past the last row (TAB-015). Returns whether
   /// the move was made. Null leaves the rows where they are.
@@ -181,6 +194,12 @@ class _TabsSheetState extends State<TabsSheet> {
   /// How tightly the rows are set (TAB-021): decided once the comfortable
   /// list has laid out, from whether it scrolls, and held until the scope
   /// changes, so a close never moves the rows under the finger.
+  /// The close the sheet offers to take back, and when the offer ends: it
+  /// stays while a screen reader drives the app, as an action SnackBar does
+  /// (A11Y-015).
+  ClosedTabs? _undo;
+  Timer? _undoEnds;
+
   TabRowDensity? _density;
   TabRowDensity get _rows => _density ?? TabRowDensity.comfortable;
   bool _densityAsked = false;
@@ -196,6 +215,7 @@ class _TabsSheetState extends State<TabsSheet> {
 
   @override
   void dispose() {
+    _undoEnds?.cancel();
     _autoScroll?.cancel();
     _scroll.dispose();
     super.dispose();
@@ -278,10 +298,21 @@ class _TabsSheetState extends State<TabsSheet> {
                 ],
               ),
             ),
-            if (scoped) ...[
-              const Divider(height: Chrome.hairlineWidth),
-              _scopeSwitch(loc, theme: theme),
-            ],
+            AnimatedSwitcher(
+              duration: Motion.reveal,
+              child: switch (_undo) {
+                final kept? => _undoBar(kept, loc: loc, theme: theme),
+                null when scoped => Column(
+                    key: const ValueKey('scope'),
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Divider(height: Chrome.hairlineWidth),
+                      _scopeSwitch(loc, theme: theme),
+                    ],
+                  ),
+                null => const SizedBox.shrink(),
+              },
+            ),
           ],
         ),
       ),
@@ -591,8 +622,69 @@ class _TabsSheetState extends State<TabsSheet> {
   /// from the listing the host hands back once the close has landed.
   Future<void> _close(TabsSheetClose close,
       {required WebViewModel site, required TabId tabId}) async {
-    final listing = await close(site, tabId: tabId);
+    final (:listing, :kept) = await close(site, tabId: tabId);
+    if (!mounted) return;
+    setState(() => _listing = listing);
+    if (kept != null && widget.onReopen != null) _offerUndo(kept);
+  }
+
+  /// The bar that takes [kept] back, in place of the scope switch until
+  /// the offer ends or another close replaces it. The sheet draws it
+  /// itself: a SnackBar shows only through a Scaffold, which here would
+  /// take the taps meant for the rows beside it.
+  void _offerUndo(ClosedTabs kept) {
+    _undoEnds?.cancel();
+    _undoEnds = MediaQuery.of(context).accessibleNavigation
+        ? null
+        : Timer(Motion.undoOffer, () {
+            if (mounted) setState(() => _undo = null);
+          });
+    setState(() => _undo = kept);
+  }
+
+  Future<void> _takeBack(ClosedTabs kept) async {
+    _undoEnds?.cancel();
+    setState(() => _undo = null);
+    final listing = await widget.onReopen!(kept);
     if (mounted) setState(() => _listing = listing);
+  }
+
+  Widget _undoBar(ClosedTabs kept,
+      {required AppLocalizations loc, required ThemeData theme}) {
+    final scheme = theme.colorScheme;
+    final tab = kept.first;
+    return Semantics(
+      key: ObjectKey(kept),
+      liveRegion: true,
+      container: true,
+      child: Material(
+        color: scheme.inverseSurface,
+        child: Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(
+              Spacing.lg, Spacing.xs, Spacing.sm, Spacing.xs),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  loc.tabsClosedNamed(
+                      tab.title?.isNotEmpty == true ? tab.title! : tab.url),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: scheme.onInverseSurface),
+                ),
+              ),
+              TextButton(
+                onPressed: () => unawaited(_takeBack(kept)),
+                style: TextButton.styleFrom(
+                    foregroundColor: scheme.inversePrimary),
+                child: Text(loc.tabsUndoClose),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _dropSite(SiteId siteId, {required SiteId ontoSiteId}) {

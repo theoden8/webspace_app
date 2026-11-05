@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/services/recently_closed.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/services/tab_return_engine.dart';
@@ -36,6 +37,7 @@ Future<void> pumpSheet(
   VoidCallback? onWebSearch,
   TabsSheetClose? onCloseTab,
   TabsSheetClose? onCloseSubtree,
+  TabsSheetReopen? onReopen,
   bool Function(WebViewModel site,
       {required TabId tabId, required TabDrop drop})? onMoveTab,
   List<TabsSheetSite>? Function(String siteId,
@@ -55,9 +57,10 @@ Future<void> pumpSheet(
       onOpenTab: onOpenTab ?? (_, {required tabId}) {},
       onNewTab: onNewTab ?? (_) {},
       onWebSearch: onWebSearch,
-      onCloseTab: onCloseTab ?? (_, {required tabId}) async => (sites: sites, wayBack: wayBack),
+      onCloseTab: onCloseTab ?? (_, {required tabId}) async => (listing: (sites: sites, wayBack: wayBack), kept: null),
       onCloseSubtree:
-          onCloseSubtree ?? (_, {required tabId}) async => (sites: sites, wayBack: wayBack),
+          onCloseSubtree ?? (_, {required tabId}) async => (listing: (sites: sites, wayBack: wayBack), kept: null),
+      onReopen: onReopen,
       onMoveTab: onMoveTab,
       onMoveSite: onMoveSite,
       wayBack: wayBack,
@@ -546,7 +549,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
         sites: sites,
         onCloseTab: (_, {required tabId}) async {
           closed = tabId;
-          return (sites: sites, wayBack: null);
+          return (listing: (sites: sites, wayBack: null), kept: null);
         },
       );
       await tester.tap(find.byIcon(Icons.close).last);
@@ -567,7 +570,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
         sites: sites,
         onCloseSubtree: (_, {required tabId}) async {
           closed = tabId;
-          return (sites: sites, wayBack: null);
+          return (listing: (sites: sites, wayBack: null), kept: null);
         },
       );
       // Only the parent row has the control: the leaf has nothing under it.
@@ -599,7 +602,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
         onCloseTab: (_, {required tabId}) async {
           await landed.future;
           site.setTabs([for (final t in site.tabs) if (t.id != tabId) t]);
-          return (sites: sites, wayBack: null);
+          return (listing: (sites: sites, wayBack: null), kept: null);
         },
       );
       expect(find.text('wikipedia.org · where you were'), findsOneWidget);
@@ -636,7 +639,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
         onCloseTab: (_, {required tabId}) async {
           asked.add(tabId);
           if (asked.length == 1) await first.future;
-          return (sites: sites, wayBack: null);
+          return (listing: (sites: sites, wayBack: null), kept: null);
         },
       );
       await tester.tap(closeButtonOf('https://github.com/pulls'));
@@ -1119,9 +1122,9 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
                   onOpenTab: (_, {required tabId}) => opened.add(tabId),
                   onNewTab: (_) {},
                   onCloseTab: (_, {required tabId}) async =>
-                      (sites: sites(), wayBack: null),
+                      (listing: (sites: sites(), wayBack: null), kept: null),
                   onCloseSubtree: (_, {required tabId}) async =>
-                      (sites: sites(), wayBack: null),
+                      (listing: (sites: sites(), wayBack: null), kept: null),
                 ),
               ),
               child: const Text('open sheet'),
@@ -1236,7 +1239,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
           [TabsSheetSite(model: site, isCurrent: true, isLoaded: true)];
       await pumpSheet(tester, sites: sites(), onCloseTab: (m, {required tabId}) async {
         m.setTabs([for (final t in m.tabs) if (t.id != tabId) t]);
-        return (sites: sites(), wayBack: null);
+        return (listing: (sites: sites(), wayBack: null), kept: null);
       });
       await tester.pumpAndSettle();
       final compact = rowHeight(tester, text: 'https://github.com/p1');
@@ -1287,6 +1290,85 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
               of: find.byType(ListView),
               matching: find.textContaining('One tab per site')),
           findsOneWidget);
+    });
+  });
+
+  group('TAB-022 — a close from the sheet can be taken back', () {
+    ClosedTabs keptOf(WebViewModel site, {required TabId tabId}) => ClosedTabs(
+          site: site.siteId,
+          tabs: [
+            ClosedTab(
+              tab: site.tabs.firstWhere((t) => t.id == tabId),
+              index: 1,
+              adopt: const {},
+            ),
+          ],
+        );
+
+    Future<(WebViewModel, List<ClosedTabs>)> pumpWithUndo(WidgetTester tester,
+        {bool keeps = true}) async {
+      final site = siteWithChain('GitHub',
+          urls: ['https://github.com/', 'https://github.com/pulls']);
+      final reopened = <ClosedTabs>[];
+      List<TabsSheetSite> sites() =>
+          [TabsSheetSite(model: site, isCurrent: true, isLoaded: true)];
+      await pumpSheet(
+        tester,
+        sites: sites(),
+        onCloseTab: (m, {required tabId}) async {
+          final kept = keeps ? keptOf(m, tabId: tabId) : null;
+          m.setTabs([for (final t in m.tabs) if (t.id != tabId) t]);
+          return (listing: (sites: sites(), wayBack: null), kept: kept);
+        },
+        onReopen: (closed) async {
+          reopened.add(closed);
+          return (sites: sites(), wayBack: null);
+        },
+      );
+      return (site, reopened);
+    }
+
+    testWidgets('a close shows an undo bar that hands the close back',
+        (tester) async {
+      final (_, reopened) = await pumpWithUndo(tester);
+      await tester.tap(closeButtonOf('https://github.com/pulls'));
+      await tester.pumpAndSettle();
+      expect(find.text('Closed “https://github.com/pulls”'), findsOneWidget);
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+      expect(reopened, hasLength(1));
+      expect(reopened.single.first.url, 'https://github.com/pulls');
+      expect(find.text('Undo'), findsNothing);
+    });
+
+    testWidgets('the bar leaves after a few seconds', (tester) async {
+      await pumpWithUndo(tester);
+      await tester.tap(closeButtonOf('https://github.com/pulls'));
+      await tester.pumpAndSettle();
+      expect(find.text('Undo'), findsOneWidget);
+      await tester.pump(Motion.undoOffer);
+      await tester.pumpAndSettle();
+      expect(find.text('Undo'), findsNothing);
+    });
+
+    testWidgets('it stays while a screen reader drives the app, as an action SnackBar does',
+        (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(accessibleNavigation: true);
+      addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+      await pumpWithUndo(tester);
+      await tester.tap(closeButtonOf('https://github.com/pulls'));
+      await tester.pumpAndSettle();
+      await tester.pump(Motion.undoOffer * 3);
+      await tester.pumpAndSettle();
+      expect(find.text('Undo'), findsOneWidget);
+    });
+
+    testWidgets('nothing kept, no bar', (tester) async {
+      await pumpWithUndo(tester, keeps: false);
+      await tester.tap(closeButtonOf('https://github.com/pulls'));
+      await tester.pumpAndSettle();
+      expect(find.text('Undo'), findsNothing);
     });
   });
 }

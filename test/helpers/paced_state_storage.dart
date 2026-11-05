@@ -41,6 +41,12 @@ final class PacedStateStorage implements WebViewStateStorage {
   }
 
   @override
+  Future<Uint8List?> takeState(String key) async {
+    await pace?.call(PlatformCall.navStateTake);
+    return _files.remove(key);
+  }
+
+  @override
   Future<int> removeStatesForSite(SiteId siteId) async {
     await pace?.call(PlatformCall.navStateRemoveForSite);
     final doomed = [

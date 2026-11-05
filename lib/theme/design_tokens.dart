@@ -256,6 +256,10 @@ abstract final class Motion {
   /// A site's card fading off the site once it is on screen.
   static const Duration reveal = Duration(milliseconds: 180);
 
+  /// How long the Tabs sheet offers to take a close back (TAB-022), as long
+  /// as a SnackBar stays.
+  static const Duration undoOffer = Duration(seconds: 4);
+
   /// The longest a site's card waits over the screen for the switch under
   /// it before it moves on regardless.
   static const Duration launchHold = Duration(milliseconds: 800);

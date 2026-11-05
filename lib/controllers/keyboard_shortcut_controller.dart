@@ -70,6 +70,9 @@ class KeyboardShortcutController implements ShortcutScreen {
     }
     return switch (shortcut) {
       OpenNewTab() => _run(_tabs.forShownSite(_tabs.newTab)),
+      ReopenClosedTab() => _run(
+        _tabs.forShownSite((_) => _tabs.reopenLast()),
+      ),
       CloseActiveTab() => _run(
         _tabs.forShownSite(
           (shown) => _tabs.closeTab(shown, tabId: shown.activeTabId),

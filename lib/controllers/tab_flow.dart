@@ -14,6 +14,7 @@ enum TabPlace {
   ownerRun,
   childTab,
   parkChild,
+  reopenTab,
   tCap,
   tCapSave,
   tNav,
@@ -31,6 +32,9 @@ enum TabPlace {
   cLand,
   cOpen,
   pLand,
+  reLand,
+  reSave,
+  reInsert,
   done,
 }
 
@@ -50,6 +54,7 @@ abstract interface class TabState {
   abstract List<LinkFlip> flips;
   abstract Set<WebViewModel> loadedBefore;
   abstract Map<TabId, String> dropped;
+  Map<TabId, Uint8List> get taken;
   TabId? get requested;
   List<SiteTab>? get landed;
   String? get url;
@@ -57,6 +62,8 @@ abstract interface class TabState {
   abstract SiteTab? fresh;
   SiteId? get namedOpener;
   abstract TabCloseResult? result;
+  abstract ClosedTabs? closed;
+  abstract ClosedTab? reopening;
   abstract bool rebound;
   abstract bool commitAfter;
   abstract TabId? offer;
@@ -101,6 +108,7 @@ final class TabCalls {
   void closed(StepView<TabFlow> c) => _c._closed(c);
   void duplicated(StepView<TabFlow> c) => _c._duplicated(c);
   void parked(StepView<TabFlow> c) => _c._parked(c);
+  void reopened(StepView<TabFlow> c) => _c._reopened(c);
 
   /// The site [tab], a child of [owner]'s not yet listed, runs as, as
   /// [WebViewModel.tabHosts] reports it once it is.
@@ -146,6 +154,11 @@ final class TabFlow implements Capturing, TabState {
   @override
   Map<TabId, String> dropped = const {};
 
+  /// The back stacks a close's removals took from its tabs' files, kept
+  /// for a reopen (TAB-022).
+  @override
+  final Map<TabId, Uint8List> taken = {};
+
   /// The tab the handler names (openTab, closeTab, a landing's).
   @override
   final TabId? requested;
@@ -176,6 +189,14 @@ final class TabFlow implements Capturing, TabState {
   /// The close the engine decided.
   @override
   TabCloseResult? result;
+
+  /// What the close takes, kept once it lands for a reopen (TAB-022).
+  @override
+  ClosedTabs? closed;
+
+  /// The closed tab a reopen puts back, with the history it writes.
+  @override
+  ClosedTab? reopening;
 
   /// What the flow leaves for the handler to finish: the shell and the
   /// save a rebind owes, the offer a duplicate makes.

@@ -395,6 +395,7 @@ const _tabAlphabet = <SiteAction>[
   OpenTab(0, tab: 1),
   NewTab(0),
   CloseTab(0, tab: 0),
+  ReopenTab(0),
   DuplicateTab(0),
   HomeLand(0),
   Tap(0),

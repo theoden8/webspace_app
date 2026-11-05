@@ -566,6 +566,7 @@ it, with Command on macOS where the others take Control:
 | Keys | Action |
 |---|---|
 | Ctrl/Cmd-T | the site menu's New tab, where the site has tabs (TAB-005) |
+| Ctrl/Cmd-Shift-T | the site on screen's newest closed tab back with its history, and opened (TAB-022) |
 | Ctrl/Cmd-W | close the tab on screen, as the Tabs sheet does, where the site has tabs |
 | Ctrl/Cmd-L | put the cursor in the URL bar with the address selected, where the URL bar is on |
 | Ctrl/Cmd-R, F5 | the site menu's Refresh |

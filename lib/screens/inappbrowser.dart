@@ -478,6 +478,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
       case QuitApp():
         unawaited(DesktopWindow.instance.quit());
       case OpenNewTab() ||
+          ReopenClosedTab() ||
           NextSite() ||
           PreviousSite() ||
           SiteAt() ||

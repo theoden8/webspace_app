@@ -33,6 +33,11 @@ abstract class WebViewStateStorage {
   /// stored.
   Future<void> removeState(String key);
 
+  /// Removes the bytes saved for [key] and returns them, or null when none
+  /// were: a closed tab's back stack, kept in memory for a reopen (TAB-022)
+  /// while no file outlives its tab.
+  Future<Uint8List?> takeState(String key);
+
   /// Removes every key this site owns — one per tab. Used by site deletion,
   /// the per-site data wipe and archive close, none of which can enumerate
   /// the tabs of a site that is already gone.
@@ -69,6 +74,9 @@ class InMemoryWebViewStateStorage implements WebViewStateStorage {
   Future<void> removeState(String key) async {
     _store.remove(key);
   }
+
+  @override
+  Future<Uint8List?> takeState(String key) async => _store.remove(key);
 
   @override
   Future<int> removeStatesForSite(SiteId siteId) async {
