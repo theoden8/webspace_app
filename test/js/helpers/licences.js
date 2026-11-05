@@ -352,6 +352,18 @@ function readingOf(file, { licenceFile }) {
 }
 
 /**
+ * Whether each GNU licence [file] names is the Lesser GPL, or the Library
+ * GPL, as LGPL-2.0 is titled: every "General Public License" in it is one of
+ * theirs, so a GPL named beside an LGPL reads as the GPL.
+ */
+function namesOnlyLgpl(file) {
+  const text = textOf(file, { whole: false });
+  if (text === null) return false;
+  const named = [...text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').matchAll(/(?:(\w+) )?general public license/g)];
+  return named.length > 0 && named.every(([, before]) => before === 'lesser' || before === 'library');
+}
+
+/**
  * Every shipped file of [packages] whose licence does not let it link, as
  * `pub:<package>/<path>: <licence>`; an unknown licence reads as empty.
  */
@@ -488,6 +500,6 @@ function pullSites(inputs = buildFiles()) {
 
 module.exports = {
   LICENCES, COMPONENTS, CASES, GO_MODULES, rows, goModules, policy, allows, registry, pinsOf, staleReads, pods, gradle, urls, pullSites,
-  buildFiles, shippedFiles, pubPackages, pluginBuildFiles, pubRefusals, licencesIn, readingOf,
+  buildFiles, shippedFiles, pubPackages, pluginBuildFiles, pubRefusals, licencesIn, readingOf, namesOnlyLgpl,
   ATTRIBUTIONS, attributions, pubNotices, attributionGaps, podAttributionGaps,
 };

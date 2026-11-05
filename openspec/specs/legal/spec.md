@@ -164,6 +164,19 @@ a build file pulls in outside pub and Cargo has a row in
   `scripts/verify_tor_framework.sh` on a framework that links the GPL-only
   parts of tor
 
+#### Scenario: A build root keeps a library's debug sources
+
+- **WHEN** a built root holds a library's sources under
+  `lib/debug/source/<library>/`, as flatpak-builder leaves them for the
+  `.Debug` extension a bundle leaves out
+- **THEN** a file there carrying a GNU notice passes
+  `tool/check_bundle_licences.js` only when every GNU licence it names is the
+  Lesser or Library GPL and the library's copyright file in the same root
+  (`share/doc/<library>/copyright` or `usr/share/doc/<library>/copyright`)
+  names an LGPL
+- **AND** a GPL notice there, or one in a library whose notices name no LGPL,
+  still fails (`test/js/bundle_licences.test.js`)
+
 #### Scenario: A Go module is compiled into the Apple builds' transports
 
 - **WHEN** `go/iptproxy/build.sh` links a Go module into IPtProxy.xcframework
@@ -239,11 +252,26 @@ components that are not a package in any graph.
 A library a Linux package builds from source and bundles (WPE WebKit and
 libwpe in the snap and the flatpak) SHALL carry its notices in the package as
 a Debian package does: `usr/share/doc/<name>/copyright` naming its source and
-revision and its licence, every licence file of its source tree and the
-copyright lines of its sources beside it, written at build time by
-`linux/install_notices.sh`. The licences page SHALL list every such notice
-the package carries, so the app's own notices name the libraries LGPL-2.1
-section 6 asks them to.
+revision and every licence of its tree, every licence file of that tree, the
+text of an LGPL or Apache-2.0 it names that the tree does not carry, a
+permission notice that lives only in a source file's header (an X11-style
+notice asks to appear in the documentation), and the copyright lines of its
+sources beside it, written at build time by `linux/install_notices.sh`. The
+licences page SHALL list every such notice the package carries, so the app's
+own notices name the libraries LGPL-2.1 section 6 asks them to.
+
+#### Scenario: A library's licence lives in a header or nowhere in its tree
+
+- **WHEN** `linux/install_notices.sh` writes a copyright file whose licence
+  names an LGPL or Apache-2.0 and no licence file of the tree is its text
+- **THEN** it fails unless `--licence-text` gives the build host's copy, and
+  it refuses a `--licence-text` that is missing, is the text of neither, is the
+  text of one the licence does not name, or would replace a licence file of
+  the tree
+- **AND** `--notice-of` copies a tree file's first block comment that names a
+  copyright, as it is, beside the notices, and refuses a path outside the tree,
+  a file the tree lacks, and a file whose comments name no copyright or whose
+  notice names no licence (`test/js/source_offer.test.js`)
 
 #### Scenario: New pub package or crate
 
@@ -273,13 +301,20 @@ section 6 asks them to.
 ### Requirement: LICENSE-004 - A bundled LGPL library ships as the LGPL asks
 
 A library under the LGPL that a package bundles instead of taking it from the
-system (WPE WebKit in the snap) SHALL ship as LGPL-2.1 section 6 asks:
+system SHALL ship as LGPL-2.1 section 6 asks. The snap bundles two: WPE WebKit,
+and libwpe, whose `src/key-unicode.c` (adapted from GDK's `gdkkeyuni.c`) is
+under the LGPL, version 2 or later; the rest of its tree is under its
+BSD-2-Clause `COPYING`, Apache-2.0 (`src/gamepad.c`, `include/wpe/gamepad.h`)
+and the X11-style notices of `include/wpe/keysyms.h`, The Open Group's
+(`MIT-open-group`) and Digital's (`HPND`).
 
 - **Replaceable:** a shared library of its own that the app loads at run time,
   so a user can put a modified build in its place; never linked into the app
   or a plugin.
 - **Notices:** its licence and copyright notices in the package and on the
-  licences page (LICENSE-003).
+  licences page (LICENSE-003), with the text of the LGPL it is under: its
+  tree's, or the build host's where the tree names the LGPL only in a source
+  file's header, as libwpe's does.
 - **Source:** its copyright file names the source, the commit built and
   anything the build changed in it first, and carries a written offer, valid
   for at least three years, of a complete machine-readable copy of that source
@@ -302,6 +337,23 @@ to a check.
   commit and carries the offer (`test/js/snap_manifest.test.js`)
 - **AND** Software Heritage holds that commit and its tree, asked about the
   installed snap's own copyright file (`tool/check_source_offer.js`)
+
+#### Scenario: The snap bundles libwpe
+
+- **WHEN** the snap is built and installed
+- **THEN** `libwpe-1.0.so` is a file of its own in the snap and a library of
+  the snap names it as `NEEDED` (`scripts/check_snap.sh`)
+- **AND** libwpe is built from git at the commit its 1.16.3 tag names, and
+  `usr/share/doc/libwpe/copyright` names that source and commit, every licence
+  of its tree, and carries the offer, with the build host's LGPL-2 and
+  Apache-2.0 texts and keysyms.h's notice in `licences/`
+  (`test/js/snap_manifest.test.js`)
+- **AND** each library's notices name the licences its row in
+  `components.tsv` was read as, no more and no fewer
+  (`test/js/snap_manifest.test.js`)
+- **AND** Software Heritage holds that commit and its tree
+  (`tool/check_source_offer.js`, which asks about every copyright file that
+  makes the offer)
 
 #### Scenario: WebKit's pin moves to a commit the archive does not hold yet
 

@@ -8,6 +8,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const { REPO, read } = require('./helpers/source');
+const L = require('./helpers/licences');
+const B = require('../../tool/check_bundle_licences');
 
 const MANIFEST = 'snap/snapcraft.yaml';
 const manifest = read(MANIFEST);
@@ -215,31 +217,70 @@ test('WebKit is built without the parts whose licence it may not ship (LICENSE-0
     ['-DENABLE_WEB_RTC=ON'], 'WebRTC on');
 });
 
+// A part's block of the manifest: from its key to the first blank line.
+function partSpan(text, part) {
+  const start = text.indexOf(`\n  ${part}:\n`);
+  if (start < 0) return null;
+  const end = text.indexOf('\n\n  ', start + 1);
+  return [start, end < 0 ? text.length : end];
+}
+
+// [text] with [from] replaced by [to] in [part]'s block alone.
+function inPart(text, part, from, to) {
+  const [start, end] = partSpan(text, part);
+  return text.slice(0, start) + text.slice(start, end).replace(from, to) + text.slice(end);
+}
+
+// The source a part pulls and the commit it checks out: snapcraft's git
+// source keys, or an override-pull that fetches one commit.
+function checkoutOf(body) {
+  const url = body.match(/^ {4}source: (\S+)$/m)?.[1] ?? body.match(/git remote add origin (\S+)/)?.[1];
+  const commit = body.match(/^ {4}source-commit: ([0-9a-f]{40})$/m)?.[1]
+    ?? body.match(/git fetch .*\borigin ([0-9a-f]{40})$/m)?.[1];
+  return { url, commit };
+}
+
 // linux/install_notices.sh writes a built library's notices where a staged
 // Debian package keeps its own, which the app's licences page reads
-// (bundled_notices_io.dart). WebKit's call also holds its third-party
-// directories to the audited table, names the commit it was built from and
-// makes the source offer LGPL asks for (LICENSE-004).
+// (bundled_notices_io.dart). Both libraries are under the LGPL, so each call
+// names the commit it was built from, read off the part's own checkout of it,
+// and makes the source offer LGPL asks for (LICENSE-004); libwpe's call names
+// every licence of its tree and gives the build host's texts of the two it
+// carries none of, and its keysyms.h's X11 notices. WebKit's call also holds
+// its third-party directories to the audited table and says what the build
+// changed.
 function noticeRefusals(text) {
   const out = [];
+  const offered = [
+    '--revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)"',
+    '--offer',
+  ];
   for (const [part, dest, extra] of [
-    ['libwpe', 'libwpe', []],
+    ['libwpe', 'libwpe', [
+      ...offered,
+      '--license "BSD-2-clause and LGPL-2+ and Apache-2.0 and MIT-open-group and HPND"',
+      '--licence-text /usr/share/common-licenses/LGPL-2',
+      '--licence-text /usr/share/common-licenses/Apache-2.0',
+      '--notice-of include/wpe/keysyms.h',
+    ]],
     ['wpewebkit', 'wpewebkit', [
+      ...offered,
       '--third-party "$CRAFT_PROJECT_DIR/linux/webkit_third_party.tsv"',
-      '--revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)"',
-      '--offer',
       '--changed "$changed"',
     ]],
   ]) {
-    const start = text.indexOf(`\n  ${part}:\n`);
-    const end = text.indexOf('\n\n  ', start + 1);
-    const body = start < 0 ? '' : text.slice(start, end < 0 ? text.length : end);
+    const span = partSpan(text, part);
+    const body = span ? text.slice(...span) : '';
     if (!body.includes('bash "$CRAFT_PROJECT_DIR/linux/install_notices.sh"')) {
       out.push(`${part} writes no notices`);
       continue;
     }
     if (!body.includes(`--dest "$CRAFT_PART_INSTALL/usr/share/doc/${dest}"`)) out.push(`${part}'s notices are not in usr/share/doc/${dest}`);
     for (const flag of extra) if (!body.includes(flag)) out.push(`${part} lacks ${flag}`);
+    const { url, commit } = checkoutOf(body);
+    if (!commit) out.push(`${part} is not a checkout of one commit, so its HEAD is not the source it offers`);
+    const named = body.match(/--source (\S+)/)?.[1];
+    if (named !== url) out.push(`${part}'s notices name ${named}, not the ${url} it pulls`);
   }
   if (/^ {6}- -usr\/share\/doc\b/m.test(text)) out.push('a part leaves usr/share/doc out of the snap');
   return out;
@@ -252,12 +293,14 @@ test('each library the snap builds ships its notices (LICENSE-003)', () => {
 });
 
 test("the snap's WebKit is a library a user can replace, its source named and offered (LICENSE-004)", () => {
-  assert.deepEqual(noticeRefusals(manifest.replace(' --offer \\\n', ' \\\n')), ['wpewebkit lacks --offer'],
+  assert.deepEqual(noticeRefusals(inPart(manifest, 'wpewebkit', ' --offer \\\n', ' \\\n')), ['wpewebkit lacks --offer'],
     'WebKit without its source offer');
-  assert.deepEqual(noticeRefusals(manifest.replace(/--revision "\$\(git -C [^\n]*\n/, '--revision main \\\n')),
+  assert.deepEqual(noticeRefusals(inPart(manifest, 'wpewebkit', /--revision "\$\(git -C [^\n]*\n/, '--revision main \\\n')),
     ['wpewebkit lacks --revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)"'], 'a revision not read off the checkout');
-  assert.deepEqual(noticeRefusals(manifest.replace(' \\\n        --changed "$changed"\n', '\n')),
+  assert.deepEqual(noticeRefusals(inPart(manifest, 'wpewebkit', ' \\\n        --changed "$changed"\n', '\n')),
     ['wpewebkit lacks --changed "$changed"'], 'a copyright file that hides the fonts it replaced');
+  assert.deepEqual(noticeRefusals(inPart(manifest, 'wpewebkit', / origin [0-9a-f]{40}$/m, ' origin main')),
+    ['wpewebkit is not a checkout of one commit, so its HEAD is not the source it offers'], 'WebKit fetched at a branch');
   const notices = read('linux/install_notices.sh');
   for (const line of ['echo "Source: $source"', 'Built as it is from $source at $revision.',
     'For at least three years from the day you received this copy']) {
@@ -269,6 +312,66 @@ test("the snap's WebKit is a library a user can replace, its source named and of
   assert.ok(check.includes('$mount/usr/lib/*/libWPEWebKit-2.0.so.*'),
     'scripts/check_snap.sh does not require WebKit as a file of its own');
   assert.match(read('.github/workflows/snap.yml'), /^ +bash scripts\/check_snap\.sh$/m, 'CI does not run scripts/check_snap.sh');
+});
+
+// libwpe's src/key-unicode.c, adapted from GDK's gdkkeyuni.c, is under the
+// LGPL, and the library ships as libwpe-1.0's own .so, as WebKit's does.
+test("the snap's libwpe ships as the LGPL asks: its text, and its source named and offered (LICENSE-004)", () => {
+  const libwpe = (from, to) => noticeRefusals(inPart(manifest, 'libwpe', from, to));
+  assert.deepEqual(libwpe(' --offer \\\n', ' \\\n'), ['libwpe lacks --offer'], 'libwpe without its source offer');
+  assert.deepEqual(libwpe(/--revision "\$\(git -C [^\n]*\n/, '--revision 1.16.3 \\\n'),
+    ['libwpe lacks --revision "$(git -C "$CRAFT_PART_SRC" rev-parse HEAD)"'], 'a revision not read off the checkout');
+  const line = '--license "BSD-2-clause and LGPL-2+ and Apache-2.0 and MIT-open-group and HPND"';
+  for (const [left, why] of [
+    ['--license "BSD-2-clause and Apache-2.0 and MIT-open-group and HPND"', 'the LGPL of key-unicode.c'],
+    ['--license "BSD-2-clause and LGPL-2+ and MIT-open-group and HPND"', 'gamepad.c\'s Apache-2.0'],
+    ['--license "BSD-2-clause and LGPL-2+ and Apache-2.0"', 'keysyms.h\'s X11 notices'],
+  ]) assert.deepEqual(libwpe(line, left), [`libwpe lacks ${line}`], `${why} left unnamed`);
+  for (const [option, why] of [
+    ['--licence-text /usr/share/common-licenses/LGPL-2', 'the LGPL named, its text not given'],
+    ['--licence-text /usr/share/common-licenses/Apache-2.0', 'Apache-2.0 named, its text not given'],
+    ['--notice-of include/wpe/keysyms.h', 'the X11 notices left in the header'],
+  ]) assert.deepEqual(libwpe(` \\\n        ${option}`, ''), [`libwpe lacks ${option}`], why);
+  assert.deepEqual(libwpe(/^ {4}source: \S+\n {4}source-commit: \S+\n/m, '    source: https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz\n'), [
+    'libwpe is not a checkout of one commit, so its HEAD is not the source it offers',
+    "libwpe's notices name https://github.com/WebPlatformForEmbedded/libwpe.git, not the https://wpewebkit.org/releases/libwpe-1.16.3.tar.xz it pulls",
+  ], 'libwpe from its release tarball, where git would read the project\'s own HEAD');
+  const check = read('scripts/check_snap.sh');
+  assert.ok(check.includes('$mount/usr/lib/*/libwpe-1.0.so.*'), 'scripts/check_snap.sh does not require libwpe as a file of its own');
+  assert.ok(check.includes("grep -q '(NEEDED).*\\[libwpe-1\\.0\\.so'"),
+    'scripts/check_snap.sh does not require a library of the snap to load libwpe at run time');
+});
+
+// What each library's notices name and what its components.tsv row was read
+// as are one fact: the --license of its install_notices.sh call, read through
+// debian_licences.tsv, names the ids of the row its --source keys, no more and
+// no fewer.
+function licenceGaps(text, { components = L.registry(), table = B.names() } = {}) {
+  const out = [];
+  for (const part of ['libwpe', 'wpewebkit']) {
+    const body = text.slice(...partSpan(text, part));
+    const source = body.match(/--source (\S+)/)?.[1];
+    const named = body.match(/--license "([^"]+)"/)?.[1] ?? body.match(/--license (\S+)/)?.[1] ?? '';
+    const ids = new Set(named.split(/\s+(?:and|or)\s+|,\s*/i).filter(Boolean)
+      .map((name) => B.spdxOf(name, { pkg: part, files: ['*'], table }) ?? `(${name}, a name ${B.NAMES} does not read)`));
+    const row = components.get(`url:${source}`);
+    const read = new Set((row?.licence ?? '').split(/\s+(?:AND|OR)\s+|[()]/).map((id) => id.trim()).filter(Boolean));
+    for (const id of ids) if (!read.has(id)) out.push(`${part}: its notices name ${id}, its row in ${L.COMPONENTS} does not`);
+    for (const id of read) if (!ids.has(id)) out.push(`${part}: its row in ${L.COMPONENTS} names ${id}, its notices do not`);
+  }
+  return out;
+}
+
+test("each library's notices name the licences its components row does (LICENSE-001, LICENSE-003)", () => {
+  assert.deepEqual(licenceGaps(manifest), []);
+  const components = L.registry();
+  const webkit = components.get('url:https://github.com/WebKit/WebKit.git');
+  const narrowed = new Map(components).set('url:https://github.com/WebKit/WebKit.git',
+    { ...webkit, licence: webkit.licence.replace(' AND BSD-2-Clause-Patent', '') });
+  assert.deepEqual(licenceGaps(manifest, { components: narrowed }),
+    [`wpewebkit: its notices name BSD-2-Clause-Patent, its row in ${L.COMPONENTS} does not`], 'WebKit\'s row as it was read');
+  assert.deepEqual(licenceGaps(inPart(manifest, 'libwpe', ' and HPND"', '"')),
+    [`libwpe: its row in ${L.COMPONENTS} names HPND, its notices do not`], 'a licence the notices leave out');
 });
 
 test('every third-party tree of WebKit under the GPL is one the build leaves out (LICENSE-001)', () => {
