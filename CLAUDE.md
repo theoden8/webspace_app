@@ -448,8 +448,10 @@ missing-transition classes, and cross-spec interference — bugs in the gaps *be
 - Standalone models (no shared kernel state) live beside the kernel: `archive.tla`
   (ARCH-001 byte-identity, a 2-safety hyperproperty via self-composition), `renderer.tla`
   (BUG-002 dead-renderer recovery), `proxy.tla` (mismatched-proxy mutual exclusion),
-  `kiosk.tla` (KIOSK-001/002/003 locked-shell sealing), `activation.tla` (a switch split
-  at its awaits, with memory pressure, row moves and the jar's turns between them).
+  `kiosk.tla` (KIOSK-001/002/003 locked-shell sealing), `relay_routes.tla` (PROXY-034 route
+  tables in order, a challenge answered once the table before it lands), `activation.tla`
+  (a switch split at its awaits, with memory pressure, row moves and the jar's turns between
+  them).
 - Each model carries **negative** demonstrators (a mutation that MUST be caught) and
   **positive** reachability witnesses (a legal behavior that MUST be reachable) — run by
   `./formal/check.sh`, which `verify.sh` calls. `trace/` validates real `LogService` traces against the kernel's
