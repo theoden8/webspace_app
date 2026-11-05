@@ -78,7 +78,6 @@ HS-014	no check: the Swift SiteEntityQuery.entities(for:) live/tombstone/placeho
 ICON-003	no check: no test of the quality scores or of _compareFavicons choosing a colored SVG over PNGs
 ICON-005	no check: no test renders an SVG with @media (prefers-color-scheme: dark) in dark mode; only the rejection of display:none toggles is checked (partly: test/icon_svg_selection_test.dart, "flags CSS display:none theme toggle")
 # inactive-tabs
-TAB-004	no check: no test checks that activating a site (strip or drawer tap, cold start, share arrival) leaves its tab list unchanged, or that Home resets the active tab in place without adding one (partly: test/site_tabs_model_test.dart, "with tabs, a site already at home opens no new tab")
 # incognito-mode
 INC-007	no check: no test checks an incognito site keeps its URL and storage across a webspace switch or background-resume (partly: test/app_lifecycle_engine_test.dart, "URL-ephemeral active site is paused+captured, never reset")
 # integration-tests
