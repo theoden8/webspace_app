@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "Preklopi",
   "tabsInSite": "Na strani {site}",
   "tabsMoreInSite": "{count, plural, =1{Še 1 zavihek na strani {site}} two{Še {count} zavihka na strani {site}} few{Še {count} zavihki na strani {site}} other{Še {count} zavihkov na strani {site}}}",
+  "tabsClosedNamed": "Zaprto »{title}«",
+  "tabsUndoClose": "Razveljavi",
   "tabsWhereYouWere": "kjer ste bili",
   "tabsRunsAs": "kot {site}",
   "tabsLinkOutsideSite": "{host} pripada drugi strani, zato se odpre nad to namesto v zavihku",

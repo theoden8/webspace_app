@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "Шилжих",
   "tabsInSite": "{site} сайтад",
   "tabsMoreInSite": "{count, plural, one{{site} сайтад дахиад {count} таб} other{{site} сайтад дахиад {count} таб}}",
+  "tabsClosedNamed": "“{title}” хаагдлаа",
+  "tabsUndoClose": "Буцаах",
   "tabsWhereYouWere": "таны байсан газар",
   "tabsRunsAs": "{site} сайтаар",
   "tabsLinkOutsideSite": "{host} өөр сайтад хамаарах тул табд биш, үүний дээр нээгдэнэ",

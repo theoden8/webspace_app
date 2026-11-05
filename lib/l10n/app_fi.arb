@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "Siirry",
   "tabsInSite": "Sivustolla {site}",
   "tabsMoreInSite": "{count, plural, =1{1 välilehti lisää sivustolla {site}} other{{count} välilehteä lisää sivustolla {site}}}",
+  "tabsClosedNamed": "Suljettu ”{title}”",
+  "tabsUndoClose": "Kumoa",
   "tabsWhereYouWere": "missä olit",
   "tabsRunsAs": "sivustona {site}",
   "tabsLinkOutsideSite": "{host} kuuluu toiseen sivustoon, joten se avautuu tämän päälle eikä välilehteen",

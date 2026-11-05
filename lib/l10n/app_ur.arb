@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "جائیں",
   "tabsInSite": "{site} سائٹ میں",
   "tabsMoreInSite": "{count, plural, =1{{site} سائٹ میں 1 مزید ٹیب} other{{site} سائٹ میں {count} مزید ٹیبس}}",
+  "tabsClosedNamed": "“{title}” بند کر دیا گیا",
+  "tabsUndoClose": "کالعدم کریں",
   "tabsWhereYouWere": "جہاں آپ تھے",
   "tabsRunsAs": "بطور {site}",
   "tabsLinkOutsideSite": "{host} کسی دوسری سائٹ سے تعلق رکھتا ہے، اس لیے یہ ٹیب کے بجائے اس کے اوپر کھلتا ہے",

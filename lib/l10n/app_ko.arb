@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "전환",
   "tabsInSite": "{site} 안",
   "tabsMoreInSite": "{count, plural, =1{{site} 안의 탭 1개 더 보기} other{{site} 안의 탭 {count}개 더 보기}}",
+  "tabsClosedNamed": "‘{title}’ 닫음",
+  "tabsUndoClose": "실행취소",
   "tabsWhereYouWere": "있던 곳",
   "tabsRunsAs": "{site}(으)로",
   "tabsLinkOutsideSite": "{host}은(는) 다른 사이트에 속하므로 탭이 아니라 이 사이트 위에 열립니다",

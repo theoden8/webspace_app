@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "Skipta",
   "tabsInSite": "Í {site}",
   "tabsMoreInSite": "{count, plural, one{{count} flipi í viðbót í {site}} other{{count} flipar í viðbót í {site}}}",
+  "tabsClosedNamed": "„{title}“ lokað",
+  "tabsUndoClose": "Afturkalla",
   "tabsWhereYouWere": "þar sem þú varst",
   "tabsRunsAs": "sem {site}",
   "tabsLinkOutsideSite": "{host} tilheyrir öðru vefsvæði og opnast því ofan á þessu en ekki í flipa",

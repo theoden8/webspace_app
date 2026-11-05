@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "Växla",
   "tabsInSite": "I {site}",
   "tabsMoreInSite": "{count, plural, =1{1 flik till i {site}} other{{count} flikar till i {site}}}",
+  "tabsClosedNamed": "Stängde ”{title}”",
+  "tabsUndoClose": "Ångra",
   "tabsWhereYouWere": "där du var",
   "tabsRunsAs": "som {site}",
   "tabsLinkOutsideSite": "{host} tillhör en annan webbplats och öppnas därför ovanpå denna i stället för i en flik",

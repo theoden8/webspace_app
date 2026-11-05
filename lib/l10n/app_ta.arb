@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "மாறு",
   "tabsInSite": "{site} தளத்தில்",
   "tabsMoreInSite": "{count, plural, =1{{site} தளத்தில் மேலும் 1 தாவல்} other{{site} தளத்தில் மேலும் {count} தாவல்கள்}}",
+  "tabsClosedNamed": "“{title}” மூடப்பட்டது",
+  "tabsUndoClose": "செயல்தவிர்",
   "tabsWhereYouWere": "நீங்கள் இருந்த இடம்",
   "tabsRunsAs": "{site} ஆக",
   "tabsLinkOutsideSite": "{host} வேறு தளத்திற்கு உரியது, எனவே அது தாவலில் அல்லாமல் இந்தத் தளத்தின் மேல் திறக்கிறது",

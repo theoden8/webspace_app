@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "Prijeđi",
   "tabsInSite": "Na stranici {site}",
   "tabsMoreInSite": "{count, plural, one{Još {count} kartica na stranici {site}} few{Još {count} kartice na stranici {site}} other{Još {count} kartica na stranici {site}}}",
+  "tabsClosedNamed": "Zatvoreno „{title}”",
+  "tabsUndoClose": "Poništi",
   "tabsWhereYouWere": "gdje ste bili",
   "tabsRunsAs": "kao {site}",
   "tabsLinkOutsideSite": "{host} pripada drugoj stranici pa se otvara preko ove, a ne u kartici",

@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "Transire",
   "tabsInSite": "In {site}",
   "tabsMoreInSite": "{count, plural, =1{Alia 1 scheda in {site}} other{Aliae {count} schedae in {site}}}",
+  "tabsClosedNamed": "Clausum “{title}”",
+  "tabsUndoClose": "Rescinde",
   "tabsWhereYouWere": "ubi eras",
   "tabsRunsAs": "ut {site}",
   "tabsLinkOutsideSite": "{host} ad alium situm pertinet, itaque super hunc aperitur, non in scheda",

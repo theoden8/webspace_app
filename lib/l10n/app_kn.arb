@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "ಬದಲಿಸಿ",
   "tabsInSite": "{site} ಸೈಟ್‌ನಲ್ಲಿ",
   "tabsMoreInSite": "{count, plural, one{{site} ಸೈಟ್‌ನಲ್ಲಿ ಇನ್ನೂ {count} ಟ್ಯಾಬ್} other{{site} ಸೈಟ್‌ನಲ್ಲಿ ಇನ್ನೂ {count} ಟ್ಯಾಬ್‌ಗಳು}}",
+  "tabsClosedNamed": "“{title}” ಮುಚ್ಚಲಾಗಿದೆ",
+  "tabsUndoClose": "ರದ್ದುಮಾಡಿ",
   "tabsWhereYouWere": "ನೀವು ಇದ್ದ ಸ್ಥಳ",
   "tabsRunsAs": "{site} ಆಗಿ",
   "tabsLinkOutsideSite": "{host} ಬೇರೆ ಸೈಟ್‌ಗೆ ಸೇರಿದೆ, ಆದ್ದರಿಂದ ಅದು ಟ್ಯಾಬ್‌ನಲ್ಲಿ ಅಲ್ಲದೆ ಇದರ ಮೇಲೆ ತೆರೆಯುತ್ತದೆ",

@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "Wisselen",
   "tabsInSite": "In {site}",
   "tabsMoreInSite": "{count, plural, =1{Nog 1 tabblad in {site}} other{Nog {count} tabbladen in {site}}}",
+  "tabsClosedNamed": "“{title}” gesloten",
+  "tabsUndoClose": "Ongedaan maken",
   "tabsWhereYouWere": "waar je was",
   "tabsRunsAs": "als {site}",
   "tabsLinkOutsideSite": "{host} hoort bij een andere site en wordt daarom boven op deze geopend in plaats van in een tabblad",

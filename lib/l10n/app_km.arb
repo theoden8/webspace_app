@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "ប្ដូរទៅ",
   "tabsInSite": "ក្នុង {site}",
   "tabsMoreInSite": "{count, plural, =1{ផ្ទាំង 1 ទៀតក្នុង {site}} other{ផ្ទាំង {count} ទៀតក្នុង {site}}}",
+  "tabsClosedNamed": "បានបិទ “{title}”",
+  "tabsUndoClose": "មិនធ្វើវិញ",
   "tabsWhereYouWere": "កន្លែងដែលអ្នកនៅមុន",
   "tabsRunsAs": "ជា {site}",
   "tabsLinkOutsideSite": "{host} ជារបស់គេហទំព័រផ្សេង ដូច្នេះវាបើកនៅពីលើគេហទំព័រនេះ មិនមែនក្នុងផ្ទាំងទេ",
