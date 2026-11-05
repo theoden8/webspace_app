@@ -22,7 +22,6 @@ A11Y-016	process: reading the Play pre-launch report each release is a release s
 ARCH-008	no check: no widget test covers the combined Restore action with its passphrase field, the no-match create prompt, the Close this archive menu item on archive webspaces, or when Close all archives shows
 ARCH-009	no check: _maskBackground in WebSpacePage.didChangeAppLifecycleState implements it, but no test drives an inactive/paused transition with an archive open and checks the mask
 # background-audio
-BGAUDIO-004	no check: no test asserts SiteRuntime.retentionPriority puts a background-audio site in the notification tier, or that it is evicted after ordinary sites (partly: test/site_lifecycle_promotion_engine_test.dart, "keeps the given order within a priority, past where List.sort is no longer stable")
 # block-statistics
 STATS-003	no check: no test of the report's range total, per-day chart, category shares, all-time/since line, the empty state, or the badge using the accent rather than colorScheme.error (partly: test/block_stats_service_test.dart, "reset zeroes the persisted payload")
 # captcha-support
