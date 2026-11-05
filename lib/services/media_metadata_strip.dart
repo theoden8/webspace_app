@@ -26,6 +26,9 @@ import 'package:webspace/services/untrusted_image.dart';
   if (decoded == null) return null;
   decoded.exif = img.ExifData();
   decoded.iccProfile = null;
+  // A PNG keeps XMP and other text in tEXt, iTXt and zTXt chunks, which the
+  // decoder reads into textData and the PNG encoder writes back (SHARE-016).
+  decoded.textData = null;
   if (jpeg) {
     return (
       bytes: Uint8List.fromList(img.encodeJpg(decoded, quality: 92)),

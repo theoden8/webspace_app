@@ -207,7 +207,6 @@ WEBEXT-008	no check: an extension's tab at a page of the site's domains is refus
 WEBEXT-010	no check: that a nested screen's and a popup's WKWebView load the same contexts needs the macOS integration test (task 6.1) (partly: test/web_extension_posture_test.dart, "the posture carries the plan, and a nested screen keeps it")
 # web-push-notifications
 # web-screen-sharing
-SHARE-016	no check: the strip functions are unit-tested, but nothing checks that the visual pick path runs them before the source lands on the model, nor the PNG-with-XMP case (partly: test/media_metadata_strip_test.dart, "other formats become PNG with the same pixels")
 # webspaces
 WEBSPACE-005	no check: no test restarts the app (or reruns the restore) and asserts the selected webspace and its drawer come back; only the Webspace JSON round-trip is tested (partly: test/webspace_model_test.dart, "JSON round-trip preserves siteIds")
 WEBSPACE-010	no check: no test deletes a site and asserts webspace siteIds/siteIndices shrink and shift; the loaded/active-site scenario alone is tested (partly: test/site_runtime_test.dart, "a delete before the shown site shifts it and the loaded set")
