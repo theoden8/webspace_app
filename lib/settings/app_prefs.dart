@@ -71,7 +71,6 @@ enum AppPref<T extends Object> {
   // DEVTOOLS-011: the Experimental switches, each new when it was added, so
   // off.
   experimentalTextureRendering('experimentalTextureRendering', fallback: false),
-  experimentalFolderLibrary('experimentalFolderLibrary', fallback: false),
   experimentalWebExtensions('experimentalWebExtensions', fallback: false),
   // WEBEXT-019: the search of addons.mozilla.org, outside the App Store only.
   experimentalExtensionSearch('experimentalExtensionSearch', fallback: false),
@@ -130,11 +129,15 @@ enum AppPref<T extends Object> {
   // SCREENBLOCK-002: withhold the whole app from screenshots, recordings
   // and the recent-apps preview. Android only.
   blockScreenshots('blockScreenshots', fallback: false),
+  // WEBSPACE-019: the webspace list and drawer in place of the library. Off:
+  // a new install starts in the library; loadLegacyDesign keeps an earlier
+  // build's design on the device that ran it.
+  legacyDesign('legacyDesign', fallback: false),
   // WEBSPACE-015: how the library's folders lay out their sites, every folder
   // at once, and apart from them how its home lays out the webspaces: a
-  // LibraryLayout's name.
+  // LibraryLayout's name. The library starts from these (WEBSPACE-019).
   libraryLayout('libraryLayout', fallback: 'auto'),
-  libraryWebspaceLayout('libraryWebspaceLayout', fallback: 'auto'),
+  libraryWebspaceLayout('libraryWebspaceLayout', fallback: 'list'),
   // WEBSPACE-017: every icon in the library at once, as a percentage of its
   // own size.
   libraryIconSize('libraryIconSize', fallback: 100),

@@ -9,10 +9,10 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/screens/webspace_library.dart';
 import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/services/connectivity_service.dart';
-import 'package:webspace/services/developer_mode_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/settings/app_design.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/library_layout.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -52,8 +52,7 @@ void main() {
         name: 'Personal',
       );
       final prefsValues = <String, Object>{
-        AppPref.developerMode.key: true,
-        AppPref.experimentalFolderLibrary.key: true,
+        AppPref.legacyDesign.key: false,
       };
       await pumpRealApp(
         tester,
@@ -143,8 +142,7 @@ void main() {
       sites: [alpha, beta],
       webspaces: [work],
       prefs: {
-        AppPref.developerMode.key: true,
-        AppPref.experimentalFolderLibrary.key: true,
+        AppPref.legacyDesign.key: false,
         'selectedWebspaceId': work.id,
       },
     );
@@ -192,8 +190,7 @@ void main() {
         sites: [alpha, beta],
         webspaces: [work],
         prefs: {
-          AppPref.developerMode.key: true,
-          AppPref.experimentalFolderLibrary.key: enabled,
+          AppPref.legacyDesign.key: !enabled,
         },
       );
       await openWebspace(tester, name: 'Work');
@@ -235,8 +232,7 @@ void main() {
           sites: [alpha],
           webspaces: [work],
           prefs: {
-            AppPref.developerMode.key: true,
-            AppPref.experimentalFolderLibrary.key: enabled,
+            AppPref.legacyDesign.key: !enabled,
             AppPref.backOpensMenu.key: true,
           },
         );
@@ -267,8 +263,7 @@ void main() {
         WebViewModel(initUrl: 'https://alpha.example.test', name: 'Alpha'),
       ],
       prefs: {
-        AppPref.developerMode.key: true,
-        AppPref.experimentalFolderLibrary.key: true,
+        AppPref.legacyDesign.key: false,
         AppPref.backOpensMenu.key: false,
       },
     );
@@ -301,8 +296,7 @@ void main() {
         sites: [alpha, beta],
         webspaces: [work],
         prefs: {
-          AppPref.developerMode.key: true,
-          AppPref.experimentalFolderLibrary.key: true,
+          AppPref.legacyDesign.key: false,
         },
       );
       await openWebspace(tester, name: 'Work');
@@ -350,8 +344,7 @@ void main() {
         sites: [alpha, beta],
         webspaces: [work, reading],
         prefs: {
-          AppPref.developerMode.key: true,
-          AppPref.experimentalFolderLibrary.key: true,
+          AppPref.legacyDesign.key: false,
         },
       );
       await openWebspace(tester, name: 'Work');
@@ -403,8 +396,7 @@ void main() {
         sites: [alpha, beta],
         webspaces: [work],
         prefs: {
-          AppPref.developerMode.key: true,
-          AppPref.experimentalFolderLibrary.key: true,
+          AppPref.legacyDesign.key: false,
         },
       );
       await openWebspace(tester, name: 'Work');
@@ -440,8 +432,7 @@ void main() {
         sites: [alpha],
         webspaces: [work],
         prefs: {
-          AppPref.developerMode.key: true,
-          AppPref.experimentalFolderLibrary.key: true,
+          AppPref.legacyDesign.key: false,
         },
       );
       await openWebspace(tester, name: 'Work');
@@ -495,8 +486,7 @@ void main() {
         sites: [alpha],
         webspaces: [work],
         prefs: {
-          AppPref.developerMode.key: true,
-          AppPref.experimentalFolderLibrary.key: true,
+          AppPref.legacyDesign.key: false,
         },
       );
       await openWebspace(tester, name: 'Work');
@@ -571,8 +561,7 @@ void main() {
       tester,
       sites: [site],
       prefs: {
-        AppPref.developerMode.key: true,
-        AppPref.experimentalFolderLibrary.key: true,
+        AppPref.legacyDesign.key: false,
       },
     );
     await tester.tap(find.byTooltip('Tabs'));
@@ -594,38 +583,37 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  for (final (dev, on) in [
+  for (final (dev, legacy) in [
     (false, false),
     (false, true),
     (true, false),
     (true, true),
   ]) {
-    testWidgets('folder library gate: developer=$dev switch=$on', (
-      tester,
-    ) async {
+    testWidgets(
+        'WEBSPACE-019 the library shows unless Legacy design is on, whatever '
+        'developer mode says: developer=$dev legacy=$legacy', (tester) async {
       await pumpRealApp(
         tester,
         sites: [],
         prefs: {
           AppPref.developerMode.key: dev,
-          AppPref.experimentalFolderLibrary.key: on,
+          AppPref.legacyDesign.key: legacy,
         },
       );
-      final enabled = dev && on;
       expect(
         find.byType(WebspaceLibrary),
-        enabled ? findsOneWidget : findsNothing,
+        legacy ? findsNothing : findsOneWidget,
       );
       expect(
         find.byType(WebspacesListScreen),
-        enabled ? findsNothing : findsOneWidget,
+        legacy ? findsOneWidget : findsNothing,
       );
-      expect(find.byType(AppBar), enabled ? findsNothing : findsOneWidget);
+      expect(find.byType(AppBar), legacy ? findsOneWidget : findsNothing);
       expect(
         find.byType(FloatingActionButton),
-        enabled ? findsNothing : findsOneWidget,
+        legacy ? findsOneWidget : findsNothing,
       );
-      if (!enabled) {
+      if (legacy) {
         await openWebspace(tester, name: 'All');
         expect(
           tester.state<ScaffoldState>(find.byType(Scaffold).first).isDrawerOpen,
@@ -635,39 +623,36 @@ void main() {
     });
   }
 
-  testWidgets('folder library follows switches live and remembers its opt-in', (
-    tester,
-  ) async {
+  testWidgets(
+      'WEBSPACE-019 the design follows the Legacy design switch live, and '
+      'leaving it starts the library at a list of webspaces and Automatic '
+      'folders', (tester) async {
     await pumpRealApp(
       tester,
       sites: [],
-      prefs: {AppPref.developerMode.key: true},
+      prefs: {
+        AppPref.legacyDesign.key: true,
+        AppPref.libraryWebspaceLayout.key: 'grid',
+        AppPref.libraryLayout.key: 'list',
+      },
     );
     expect(find.byType(WebspacesListScreen), findsOneWidget);
-    await ExperimentalFeaturesService.instance.setSwitch(
-      ExperimentalFeature.folderLibrary,
-      on: true,
-    );
+    await chooseLegacyDesign(on: false);
     await settleRealApp(tester);
     expect(find.byType(WebspaceLibrary), findsOneWidget);
-    await DeveloperModeService.instance.setEnabled(on: false);
+    expect(AppPref.libraryWebspaceLayout.value, LibraryLayout.list.name);
+    expect(AppPref.libraryLayout.value, LibraryLayout.auto.name);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool(AppPref.legacyDesign.key), isFalse);
+    expect(prefs.getString(AppPref.libraryWebspaceLayout.key), 'list');
+    expect(prefs.getString(AppPref.libraryLayout.key), 'auto');
+
+    AppPref.libraryLayout.debugValue = LibraryLayout.grid.name;
+    await chooseLegacyDesign(on: true);
     await settleRealApp(tester);
     expect(find.byType(WebspacesListScreen), findsOneWidget);
-    expect(
-      ExperimentalFeaturesService.instance.switchOn(
-        ExperimentalFeature.folderLibrary,
-      ),
-      isTrue,
-    );
-    await DeveloperModeService.instance.setEnabled(on: true);
-    await settleRealApp(tester);
-    expect(find.byType(WebspaceLibrary), findsOneWidget);
-    await ExperimentalFeaturesService.instance.setSwitch(
-      ExperimentalFeature.folderLibrary,
-      on: false,
-    );
-    await settleRealApp(tester);
-    expect(find.byType(WebspacesListScreen), findsOneWidget);
+    expect(AppPref.libraryLayout.value, LibraryLayout.grid.name,
+        reason: 'turning Legacy design on leaves the layouts alone');
   });
 
   testWidgets(
@@ -687,8 +672,7 @@ void main() {
         sites: [portal, other],
         webspaces: [work],
         prefs: {
-          AppPref.developerMode.key: true,
-          AppPref.experimentalFolderLibrary.key: true,
+          AppPref.legacyDesign.key: false,
         },
       );
       await openWebspace(tester, name: 'Work');
@@ -726,8 +710,7 @@ void main() {
         sites: [portal],
         webspaces: [work, personal],
         prefs: {
-          AppPref.developerMode.key: true,
-          AppPref.experimentalFolderLibrary.key: true,
+          AppPref.legacyDesign.key: false,
         },
       );
       Finder chip(String name) => find.widgetWithText(FilterChip, name);
@@ -789,8 +772,7 @@ void main() {
         sites: [first, second],
         webspaces: [work],
         prefs: {
-          AppPref.developerMode.key: true,
-          AppPref.experimentalFolderLibrary.key: true,
+          AppPref.legacyDesign.key: false,
         },
       );
       await tester.longPress(find.text('Work'));
@@ -828,8 +810,7 @@ void main() {
         sites: [alpha],
         webspaces: [work],
         prefs: {
-          AppPref.developerMode.key: true,
-          AppPref.experimentalFolderLibrary.key: true,
+          AppPref.legacyDesign.key: false,
         },
       );
       Future<Map<String, dynamic>> saved() async =>
@@ -885,8 +866,7 @@ void main() {
         tester,
         sites: [first, second],
         prefs: {
-          AppPref.developerMode.key: true,
-          AppPref.experimentalFolderLibrary.key: true,
+          AppPref.legacyDesign.key: false,
           AppPref.showTabStrip.key: true,
         },
       );
@@ -934,8 +914,7 @@ void main() {
         sites: [alpha],
         webspaces: [work],
         prefs: {
-          AppPref.developerMode.key: true,
-          AppPref.experimentalFolderLibrary.key: true,
+          AppPref.legacyDesign.key: false,
         },
       );
       await openWebspace(tester, name: 'Work');

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/screens/app_appearance.dart';
-import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
@@ -20,25 +19,19 @@ Future<void> _pumpAppearance(WidgetTester tester) => pumpLocalized(
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
   tearDown(() {
-    DeveloperModeService.instance.debugSet(on: false);
-    for (final pref in [
-      AppPref.experimentalFolderLibrary,
-      AppPref.libraryIconSize,
-    ]) {
-      pref.debugValue = pref.fallback;
-    }
+    AppPref.legacyDesign.debugValue = AppPref.legacyDesign.fallback;
+    AppPref.libraryIconSize.debugValue = AppPref.libraryIconSize.fallback;
   });
 
   testWidgets(
-    'Appearance offers the icon size only in Alternative design, and a drag '
+    'Appearance offers the icon size only outside Legacy design, and a drag '
     'sets every icon\'s size once let go (WEBSPACE-017)',
     (tester) async {
-      AppPref.experimentalFolderLibrary.debugValue = true;
+      AppPref.legacyDesign.debugValue = true;
       await _pumpAppearance(tester);
-      expect(find.text('Icon size'), findsNothing, reason: 'developer mode off');
+      expect(find.text('Icon size'), findsNothing, reason: 'Legacy design on');
 
-      DeveloperModeService.instance.debugSet(on: true);
-      await _pumpAppearance(tester);
+      AppPref.legacyDesign.debugValue = false;
       await tester.pumpAndSettle();
       expect(find.text('Icon size'), findsOneWidget);
       expect(find.text('100%'), findsOneWidget);

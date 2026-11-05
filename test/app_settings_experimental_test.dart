@@ -101,6 +101,7 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
       ExperimentalFeaturesService.instance.debugSet(f, on: f.pref.fallback);
     }
     AppPref.externalTor.debugValue = AppPref.externalTor.fallback;
+    AppPref.legacyDesign.debugValue = AppPref.legacyDesign.fallback;
     await TorService.reset();
   });
 
@@ -140,21 +141,35 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
         reason: 'App Settings links the logs directly again');
   });
 
-  testWidgets('Developer offers Alternative design off by default', (tester) async {
+  testWidgets(
+      'WEBSPACE-019 Developer no longer offers Alternative design; Appearance '
+      'offers Legacy design, off by default', (tester) async {
     await tester.pumpWidget(host());
     await tester.pumpAndSettle();
     await openCategory(tester, title: 'Developer');
-    final title = find.text('Alternative design');
-    await tester.scrollUntilVisible(title, 200, scrollable: find.byType(Scrollable).first);
+    await tester.scrollUntilVisible(find.text('Reset icon cache'), 200,
+        scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
+    expect(find.text('Alternative design'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(host());
+    await tester.pumpAndSettle();
+    await openCategory(tester, title: 'Appearance');
+    final title = find.text('Legacy design');
+    await tester.scrollUntilVisible(title, 200,
+        scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
     final row = find.ancestor(of: title, matching: find.byType(SwitchListTile));
     expect(tester.widget<SwitchListTile>(row).value, isFalse);
+    expect(find.text('Icon size'), findsOneWidget,
+        reason: 'the library is on screen, so its icons have a size');
     await tester.tap(find.descendant(of: row, matching: find.byType(Switch)));
     await tester.pumpAndSettle();
     expect(tester.widget<SwitchListTile>(row).value, isTrue);
-    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.folderLibrary), isTrue);
+    expect(find.text('Icon size'), findsNothing);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool(AppPref.experimentalFolderLibrary.key), isTrue);
+    expect(prefs.getBool(AppPref.legacyDesign.key), isTrue);
   });
 
   testWidgets('TOR-027 Developer offers Built-in Tor on Linux only, off by '

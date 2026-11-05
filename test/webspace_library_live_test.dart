@@ -17,8 +17,7 @@ void main() {
         tester,
         sites: [],
         prefs: {
-          AppPref.developerMode.key: true,
-          AppPref.experimentalFolderLibrary.key: true,
+          AppPref.legacyDesign.key: false,
         },
       );
       await tester.tap(find.byTooltip('Add'));

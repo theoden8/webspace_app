@@ -23,8 +23,7 @@ void main() {
 
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({
-      AppPref.developerMode.key: true,
-      AppPref.experimentalFolderLibrary.key: true,
+      AppPref.legacyDesign.key: false,
     });
     isDemoMode = true;
   });

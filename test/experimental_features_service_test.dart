@@ -124,16 +124,16 @@ void main() {
         isTrue);
   });
 
-  test('folder library defaults off and persists its opt-in', () async {
+  test('a switch defaults off and counts only with developer mode', () async {
     await ExperimentalFeaturesService.instance.initialize();
     DeveloperModeService.instance.debugSet(on: true);
-    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.folderLibrary), isFalse);
-    await ExperimentalFeaturesService.instance.setSwitch(ExperimentalFeature.folderLibrary, on: true);
-    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.folderLibrary), isTrue);
+    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.webExtensions), isFalse);
+    await ExperimentalFeaturesService.instance.setSwitch(ExperimentalFeature.webExtensions, on: true);
+    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.webExtensions), isTrue);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool(AppPref.experimentalFolderLibrary.key), isTrue);
+    expect(prefs.getBool(AppPref.experimentalWebExtensions.key), isTrue);
     DeveloperModeService.instance.debugSet(on: false);
-    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.folderLibrary), isFalse);
+    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.webExtensions), isFalse);
   });
 
   test('a wrong-typed stored value reads as the default', () async {

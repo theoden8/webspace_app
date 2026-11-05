@@ -6,7 +6,7 @@ import 'package:webspace/controllers/site_editing_controller.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/add_site.dart' show AddSiteScreen;
 import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/site_overrides.dart' show resolveKiosk;
 import 'package:webspace/services/site_settings_qr_codec.dart';
@@ -40,13 +40,10 @@ class DialogSiteEditingPrompts implements SiteEditingPrompts {
     );
   }
 
-  /// Webspaces are offered to a site only in Alternative design; elsewhere a
-  /// webspace's own editor holds its sites.
+  /// Webspaces are offered to a site only in the library; in the legacy
+  /// design a webspace's own editor holds its sites.
   List<Webspace> _offered(List<Webspace> spaces) =>
-      ExperimentalFeaturesService.instance
-              .isEnabled(ExperimentalFeature.folderLibrary)
-          ? spaces
-          : const [];
+      AppPref.legacyDesign.value ? const [] : spaces;
 
   @override
   Future<SiteAddition?> addSite({
@@ -168,8 +165,8 @@ class DialogSiteEditingPrompts implements SiteEditingPrompts {
     return accepted == true;
   }
 
-  /// Membership is edited from the site only in Alternative design; the
-  /// default design edits it from the webspace.
+  /// Membership is edited from the site only in the library; the legacy
+  /// design edits it from the webspace.
   @override
   Future<SiteEdit?> editSite(WebViewModel site,
           {required List<Webspace> spaces}) =>
