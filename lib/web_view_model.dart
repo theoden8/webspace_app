@@ -1441,10 +1441,7 @@ bool dispatch(NavigationDecision decision,
               final title = await controller!.getTitle();
               if (controller == null) return;
               if (title != null && title.isNotEmpty) {
-                pageTitle = title;
-                if (!hosted && name == extractDomain(initUrl)) {
-                  name = title;
-                }
+                titleLoaded(title, hosted: hosted);
               }
               // Reapply theme after page load (some sites might override it).
               // Fire-and-forget: don't await. The await chained an
@@ -1956,6 +1953,15 @@ bool dispatch(NavigationDecision decision,
   }
 
   String getDisplayName() => name;
+
+  /// A loaded page's [title]: the active tab's title, and the site's name
+  /// while the site still bears its domain, the name it starts with, so the
+  /// first titled page names it and a name the user gave stays (EDIT-001,
+  /// EDIT-003). A tab [hosted] by another site titles only the tab.
+  void titleLoaded(String title, {required bool hosted}) {
+    pageTitle = title;
+    if (!hosted && name == extractDomain(initUrl)) name = title;
+  }
 
   /// The proxy password is never serialised — same contract as
   /// `isSecure=true` cookies, which are also stripped from exports. See

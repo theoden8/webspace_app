@@ -51,9 +51,8 @@ void main() {
 
       expect(model.name, 'My Custom MLflow');
 
-      // Simulate page title being fetched
-      model.pageTitle = 'MLflow - Experiment Tracking';
-      
+      model.titleLoaded('MLflow - Experiment Tracking', hosted: false);
+
       // Custom name should NOT be overwritten
       expect(model.name, 'My Custom MLflow');
       expect(model.getDisplayName(), 'My Custom MLflow');

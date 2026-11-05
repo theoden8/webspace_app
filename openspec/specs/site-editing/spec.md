@@ -14,11 +14,15 @@ Users can edit site details and see automatic page title extraction instead of j
 
 ### Requirement: EDIT-001 - Automatic Page Title Display
 
-The system SHALL display page titles with the following priority:
+The system SHALL name a site, wherever its name shows, with the following
+priority:
 
-1. Page title (from HTML `<title>` tag)
-2. Custom name (user-edited)
-3. Domain (extracted from URL)
+1. Custom name (user-edited, EDIT-003)
+2. The title of the first page it loaded that had one (HTML `<title>`)
+3. Domain (extracted from URL), the name a new site starts with
+
+Each load's page title is kept as the active tab's title (EDIT-007). A tab
+another site hosts titles only the tab.
 
 #### Scenario: Display page title from HTML
 
@@ -26,6 +30,12 @@ The system SHALL display page titles with the following priority:
 **When** the page finishes loading
 **Then** "Example Portal" is displayed in the app bar
 **And** "Example Portal" is displayed in the drawer
+
+#### Scenario: A custom name outlasts the page title
+
+**Given** the user named a site "Work Portal"
+**When** a page with `<title>Example Portal</title>` finishes loading
+**Then** the site is still named "Work Portal"
 
 ---
 
