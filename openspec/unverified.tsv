@@ -146,7 +146,6 @@ NETIF-014	no check: not built yet; an import that names an interface this device
 # passkey-support
 PASSKEY-014	no check: no gate asserts the committed iOS/macOS entitlements omit the browser passkey entitlement (os_capability_declarations and macos_store_declarations check other keys)
 # per-site-containers
-CONT-001	no check: Isolation.probe, which picks the engine from isSupported(), has no test; only the conflict skip under each witness is checked (partly: test/site_unload_engine_test.dart, "nothing conflicts under containers, and no incognito site does")
 # per-site-cookie-isolation
 ISO-007	no check: no test asserts a nested screen uses the shared jar with no capture or restore; the activation walks open nested screens but assert nothing about the cookie jar for them
 ISO-011	no check: only the isCookieBlocked predicate and blockedCookies serialization are tested; no test asserts a blocked cookie is skipped on restore (cookie_isolation.dart) or deleted after a load (onCookiesChanged) (partly: test/cookie_blocking_test.dart, "isCookieBlocked filters matching cookies")
