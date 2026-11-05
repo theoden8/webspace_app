@@ -873,6 +873,7 @@ const _supports = <String, String>{
   'tClosed': r'r.rest = {} => HasFresh(r.site)',
   'cLand': r'HasFresh(r.site)',
   'pLand': r'HasFresh(r.site)',
+  'reLand': r'HasFresh(r.site)',
 };
 
 /// The kinds of flow of which at most one is in flight, each with the
