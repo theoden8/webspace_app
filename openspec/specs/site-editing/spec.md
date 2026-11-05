@@ -41,10 +41,11 @@ another site hosts titles only the tab.
 
 ### Requirement: EDIT-002 - Title Display Locations
 
-Page titles SHALL be displayed in:
+A site's name, which its first titled page gives it (EDIT-001), SHALL be displayed in:
 - App bar (top of screen)
 - Drawer list items
-- Settings screen
+
+The site's Settings screen is titled for what it is, not for the site.
 
 #### Scenario: Show title in multiple locations
 

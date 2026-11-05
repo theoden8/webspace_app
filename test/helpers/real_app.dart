@@ -91,6 +91,7 @@ Future<void> prepareRealApp(
   webViewCalls.clear();
   webViewSettingsWrites.clear();
   webViewCanGoBack = false;
+  webViewTitle = null;
   _freshDocuments();
   useFakePathProvider(_documents);
   PackageInfo.setMockInitialValues(
@@ -252,6 +253,9 @@ final List<Symbol> webViewCalls = [];
 /// What every webview's `canGoBack` answers; false unless a test sets it.
 bool webViewCanGoBack = false;
 
+/// What every webview's `getTitle` answers; none unless a test sets it.
+String? webViewTitle;
+
 /// Each `setSettings` since the app was pumped, with what ran on the
 /// process-wide proxy rule as it was sent.
 final List<({inapp.InAppWebViewSettings settings, Set<RouteOccupant> onRule})>
@@ -285,6 +289,9 @@ class _FakeWebViewController implements inapp.InAppWebViewController {
 
   @override
   Future<bool> isLoading() async => false;
+
+  @override
+  Future<String?> getTitle() async => webViewTitle;
 
   @override
   dynamic noSuchMethod(Invocation invocation) {

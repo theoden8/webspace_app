@@ -158,7 +158,6 @@ HINT-003	no check: it governs how an ARB key is moved (renamed in place keeping 
 # site-behaviour
 BEHAV-002	no check: no test checks the per-site Behaviour row's summary (names of the switches that are on, two then 'N more', 'Nothing enabled', the external-link labels); only the order of the rows is asserted (partly: test/site_settings_network_row_test.dart, "the Network row sits between Behaviour and Privacy")
 # site-editing
-EDIT-002	no check: no widget test asserts the page title appears in the app bar, the drawer and the settings screen
 # site-permission-badges
 PERMBADGE-004	no check: no widget test renders a drawer tile (reorderable or static) holding a grant; both paths sharing _SiteGridTileContent is structural only, and the badge tests pump SitePermissionBadges on its own
 # site-settings-qr
