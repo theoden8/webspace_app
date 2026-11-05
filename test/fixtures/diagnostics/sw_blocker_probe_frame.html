@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!--
+  The page the probe's service worker controls (scope /sw/), loaded by
+  sw_blocker_probe.html in an iframe. Its fetches go to the worker's fetch
+  handler, which re-issues them: the "proxied" column.
+-->
+<meta charset="utf-8">
+<body style="margin:0;font:12px system-ui;padding:4px">
+<span id="state">waiting for the probe</span>
+<script>
+  async function probe(target) {
+    try {
+      const res = await fetch(target.url, { cache: 'no-store', mode: target.mode });
+      const body = res.type === 'opaque' ? '' : await res.text();
+      return { id: target.id, status: res.status, type: res.type, body: body.slice(0, 40) };
+    } catch (e) {
+      return { id: target.id, error: String(e) };
+    }
+  }
+
+  window.addEventListener('message', async (event) => {
+    if (event.origin !== location.origin || !event.data || !Array.isArray(event.data.targets)) return;
+    const controlled = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+    document.getElementById('state').textContent =
+        controlled ? 'controlled by the probe worker' : 'NOT controlled by the probe worker';
+    const results = await Promise.all(event.data.targets.map(probe));
+    parent.postMessage({ probe: 'frame', run: event.data.run, controlled, results }, location.origin);
+  });
+  parent.postMessage({ probe: 'frame-ready' }, location.origin);
+</script>

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<!--
+  Service worker blocker probe (CB-022, DEVTOOLS-011).
+
+  Not a standalone file: sw_blocker_probe_server.js serves it at
+  http://localhost:<port>/. The same targets are fetched three ways:
+    page     this page, which no worker controls: the webview's own
+             interceptor sees it;
+    worker   the probe's service worker, by its own fetch();
+    proxied  a page the worker controls, whose fetches the worker re-issues.
+  The server records every target request that reaches it, so a cell says
+  whether the request left the device.
+-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Service worker blocker probe</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; padding: 16px; font: 15px/1.45 system-ui, -apple-system, sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { opacity: .7; margin: 0 0 16px; font-size: 13px; word-break: break-all; }
+  table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
+  th, td { padding: 6px 4px; border-bottom: 1px solid rgba(127,127,127,.25); text-align: left; vertical-align: top; }
+  th { font-size: 13px; opacity: .7; font-weight: 600; }
+  td.cell { font-family: ui-monospace, Menlo, monospace; font-size: 13px; font-weight: 600; }
+  .pass { color: #1b873f; } .fail { color: #c62828; } .wait { color: #9e7700; } .info { color: #1565c0; }
+  .detail { font-size: 12px; opacity: .75; font-weight: 400; }
+  #verdict { font-weight: 600; margin: 8px 0 12px; }
+  button { font: inherit; padding: 8px 12px; margin: 4px 8px 4px 0; border-radius: 8px;
+           border: 1px solid rgba(127,127,127,.5); background: transparent; }
+  iframe { width: 100%; height: 28px; border: 1px dashed rgba(127,127,127,.5); }
+  ol { padding-left: 20px; } li { margin-bottom: 6px; }
+  code { font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+</style>
+
+<h1>Service worker blocker probe</h1>
+<p class="sub" id="where"></p>
+<p id="verdict" class="wait">Running…</p>
+
+<table>
+  <thead><tr><th>Target</th><th>page</th><th>worker</th><th>proxied</th></tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+<iframe id="frame" title="page the probe worker controls"></iframe>
+<p><button id="again">Run again</button></p>
+
+<h2 style="font-size:16px">What to check</h2>
+<ol>
+  <li><b>control</b> must say <code>reached</code> in all three columns. In <b>worker</b> or
+    <b>proxied</b> it says whether this site's service workers have the network at all.</li>
+  <li><b>beacon</b>, <b>collect</b> and <b>matomo</b> are EasyPrivacy rules on this very host.
+    The <b>page</b> column must say <code>blocked</code> (content blocker on, EasyPrivacy enabled).
+    With Settings → Developer → Experimental → Service workers through blockers off,
+    <b>worker</b> and <b>proxied</b> say <code>reached</code>; switch it on, restart the app
+    (it is read at launch) and they must say <code>blocked</code> too.</li>
+  <li>The three <b>DNS</b> rows go to tracker hosts every DNS level names, one host per column,
+    so they cannot be seen from here. Tap the site's block banner: with the switch on, the hosts
+    blocked most include all three; with it off, only the page's
+    (<code>pagead2.googlesyndication.com</code>), and the other two requests went out.</li>
+  <li>App logs, on every attach of this site's webview: with the switch off,
+    <code>ServiceWorker: site=… network blocked=… (experiment off)</code>; with it on,
+    <code>ServiceWorker: site=… through the site's blockers (network blocked was …)</code>.
+    No such line means the site has no container of its own, where the switch does nothing.</li>
+</ol>
+
+<script>
+  // Hosts on the lightest Hagezi level, so the DNS rows block at every level.
+  const DNS_HOSTS = {
+    page: 'pagead2.googlesyndication.com',
+    worker: 'www.google-analytics.com',
+    proxied: 'stats.g.doubleclick.net',
+  };
+  const LOCAL = [
+    { id: 'control', path: '/control.json?' },
+    { id: 'beacon', path: '/beacon.js?' },
+    { id: 'collect', path: '/collect?v=1&' },
+    { id: 'matomo', path: '/matomo.js?' },
+  ];
+  const VIAS = ['page', 'worker', 'proxied'];
+  const rows = document.getElementById('rows');
+  const verdict = document.getElementById('verdict');
+
+  function targetsFor(via, run) {
+    const local = LOCAL.map((t) => ({
+      id: t.id,
+      url: `${location.origin}${t.path}via=${via}&run=${run}`,
+      mode: 'same-origin',
+    }));
+    return [...local, { id: 'dns', url: `https://${DNS_HOSTS[via]}/?wsprobe=${run}`, mode: 'no-cors' }];
+  }
+
+  async function probe(target) {
+    try {
+      const res = await fetch(target.url, { cache: 'no-store', mode: target.mode });
+      const body = res.type === 'opaque' ? '' : await res.text();
+      return { id: target.id, status: res.status, type: res.type, body: body.slice(0, 40) };
+    } catch (e) {
+      return { id: target.id, error: String(e) };
+    }
+  }
+
+  function cell(text, cls, detail) {
+    const td = document.createElement('td');
+    td.className = `cell ${cls}`;
+    td.textContent = text;
+    if (detail) {
+      const d = document.createElement('div');
+      d.className = 'detail';
+      d.textContent = detail;
+      td.appendChild(d);
+    }
+    return td;
+  }
+
+  function answered(result) {
+    if (!result) return 'no answer';
+    if (result.error) return result.error;
+    return `${result.status} ${result.body ? JSON.stringify(result.body) : '(empty)'}`;
+  }
+
+  function render(results, reached, notes) {
+    rows.textContent = '';
+    for (const id of ['control', 'beacon', 'collect', 'matomo', 'dns']) {
+      const tr = document.createElement('tr');
+      const name = document.createElement('td');
+      name.textContent = id === 'dns' ? 'DNS' : id;
+      tr.appendChild(name);
+      for (const via of VIAS) {
+        const result = (results[via] || []).find((r) => r.id === id);
+        if (notes[via]) {
+          tr.appendChild(cell('n/a', 'wait', notes[via]));
+        } else if (id === 'dns') {
+          tr.appendChild(cell('banner', 'info', DNS_HOSTS[via]));
+        } else {
+          const got = reached.has(`${id}|${via}`);
+          const good = id === 'control' ? got : !got;
+          tr.appendChild(cell(got ? 'reached' : 'blocked', good ? 'pass' : 'fail', answered(result)));
+        }
+      }
+      rows.appendChild(tr);
+    }
+  }
+
+  function activeWorker(reg) {
+    if (reg.active) return Promise.resolve(reg.active);
+    const sw = reg.installing || reg.waiting;
+    return new Promise((resolve, reject) => {
+      sw.addEventListener('statechange', () => {
+        if (sw.state === 'activated') resolve(sw);
+        if (sw.state === 'redundant') reject(new Error('the worker became redundant'));
+      });
+    });
+  }
+
+  function askWorker(worker, targets) {
+    return new Promise((resolve) => {
+      const channel = new MessageChannel();
+      const timer = setTimeout(() => resolve(null), 15000);
+      channel.port1.onmessage = (event) => { clearTimeout(timer); resolve(event.data); };
+      worker.postMessage({ targets }, [channel.port2]);
+    });
+  }
+
+  function askFrame(run, targets) {
+    const frame = document.getElementById('frame');
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(null), 15000);
+      function onMessage(event) {
+        if (event.origin !== location.origin || !event.data) return;
+        if (event.data.probe === 'frame-ready') {
+          frame.contentWindow.postMessage({ run, targets }, location.origin);
+        } else if (event.data.probe === 'frame' && event.data.run === run) {
+          clearTimeout(timer);
+          window.removeEventListener('message', onMessage);
+          resolve(event.data);
+        }
+      }
+      window.addEventListener('message', onMessage);
+      frame.src = `/sw/frame.html?run=${run}`;
+    });
+  }
+
+  async function run() {
+    const id = Math.random().toString(36).slice(2, 10);
+    document.getElementById('where').textContent = `run ${id} · ${navigator.userAgent}`;
+    verdict.className = 'wait';
+    verdict.textContent = 'Running…';
+    const results = {};
+    const notes = {};
+    results.page = await Promise.all(targetsFor('page', id).map(probe));
+    if (!window.isSecureContext || !navigator.serviceWorker) {
+      notes.worker = notes.proxied = 'no service workers here: open this page at http://localhost';
+    } else {
+      try {
+        const reg = await navigator.serviceWorker.register('/sw/sw.js', { scope: '/sw/' });
+        await reg.update();
+        const worker = await activeWorker(reg);
+        results.worker = await askWorker(worker, targetsFor('worker', id));
+        if (!results.worker) notes.worker = 'the worker did not answer';
+        const frame = await askFrame(id, targetsFor('proxied', id));
+        if (!frame) notes.proxied = 'the controlled page did not answer';
+        else if (!frame.controlled) notes.proxied = 'the frame was not controlled by the worker';
+        else results.proxied = frame.results;
+      } catch (e) {
+        notes.worker = notes.proxied = `registration failed: ${e}`;
+      }
+    }
+    let reached = new Set();
+    try {
+      const report = await (await fetch(`/report?run=${id}`, { cache: 'no-store' })).json();
+      reached = new Set(report.reached.map((r) => `${r.target}|${r.via}`));
+    } catch (e) {
+      verdict.className = 'fail';
+      verdict.textContent = `Could not read the server's record: ${e}`;
+      render(results, reached, notes);
+      return;
+    }
+    render(results, reached, notes);
+    const leaked = ['worker', 'proxied'].filter((via) =>
+      !notes[via] && ['beacon', 'collect', 'matomo'].some((t) => reached.has(`${t}|${via}`)));
+    const offline = ['worker', 'proxied'].filter((via) => !notes[via] && !reached.has(`control|${via}`));
+    const pageLeaked = ['beacon', 'collect', 'matomo'].some((t) => reached.has(`${t}|page`));
+    if (pageLeaked) {
+      verdict.className = 'fail';
+      verdict.textContent = 'The page itself is not blocked: turn on this site\'s content blocker and enable EasyPrivacy.';
+    } else if (offline.length) {
+      verdict.className = 'fail';
+      verdict.textContent = `No network for ${offline.join(' and ')}: this site's service workers cannot fetch at all.`;
+    } else if (notes.worker || notes.proxied) {
+      verdict.className = 'wait';
+      verdict.textContent = 'Some columns could not run; see their cells.';
+    } else if (leaked.length) {
+      verdict.className = 'fail';
+      verdict.textContent = `Service worker requests skip the blockers (${leaked.join(', ')}).`;
+    } else {
+      verdict.className = 'pass';
+      verdict.textContent = 'Service worker requests meet the site\'s filter lists.';
+    }
+  }
+
+  document.getElementById('again').addEventListener('click', run);
+  run();
+</script>

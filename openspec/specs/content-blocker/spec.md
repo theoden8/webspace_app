@@ -1225,6 +1225,9 @@ which tells whether the app-wide block at launch reaches a site's container.
 **And** the log says whether its service workers had the network
 
 Tests: `android/app/src/test/kotlin/org/codeberg/theoden8/webspace/ServiceWorkerBlockersTest.kt`.
+By hand on a device: `test/fixtures/diagnostics/sw_blocker_probe_server.js`, a page whose
+service worker fetches EasyPrivacy-blocked paths on the probe's own host, by itself and on
+behalf of a page it controls, and reads back which requests reached the server.
 
 ## Implementation Details
 
