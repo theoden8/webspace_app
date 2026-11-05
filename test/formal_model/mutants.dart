@@ -425,6 +425,25 @@ Tables mutated(Mutant m) => switch (m) {
       ),
     ),
   ),
+  // A delete's drop leaves the tabs its site opened following it, as the
+  // reconcile after the commit forgot it before the drop wrote `opener`:
+  // a tab follows a site no longer listed (LIR-034).
+  Mutant.deletekeepsopener => _with(
+    delete: _withArms(
+      tables.delete,
+      step: ActivationStep.deleteDropReply,
+      arms: (s) => Step(
+        s.name,
+        holds: s.holds,
+        call: s.call!.withWrites([
+          for (final w in s.call!.writes)
+            if (w.variable != ModelVar.opener && w.variable != ModelVar.link) w,
+        ]),
+        branches: s.branches,
+        otherwise: s.otherwise,
+      ),
+    ),
+  ),
   // A tab switch moves the pointer at its capture's reply, before the nav
   // read (BUG-036 attempt 1): an await then sees a webview built for one
   // tab while the site names another.

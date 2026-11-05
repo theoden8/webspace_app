@@ -482,6 +482,9 @@ Inv_TabFilesHosted == Idle => \A s \in Tabbed : \A t \in tabs[s] : \A h \in Site
 Inv_TabFilesListed == Idle => \A s \in Tabbed : \A t \in TabIds \ tabs[s] :
     \A h \in Sites : file[s][t][h] = 0
 Inv_TabBound == \A s \in Tabbed : built[s] \in {0, active[s]}
+\* LIR-034: a tab follows a listed opener or none, so a site that leaves
+\* the list stops being one in the step that takes it.
+Inv_OpenerListed == \A s \in Tabbed : \A t \in tabs[s] : opener[s][t] \in Listed \cup {0}
 Inv_TabActive == Idle => \A s \in Tabbed :
     /\ active[s] \in tabs[s]
     /\ (s \in loaded =>

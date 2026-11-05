@@ -1354,6 +1354,11 @@ final class Call<W> {
   /// for the platform, as [Act.of]'s does for an arm.
   final void Function(CommitView<W> c)? then;
   final ({FlowField field, String reply, Reads reads})? keeps;
+
+  /// This call writing [writes] in place of its own: a planted mistake's.
+  Call<W> withWrites(List<Write<W>> writes) => keeps == null
+      ? Call(run: _run, writes: writes, reads: reads, reaches: reaches, then: then)
+      : Call._(run: _run, writes: writes, reads: reads, reaches: reaches, keeps: keeps);
 }
 
 /// How a step ends: as [outcome], doing [then], and going on to [next];

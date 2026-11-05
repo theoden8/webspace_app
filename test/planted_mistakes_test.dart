@@ -229,6 +229,21 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [CloseTab(0, tab: 0, fromSheet: true, subtree: true)],
     breaks: 'while its active tab is',
   ),
+  Mutant.deletekeepsopener => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      deletes: true,
+      rehosts: true,
+      declared: d,
+    ),
+    setup: const [
+      Tap(1),
+      ChildTab(1, host: 0),
+      ChildTab(1, host: 2, follows: true),
+    ],
+    script: const [Delete()],
+    breaks: 'changed link, opener in deleteDropReply',
+  ),
   Mutant.torkeepsslot => _By(
     world: (d) => ActivationWorld(
       _mixedContainers,

@@ -94,6 +94,7 @@ enum Inv {
   tabFilesHosted(atRest: true, reads: {ModelVar.file, ModelVar.host, ModelVar.tabs}),
   tabFilesListed(atRest: true, reads: {ModelVar.file, ModelVar.tabs}),
   tabBound(reads: {ModelVar.active, ModelVar.built}),
+  openerListed(reads: {ModelVar.gone, ModelVar.opener, ModelVar.tabs}),
   tabActive(
     atRest: true,
     reads: {ModelVar.active, ModelVar.built, ModelVar.hist, ModelVar.loaded, ModelVar.tabs},
@@ -613,7 +614,7 @@ enum ActivationWorld {
     maxTabs: 3,
     env: {Env.deleteOne},
     allowed: {'ChildTab', 'DeleteSite', 'ParkChild', 'Tap'},
-    invariants: [..._core, ..._tabs, Inv.retired],
+    invariants: [..._core, ..._tabs, Inv.retired, Inv.openerListed],
     holds:
         "site 1 deleted beside its child tabs, each running as any listed "
         'site: it leaves the list, the loaded sites and the disk (TAB-006, '
@@ -1228,6 +1229,13 @@ enum Mutant {
     doc:
         'a delete deleting its container before the frame unmounts its '
         'webview leaves it on disk (CONT-010, caught)',
+  ),
+  deletekeepsopener(
+    world: ActivationWorld.tabsChildDeleteContainers,
+    by: Inv.openerListed,
+    doc:
+        'a delete whose drop leaves the tabs its site opened following it '
+        'leaves a tab following a site no longer listed (LIR-034, caught)',
   ),
   noreopen(
     world: ActivationWorld.tabsRerouteContainers,
