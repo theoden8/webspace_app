@@ -16,78 +16,6 @@ import 'package:webspace/services/webview_controller.dart';
 /// webview with several intent:// bursts in a row) only surface one dialog.
 final _confirming = ReentryGuard();
 
-/// Strips ClearURLs tracking query params from a URL, regardless of scheme,
-/// by reconstructing it as an https URL (which the ClearURLs ruleset
-/// recognizes), running [ClearUrlService.cleanUrl], then putting the
-/// cleaned query back. Returns the input on any parse failure or when no
-/// rules are loaded.
-String _stripTrackingFromQuery(String url) {
-  final uri = Uri.tryParse(url);
-  if (uri == null) return url;
-  if (uri.query.isEmpty) return url;
-  if (!ClearUrlService.instance.hasRules) return url;
-
-  final asHttps = 'https://${uri.host}${uri.path}?${uri.query}';
-  final cleaned = ClearUrlService.instance.cleanUrl(asHttps);
-  if (cleaned == asHttps || cleaned.isEmpty) return url;
-  final cleanedUri = Uri.tryParse(cleaned);
-  if (cleanedUri == null) return url;
-  return uri.replace(query: cleanedUri.hasQuery ? cleanedUri.query : null).toString();
-}
-
-/// Strips ClearURLs from an intent:// URL: cleans the toplevel query AND
-/// the URL-encoded `S.browser_fallback_url` extra inside the fragment.
-/// Without the fragment-rewrite step, `utm_campaign` survives the
-/// embedded fallback URL even though it gets stripped from the toplevel.
-String _stripTrackingFromIntent(String intentUrl) {
-  final uri = Uri.tryParse(intentUrl);
-  if (uri == null) return intentUrl;
-  if (uri.scheme.toLowerCase() != 'intent') return intentUrl;
-  if (!ClearUrlService.instance.hasRules) return intentUrl;
-
-  // Step 1: clean the toplevel query.
-  String cleaned = _stripTrackingFromQuery(intentUrl);
-
-  // Step 2: clean the embedded browser_fallback_url inside the Intent
-  // extras. Re-parse because step 1 may have changed the URL.
-  final cleanedUri = Uri.tryParse(cleaned);
-  if (cleanedUri == null) return cleaned;
-  final fragment = cleanedUri.fragment;
-  if (!fragment.startsWith('Intent;')) return cleaned;
-
-  final parts = fragment.substring('Intent;'.length).split(';');
-  var rewroteAny = false;
-  for (var i = 0; i < parts.length; i++) {
-    final part = parts[i];
-    if (!part.startsWith('S.browser_fallback_url=')) continue;
-    final rawValue = part.substring('S.browser_fallback_url='.length);
-    String decoded;
-    try {
-      decoded = Uri.decodeComponent(rawValue);
-    } on ArgumentError {
-      // A truncated or invalid %-escape.
-      continue;
-    } on FormatException {
-      // Escapes that decode to no UTF-8.
-      continue;
-    }
-    final cleanedFallback = ClearUrlService.instance.cleanUrl(decoded);
-    if (cleanedFallback == decoded || cleanedFallback.isEmpty) continue;
-    parts[i] = 'S.browser_fallback_url=${Uri.encodeComponent(cleanedFallback)}';
-    rewroteAny = true;
-  }
-  if (!rewroteAny) return cleaned;
-  final newFragment = 'Intent;${parts.join(';')}';
-  return cleanedUri.replace(fragment: newFragment).toString();
-}
-
-String _cleanFallback(String? fallbackUrl) {
-  if (fallbackUrl == null || fallbackUrl.isEmpty) return '';
-  if (!ClearUrlService.instance.hasRules) return fallbackUrl;
-  final cleaned = ClearUrlService.instance.cleanUrl(fallbackUrl);
-  return cleaned.isEmpty ? fallbackUrl : cleaned;
-}
-
 /// Outcome of the confirmation dialog.
 enum _ExternalUrlChoice { cancel, openInApp, openInBrowser }
 
@@ -115,8 +43,9 @@ Future<void> confirmAndLaunchExternalUrl(
   }
   await _confirming.run(() async {
     final hasRules = ClearUrlService.instance.hasRules;
-    final cleanedLaunchUrl = _stripTrackingFromIntent(info.url);
-    final cleanedFallback = _cleanFallback(info.fallbackUrl);
+    final (launch: cleanedLaunchUrl, fallback: cleanedFallback) =
+        cleanExternalUrl(info,
+            clean: hasRules ? ClearUrlService.instance.cleanUrl : null);
     final urlChanged = cleanedLaunchUrl != info.url;
     final fallbackChanged = cleanedFallback != (info.fallbackUrl ?? '');
     LogTag.externalUrl.debug(

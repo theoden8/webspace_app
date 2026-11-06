@@ -37,7 +37,6 @@ DESIGN-009	no check: mostly a protocol between sessions; its one mechanical rule
 DEVTOOLS-001	no check: no test captures a webview console message into the Console tab or checks clear/copy of console entries
 DEVTOOLS-003	no check: no test drives Share/Save/Copy HTML or the concurrent-fetch guard
 DEVTOOLS-004	no check: copy and sensitive-copy are tested, but no test checks live streaming, auto-scroll or the App Settings entry (partly: test/dev_tools_copy_test.dart, "App Logs copy")
-DEVTOOLS-005	no check: listener notification and debug passthrough are untested; the cap is tested only on the sensitive ring (partly: test/log_service_test.dart, "respect the per-ring maxEntries cap")
 # dns-blocklist
 DNS-006	no check: no test drives the App Settings DNS row (DnsBlocklistDataset with its slider): nothing checks that moving the slider does not download, that the slider is disabled while a download runs, or that it opens at the downloaded level (partly: test/level_slider_test.dart, "every stop is labelled and the current one stands out")
 DNS-015	no check: no test renders the per-site settings DNS stats chips, or checks that they are absent when nothing was recorded
@@ -45,8 +44,6 @@ DNS-015	no check: no test renders the per-site settings DNS stats chips, or chec
 DL-001	no check: no gate reads AndroidManifest.xml for the flutter_inappwebview_android FileProvider or its FILE_PROVIDER_PATHS resource, and no native test drives getOutputUri
 # external-scheme-handling
 EXT-003	no check: no test drives the webview's shouldOverrideUrlLoading, onCreateWindow or onReceivedError with an intent; the silent same/cross-domain routing in lib/services/webview.dart is untested
-EXT-005	no check: lib/widgets/external_url_prompt.dart has no test; nothing asserts 'Open in browser' loads via loadInWebView rather than url_launcher
-EXT-006	no check: _stripTrackingFromIntent and the ClearURLs pass on a resolved fallback have no test
 EXT-007	no check: ExternalUrlSuppressor, the gesture bypass, the Android-only about:blank clear and dialog marking are unchecked; the bypass reads hasGesture (Android) or the navigation type (Apple), and the test host is neither, so no Dart test can drive it without a platform seam
 EXT-009	no check: not implemented: tasks 2.1 to 2.4 of upstream-webview-defects (the fork patch and the decline-path gate) are open
 # file-import-sites
@@ -57,7 +54,6 @@ IMPORT-004	no check: no test builds a file-import webview through createWebView 
 FS-001	no check: no test enters full screen from either overflow menu or by double-tapping the app bar title
 FS-002	no check: no test covers the top-edge exit handle (the centered 96px band, corners passing taps through), the Exit Full Screen menu toggle, the hint SnackBar, or back keeping full screen
 FS-004	no check: AppLifecycleController calls host.reapplyFullscreen() on resume, but no test asserts the immersive mode is re-applied
-FS-005	no check: no test checks that activate(null) exits full screen; the walk world stubs exitFullscreen() as a no-op
 FS-006	no check: no test checks the body's top/bottom SafeArea inset in full screen under a persistent system bar (partly: test/fullscreen_system_bars_test.dart, "a kept tab strip moves above a revealed navigation bar, which is hidden again")
 FS-010	no check: LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES in MainActivity and dropping the left/right SafeArea in full screen are both untested
 # home-shortcut
@@ -179,6 +175,3 @@ WEBEXT-010	no check: that a nested screen's and a popup's WKWebView load the sam
 HINTS-005	no check: no tier runs the theme hint on more than one platform or asserts setThemePreference takes no platform branch
 # webview-pause-lifecycle
 PAUSE-003	process: a documentation rule (doc comments on WebViewController.pause/pauseAllJsTimers saying which is per-instance and which is process-global); no test or gate reads those comments
-PAUSE-009	no check: no test asserts that going home captures the site it left, or that onNavigationCommitted feeds the debouncer; only the background plan's capture pick and the debouncer in isolation are tested (partly: test/app_lifecycle_engine_test.dart, "loaded non-notification active site: pause and capture it")
-PAUSE-011	no check: no check fails if the memory-pressure re-entry guard, the debounce callback's model-identity re-check or the activating-target protection is removed; the walks only check that each state file holds its own tab's history (partly: test/site_activation_walk_test.dart, "$name: random walks hold")
-PAUSE-035	no check: no test asserts an auto-loaded notification site's saved nav-state bytes are queued before it is marked loaded; the deferred-startup fake host does not model the queue, and the walk builds a missing restore with a history labelled as its own tab, so it cannot tell

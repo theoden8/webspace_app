@@ -192,6 +192,89 @@ class ExternalUrlParser {
   }
 }
 
+/// What the prompt shows and hands on for an external URL: the URL itself
+/// and the fallback it resolved to, each with its tracking parameters
+/// stripped (EXT-006); the fallback is empty when there is none.
+typedef CleanedExternalUrl = ({String launch, String fallback});
+
+/// [info] with [clean] (ClearURLs; null when no rules are loaded) run over
+/// an intent's own query, the `S.browser_fallback_url` it carries in its
+/// extras, and the fallback the parser resolved: a parameter stripped from
+/// one and left in another would still leave the app (EXT-006).
+CleanedExternalUrl cleanExternalUrl(
+  ExternalUrlInfo info, {
+  required String Function(String url)? clean,
+}) {
+  final fallback = info.fallbackUrl ?? '';
+  if (clean == null) return (launch: info.url, fallback: fallback);
+  final cleanedFallback = fallback.isEmpty ? '' : clean(fallback);
+  return (
+    launch: _stripTrackingFromIntent(info.url, clean: clean),
+    fallback: cleanedFallback.isEmpty ? fallback : cleanedFallback,
+  );
+}
+
+/// [url]'s query run through [clean], whatever its scheme: the query is put
+/// on an https URL of the same host and path, which the ClearURLs rules
+/// recognize, and the cleaned query put back. [url] as it is when it does
+/// not parse or nothing is stripped.
+String _stripTrackingFromQuery(
+  String url, {
+  required String Function(String url) clean,
+}) {
+  final uri = Uri.tryParse(url);
+  if (uri == null || uri.query.isEmpty) return url;
+  final asHttps = 'https://${uri.host}${uri.path}?${uri.query}';
+  final cleaned = clean(asHttps);
+  if (cleaned == asHttps || cleaned.isEmpty) return url;
+  final cleanedUri = Uri.tryParse(cleaned);
+  if (cleanedUri == null) return url;
+  return uri
+      .replace(query: cleanedUri.hasQuery ? cleanedUri.query : null)
+      .toString();
+}
+
+/// An intent:// URL with [clean] run over its toplevel query and the
+/// URL-encoded `S.browser_fallback_url` extra inside its fragment; any
+/// other URL as it is. Without the fragment rewrite, `utm_campaign`
+/// survives the embedded fallback even though it goes from the toplevel.
+String _stripTrackingFromIntent(
+  String intentUrl, {
+  required String Function(String url) clean,
+}) {
+  final uri = Uri.tryParse(intentUrl);
+  if (uri == null || uri.scheme.toLowerCase() != 'intent') return intentUrl;
+  final cleaned = _stripTrackingFromQuery(intentUrl, clean: clean);
+  // Re-parsed: the query's rewrite may have moved the fragment.
+  final cleanedUri = Uri.tryParse(cleaned);
+  if (cleanedUri == null) return cleaned;
+  final fragment = cleanedUri.fragment;
+  if (!fragment.startsWith('Intent;')) return cleaned;
+  final parts = fragment.substring('Intent;'.length).split(';');
+  var rewroteAny = false;
+  for (var i = 0; i < parts.length; i++) {
+    final part = parts[i];
+    if (!part.startsWith('S.browser_fallback_url=')) continue;
+    final rawValue = part.substring('S.browser_fallback_url='.length);
+    String decoded;
+    try {
+      decoded = Uri.decodeComponent(rawValue);
+    } on ArgumentError {
+      // A truncated or invalid %-escape.
+      continue;
+    } on FormatException {
+      // Escapes that decode to no UTF-8.
+      continue;
+    }
+    final cleanedFallback = clean(decoded);
+    if (cleanedFallback == decoded || cleanedFallback.isEmpty) continue;
+    parts[i] = 'S.browser_fallback_url=${Uri.encodeComponent(cleanedFallback)}';
+    rewroteAny = true;
+  }
+  if (!rewroteAny) return cleaned;
+  return cleanedUri.replace(fragment: 'Intent;${parts.join(';')}').toString();
+}
+
 /// Loop-suppression for external URL prompts. After the user decides what
 /// to do with an intent (open in app / browser / cancel), pages commonly
 /// re-fire the same intent moments later (Google Maps does this every

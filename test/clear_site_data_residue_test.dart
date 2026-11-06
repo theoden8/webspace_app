@@ -44,7 +44,7 @@ void main() {
 
   test('the clear drops the pending navigation-state capture', () {
     expect(
-      clearSiteData.contains('_navStateDebouncer.cancel('),
+      clearSiteData.contains('_activation.forgetNavigation('),
       isTrue,
       reason: 'a debounced capture scheduled before the clear would write the '
           'pre-clear state straight back',

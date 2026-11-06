@@ -1,7 +1,59 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/external_url_engine.dart';
 
 void main() {
+  group('cleanExternalUrl (EXT-006)', () {
+    final service = ClearUrlService.instance;
+    setUp(() {
+      service.loadRulesFromJson({
+        'providers': {
+          'google': {
+            'urlPattern': r'google\.com',
+            'completeProvider': false,
+            'rules': [r'^utm_campaign$', r'^utm_source$'],
+            'rawRules': [],
+            'exceptions': [],
+            'redirections': [],
+          },
+        },
+      });
+    });
+
+    const fallback =
+        'https://www.google.com/maps?entry=ml&utm_campaign=ml-ardi-wv';
+    final intent = 'intent://www.google.com/maps?entry=ml&utm_source=x'
+        '#Intent;scheme=https;package=com.google.android.apps.maps;'
+        'S.browser_fallback_url=${Uri.encodeComponent(fallback)};end';
+
+    test('strips the query, the embedded fallback and the resolved one', () {
+      final info = ExternalUrlParser.parse(intent)!;
+      expect(info.fallbackUrl, fallback);
+      final cleaned = cleanExternalUrl(info, clean: service.cleanUrl);
+      expect(cleaned.fallback, 'https://www.google.com/maps?entry=ml');
+      expect(cleaned.launch, isNot(contains('utm_')));
+      expect(cleaned.launch, startsWith('intent://www.google.com/maps?entry=ml#Intent;'));
+      expect(cleaned.launch, contains(
+          'S.browser_fallback_url=${Uri.encodeComponent('https://www.google.com/maps?entry=ml')}'));
+      expect(cleaned.launch, contains(';package=com.google.android.apps.maps;'));
+    });
+
+    test('leaves everything as it is with no rules loaded', () {
+      final info = ExternalUrlParser.parse(intent)!;
+      final cleaned = cleanExternalUrl(info, clean: null);
+      expect(cleaned.launch, intent);
+      expect(cleaned.fallback, fallback);
+    });
+
+    test('a URL that is no intent keeps its own query', () {
+      const tel = 'tel:+15551234567';
+      final cleaned = cleanExternalUrl(
+          ExternalUrlParser.parse(tel)!, clean: service.cleanUrl);
+      expect(cleaned.launch, tel);
+      expect(cleaned.fallback, isEmpty);
+    });
+  });
+
   group('ExternalUrlParser.parse', () {
     test('returns null for http(s) URLs', () {
       expect(ExternalUrlParser.parse('https://example.com/'), isNull);

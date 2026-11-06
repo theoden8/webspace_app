@@ -22,6 +22,7 @@ import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/utils/concurrency.dart';
+import 'package:webspace/services/nav_state_capture_debouncer.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// Which site is on screen, and what moves with it: the site coming on is
@@ -45,6 +46,7 @@ class SiteActivationController {
   final ActivationHost _host;
   final ResidencyHost _residency;
   final WebViewStateStorage _navStates;
+  final NavStateCaptureDebouncer _navDebouncer = NavStateCaptureDebouncer();
 
   /// How long a teardown waits on the site it leaves (NAV-010).
   final Duration _teardownBudget;
@@ -339,6 +341,29 @@ class SiteActivationController {
     await capture.unsave();
     return false;
   }
+
+  /// Keeps [site]'s saved back stack following its browsing (PAUSE-009):
+  /// each committed navigation restarts the site's debounce, and once a
+  /// burst settles the site is captured if it is still listed. Pause and
+  /// dispose captures go stale for a site browsing in the background, and a
+  /// kill from the app switcher delivers only `inactive`, which is ignored
+  /// (#308). By identity: the list may have changed when the debounce fires
+  /// (PAUSE-011).
+  void followNavigation(WebViewModel site) {
+    site.onNavigationCommitted = () {
+      _navDebouncer.schedule(site.siteId, capture: () {
+        if (!_host.mounted || !_sites.models.contains(site)) return;
+        unawaited(captureStateBytes(site));
+      });
+    };
+  }
+
+  /// Drops [siteId]'s pending navigation capture: its saved back stack is
+  /// being removed, or the site is.
+  void forgetNavigation(SiteId siteId) => _navDebouncer.cancel(siteId);
+
+  /// Drops every pending navigation capture.
+  void dispose() => _navDebouncer.dispose();
 
   /// A capture of [model]'s back stack, keyed by the tab its webview was
   /// built for, which is not always the active one; null when that tab

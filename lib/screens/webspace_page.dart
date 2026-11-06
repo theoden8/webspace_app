@@ -77,7 +77,6 @@ import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/controllers/site_list_store.dart';
 import 'package:webspace/services/nav_capture.dart';
 import 'package:webspace/services/site_unload_engine.dart';
-import 'package:webspace/services/nav_state_capture_debouncer.dart';
 import 'package:webspace/services/webview_state_secure_storage.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/services/content_blocker_service.dart';
@@ -301,8 +300,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   // swipe-kill) and for background sites navigating while another site
   // is current.
   final ScreenCaptureGuard _screenCaptureGuard = ScreenCaptureGuard();
-  final NavStateCaptureDebouncer _navStateDebouncer =
-      NavStateCaptureDebouncer();
 
   // KIOSK-002: set when the current session entered via a home-shortcut tap
   // targeting a kiosk-mode site. While true the app shell hides all navigation
@@ -415,7 +412,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     _startup.dispose();
     _background.dispose();
     _surface.dispose();
-    _navStateDebouncer.dispose();
+    _activation.dispose();
     _network.dispose();
     _shortcuts.dispose();
     AppPref.anyChange.removeListener(_onAppPrefChanged);
@@ -795,7 +792,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // activation, so a page that stashed an identifier in its URL via
     // history.pushState would be reloaded at that URL and read itself back —
     // defeating the fingerprint reroll above (ETP-022).
-    _navStateDebouncer.cancel(model.siteId);
+    _activation.forgetNavigation(model.siteId);
     await _stateStorage.removeStatesForSite(model.siteId);
     await _commitSites(const SitesEdited());
     if (!mounted) return;
@@ -1396,16 +1393,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// page's state when it fires.
   void _wireSite(WebViewModel site) {
     _surface.watch(site, onScreen: () => identical(site, _sites.shown));
-    // Keep the on-disk back/forward stack tracking browsing (PAUSE-009):
-    // pause and dispose captures go stale for background sites, and a kill
-    // from the switcher only delivers `inactive`, which is ignored (#308).
-    // By identity: the list may have changed when the debounce fires.
-    site.onNavigationCommitted = () {
-      _navStateDebouncer.schedule(site.siteId, capture: () {
-        if (!mounted || !_sites.models.contains(site)) return;
-        unawaited(_activation.captureStateBytes(site));
-      });
-    };
+    _activation.followNavigation(site);
     site.onReturnToOwner = site.effectiveTabsEnabled
         ? (url) => unawaited(_links.returnToOwner(site, url: url))
         : null;
@@ -1932,7 +1920,7 @@ class _PageHost
 
   @override
   void cancelPendingCapture(SiteId siteId) =>
-      _s._navStateDebouncer.cancel(siteId);
+      _s._activation.forgetNavigation(siteId);
 
   @override
   Future<void> saveCurrentIndex() => _s._shell.saveCurrentIndex();

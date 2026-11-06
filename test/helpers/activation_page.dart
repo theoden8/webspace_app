@@ -16,6 +16,9 @@ final class FakeActivationPage implements ActivationHost, SurfaceHost {
   final toasts = <String Function(AppLocalizations)>[];
   var exitedFullscreen = false;
 
+  /// Whether the page is in full screen, as the activation last told it.
+  var fullscreen = false;
+
   @override
   bool get mounted => true;
 
@@ -37,10 +40,13 @@ final class FakeActivationPage implements ActivationHost, SurfaceHost {
   void forgetTabReturns() {}
 
   @override
-  void enterFullscreen() {}
+  void enterFullscreen() => fullscreen = true;
 
   @override
-  void exitFullscreen() => exitedFullscreen = true;
+  void exitFullscreen() {
+    exitedFullscreen = true;
+    fullscreen = false;
+  }
 
   @override
   Future<void> refreshRoutes({WebViewModel? active}) async {}
