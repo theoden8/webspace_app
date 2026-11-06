@@ -1,5 +1,5 @@
 // Desktop integration test for the unconfigured-blocker warning UI and
-// the DevTools ABP decision accounting, driven on a live desktop runtime
+// the developer tools' Blocking log, driven on a live desktop runtime
 // (Linux GTK under Xvfb in CI; macOS AppKit on the mac job).
 //
 // Covers:
@@ -11,10 +11,9 @@
 //     so the walk also covers that the row opens it with live values.
 //   * Tracking Protection enable warns for each unconfigured forced dep
 //     and carries the warning icon itself.
-//   * CB-012: the adblock engine ships and loads inside the desktop app
-//     process, every Dart consult path plus the native-drain recorder
-//     advances the cumulative counters, and the DevTools ABP tab renders
-//     those totals (including the untimed `native` sample row).
+//   * DNS-014: the adblock engine ships and loads inside the desktop app
+//     process, and its rules alone, with no DNS list, show the developer
+//     tools' Blocking tab, where an engine block is tagged ABP.
 //
 // Screens are pumped directly (SettingsScreen / DevToolsScreen) rather
 // than navigated to through the drawer: the warning surfaces live
@@ -31,15 +30,16 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/site_privacy.dart';
 import 'package:webspace/services/adblock_engine.dart';
+import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
+import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/services/isolation.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/web_view_model.dart';
-import 'package:webspace/widgets/stat_chip.dart';
 
 SharedJar _sharedJar() => SharedJar(CookieIsolationEngine(
       cookieManager: CookieManager(),
@@ -196,7 +196,7 @@ Future<void> tapTile(WidgetTester tester,
         findsOneWidget);
   });
 
-  testWidgets('ABP engine ships on desktop; DevTools tab shows totals',
+  testWidgets('ABP engine ships on desktop; its rules alone show the Blocking tab (DNS-014)',
       (tester) async {
     final svc = ContentBlockerService.instance;
     final engine = AdblockEngine.load('||tracker.com^\n');
@@ -208,30 +208,23 @@ Future<void> tapTile(WidgetTester tester,
         isTrue);
     expect(svc.isHostBlocked('tracker.com'), isTrue);
     expect(svc.isHostBlocked('example.com'), isFalse);
-    svc.recordNativeEngineBlock('ads.example.net', count: 3);
+    expect(DnsBlockService.instance.hasBlocklist, isFalse,
+        reason: 'the tab must show for the engine, not for a DNS list');
 
-    expect(svc.engineConsultedSinceTimingOn, 6);
-    expect(svc.engineBlockedSinceTimingOn, 5);
-    expect(svc.engineAllowedSinceTimingOn, 1);
+    final model = freshModel();
+    DnsBlockService.instance.recordVerdict(model.siteId,
+        query: const HostQuery('tracker.com'),
+        verdict: const Blocked(BlockSource.abp));
+    addTearDown(() => DnsBlockService.instance.clearStatsForSite(model.siteId));
 
-    await pump(tester, home: DevToolsScreen());
+    await pump(tester,
+        home: DevToolsScreen(
+            host: WebViewModelDevToolsHost(model), isolation: _sharedJar()));
+    await tester.tap(find.text('Blocking'));
+    await tester.pumpAndSettle();
 
-    // host == null and engine active: the ABP tab is first and selected.
-    for (final (label, value) in [
-      ('blocked', '5'),
-      ('allowed', '1'),
-      ('consulted', '6'),
-    ]) {
-      expect(
-          find.descendant(
-              of: find.byWidgetPredicate(
-                  (w) => w is StatChip && w.label == label),
-              matching: find.text(value)),
-          findsOneWidget,
-          reason: 'ABP tab should show $value over "$label"');
-    }
-    // The native drain produced one untimed sample row for the host.
-    expect(find.text('ads.example.net'), findsOneWidget);
-    expect(find.text('native'), findsOneWidget);
+    expect(find.widgetWithText(FilterChip, 'ABP (1)'), findsOneWidget);
+    expect(find.text('ABP'), findsOneWidget,
+        reason: 'the engine-blocked row carries its tag');
   });
 }

@@ -133,6 +133,23 @@ void main() {
       expect(stats.engine.allTimeTotal, 16);
     });
 
+    test('a DNS block the engine would also stop still counts against DNS alone',
+        () {
+      WebInterceptNative.applyBlockEvents(SiteId('site-1'), list: [
+        {
+          'host': 'trk.example',
+          'blocked': true,
+          'source': 'dns',
+          'alsoAbp': true,
+          'count': 4,
+        },
+      ]);
+
+      expect(stats.engine.allTimeFor(BlockCategory.dnsBlocklist), 4);
+      expect(stats.engine.allTimeFor(BlockCategory.filterList), 0);
+      expect(stats.engine.allTimeTotal, 4);
+    });
+
     test('a block that names no list is skipped as malformed', () {
       // The native Decision enum pairs every block with `dns` or `abp`.
       WebInterceptNative.applyBlockEvents(SiteId('site-1'), list: [
@@ -200,6 +217,26 @@ void main() {
 
       expect(stats.detail.topItems(BlockCategory.filterList).single.label,
           'ads.example');
+    });
+
+    test('an ABP block drained with its URL is named by its host alone', () {
+      // The URL is for the session's Blocking log; the persisted report
+      // names hosts, never a request's path or query.
+      WebInterceptNative.applyBlockEvents(SiteId('site-1'), list: [
+        {
+          'host': 'ads.example',
+          'blocked': true,
+          'source': 'abp',
+          'url': 'https://ads.example/pixel.gif?uid=42',
+          'sourceUrl': 'https://news.example/',
+          'requestType': 'image',
+          'count': 2,
+        },
+      ]);
+
+      final items = stats.detail.topItems(BlockCategory.filterList);
+      expect(items.single.label, 'ads.example');
+      expect(items.single.count, 2);
     });
 
     test('a locally served CDN request is named by its origin', () {

@@ -23,8 +23,8 @@ const IDENTICAL_EVERYWHERE_ALLOWLIST = new Set([
   'appSettingsLocalCdn', // LocalCDN (product name)
   'siteSettingsLocalCdn', // LocalCDN
   'siteSettingsClearUrls', // ClearURLs (product name)
-  'devToolsTabAbp', // ABP (acronym)
-  'devToolsTabDns', // DNS (acronym)
+  'devToolsBlockSourceAbp', // ABP (acronym)
+  'devToolsBlockSourceDns', // DNS (acronym)
   'siteSettingsLocationProviderGps', // GPS (acronym)
   'siteSettingsLocationProviderGsm', // GSM (acronym)
   'siteSettingsUserAgent', // User-Agent (HTTP header name)

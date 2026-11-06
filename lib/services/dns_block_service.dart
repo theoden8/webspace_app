@@ -38,15 +38,32 @@ extension BlockSourceCategory on BlockSource {
 class DnsLogEntry {
   final DateTime timestamp;
   final String domain;
-  final bool blocked;
+
+  /// The list that stopped the request; null when it went out.
   final BlockSource? source;
+
+  /// The request an ABP rule matched, null for any other verdict: a filter
+  /// rule names a URL, so [domain] alone would read as a whole-domain block.
+  final UrlQuery? matched;
+
+  /// A DNS block the filter lists would have stopped too ([Blocked.alsoAbp]).
+  final bool alsoAbp;
 
   const DnsLogEntry({
     required this.timestamp,
     required this.domain,
-    required this.blocked,
-    this.source,
+    required this.source,
+    required this.matched,
+    required this.alsoAbp,
   });
+
+  bool get blocked => source != null;
+
+  /// Whether [list] stops this request, whichever of the two it counts against.
+  bool stoppedBy(BlockSource list) => switch (list) {
+        BlockSource.dns => source == BlockSource.dns,
+        BlockSource.abp => source == BlockSource.abp || alsoAbp,
+      };
 }
 
 /// Per-site block request statistics (DNS + ABP combined).
@@ -63,6 +80,9 @@ class DnsStats {
   int blocked = 0;
   int blockedByDns = 0;
   int blockedByAbp = 0;
+
+  /// Of [blockedByDns], the requests the filter lists would have stopped too.
+  int blockedByDnsAlsoAbp = 0;
   static const int _maxLogEntries = 500;
 
   final List<DnsLogEntry?> _ring =
@@ -80,6 +100,13 @@ class DnsStats {
   int blockedBy(BlockSource source) => switch (source) {
         BlockSource.dns => blockedByDns,
         BlockSource.abp => blockedByAbp,
+      };
+
+  /// How many requests [list] stops, counting those it shares with the
+  /// other list ([DnsLogEntry.stoppedBy]); [blockedBy] counts each once.
+  int stoppedBy(BlockSource list) => switch (list) {
+        BlockSource.dns => blockedByDns,
+        BlockSource.abp => blockedByAbp + blockedByDnsAlsoAbp,
       };
 
   /// The hosts with the most requests blocked, at most [limit], ties by name.
@@ -114,32 +141,35 @@ class DnsStats {
   /// increment by [count]. Used by the Android native interceptor's
   /// per-host dedup batching.
   void record(String domain,
-      {required bool wasBlocked, BlockSource? source, int count = 1}) {
+      {required BlockVerdict verdict, UrlQuery? matched, int count = 1}) {
+    final source = verdict.source;
+    final alsoAbp = switch (verdict) {
+      Blocked(:final alsoAbp) => alsoAbp,
+      Allowed() || Redirect() => false,
+    };
+    assert(matched == null || source == BlockSource.abp,
+        'only an ABP block names the request its rule matched');
     if (count < 1) count = 1;
-    if (wasBlocked) {
-      blocked += count;
+    switch (source) {
+      case null:
+        allowed += count;
+      case BlockSource.dns:
+        blocked += count;
+        blockedByDns += count;
+        if (alsoAbp) blockedByDnsAlsoAbp += count;
+      case BlockSource.abp:
+        blocked += count;
+        blockedByAbp += count;
+    }
+    if (source != null) {
       _blockedHosts.update(domain, (n) => n + count, ifAbsent: () => count);
-      switch (source) {
-        case BlockSource.dns:
-          blockedByDns += count;
-          break;
-        case BlockSource.abp:
-          blockedByAbp += count;
-          break;
-        case null:
-          // Unsourced block — count toward the total only. Callers should
-          // always pass a source for blocked requests; this branch exists
-          // so the counters stay consistent if they don't.
-          break;
-      }
-    } else {
-      allowed += count;
     }
     final entry = DnsLogEntry(
       timestamp: DateTime.now(),
       domain: domain,
-      blocked: wasBlocked,
-      source: wasBlocked ? source : null,
+      source: source,
+      matched: matched,
+      alsoAbp: alsoAbp,
     );
     if (_size < _maxLogEntries) {
       _ring[(_head + _size) % _maxLogEntries] = entry;
@@ -155,6 +185,7 @@ class DnsStats {
     blocked = 0;
     blockedByDns = 0;
     blockedByAbp = 0;
+    blockedByDnsAlsoAbp = 0;
     _blockedHosts.clear();
     for (var i = 0; i < _maxLogEntries; i++) {
       _ring[i] = null;
@@ -453,9 +484,12 @@ class DnsBlockService {
     };
     if (host == null || host.isEmpty) return;
     final source = verdict.source;
-    final blocked = source != null;
+    final matched = switch ((query, source)) {
+      (final UrlQuery url, BlockSource.abp) => url,
+      _ => null,
+    };
     statsForSite(siteId)
-        .record(host, wasBlocked: blocked, source: source, count: count);
+        .record(host, verdict: verdict, matched: matched, count: count);
     // Single funnel for the persisted app-wide report (STATS-002): every
     // DNS/ABP block on every platform passes through here, so the aggregate
     // cannot drift from the per-site counters.

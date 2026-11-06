@@ -14,7 +14,9 @@ import WebKit
 /// identifier through the webview plugin's `contentRuleListIdentifiers`
 /// setting, so no webview compiles anything.
 ///
-/// Dart side: [`ContentRuleLists`](../../lib/services/content_rule_lists.dart).
+/// Dart side: [`ContentRuleLists`](../../lib/services/content_rule_lists.dart),
+/// and [`WebKitBlockReports`](../../lib/services/webkit_block_reports.dart)
+/// for `reportBlocks`.
 class ContentRuleListPlugin: NSObject {
   private let channel: FlutterMethodChannel
   private static let channelName = "org.codeberg.theoden8.webspace/content_rule_lists"
@@ -28,6 +30,11 @@ class ContentRuleListPlugin: NSObject {
     self.channel.setMethodCallHandler { [weak self] call, result in
       self?.handle(call: call, result: result)
     }
+    // Before any webview sets itself as its own navigation delegate, when
+    // WebKit asks whether it answers the report (CB-023).
+    #if WEBSPACE_DIRECT
+      WebKitBlockReports.install()
+    #endif
   }
 
   private func handle(call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -58,6 +65,14 @@ class ContentRuleListPlugin: NSObject {
       WKContentRuleListStore.default().removeContentRuleList(forIdentifier: identifier) { error in
         result(error.map { Self.storeError("remove_failed", $0) })
       }
+    case "reportBlocks":
+      // Whether WebKit's reports of what the lists block reach the pages
+      // from now on: never in a build for the App Store (CB-023).
+      #if WEBSPACE_DIRECT
+        result(WebKitBlockReports.start())
+      #else
+        result(false)
+      #endif
     default:
       result(FlutterMethodNotImplemented)
     }

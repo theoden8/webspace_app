@@ -394,15 +394,41 @@ class LocalCdnTables {
     var index: Map<String, String> = emptyMap()
 }
 
+/// A request as the engine judged it.
+data class AbpRequest(val url: String, val sourceUrl: String, val requestType: String)
+
 /// One sub-resource verdict. The verdict is part of the identity: the engine
 /// decides per URL, so one host is often allowed for its page assets and
-/// blocked for its ad paths in the same drain window.
-data class BlockEvent(val host: String, val blocked: Boolean, val source: String?) {
-    /// The `{host, blocked, source?, count}` row `WebInterceptNative.applyBlockEvents` reads.
+/// blocked for its ad paths in the same drain window. An ABP block also
+/// carries the [abp] request its rule matched, since a filter rule names a
+/// URL and the host alone reads as a whole-domain block; allowed requests and
+/// DNS blocks stay keyed by host, which keeps a busy page's drain small. A DNS
+/// block says whether the engine would have stopped it too ([alsoAbp]); it
+/// still counts against DNS alone.
+data class BlockEvent(
+    val host: String,
+    val blocked: Boolean,
+    val source: String?,
+    val abp: AbpRequest? = null,
+    val alsoAbp: Boolean = false,
+) {
+    init {
+        require(abp == null || source == "abp") { "only an ABP block names its request" }
+        require(!alsoAbp || source == "dns") { "only a DNS block is one the engine could also stop" }
+    }
+
+    /// The `{host, blocked, source?, url?, sourceUrl?, requestType?, alsoAbp?,
+    /// count}` row `WebInterceptNative.applyBlockEvents` reads.
     fun toChannel(count: Int): Map<String, Any> = buildMap {
         put("host", host)
         put("blocked", blocked)
         if (source != null) put("source", source)
+        if (alsoAbp) put("alsoAbp", true)
+        if (abp != null) {
+            put("url", abp.url)
+            put("sourceUrl", abp.sourceUrl)
+            put("requestType", abp.requestType)
+        }
         put("count", count)
     }
 }
@@ -444,7 +470,8 @@ class FastSubresourceInterceptor(
     private val cdnTables: LocalCdnTables,
     private val onBlockChecked: (BlockEvent) -> Unit,
     private val onCdnReplaced: (CdnEvent) -> Unit,
-    private val onLog: (String, String) -> Unit = { _, _ -> }
+    private val onLog: (String, String) -> Unit = { _, _ -> },
+    private val engine: RequestEngine = AdblockEngineNative,
 ) : ContentBlockerHandler() {
 
     /// Severity level this site blocks at; 0 when it has DNS blocking off.
@@ -557,13 +584,16 @@ class FastSubresourceInterceptor(
                 "cached=$cached, dnsSetSize=${dnsBlocklist.size})")
         }
 
-        // 1b. When the DNS host-only check let it through, consult the
-        // adblock-rust engine. `$domain=`, path-anchored, and
-        // resource-type rules all live in the engine — DNS is just the
+        // 1b. Consult the adblock-rust engine. `$domain=`, path-anchored,
+        // and resource-type rules all live in the engine — DNS is just the
         // user-curated host blocklist. Engine decisions are not cached
         // in `hostDecision` because the answer depends on the URL +
-        // sourceUrl + requestType, not just the host.
-        if (decision == Decision.ALLOWED && abpEnabled && AdblockEngineNative.active) {
+        // sourceUrl + requestType, not just the host. A request DNS already
+        // blocked stays DNS's; the engine is asked only to report whether it
+        // would have stopped it too (CB-012).
+        var abpBlocked: AbpRequest? = null
+        var alsoAbp = false
+        if (abpEnabled && engine.active) {
             // shouldInterceptRequest runs on chromium's IO thread, so
             // we CANNOT call webView.getUrl() here — WebView methods
             // are main-thread-only and StrictMode flags the violation.
@@ -574,8 +604,12 @@ class FastSubresourceInterceptor(
             val headers = request.headers ?: emptyMap()
             val sourceUrl = stripRootDot(headers["Referer"] ?: headers["referer"] ?: "")
             val requestType = mapResourceType(request)
-            if (AdblockEngineNative.checkUrl(url, sourceUrl, requestType)) {
+            val engineBlocks = engine.checkUrl(url, sourceUrl, requestType)
+            if (decision == Decision.BLOCKED_DNS) {
+                alsoAbp = engineBlocks
+            } else if (engineBlocks) {
                 decision = Decision.BLOCKED_ABP
+                abpBlocked = AbpRequest(url, sourceUrl, requestType)
                 if (verbose) {
                     onLog("WebIntercept",
                         "engine blocked sub-resource: host=$host source=$sourceUrl type=$requestType")
@@ -585,7 +619,7 @@ class FastSubresourceInterceptor(
 
         // Always report: the plugin's inbox counts repeats, so a host that
         // fires a hundred times costs one Dart-side record per verdict.
-        onBlockChecked(BlockEvent(host, decision.blocked, decision.source))
+        onBlockChecked(BlockEvent(host, decision.blocked, decision.source, abpBlocked, alsoAbp))
 
         // 2. Domain blocking response. Use an EMPTY ByteArrayInputStream
         // for the response body, NOT null. Returning a `WebResourceResponse(
@@ -608,19 +642,17 @@ class FastSubresourceInterceptor(
             // The empty-body path is the legacy / status-quo block; the
             // redirect path serves the resource the rule names (an empty
             // script, a transparent image, a stand-in for a tracker's API).
-            if (decision == Decision.BLOCKED_ABP && AdblockEngineNative.active) {
-                val headers = request.headers ?: emptyMap()
-                val sourceUrl = stripRootDot(headers["Referer"] ?: headers["referer"] ?: "")
-                val requestType = mapResourceType(request)
-                val dataUrl = AdblockEngineNative.redirectFor(
-                    url, sourceUrl, requestType)
+            val matched = abpBlocked
+            if (matched != null && engine.active) {
+                val dataUrl = engine.redirectFor(
+                    matched.url, matched.sourceUrl, matched.requestType)
                 if (dataUrl != null) {
                     val response = redirectResponseFor(dataUrl)
                     if (response != null) {
                         if (verbose) {
                             onLog("WebIntercept",
                                 "engine served \$redirect= body for host=$host " +
-                                "type=$requestType")
+                                "type=${matched.requestType}")
                         }
                         return response
                     }

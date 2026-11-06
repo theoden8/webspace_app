@@ -318,83 +318,6 @@ class ContentBlockerService {
   }
   bool? _rustEngineSupported;
 
-  // ---- DevTools: per-request engine timing ----
-
-  static const int _engineDecisionBuffer = 200;
-  final List<EngineDecisionSample> _recentEngineDecisions = [];
-  bool _engineTimingEnabled = true;
-
-  int _engineConsultedSinceTimingOn = 0;
-  int _engineBlockedSinceTimingOn = 0;
-  int _engineAllowedSinceTimingOn = 0;
-
-  int get engineConsultedSinceTimingOn => _engineConsultedSinceTimingOn;
-
-  /// Cumulative block/allow tallies since timing was (re-)enabled. Unlike
-  /// [recentEngineDecisions] these don't decay when the sample ring
-  /// rolls over, so the DevTools ABP tab shows true totals.
-  int get engineBlockedSinceTimingOn => _engineBlockedSinceTimingOn;
-  int get engineAllowedSinceTimingOn => _engineAllowedSinceTimingOn;
-
-  set engineTimingEnabled(bool v) {
-    if (_engineTimingEnabled == v) return;
-    _engineTimingEnabled = v;
-    if (!v) {
-      _recentEngineDecisions.clear();
-    } else {
-      _engineConsultedSinceTimingOn = 0;
-      _engineBlockedSinceTimingOn = 0;
-      _engineAllowedSinceTimingOn = 0;
-    }
-    LogTag.contentBlocker.info('engine timing recording: ${v ? "ON" : "OFF"} '
-        '(engineActive=${_rustEngine != null})');
-  }
-  bool get engineTimingEnabled => _engineTimingEnabled;
-
-  List<EngineDecisionSample> get recentEngineDecisions =>
-      List.unmodifiable(_recentEngineDecisions);
-
-  /// [count] folds N deduped repeats of the same decision into the
-  /// counters while adding a single sample row. [micros] is null for
-  /// decisions made outside this isolate (Android native engine) where
-  /// no timing is available.
-  void _recordEngineDecision(String url,
-      {required String requestType,
-      required int? micros,
-      required bool blocked,
-      int count = 1}) {
-    if (count < 1) count = 1;
-    _engineConsultedSinceTimingOn += count;
-    if (blocked) {
-      _engineBlockedSinceTimingOn += count;
-    } else {
-      _engineAllowedSinceTimingOn += count;
-    }
-    if (_recentEngineDecisions.length >= _engineDecisionBuffer) {
-      _recentEngineDecisions.removeAt(0);
-    }
-    _recentEngineDecisions.add(EngineDecisionSample(
-      url: url,
-      requestType: requestType,
-      micros: micros,
-      blocked: blocked,
-      timestamp: DateTime.now(),
-    ));
-  }
-
-  /// Fold a block decision made by the Android native JNI engine into
-  /// the DevTools counters. The native interceptor dedupes by host and
-  /// reports repeat requests via [count]; timing never crosses the
-  /// bridge, so the sample carries no micros. Allowed native requests
-  /// aren't attributable to the engine (the drain events don't say
-  /// whether the engine was consulted), so only blocks are folded in;
-  /// the Allowed tally is a Dart-side lower bound on Android.
-  void recordNativeEngineBlock(String host, {int count = 1}) {
-    if (!_engineTimingEnabled) return;
-    _recordEngineDecision(host,
-        requestType: 'native', micros: null, blocked: true, count: count);
-  }
-
   /// Whether the redirect stubs (`rust/webspace_adblock/src/redirect_resources.rs`)
   /// are wired into the engine.
   /// Drives the `$redirect=` rule output: when on, the engine returns
@@ -536,25 +459,9 @@ class ContentBlockerService {
   }) {
     final engine = _rustEngine;
     if (engine == null) return false;
-    final url = stripRootDot(rawUrl);
-    final source = stripRootDot(sourceUrl);
-    if (_engineTimingEnabled) {
-      final sw = Stopwatch()..start();
-      final blocked = engine.shouldBlock(
-        url,
-        sourceUrl: source,
-        requestType: requestType,
-      );
-      sw.stop();
-      _recordEngineDecision(url,
-          requestType: requestType,
-          micros: sw.elapsedMicroseconds,
-          blocked: blocked);
-      return blocked;
-    }
     return engine.shouldBlock(
-      url,
-      sourceUrl: source,
+      stripRootDot(rawUrl),
+      sourceUrl: stripRootDot(sourceUrl),
       requestType: requestType,
     );
   }
@@ -567,18 +474,7 @@ class ContentBlockerService {
   bool isHostBlocked(String host) {
     final engine = _rustEngine;
     if (engine == null || host.isEmpty) return false;
-    final url = 'https://$host/';
-    if (_engineTimingEnabled) {
-      final sw = Stopwatch()..start();
-      final blocked = engine.shouldBlock(url);
-      sw.stop();
-      _recordEngineDecision(url,
-          requestType: 'host',
-          micros: sw.elapsedMicroseconds,
-          blocked: blocked);
-      return blocked;
-    }
-    return engine.shouldBlock(url);
+    return engine.shouldBlock('https://$host/');
   }
 
   /// Normalize the page URL before passing it to the engine's
@@ -1511,11 +1407,6 @@ class ContentBlockerService {
     _rustEngine?.dispose();
     _rustEngine = null;
     _engineCosmeticCache.clear();
-    _recentEngineDecisions.clear();
-    _engineTimingEnabled = true;
-    _engineConsultedSinceTimingOn = 0;
-    _engineBlockedSinceTimingOn = 0;
-    _engineAllowedSinceTimingOn = 0;
     _abpNetworkHosts = <String>{};
     _genericNetworkTokens = <String>{};
     _hasUntokenizableNetworkRules = false;
@@ -1536,26 +1427,6 @@ class ContentBlockerService {
   void setLists(List<FilterList> lists) {
     _lists = lists;
   }
-}
-
-/// One row in [ContentBlockerService.recentEngineDecisions] — what the
-/// engine answered for one sub-resource check, how long it took, when.
-class EngineDecisionSample {
-  final String url;
-  final String requestType;
-
-  /// Engine call duration; null for decisions made outside this isolate
-  /// (Android native engine) where timing isn't reported.
-  final int? micros;
-  final bool blocked;
-  final DateTime timestamp;
-  const EngineDecisionSample({
-    required this.url,
-    required this.requestType,
-    required this.micros,
-    required this.blocked,
-    required this.timestamp,
-  });
 }
 
 class _EngineCosmeticCache {

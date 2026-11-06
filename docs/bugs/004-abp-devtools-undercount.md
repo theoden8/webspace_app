@@ -1,6 +1,8 @@
 # BUG-004 — ABP block counts undercounted in DevTools
 
-Status: open
+Status: closed (the ABP tab and `ContentBlockerService`'s decision counters are
+gone; the developer tools' Blocking tab reads the site's block stats, the one
+funnel every consult path already fed, DNS-014 / CB-012)
 
 ## Symptom
 
@@ -70,16 +72,30 @@ Consult paths as of this writing:
    what the tab counts (the engine's decisions over what DNS let through,
    on every path) rather than closing the gaps below.
 
+4. **2026-11-05 — this branch.** Removed the ABP tab and the counters it
+   read (`recentEngineDecisions`, `engine*SinceTimingOn`,
+   `recordNativeEngineBlock`, the timing the engine checks carried). The DNS
+   tab became the Blocking tab: it already listed every request either
+   blocker judged, through `DnsBlockService.recordVerdict`, and now tags each
+   blocked row DNS or ABP and filters by it. *Why this closes the class*: the
+   symptom was always the tab's own count falling behind the site's stats
+   (one owner kept two counts of one fact), so with one count there is
+   nothing left to fall behind. A new consult path that skips the funnel is
+   caught by `test/js/block_verdict_funnel.test.js` (Dart), and one that
+   records nothing would be missing from the banner and the report as well
+   as the tab, so it can no longer be an undercount only the developer tools
+   show.
+
 ## Known open gaps
 
-- A host both lists block reaches the ABP tab on no path, since the engine
-  is not asked about it (CB attribution). With a DNS list on, the tab can
-  still read low next to the merged banner count.
-- Android native allowed-after-consult decisions are invisible — the
-  drain protocol would need an `engineConsulted` flag per event.
-- `redirectFor` / `cspFor` / `rewrittenUrl` verdicts are actions, not
-  block decisions, and are deliberately not counted; if the tab ever
-  grows action chips they need their own accounting.
+None for the class. What the earlier gaps became:
+
+- A host both lists block is DNS's by design (CB attribution) and shows as a
+  DNS row; the merged counts agree with the banner.
+- Android native allowed decisions are allowed requests, whichever blocker
+  let them through; the log no longer claims to count engine consults.
+- `redirectFor` / `cspFor` / `rewrittenUrl` verdicts are actions, not block
+  decisions, and are still not counted anywhere.
 - iOS hosts blocked at fetch time *and* later re-attributed by the
-  PerformanceObserver batch can be counted twice (same as the per-site
-  stats path, which has the same shape).
+  PerformanceObserver batch can still be counted twice; that is the per-site
+  stats path's own shape, now shown once rather than in two tabs.

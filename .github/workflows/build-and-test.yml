@@ -223,6 +223,11 @@ jobs:
       - name: Type-check the Apple plugins
         run: ./tool/swift_typecheck/check.sh
 
+      # The Runner's plain Swift under XCTest, headlessly: no Apple SDK
+      # (CB-023's load counting). Fails here without a toolchain.
+      - name: Test the Runner's plain Swift
+        run: ./tool/swift_tests/run.sh
+
       - name: Validate OpenSpec
         run: npx openspec validate --no-interactive --all
       # Flutter also compiles the harness and its negative compiler probes.
@@ -602,6 +607,7 @@ jobs:
             bash scripts/run_android_camera_tests.sh
             bash scripts/run_android_page_zoom_tests.sh
             bash scripts/run_android_localcdn_tests.sh
+            bash scripts/run_android_block_accounting_tests.sh
             bash scripts/run_android_site_icon_tests.sh
             bash scripts/run_android_proxy_router_tests.sh
             bash scripts/run_android_settings_seam_test.sh
@@ -1136,6 +1142,8 @@ jobs:
           bash scripts/verify_tor_framework.sh ios/Pods
           bash scripts/check_extension_search.sh present \
             build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/App
+          bash scripts/check_webkit_block_reports.sh present \
+            build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app
           # --no-codesign builds the archive and then skips the export
           # ("Codesigning disabled with --no-codesign, skipping IPA"), so
           # build/ios/ipa never existed: the upload below found nothing on
@@ -1162,12 +1170,16 @@ jobs:
           bash scripts/verify_tor_framework.sh macos/Pods
           bash scripts/check_extension_search.sh absent \
             build/macos/Build/Products/Release/webspace.app/Contents/Frameworks/App.framework/App
+          bash scripts/check_webkit_block_reports.sh absent \
+            build/macos/Build/Products/Release/webspace.app
           bash scripts/sign_macos.sh adhoc
           # The direct flavor, as a Developer ID download is made, compiles
           # and carries the search; its products are not kept.
           fvm flutter build macos --release --flavor direct
           bash scripts/check_extension_search.sh present \
             build/macos/Build/Products/Release-direct/webspace.app/Contents/Frameworks/App.framework/App
+          bash scripts/check_webkit_block_reports.sh present \
+            build/macos/Build/Products/Release-direct/webspace.app
           rm -rf build/macos/Build/Products/Release-direct
 
       # Reclaim disk before the macOS integration loop. The macos-latest

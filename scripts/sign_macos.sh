@@ -74,6 +74,11 @@ case "$MODE" in
     ;;
   adhoc) ;;
 esac
+# WebKit's block reports name a WebKit method Apple does not publish, which
+# the direct flavor alone compiles in (CB-023).
+if [[ "$MODE" == mas ]]; then
+  "$REPO_ROOT/scripts/check_webkit_block_reports.sh" absent "$APP"
+fi
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT

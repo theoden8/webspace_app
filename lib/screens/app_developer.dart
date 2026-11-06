@@ -11,6 +11,7 @@ import 'package:webspace/services/egress_relay.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/web_extension_library.dart' show extensionSearchSwitchOffered;
+import 'package:webspace/services/webkit_block_reports.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
 import 'package:webspace/widgets/toast.dart';
@@ -57,6 +58,10 @@ List<(ExperimentalFeature, IconData, Localized title, Localized hint)>
         (ExperimentalFeature.serviceWorkers, Icons.sync_alt,
             loc.appSettingsExperimentalServiceWorkers,
             loc.appSettingsExperimentalServiceWorkersHint),
+      if (WebKitBlockReports.offered)
+        (ExperimentalFeature.webKitBlockReports, Icons.fact_check_outlined,
+            loc.appSettingsExperimentalWebKitBlockReports,
+            loc.appSettingsExperimentalWebKitBlockReportsHint),
     ];
 
 /// The names of the experiments switched on, for the App Settings row.

@@ -26,6 +26,7 @@ import 'package:webspace/settings/capture.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/page_js.dart';
+import 'package:webspace/services/webkit_block_reports.dart';
 
 /// The user scripts a site webview starts with: every shim its posture asks
 /// for, in the order they must run.
@@ -304,7 +305,9 @@ abstract final class PageScripts {
       pageShim('block_resource_observer', js: PageJs.blockResourceObserver.script,
           frames: ShimFrames.all),
       if (blocks)
-        pageShim('block_js_interceptor', js: PageJs.blockJsInterceptor.script,
+        pageShim('block_js_interceptor',
+            js: PageJs.blockJsInterceptor
+                .withConfig({'webKitReports': WebKitBlockReports.active}),
             frames: ShimFrames.all),
     ];
   }

@@ -13,7 +13,7 @@ void main() {
   group('DnsStats counters', () {
     test('records allowed with default count=1', () {
       final s = DnsStats();
-      s.record('a.com', wasBlocked: false);
+      s.record('a.com', verdict: const Allowed());
       expect(s.allowed, equals(1));
       expect(s.blocked, equals(0));
       expect(s.total, equals(1));
@@ -21,8 +21,8 @@ void main() {
 
     test('records blocked with source attribution', () {
       final s = DnsStats();
-      s.record('ad.com', wasBlocked: true, source: BlockSource.dns);
-      s.record('tr.com', wasBlocked: true, source: BlockSource.abp);
+      s.record('ad.com', verdict: const Blocked(BlockSource.dns));
+      s.record('tr.com', verdict: const Blocked(BlockSource.abp));
       expect(s.blockedByDns, equals(1));
       expect(s.blockedByAbp, equals(1));
       expect(s.blocked, equals(2));
@@ -31,7 +31,7 @@ void main() {
 
     test('count > 1 increments totals by count but log grows by one', () {
       final s = DnsStats();
-      s.record('cdn.example.com', wasBlocked: false, count: 47);
+      s.record('cdn.example.com', verdict: const Allowed(), count: 47);
       expect(s.allowed, equals(47),
           reason: 'count must fold into the total');
       expect(s.log, hasLength(1),
@@ -43,9 +43,9 @@ void main() {
     test('count > 1 with blocked + source attributes correctly', () {
       final s = DnsStats();
       s.record('ad.example.com',
-          wasBlocked: true, source: BlockSource.dns, count: 12);
+          verdict: const Blocked(BlockSource.dns), count: 12);
       s.record('tr.example.com',
-          wasBlocked: true, source: BlockSource.abp, count: 5);
+          verdict: const Blocked(BlockSource.abp), count: 5);
       expect(s.blocked, equals(17));
       expect(s.blockedByDns, equals(12));
       expect(s.blockedByAbp, equals(5));
@@ -54,25 +54,25 @@ void main() {
 
     test('count below 1 is clamped to 1', () {
       final s = DnsStats();
-      s.record('a.com', wasBlocked: false, count: 0);
-      s.record('b.com', wasBlocked: false, count: -3);
+      s.record('a.com', verdict: const Allowed(), count: 0);
+      s.record('b.com', verdict: const Allowed(), count: -3);
       expect(s.allowed, equals(2));
       expect(s.log, hasLength(2));
     });
 
     test('blockRate computes correctly', () {
       final s = DnsStats();
-      s.record('a.com', wasBlocked: false);
-      s.record('a.com', wasBlocked: false);
-      s.record('a.com', wasBlocked: false);
-      s.record('ad.com', wasBlocked: true, source: BlockSource.dns);
+      s.record('a.com', verdict: const Allowed());
+      s.record('a.com', verdict: const Allowed());
+      s.record('a.com', verdict: const Allowed());
+      s.record('ad.com', verdict: const Blocked(BlockSource.dns));
       expect(s.blockRate, equals(25.0));
     });
 
     test('clear resets everything', () {
       final s = DnsStats();
-      s.record('a.com', wasBlocked: false, count: 10);
-      s.record('ad.com', wasBlocked: true, source: BlockSource.dns, count: 5);
+      s.record('a.com', verdict: const Allowed(), count: 10);
+      s.record('ad.com', verdict: const Blocked(BlockSource.dns), count: 5);
       s.clear();
       expect(s.allowed, equals(0));
       expect(s.blocked, equals(0));
@@ -85,12 +85,12 @@ void main() {
   group('DnsStats blocked hosts', () {
     test('ranks hosts by requests blocked, folded counts included', () {
       final s = DnsStats();
-      s.record('ads.example', wasBlocked: true, source: BlockSource.abp);
+      s.record('ads.example', verdict: const Blocked(BlockSource.abp));
       s.record('beacon.example',
-          wasBlocked: true, source: BlockSource.dns, count: 12);
+          verdict: const Blocked(BlockSource.dns), count: 12);
       s.record('ads.example',
-          wasBlocked: true, source: BlockSource.abp, count: 3);
-      s.record('cdn.example', wasBlocked: false, count: 40);
+          verdict: const Blocked(BlockSource.abp), count: 3);
+      s.record('cdn.example', verdict: const Allowed(), count: 40);
       expect(s.topBlockedHosts(limit: 5), [
         (host: 'beacon.example', count: 12),
         (host: 'ads.example', count: 4),
@@ -100,7 +100,7 @@ void main() {
     test('keeps the busiest under the limit, ties by name', () {
       final s = DnsStats();
       for (final host in ['c.example', 'a.example', 'b.example']) {
-        s.record(host, wasBlocked: true, source: BlockSource.dns);
+        s.record(host, verdict: const Blocked(BlockSource.dns));
       }
       expect(s.topBlockedHosts(limit: 2), [
         (host: 'a.example', count: 1),
@@ -111,9 +111,9 @@ void main() {
     test('blockedBy reads each source', () {
       final s = DnsStats();
       s.record('a.example',
-          wasBlocked: true, source: BlockSource.dns, count: 2);
+          verdict: const Blocked(BlockSource.dns), count: 2);
       s.record('b.example',
-          wasBlocked: true, source: BlockSource.abp, count: 5);
+          verdict: const Blocked(BlockSource.abp), count: 5);
       expect(
         {for (final source in BlockSource.values) source: s.blockedBy(source)},
         {BlockSource.dns: 2, BlockSource.abp: 5},
@@ -125,7 +125,7 @@ void main() {
     test('log grows from empty in insertion order', () {
       final s = DnsStats();
       for (var i = 0; i < 5; i++) {
-        s.record('host$i.com', wasBlocked: false);
+        s.record('host$i.com', verdict: const Allowed());
       }
       final entries = s.log;
       expect(entries, hasLength(5));
@@ -139,7 +139,7 @@ void main() {
       final s = DnsStats();
       // Fill past the cap. The oldest 100 must be dropped.
       for (var i = 0; i < 600; i++) {
-        s.record('host$i.com', wasBlocked: false);
+        s.record('host$i.com', verdict: const Allowed());
       }
       final entries = s.log;
       expect(entries, hasLength(500));
@@ -152,7 +152,7 @@ void main() {
       final s = DnsStats();
       // Insert exactly cap + 1 to cross the boundary by one.
       for (var i = 0; i < 501; i++) {
-        s.record('h$i', wasBlocked: false);
+        s.record('h$i', verdict: const Allowed());
       }
       final entries = s.log;
       expect(entries, hasLength(500));
@@ -163,20 +163,20 @@ void main() {
     test('clear empties the ring and accepts new entries', () {
       final s = DnsStats();
       for (var i = 0; i < 600; i++) {
-        s.record('h$i', wasBlocked: false);
+        s.record('h$i', verdict: const Allowed());
       }
       s.clear();
       expect(s.log, isEmpty);
-      s.record('fresh.com', wasBlocked: false);
+      s.record('fresh.com', verdict: const Allowed());
       expect(s.log, hasLength(1));
       expect(s.log.single.domain, equals('fresh.com'));
     });
 
     test('blocked entries retain source in log', () {
       final s = DnsStats();
-      s.record('a.com', wasBlocked: true, source: BlockSource.dns);
-      s.record('b.com', wasBlocked: true, source: BlockSource.abp);
-      s.record('c.com', wasBlocked: false);
+      s.record('a.com', verdict: const Blocked(BlockSource.dns));
+      s.record('b.com', verdict: const Blocked(BlockSource.abp));
+      s.record('c.com', verdict: const Allowed());
       final entries = s.log;
       expect(entries[0].source, equals(BlockSource.dns));
       expect(entries[1].source, equals(BlockSource.abp));
@@ -216,6 +216,53 @@ void main() {
       expect(stats.blocked, equals(7));
       expect(stats.blockedByAbp, equals(7));
     });
+
+    test('an ABP block keeps the request its rule matched, under its host (CB-012)', () {
+      const stats = UrlQuery('https://api.example.com/_private/stats',
+          sourceUrl: 'https://example.com/', requestType: 'xmlhttprequest');
+      DnsBlockService.instance.recordVerdict(SiteId('site-A'),
+          query: stats, verdict: const Blocked(BlockSource.abp));
+      DnsBlockService.instance.recordVerdict(SiteId('site-A'),
+          query: const UrlQuery('https://tracker.example.com/p.gif',
+              sourceUrl: 'https://example.com/', requestType: 'image'),
+          verdict: const Blocked(BlockSource.dns));
+      DnsBlockService.instance.recordVerdict(SiteId('site-A'),
+          query: const UrlQuery('https://api.example.com/repos',
+              sourceUrl: 'https://example.com/', requestType: 'xmlhttprequest'),
+          verdict: const Allowed());
+
+      final log = DnsBlockService.instance.statsForSite(SiteId('site-A')).log;
+      expect([for (final e in log) e.domain],
+          ['api.example.com', 'tracker.example.com', 'api.example.com']);
+      expect([for (final e in log) e.matched?.url],
+          ['https://api.example.com/_private/stats', null, null],
+          reason: 'a DNS block and an allowed request are judged by host');
+    });
+  });
+
+  test('a DNS block the filter lists stop too counts for both lists, against DNS (CB-012)', () {
+    final s = DnsStats()
+      ..record('t.example',
+          verdict: const Blocked(BlockSource.dns, alsoAbp: true), count: 3)
+      ..record('d.example', verdict: const Blocked(BlockSource.dns))
+      ..record('a.example', verdict: const Blocked(BlockSource.abp), count: 2);
+
+    expect(s.blocked, 6, reason: 'every request is counted once');
+    expect(s.blockedBy(BlockSource.dns), 4);
+    expect(s.blockedBy(BlockSource.abp), 2);
+    expect(s.stoppedBy(BlockSource.dns), 4);
+    expect(s.stoppedBy(BlockSource.abp), 5);
+    expect([for (final e in s.log) e.stoppedBy(BlockSource.abp)],
+        [true, false, true]);
+  });
+
+  test('a DNS verdict cannot name a matched request (CB-012)', () {
+    expect(
+        () => DnsStats().record('tracker.example.com',
+            verdict: const Blocked(BlockSource.dns),
+            matched: const UrlQuery('https://tracker.example.com/p.gif',
+                sourceUrl: '', requestType: 'image')),
+        throwsA(isA<AssertionError>()));
   });
 
   group('DnsBlockService coalesced log listener notification', () {

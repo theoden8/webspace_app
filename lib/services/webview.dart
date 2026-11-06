@@ -411,7 +411,7 @@ class WebViewFactory {
     final url = navigationAction.request.url?.toString() ?? '';
     if (shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
     if (url.startsWith('about:')) return inapp.NavigationActionPolicy.ALLOW;
-    final verdict = judgeAndRecord(
+    final verdict = judgeNavigation(
       config,
       query:
           UrlQuery(url, sourceUrl: config.initialUrl, requestType: 'document'),
@@ -1115,9 +1115,9 @@ class WebViewFactory {
           unawaited(config.hooks.externalScheme(externalInfo, loadIn: view));
           return inapp.NavigationActionPolicy.CANCEL;
         }
-        // Counted even with no list loaded, so the per-site log reflects
-        // the visit. The source is the page that started the navigation.
-        final verdict = judgeAndRecord(
+        // The source is the page that started the navigation. Counted only
+        // when stopped: a navigation that goes ahead counts where it loads.
+        final verdict = judgeNavigation(
           config,
           query: UrlQuery(url,
               sourceUrl: lastLoadStartUrl ?? '', requestType: 'document'),
@@ -1482,13 +1482,6 @@ class WebViewFactory {
 
         lastLoadStartUrl = url?.toString();
         askedAtFirstLoad ??= phases.asked;
-        // Counted here too, so the stats banner shows a first load
-        // that never reached shouldOverrideUrlLoading.
-        if (url != null && url.toString().startsWith('http')) {
-          final page = url.toString();
-          judgeAndRecord(config,
-              query: UrlQuery(page, sourceUrl: page, requestType: 'document'));
-        }
         // One evaluateJavascript, not one per script: each IPC is a race
         // window against Chromium's frame teardown.
         final earlyScripts = <String>[];

@@ -56,15 +56,19 @@ echo "swift_typecheck: TorControllerPlugin.swift type-checks"
 if [ "$(uname -s)" != "Darwin" ]; then
   for side in false true; do
     mkdir "$work/$side"
-    for name in AppGroup ContentRuleListPlugin ShareIntentPlugin ShortcutsPlugin WebSpaceAppIntents; do
+    for name in AppGroup ContentRuleListPlugin ShareIntentPlugin ShortcutsPlugin WebSpaceAppIntents WebKitBlockReports WebKitBlockedLoads; do
       sed -e "s/#if canImport(FlutterMacOS)/#if $side/" \
         -e "s/#if !canImport(FlutterMacOS)/#if !$side/" \
         "$root/ios/Runner/$name.swift" > "$work/$side/$name.swift"
     done
+    # Once as an App Store build compiles them, once as a -direct one
+    # (WEBSPACE_DIRECT, CB-023), whose code the other never sees.
     "$swiftc" -typecheck -swift-version 5 -I "$work" \
       "$work/$side"/*.swift "$here/linux_foundation_gaps.swift"
+    "$swiftc" -typecheck -swift-version 5 -D WEBSPACE_DIRECT -I "$work" \
+      "$work/$side"/*.swift "$here/linux_foundation_gaps.swift"
   done
-  echo "swift_typecheck: the shared Runner sources type-check for iOS and macOS"
+  echo "swift_typecheck: the shared Runner sources type-check for iOS and macOS, App Store and direct"
 
   # The macOS screen share (SHARE-018), against stubs of the frameworks it
   # reaches; the Xcode build is the only other place it compiles.

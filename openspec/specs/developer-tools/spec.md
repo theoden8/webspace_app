@@ -349,7 +349,7 @@ The reduced mode SHALL show:
 - Share HTML AppBar action.
 - Save Icon as PNG AppBar action.
 
-The reduced mode SHALL NOT show Cookies, DNS, or Scripts surfaces. Cookies
+The reduced mode SHALL NOT show Cookies, Blocking, or Scripts surfaces. Cookies
 and scripts belong to the parent site (the nested webview reuses the
 parent's container/jar and `siteId`), so the user manages them from the
 parent site's Developer Tools entry.
@@ -362,7 +362,7 @@ landed in an `InAppWebViewScreen`
 and selects "Developer Tools"
 **Then** `DevToolsScreen` opens with `host: NestedDevToolsHost(...)`
 **And** the Console and App Logs tabs are visible
-**And** the Cookies, DNS, and Scripts surfaces are hidden
+**And** the Cookies, Blocking, and Scripts surfaces are hidden
 
 #### Scenario: Console captures messages from the nested page
 
@@ -566,6 +566,7 @@ The features are:
 | The built-in Tor on Linux, a tor the app starts (`tor-proxy` TOR-027) | Built-in Tor | off | `TorService.builtInOffered`, read once at launch; Linux only |
 | Linux: a site's traffic bound to a network interface it names (`network-interface` NETIF-013) | Network interface per site | off | `EgressRelay.state`, read each time a site's route resolves and when a Network screen is built |
 | A site's service workers through its own blockers (`content-blocker` CB-022) | Service workers through blockers | off | `NativeIntercept.routeServiceWorkers`, read once at launch; Android only |
+| WebKit's own report of each request the content rule lists block (`content-blocker` CB-023) | WebKit's block counts | off | `WebKitBlockReports.start`, read once at launch; iOS and macOS built with `--flavor direct` only |
 
 Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the group with a switch that defaulted off; it graduated with the site info sheet (`site-info-sheet`, NAV-011), which shows the site and container a routed page runs as. Page icons fetched from the links a page declares on iOS, macOS and Linux (`icon-fetching` ICON-013) were in the group with a switch that defaulted off; they graduated to the default there, and the group's Site icons only switch took the slot.
 
@@ -622,7 +623,7 @@ The tray icon while a close only hides the window (`web-push-notifications` NOTI
 | File | Role |
 |------|------|
 | `lib/services/log_service.dart` | LogService singleton, LogEntry, LogLevel enum |
-| `lib/screens/dev_tools.dart` | DevToolsScreen plus DevToolsHost abstraction (WebViewModelDevToolsHost, NestedDevToolsHost). Tabs/actions are gated on `host != null` (Console, Share HTML, Save Icon) and `host.blockedCookies != null` (Cookies, DNS, Scripts). |
+| `lib/screens/dev_tools.dart` | DevToolsScreen plus DevToolsHost abstraction (WebViewModelDevToolsHost, NestedDevToolsHost). Tabs/actions are gated on `host != null` (Console, Share HTML, Save Icon) and `host.blockedCookies != null` (Cookies, Blocking, Scripts). |
 | `lib/services/background_log.dart` | DEVTOOLS-012 `BackgroundLog`: records background lines (normal to the native file, sensitive companions in memory), merges the native file with this process, exposes the system-state rows. |
 | `lib/widgets/background_log_view.dart` | The Background tab: system state, the log, the sensitive switch, Refresh / Export / Copy / Clear. |
 | `android/.../BackgroundLogFile.kt`, `ios/Runner/BackgroundTaskPlugin.swift` (`BackgroundLogFile`) | Native background-log file, single-owner executor / queue, and the system-state query. |
@@ -670,7 +671,7 @@ class ConsoleLogEntry {
 5a. **Save Icon as PNG** (AppBar image icon): tap and verify a save dialog with `{domain}_icon.png`; save and confirm the file opens as a PNG. Test on a site with an SVG favicon (e.g. codeberg) and one with an ICO favicon to confirm both rasterize/convert correctly
 6. **Scripts** (AppBar code icon): tap and verify bottom sheet shows user scripts (or "no scripts" message); expand a script and copy its source
 7. **App Logs tab**: verify app log entries appear; use filter chips; tap "Copy" and paste — verify only filtered entries are copied
-8. **Filtered copy**: on each tab, enter a search query, tap Copy, and verify clipboard contains only the matching entries (not all). On the DNS tab also select the "Blocked" chip and confirm the allowed lookups stay off the clipboard
+8. **Filtered copy**: on each tab, enter a search query, tap Copy, and verify clipboard contains only the matching entries (not all). On the Blocking tab also select the "DNS" chip and confirm the allowed requests and the ABP blocks stay off the clipboard
 8a. **Sensitive copy**: on the App Logs tab turn on "Show sensitive entries", tap Copy, cancel the dialog and verify the clipboard is untouched; tap Copy again, confirm, and verify the sensitive lines are in the paste. Then tap Export and verify the written file has none of them
 9. Go back, open App Settings -> App Logs: verify it works without a site loaded (share and scripts icons should not appear)
 9a. **Background log**: with developer mode on, App Settings -> Background log opens Developer Tools on the Background tab. Background the app, wait for a refresh (or use Simulate background refresh on a site's App Logs tab), reopen and verify the lines and the System state rows. Turn on the switch and verify site names appear only then; Export and verify the file has none. Turn developer mode off and on and verify the log is empty

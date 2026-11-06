@@ -543,6 +543,43 @@ void main() {
       expect(settings.useOnDownloadStart, isTrue);
     });
 
+    // A navigation that goes ahead is counted where its document loads (the
+    // native interceptor, or the resource observer's navigation entry), so
+    // the check counting it too counted every page twice.
+    testWidgets('an allowed navigation counts nothing; a stopped one counts once (CB-012)',
+        (tester) async {
+      final stats = DnsBlockService.instance.statsForSite(_site.siteId);
+      DnsBlockService.instance.clearStatsForSite(_site.siteId);
+
+      final allowed = await _navigate(tester, url: 'https://example.com/next');
+      expect(allowed.policy, inapp.NavigationActionPolicy.ALLOW);
+      expect(stats.total, 0, reason: 'the page that loads counts itself');
+
+      final stopped = await _navigate(tester, url: 'https://tracker.example/');
+      expect(stopped.policy, inapp.NavigationActionPolicy.CANCEL);
+      expect((stats.blocked, stats.blockedByDns, stats.allowed), (1, 1, 0));
+
+      final popup = WebViewConfig(
+        posture: _site.sitePosture(globalUserScripts: const [], isolation: fakeSharedJar()),
+        hooks: _hooks(),
+        initialUrl: 'https://example.com/',
+        cacheFirst: false,
+      );
+      await tester.runAsync(() async {
+        for (final url in ['https://example.com/p', 'https://tracker.example/p']) {
+          WebViewFactory.onSiteNavigationPolicy(popup,
+              navigationAction: inapp.NavigationAction(
+                request: inapp.URLRequest(url: inapp.WebUri(url)),
+                isForMainFrame: true,
+              ),
+              popup: null);
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      });
+      expect((stats.blocked, stats.allowed), (2, 0),
+          reason: 'a popup\'s navigations count as the site\'s own do');
+    });
+
     testWidgets('no request waits on a Dart round trip', (tester) async {
       await tester.pumpWidget(_webView());
       final view =

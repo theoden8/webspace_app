@@ -48,6 +48,12 @@ public class WKWebView: NSView {
   public weak var navigationDelegate: WKNavigationDelegate?
   @discardableResult
   public func load(_ request: URLRequest) -> WKNavigation? { return nil }
+  // WKWebView.h:
+  // - (void)evaluateJavaScript:(NSString *)javaScriptString
+  //          completionHandler:(void (^ _Nullable)(_Nullable id, NSError * _Nullable error))completionHandler;
+  public func evaluateJavaScript(
+    _ javaScriptString: String, completionHandler: ((Any?, Error?) -> Void)? = nil
+  ) {}
 }
 
 public class WKContentRuleList: NSObject {

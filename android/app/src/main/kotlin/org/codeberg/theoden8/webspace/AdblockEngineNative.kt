@@ -37,7 +37,18 @@ import kotlin.concurrent.write
  * call `checkUrl` per request; when the user flips the toggle off
  * we `dispose()` the handle and revert to host-only matching.
  */
-object AdblockEngineNative {
+/**
+ * The adblock engine as the sub-resource interceptor asks it (CB-003):
+ * [AdblockEngineNative] in the app, a fake in a JVM test, where the native
+ * library does not load.
+ */
+interface RequestEngine {
+    val active: Boolean
+    fun checkUrl(url: String, sourceUrl: String, requestType: String): Boolean
+    fun redirectFor(url: String, sourceUrl: String, requestType: String): String?
+}
+
+object AdblockEngineNative : RequestEngine {
 
     /** True iff `libwebspace_adblock.so` loaded and the JNI probe returned true. */
     @Volatile
@@ -77,7 +88,7 @@ object AdblockEngineNative {
     }
 
     /** True when the engine is built and ready to answer `checkUrl`. */
-    val active: Boolean
+    override val active: Boolean
         get() = loaded && enginePtr != 0L
 
     /** True when the .so was loaded — independent of whether rules are set. */
@@ -126,7 +137,7 @@ object AdblockEngineNative {
      * the engine isn't active so callers don't need to gate on
      * [active] before calling — short-circuit happens here.
      */
-    fun checkUrl(url: String, sourceUrl: String, requestType: String): Boolean {
+    override fun checkUrl(url: String, sourceUrl: String, requestType: String): Boolean {
         if (!loaded) return false
         val readLock = rwLock.readLock()
         readLock.lock()
@@ -152,7 +163,7 @@ object AdblockEngineNative {
      * body (recommended — sites that probe for the redirected
      * resource keep working) or just an empty 200.
      */
-    fun redirectFor(url: String, sourceUrl: String, requestType: String): String? {
+    override fun redirectFor(url: String, sourceUrl: String, requestType: String): String? {
         if (!loaded) return null
         val readLock = rwLock.readLock()
         readLock.lock()

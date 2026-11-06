@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/widgets/stats_banner.dart';
@@ -26,8 +27,8 @@ void main() {
   testWidgets('shows what the site blocked and allowed (DNS-013)',
       (tester) async {
     dns.statsForSite(site)
-      ..record('beacon.example', wasBlocked: true, source: BlockSource.dns)
-      ..record('www.example', wasBlocked: false, count: 30);
+      ..record('beacon.example', verdict: const Blocked(BlockSource.dns))
+      ..record('www.example', verdict: const Allowed(), count: 30);
     final loc = await pumpBanner(tester);
     expect(find.text(loc.statsBannerBlocked(1)), findsOneWidget);
     expect(find.text(loc.statsBannerAllowed(30)), findsOneWidget);
@@ -37,10 +38,10 @@ void main() {
       (tester) async {
     dns.statsForSite(site)
       ..record('beacon.example',
-          wasBlocked: true, source: BlockSource.dns, count: 12)
+          verdict: const Blocked(BlockSource.dns), count: 12)
       ..record('ads.example',
-          wasBlocked: true, source: BlockSource.abp, count: 3)
-      ..record('www.example', wasBlocked: false, count: 30);
+          verdict: const Blocked(BlockSource.abp), count: 3)
+      ..record('www.example', verdict: const Allowed(), count: 30);
     final loc = await pumpBanner(tester);
     expect(find.text('beacon.example'), findsNothing);
 
@@ -73,7 +74,7 @@ void main() {
 
   testWidgets('hidden while no list is loaded (DNS-013)', (tester) async {
     dns.resetForTest();
-    dns.statsForSite(site).record('www.example', wasBlocked: false);
+    dns.statsForSite(site).record('www.example', verdict: const Allowed());
     await pumpBanner(tester);
     expect(find.byIcon(Icons.shield), findsNothing);
   });

@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/block_decision.dart';
-import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/log_service.dart';
@@ -60,8 +59,10 @@ class WebInterceptNative {
   ///
   /// Split out of [_drainBlockEvents] so the payload contract with
   /// `WebInterceptPlugin.drainBlockEvents` (`{host, blocked, source, count}`,
-  /// with `source` absent for allowed requests) is testable without an
-  /// Android device: the fetch is platform-gated, the accounting is not.
+  /// with `source` absent for allowed requests, an ABP block's `url`,
+  /// `sourceUrl` and `requestType` beside them, and `alsoAbp` on a DNS block
+  /// the engine would also have stopped) is testable without an Android
+  /// device: the fetch is platform-gated, the accounting is not.
   @visibleForTesting
   static void applyBlockEvents(SiteId siteId, {required List<dynamic> list}) {
     for (final entry in list) {
@@ -71,23 +72,32 @@ class WebInterceptNative {
       // block naming none is as malformed as a row without a host.
       final verdict = switch ((entry['blocked'], entry['source'])) {
         (false, _) => const Allowed(),
-        (true, 'dns') => const Blocked(BlockSource.dns),
+        (true, 'dns') =>
+          Blocked(BlockSource.dns, alsoAbp: entry['alsoAbp'] == true),
         (true, 'abp') => const Blocked(BlockSource.abp),
         _ => null,
       };
       if (host is! String || verdict == null) continue;
-      // Native dedupes by host across the drain window: `count` is the
+      // Native dedupes by verdict across the drain window: `count` is the
       // repeats since the last drain, absent from an older codec.
       final count = entry['count'] is int ? entry['count'] as int : 1;
+      final query = switch ((
+        verdict,
+        entry['url'],
+        entry['sourceUrl'],
+        entry['requestType'],
+      )) {
+        (
+          Blocked(source: BlockSource.abp),
+          final String url,
+          final String sourceUrl,
+          final String requestType,
+        ) =>
+          UrlQuery(url, sourceUrl: sourceUrl, requestType: requestType),
+        _ => HostQuery(host),
+      };
       DnsBlockService.instance.recordVerdict(siteId,
-          query: HostQuery(host), verdict: verdict, count: count);
-      // Engine blocks decided natively never pass through
-      // ContentBlockerService.isBlocked, so fold them into the
-      // DevTools ABP counters here or the ABP tab undercounts.
-      if (verdict.source == BlockSource.abp) {
-        ContentBlockerService.instance
-            .recordNativeEngineBlock(host, count: count);
-      }
+          query: query, verdict: verdict, count: count);
     }
   }
 

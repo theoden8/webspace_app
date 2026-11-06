@@ -1910,117 +1910,56 @@
   "@devToolsIconSaved": {
     "description": "Snackbar confirming the site icon was saved to a file."
   },
-  "devToolsDnsEmpty": "No DNS queries recorded",
-  "@devToolsDnsEmpty": {
-    "description": "Empty-state text shown in the DNS tab when no DNS queries have been recorded."
+  "devToolsBlockingEmpty": "No requests recorded",
+  "@devToolsBlockingEmpty": {
+    "description": "Empty-state text of the developer tools Blocking log when the site has made no request its blockers judged yet."
   },
   "devToolsDnsTotal": "Total",
   "@devToolsDnsTotal": {
-    "description": "Stat-card label for the total number of DNS queries."
+    "description": "Stat-card label in the developer tools Blocking log for how many requests the site's blockers judged."
   },
   "devToolsDnsAllowed": "Allowed",
   "@devToolsDnsAllowed": {
-    "description": "Stat-card label for the number of allowed DNS queries."
+    "description": "Stat-card label in the developer tools Blocking log for how many requests were allowed."
   },
   "devToolsDnsBlocked": "Blocked",
   "@devToolsDnsBlocked": {
-    "description": "Stat-card label for the number of blocked DNS queries."
+    "description": "Stat-card label in the developer tools Blocking log for how many requests were blocked, by either blocker."
   },
   "devToolsDnsBlockRate": "Block %",
   "@devToolsDnsBlockRate": {
-    "description": "Stat-card label for the percentage of blocked DNS queries."
+    "description": "Stat-card label in the developer tools Blocking log for the share of requests that were blocked."
   },
   "devToolsDnsFilterAll": "All",
   "@devToolsDnsFilterAll": {
-    "description": "Filter chip showing all DNS log entries."
+    "description": "Filter chip in the developer tools Blocking log that shows every request."
   },
   "devToolsDnsFilterAllowed": "Allowed ({count})",
   "@devToolsDnsFilterAllowed": {
-    "description": "Filter chip showing only allowed DNS log entries, with the allowed count.",
+    "description": "Filter chip in the developer tools Blocking log that shows only the allowed requests, with their count.",
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
   },
-  "devToolsDnsFilterBlocked": "Blocked ({count})",
-  "@devToolsDnsFilterBlocked": {
-    "description": "Filter chip showing only blocked DNS log entries, with the blocked count.",
+  "devToolsBlockingFilterBy": "{source} ({count})",
+  "@devToolsBlockingFilterBy": {
+    "description": "Filter chip in the developer tools Blocking log that shows only the requests one blocker stopped. {source} is that blocker's short tag (DNS or ABP), {count} how many requests it stopped.",
     "placeholders": {
+      "source": {
+        "type": "String",
+        "example": "ABP"
+      },
       "count": {
-        "type": "int"
+        "type": "int",
+        "example": "4"
       }
     }
   },
-  "devToolsDnsLogCopied": "DNS log copied",
-  "@devToolsDnsLogCopied": {
-    "description": "Snackbar confirming the DNS log was copied to the clipboard."
-  },
-  "devToolsAbpEngine": "engine",
-  "@devToolsAbpEngine": {
-    "description": "Stat-chip label for the content-blocker engine status in the ABP developer tab."
-  },
-  "devToolsAbpActive": "active",
-  "@devToolsAbpActive": {
-    "description": "Stat-chip value indicating the content-blocker engine is active."
-  },
-  "devToolsAbpOff": "off",
-  "@devToolsAbpOff": {
-    "description": "Stat-chip value indicating a content-blocker feature is off."
-  },
-  "devToolsAbpOn": "on",
-  "@devToolsAbpOn": {
-    "description": "Stat-chip value indicating a content-blocker feature is on."
-  },
-  "devToolsAbpRecording": "recording",
-  "@devToolsAbpRecording": {
-    "description": "Stat-chip label for whether ABP engine timing recording is on."
-  },
-  "devToolsAbpConsulted": "consulted",
-  "@devToolsAbpConsulted": {
-    "description": "Stat-chip label for how many times the ABP engine was consulted."
-  },
-  "devToolsAbpAvg": "avg",
-  "@devToolsAbpAvg": {
-    "description": "Stat-chip label for the average ABP engine decision time."
-  },
-  "devToolsAbpMax": "max",
-  "@devToolsAbpMax": {
-    "description": "Stat-chip label for the maximum ABP engine decision time."
-  },
-  "devToolsAbpBlocked": "blocked",
-  "@devToolsAbpBlocked": {
-    "description": "Stat-chip label for the number of blocked ABP engine decisions."
-  },
-  "devToolsAbpAllowed": "allowed",
-  "@devToolsAbpAllowed": {
-    "description": "Stat-chip label for the number of allowed ABP engine decisions."
-  },
-  "devToolsRefreshButton": "Refresh",
-  "@devToolsRefreshButton": {
-    "description": "Button label to refresh the ABP engine decisions sample list."
-  },
-  "devToolsAbpSampleCount": "{count} sample(s)",
-  "@devToolsAbpSampleCount": {
-    "description": "Label showing how many ABP engine decision samples are displayed.",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "devToolsAbpEmptyNotConsulted": "Engine has not been consulted yet.\n\nSub-resource checks fire from the JS-bridge `blockCheckBatch` handler; they only run on cross-origin requests that hit the bloom prefilter.\n\nTry: reload an ad-heavy page.",
-  "@devToolsAbpEmptyNotConsulted": {
-    "description": "Empty-state explanation shown in the ABP tab when the engine has not been consulted yet."
-  },
-  "devToolsAbpEmptyBufferRolled": "Engine consulted {count} time(s) but the recent decisions ring buffer is empty.\nThis usually means the buffer rolled over — tap Refresh to capture the latest entries.",
-  "@devToolsAbpEmptyBufferRolled": {
-    "description": "Empty-state explanation shown in the ABP tab when the engine was consulted but the decisions buffer is empty.",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
+  "devToolsBlockingLogCopied": "Request log copied",
+  "@devToolsBlockingLogCopied": {
+    "description": "Snackbar confirming the developer tools Blocking log was copied to the clipboard."
   },
   "devToolsLogsEmpty": "No log entries",
   "@devToolsLogsEmpty": {
@@ -2992,13 +2931,21 @@
   "@devToolsTabCookies": {
     "description": "Tab label for the cookie inspector in developer tools."
   },
-  "devToolsTabDns": "DNS",
-  "@devToolsTabDns": {
-    "description": "Tab label for the DNS query log in developer tools."
+  "devToolsTabBlocking": "Blocking",
+  "@devToolsTabBlocking": {
+    "description": "Tab label in developer tools for the log of every request the site's blockers judged (the DNS blocklist and the ABP filter lists), each allowed or blocked."
   },
-  "devToolsTabAbp": "ABP",
-  "@devToolsTabAbp": {
-    "description": "Tab label for the ABP content-blocker diagnostics in developer tools."
+  "devToolsBlockSourceDns": "DNS",
+  "@devToolsBlockSourceDns": {
+    "description": "Short tag on a row of the developer tools Blocking log: the DNS blocklist blocked this request. An acronym, usually kept as is."
+  },
+  "devToolsBlockSourceAbp": "ABP",
+  "@devToolsBlockSourceAbp": {
+    "description": "Short tag on a row of the developer tools Blocking log: an ABP (Adblock Plus syntax) filter list such as EasyList blocked this request. An acronym, usually kept as is."
+  },
+  "devToolsBlockSourceDnsAlsoAbp": "DNS, also ABP",
+  "@devToolsBlockSourceDnsAlsoAbp": {
+    "description": "Short tag on a row of the developer tools Blocking log: the DNS blocklist blocked this request, and an ABP filter list (such as EasyList) would have blocked it too. DNS and ABP are acronyms, usually kept as is."
   },
   "devToolsTabLogs": "Logs",
   "@devToolsTabLogs": {
@@ -5691,6 +5638,14 @@
   "appSettingsExperimentalServiceWorkersHint": "Where each site has its own container, a site's service workers (the background scripts some sites use for offline pages, caching and updates) load through that site's DNS blocklist, filter lists and LocalCDN, and may reach the network. Takes effect the next time the app starts.",
   "@appSettingsExperimentalServiceWorkersHint": {
     "description": "Explanation behind the hint button of the Service workers through blockers switch in App settings > Developer > Experimental, on Android. A container keeps one site's cookies and storage apart from the others'. DNS blocklist, filter lists and LocalCDN are names of the app's own blocking settings; translate them as the app's other strings do."
+  },
+  "appSettingsExperimentalWebKitBlockReports": "WebKit's block counts",
+  "@appSettingsExperimentalWebKitBlockReports": {
+    "description": "Title of an Experimental switch in App settings > Developer, on iOS and macOS in a build from outside the App Store only. WebKit is the engine that shows web pages on Apple devices; the switch makes the app's blocked-request counts come from WebKit's own report of what it blocked."
+  },
+  "appSettingsExperimentalWebKitBlockReportsHint": "Counts each request WebKit's filter lists block as WebKit reports it, including ones the page never sees, such as stylesheet images and beacons. It uses a WebKit interface Apple does not publish, so it is offered only outside the App Store. Takes effect the next time the app starts.",
+  "@appSettingsExperimentalWebKitBlockReportsHint": {
+    "description": "Explanation behind the hint button of the WebKit's block counts switch in App settings > Developer > Experimental, on iOS and macOS outside the App Store. Filter lists are the app's ad and tracker blocking lists (such as EasyList); a beacon is a small background request a page sends to report activity."
   },
   "appSettingsExtensions": "Extensions",
   "@appSettingsExtensions": {

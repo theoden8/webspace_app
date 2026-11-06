@@ -236,7 +236,7 @@ rules match exactly as before
 **Given** the engine is active on Android with `libwebspace_adblock.so` bundled
 **When** a page issues a sub-resource request
 **Then** `FastSubresourceInterceptor.checkUrl` first walks the DNS host-only set (fast path)
-**And** for hosts the DNS check let through, calls `AdblockEngineNative.checkUrl` with URL + Referer-derived sourceUrl + `Sec-Fetch-Dest`-derived requestType
+**And** while the site's content blocker is on, calls `AdblockEngineNative.checkUrl` with URL + Referer-derived sourceUrl + `Sec-Fetch-Dest`-derived requestType: it decides what the DNS check let through, and of a DNS block only says whether it would have stopped it too (CB-012)
 **And** the JNI layer dispatches to the same adblock-rust engine the Dart side uses
 **And** `$domain=` / path-anchored / `$script` / `$image` / regex rules fire on every sub-resource
 
@@ -271,6 +271,15 @@ writes the options before its page loads.
 
 Test: `test/js/block_interceptor_shim.test.js`; on a live engine, `integration_test/content_blocker_layers_test.dart` (Linux runs it with the content rule lists off, so the interceptor is held on its own).
 
+#### Scenario: One URL's verdict answers its host only when it is the host's
+
+**Given** the engine knows a path rule `/ads/*` on iOS, macOS or Linux
+**When** the page asks about `https://example.com/ads/a.js` before its Bloom filter has landed, or about `https://example.com/lib.js` on a host the Bloom filter names
+**Then** the verdict is kept for that URL alone, so a later `https://example.com/api` is asked about and goes out, and a later `https://example.com/ads/b.js` is asked about and blocked
+**And** only a block of a host the lists name, or an allow where no path rule is loaded, answers the host's later requests from the page's cache
+
+Test: `test/js/block_interceptor_shim.test.js`; in real Chromium, `test/browser/block_accounting_real_engine.test.js`. Lineage: [BUG-045](../../../docs/bugs/045-path-verdict-cached-for-its-host.md).
+
 #### Scenario: Android falls back to DNS-only when JNI library missing
 
 **Given** the engine is active in Dart but `libwebspace_adblock.so` failed to load on this Android ABI
@@ -287,8 +296,9 @@ Test: `test/js/block_interceptor_shim.test.js`; on a live engine, `integration_t
 **And** the ABP block counter is not incremented for that request
 **And** every path that blocks or counts a request (navigations, popups,
 `blockCheckBatch`, the PerformanceObserver batch, page-icon fetches) takes this
-order through `BlockDecision.decide`, which asks the engine nothing about a
-request DNS already blocked
+order through `BlockDecision.decide`, which asks the engine about a request DNS
+already blocked only to mark it as one the filter lists would stop too
+(`Blocked.alsoAbp`, CB-012), never to count it against them
 
 #### Scenario: Per-source counters preserved in stats
 
@@ -718,42 +728,122 @@ or `https`
 
 ---
 
-### Requirement: CB-012 - DevTools Engine Decision Accounting
+### Requirement: CB-012 - Engine Blocks Reach the Site's Blocking Log
 
-Every network-block decision the engine makes SHALL be folded into the
-DevTools ABP tab's counters, regardless of which consult path produced
-it: `isBlocked` (main-doc navigations, JS-bridge `blockCheck`),
-`isHostBlocked` (PerformanceObserver
-per-host attribution), and blocks decided by the Android native JNI
-engine (drained `abp`-sourced block events). The blocked/allowed
-tallies SHALL be cumulative since timing was enabled — they MUST NOT
-decay when the recent-decisions ring buffer rolls over.
+Every network block the engine decides SHALL reach the site's block stats as
+an `abp` verdict through `DnsBlockService.recordVerdict`, on every consult
+path: the Dart paths, which all take their verdict from `BlockDecision.decide`
+and record it with `judgeAndRecord` (navigations, popups, `blockCheckBatch`,
+the PerformanceObserver batch, page-icon fetches), and the Android native
+interceptor's drained block events, every repeat a drain folds counted.
 
-#### Scenario: Cumulative counts survive ring rollover
+The developer tools SHALL read those stats alone and keep no count of engine
+decisions of their own, so the Blocking log (DNS-014), the stats banner and
+the protection report cannot disagree about what the engine blocked. A
+request the DNS blocklist already blocked is DNS's; the engine is asked about
+it only to mark it as one the filter lists also stop (CB-003, "Source
+attribution when DNS + ABP both match").
 
-**Given** timing recording is on and the ring buffer holds 200 samples
-**When** the engine makes 250 blocking decisions
-**Then** `engineBlockedSinceTimingOn` reports all 250
-**And** `recentEngineDecisions` holds only the newest 200 samples
+The unit of every count SHALL be one request the page made, counted once,
+where its outcome is known:
 
-#### Scenario: Host-attribution decisions are recorded
+| Outcome | Counted by |
+|---|---|
+| goes out (allowed) | Android: the native interceptor. WebKit: the resource observer, once per resource the page loaded, the top frame's own document included |
+| a navigation stopped | the navigation check that stops it (`judgeNavigation`), which counts nothing it lets go ahead |
+| blocked in the page before it is sent (WebKit) | the page interceptor's ask, or its report of a block its host cache answered (`countsForPage`) |
+| blocked by WebKit's content rule lists | WebKit's report where there is one (CB-023), else the page interceptor's ask about an element WebKit had already issued, counted only for a verdict the rule lists share (they hold the filter lists, not the DNS list), or a load error on such an element no ask covered |
+| blocked natively (Android) | the native interceptor |
 
-**Given** the PerformanceObserver batch path calls `isHostBlocked(host)`
-**Then** the decision is recorded with requestType `host` and its timing
-**And** the consulted/blocked/allowed counters advance
+So `allowed` equals the requests that went out, and `blocked` the requests
+made less those. A count that disagrees with what a server saw arrive is a
+bug, held by `integration_test/block_accounting_test.dart` on every engine CI
+runs, whose list of known gaps only shrinks.
 
-#### Scenario: Android native engine blocks reach the counters
+History: a second set of counters kept by `ContentBlockerService` for an ABP
+tab of their own fell behind the site's stats on every consult path added
+without them, and was removed for it
+([BUG-004](../../../docs/bugs/004-abp-devtools-undercount.md)).
 
-**Given** the native interceptor drains an `abp`-sourced block event for a host with `count: k`
-**Then** `recordNativeEngineBlock` advances consulted and blocked by `k`
-**And** one sample row is added with requestType `native` and no timing (`micros == null`)
-**And** the ABP tab's avg/max timing chips ignore untimed samples
+#### Scenario: An Android native engine block reaches the log
 
-#### Scenario: Timing off pauses accounting
+**Given** the native interceptor drains an `abp`-sourced block event with `count: k`
+**Then** the site's `blockedByAbp` advances by `k`
+**And** the Blocking log shows one row tagged ABP, with its ABP filter chip counting `k`
 
-**Given** the user turns timing recording off in the ABP tab
-**Then** no decisions (Dart or native) are recorded
-**And** re-enabling resets the consulted/blocked/allowed counters to zero
+Test: `test/dev_tools_copy_test.dart`, "an engine block drained from Android
+reaches the log as ABP"; the report's side in
+`test/block_stats_integration_test.dart`.
+
+#### Scenario: A DNS block the filter lists would also stop is shown as such
+
+The DNS list is asked first and takes the credit, so on its own the ABP count
+says only what ABP caught beyond the DNS list, not how far the filter lists
+reach.
+
+**Given** the site keeps content blocking on and a request is on the DNS blocklist
+**When** the engine would have blocked it too
+**Then** the verdict is a DNS block marked `alsoAbp` (Android's block event carries `alsoAbp: true`)
+**And** it counts once, against DNS, in the site's stats, the banner and the protection report
+**And** the Blocking log tags its row "DNS, also ABP", and the ABP filter chip takes it in and counts it (`DnsStats.stoppedBy`)
+**And** with content blocking off, the engine is not asked
+
+Test: `test/block_decision_test.dart`, "a request both lists block counts
+against DNS, marked as one ABP stops too"; `test/dns_stats_test.dart`;
+`test/dev_tools_copy_test.dart`, "a DNS block ABP would also stop is tagged
+with both"; `SiteEventInboxTest.aDnsBlockSaysWhetherTheEngineWouldStopItToo`;
+the Android interceptor's own decision, with a fake engine, in
+`InterceptorDecisionTest` (DNS alone, DNS also ABP, an engine block with its
+request, the engine never asked with content blocking off).
+
+#### Scenario: An ABP row names the request its rule matched
+
+A filter rule matches a URL, not a host, so a row naming only the host reads
+as a block of the whole domain when one path on it was blocked.
+
+**Given** the engine blocks `https://api.example.com/_private/stats` while other requests to `api.example.com` go out
+**Then** the Android interceptor's block event carries the request the engine judged (`url`, `sourceUrl`, `requestType`), and each blocked URL is its own event in a drain
+**And** every platform records an ABP verdict on a URL with that request (`DnsLogEntry.matched`)
+**And** the Blocking log row reads `xmlhttprequest https://api.example.com/_private/stats`, while the allowed requests stay one row per host
+**And** a DNS block or an allowed request is never logged with a URL, since its verdict is the host's (an assert in `DnsStats.record`)
+**And** the protection report still names the host alone (STATS-008), so no path or query reaches its encrypted store
+
+Test: `test/dns_stats_test.dart`, "an ABP block keeps the request its rule
+matched" and "a DNS verdict cannot name a matched request";
+`SiteEventInboxTest.anAbpBlockNamesTheRequestItsRuleMatched`;
+`test/block_stats_integration_test.dart`, "an ABP block drained with its URL
+is named by its host alone".
+
+#### Scenario: The counts add up to what arrived
+
+**Given** a page served from a loopback server whose every request is declared (its document, parsed and appended sub-resources, fetches, some the filter lists block, some on a host the DNS list names, one both stop)
+**When** the page has loaded in a site's webview with both blockers on
+**Then** the site's `allowed` equals the requests the server received
+**And** `blocked` equals the requests the page made less those received
+**And** `blockedByDns`, `blockedByAbp` and the DNS blocks the filter lists also stop equal the declaration's
+
+Test: `integration_test/block_accounting_test.dart` (the Android emulator tier
+`scripts/run_android_block_accounting_tests.sh`, and the Linux and macOS
+desktop jobs).
+
+#### Scenario: Each request counts once on WebKit
+
+**Given** the WebKit page interceptor asks the app about a request
+**Then** a verdict that lets it go counts nothing at the ask, since the resource observer counts it where it loads
+**And** a block made before the request went out counts at the ask, and a repeat its host cache answers counts through `blockRecordBatch`
+**And** a request WebKit had already issued counts as blocked only for a filter-list verdict, and not at all where WebKit reports its blocks itself
+**And** a load error the page saw counts only when a list names the request and no ask covered it, so one that fires before the observer asks is left to the ask
+**And** each ask names the request's type in the engine's words, so a rule limited to scripts or images is judged as WebKit judges it
+
+Test: `test/block_decision_test.dart`, "countsForPage"; `test/js/block_interceptor_shim.test.js`;
+that a navigation counts only when stopped, `test/webview_controller_lifetime_test.dart`,
+"an allowed navigation counts nothing".
+
+#### Scenario: A Dart path cannot ask the engine outside the funnel
+
+**Given** a Dart path that needs to know whether the engine blocks a request
+**Then** it asks `BlockDecision.decide` through `_LiveBlockLists`, whose verdict `judgeAndRecord` records
+**And** a direct call of `ContentBlockerService.isBlocked` or `isHostBlocked` elsewhere fails `test/js/block_verdict_funnel.test.js`
 
 ---
 
@@ -1086,7 +1176,7 @@ attach from, and found again by name on later launches; a webview only names the
 (`contentRuleListIdentifiers`, a setting of the webview fork). The page
 interceptor and the cosmetic pass keep running: the lists carry no cosmetic
 rules, redirects, `$csp`, `$removeparam` or scriptlets, and WebKit reports no
-match back. No switch gates them: Linux ran them behind an Experimental switch
+match back to an App Store build (a direct build can ask it to, CB-023). No switch gates them: Linux ran them behind an Experimental switch
 (DEVTOOLS-011) until they graduated, and its stored value is no longer read.
 
 The rule set is named by the head of the engine inputs key, so a change of
@@ -1225,6 +1315,57 @@ which tells whether the app-wide block at launch reaches a site's container.
 **And** the log says whether its service workers had the network
 
 Tests: `android/app/src/test/kotlin/org/codeberg/theoden8/webspace/ServiceWorkerBlockersTest.kt`.
+
+
+### Requirement: CB-023 - WebKit's Own Block Reports (Experimental, Direct Builds)
+
+An iOS or macOS build made with `--flavor direct` SHALL be able to count each
+request one of the app's content rule lists (CB-020) blocks as WebKit itself
+reports it, which covers what the page interceptor never sees: loads a
+stylesheet starts, beacons, workers, the parser's preloads. WebKit reports
+through `_webView:contentRuleListWithIdentifier:performedAction:forURL:`, a
+navigation delegate method Apple does not publish, so:
+
+- the Runner compiles the code (`ios/Runner/WebKitBlockReports.swift`, both
+  Runners) only into the `-direct` configurations (`WEBSPACE_DIRECT`), and a
+  build for either App Store carries no part of it;
+  `scripts/check_webkit_block_reports.sh` checks a built app, in CI and in
+  `sign_macos.sh mas`, and `test/js/webkit_block_reports_build.test.js` holds
+  the Swift, the Xcode projects and both checks to each other;
+- it runs only while developer mode and its Experimental switch are on
+  (DEVTOOLS-011), read once at launch (`WebKitBlockReports.start`), so every
+  page of a run counts one way.
+
+The method is added to the webview plugin's view class as the Runner
+creates its plugins, before any view sets itself as its own navigation
+delegate, since WebKit asks then, once, whether the delegate answers it. It
+counts `blockedLoad` actions of the app's own lists (`wcrl-`), a URL's loads
+being its calls over the lists that reported it (WebKit calls once per list
+that acted), and hands them to the page interceptor, which passes them to the
+app beside its own reports (`blockRecordBatch`, `why: webkit`).
+
+#### Scenario: A reported block counts once, in the site's order
+
+**Given** WebKit reports a URL one of the app's lists blocked
+**Then** it counts once against DNS when the DNS list names it, marked as one the filter lists also stop, else against the filter lists, under the first request type one of their rules matches (`BlockDecision.reported`)
+**And** a URL no list names counts nothing, so a page that calls the hand-off itself records no block a list did not make
+**And** the page interceptor counts no ask about an element WebKit had already issued and reports no load errors, which the report counts instead
+
+Test: `test/block_decision_test.dart`, "BlockDecision.reported";
+`test/js/block_interceptor_shim.test.js`, "where WebKit reports its blocks";
+the reports-to-loads count (`WebKitBlockedLoads`, a file of its own with no
+WebKit, compiled into every build), `ios/RunnerTests/WebKitBlockedLoadsTests.swift`,
+run headlessly under XCTest on any Swift toolchain by `tool/swift_tests/run.sh`
+(CI's validate job) and in Xcode. The hook itself runs only on a device.
+
+#### Scenario: An App Store build carries none of it
+
+**Given** an iOS or macOS build made without `--flavor direct`
+**Then** the Runner's binary does not contain the method's name
+**And** `reportBlocks` answers false, so the switch is not offered and the pages count as without it
+
+Test: `test/js/webkit_block_reports_build.test.js`; on the built apps,
+`scripts/check_webkit_block_reports.sh` in the Apple CI job.
 
 ## Implementation Details
 
