@@ -34,8 +34,9 @@ import 'package:webspace/widgets/caption_tint.dart';
 import 'package:webspace/widgets/shortcut_label.dart';
 import 'bare_site.dart';
 import 'fixture_server.dart';
+import 'helpers/tier_inputs.dart';
 
-const _desktopTier = bool.fromEnvironment('WS_DESKTOP_TIER');
+final _desktopTier = TierInput.desktopTier.on;
 
 const _keyboard = MethodChannel('org.codeberg.theoden8.webspace/keyboard_input');
 const _caption = MethodChannel('org.codeberg.theoden8.webspace/window_caption');

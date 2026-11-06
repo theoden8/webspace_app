@@ -10,7 +10,7 @@
 // the assertions here cannot see. Every other job skips this file: without
 // the harness there is nothing to talk to.
 //
-// Phases, one flutter run each (--dart-define=PASSKEY_GATE_PHASE=...):
+// Phases, one launch each (`--input PASSKEY_GATE_PHASE=...`, TierInput):
 //   main     - the page sees WebAuthn, registers, and signs in twice, then a
 //              second webview signs in with the first one's passkey.
 //   refused  - the provider no longer trusts the app: the page sees
@@ -31,12 +31,15 @@ import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/passkey_native.dart';
 import 'package:webspace/services/webview.dart';
 import 'bare_site.dart';
+import 'helpers/tier_inputs.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_controller.dart';
 
-const _gate = bool.fromEnvironment('PASSKEY_GATE');
-const _phase = String.fromEnvironment('PASSKEY_GATE_PHASE', defaultValue: 'main');
-const _rp = String.fromEnvironment('PASSKEY_GATE_RP', defaultValue: 'http://localhost:8443/');
+enum _Phase { main, refused, webview }
+
+final _gate = TierInput.passkeyGate.on;
+final _phase = _Phase.values.byName(TierInput.passkeyPhase.value ?? 'main');
+final _rp = TierInput.passkeyRp.value ?? 'http://localhost:8443/';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -183,21 +186,21 @@ WebViewConfig config(SiteId siteId, {required PasskeyBackend backend}) =>
   testWidgets('native status', (tester) async {
     final status = await PasskeyNative.status();
     report('status', value: {
-      'phase': _phase,
+      'phase': _phase.name,
       'sdk': status.sdk,
       'feature': status.feature,
       'permission': status.permission,
       'available': status.available,
       'webViewSupport': status.webViewSupport,
     });
-    if (_phase != 'webview') {
+    if (_phase != _Phase.webview) {
       expect(status.available, isTrue,
           reason: 'Credential Manager must be usable here: sdk=${status.sdk} '
               'feature=${status.feature} permission=${status.permission}');
     }
   });
 
-  if (_phase == 'main') {
+  if (_phase == _Phase.main) {
     testWidgets('register, then sign in twice (G0, G2, G3)', (tester) async {
       WebViewController? c;
       await tester.pumpWidget(host([
@@ -268,7 +271,7 @@ WebViewConfig config(SiteId siteId, {required PasskeyBackend backend}) =>
     }, timeout: const Timeout(Duration(minutes: 8)));
   }
 
-  if (_phase == 'refused') {
+  if (_phase == _Phase.refused) {
     testWidgets('an untrusted app is refused with NotAllowedError (G4) (PASSKEY-011)', (tester) async {
       WebViewController? c;
       await tester.pumpWidget(host([
@@ -291,7 +294,7 @@ WebViewConfig config(SiteId siteId, {required PasskeyBackend backend}) =>
     }, timeout: const Timeout(Duration(minutes: 6)));
   }
 
-  if (_phase == 'webview') {
+  if (_phase == _Phase.webview) {
     testWidgets('the WebView\'s own FOR_BROWSER WebAuthn (best effort) (PASSKEY-010)', (tester) async {
       final status = await PasskeyNative.status();
       if (!status.webViewSupport) {

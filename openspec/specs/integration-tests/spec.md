@@ -49,12 +49,15 @@ so the desktop loops never see it. The emulator step builds one APK holding
 every `integration_test/*_test.dart` file
 (`scripts/integration_bundle.sh build android`), and each tier launches it
 once per file (`scripts/integration_bundle.sh run android`, through
-`tier_test` in `scripts/lib/android_tier.sh`), as the desktop loops do. The
-desktop app finds its file in `WEBSPACE_INTEGRATION_FILE`; an Android app
-inherits no environment from the host, so there the file is the route
-`flutter drive --route` launches it with. A tier that compiles in a
-`--dart-define` (TV, desktop window, passkey phases) and the adb-driven
-lifecycle tier still build their own. A broader mobile tier (iOS
+`tier_test` in `scripts/lib/android_tier.sh`), as the desktop loops do; the
+`android-tv` job builds its own for the TV and desktop window tiers. A launch
+names its file and the inputs its tier gives it (the TV tier, the desktop
+window tier, a passkey phase) as `<file>,KEY=VALUE,...`, each input named once
+by `TierInput` (`integration_test/helpers/tier_inputs.dart`), which fails the
+launch on a key it does not name. The desktop app reads that string from
+`WEBSPACE_INTEGRATION_LAUNCH`; an Android app inherits no environment from the
+host, so there it is the route `flutter drive --route` launches it with. Only
+the adb-driven lifecycle tier still builds its own app. A broader mobile tier (iOS
 Simulator) remains future scope and would extend the same boot setup
 rather than the desktop `-d` path.
 
@@ -378,7 +381,7 @@ step does, so adding a scenario per INTEG-008 needs no workflow edit on
 either target. It SHALL build the app once for all of them, as the
 Linux step does: `scripts/integration_bundle.sh build` writes one
 entrypoint holding every file and builds it, and each launch (`run`)
-runs the file `WEBSPACE_INTEGRATION_FILE` names.
+runs the file `WEBSPACE_INTEGRATION_LAUNCH` names.
 
 #### Scenario: macOS step runs every non-screenshot scenario
 

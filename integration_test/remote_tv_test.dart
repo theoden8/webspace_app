@@ -31,8 +31,9 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/widgets/remote_controls.dart';
 import 'bare_site.dart';
 import 'fixture_server.dart';
+import 'helpers/tier_inputs.dart';
 
-const _tvTier = bool.fromEnvironment('WS_TV_TIER');
+final _tvTier = TierInput.tvTier.on;
 
 const _channel = MethodChannel('org.codeberg.theoden8.webspace/remote_input');
 

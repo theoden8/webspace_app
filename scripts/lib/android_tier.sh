@@ -40,20 +40,20 @@ grant_when_installed() {
   ) &
 }
 
-# tier_test FILE... MINUTES [--grant PERM] [--define K=V]
+# tier_test FILE... MINUTES [--grant PERM] [--input KEY=VALUE]
 #
 # Each FILE on device_id under a hard wall-clock cap of MINUTES: a webview
 # mount can deadlock below the Dart timeout layer, where no test-side deadline
 # reaches it. A file runs from the app scripts/integration_bundle.sh built for
-# every file at once; with a define it builds its own, since a define is
-# compiled in and the bundle carries none. Each launch installs the app and
-# uninstalls it after, so each PERM is granted again before each file.
+# every file at once, told each input at launch (TierInput). Each launch
+# installs the app and uninstalls it after, so each PERM is granted again
+# before each file.
 tier_test() {
-  local files=() grants=() defines=() minutes="" status=0 rc f perm
+  local files=() grants=() inputs=() minutes="" status=0 rc f perm
   while [ $# -gt 0 ]; do
     case "$1" in
       --grant) grants+=("$2"); shift 2 ;;
-      --define) defines+=("--dart-define=$2"); shift 2 ;;
+      --input) inputs+=("$2"); shift 2 ;;
       *.dart) files+=("$1"); shift ;;
       *) minutes="$1"; shift ;;
     esac
@@ -62,13 +62,8 @@ tier_test() {
     echo "::group::$f"
     for perm in ${grants[@]+"${grants[@]}"}; do grant_when_installed "$perm"; done
     rc=0
-    if [ ${#defines[@]} -gt 0 ]; then
-      timeout -k 30s "${minutes}m" fvm flutter test "$f" -d "$device_id" \
-        --flavor fdebug "${defines[@]}" || rc=$?
-    else
-      timeout -k 30s "${minutes}m" bash "$ANDROID_TIER_BUNDLE" run android "$f" \
-        "${RUNNER_TEMP:-/tmp}/tier-$(basename "$f").log" || rc=$?
-    fi
+    timeout -k 30s "${minutes}m" bash "$ANDROID_TIER_BUNDLE" run android "$f" \
+      "${RUNNER_TEMP:-/tmp}/tier-$(basename "$f").log" ${inputs[@]+"${inputs[@]}"} || rc=$?
     if [ "$rc" -ne 0 ]; then
       status=$rc
       if [ "$rc" -eq 124 ]; then echo "::error::$f killed after ${minutes}m wall-clock cap"; fi

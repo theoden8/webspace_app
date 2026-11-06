@@ -16,4 +16,4 @@ adb_ shell wm dismiss-keyguard || true
 adb_ shell input keyevent 82 || true
 adb_ shell svc power stayon true || true
 
-run_tier integration_test/android_desktop_test.dart 20 --define WS_DESKTOP_TIER=true
+run_tier integration_test/android_desktop_test.dart 20 --input WS_DESKTOP_TIER=true

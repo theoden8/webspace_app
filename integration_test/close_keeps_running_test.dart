@@ -271,7 +271,7 @@ void main() {
       // again; named nothing, its entrypoint exits 64 instead.
       final exit = await tester.runAsync(() async {
         final second = await Process.start(Platform.resolvedExecutable, const [],
-            environment: const {'WEBSPACE_INTEGRATION_FILE': ''});
+            environment: const {'WEBSPACE_INTEGRATION_LAUNCH': ''});
         unawaited(second.stdout.drain<void>());
         unawaited(second.stderr.drain<void>());
         return second.exitCode.timeout(const Duration(seconds: 30),

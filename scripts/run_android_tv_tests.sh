@@ -7,4 +7,4 @@ set -euo pipefail
 . "$(dirname "$0")/lib/android_tier.sh"
 
 pick_device "${1:-}"
-run_tier integration_test/remote_tv_test.dart 20 --define WS_TV_TIER=true
+run_tier integration_test/remote_tv_test.dart 20 --input WS_TV_TIER=true

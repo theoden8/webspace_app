@@ -24,7 +24,6 @@ APP_ID=org.codeberg.theoden8.webspace.debug
 PROVIDER_ID=org.codeberg.theoden8.webspace.testprovider
 PROVIDER_SVC="$PROVIDER_ID/$PROVIDER_ID.TestProviderService"
 PORT=8443
-FLUTTER="${FLUTTER:-fvm flutter}"
 GRADLE="${GRADLE:-gradle}"
 OUT=build/passkey_gate
 mkdir -p "$OUT"
@@ -95,20 +94,23 @@ else
   fail G0-reverse "adb reverse not active"
 fi
 
-# `flutter test` counts its build against the 12-minute loading timeout, and
-# a cold runner spends half of that installing the NDK and CMake. Build once
-# first so each phase's build is incremental.
+# Each phase launches the APK scripts/integration_bundle.sh builds for every
+# file, its phase an input (TierInput); built here when no tier before this
+# one built it.
 echo "── build ──"
-if ! $FLUTTER build apk --debug --flavor fdebug -t integration_test/passkey_test.dart \
-    --dart-define=PASSKEY_GATE=true --dart-define=PASSKEY_GATE_PHASE=main > "$OUT/build.txt" 2>&1; then
+BUNDLE=build/integration_bundle/app
+if [ ! -f "$BUNDLE" ]; then
+  bash scripts/integration_bundle.sh build android integration_test/*_test.dart > "$OUT/build.txt" 2>&1
+fi
+if [ ! -f "$BUNDLE" ]; then
   tail -30 "$OUT/build.txt"
-  fail G0-build "the integration test APK did not build (see $OUT/build.txt)"
+  fail G0-build "the integration bundle did not build (see $OUT/build.txt)"
 fi
 
 # ── G1: both permissions are held ───────────────────────────────────────────
-# Read from an install of that build, before any phase: `flutter test`
-# uninstalls the app when it finishes, so after a phase there is nothing to read.
-if ! adb_ install -r -t build/app/outputs/flutter-apk/app-fdebug-debug.apk > "$OUT/install.txt" 2>&1; then
+# Read from an install of that APK, before any phase: each launch uninstalls
+# the app when it finishes, so after a phase there is nothing to read.
+if ! adb_ install -r -t "$(cat "$BUNDLE")" > "$OUT/install.txt" 2>&1; then
   fail G1-install "the gate APK did not install (see $OUT/install.txt)"
 fi
 adb_ shell dumpsys package "$APP_ID" > "$OUT/dumpsys_package.txt"
@@ -186,11 +188,10 @@ run_phase() {
   adb_ shell am force-stop "$APP_ID" >/dev/null 2>&1
   adb_ shell input keyevent KEYCODE_WAKEUP
   adb_ shell wm dismiss-keyguard
-  timeout -k 30s 20m $FLUTTER test integration_test/passkey_test.dart \
-    -d "$device_id" --flavor fdebug \
-    --dart-define=PASSKEY_GATE=true --dart-define=PASSKEY_GATE_PHASE="$phase" \
-    2>&1 | tee "$OUT/phase-$phase.txt"
-  local rc="${PIPESTATUS[0]}"
+  timeout -k 30s 20m bash scripts/integration_bundle.sh run android \
+    integration_test/passkey_test.dart "$OUT/phase-$phase.txt" \
+    PASSKEY_GATE=true PASSKEY_GATE_PHASE="$phase"
+  local rc=$?
   if [ "$rc" -ne 0 ]; then
     echo "── tapper, phase $phase ──"
     tail -20 "$OUT/tapper.log" 2>/dev/null || echo "(no tapper log)"
