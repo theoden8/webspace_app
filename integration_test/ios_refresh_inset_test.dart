@@ -10,7 +10,10 @@
 // in between leaves it at -60 once the spinner is gone. That top,
 // -adjustedContentInset.top, is what no plugin call reads, so a debug-only probe
 // in the Runner (ScrollInsetProbe) reads it; the scroll offset alone missed it
-// (the page can sit at 0 above the top it bounces back to).
+// (the page can sit at 0 above the top it bounces back to). The fork's frame
+// setter and keyboard handler leave contentInset alone while the refresh
+// control refreshes (its commit cf9223a, "ios: leave contentInset alone while
+// the refresh control refreshes").
 //
 // The control arm refreshes the same page with no resize, so a page that
 // rests below its top for another reason fails every arm. The others resize
