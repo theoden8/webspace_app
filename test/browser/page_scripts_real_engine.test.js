@@ -11,7 +11,10 @@ const { startBlankServer, originOf } = require('./helpers/blank_server');
 
 const browser = setupBrowser();
 
-const PAGE = '<!doctype html><html><head></head><body><p>x</p></body></html>';
+// The icon is declared inline, so the engine fetches no /favicon.ico the
+// observer would count as one of the page's loads.
+const PAGE = '<!doctype html><html><head><link rel="icon" href="data:,"></head>'
+  + '<body><p>x</p></body></html>';
 
 let host = null;
 test.before(async () => {
@@ -60,9 +63,9 @@ function bridge() {
         return Promise.resolve({ bits64: btoa('\xff'.repeat(8)), bitCount: 64, k: 1 });
       }
       if (name === 'blockCheckBatch') {
-        return Promise.resolve(arg.map(function (url) {
-          if (url.indexOf('redirect.invalid') >= 0) return 'data:text/plain,stub';
-          return url.indexOf('blocked.invalid') >= 0;
+        return Promise.resolve(arg.map(function (ask) {
+          if (ask.url.indexOf('redirect.invalid') >= 0) return 'data:text/plain,stub';
+          return ask.url.indexOf('blocked.invalid') >= 0;
         }));
       }
       return Promise.resolve(null);
@@ -96,13 +99,13 @@ test('a redirect verdict serves the stub body (CB-010)', async (t) => {
     });
 });
 
-test('the observer reports the hosts the page loaded from', async (t) => {
+test('the observer counts the requests the page loaded, by host (CB-012)', async (t) => {
   await withPage(t, [bridge, pageJs('block_resource_observer')],
     async (page) => {
       await new Promise((r) => setTimeout(r, 400));
       const batches = await page.evaluate(() => window.__calls
         .filter(([name]) => name === 'blockResourceLoadedBatch')
-        .map(([, hosts]) => hosts));
-      assert.deepEqual(batches, [[new URL(host.url).hostname]]);
+        .map(([, hosts]) => ({ ...hosts })));
+      assert.deepEqual(batches, [{ [new URL(host.url).hostname]: 1 }]);
     });
 });

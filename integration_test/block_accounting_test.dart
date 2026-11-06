@@ -1,6 +1,7 @@
 // Ground truth for the block counts (CB-012, DNS-014): a page whose every
 // request is declared below, served from a loopback server that logs what
-// arrives. Each request counts once in the site's stats, so:
+// arrives, its icon inline so the engine fetches none of its own. Each
+// request counts once in the site's stats, so:
 //
 //   allowed == the requests that arrived
 //   blocked == the requests made less those that arrived, each against the
@@ -98,7 +99,8 @@ String _page({required int port}) {
   final chain = fetches
       .map((u) => ".then(function(){return fetch('$u').catch(function(){});})")
       .join();
-  return '<!doctype html><html><head><title>accounting</title>\n$head'
+  return '<!doctype html><html><head><title>accounting</title>\n'
+      '<link rel="icon" href="data:,">\n$head'
       '</head><body>\n$body<script>Promise.resolve()$chain'
       '.then(function(){window.__wsAcctDone=true;});</script>\n</body></html>';
 }
@@ -144,12 +146,6 @@ void main() {
       onEvent: (req) {
         final path = req.uri.path;
         final res = req.response..headers.set('Cache-Control', 'no-store');
-        // A browser's own icon fetch is no request of the page.
-        if (path == '/favicon.ico') {
-          res.statusCode = HttpStatus.notFound;
-          unawaited(res.close());
-          return;
-        }
         arrived.add('${req.headers.host?.split(':').first}$path');
         if (path.endsWith('.js')) {
           res
@@ -262,6 +258,11 @@ void main() {
           reason: '${target(r)} is declared ${r.fate.name}');
     }
     expect(arrived, contains('localhost$_pagePath'));
+    expect(
+        arrived.where((a) =>
+            a != 'localhost$_pagePath' && !_requests.map(target).contains(a)),
+        isEmpty,
+        reason: 'nothing arrives the page did not declare: its icon is inline');
 
     // The counts are the truth.
     expect(stats.allowed, arrived.length,
