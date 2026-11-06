@@ -18,15 +18,15 @@ void main() {
   tearDown(DnsBlockService.instance.resetForTest);
 
   testWidgets(
-      'DEVTOOLS-008: a site\'s Developer Tools show its cookies, DNS and '
-      'scripts', (tester) async {
+      'DEVTOOLS-008: a site\'s Developer Tools show its cookies, blocking log '
+      'and scripts', (tester) async {
     await pumpLocalized(tester,
         home: DevToolsScreen(
           host: WebViewModelDevToolsHost(
               WebViewModel(initUrl: 'https://example.com/')),
           isolation: fakeContainers(),
         ));
-    for (final label in ['Console', 'Cookies', 'DNS', 'Logs']) {
+    for (final label in ['Console', 'Cookies', 'Blocking', 'Logs']) {
       expect(_tab(label), findsOneWidget, reason: label);
     }
     expect(find.byTooltip('Scripts'), findsOneWidget);
@@ -34,7 +34,7 @@ void main() {
 
   testWidgets(
       'DEVTOOLS-008: over a nested screen they show the console and the logs, '
-      'not the parent site\'s cookies, DNS or scripts', (tester) async {
+      'not the parent site\'s cookies, blocking log or scripts', (tester) async {
     final host = NestedDevToolsHost(
       name: 'other.example',
       siteId: SiteId('site-1'),
@@ -46,7 +46,7 @@ void main() {
     expect(_tab('Console'), findsOneWidget);
     expect(_tab('Logs'), findsOneWidget);
     expect(_tab('Cookies'), findsNothing);
-    expect(_tab('DNS'), findsNothing);
+    expect(_tab('Blocking'), findsNothing);
     expect(find.byTooltip('Scripts'), findsNothing);
     expect(find.byTooltip('Export'), findsOneWidget,
         reason: 'Share HTML and Save Icon stay');
