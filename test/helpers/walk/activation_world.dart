@@ -359,6 +359,15 @@ final class DuplicateTab extends SiteAction {
   String toString() => 'DuplicateTab($slot)';
 }
 
+/// The newest close of the site at [slot] taken back (`reopen`, TAB-022),
+/// left running; nothing when it has none.
+final class ReopenTab extends SiteAction {
+  const ReopenTab(this.slot);
+  final int slot;
+  @override
+  String toString() => 'ReopenTab($slot)';
+}
+
 /// A reset lands the site at [slot] at home (`landOnHomeTab`, TAB-014),
 /// left running.
 final class HomeLand extends SiteAction {
@@ -1124,6 +1133,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     NewTab() ||
     CloseTab() ||
     DuplicateTab() ||
+    ReopenTab() ||
     HomeLand() ||
     OwnerRun() ||
     ChildTab() ||
@@ -1503,9 +1513,13 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     return label;
   }
 
-  /// A duplicate writes its source's history under its copy's key.
+  /// A duplicate writes its source's history under its copy's key, and a
+  /// reopen the closed tab's under the reopened one's (TAB-022).
   void _onSave(String key, {required Uint8List state}) {
-    if (_flowActions[currentFlow()] is! DuplicateTab) return;
+    if (_flowActions[currentFlow()] is! DuplicateTab &&
+        _flowActions[currentFlow()] is! ReopenTab) {
+      return;
+    }
     final label = _labelOf(state);
     final tab = key.substring(key.indexOf('.') + 1);
     if (tab != label) _copyOf[tab] = label;
@@ -1701,6 +1715,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     NewTab() => ActivationStep.newTab,
     CloseTab() => ActivationStep.closeTab,
     DuplicateTab() => ActivationStep.duplicateTab,
+    ReopenTab() => ActivationStep.reopenTab,
     HomeLand() => ActivationStep.homeLanding,
     OwnerRun() => ActivationStep.ownerRun,
     ChildTab() => ActivationStep.childTab,
@@ -2097,6 +2112,11 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           _offScreenTabInput(at(slot));
           _track(tabs.duplicateTab(at(slot)));
         }
+      case ReopenTab(:final slot):
+        if (n > 0) {
+          final closed = tabs.recentlyClosed.latestOf(at(slot).siteId);
+          if (closed != null) _track(tabs.reopen(closed));
+        }
       case HomeLand(:final slot):
         if (n > 0) _track(tabs.landOnHomeTab(at(slot)));
       case OwnerRun(:final slot):
@@ -2267,6 +2287,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           NewTab() ||
           CloseTab() ||
           DuplicateTab() ||
+          ReopenTab() ||
           HomeLand() ||
           OwnerRun() ||
           ChildTab() ||

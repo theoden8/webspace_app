@@ -146,6 +146,12 @@ void main() {
           isA<OpenNewTab>(),
         );
         expect(
+          await chord(LogicalKeyboardKey.keyT,
+              holding: [primary, LogicalKeyboardKey.shiftLeft]),
+          isA<ReopenClosedTab>(),
+          reason: 'TAB-022: the newest closed tab back, as browsers have it',
+        );
+        expect(
           await chord(LogicalKeyboardKey.keyW, holding: [primary]),
           isA<CloseActiveTab>(),
         );
@@ -292,9 +298,11 @@ void main() {
           await press(
             LogicalKeyboardKey.keyT,
             on: convention,
-            holding: [primary, shift],
+            holding: [primary, alt],
           ),
           isNull,
+          reason: 'an extra modifier is not New tab; with Shift it reopens '
+              'a closed tab (TAB-022)',
         );
         expect(await press(LogicalKeyboardKey.keyT, on: convention), isNull);
       });

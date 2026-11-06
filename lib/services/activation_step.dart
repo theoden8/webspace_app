@@ -29,6 +29,7 @@ enum PlatformCall {
   navStateSave('WebViewStateStorage.saveState'),
   navStateLoad('WebViewStateStorage.loadState'),
   navStateRemove('WebViewStateStorage.removeState'),
+  navStateTake('WebViewStateStorage.takeState'),
   navStateRemoveForSite('WebViewStateStorage.removeStatesForSite'),
   navStateRemoveOrphans('WebViewStateStorage.removeOrphans'),
   navStateSiteIds('WebViewStateStorage.siteIds'),
@@ -461,10 +462,11 @@ enum ActivationStep {
   /// takes over.
   tabClosed(outcomes: {StepOutcome.end, StepOutcome.rebind}),
 
-  /// A closed tab's saved back stack removed, once no list holds it.
+  /// A closed tab's saved back stack removed, once no list holds it, and
+  /// kept in memory for a reopen (TAB-022).
   tabRemoveReply(
     outcomes: {StepOutcome.more, StepOutcome.end},
-    calls: {PlatformCall.navStateRemove},
+    calls: {PlatformCall.navStateTake},
   ),
 
   /// The duplicate's source read: the webview when loaded, else its file.
@@ -517,6 +519,18 @@ enum ActivationStep {
 
   /// The parked child joins its site's list, and the page offers it.
   parkLand(outcomes: {StepOutcome.go}),
+
+  /// A closed tab comes back with its history (TAB-022); it waits for a
+  /// free gate, so an undo is never lost.
+  reopenTab(outcomes: {StepOutcome.go}),
+
+  /// The reopened tab's landing: the site it runs as and its fresh id,
+  /// fixed before its file is written under that site's key.
+  reopenLand(outcomes: {StepOutcome.go}),
+  reopenSaveReply(calls: {PlatformCall.navStateSave}),
+
+  /// The reopened tab joins its site's list where it stood.
+  reopenInsert(outcomes: {StepOutcome.go}),
 
   /// The reroute's flips, in its input's turn. The tab on screen moves its
   /// slot to the other site at once: under one process-wide proxy the slot

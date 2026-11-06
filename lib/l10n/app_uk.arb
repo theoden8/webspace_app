@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "Перейти",
   "tabsInSite": "У {site}",
   "tabsMoreInSite": "{count, plural, one{Ще {count} вкладка у {site}} few{Ще {count} вкладки у {site}} many{Ще {count} вкладок у {site}} other{Ще {count} вкладки у {site}}}",
+  "tabsClosedNamed": "Закрито «{title}»",
+  "tabsUndoClose": "Скасувати",
   "tabsWhereYouWere": "де ви були",
   "tabsRunsAs": "як {site}",
   "tabsLinkOutsideSite": "{host} належить іншому сайту, тому відкривається поверх цього, а не у вкладці",

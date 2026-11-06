@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "מעבר",
   "tabsInSite": "ב-{site}",
   "tabsMoreInSite": "{count, plural, =1{עוד כרטיסייה אחת ב-{site}} two{עוד שתי כרטיסיות ב-{site}} other{עוד {count} כרטיסיות ב-{site}}}",
+  "tabsClosedNamed": "„{title}” נסגר",
+  "tabsUndoClose": "ביטול",
   "tabsWhereYouWere": "איפה שהיית",
   "tabsRunsAs": "בתור {site}",
   "tabsLinkOutsideSite": "{host} שייך לאתר אחר, ולכן הוא נפתח מעל האתר הזה ולא בכרטיסייה",

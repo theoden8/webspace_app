@@ -49,6 +49,8 @@ const CLASSIFIED = {
     'A secure-storage write on the device.',
   'WebViewStateStorage.removeState':
     'A secure-storage delete on the device.',
+  'WebViewStateStorage.takeState':
+    'A secure-storage read and delete on the device.',
   'WebViewController.saveState':
     'A WebKit/WebView saveState on the main thread.',
   'WebViewController.clearCache':

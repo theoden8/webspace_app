@@ -29,6 +29,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
+import 'package:webspace/services/recently_closed.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/services/tab_list_engine.dart';
 import 'package:webspace/services/tab_return_engine.dart';
@@ -67,10 +68,17 @@ class TabsSheetSite {
 /// the way back from the tab on screen (TAB-019).
 typedef TabsSheetListing = ({List<TabsSheetSite> sites, TabReturn? wayBack});
 
-/// A close asked from the sheet. Completes once it has landed, with the
-/// listing read afresh.
-typedef TabsSheetClose = Future<TabsSheetListing> Function(WebViewModel site,
+/// What a close asked from the sheet left: the listing read afresh, and
+/// what the close kept for a reopen, if anything (TAB-022).
+typedef TabsSheetClosed = ({TabsSheetListing listing, ClosedTabs? kept});
+
+/// A close asked from the sheet. Completes once it has landed.
+typedef TabsSheetClose = Future<TabsSheetClosed> Function(WebViewModel site,
     {required TabId tabId});
+
+/// A close taken back from the sheet (TAB-022). Completes once its tabs are
+/// back, with the listing read afresh.
+typedef TabsSheetReopen = Future<TabsSheetListing> Function(ClosedTabs closed);
 
 class TabsSheet extends StatefulWidget {
   const TabsSheet({
@@ -82,6 +90,7 @@ class TabsSheet extends StatefulWidget {
     this.onWebSearch,
     required this.onCloseTab,
     required this.onCloseSubtree,
+    this.onReopen,
     this.onMoveTab,
     this.onMoveSite,
     this.wayBack,
@@ -109,6 +118,10 @@ class TabsSheet extends StatefulWidget {
   final TabsSheetClose onCloseTab;
   final TabsSheetClose onCloseSubtree;
 
+  /// Takes back a close made here, from the bar each close shows (TAB-022);
+  /// null shows none.
+  final TabsSheetReopen? onReopen;
+
   /// A tab dragged onto a row or past the last row (TAB-015). Returns whether
   /// the move was made. Null leaves the rows where they are.
   final bool Function(WebViewModel site,
@@ -127,6 +140,11 @@ class TabsSheet extends StatefulWidget {
   @override
   State<TabsSheet> createState() => _TabsSheetState();
 }
+
+/// How a row is set: whether it drags within its tree, whether its tree
+/// keeps a column for collapse chevrons (a flat tree has none), and whether
+/// it stands for a site with one tab (TAB-021).
+typedef _RowShape = ({bool draggable, bool gutter, bool asSite});
 
 /// What a drag carries: the tab, its site, and the ids it may not land in.
 class _DraggedTab {
@@ -173,8 +191,31 @@ class _TabsSheetState extends State<TabsSheet> {
   TabDropZone? _dropZone;
   Timer? _autoScroll;
 
+  /// How tightly the rows are set (TAB-021): decided once the comfortable
+  /// list has laid out, from whether it scrolls, and held until the scope
+  /// changes, so a close never moves the rows under the finger.
+  /// The close the sheet offers to take back, and when the offer ends: it
+  /// stays while a screen reader drives the app, as an action SnackBar does
+  /// (A11Y-015).
+  ClosedTabs? _undo;
+  Timer? _undoEnds;
+
+  TabRowDensity? _density;
+  TabRowDensity get _rows => _density ?? TabRowDensity.comfortable;
+  bool _densityAsked = false;
+
+  void _settleDensity() {
+    _densityAsked = false;
+    if (!mounted || _density != null) return;
+    final scrolls =
+        _scroll.hasClients && _scroll.position.maxScrollExtent > 0;
+    setState(() => _density =
+        scrolls ? TabRowDensity.compact : TabRowDensity.comfortable);
+  }
+
   @override
   void dispose() {
+    _undoEnds?.cancel();
     _autoScroll?.cancel();
     _scroll.dispose();
     super.dispose();
@@ -197,6 +238,11 @@ class _TabsSheetState extends State<TabsSheet> {
     final site = _site;
     final title = widget.title;
     if (site == null && title == null) return const SizedBox.shrink();
+    if (_density == null && !_densityAsked) {
+      _densityAsked = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _settleDensity());
+    }
+    final scoped = site != null && _shown.length > 1;
     return SafeArea(
       top: false,
       child: ConstrainedBox(
@@ -226,30 +272,46 @@ class _TabsSheetState extends State<TabsSheet> {
                     )
                   : _header(site, loc: loc, theme: theme),
             ),
-            if (site != null && _shown.length > 1)
-              _scopeSwitch(loc, theme: theme),
             Flexible(
               child: ListView(
                 key: _listKey,
                 controller: _scroll,
                 shrinkWrap: true,
                 padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
-                children: site == null || _allSites
-                    ? _allSitesRows(loc, theme: theme)
-                    : [
-                        ..._rowsFor(site, loc: loc, theme: theme),
-                        ..._otherTrees(site, loc: loc, theme: theme),
-                      ],
+                children: [
+                  if (site == null || _allSites)
+                    ..._allSitesRows(loc, theme: theme)
+                  else ...[
+                    ..._rowsFor(site, loc: loc, theme: theme),
+                    ..._otherTrees(site, loc: loc, theme: theme),
+                  ],
+                  // The last line, read by whoever reaches the end; it takes
+                  // no fixed strip from the rows.
+                  Padding(
+                    padding: const EdgeInsets.all(Spacing.sm),
+                    child: Text(
+                      loc.tabsMemoryNote,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const Divider(height: Chrome.hairlineWidth),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  Spacing.lg, Spacing.sm, Spacing.lg, Spacing.sm),
-              child: Text(
-                loc.tabsMemoryNote,
-                style: theme.textTheme.bodySmall,
-              ),
+            AnimatedSwitcher(
+              duration: Motion.reveal,
+              child: switch (_undo) {
+                final kept? => _undoBar(kept, loc: loc, theme: theme),
+                null when scoped => Column(
+                    key: const ValueKey('scope'),
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Divider(height: Chrome.hairlineWidth),
+                      _scopeSwitch(loc, theme: theme),
+                    ],
+                  ),
+                null => const SizedBox.shrink(),
+              },
             ),
           ],
         ),
@@ -343,26 +405,51 @@ class _TabsSheetState extends State<TabsSheet> {
         padding: const EdgeInsets.fromLTRB(
             Spacing.lg, Spacing.xs, Spacing.lg, Spacing.xs),
         child: SegmentedButton<bool>(
+          style: const ButtonStyle(visualDensity: VisualDensity.compact),
           showSelectedIcon: false,
           segments: [
             ButtonSegment(value: false, label: Text(loc.tabsThisSite)),
             ButtonSegment(value: true, label: Text(loc.tabsAllSites)),
           ],
           selected: {_allSites},
-          onSelectionChanged: (s) => setState(() => _allSites = s.first),
+          onSelectionChanged: (s) => setState(() {
+            _allSites = s.first;
+            _density = null;
+          }),
         ),
       );
 
   List<Widget> _allSitesRows(AppLocalizations loc, {required ThemeData theme}) {
     final out = <Widget>[];
+    var afterTree = false;
     for (final s in _shown) {
+      // TAB-021: a site with one tab is one row, which names the site as
+      // its heading would have; it has nothing to drag within its tree, so
+      // a long press on it moves the site (TAB-016).
+      if (s.model.tabs.length == 1) {
+        if (afterTree && widget.onMoveTab == null) {
+          out.add(SizedBox(height: _rows.headingTop));
+        }
+        final row = _row(s,
+            row: TabLifecycleEngine.treeOrder(s.model.tabs).single,
+            loc: loc,
+            theme: theme,
+            shape: (draggable: false, gutter: false, asSite: true));
+        out.add(widget.onMoveSite == null
+            ? row
+            : _siteDragAndDrop(s,
+                drawn: row, label: s.model.getDisplayName(), theme: theme));
+        afterTree = false;
+        continue;
+      }
       final label =
           loc.tabsSheetTitle(s.model.getDisplayName(), s.model.tabs.length);
       final heading = _heading(label, theme: theme, site: s);
       out.add(widget.onMoveSite == null
           ? heading
-          : _siteDragAndDrop(s, heading: heading, label: label, theme: theme));
+          : _siteDragAndDrop(s, drawn: heading, label: label, theme: theme));
       out.addAll(_rowsFor(s, loc: loc, theme: theme));
+      afterTree = true;
     }
     return out;
   }
@@ -372,8 +459,8 @@ class _TabsSheetState extends State<TabsSheet> {
   Widget _heading(String label,
           {required ThemeData theme, TabsSheetSite? site}) =>
       Padding(
-        padding: const EdgeInsets.fromLTRB(
-            Spacing.sm, Spacing.md, Spacing.sm, Spacing.xs),
+        padding: EdgeInsets.fromLTRB(
+            Spacing.sm, _rows.headingTop, Spacing.sm, _rows.headingBottom),
         child: Row(
           children: [
             if (site != null) ...[
@@ -439,7 +526,7 @@ class _TabsSheetState extends State<TabsSheet> {
         onTap: () => setState(() => _unfolded.add(other.model.siteId)),
         borderRadius: BorderRadius.circular(Radii.lg),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
+          padding: EdgeInsets.symmetric(vertical: _rows.foldPadding),
           child: Row(
             children: [
               const SizedBox(
@@ -460,10 +547,11 @@ class _TabsSheetState extends State<TabsSheet> {
         ),
       );
 
-  /// A long press lifts a site's heading; a drop on another heading puts the
-  /// site in that one's place, as the drawer and the tab strip do (TAB-016).
+  /// A long press lifts a site's heading, or a one-tab site's row
+  /// (TAB-021); a drop on another puts the site in that one's place, as the
+  /// drawer and the tab strip do (TAB-016).
   Widget _siteDragAndDrop(TabsSheetSite site,
-      {required Widget heading,
+      {required Widget drawn,
       required String label,
       required ThemeData theme}) {
     final id = site.model.siteId;
@@ -490,10 +578,10 @@ class _TabsSheetState extends State<TabsSheet> {
           onDraggableCanceled: (_, _) => _stopAutoScroll(),
           feedback: _feedback(label, theme: theme),
           childWhenDragging:
-              Opacity(opacity: TabRows.draggingOpacity, child: heading),
+              Opacity(opacity: TabRows.draggingOpacity, child: drawn),
           child: Stack(
             children: [
-              heading,
+              drawn,
               if (from != null)
                 Positioned(
                   left: 0,
@@ -534,8 +622,69 @@ class _TabsSheetState extends State<TabsSheet> {
   /// from the listing the host hands back once the close has landed.
   Future<void> _close(TabsSheetClose close,
       {required WebViewModel site, required TabId tabId}) async {
-    final listing = await close(site, tabId: tabId);
+    final (:listing, :kept) = await close(site, tabId: tabId);
+    if (!mounted) return;
+    setState(() => _listing = listing);
+    if (kept != null && widget.onReopen != null) _offerUndo(kept);
+  }
+
+  /// The bar that takes [kept] back, in place of the scope switch until
+  /// the offer ends or another close replaces it. The sheet draws it
+  /// itself: a SnackBar shows only through a Scaffold, which here would
+  /// take the taps meant for the rows beside it.
+  void _offerUndo(ClosedTabs kept) {
+    _undoEnds?.cancel();
+    _undoEnds = MediaQuery.of(context).accessibleNavigation
+        ? null
+        : Timer(Motion.undoOffer, () {
+            if (mounted) setState(() => _undo = null);
+          });
+    setState(() => _undo = kept);
+  }
+
+  Future<void> _takeBack(ClosedTabs kept) async {
+    _undoEnds?.cancel();
+    setState(() => _undo = null);
+    final listing = await widget.onReopen!(kept);
     if (mounted) setState(() => _listing = listing);
+  }
+
+  Widget _undoBar(ClosedTabs kept,
+      {required AppLocalizations loc, required ThemeData theme}) {
+    final scheme = theme.colorScheme;
+    final tab = kept.first;
+    return Semantics(
+      key: ObjectKey(kept),
+      liveRegion: true,
+      container: true,
+      child: Material(
+        color: scheme.inverseSurface,
+        child: Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(
+              Spacing.lg, Spacing.xs, Spacing.sm, Spacing.xs),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  loc.tabsClosedNamed(
+                      tab.title?.isNotEmpty == true ? tab.title! : tab.url),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: scheme.onInverseSurface),
+                ),
+              ),
+              TextButton(
+                onPressed: () => unawaited(_takeBack(kept)),
+                style: TextButton.styleFrom(
+                    foregroundColor: scheme.inversePrimary),
+                child: Text(loc.tabsUndoClose),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _dropSite(SiteId siteId, {required SiteId ontoSiteId}) {
@@ -563,6 +712,11 @@ class _TabsSheetState extends State<TabsSheet> {
      required bool draggable}) {
     final hidden = <String>{};
     final out = <Widget>[];
+    final shape = (
+      draggable: draggable,
+      gutter: rows.any((r) => r.childCount > 0),
+      asSite: false,
+    );
     for (final row in rows) {
       final parentId = row.tab.parentId;
       // A collapsed tab hides its whole subtree, so a descendant is hidden
@@ -575,8 +729,7 @@ class _TabsSheetState extends State<TabsSheet> {
         hidden.add(row.tab.id);
         continue;
       }
-      out.add(
-          _row(site, row: row, loc: loc, theme: theme, draggable: draggable));
+      out.add(_row(site, row: row, loc: loc, theme: theme, shape: shape));
     }
     return out;
   }
@@ -585,7 +738,7 @@ class _TabsSheetState extends State<TabsSheet> {
       {required TabRow row,
       required AppLocalizations loc,
       required ThemeData theme,
-      required bool draggable}) {
+      required _RowShape shape}) {
     final tab = row.tab;
     // A hosted tab runs as another site (LIR-018), a foreign one as its owner
     // in another site's domain (LIR-034): the row shows the site it runs as
@@ -593,9 +746,19 @@ class _TabsSheetState extends State<TabsSheet> {
     final host = site.model.hostOf(tab);
     final identity = host ?? site.model;
     final domain = addressOf(tab.url, loc: loc);
-    final runsAs = host == null && !site.model.isForeignTab(tab)
+    final name = site.model.getDisplayName();
+    final pageTitle = tab.title?.isNotEmpty == true ? tab.title! : tab.url;
+    // A one-tab site's row names the site first, so its second line is the
+    // page: the title, or the domain where the title only repeats the name.
+    final page = !shape.asSite
         ? domain
-        : '${loc.tabsRunsAs(identity.getDisplayName())} · $domain';
+        : tab.title?.isNotEmpty == true &&
+                tab.title!.toLowerCase() != name.toLowerCase()
+            ? tab.title!
+            : domain;
+    final runsAs = host == null && !site.model.isForeignTab(tab)
+        ? page
+        : '${loc.tabsRunsAs(identity.getDisplayName())} · $page';
     final secondLine =
         _listing.wayBack?.leadsBackTo(site.model.siteId, tabId: tab.id) ?? false
             ? '$runsAs · ${loc.tabsWhereYouWere}'
@@ -605,7 +768,7 @@ class _TabsSheetState extends State<TabsSheet> {
     final isOnScreen = isLoaded && site.isCurrent;
     final collapseKey = _keyOf(site, tabId: tab.id);
     final collapsed = _collapsed.contains(collapseKey);
-    final shape = BorderRadius.circular(Radii.lg);
+    final corners = BorderRadius.circular(Radii.lg);
     Widget close(String tooltip,
             {required IconData icon, required TabsSheetClose onClose}) =>
         IconButton(
@@ -618,13 +781,15 @@ class _TabsSheetState extends State<TabsSheet> {
         );
     final rowBody = InkWell(
       onTap: _closing(() => widget.onOpenTab(site.model, tabId: tab.id)),
-      borderRadius: shape,
+      borderRadius: corners,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: Spacing.xs),
+        padding: EdgeInsets.symmetric(vertical: _rows.rowPadding),
         child: Row(
           children: [
-            SizedBox(width: row.depth * Spacing.lg),
             SizedBox(
+                width: row.depth * _rows.indent +
+                    (shape.gutter ? 0 : Spacing.sm)),
+            if (shape.gutter) SizedBox(
               width: TapTargets.compact,
               height: TapTargets.compact,
               child: row.childCount == 0
@@ -662,10 +827,13 @@ class _TabsSheetState extends State<TabsSheet> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            tab.title?.isNotEmpty == true ? tab.title! : tab.url,
+                            shape.asSite ? name : pageTitle,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodyMedium,
+                            style: shape.asSite
+                                ? theme.textTheme.bodyMedium
+                                    ?.copyWith(fontWeight: FontWeight.w500)
+                                : theme.textTheme.bodyMedium,
                           ),
                           Text(
                             // The whole subtree goes when a tab is collapsed,
@@ -705,13 +873,13 @@ class _TabsSheetState extends State<TabsSheet> {
           ? Ink(
               decoration: BoxDecoration(
                 color: theme.colorScheme.secondaryContainer,
-                borderRadius: shape,
+                borderRadius: corners,
               ),
               child: rowBody,
             )
           : rowBody,
     );
-    if (!draggable || widget.onMoveTab == null) return drawn;
+    if (!shape.draggable || widget.onMoveTab == null) return drawn;
     return _dragAndDrop(site, row: row, drawn: drawn, theme: theme);
   }
 
@@ -760,7 +928,7 @@ class _TabsSheetState extends State<TabsSheet> {
         final zone = candidates.isNotEmpty && _dropKey == key ? _dropZone : null;
         final indent = (row.depth +
                 (zone == TabDropZone.after && expanded ? 1 : 0)) *
-            Spacing.lg;
+            _rows.indent;
         final line = theme.colorScheme.primary;
         return LongPressDraggable<_DraggedTab>(
           data: dragged,
@@ -814,7 +982,7 @@ class _TabsSheetState extends State<TabsSheet> {
       onLeave: (_) => _unhover(key),
       onAcceptWithDetails: (d) => _drop(d.data, drop: const TabDrop.toEnd()),
       builder: (context, candidates, _) => SizedBox(
-        height: Spacing.xl,
+        height: _rows.endTarget,
         child: candidates.isNotEmpty
             ? Align(
                 alignment: Alignment.topCenter,

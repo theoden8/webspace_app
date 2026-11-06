@@ -243,9 +243,11 @@ abstract final class TabTable {
     ),
     name: 'shut',
   );
+  /// The close the engine decides, once: it moves the survivors up as it
+  /// decides, so a second decision would find them moved already.
   static TabCloseResult _closeOf(StepView<TabFlow> c) {
     final f = _flow.from(c);
-    return f.subtree
+    return f.result ??= f.subtree
         ? TabLifecycleEngine.closeSubtree(
             f.site.tabs,
             activeTabId: f.site.activeTabId,
@@ -559,6 +561,24 @@ abstract final class TabTable {
     ),
     name: 'op',
   );
+  /// Whether the close kept the tab's history: the model either, the code
+  /// whether its removal took any bytes.
+  static final _eachKept = Pick<bool, TabFlow>(
+    Expr.constant(const [true, false], tla: 'BOOLEAN'),
+    name: 'kept',
+    first: (c, {required among}) =>
+        _flow.from(c).reopening?.history?.isNotEmpty ?? false,
+  );
+  static final _withReopened = Expr.checked(
+    rule: _tabIds(_site.value).union(_copy.value.asSet),
+    run: (c) => TabLifecycleEngine.reopen(
+      _site.of(c).tabs,
+      tab: _flow.from(c).fresh!,
+      closed: _flow.from(c).reopening!,
+    ),
+    key: (SiteTab t) => t.id,
+    why: "a reopen installs the site's tabs and the reopened one",
+  );
   static final _withChild = Expr.checked(
     rule: _tabIds(_site.value).union(_mintSite.asSet),
     run: (c) => TabLifecycleEngine.insertChild(_site.of(c).tabs, tab: _flow.from(c).fresh!),
@@ -755,10 +775,12 @@ abstract final class TabTable {
           then: [
             Note((c) {
               final f = _flow.from(c);
-              f.result = _closeOf(c);
+              final result = _closeOf(c);
               f.dropped = {
-                for (final id in f.result!.closedIds) id: f.site.stateKeyForTab(id),
+                for (final id in result.closedIds) id: f.site.stateKeyForTab(id),
               };
+              f.closed = TabLifecycleEngine.closedFrom(f.site.tabs,
+                  site: f.site.siteId, result: result);
             }),
             ..._starts,
             _tab.becomes(_chosenTab),
@@ -892,6 +914,25 @@ abstract final class TabTable {
           next: to(TabPlace.pLand),
         ),
       ),
+      // reopenTab(site): a closed tab back with its history (TAB-022): its
+      // landing fixes the site it runs as and its id (reLand), its file is
+      // written back (reSave) and it joins the list (reInsert). It lands
+      // only on a free gate: the code waits for one, since an undo may not
+      // be lost.
+      TabPlace.reopenTab => Step.input(
+        ActivationStep.reopenTab,
+        enabled: ~tabBusy.value,
+        pick: _eachChildOwner,
+        site: _childOwner,
+        otherwise: Otherwise(
+          StepOutcome.go,
+          then: [
+            _kind.becomes(Expr.constant(FlowKind.tab)),
+            _site.becomes(_childOwner),
+          ],
+          next: to(TabPlace.reLand),
+        ),
+      ),
       TabPlace.tCap ||
       TabPlace.tCapSave ||
       TabPlace.tNav ||
@@ -909,6 +950,9 @@ abstract final class TabTable {
       TabPlace.cLand ||
       TabPlace.cOpen ||
       TabPlace.pLand ||
+      TabPlace.reLand ||
+      TabPlace.reSave ||
+      TabPlace.reInsert ||
       TabPlace.done => const Leaves(),
     },
   );
@@ -956,6 +1000,7 @@ abstract final class TabTable {
       TabPlace.ownerRun ||
       TabPlace.childTab ||
       TabPlace.parkChild ||
+      TabPlace.reopenTab ||
       TabPlace.done => const Leaves(),
       // The outgoing tab's back stack captured under the webview's tab
       // (Capture); a target closed meanwhile ends the switch.
@@ -1032,7 +1077,9 @@ abstract final class TabTable {
       ),
       // The close decided: the site left with no tab lands on a fresh one
       // at home, a closed active tab hands the webview to the engine's next,
-      // a parked one just leaves the list. The closed tabs' files go after.
+      // a parked one just leaves the list. A closed tab on screen is
+      // captured first (tCap), so its history is in its file for the
+      // removal to keep (TAB-022). The closed tabs' files go after.
       TabPlace.tClosed => Step(
         ActivationStep.tabClosed,
         holds: null,
@@ -1047,7 +1094,7 @@ abstract final class TabTable {
               _tab.becomes(_mintSite),
               _rest.becomes(_onlyFresh),
             ],
-            next: to(TabPlace.tNav),
+            next: to(TabPlace.tCap),
           ),
           Branch(
             StepOutcome.rebind,
@@ -1055,7 +1102,7 @@ abstract final class TabTable {
             pick: _nextSurvivor,
             tab: _nextSurvivor.it,
             then: [_tab.becomes(_nextSurvivor.it)],
-            next: to(TabPlace.tNav),
+            next: to(TabPlace.tCap),
           ),
         ],
         otherwise: Otherwise(
@@ -1080,16 +1127,20 @@ abstract final class TabTable {
         ),
       ),
       // A closed tab's file removed under the key it had as the close began,
-      // one a step, once no list holds it.
+      // one a step, once no list holds it; its bytes are kept in memory for
+      // a reopen (TAB-022), so no file outlives its tab.
       TabPlace.tRemove => Step(
         ActivationStep.tabRemoveReply,
         holds: null,
         pick: _eachClosing,
         call: Call.on(
           _files,
-          run: (c) => c.api.removeState(
-            _flow.from(c).dropped[_eachClosing.it.run(c)]!,
-          ),
+          run: (c) async {
+            final id = _eachClosing.it.run(c);
+            final flow = _flow.from(c);
+            final bytes = await c.api.takeState(flow.dropped[id]!);
+            if (bytes != null) flow.taken[id] = bytes;
+          },
           writes: [
             TabVars.removedAs(
               _site.value,
@@ -1354,6 +1405,95 @@ abstract final class TabTable {
         otherwise: Otherwise(StepOutcome.none, then: [], next: to(TabPlace.tCap)),
       ),
       TabPlace.pLand => _childLand(ActivationStep.parkLand, opens: false),
+      // The reopened tab's landing: it runs as the site it ran as while
+      // that is listed (LIR-032), fixed before its file is written under
+      // that site's key, and takes a fresh id; with no history to write it
+      // goes straight to its insert.
+      TabPlace.reLand => Step(
+        ActivationStep.reopenLand,
+        holds: null,
+        pick: _eachChildHost,
+        site: _site.value,
+        otherwise: Otherwise(
+          StepOutcome.go,
+          pick: _eachKept,
+          then: [
+            _mintedBumpSite,
+            _copy.becomes(_mintSite),
+            _copyAs.becomes(_eachChildHost.it),
+          ],
+          next: Expr.choose(
+            when: _eachKept.it,
+            then: to(TabPlace.reSave),
+            otherwise: to(TabPlace.reInsert),
+          ),
+        ),
+      ),
+      // The history a close kept written back: the closed tab's own,
+      // under the key of the site the reopened tab runs as.
+      TabPlace.reSave => Step(
+        ActivationStep.reopenSaveReply,
+        holds: null,
+        call: Call.on(
+          _files,
+          run: (c) => c.api.saveState(
+            _copyKey(c),
+            state: _flow.from(c).reopening!.history!,
+          ),
+          writes: [
+            TabVars.file<TabFlow>().becomes(
+              TabVars.file<TabFlow>().value.exceptAt(
+                _site.value,
+                at: _copy.value,
+                by: _copyAs.value.unwrapped,
+                to: _copy.value,
+              ),
+            ),
+          ],
+        ),
+        site: _site.value,
+        otherwise: Otherwise(StepOutcome.none, then: [], next: to(TabPlace.reInsert)),
+      ),
+      // The reopened tab joins its site's list where it stood, running as
+      // its landing fixed and following no opener: a tab nothing routes.
+      TabPlace.reInsert => Step(
+        ActivationStep.reopenInsert,
+        holds: null,
+        site: _site.value,
+        otherwise: Otherwise(
+          StepOutcome.go,
+          then: [
+            Act.of(
+              [
+                _tabs.except(_site.value, to: _withReopened),
+                TabVars.hostFn<TabFlow>().becomes(
+                  TabVars.hostFn<TabFlow>().value.exceptAt(
+                    _site.value,
+                    at: _copy.value,
+                    to: _copyAs.value.unwrapped,
+                  ),
+                ),
+                TabVars.linkFn<TabFlow>().becomes(
+                  TabVars.linkFn<TabFlow>().value.exceptAt(
+                    _site.value,
+                    at: _copy.value,
+                    to: _noLink,
+                  ),
+                ),
+                TabVars.openerFn<TabFlow>().becomes(
+                  TabVars.openerFn<TabFlow>().value.exceptAt(
+                    _site.value,
+                    at: _copy.value,
+                    to: _noLink,
+                  ),
+                ),
+              ],
+              then: (c) => _page.from(c).reopened(c),
+            ),
+          ],
+          next: to(TabPlace.done),
+        ),
+      ),
     },
   );
 

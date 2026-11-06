@@ -168,11 +168,11 @@ void main() {
         onWebSearch: () => events.add('search'),
         onCloseTab: (s, {required tabId}) async {
           events.add('close $tabId');
-          return (sites: sites, wayBack: null);
+          return (listing: (sites: sites, wayBack: null), kept: null);
         },
         onCloseSubtree: (s, {required tabId}) async {
           events.add('subtree $tabId');
-          return (sites: sites, wayBack: null);
+          return (listing: (sites: sites, wayBack: null), kept: null);
         },
       ),
     );

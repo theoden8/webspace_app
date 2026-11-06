@@ -9,6 +9,7 @@ import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/nav_capture.dart';
+import 'package:webspace/services/recently_closed.dart';
 import 'package:webspace/services/runtime_vars.dart' show ActivationMarker;
 import 'package:webspace/controllers/tab_vars.dart';
 import 'package:webspace/services/cookie_isolation.dart' show tierOf;
@@ -26,7 +27,7 @@ import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/tabs_sheet.dart'
-    show TabsSheetListing, TabsSheetSite;
+    show TabsSheetClosed, TabsSheetListing, TabsSheetSite;
 
 part 'tab_flow.dart';
 part 'tab_table.dart';
@@ -95,6 +96,9 @@ class TabsController {
   /// that arrives while it is held and must not be dropped (LIR-034's
   /// reconcile) waits on the gate and runs when it is released.
   late final TabHandlingGate _gate = TabHandlingGate(scheduleMicrotask);
+
+  /// The closes of this run a reopen may take back (TAB-022).
+  final RecentlyClosed recentlyClosed = RecentlyClosed();
 
   /// Jumps the Tabs sheet made between sites' slots, the way Back takes
   /// (TAB-019). Any other way to another site drops it.
@@ -165,16 +169,24 @@ class TabsController {
   /// so a close tapped while another lands must not be dropped as busy: it
   /// waits for a free gate and asks in the turn it finds one, as an
   /// owner-run move does. Completes with what the sheet lists once the close
-  /// has landed.
-  Future<TabsSheetListing> closeFromSheet(WebViewModel model,
+  /// has landed, and what it kept for the sheet's undo (TAB-022).
+  Future<TabsSheetClosed> closeFromSheet(WebViewModel model,
       {required TabId tabId, required bool subtree, WebspaceId? scope}) async {
     while (_gate.busy) {
       await _gate.idle();
     }
+    ClosedTabs? kept;
     if (_host.mounted && _sites.models.contains(model)) {
       assert(!_gate.busy, 'a close from the Tabs sheet asks on a free gate');
-      await closeTab(model, tabId: tabId, subtree: subtree);
+      kept = await closeTab(model, tabId: tabId, subtree: subtree);
     }
+    return (listing: sheetListing(scope: scope), kept: kept);
+  }
+
+  /// The sheet's undo (TAB-022): [closed] back, then what the sheet lists.
+  Future<TabsSheetListing> reopenFromSheet(ClosedTabs closed,
+      {WebspaceId? scope}) async {
+    await reopen(closed);
     return sheetListing(scope: scope);
   }
 
@@ -254,6 +266,7 @@ class TabsController {
     await TabTable.tabFlow.run(c, from: from);
     final w = c.world;
     if (!_host.mounted) return;
+    if (w.closed case final closed?) _keepClosed(closed, flow: w);
     if (w.rebound) {
       final model = w.site;
       // Only the site on screen owns the shell. An offscreen switch (a
@@ -793,6 +806,84 @@ class TabsController {
     await _gate.hold(() => _runTabFlow(c, from: next));
   }
 
+  /// A close that landed, kept with the history its removals took, so a
+  /// reopen can put it back (TAB-022). An archive-tier site's are not:
+  /// nothing of an archive's sites outlives its close (ARCH-006).
+  void _keepClosed(ClosedTabs closed, {required TabFlow flow}) {
+    final ids = {for (final t in closed.tabs) t.tab.id};
+    if (flow.site.isArchiveTier) return;
+    if (flow.site.tabs.any((t) => ids.contains(t.id))) return;
+    for (final t in closed.tabs) {
+      t.history = flow.taken[t.tab.id];
+    }
+    recentlyClosed
+      ..keepOnly({for (final m in _sites.models) m.siteId})
+      ..push(closed);
+  }
+
+  /// [closed] back in its site with each tab's history, in tree order, one
+  /// [TabTable.tabInputs] reopen a tab (TAB-022). Each waits for a free
+  /// gate, so an undo is never lost. A tab runs as the site it ran as while
+  /// that may still host it, else as its own; a child returns under its
+  /// reopened parent. Returns the id each reopened tab took, by the id it
+  /// had; empty when the close was taken back already or its site is gone.
+  Future<Map<TabId, TabId>> reopen(ClosedTabs closed) async {
+    final model = _sites.byId(closed.site);
+    if (model == null || !enabledFor(model)) return const {};
+    if (!recentlyClosed.take(closed)) return const {};
+    final ids = <TabId, TabId>{};
+    for (final entry in closed.tabs) {
+      while (_gate.busy) {
+        await _gate.idle();
+      }
+      if (!_host.mounted || !_sites.models.contains(model)) break;
+      final was = entry.tab;
+      final host = switch (was.hostSiteId) {
+        final id? => _sites.byId(id),
+        null => null,
+      };
+      final fresh = SiteTab(
+        url: was.url,
+        title: was.title,
+        parentId: ids[was.parentId] ?? was.parentId,
+        hostSiteId: host != null && mayHost(host, owner: model) ? host.siteId : null,
+        createdAt: was.createdAt,
+        lastActiveAt: was.lastActiveAt,
+      );
+      final c = StepContext(TabFlow(this, site: model)
+        ..fresh = fresh
+        ..reopening = entry);
+      final next = TabTable.tabInputs.runInput(c, from: TabPlace.reopenTab);
+      await _gate.hold(() => _runTabFlow(c, from: next));
+      if (model.tabs.any((t) => t.id == fresh.id)) ids[was.id] = fresh.id;
+    }
+    return ids;
+  }
+
+  /// The newest close of the site on screen back, and the tab it was asked
+  /// for opened (TAB-022): what Ctrl+Shift+T does.
+  Future<void> reopenLast() async {
+    if (!enabledFor(_sites.shown)) return;
+    final model = _sites.shown!;
+    final closed = recentlyClosed.latestOf(model.siteId);
+    if (closed == null) return;
+    final ids = await reopen(closed);
+    final tab = ids[closed.first.id];
+    if (tab != null && identical(_sites.shown, model)) {
+      await openTab(model, tabId: tab);
+    }
+  }
+
+  /// The reopened tab joined the list: the page redraws and saves it.
+  void _reopened(StepView<TabFlow> c) {
+    final flow = TabTable._flow.from(c);
+    LogTag.tabs.debug(
+        'Reopened ${flow.fresh!.id} under ${flow.fresh!.parentId} in "${flow.site.name}"',
+        sensitive: true);
+    _host.rebuild();
+    flow.commitAfter = true;
+  }
+
   /// The parked child joined the list: the page redraws and offers it.
   void _parked(StepView<TabFlow> c) {
     final flow = TabTable._flow.from(c);
@@ -812,11 +903,13 @@ class TabsController {
   Future<void> _applyTabClose({
     required WebViewModel model,
     required TabCloseResult result,
+    ClosedTabs? closed,
   }) async {
     if (result.closedIds.isEmpty) return;
     final c = StepContext(
       TabFlow(this, site: model)
         ..result = result
+        ..closed = closed
         ..dropped = {
           for (final id in result.closedIds) id: model.stateKeyForTab(id),
         },
@@ -836,23 +929,26 @@ class TabsController {
 
   /// Close [tabId], or its subtree, in [model] (TAB-007). On the site on
   /// screen it is the [TabTable.tabInputs] input.
-  Future<void> closeTab(WebViewModel model,
+  /// Completes with what the close kept for a reopen (TAB-022), or null
+  /// when it kept nothing or did not land.
+  Future<ClosedTabs?> closeTab(WebViewModel model,
       {required TabId tabId, bool subtree = false}) async {
-    if (!model.tabs.any((t) => t.id == tabId)) return;
+    if (!model.tabs.any((t) => t.id == tabId)) return null;
     if (identical(model, _sites.shown)) {
       final c = StepContext(
         TabFlow(this, site: model, requested: tabId, subtree: subtree),
       );
       final next = TabTable.tabInputs.runInput(c, from: TabPlace.closeTab);
-      if (next == TabPlace.done) return;
+      if (next == TabPlace.done) return null;
       await _gate.hold(() => _runTabFlow(c, from: next));
-      return;
+      return _keptOf(c.world.closed);
     }
     if (_gate.busy) {
       ActivationSteps.mark(ActivationStep.closeTab,
           outcome: StepOutcome.busy, site: model);
-      return;
+      return null;
     }
+    ClosedTabs? closed;
     await _gate.run(() async {
       if (!_sites.models.contains(model)) return;
       final result = subtree
@@ -862,9 +958,15 @@ class TabsController {
               activeTabId: model.activeTabId, closeId: tabId);
       ActivationSteps.mark(ActivationStep.closeTab,
           outcome: StepOutcome.go, site: model);
-      await _applyTabClose(model: model, result: result);
+      closed = TabLifecycleEngine.closedFrom(model.tabs,
+          site: model.siteId, result: result);
+      await _applyTabClose(model: model, result: result, closed: closed);
     });
+    return _keptOf(closed);
   }
+
+  ClosedTabs? _keptOf(ClosedTabs? closed) =>
+      closed != null && recentlyClosed.closes.contains(closed) ? closed : null;
 
   /// A tab and its subtree dragged to another place in its site's tree
   /// (TAB-015). Only the tree changes: no webview, host or state key does.

@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "Alternar",
   "tabsInSite": "Em {site}",
   "tabsMoreInSite": "{count, plural, =1{Mais 1 aba em {site}} other{Mais {count} abas em {site}}}",
+  "tabsClosedNamed": "“{title}” fechado",
+  "tabsUndoClose": "Desfazer",
   "tabsWhereYouWere": "onde você estava",
   "tabsRunsAs": "como {site}",
   "tabsLinkOutsideSite": "{host} pertence a outro site, por isso abre sobre este em vez de em uma aba",

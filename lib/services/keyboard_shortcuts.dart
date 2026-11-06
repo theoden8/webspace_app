@@ -87,6 +87,11 @@ sealed class KeyboardShortcut {
     );
     return [
       (command(LogicalKeyboardKey.keyT), const OpenNewTab()),
+      (
+        SingleActivator(LogicalKeyboardKey.keyT,
+            meta: mac, control: !mac, shift: true, includeRepeats: false),
+        const ReopenClosedTab(),
+      ),
       (command(LogicalKeyboardKey.keyW), const CloseActiveTab()),
       (command(LogicalKeyboardKey.keyL), const FocusUrlBar()),
       (command(LogicalKeyboardKey.keyR), const ReloadPage()),
@@ -142,6 +147,7 @@ sealed class KeyboardShortcut {
   bool get keptInKiosk => switch (this) {
     ReloadPage() || GoBack() || GoForward() => true,
     OpenNewTab() ||
+    ReopenClosedTab() ||
     CloseActiveTab() ||
     FocusUrlBar() ||
     FindInPage() ||
@@ -156,6 +162,11 @@ sealed class KeyboardShortcut {
 /// The site menu's New tab (TAB-005).
 final class OpenNewTab extends KeyboardShortcut {
   const OpenNewTab();
+}
+
+/// The site on screen's newest closed tab back, and opened (TAB-022).
+final class ReopenClosedTab extends KeyboardShortcut {
+  const ReopenClosedTab();
 }
 
 /// The Tabs sheet's close, on the tab on screen (TAB-007).

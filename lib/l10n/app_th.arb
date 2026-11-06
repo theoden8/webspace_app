@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "สลับ",
   "tabsInSite": "ใน {site}",
   "tabsMoreInSite": "{count, plural, =1{อีก 1 แท็บใน {site}} other{อีก {count} แท็บใน {site}}}",
+  "tabsClosedNamed": "ปิด “{title}” แล้ว",
+  "tabsUndoClose": "เลิกทำ",
   "tabsWhereYouWere": "ที่ที่คุณอยู่ก่อนหน้า",
   "tabsRunsAs": "ในฐานะ {site}",
   "tabsLinkOutsideSite": "{host} เป็นของเว็บไซต์อื่น จึงเปิดทับเว็บไซต์นี้แทนการเปิดในแท็บ",

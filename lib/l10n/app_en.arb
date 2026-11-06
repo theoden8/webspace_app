@@ -5170,6 +5170,20 @@
       }
     }
   },
+  "tabsClosedNamed": "Closed “{title}”",
+  "@tabsClosedNamed": {
+    "description": "Message at the bottom of the tab list for a few seconds after the user closes a tab there, beside an Undo button. {title} is the closed page's title or address. Use the quotation marks your language uses.",
+    "placeholders": {
+      "title": {
+        "type": "String",
+        "example": "Pull requests"
+      }
+    }
+  },
+  "tabsUndoClose": "Undo",
+  "@tabsUndoClose": {
+    "description": "Button beside 'Closed …' at the bottom of the tab list: brings the tab just closed back where it was, with its back history. Short: one word where the language allows."
+  },
   "tabsWhereYouWere": "where you were",
   "@tabsWhereYouWere": {
     "description": "Added after a tab's web address in the tab list, on the tab the user was on before opening a tab of another site from this list. Tapping that tab, or pressing Back at the start of the new one, goes back to it. Lowercase unless the language requires otherwise."

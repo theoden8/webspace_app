@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "Превключване",
   "tabsInSite": "В {site}",
   "tabsMoreInSite": "{count, plural, =1{Още 1 раздел в {site}} other{Още {count} раздела в {site}}}",
+  "tabsClosedNamed": "Затворено „{title}“",
+  "tabsUndoClose": "Отмяна",
   "tabsWhereYouWere": "където бяхте",
   "tabsRunsAs": "като {site}",
   "tabsLinkOutsideSite": "{host} принадлежи на друг сайт, затова се отваря върху този, а не в раздел",

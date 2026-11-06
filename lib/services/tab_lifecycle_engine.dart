@@ -9,7 +9,9 @@
 /// `setState`, persistence). No Flutter, no platform channels, no setState.
 library;
 
+import 'package:webspace/services/recently_closed.dart';
 import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 /// One row of the tab tree: the tab and how deep it sits under its root.
 class TabRow {
@@ -32,6 +34,7 @@ class TabCloseResult {
     required this.nextActiveId,
     required this.closedIds,
     required this.activeChanged,
+    this.movedUp = const {},
   }) : assert((nextActiveId == null) == tabs.isEmpty,
             'a close names the next tab exactly when one survives');
 
@@ -44,6 +47,10 @@ class TabCloseResult {
   /// Whether the webview has to be re-bound. False when the closed tabs were
   /// all parked: nothing on screen changed, so no capture/dispose/restore.
   final bool activeChanged;
+
+  /// Each survivor the close moved up (TAB-007), by the closed tab it hung
+  /// from, which a reopen gives it back to (TAB-022).
+  final Map<TabId, TabId> movedUp;
 }
 
 /// Where a dragged tab lands against the row it is dropped on (TAB-015).
@@ -400,6 +407,63 @@ class TabLifecycleEngine {
     }
   }
 
+  /// What [result], decided over [tabs] and not yet installed, takes from
+  /// [site], for a reopen (TAB-022): each tab as it is listed and where, in
+  /// tree order, and the survivors it moves up from under each.
+  static ClosedTabs closedFrom(
+    List<SiteTab> tabs, {
+    required SiteId site,
+    required TabCloseResult result,
+  }) {
+    final closed = result.closedIds.toSet();
+    return ClosedTabs(site: site, tabs: [
+      for (final row in treeOrder(tabs))
+        if (closed.contains(row.tab.id))
+          ClosedTab(
+            tab: SiteTab(
+              id: row.tab.id,
+              url: row.tab.url,
+              title: row.tab.title,
+              parentId: row.tab.parentId,
+              hostSiteId: row.tab.hostSiteId,
+              openerSiteId: row.tab.openerSiteId,
+              homeUrl: row.tab.homeUrl,
+              createdAt: row.tab.createdAt,
+              lastActiveAt: row.tab.lastActiveAt,
+            ),
+            index: tabs.indexWhere((t) => t.id == row.tab.id),
+            adopt: {
+              for (final MapEntry(key: child, value: from) in result.movedUp.entries)
+                if (from == row.tab.id) child,
+            },
+          ),
+    ]);
+  }
+
+  /// [tab] back in [tabs] where [closed] stood (TAB-022): at its place in
+  /// the list, under its parent while that is listed, else a root; the
+  /// children the close moved up to that parent go back under it, each
+  /// only while it still hangs there.
+  static List<SiteTab> reopen(
+    List<SiteTab> tabs, {
+    required SiteTab tab,
+    required ClosedTab closed,
+  }) {
+    final ids = {for (final t in tabs) t.id};
+    if (tab.parentId case final parent? when !ids.contains(parent)) {
+      tab.parentId = null;
+    }
+    final movedTo = closed.tab.parentId;
+    for (final t in tabs) {
+      if (closed.adopt.contains(t.id) && t.parentId == movedTo) {
+        t.parentId = tab.id;
+      }
+    }
+    final out = [...tabs]..insert(closed.index.clamp(0, tabs.length), tab);
+    assert(wellFormed(out), 'a reopen keeps the tree well-formed');
+    return out;
+  }
+
   /// Close one tab. Its children move up to its parent (TAB-007) so nothing is
   /// orphaned by a close, and the tab that takes over is its parent when it
   /// had one, else the most recently active survivor.
@@ -440,6 +504,10 @@ class TabLifecycleEngine {
     final wasWellFormed = _wellFormedWith(tabs, activeTabId: activeTabId);
     final byId = {for (final t in tabs) t.id: t};
     final survivors = tabs.where((t) => !doomed.contains(t.id)).toList();
+    final movedUp = <TabId, TabId>{
+      for (final t in survivors)
+        if (t.parentId case final p? when doomed.contains(p)) t.id: p,
+    };
     if (reparent) {
       for (final t in survivors) {
         var parent = t.parentId;
@@ -471,6 +539,7 @@ class TabLifecycleEngine {
         nextActiveId: null,
         closedIds: doomed.toList(),
         activeChanged: true,
+        movedUp: movedUp,
       );
     }
     if (!activeClosed) {
@@ -479,6 +548,7 @@ class TabLifecycleEngine {
         nextActiveId: activeTabId,
         closedIds: doomed.toList(),
         activeChanged: false,
+        movedUp: movedUp,
       );
     }
     final parentId = byId[activeTabId]?.parentId;
@@ -495,6 +565,7 @@ class TabLifecycleEngine {
       nextActiveId: next,
       closedIds: doomed.toList(),
       activeChanged: true,
+      movedUp: movedUp,
     );
   }
 

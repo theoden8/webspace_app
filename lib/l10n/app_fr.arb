@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "Basculer",
   "tabsInSite": "Dans {site}",
   "tabsMoreInSite": "{count, plural, =1{1 autre onglet dans {site}} other{{count} autres onglets dans {site}}}",
+  "tabsClosedNamed": "« {title} » fermé",
+  "tabsUndoClose": "Annuler",
   "tabsWhereYouWere": "là où vous étiez",
   "tabsRunsAs": "en tant que {site}",
   "tabsLinkOutsideSite": "{host} appartient à un autre site, il s'ouvre donc par-dessus celui-ci plutôt que dans un onglet",

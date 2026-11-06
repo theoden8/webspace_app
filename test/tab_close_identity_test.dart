@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/nav_capture.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
@@ -25,6 +27,13 @@ class _Page extends Fake implements TabsHost {
   @override
   Future<void> commitSites(SiteSetChange change) async {}
 
+  // A close of the tab on screen captures it first (TAB-022); these sites
+  // have no webview, so there is nothing to capture.
+  @override
+  void cancelPendingCapture(SiteId siteId) {}
+
+  @override
+  NavCapture? beginNavCapture(WebViewModel site) => null;
 
   @override
   void noteUnloaded(WebViewModel model, {required String why}) =>
@@ -45,6 +54,9 @@ class _NavStates extends Fake implements WebViewStateStorage {
 
   @override
   Future<void> removeState(String key) async {}
+
+  @override
+  Future<Uint8List?> takeState(String key) async => null;
 }
 
 void main() {

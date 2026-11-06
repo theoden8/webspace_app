@@ -115,6 +115,7 @@ void main() {
         (source, 'Future<void> _showTabsSheet(', '!_tabs.enabledFor(_sites.shown)'),
         (tabs, 'Future<void> openChildTab(', '!owner.effectiveTabsEnabled'),
         (tabs, 'bool moveTab(', '!enabledFor(model)'),
+        (tabs, 'Future<void> reopenLast(', '!enabledFor(_sites.shown)'),
       ]) {
         expect(firstStatement(src, signature: signature), contains(gate),
             reason: '$signature must return before doing anything while '

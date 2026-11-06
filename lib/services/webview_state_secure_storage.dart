@@ -208,6 +208,13 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
   }
 
   @override
+  Future<Uint8List?> takeState(String key) async {
+    final bytes = await loadState(key);
+    await removeState(key);
+    return bytes;
+  }
+
+  @override
   Future<int> removeStatesForSite(SiteId siteId) async {
     if (!_initialized) await initialize();
     final store = _store;

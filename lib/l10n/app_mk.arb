@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "Префрли",
   "tabsInSite": "Во {site}",
   "tabsMoreInSite": "{count, plural, one{Уште {count} јазиче во {site}} other{Уште {count} јазичиња во {site}}}",
+  "tabsClosedNamed": "Затворено „{title}“",
+  "tabsUndoClose": "Врати",
   "tabsWhereYouWere": "каде што бевте",
   "tabsRunsAs": "како {site}",
   "tabsLinkOutsideSite": "{host} припаѓа на друг сајт, па затоа се отвора врз овој, а не во јазиче",

@@ -1065,6 +1065,8 @@
   "tabsSwitchAction": "Passa",
   "tabsInSite": "In {site}",
   "tabsMoreInSite": "{count, plural, =1{1 altra scheda in {site}} other{Altre {count} schede in {site}}}",
+  "tabsClosedNamed": "Chiusa «{title}»",
+  "tabsUndoClose": "Annulla",
   "tabsWhereYouWere": "dov'eri",
   "tabsRunsAs": "come {site}",
   "tabsLinkOutsideSite": "{host} appartiene a un altro sito, quindi si apre sopra questo invece che in una scheda",

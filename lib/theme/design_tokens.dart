@@ -256,6 +256,10 @@ abstract final class Motion {
   /// A site's card fading off the site once it is on screen.
   static const Duration reveal = Duration(milliseconds: 180);
 
+  /// How long the Tabs sheet offers to take a close back (TAB-022), as long
+  /// as a SnackBar stays.
+  static const Duration undoOffer = Duration(seconds: 4);
+
   /// The longest a site's card waits over the screen for the switch under
   /// it before it moves on regardless.
   static const Duration launchHold = Duration(milliseconds: 800);
@@ -315,6 +319,53 @@ abstract final class TabRows {
   /// how far one step scrolls.
   static const double autoScrollEdge = 48;
   static const double autoScrollStep = 8;
+}
+
+/// How tightly the Tabs sheet sets its rows (TAB-021): comfortable while
+/// every row fits, compact once the list would scroll. Compact takes only
+/// space around the rows; no button shrinks.
+enum TabRowDensity {
+  comfortable(
+    rowPadding: Spacing.xs,
+    indent: Spacing.lg,
+    headingTop: Spacing.md,
+    headingBottom: Spacing.xs,
+    endTarget: Spacing.xl,
+    foldPadding: Spacing.sm,
+  ),
+  compact(
+    rowPadding: 0,
+    indent: Spacing.md,
+    headingTop: Spacing.sm,
+    headingBottom: Radii.xs,
+    endTarget: Spacing.md,
+    foldPadding: Spacing.xs,
+  );
+
+  const TabRowDensity({
+    required this.rowPadding,
+    required this.indent,
+    required this.headingTop,
+    required this.headingBottom,
+    required this.endTarget,
+    required this.foldPadding,
+  });
+
+  /// Above and below a row's own height, which its close button sets.
+  final double rowPadding;
+
+  /// How far each level of a tree sits in.
+  final double indent;
+
+  /// Around a site's heading.
+  final double headingTop;
+  final double headingBottom;
+
+  /// The drop target under a tree's last row (TAB-015).
+  final double endTarget;
+
+  /// Above and below the line that unfolds another site's tree.
+  final double foldPadding;
 }
 
 /// One colour per container (TAB-018): a tab row is marked with the colour of
