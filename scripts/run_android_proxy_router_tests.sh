@@ -34,4 +34,4 @@ bash "$(dirname "$0")/print_android_webview_version.sh" "$device_id"
 run_tier integration_test/proxy_router_test.dart \
   integration_test/proxy_router_attribution_test.dart \
   integration_test/proxy_router_fail_closed_test.dart \
-  integration_test/proxy_one_rule_test.dart 30
+  integration_test/proxy_one_rule_test.dart 12
