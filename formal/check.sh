@@ -31,6 +31,11 @@
 # needs to end within that much wall time, for a machine that stops a
 # command after a while: there a world the share leaves on one core never
 # ends, and starts again from nothing.
+# FORMAL_DEADLINE=<seconds> starts no run whose last time, on the workers it
+# gets, would end it later than that many seconds after the suite began:
+# such a run is deferred, the suite exits 3 naming each, and the next suite
+# remembers every run this one finished. A run with no time yet always
+# starts.
 #
 # A run whose inputs are byte for byte those of one that behaved before
 # (for activation.tla, what of them its world can reach: world_key.py) is
@@ -77,6 +82,8 @@ SLOTS="${FORMAL_SLOTS:-$(getconf _NPROCESSORS_ONLN)}"
 [ "$SLOTS" -ge 1 ] 2>/dev/null || { echo "FORMAL_SLOTS is not a count of cores: $SLOTS" >&2; exit 2; }
 BUDGET="${FORMAL_RUN_BUDGET:-0}"
 [ "$BUDGET" -ge 0 ] 2>/dev/null || { echo "FORMAL_RUN_BUDGET is not a count of seconds: $BUDGET" >&2; exit 2; }
+DEADLINE="${FORMAL_DEADLINE:-0}"
+[ "$DEADLINE" -ge 0 ] 2>/dev/null || { echo "FORMAL_DEADLINE is not a count of seconds: $DEADLINE" >&2; exit 2; }
 PROGRESS="${FORMAL_PROGRESS_SECONDS:-60}"
 [ "$PROGRESS" -ge 1 ] 2>/dev/null || { echo "FORMAL_PROGRESS_SECONDS is not a positive interval: $PROGRESS" >&2; exit 2; }
 CACHE="${FORMAL_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/webspace-formal}"
@@ -202,6 +209,10 @@ pool() {
   local free="$SLOTS" running="" name w cfg spec lib cover
   while IFS=$'\t' read -r -u 4 name w cfg spec lib cover; do
     while [ "$free" -lt "$w" ]; do reap; done
+    if ! fits "$name" "$w"; then
+      touch "$RUNS/$name.deferred" "$RUNS/$name.done"
+      continue
+    fi
     [ "$lib" != - ] || lib=""
     [ "$cover" != - ] || cover=""
     mkdir -p "$RUNS/$name.tmp"
@@ -215,6 +226,15 @@ pool() {
     free=$((free - w))
   done 4< <(plan)
   while [ -n "$running" ]; do reap; done
+}
+
+# fits: whether run <name> on <w> workers, at its last time, ends before
+# FORMAL_DEADLINE; any run does without one, and a run with no time yet.
+fits() {
+  local secs w0
+  [ "$DEADLINE" -gt 0 ] || return 0
+  read -r secs w0 2>/dev/null <"$TIMES/$1" || return 0
+  [ $((SECONDS + (secs * w0 + $2 - 1) / $2)) -le "$DEADLINE" ]
 }
 
 # reap: marks done each run of the pool's that has ended, and keeps the time
@@ -264,7 +284,7 @@ section() {
 # What each passing config counts as, by what it expects: a model that holds,
 # a planted mistake caught, or a witness reached. verify.sh holds the totals
 # to formal/levels.tsv.
-HOLDS=0 CAUGHT=0 REACHED=0 FAILED=""
+HOLDS=0 CAUGHT=0 REACHED=0 FAILED="" DEFERRED=""
 expect() {
   selected || return 0
   local name kind ordinal="$ORDINAL"
@@ -308,6 +328,11 @@ expect() {
     fi
     sleep 0.2
   done
+  if [ -f "$RUNS/$name.deferred" ]; then
+    printf '  DEFER %-33s does not end before FORMAL_DEADLINE\n' "$(basename "$1")"
+    DEFERRED="$DEFERRED $(basename "$1")"
+    return 0
+  fi
   local out; out="$(cat "$RUNS/$name.out" 2>/dev/null || true)"
   if [ -n "${COVERAGE:-}" ]; then
     mkdir -p "$COVERAGE"
@@ -631,6 +656,9 @@ checks
 
 echo "TALLY holds=$HOLDS caught=$CAUGHT reached=$REACHED"
 if [ -n "$FAILED" ]; then echo "FAIL: did not behave:$FAILED" >&2; exit 1
+elif [ -n "$DEFERRED" ]; then
+  echo "DEFERRED past FORMAL_DEADLINE:$DEFERRED; run again, each run that ended is remembered" >&2
+  exit 3
 elif [ "$ORDINAL" -eq 0 ]; then echo "FAIL: no section is named $ONLY" >&2; exit 1
 elif [ -n "$ONLY" ]; then echo "Section $ONLY behaved as expected."
 elif [ "$SHARD_COUNT" -gt 1 ]; then echo "Model shard $SHARD behaved as expected."
