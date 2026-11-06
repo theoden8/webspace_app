@@ -10,7 +10,8 @@ import XCTest
 /// closing quote already gone. Getting that wrong loses the phase text
 /// silently: the bar still moves and the line under it is simply absent.
 ///
-/// No CI tier in this repo runs Swift, so these run in Xcode.
+/// Run headlessly by tool/swift_tests on any Swift toolchain (CI's validate
+/// job), and in Xcode as part of RunnerTests.
 class TorControlParsingTests: XCTestCase {
 
   func testBootstrapPhaseFromGetInfo() {
