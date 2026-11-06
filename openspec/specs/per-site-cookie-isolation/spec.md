@@ -288,7 +288,8 @@ Nested webviews (InAppBrowser for external links) SHALL continue using the singl
 **Given** Site A is active
 **When** an external link opens in InAppBrowser
 **Then** the nested webview uses shared CookieManager
-**And** no cookie capture/restore occurs
+**And** no site's cookies are restored into the jar for it
+**And** a site the open unloads (one on another route, PROXY-008) is captured as any unload captures it
 
 ### Requirement: ISO-008 - Per-Site URL Blocking
 

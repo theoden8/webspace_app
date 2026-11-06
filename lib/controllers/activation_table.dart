@@ -863,6 +863,11 @@ abstract final class ActivationTable {
     StepView<ActivationFlow> c, {
     required ActivationPlace from,
   }) async {
+    assert(
+      !_is(FlowKind.nested).run(c),
+      'a nested open restored into the shared jar its screen runs on '
+      '(ISO-007)',
+    );
     final nest = ActivationFlow.nest.from(c);
     final left = switch (nest.isolation) {
       SharedJar(:final jar) => await jar.restoreInTurn(

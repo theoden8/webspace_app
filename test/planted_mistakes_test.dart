@@ -273,6 +273,18 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [Tap(0), OpenNested(2), Preload(1)],
     breaks: 'a nested screen went up beside a site on another route',
   ),
+  Mutant.nestedrestores => _By(
+    world: (d) => ActivationWorld(
+      _mixed,
+      launch: _jarLaunch,
+      proxies: _mismatched,
+      nestedOpens: true,
+      declared: d,
+    ),
+    setup: const [Tap(0), Login(0)],
+    script: const [OpenNested(2)],
+    breaks: 'a nested open restored into the shared jar',
+  ),
   Mutant.preloadunchecked => _By(
     world: (d) => _nestedWorld(declared: d),
     setup: const [],

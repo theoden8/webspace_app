@@ -71,6 +71,7 @@ enum Inv {
     reads: {ModelVar.gone, ModelVar.jar, ModelVar.loaded, ModelVar.signedIn, ModelVar.stored},
   ),
   noForeignSession(atRest: true, reads: {ModelVar.jar, ModelVar.loaded, ModelVar.stored}),
+  nestedNoRestore(reads: {ModelVar.fl}),
   noShownEvicted(reads: {ModelVar.evictedShown}),
   leftHidden(reads: {ModelVar.current, ModelVar.fl, ModelVar.version}),
   loadedNotSaved(atRest: true, reads: {ModelVar.loaded, ModelVar.tier}),
@@ -301,10 +302,11 @@ enum ActivationWorld {
     coldStart: true,
     inputs: 3,
     env: {Env.proxyGlobal, Env.globalProxy, Env.routeSplit, Env.linkAny},
-    invariants: [..._core, ..._jar, Inv.oneRoute],
+    invariants: [..._core, ..._jar, Inv.oneRoute, Inv.nestedNoRestore],
     holds:
         'shared jar, two routes, links opened nested: the screen and the '
-        'loaded sites run one route (LIR-011)',
+        'loaded sites run one route (LIR-011), and no open restores a '
+        "site's cookies into the jar (ISO-007)",
   ),
   nestedTorContainers(
     cookies: Cookies.containers,
@@ -1159,6 +1161,15 @@ enum Mutant {
     world: ActivationWorld.nestedContainers,
     by: Inv.oneRoute,
     doc: 'a nested open that does not ask again once the proxy moved (caught)',
+  ),
+  nestedrestores(
+    world: ActivationWorld.nested,
+    slice: (allowed: {'NestedOpen', 'Tap'}),
+    by: Inv.nestedNoRestore,
+    doc:
+        'a nested open that unloads a site on another route and goes on as '
+        "a tap restores its site's cookies into the shared jar (ISO-007, "
+        'caught)',
   ),
   preloadunchecked(
     world: ActivationWorld.nestedContainers,

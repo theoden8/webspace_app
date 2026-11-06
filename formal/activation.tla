@@ -46,6 +46,8 @@
 (*   Inv_NoSessionLoss     a signed-in site's session is in the jar while   *)
 (*                         loaded, in its storage otherwise (BUG-032)       *)
 (*   Inv_NoForeignSession  no site's storage or jar share holds another's   *)
+(*   Inv_NestedNoRestore   a nested open restores nothing into the jar      *)
+(*                         (ISO-007)                                        *)
 (*   Inv_NoShownEvicted    no unload disposes the live activation's target, *)
 (*                         and none picked by priority the site on screen   *)
 (*                         (PAUSE-006, BUG-033)                             *)
@@ -359,6 +361,13 @@ Inv_NoForeignSession ==
     ~Containers =>
         /\ \A s \in Sites : stored[s] \subseteq {s}
         /\ Idle => \A s \in loaded : Share(s, jar) \subseteq {s}
+
+\* ISO-007: a nested screen runs on the jar the site on screen left, so its
+\* open restores no site's cookies into it. Stated over the places every
+\* write of the jar waits at, not over the branch that sends a nested open
+\* past them.
+Inv_NestedNoRestore ==
+    \A f \in Flows : fl[f].kind = "nested" => fl[f].pc \notin RestorePlaces
 
 Inv_NoShownEvicted == ~evictedShown
 

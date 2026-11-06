@@ -679,6 +679,22 @@ Tables mutated(Mutant m) => switch (m) {
       outcome: StepOutcome.unload,
     ),
   ),
+  // A nested open that goes on as a tap once its plan is spent: on the
+  // shared jar it takes the jar's turn and restores its site's cookies into
+  // the jar the screen runs on (ISO-007).
+  Mutant.nestedrestores => _with(
+    activation: _withArms(
+      tables.activation,
+      step: ActivationStep.applied,
+      arms: (s) => s.withArms(
+        branches: [
+          for (final b in s.branches)
+            if (b.next.tla != '"${ActivationPlace.nAsk.name}"') b,
+        ],
+        otherwise: s.otherwise,
+      ),
+    ),
+  ),
   // A slot that runs as another site from a tab's rebind opens again while
   // its own nested screen is up, on the screen's route, the shape before
   // BUG-037 attempt 19.
