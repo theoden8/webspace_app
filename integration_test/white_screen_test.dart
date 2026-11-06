@@ -240,9 +240,9 @@ Future<WindowRegionSample> sampleSlot(WidgetTester tester,
   ));
 }
 
-  // pumpAndSettle deadlocks on a live webview (see lazy_webview_loading_test),
-  // so poll in fixed slices, re-sampling the composited window each pass
-  // until the sample is accepted or the deadline passes. On timeout the last
+  // pumpAndSettle deadlocks on a live webview, so poll in fixed slices,
+  // re-sampling the composited window each pass until the sample is
+  // accepted or the deadline passes. On timeout the last
   // sample is the diagnostic: uniform white with an ok status IS a white
   // screen.
   Future<WindowRegionSample> pollSlot(

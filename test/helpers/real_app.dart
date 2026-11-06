@@ -43,9 +43,9 @@ void _freshDocuments() {
 }
 
 /// The shipped `WebSpaceApp`, pumped in a widget test: page state, drawer,
-/// app bar and sheets are the real ones, started from [sites] and
-/// [webspaces] the way a cold start reads them from disk. Only the platform
-/// is faked: the webview draws nothing, and a page acts through the
+/// app bar and sheets are the real ones, started from [sites], [webspaces]
+/// and [secureStorage] the way a cold start reads them from disk. Only the
+/// platform is faked: the webview draws nothing, and a page acts through the
 /// callbacks the platform would call ([tapLink]).
 ///
 /// The models the app runs are decoded from the stored JSON, so they are not
@@ -56,6 +56,7 @@ Future<void> pumpRealApp(
   required List<WebViewModel> sites,
   List<Webspace> webspaces = const [],
   Map<String, Object> prefs = const {},
+  Map<String, String> secureStorage = const {},
   String? launchedByNotificationFor,
 }) async {
   await prepareRealApp(
@@ -63,6 +64,7 @@ Future<void> pumpRealApp(
     sites: sites,
     webspaces: webspaces,
     prefs: prefs,
+    secureStorage: secureStorage,
     launchedByNotificationFor: launchedByNotificationFor,
   );
   await tester.pumpWidget(const WebSpaceApp(launch: ProcessLaunch.user));
@@ -76,6 +78,7 @@ Future<void> prepareRealApp(
   required List<WebViewModel> sites,
   List<Webspace> webspaces = const [],
   Map<String, Object> prefs = const {},
+  Map<String, String> secureStorage = const {},
   String? launchedByNotificationFor,
 }) async {
   SharedPreferences.setMockInitialValues({
@@ -88,7 +91,7 @@ Future<void> prepareRealApp(
     'currentIndex': 10000,
     ...prefs,
   });
-  FlutterSecureStorage.setMockInitialValues({});
+  FlutterSecureStorage.setMockInitialValues({...secureStorage});
   webViewCalls.clear();
   webViewSettingsWrites.clear();
   webViewCanGoBack = false;
