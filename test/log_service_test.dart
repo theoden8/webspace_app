@@ -50,6 +50,21 @@ void main() {
       expect(log.export(), contains('[Test/info] info'));
     });
 
+    test('DEVTOOLS-005: listeners hear every entry, either ring, and a clear',
+        () {
+      final log = LogService.instance;
+      var notifications = 0;
+      void listen() => notifications++;
+      log.addListener(listen);
+      addTearDown(() => log.removeListener(listen));
+      LogTag.test.debug('one');
+      LogTag.test.info('two', sensitive: true);
+      log.clear();
+      expect(notifications, 3);
+      expect(log.entries, isEmpty);
+      expect(log.sensitiveEntries, isEmpty);
+    });
+
     test('verbose output can restore debug details', () {
       LogService.instance.consoleLevel = LogLevel.debug;
       LogTag.cookieIsolation.debug('Currently loaded rows: {}');
