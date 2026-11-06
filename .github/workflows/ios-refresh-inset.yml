@@ -1,0 +1,67 @@
+name: iOS refresh inset
+
+# integration_test/ios_refresh_inset_test.dart on an iOS simulator: a site's
+# webview resized while its pull-to-refresh spinner shows must rest at its top
+# once the spinner ends. The other tiers run on desktop and Android, which
+# have no refresh control, so this is its own run, started by a change to the
+# test, the Runner's probe, this file or the webview plugin's pin.
+on:
+  push:
+    paths:
+      - integration_test/ios_refresh_inset_test.dart
+      - ios/Runner/AppDelegate.swift
+      - ios/Runner.xcodeproj/project.pbxproj
+      - .github/workflows/ios-refresh-inset.yml
+      - pubspec.yaml
+      - pubspec.lock
+  workflow_dispatch:
+
+concurrency:
+  group: ios-refresh-inset-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  simulator:
+    name: Refresh inset (iOS simulator)
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Apple toolchain
+        uses: ./.github/actions/apple-toolchain
+
+      - name: Boot the simulator
+        id: simulator
+        run: |
+          set -eu
+          xcrun simctl list devices available
+          pick() {
+            xcrun simctl list devices available -j \
+              | jq -r --arg re "$1" '[.devices[][] | select(.name | test($re))] | last | .udid // empty'
+          }
+          udid="$(pick '^iPhone [0-9]+ Pro$')"
+          [ -n "$udid" ] || udid="$(pick '^iPhone')"
+          if [ -z "$udid" ]; then
+            echo "::error::no iPhone simulator on this runner"
+            exit 1
+          fi
+          xcrun simctl bootstatus "$udid" -b
+          sleep 10
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      - name: Run the refresh inset test
+        timeout-minutes: 45
+        run: |
+          set -o pipefail
+          fvm flutter test integration_test/ios_refresh_inset_test.dart \
+            -d "${{ steps.simulator.outputs.udid }}" 2>&1 | tee ios_refresh_inset.log
+
+      - name: Upload the log
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-refresh-inset-log
+          path: ios_refresh_inset.log
+          if-no-files-found: warn
