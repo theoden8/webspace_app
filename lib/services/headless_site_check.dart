@@ -16,7 +16,9 @@ import 'package:webspace/services/page_scripts.dart';
 import 'package:webspace/services/page_handlers.dart';
 import 'package:webspace/services/page_phase.dart';
 import 'package:webspace/services/webview.dart';
-import 'package:webspace/services/webview_controller.dart' show markNetworkBlocked;
+import 'package:webspace/services/process_route.dart';
+import 'package:webspace/services/webview_controller.dart'
+    show markNetworkBlocked, webViewDestroyed;
 import 'package:webspace/services/log_service.dart';
 
 /// The headless webview a background wake opens for a site that has no live
@@ -235,8 +237,9 @@ class HeadlessSiteCheck {
   }
 
   /// Ends the check. Its webview loads nothing more, and stops what it
-  /// loads, before it goes, since the process-wide proxy rule may move as
-  /// soon as this returns (PROXY-008).
+  /// loads, before it goes, and this returns once its native view is
+  /// destroyed, since the process-wide proxy rule may move as soon as it
+  /// does (PROXY-008).
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
@@ -252,6 +255,9 @@ class HeadlessSiteCheck {
             .warning('could not stop a check loading: $e', sensitive: true);
       }
     }
+    final viewId = _controller?.getViewId();
     await _webview.dispose();
+    await ProcessRoute.untilDestroyed(webViewDestroyed(viewId),
+        what: 'a background check');
   }
 }

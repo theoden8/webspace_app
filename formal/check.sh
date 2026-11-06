@@ -413,12 +413,16 @@ expect process_route_midwrite.cfg process_route.tla "Inv_NoGhost is violated" \
   "voiding a claim only during its write misses a release while it waits (caught)"
 expect process_route_noturn.cfg process_route.tla "Inv_Covers is violated" \
   "writes that do not wait for the turn let a released site's write land last (caught)"
+expect process_route_quietonly.cfg process_route.tla "Inv_Covers is violated" \
+  "a vacate that ends before its webview's native destroy lets the rule move under its page (caught)"
 expect process_route_reach_releasedmidwrite.cfg process_route.tla "Reach_ReleasedMidWrite is violated" \
   "a release during a write is reachable"
 expect process_route_reach_voidedturn.cfg process_route.tla "Reach_VoidedTurn is violated" \
   "a turn that finds its claim voided is reachable"
 expect process_route_reach_claimedagain.cfg process_route.tla "Reach_ClaimedAgain is violated" \
   "a site claiming again while its old claim waits is reachable"
+expect process_route_reach_heldforgone.cfg process_route.tla "Reach_HeldForGone is violated" \
+  "a vacate holding the turn for a page still sending, a claim on another route behind it, is reachable"
 
 section "RELAY ROUTES" "the router relay's route tables and the challenges they answer (PROXY-034)"
 expect relay_routes.cfg relay_routes.tla "No error has been found" \

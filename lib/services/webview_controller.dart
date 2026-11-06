@@ -15,6 +15,7 @@ import 'package:webspace/services/file_import_document.dart';
 import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
+import 'package:webspace/services/process_route.dart';
 import 'package:webspace/services/webview_proxy.dart' show ProxyManager;
 
 /// A page in a webview's history: its address and the title it had.
@@ -48,7 +49,7 @@ bool markNetworkBlocked(inapp.InAppWebViewSettings settings) {
   return true;
 }
 
-abstract class WebViewController {
+abstract class WebViewController implements LeavingView {
   /// The underlying `inapp.InAppWebViewController` this wrapper is
   /// bound to. Exposed so per-site code paths can pass it as the
   /// `webViewController:` argument to `inapp.CookieManager` methods,
@@ -137,7 +138,17 @@ abstract class WebViewController {
   /// applies the block to a request only as its interception starts, so one
   /// already past it would still go out, through whichever proxy the
   /// process-wide rule names by then (PROXY-008, BUG-037).
+  @override
   Future<void> quiet();
+
+  /// Completes once the native webview this controller drove has been
+  /// destroyed and can send nothing more: Android keeps a disposed view
+  /// loading until it has loaded about:blank, and an icon it fetches
+  /// meanwhile leaves through whatever proxy the process-wide rule names by
+  /// then (PROXY-008). At once where the plugin destroys a view as it is
+  /// disposed.
+  @override
+  Future<void> destroyed();
 
   /// Abort any in-flight main-frame load. Used to quiesce chromium
   /// before queuing a follow-up navigation, shrinking the overlap
@@ -296,6 +307,29 @@ Future<bool> clearEngineCache() async {
 /// The [WebViewController] over one native webview. Every native call goes
 /// through [_native], so a call on a webview that has left the tree is a
 /// no-op and a platform refusal reads as "nothing happened".
+/// The plugin's process-wide channel, where the fork answers
+/// `whenWebViewDestroyed` (PROXY-008).
+const _webViewManager =
+    MethodChannel('com.pichillilorenzo/flutter_inappwebview_manager');
+
+/// Completes once the native webview the plugin built with [viewId] has
+/// been destroyed: on Android only after it has loaded about:blank, on
+/// Linux as it is disposed. At once where the plugin has no such call
+/// (Apple, which destroys a view as it is disposed) or no view is named.
+Future<void> webViewDestroyed(Object? viewId) async {
+  final id = switch (viewId) {
+    final int id => id,
+    final String id => id,
+    _ => null,
+  };
+  if (id == null) return;
+  try {
+    await _webViewManager.invokeMethod<bool>('whenWebViewDestroyed', {'id': id});
+  } on MissingPluginException {
+    return;
+  }
+}
+
 class PlatformWebViewController implements WebViewController {
   final inapp.InAppWebViewController _c;
 
@@ -596,6 +630,10 @@ class PlatformWebViewController implements WebViewController {
   /// [popup] closed on its own.
   void disown(PlatformWebViewController popup) => _popups.remove(popup);
 
+  /// The popups [quiet] closed, which run on this webview's route until
+  /// their own native views are destroyed.
+  final _closedPopups = <PlatformWebViewController>[];
+
   @override
   Future<void> quiet() async {
     final popups = {..._popups};
@@ -603,10 +641,19 @@ class PlatformWebViewController implements WebViewController {
     for (final MapEntry(key: popup, value: close) in popups.entries) {
       await popup.quiet();
       close();
+      _closedPopups.add(popup);
     }
     if (!markNetworkBlocked(_settings)) return;
     await _native(() => _c.setSettings(settings: _settings));
     await stopLoading();
+  }
+
+  @override
+  Future<void> destroyed() async {
+    await Future.wait([
+      webViewDestroyed(_c.getViewId()),
+      for (final popup in _closedPopups) popup.destroyed(),
+    ]);
   }
 
   @override

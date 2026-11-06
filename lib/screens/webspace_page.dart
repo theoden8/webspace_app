@@ -707,7 +707,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         ),
       ),
     );
-    await webView.quiet();
+    await webView.letGo();
     if (handOff case final run? when mounted) await run();
   }
 

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/utils/concurrency.dart';
@@ -10,6 +13,13 @@ enum RouteUse { webview, nested, headless }
 /// One thing running on the rule, as a site and how it runs.
 typedef RouteOccupant = ({RouteUse use, SiteId site});
 
+/// A webview leaving the rule: [quiet] stops what it loads, and [destroyed]
+/// completes once its native view can send nothing more (PROXY-008).
+abstract interface class LeavingView {
+  Future<void> quiet();
+  Future<void> destroyed();
+}
+
 /// The process-wide proxy rule where one carries a site's own proxy (Android
 /// without per-site profiles, `ProxyBinding.processWide`): the route in
 /// force and what runs on it (PROXY-008).
@@ -19,6 +29,25 @@ final class ProcessRoute {
   ProcessRoute();
 
   static final instance = ProcessRoute();
+
+  /// How long a leaving webview holds the rule for its native destroy: a
+  /// destroy that never comes (a view the tree kept) would otherwise hold
+  /// every later move of the rule.
+  static const destroyWait = Duration(seconds: 5);
+
+  /// Completes once [destroyed] has, or after [destroyWait], so [what] goes
+  /// on holding its place on the rule only so long.
+  static Future<void> untilDestroyed(
+    Future<void> destroyed, {
+    required String what,
+  }) =>
+      destroyed.timeout(destroyWait, onTimeout: () {
+        LogTag.proxy.warning(
+          '$what was not destroyed in ${destroyWait.inSeconds}s; '
+          'the process-wide proxy moves anyway (PROXY-008)',
+          sensitive: true,
+        );
+      });
 
   final SerialQueue _writes = SerialQueue('process-route');
 
@@ -101,19 +130,20 @@ final class ProcessRoute {
   /// [occupant]'s webview went but may still send: the plugin destroys a
   /// native webview only after it has loaded `about:blank`, and an icon or
   /// page it fetches meanwhile would leave through the next site's proxy.
-  /// Its claims are void at once; it leaves the rule once [quiet] has
-  /// stopped what it loads, in the rule's turn, so a write asked for
-  /// meanwhile waits (PROXY-008). With no webview to quiet it leaves now.
-  Future<void> leave(
-    RouteOccupant occupant, {
-    required Future<void> Function()? quiet,
-  }) {
-    if (quiet == null) {
+  /// Its claims are void at once; it leaves the rule once [view] is quiet
+  /// and destroyed, in the rule's turn, so a write asked for meanwhile waits
+  /// (PROXY-008; Leave, Gone and Vacated in formal/process_route.tla). With
+  /// no webview it leaves now.
+  Future<void> leave(RouteOccupant occupant, {required LeavingView? view}) {
+    if (view == null) {
       release(occupant);
       return Future.value();
     }
     _claims.remove(occupant);
-    return vacate([occupant], close: quiet);
+    return vacate([occupant], close: () async {
+      await view.quiet();
+      await untilDestroyed(view.destroyed(), what: '$occupant');
+    });
   }
 
   /// [occupants] leave once [close] has ended them, in the rule's turn: a

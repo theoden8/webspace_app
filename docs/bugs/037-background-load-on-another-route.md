@@ -427,16 +427,38 @@ the override under the sites already loaded.
    depends on the site the tab runs as where several sites claim its
    domain; a flip that changes that answer writes a link the reroute does
    not declare, and no world has two such sites.
+24. **2026-11-04, branch `claude/proxy-route-destroyed` (fork `c2d26984`).**
+   The old site's icon kept reaching the next site's upstream after
+   attempt 18's stop (`proxy_one_rule_test` on #887, #888 and #898). A
+   let-go webview now holds its place on the rule until its native view is
+   destroyed, not only until it is told to stop: the fork answers
+   `whenWebViewDestroyed(id)` on the plugin's manager channel once
+   `InAppWebView.destroy()` has run (Android, after `about:blank`) or the
+   view is gone (Linux, as `dispose` erases it), and `ProcessRoute.leave`
+   awaits the view's `quiet()` and then its `destroyed()`. A nested
+   screen's `NestedScreenWebView.letGo`, a wake's `HeadlessSiteCheck.dispose`
+   and a popup closed with its opener wait the same way.
+   `formal/process_route.tla` now models the let-go page (`Leave`, `Gone`,
+   `Vacated`) and catches `quietonly`, a vacate that ends at the stop, with
+   `Reach_HeldForGone` as its witness; `process_route_test` plants the same
+   mistake in the code. *Why:* the destroy is the one point after which the
+   view can send nothing, and Dart had no signal for it, since the plugin's
+   dispose drops the view's channel first. *Partial:* the wait is bounded
+   (`ProcessRoute.destroyWait`, 5 s), so a destroy that never comes moves
+   the rule anyway, and the model does not hold that bound.
 
 ## Known open gaps
 
-- `stopLoading` returns once Android has posted the stop; the renderer's
-  cancel and the network service's teardown of each loader pipe happen
-  after, and nothing the plugin or `androidx.webkit` exposes reports them.
-  A request already handed to the network stack before the stop lands can
-  still resolve its proxy against the next override, so the window
-  attempt 18 closes is narrowed, not proved shut. A per-webview proxy
-  (PROXY-013 router mode) is the case that does not depend on it.
+- The rule now waits for `WebView.destroy()` (attempt 24), but whether
+  destroy cancels a request already handed to the network service, before
+  it resolves its proxy, is Chromium's and read from its shape, not
+  confirmed on a device; `proxy_one_rule_test` on the emulator is what
+  checks it. A per-webview proxy (PROXY-013 router mode) is the case that
+  does not depend on it.
+- A destroy that takes longer than `ProcessRoute.destroyWait` (a view the
+  widget tree kept, a dispose that never loads `about:blank`) moves the
+  rule anyway, with a warning in the log; `process_route.tla` has no clock
+  and does not hold that case.
 - Not determined which load started the old site's favicon download in the
   CI run; Chromium's `IconHelper` downloads it through
   `WebContents::DownloadImage`, and whether `WebContents::Stop` cancels an
