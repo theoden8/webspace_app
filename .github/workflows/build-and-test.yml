@@ -937,6 +937,9 @@ jobs:
             # PASSKEY-012 needs the emulator harness (credential provider,
             # relying party, sheet taps); the Android job owns it.
             [ "$(basename "$t")" = "passkey_test.dart" ] && continue
+            # LCDN-007 skips off Android (the interceptor is Android's);
+            # the emulator job runs it.
+            [ "$(basename "$t")" = "localcdn_per_site_test.dart" ] && continue
             # ICON-013: the icon fetch path this would run here is the
             # same Dart the macOS loop runs against WKWebView, and this
             # loop is within minutes of its step cap.
@@ -1436,6 +1439,8 @@ jobs:
             [ "$(basename "$t")" = "camera_test.dart" ] && continue
             # Android-only passkey gate (PASSKEY-012); emulator job.
             [ "$(basename "$t")" = "passkey_test.dart" ] && continue
+            # Android-only LocalCDN interceptor (LCDN-007); emulator job.
+            [ "$(basename "$t")" = "localcdn_per_site_test.dart" ] && continue
             # Android-only BGAUDIO-006 media foreground service; emulator job.
             [ "$(basename "$t")" = "background_audio_media_notification_test.dart" ] && continue
             # Android-only BGAUDIO-009 media-stop tier; emulator job.
