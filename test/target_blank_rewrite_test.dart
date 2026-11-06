@@ -38,7 +38,7 @@ void main() {
       // target="_blank" cross-domain taps go silent again (issue #405).
       final webviewSrc = File('lib/services/page_scripts.dart').readAsStringSync();
       expect(webviewSrc, contains(
-          'pageShim(ShimGroup.targetBlankRewrite, js: PageJs.targetBlankRewrite.script'));
+          'ShimGroup.targetBlankRewrite => [PageJs.targetBlankRewrite.script]'));
       expect(ShimGroup.targetBlankRewrite.at, ShimTime.start);
       // Outbound links live inside embedded frames too.
       expect(ShimGroup.targetBlankRewrite.frames, ShimFrames.all);

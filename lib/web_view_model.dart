@@ -1085,7 +1085,7 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
   /// Combine this site's per-site scripts with opted-in globals into the list
   /// to inject. Forces `enabled: true` on globals so a stale stored flag (e.g.
   /// a disabled site script later promoted via "Make Global") can't silently
-  /// drop the script in `UserScriptService.buildInitialUserScripts`.
+  /// drop the script in `UserScriptService.sourcesAt`.
   List<UserScriptConfig> combineUserScripts(
       List<UserScriptConfig> globalUserScripts) {
     return [

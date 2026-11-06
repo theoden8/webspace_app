@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/keyboard_input.dart';
 import 'package:webspace/services/page_focus.dart';
@@ -170,22 +169,6 @@ void main() {
     expect(PageFocus.edgeOf([]), isNull);
     expect(PageFocus.edgeOf([1]), isNull);
     expect(PageFocus.edgeOf(['up', 'down']), isNull);
-  });
-
-  test('only a device a remote drives takes the page script (NAV-016)', () {
-    final scripts = <inapp.UserScript>[];
-    expect(PageFocus.install(keys: null, into: scripts), isNull);
-    expect(PageFocus.install(keys: PageKeys.keyboard, into: scripts),
-        isNotNull);
-    expect(scripts, isEmpty, reason: 'a keyboard never leaves the page');
-
-    expect(PageFocus.install(keys: PageKeys.remote, into: scripts),
-        isNotNull);
-    expect(scripts, hasLength(1));
-    expect(scripts.single.forMainFrameOnly, isFalse,
-        reason: 'a key reaches only the frame holding focus, which passes it '
-            'up to the top document');
-    expect(scripts.single.source, contains(kRemoteEdgeHandler));
   });
 
   test('only Android wraps a page (NAV-016, NAV-019)', () {

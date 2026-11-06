@@ -25,107 +25,61 @@ import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/icon_link_watcher_shim.dart';
+import 'package:webspace/services/search_link_watcher_shim.dart';
+import 'package:webspace/services/page_focus.dart';
+import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/services/page_js.dart';
 import 'package:webspace/services/webkit_block_reports.dart';
 
+/// What a site's own webview installs beyond the scripts its posture asks
+/// for, which a popup and a headless check share: the watchers that report
+/// into the site's icon and its search, and how a remote hands focus back
+/// from its page ([keys]).
+typedef OwnView = ({PageKeys? keys});
+
 /// The user scripts a site webview starts with: every shim its posture asks
-/// for, in the order they must run.
+/// for, in [ShimGroup]'s order.
 abstract final class PageScripts {
   /// Everything the page-facing JS surface of a site needs, derived from
-  /// [config] alone. Shared with [WebViewFactory.createPopupWebView] so a popup opened by a
-  /// site carries the same shims as the webview that spawned it. The list is
-  /// in injection order.
+  /// [config], and from [own] for the site's own webview (null for a popup,
+  /// which shares the shims of the site that spawned it, and for a headless
+  /// check).
   static ({
     int textZoom,
     List<inapp.UserScript> userScripts,
     PageZoomPlan zoomPlan,
     bool desktopMode,
     UserScriptService userScriptService,
-  }) buildPageScripts(WebViewConfig config) {
+  }) buildPageScripts(WebViewConfig config, {required OwnView? own}) {
     final posture = config.posture;
-    final textZoom = WebViewFactory.systemTextZoomPercent();
     final desktopMode = isDesktopUserAgent(posture.page.userAgent);
-    final zoomPlan = planPageZoom(
-      zoomPercent: posture.page.zoomPercent,
-      isAndroid: hostIsAndroid,
-      isIOS: hostIsIOS,
+    final shims = _PageShims(
+      config: config,
+      own: own,
+      textZoom: WebViewFactory.systemTextZoomPercent(),
       desktopMode: desktopMode,
+      zoomPlan: planPageZoom(
+        zoomPercent: posture.page.zoomPercent,
+        isAndroid: hostIsAndroid,
+        isIOS: hostIsIOS,
+        desktopMode: desktopMode,
+      ),
+      userScripts: UserScriptService(
+        scripts: posture.page.userScripts,
+        onConfirmScriptFetch: config.hooks.confirmScriptFetch,
+        proxy: posture.container.proxy,
+      ),
     );
-    final scoped = _scopedShims(posture);
-    final userScriptService = UserScriptService(
-      scripts: posture.page.userScripts,
-      onConfirmScriptFetch: config.hooks.confirmScriptFetch,
-      proxy: posture.container.proxy,
-    );
-
-    final userScripts = <inapp.UserScript>[
-      if (scoped.webGl case final js?)
-        pageShim(ShimGroup.webglKillSwitch, js: js),
-      pageShim(ShimGroup.doNotTrack,
-          js: PageJs.doNotTrack.script),
-    ];
-    // Capture shims. Each asks Dart for the site's decision through its
-    // kind's request handler, so the popup, the remembered choice and the
-    // archive-tier override are enforced in one place. A combined audio+video
-    // getUserMedia is split by the microphone shim and its video half
-    // re-issued through the live entry point, so the shims compose whichever
-    // order they were injected in.
-    //
-    // The camera and microphone reach every frame, so a QR scanner in a
-    // cross-origin iframe is covered. Screen sharing does not (SHARE-005), and
-    // nothing under it can back-door one: no platform this app ships offers
-    // display capture to a WKWebView / Android WebView, and the Linux WPE
-    // plugin denies a display-device user-media request natively before Dart
-    // is consulted. Its shim re-reads `window === window.top` itself, so the
-    // guard survives a platform that stops honouring the flag.
-    if (config.grants != null) {
-      for (final kind in CaptureKind.values) {
-        userScripts.add(pageShim(
-          kind.shimGroup,
-          js: buildCaptureShim(kind)));
-      }
-    }
-
-    userScripts.addAll([
-      ..._passkeyShims(config.passkeys),
-      // Cross-domain taps then reach shouldOverrideUrlLoading, which has a
-      // reliable gesture, instead of onCreateWindow (issue #405).
-      pageShim(ShimGroup.targetBlankRewrite, js: PageJs.targetBlankRewrite.script),
-      if (scoped.antiFingerprinting case final js?)
-        pageShim(ShimGroup.antiFingerprinting, js: js),
-      ..._downloadShims(),
-      ..._identityShims(posture, scoped: scoped, desktopMode: desktopMode),
-      ..._zoomShims(posture, plan: zoomPlan,
-          textZoom: textZoom, desktopMode: desktopMode),
-      pageShim(
-          ShimGroup.notificationPolyfill,
-          js: buildNotificationPolyfillShim(
-            siteId: posture.siteId,
-            notificationsEnabled: posture.page.notifications,
-          )),
-      ..._mediaSessionShims(config),
-      pageShim(ShimGroup.locationSpoof, js: scoped.location),
-      ..._contentBlockerShims(config),
-      if (posture.blocking.clearUrls)
-        pageShim(ShimGroup.clearUrlShare, js: PageJs.clearUrlShare.script),
-      if (scoped.language case final js?)
-        pageShim(ShimGroup.languageOverride, js: js),
-      // The first document gets it too; the controller replaces it when the
-      // theme changes.
-      pageShim(ShimGroup.themeColorScheme,
-          js: buildThemeColorSchemeShim(posture.page.theme)),
-      // An iframe can create its own workers.
-      if (buildWorkerShimScript(workerScopeBodies(scoped)) case final js?)
-        pageShim(ShimGroup.worker, js: js),
-      ..._blockInterceptorShims(config),
-      ...userScriptService.buildInitialUserScripts(),
-    ]);
     return (
-      textZoom: textZoom,
-      userScripts: userScripts,
-      zoomPlan: zoomPlan,
+      textZoom: shims.textZoom,
+      userScripts: [
+        for (final group in ShimGroup.values)
+          for (final js in shims.of(group)) pageShim(group, js: js),
+      ],
+      zoomPlan: shims.zoomPlan,
       desktopMode: desktopMode,
-      userScriptService: userScriptService,
+      userScriptService: shims.userScripts,
     );
   }
 
@@ -163,136 +117,202 @@ abstract final class PageScripts {
     );
   }
 
-  /// Passkeys through the Credential Manager bridge (PASSKEY-003), in every
-  /// frame, so a cross-origin frame is refused by the handler the way
-  /// Chromium refuses an undelegated one rather than by a missing API. The
-  /// WebView backend needs nothing: the engine exposes WebAuthn itself.
-  /// WebKit answers WebAuthn on its own with no switch to stop it, so on iOS
-  /// and macOS "no passkeys" is the block shim, in every frame (PASSKEY-013).
-  static List<inapp.UserScript> _passkeyShims(PasskeyAccess? passkeys) => [
-        if (passkeys?.backend == PasskeyBackend.credentialManager)
-          pageShim(ShimGroup.passkey, js: PageJs.passkey.script),
-        if (passkeys == null && PasskeyAccess.hostIsApple)
-          pageShim(ShimGroup.passkeyBlock, js: PageJs.passkeyBlock.script),
-      ];
+}
 
-  /// Blob downloads. The capture serves a site whose CSP `connect-src`
-  /// refuses `fetch(blob:)`: [WebViewDownloads.handleBlobDownload] reads the Blob itself.
-  /// Android's DownloadListener never fires for a `blob:` link, so the click
-  /// is bridged too; WebKit raises onDownloadStartRequest for it natively.
-  static List<inapp.UserScript> _downloadShims() => [
-        pageShim(ShimGroup.blobUrlCapture,
-            js: PageJs.blobUrlCapture.script),
-        if (hostIsAndroid)
-          pageShim(ShimGroup.blobDownloadClickIntercept,
-              js: PageJs.blobDownloadClickIntercept.script),
-      ];
+/// The scripts of each [ShimGroup] one webview build installs.
+final class _PageShims {
+  _PageShims({
+    required this.config,
+    required this.own,
+    required this.textZoom,
+    required this.desktopMode,
+    required this.zoomPlan,
+    required this.userScripts,
+  }) : scoped = PageScripts._scopedShims(config.posture);
 
-  /// The per-site UA's identity. A desktop UA also gets userAgentData,
-  /// maxTouchPoints, matchMedia and the viewport of a desktop; any UA gets
-  /// the navigator fields the host engine would otherwise fill in its own
-  /// name (vendor, productSub, oscpu, buildID, platform).
-  static List<inapp.UserScript> _identityShims(
-    SitePosture p, {
-    required ScopedShims scoped,
-    required bool desktopMode,
-  }) =>
-      [
-        if (desktopMode)
-          pageShim(ShimGroup.desktopMode,
-              js: buildDesktopModeShim(p.page.userAgent ?? '')),
-        if (scoped.identity case final js?)
-          pageShim(ShimGroup.uaIdentity, js: js),
-      ];
+  final WebViewConfig config;
+  final OwnView? own;
+  final int textZoom;
+  final bool desktopMode;
+  final PageZoomPlan zoomPlan;
+  final UserScriptService userScripts;
+  final ScopedShims scoped;
 
-  /// The page's scale: WebKit's default viewport fix (desktop mode owns the
-  /// viewport itself), the OS text size where there is no `textZoom`
-  /// setting, and the per-site zoom on the channel [planPageZoom] picked.
-  static List<inapp.UserScript> _zoomShims(
-    SitePosture p, {
-    required PageZoomPlan plan,
-    required int textZoom,
-    required bool desktopMode,
-  }) {
-    final zoom = p.page.zoomPercent;
-    final pageZoom = switch (plan.channel) {
+  SitePosture get posture => config.posture;
+
+  /// The scripts [group] installs here, none where the posture or the host
+  /// asks for none.
+  List<String> of(ShimGroup group) => switch (group) {
+        ShimGroup.webglKillSwitch => [?scoped.webGl],
+        ShimGroup.doNotTrack => [PageJs.doNotTrack.script],
+        // Each asks Dart for the site's decision through its kind's request
+        // handler, so the popup, the remembered choice and the archive-tier
+        // override are enforced in one place. A combined audio+video
+        // getUserMedia is split by the microphone shim and its video half
+        // re-issued through the live entry point, so the shims compose in
+        // either order. Screen sharing reaches the top frame only (SHARE-005),
+        // and nothing under it can back-door one: no platform this app ships
+        // offers display capture to a WKWebView / Android WebView, and the
+        // Linux WPE plugin denies a display-device user-media request
+        // natively before Dart is consulted.
+        ShimGroup.cameraStream ||
+        ShimGroup.microphoneStream ||
+        ShimGroup.screenShare =>
+          [
+            if (config.grants != null)
+              for (final kind in CaptureKind.values)
+                if (kind.shimGroup == group) buildCaptureShim(kind),
+          ],
+        // Passkeys through the Credential Manager bridge (PASSKEY-003), so a
+        // cross-origin frame is refused by the handler the way Chromium
+        // refuses an undelegated one rather than by a missing API. The
+        // WebView backend needs nothing: the engine exposes WebAuthn itself.
+        ShimGroup.passkey => [
+            if (config.passkeys?.backend == PasskeyBackend.credentialManager)
+              PageJs.passkey.script,
+          ],
+        // WebKit answers WebAuthn on its own with no switch to stop it, so on
+        // iOS and macOS "no passkeys" is the block shim (PASSKEY-013).
+        ShimGroup.passkeyBlock => [
+            if (config.passkeys == null && PasskeyAccess.hostIsApple)
+              PageJs.passkeyBlock.script,
+          ],
+        // Cross-domain taps then reach shouldOverrideUrlLoading, which has a
+        // reliable gesture, instead of onCreateWindow (issue #405).
+        ShimGroup.targetBlankRewrite => [PageJs.targetBlankRewrite.script],
+        ShimGroup.antiFingerprinting => [?scoped.antiFingerprinting],
+        // The capture serves a site whose CSP `connect-src` refuses
+        // `fetch(blob:)`: [WebViewDownloads.handleBlobDownload] reads the
+        // Blob itself. Android's DownloadListener never fires for a `blob:`
+        // link, so the click is bridged too; WebKit raises
+        // onDownloadStartRequest for it natively.
+        ShimGroup.blobUrlCapture => [PageJs.blobUrlCapture.script],
+        ShimGroup.blobDownloadClickIntercept => [
+            if (hostIsAndroid) PageJs.blobDownloadClickIntercept.script,
+          ],
+        // A desktop UA also gets userAgentData, maxTouchPoints, matchMedia and
+        // the viewport of a desktop; any UA gets the navigator fields the host
+        // engine would otherwise fill in its own name.
+        ShimGroup.desktopMode => [
+            if (desktopMode) buildDesktopModeShim(posture.page.userAgent ?? ''),
+          ],
+        ShimGroup.uaIdentity => [?scoped.identity],
+        // WebKit's default viewport fix; desktop mode owns the viewport.
+        ShimGroup.defaultViewport => [
+            if ((hostIsIOS || hostIsMacOS) && !desktopMode)
+              PageJs.defaultViewport.script,
+          ],
+        // The OS text size where there is no `textZoom` setting.
+        ShimGroup.systemTextZoom => [
+            if (!hostIsAndroid) buildTextZoomShim(textZoom),
+          ],
+        ShimGroup.pageZoom => [?_pageZoom()],
+        ShimGroup.notificationPolyfill => [
+            buildNotificationPolyfillShim(
+              siteId: posture.siteId,
+              notificationsEnabled: posture.page.notifications,
+            ),
+          ],
+        ShimGroup.mediaSession => _mediaSession(),
+        ShimGroup.locationSpoof => [scoped.location],
+        // The early CSS hides before first paint; the generic class/id scan
+        // and the procedural actions (`:has-text()`, `:upward()`,
+        // `:remove()`) need a parsed body and the engine.
+        ShimGroup.contentBlockerEarlyCss => [
+            if (_blocker case final b?) ?b.getEarlyCssScript(config.initialUrl),
+          ],
+        ShimGroup.contentBlockerCsp => [
+            if (_blocker?.cspFor(config.initialUrl) case final csp?
+                when csp.isNotEmpty)
+              buildContentBlockerCspShim(csp),
+          ],
+        ShimGroup.genericCosmetic => [
+            if (_blocker?.usingRustEngine ?? false) PageJs.genericCosmetic.script,
+          ],
+        ShimGroup.proceduralCosmetic => [
+            if (_blocker case final b? when b.usingRustEngine)
+              ?buildProceduralCosmeticShim(
+                  b.proceduralActionsFor(config.initialUrl)),
+          ],
+        ShimGroup.clearUrlShare => [
+            if (posture.blocking.clearUrls) PageJs.clearUrlShare.script,
+          ],
+        ShimGroup.languageOverride => [?scoped.language],
+        // The first document gets it too; the controller replaces it when the
+        // theme changes ([LiveShim.themeColorScheme]).
+        ShimGroup.themeColorScheme => [
+            buildThemeColorSchemeShim(posture.page.theme),
+          ],
+        ShimGroup.worker => [
+            ?buildWorkerShimScript(workerScopeBodies(scoped)),
+          ],
+        // WebKit's sub-resource accounting and blocking, which Android does
+        // natively. The observer runs whether or not a list is loaded, since
+        // the per-site log reflects the visit rather than the blockers. The
+        // interceptor goes in whenever the site asks for a blocker, data or
+        // not: a list that lands later reaches it through its bloom, where one
+        // left out at build would leave the view unblocked for its life.
+        ShimGroup.blockResourceObserver => [
+            if (!hostIsAndroid) PageJs.blockResourceObserver.script,
+          ],
+        ShimGroup.blockJsInterceptor => [
+            if (!hostIsAndroid &&
+                (posture.blocking.dns || posture.blocking.contentBlock))
+              PageJs.blockJsInterceptor
+                  .withConfig({'webKitReports': WebKitBlockReports.active}),
+          ],
+        ShimGroup.scriptFetch => [?userScripts.shimScript],
+        ShimGroup.userScriptsAtStart =>
+          userScripts.sourcesAt(UserScriptInjectionTime.atDocumentStart),
+        ShimGroup.userScriptsAtEnd =>
+          userScripts.sourcesAt(UserScriptInjectionTime.atDocumentEnd),
+        ShimGroup.remoteEdge => [
+            if (own?.keys == PageKeys.remote) PageFocus.edgeScript,
+          ],
+        // A popup, which shares the site's config, never reports into the
+        // site's icon or search.
+        ShimGroup.iconLinkWatcher => [
+            if (own != null && config.siteIcon != null)
+              buildIconLinkWatcherShim(),
+          ],
+        ShimGroup.searchLinkWatcher => [
+            if (own != null && config.siteSearch != null)
+              buildSearchLinkWatcherShim(),
+          ],
+      };
+
+  /// The content blocker, where the site asks for cosmetic filtering.
+  ContentBlockerService? get _blocker =>
+      posture.blocking.contentBlock ? ContentBlockerService.instance : null;
+
+  /// The per-site zoom on the channel [planPageZoom] picked.
+  String? _pageZoom() {
+    final zoom = posture.page.zoomPercent;
+    return switch (zoomPlan.channel) {
       PageZoomChannel.none => null,
       PageZoomChannel.cssZoom => buildPageZoomCssShim(zoom),
       PageZoomChannel.viewportMeta => () {
           final (portrait, landscape) = WebViewFactory.viewExtents();
           return buildPageZoomViewportShim(
             zoomPercent: zoom,
-            pinLayoutWidth: plan.pinLayoutWidth,
+            pinLayoutWidth: zoomPlan.pinLayoutWidth,
             portraitWidth: portrait,
             landscapeWidth: landscape,
           );
         }(),
     };
-    return [
-      if ((hostIsIOS || hostIsMacOS) && !desktopMode)
-        pageShim(ShimGroup.defaultViewport, js: PageJs.defaultViewport.script),
-      if (!hostIsAndroid)
-        pageShim(ShimGroup.systemTextZoom, js: buildTextZoomShim(textZoom)),
-      if (pageZoom != null)
-        pageShim(ShimGroup.pageZoom, js: pageZoom),
-    ];
   }
 
   /// BGAUDIO-006, on background-audio sites only. The log line is the first
   /// link of BGAUDIO-007's chain: its absence from an App Logs export says
   /// the toggle is off, which nothing downstream can tell from a broken
   /// bridge.
-  static List<inapp.UserScript> _mediaSessionShims(WebViewConfig config) {
+  List<String> _mediaSession() {
     if (!config.backgroundAudioEnabled ||
         !MediaSessionService.instance.isSupported) {
       return const [];
     }
     LogTag.mediaSession.debug('Bridge armed for this site');
-    return [
-      pageShim(ShimGroup.mediaSession, js: PageJs.mediaSession.script),
-    ];
-  }
-
-  /// Cosmetic filtering and `$csp=`. The early CSS hides before first paint;
-  /// the generic class/id scan and the procedural actions (`:has-text()`,
-  /// `:upward()`, `:remove()`) need a parsed body and the engine.
-  static List<inapp.UserScript> _contentBlockerShims(WebViewConfig config) {
-    if (!config.posture.blocking.contentBlock) return const [];
-    final blocker = ContentBlockerService.instance;
-    final url = config.initialUrl;
-    final csp = blocker.cspFor(url);
-    final engine = blocker.usingRustEngine;
-    final procedural = engine
-        ? buildProceduralCosmeticShim(blocker.proceduralActionsFor(url))
-        : null;
-    return [
-      if (blocker.getEarlyCssScript(url) case final js?)
-        pageShim(ShimGroup.contentBlockerEarlyCss, js: js),
-      if (csp != null && csp.isNotEmpty)
-        pageShim(ShimGroup.contentBlockerCsp, js: buildContentBlockerCspShim(csp)),
-      if (engine)
-        pageShim(ShimGroup.genericCosmetic, js: PageJs.genericCosmetic.script),
-      if (procedural != null)
-        pageShim(ShimGroup.proceduralCosmetic, js: procedural),
-    ];
-  }
-
-  /// WebKit's sub-resource accounting and blocking, which Android does
-  /// natively. The observer runs whether or not a list is loaded, since the
-  /// per-site log reflects the visit rather than the blockers. The
-  /// interceptor goes in whenever the site asks for a blocker, data or not:
-  /// a list that lands later reaches it through its bloom, where one left
-  /// out at build would leave the view unblocked for its life.
-  static List<inapp.UserScript> _blockInterceptorShims(WebViewConfig config) {
-    if (hostIsAndroid) return const [];
-    final blocks =
-        config.posture.blocking.dns || config.posture.blocking.contentBlock;
-    return [
-      pageShim(ShimGroup.blockResourceObserver, js: PageJs.blockResourceObserver.script),
-      if (blocks)
-        pageShim(ShimGroup.blockJsInterceptor,
-            js: PageJs.blockJsInterceptor
-                .withConfig({'webKitReports': WebKitBlockReports.active})),
-    ];
+    return [PageJs.mediaSession.script];
   }
 }

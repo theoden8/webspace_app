@@ -76,7 +76,7 @@ void main() {
       // calls it, and github.com downloads silently break again.
       final webviewSrc = File('lib/services/page_scripts.dart').readAsStringSync();
       expect(webviewSrc, matches(RegExp(
-          r"pageShim\(ShimGroup\.blobUrlCapture,\s*js: PageJs.blobUrlCapture.script")));
+          r"ShimGroup\.blobUrlCapture => \[PageJs\.blobUrlCapture\.script\]")));
       expect(ShimGroup.blobUrlCapture.at, ShimTime.start);
     });
 
@@ -246,19 +246,13 @@ void main() {
       // shim is in place before any page script can mint a blob URL
       // and wire a click handler against it.
       final webviewSrc = File('lib/services/page_scripts.dart').readAsStringSync();
-      final blockStart = webviewSrc.indexOf(RegExp(
-          r"ShimGroup\.blobDownloadClickIntercept,\s*js: PageJs.blobDownloadClickIntercept.script"));
-      expect(blockStart, greaterThan(0));
+      // Android gate: the arm installs it on Android alone (the web-safe
+      // Platform.isAndroid), so iOS/macOS keep using onDownloadStartRequest
+      // natively.
+      expect(webviewSrc, matches(RegExp(
+          r"ShimGroup\.blobDownloadClickIntercept => \[\s*"
+          r"if \(hostIsAndroid\) PageJs\.blobDownloadClickIntercept\.script")));
       expect(ShimGroup.blobDownloadClickIntercept.at, ShimTime.start);
-      // Android gate: the registration sits inside a hostIsAndroid block
-      // (the web-safe Platform.isAndroid) so iOS/macOS keep using
-      // onDownloadStartRequest natively.
-      final preamble = webviewSrc.substring(
-          // Anchor the search far enough back that the Platform check
-          // for the script registration falls inside the slice.
-          (blockStart - 200).clamp(0, blockStart),
-          blockStart);
-      expect(preamble, contains('hostIsAndroid'));
     });
 
     test('Dart handler for _webspaceBlobDownloadStart is registered', () {

@@ -143,7 +143,7 @@ test('CAPTCHA-009: the popup webview inherits the parent site posture', () => {
   assert.ok(!/javaScriptEnabled:\s*true/.test(body),
     'the popup must honor the site\'s javascriptEnabled, not hardcode true');
   for (const wiring of [
-    'PageScripts.buildPageScripts(parent)',   // the same shims as the site webview
+    'PageScripts.buildPageScripts(parent, own: null)', // the site's shims (test/page_scripts_test.dart)
     'WebViewFactory.bindingFor(parent)',      // the same container + proxy
     'PageHandlers.registerPageHandlers(',     // the Dart side those shims call
   ]) {

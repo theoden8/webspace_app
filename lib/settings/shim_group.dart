@@ -12,9 +12,10 @@ enum ShimTime { start, end }
 /// leave that frame the real values, and a screen share that reached one
 /// would hand a third party the surface (SHARE-005).
 ///
-/// A group is installed when its webview is built, so every document it runs
-/// in has it from before the page's own first script; only a [LiveShim] is
-/// replaced on a live view.
+/// A group is installed when its webview is built, in the order declared
+/// here (`PageScripts.buildPageScripts`), so every document it runs in has it
+/// from before the page's own first script; only a [LiveShim] is replaced on
+/// a live view.
 enum ShimGroup {
   webglKillSwitch('webgl_kill_switch', frames: ShimFrames.all),
   doNotTrack('do_not_track', frames: ShimFrames.all),
@@ -57,9 +58,9 @@ enum ShimGroup {
   /// The user's own scripts, under one group at either time they ask for.
   userScriptsAtStart('user_scripts', frames: ShimFrames.top),
   userScriptsAtEnd('user_scripts', frames: ShimFrames.top, at: ShimTime.end),
+  remoteEdge('remote_edge', frames: ShimFrames.all),
   iconLinkWatcher('icon_link_watcher', frames: ShimFrames.top),
-  searchLinkWatcher('search_link_watcher', frames: ShimFrames.top),
-  remoteEdge('remote_edge', frames: ShimFrames.all);
+  searchLinkWatcher('search_link_watcher', frames: ShimFrames.top);
 
   const ShimGroup(this.groupName, {required this.frames, this.at = ShimTime.start});
 
