@@ -71,7 +71,7 @@ Rules are fixed; a new one replaces one. The map grows one row per item. No reci
 | `launcherTileIcon` (`services/launcher_tile_engine.dart`) | a home screen tile's icon: the site icon on an opaque plate, white unless the icon is lost on white, full bleed so a launcher adds no background of its own (HS-018) | `ShortcutService.tileArguments`, through which every tile's icon reaches native; `plateFor(image)` → `TilePlate` |
 | `ContentRuleLists` (`services/content_rule_lists.dart`) | which compiled WebKit content rule lists a new webview attaches (CB-020) | `contentRuleListIdentifiers`; `planRuleLists` → sealed `RuleListPlan` |
 | `WebKitBlockReports` (`services/webkit_block_reports.dart`, `ios/Runner/WebKitBlockReports.swift`) | whether this run counts WebKit's own report of each request the content rule lists block: an iOS or macOS build made with `--flavor direct`, its Experimental switch on at launch; the private delegate method compiled into the `-direct` configurations alone (`WEBSPACE_DIRECT`, CB-023) | `WebKitBlockReports.start(wanted:)` before the first webview; `.active` into the page interceptor's config and `countsForPage`; the reports reach Dart through the page, `blockRecordBatch` with `why: webkit` |
-| `pageShim` (`services/page_shim.dart`) | how a page shim is injected | `pageShim(group, js:, frames:)`; `ShimFrames` has no default |
+| `ShimGroup`, `LiveShim` (`settings/shim_group.dart`), `pageShim` (`services/page_shim.dart`) | every script the app installs into a site's documents: the group the platform keeps it by, the frames it reaches and when it runs (SHARE-005); which few are replaced on a live view | `pageShim(ShimGroup.x, js:)`; `_rotateShim(LiveShim.x, shim:)` |
 | `site_unload_engine.dart` | which steps an unload runs | `enum UnloadReason` |
 | `OrphanSweepEngine` | the one orphan sweep and its store list | `enum OrphanStore` |
 | `CaptureKind` / `GrantStore` (`settings/capture.dart`, `services/media_grant_engine.dart`) | capture kinds and their grants | enum over three mode enums, `grantOf`/`withGrant` switches; sealed `GrantStore` |
@@ -805,7 +805,7 @@ required field there (BUG-028). The site's own webview takes it inside a
 `SiteHooks` ([web_view_model_hooks.dart](lib/web_view_model_hooks.dart)),
 beside the answers that name the site, which a nested screen never asks.
 
-If the field controls JS in `initialUserScripts`, inject it with `pageShim(..., frames: ShimFrames.all)` ([page_shim.dart](lib/services/page_shim.dart)) so the shim reaches cross-origin iframes.
+If the field controls JS in `initialUserScripts`, declare its `ShimGroup` with `frames: ShimFrames.all` ([shim_group.dart](lib/settings/shim_group.dart)) and inject it with `pageShim(ShimGroup.x, js:)`, so the shim reaches cross-origin iframes.
 
 ## Logic engine vs rendering engine
 

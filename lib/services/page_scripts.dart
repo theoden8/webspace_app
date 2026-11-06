@@ -60,9 +60,9 @@ abstract final class PageScripts {
 
     final userScripts = <inapp.UserScript>[
       if (scoped.webGl case final js?)
-        pageShim('webgl_kill_switch', js: js, frames: ShimFrames.all),
-      pageShim('do_not_track',
-          js: PageJs.doNotTrack.script, frames: ShimFrames.all),
+        pageShim(ShimGroup.webglKillSwitch, js: js),
+      pageShim(ShimGroup.doNotTrack,
+          js: PageJs.doNotTrack.script),
     ];
     // Capture shims. Each asks Dart for the site's decision through its
     // kind's request handler, so the popup, the remembered choice and the
@@ -82,9 +82,7 @@ abstract final class PageScripts {
       for (final kind in CaptureKind.values) {
         userScripts.add(pageShim(
           kind.shimGroup,
-          js: buildCaptureShim(kind),
-          frames: kind.frames,
-        ));
+          js: buildCaptureShim(kind)));
       }
     }
 
@@ -92,37 +90,33 @@ abstract final class PageScripts {
       ..._passkeyShims(config.passkeys),
       // Cross-domain taps then reach shouldOverrideUrlLoading, which has a
       // reliable gesture, instead of onCreateWindow (issue #405).
-      pageShim('target_blank_rewrite', js: PageJs.targetBlankRewrite.script,
-          frames: ShimFrames.all),
+      pageShim(ShimGroup.targetBlankRewrite, js: PageJs.targetBlankRewrite.script),
       if (scoped.antiFingerprinting case final js?)
-        pageShim('anti_fingerprinting', js: js, frames: ShimFrames.all),
+        pageShim(ShimGroup.antiFingerprinting, js: js),
       ..._downloadShims(),
       ..._identityShims(posture, scoped: scoped, desktopMode: desktopMode),
       ..._zoomShims(posture, plan: zoomPlan,
           textZoom: textZoom, desktopMode: desktopMode),
       pageShim(
-          'notification_polyfill',
+          ShimGroup.notificationPolyfill,
           js: buildNotificationPolyfillShim(
             siteId: posture.siteId,
             notificationsEnabled: posture.page.notifications,
-          ),
-          frames: ShimFrames.all),
+          )),
       ..._mediaSessionShims(config),
-      pageShim('location_spoof', js: scoped.location, frames: ShimFrames.all),
+      pageShim(ShimGroup.locationSpoof, js: scoped.location),
       ..._contentBlockerShims(config),
       if (posture.blocking.clearUrls)
-        pageShim('clearurl_share', js: PageJs.clearUrlShare.script,
-            frames: ShimFrames.all),
+        pageShim(ShimGroup.clearUrlShare, js: PageJs.clearUrlShare.script),
       if (scoped.language case final js?)
-        pageShim('language_override', js: js, frames: ShimFrames.all),
+        pageShim(ShimGroup.languageOverride, js: js),
       // The first document gets it too; the controller replaces it when the
       // theme changes.
-      pageShim(themeColorSchemeGroup,
-          js: buildThemeColorSchemeShim(posture.page.theme),
-          frames: ShimFrames.all),
+      pageShim(ShimGroup.themeColorScheme,
+          js: buildThemeColorSchemeShim(posture.page.theme)),
       // An iframe can create its own workers.
       if (buildWorkerShimScript(workerScopeBodies(scoped)) case final js?)
-        pageShim('worker_shim', js: js, frames: ShimFrames.all),
+        pageShim(ShimGroup.worker, js: js),
       ..._blockInterceptorShims(config),
       ...userScriptService.buildInitialUserScripts(),
     ]);
@@ -177,10 +171,9 @@ abstract final class PageScripts {
   /// and macOS "no passkeys" is the block shim, in every frame (PASSKEY-013).
   static List<inapp.UserScript> _passkeyShims(PasskeyAccess? passkeys) => [
         if (passkeys?.backend == PasskeyBackend.credentialManager)
-          pageShim('passkey', js: PageJs.passkey.script, frames: ShimFrames.all),
+          pageShim(ShimGroup.passkey, js: PageJs.passkey.script),
         if (passkeys == null && PasskeyAccess.hostIsApple)
-          pageShim('passkey_block', js: PageJs.passkeyBlock.script,
-              frames: ShimFrames.all),
+          pageShim(ShimGroup.passkeyBlock, js: PageJs.passkeyBlock.script),
       ];
 
   /// Blob downloads. The capture serves a site whose CSP `connect-src`
@@ -188,11 +181,11 @@ abstract final class PageScripts {
   /// Android's DownloadListener never fires for a `blob:` link, so the click
   /// is bridged too; WebKit raises onDownloadStartRequest for it natively.
   static List<inapp.UserScript> _downloadShims() => [
-        pageShim('blob_url_capture',
-            js: PageJs.blobUrlCapture.script, frames: ShimFrames.top),
+        pageShim(ShimGroup.blobUrlCapture,
+            js: PageJs.blobUrlCapture.script),
         if (hostIsAndroid)
-          pageShim('blob_download_click_intercept',
-              js: PageJs.blobDownloadClickIntercept.script, frames: ShimFrames.top),
+          pageShim(ShimGroup.blobDownloadClickIntercept,
+              js: PageJs.blobDownloadClickIntercept.script),
       ];
 
   /// The per-site UA's identity. A desktop UA also gets userAgentData,
@@ -206,11 +199,10 @@ abstract final class PageScripts {
   }) =>
       [
         if (desktopMode)
-          pageShim('desktop_mode_shim',
-              js: buildDesktopModeShim(p.page.userAgent ?? ''),
-              frames: ShimFrames.all),
+          pageShim(ShimGroup.desktopMode,
+              js: buildDesktopModeShim(p.page.userAgent ?? '')),
         if (scoped.identity case final js?)
-          pageShim('ua_identity_shim', js: js, frames: ShimFrames.all),
+          pageShim(ShimGroup.uaIdentity, js: js),
       ];
 
   /// The page's scale: WebKit's default viewport fix (desktop mode owns the
@@ -238,13 +230,11 @@ abstract final class PageScripts {
     };
     return [
       if ((hostIsIOS || hostIsMacOS) && !desktopMode)
-        pageShim('default_viewport', js: PageJs.defaultViewport.script,
-            frames: ShimFrames.top),
+        pageShim(ShimGroup.defaultViewport, js: PageJs.defaultViewport.script),
       if (!hostIsAndroid)
-        pageShim('system_text_zoom', js: buildTextZoomShim(textZoom),
-            frames: ShimFrames.all),
+        pageShim(ShimGroup.systemTextZoom, js: buildTextZoomShim(textZoom)),
       if (pageZoom != null)
-        pageShim('page_zoom', js: pageZoom, frames: ShimFrames.all),
+        pageShim(ShimGroup.pageZoom, js: pageZoom),
     ];
   }
 
@@ -259,8 +249,7 @@ abstract final class PageScripts {
     }
     LogTag.mediaSession.debug('Bridge armed for this site');
     return [
-      pageShim('media_session_shim', js: PageJs.mediaSession.script,
-          frames: ShimFrames.all),
+      pageShim(ShimGroup.mediaSession, js: PageJs.mediaSession.script),
     ];
   }
 
@@ -278,16 +267,13 @@ abstract final class PageScripts {
         : null;
     return [
       if (blocker.getEarlyCssScript(url) case final js?)
-        pageShim('content_blocker_early_css', js: js, frames: ShimFrames.top),
+        pageShim(ShimGroup.contentBlockerEarlyCss, js: js),
       if (csp != null && csp.isNotEmpty)
-        pageShim('content_blocker_csp', js: buildContentBlockerCspShim(csp),
-            frames: ShimFrames.top),
+        pageShim(ShimGroup.contentBlockerCsp, js: buildContentBlockerCspShim(csp)),
       if (engine)
-        pageShim('generic_cosmetic', js: PageJs.genericCosmetic.script,
-            frames: ShimFrames.top, at: ShimTime.end),
+        pageShim(ShimGroup.genericCosmetic, js: PageJs.genericCosmetic.script),
       if (procedural != null)
-        pageShim('procedural_cosmetic', js: procedural,
-            frames: ShimFrames.top, at: ShimTime.end),
+        pageShim(ShimGroup.proceduralCosmetic, js: procedural),
     ];
   }
 
@@ -302,13 +288,11 @@ abstract final class PageScripts {
     final blocks =
         config.posture.blocking.dns || config.posture.blocking.contentBlock;
     return [
-      pageShim('block_resource_observer', js: PageJs.blockResourceObserver.script,
-          frames: ShimFrames.all),
+      pageShim(ShimGroup.blockResourceObserver, js: PageJs.blockResourceObserver.script),
       if (blocks)
-        pageShim('block_js_interceptor',
+        pageShim(ShimGroup.blockJsInterceptor,
             js: PageJs.blockJsInterceptor
-                .withConfig({'webKitReports': WebKitBlockReports.active}),
-            frames: ShimFrames.all),
+                .withConfig({'webKitReports': WebKitBlockReports.active})),
     ];
   }
 }

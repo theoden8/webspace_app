@@ -528,8 +528,8 @@ class WebViewFactory {
         siteIcon == null ? null : SiteIconEngine(siteIcon.siteUrl);
     final iconSource = pageIconSource;
     if (iconEngine != null) {
-      userScripts.add(pageShim('icon_link_watcher',
-          js: buildIconLinkWatcherShim(), frames: ShimFrames.top));
+      userScripts.add(pageShim(ShimGroup.iconLinkWatcher,
+          js: buildIconLinkWatcherShim()));
       if (iconSource == PageIconSource.webview) {
         unawaited(SiteIconNative.ensureEnabled());
       }
@@ -537,8 +537,7 @@ class WebViewFactory {
     final siteSearch = config.siteSearch;
     if (siteSearch != null) {
       userScripts.add(pageShim(
-          'search_link_watcher', js: buildSearchLinkWatcherShim(),
-          frames: ShimFrames.top));
+          ShimGroup.searchLinkWatcher, js: buildSearchLinkWatcherShim()));
     }
     final iconFetcher =
         iconEngine == null || iconSource != PageIconSource.declaredLinks

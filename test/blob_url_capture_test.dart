@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/page_js.dart';
+import 'package:webspace/settings/shim_group.dart';
 
 final _task = DownloadTaskId.mint(serial: 1);
 
@@ -74,12 +75,9 @@ void main() {
       // shim never gets a chance to wrap createObjectURL before the page
       // calls it, and github.com downloads silently break again.
       final webviewSrc = File('lib/services/page_scripts.dart').readAsStringSync();
-      final blockStart = webviewSrc.indexOf(
-          RegExp(r"pageShim\('blob_url_capture',\s*js: PageJs.blobUrlCapture.script"));
-      expect(blockStart, greaterThan(0));
-      final block =
-          webviewSrc.substring(blockStart, webviewSrc.indexOf(');', blockStart));
-      expect(block, isNot(contains('ShimTime.end')));
+      expect(webviewSrc, matches(RegExp(
+          r"pageShim\(ShimGroup\.blobUrlCapture,\s*js: PageJs.blobUrlCapture.script")));
+      expect(ShimGroup.blobUrlCapture.at, ShimTime.start);
     });
 
     test('blob-download IIFE looks up the same global the shim exports', () {
@@ -249,11 +247,9 @@ void main() {
       // and wire a click handler against it.
       final webviewSrc = File('lib/services/page_scripts.dart').readAsStringSync();
       final blockStart = webviewSrc.indexOf(RegExp(
-          r"'blob_download_click_intercept',\s*js: PageJs.blobDownloadClickIntercept.script"));
+          r"ShimGroup\.blobDownloadClickIntercept,\s*js: PageJs.blobDownloadClickIntercept.script"));
       expect(blockStart, greaterThan(0));
-      final block =
-          webviewSrc.substring(blockStart, webviewSrc.indexOf(');', blockStart));
-      expect(block, isNot(contains('ShimTime.end')));
+      expect(ShimGroup.blobDownloadClickIntercept.at, ShimTime.start);
       // Android gate: the registration sits inside a hostIsAndroid block
       // (the web-safe Platform.isAndroid) so iOS/macOS keep using
       // onDownloadStartRequest natively.

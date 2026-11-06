@@ -12,7 +12,7 @@ String buildCaptureShim(CaptureKind kind) {
   };
   final device = kind.publishedDevice;
   return script.withConfig({
-    'shimGroup': kind.shimGroup,
+    'shimGroup': kind.shimGroup.groupName,
     'deviceLabel': label,
     'requestHandler': kind.requestHandler,
     if (device != null) ...{

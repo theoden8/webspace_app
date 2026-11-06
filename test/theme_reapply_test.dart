@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
+import 'package:webspace/settings/shim_group.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -14,7 +15,7 @@ const _follows = 'https://follows.example/';
 String? _lastTheme(String url) {
   final told = [
     for (final s in webViewUserScripts[url] ?? const [])
-      if (s.groupName == themeColorSchemeGroup) s.source,
+      if (s.groupName == ShimGroup.themeColorScheme.groupName) s.source,
   ];
   if (told.isEmpty) return null;
   return RegExp(r'"theme":"(\w+)"').firstMatch(told.last)?.group(1);

@@ -14,7 +14,7 @@ import 'dart:typed_data';
 import 'package:meta/meta.dart';
 
 import 'package:webspace/platform/apple_os_floor.dart';
-import 'package:webspace/settings/shim_frames.dart';
+import 'package:webspace/settings/shim_group.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 
 /// A capture mode of any kind. Sealed, so a `switch` over the modes of every
@@ -274,8 +274,7 @@ enum CaptureKind {
     legacyAllowedKey: 'cameraAllowed',
     requestHandler: 'webCameraRequest',
     publishedDevice: (deviceKind: 'videoinput', modeHandler: 'webCameraMode'),
-    shimGroup: 'camera_stream',
-    frames: ShimFrames.all,
+    shimGroup: ShimGroup.cameraStream,
   ),
   microphone(
     modes: MicrophoneAccessMode.values,
@@ -291,8 +290,7 @@ enum CaptureKind {
       deviceKind: 'audioinput',
       modeHandler: 'webMicrophoneMode',
     ),
-    shimGroup: 'microphone_stream',
-    frames: ShimFrames.all,
+    shimGroup: ShimGroup.microphoneStream,
   ),
 
   /// Top-level document only (SHARE-005): a screen share is the grant a user
@@ -309,8 +307,7 @@ enum CaptureKind {
     legacyAllowedKey: null,
     requestHandler: 'webScreenShareRequest',
     publishedDevice: null,
-    shimGroup: 'screen_share',
-    frames: ShimFrames.top,
+    shimGroup: ShimGroup.screenShare,
   );
 
   const CaptureKind({
@@ -325,7 +322,6 @@ enum CaptureKind {
     required this.requestHandler,
     required this.publishedDevice,
     required this.shimGroup,
-    required this.frames,
   }) : _json = json;
 
   final List<CaptureMode> modes;
@@ -349,12 +345,13 @@ enum CaptureKind {
   /// Null for a kind whose shim publishes no device.
   final PublishedDevice? publishedDevice;
 
-  /// The `UserScript` group the kind's shim is injected under.
-  final String shimGroup;
+  /// The group the kind's shim is injected under.
+  final ShimGroup shimGroup;
 
-  /// The frames the shim and its bridge serve. A cross-origin frame still
-  /// never inherits a `real` grant (CAM-014 / MIC-016).
-  final ShimFrames frames;
+  /// The frames the shim and its bridge serve, the shim's own. A
+  /// cross-origin frame still never inherits a `real` grant (CAM-014 /
+  /// MIC-016).
+  ShimFrames get frames => shimGroup.frames;
 
   final _CaptureJsonKeys _json;
 

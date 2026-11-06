@@ -75,10 +75,8 @@ final class PageFocus {
     switch (keys) {
       case PageKeys.remote:
         into.add(pageShim(
-          'remote_edge',
-          js: PageJs.remoteEdge.withConfig({'handler': kRemoteEdgeHandler}),
-          frames: ShimFrames.all,
-        ));
+          ShimGroup.remoteEdge,
+          js: PageJs.remoteEdge.withConfig({'handler': kRemoteEdgeHandler})));
       case PageKeys.keyboard:
         break;
     }

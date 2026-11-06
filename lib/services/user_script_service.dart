@@ -263,8 +263,7 @@ class UserScriptService {
     if (!hasScripts) return result;
 
     if (shimScript != null) {
-      result.add(pageShim('script_fetch_shim', js: shimScript!,
-          frames: ShimFrames.top));
+      result.add(pageShim(ShimGroup.scriptFetch, js: shimScript!));
     }
 
     LogTag.userScript.debug(
@@ -285,13 +284,11 @@ class UserScriptService {
           'Adding to initialUserScripts: "${script.name}" at $time (${src.length} chars, url=${script.url ?? "none"})',
           sensitive: true);
       result.add(pageShim(
-        'user_scripts',
-        js: _guarded(script.id, source: src),
-        frames: ShimFrames.top,
-        at: switch (script.injectionTime) {
-          UserScriptInjectionTime.atDocumentStart => ShimTime.start,
-          UserScriptInjectionTime.atDocumentEnd => ShimTime.end,
+        switch (script.injectionTime) {
+          UserScriptInjectionTime.atDocumentStart => ShimGroup.userScriptsAtStart,
+          UserScriptInjectionTime.atDocumentEnd => ShimGroup.userScriptsAtEnd,
         },
+        js: _guarded(script.id, source: src),
       ));
     }
     return result;
