@@ -21,21 +21,8 @@ pick_device "${1:-}"
 # foreground service running with nothing on screen, which is exactly the
 # failure the test is built to catch — but as a *product* bug, not a harness
 # one.
-grant_when_installed POST_NOTIFICATIONS
-
-status=0
-for t in \
-  integration_test/background_audio_lifecycle_test.dart \
+run_tier integration_test/background_audio_lifecycle_test.dart \
   integration_test/background_audio_freeze_test.dart \
   integration_test/background_audio_media_notification_test.dart \
-  integration_test/background_audio_media_stop_test.dart; do
-  echo "::group::$t"
-  rc=0
-  tier_test "$t" 12 || rc=$?
-  if [ $rc -ne 0 ]; then
-    status=$rc
-    [ $rc -eq 124 ] && echo "::error::$t killed after 12m wall-clock cap"
-  fi
-  echo "::endgroup::"
-done
-exit $status
+  integration_test/background_audio_media_stop_test.dart 12 \
+  --grant POST_NOTIFICATIONS

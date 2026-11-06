@@ -587,11 +587,15 @@ jobs:
           # because it leaves its test provider as the credential service.
           # hide_error_dialogs is set again before it: the lifecycle tier
           # clears it on exit, and a dialog holding focus blocks the gate's
-          # taps on the system passkey sheet.
+          # taps on the system passkey sheet. The in-process tiers run from
+          # one APK holding every file (scripts/integration_bundle.sh); a
+          # `flutter test` per file built a debug APK for each of them, about
+          # 50 s apiece. The lifecycle and passkey tiers still build their own.
           script: |
             adb wait-for-device
             adb shell input keyevent 82
             adb shell settings put global hide_error_dialogs 1
+            bash scripts/integration_bundle.sh build android integration_test/*_test.dart
             bash scripts/run_android_integration_tests.sh
             bash scripts/run_android_shortcut_tests.sh
             bash scripts/run_android_background_audio_tests.sh

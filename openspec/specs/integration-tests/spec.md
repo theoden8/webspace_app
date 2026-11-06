@@ -45,7 +45,16 @@ them by basename exactly as they skip `screenshot_test.dart`; the
 page-zoom suite is the exception that stays in the desktop loops, because
 its whole point is that three engines must agree; the
 lifecycle tier is a shell harness, not an `integration_test` target,
-so the desktop loops never see it. A broader mobile tier (iOS
+so the desktop loops never see it. The emulator step builds one APK holding
+every `integration_test/*_test.dart` file
+(`scripts/integration_bundle.sh build android`), and each tier launches it
+once per file (`scripts/integration_bundle.sh run android`, through
+`tier_test` in `scripts/lib/android_tier.sh`), as the desktop loops do. The
+desktop app finds its file in `WEBSPACE_INTEGRATION_FILE`; an Android app
+inherits no environment from the host, so there the file is the route
+`flutter drive --route` launches it with. A tier that compiles in a
+`--dart-define` (TV, desktop window, passkey phases) and the adb-driven
+lifecycle tier still build their own. A broader mobile tier (iOS
 Simulator) remains future scope and would extend the same boot setup
 rather than the desktop `-d` path.
 
