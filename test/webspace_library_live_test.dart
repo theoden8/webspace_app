@@ -11,7 +11,8 @@ void main() {
   setUp(() => ConnectivityService.onlineOverride = Future.value(true));
   tearDown(ConnectivityService.reset);
   testWidgets(
-    'a folder can be created, renamed, and deleted through its menu',
+    'a folder can be created, renamed, and deleted through its menu '
+    '(WEBSPACE-007)',
     (tester) async {
       await pumpRealApp(
         tester,
