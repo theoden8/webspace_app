@@ -271,6 +271,15 @@ writes the options before its page loads.
 
 Test: `test/js/block_interceptor_shim.test.js`; on a live engine, `integration_test/content_blocker_layers_test.dart` (Linux runs it with the content rule lists off, so the interceptor is held on its own).
 
+#### Scenario: One URL's verdict answers its host only when it is the host's
+
+**Given** the engine knows a path rule `/ads/*` on iOS, macOS or Linux
+**When** the page asks about `https://example.com/ads/a.js` before its Bloom filter has landed, or about `https://example.com/lib.js` on a host the Bloom filter names
+**Then** the verdict is kept for that URL alone, so a later `https://example.com/api` is asked about and goes out, and a later `https://example.com/ads/b.js` is asked about and blocked
+**And** only a block of a host the lists name, or an allow where no path rule is loaded, answers the host's later requests from the page's cache
+
+Test: `test/js/block_interceptor_shim.test.js`; in real Chromium, `test/browser/block_accounting_real_engine.test.js`. Lineage: [BUG-045](../../../docs/bugs/045-path-verdict-cached-for-its-host.md).
+
 #### Scenario: Android falls back to DNS-only when JNI library missing
 
 **Given** the engine is active in Dart but `libwebspace_adblock.so` failed to load on this Android ABI

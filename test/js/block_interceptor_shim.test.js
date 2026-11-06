@@ -32,6 +32,16 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
 // Past the interceptor's batching of what it reports without asking.
 const reported = () => new Promise((r) => setTimeout(r, 300));
 
+// Hosts the lists name, and below, path rules (hasGeneric) whose tokens
+// every URL hits, so each URL is the Dart handler's to decide.
+const PATH_RULES = (hosts) => ({
+  ...hosts,
+  tokenBits64: SATURATED.bits64, tokenBitCount: 64, tokenK: 1,
+  hasGeneric: true, genericFallback: false,
+});
+const verdictFor = (u) => VERDICTS[new URL(u).hostname] ?? /\/ads\//.test(new URL(u).pathname);
+
+/** [bloom] is a value, or a promise for one that lands when it settles. */
 async function setup(bloom, { url, script = INTERCEPTOR } = {}) {
   const dom = makeDom({ url });
   const w = dom.window;
@@ -52,7 +62,7 @@ async function setup(bloom, { url, script = INTERCEPTOR } = {}) {
         batches.push(urls);
         checks.push(...urls);
         asks.push(...JSON.parse(JSON.stringify(arg)));
-        return Promise.resolve(urls.map((u) => VERDICTS[new URL(u).hostname] ?? false));
+        return Promise.resolve(urls.map(verdictFor));
       }
       if (name === 'blockRecordBatch') records.push(...JSON.parse(JSON.stringify(arg)));
       return Promise.resolve(null);
@@ -216,6 +226,29 @@ test('the observer reports how many requests each host served, in one batch (CB-
     'one count per resource: blocks are counted per request too');
 });
 
+test('the document counts once, though the engine hands its entry over twice (CB-012)', async () => {
+  const dom = makeDom();
+  const w = dom.window;
+  const batches = [];
+  let observe;
+  w.PerformanceObserver = class {
+    constructor(cb) { observe = cb; }
+    observe() {}
+  };
+  w.flutter_inappwebview = {
+    callHandler(name, hosts) {
+      if (name === 'blockResourceLoadedBatch') batches.push(hosts);
+      return Promise.resolve(null);
+    },
+  };
+  runInDom(dom, OBSERVER);
+  const doc = { entryType: 'navigation', name: 'https://a.example/' };
+  observe({ getEntries: () => [doc] });
+  observe({ getEntries: () => [doc, { entryType: 'resource', name: 'https://a.example/1' }] });
+  await new Promise((r) => setTimeout(r, 300));
+  assert.deepEqual(JSON.parse(JSON.stringify(batches)), [{ 'a.example': 2 }]);
+});
+
 // A list that lands while the page is open reaches it. The page asked
 // for the bloom when its document started; the app asks it to again.
 // DNS-023
@@ -269,6 +302,42 @@ test('each ask names its request type, and whether WebKit had issued it (CB-012)
     { url: 'https://a3.example/s.js', type: 'script', issued: true },
     { url: 'https://a4.example/c.css', type: 'stylesheet', issued: true },
   ]);
+});
+
+test('an element named twice in one batch, alone and inside its parent, is asked about once (CB-012)', async () => {
+  // The parser adds <head> and then the <script> in it before the observer
+  // runs: one record names the script, another its parent.
+  const { w, asks } = await setup(SATURATED);
+  const head = w.document.createElement('section');
+  w.document.body.appendChild(head);
+  const script = w.document.createElement('script');
+  script.setAttribute('src', 'https://blocked.example/parsed.js');
+  head.appendChild(script);
+  await tick();
+  await tick();
+  assert.deepEqual(asks.map((a) => a.url), ['https://blocked.example/parsed.js']);
+});
+
+test('a verdict given before the bloom lands is the URL\'s, not its host\'s (CB-012)', async () => {
+  let land;
+  const { w, checks, fetched } = await setup(new Promise((r) => { land = r; }));
+  await assert.rejects(w.fetch('https://site.example/ads/early.js'));
+  await w.fetch('https://cdn.example/lib.js');
+  land(PATH_RULES(EMPTY));
+  await tick();
+  await w.fetch('https://site.example/data.json');
+  await assert.rejects(w.fetch('https://cdn.example/ads/late.js'));
+  assert.deepEqual(fetched, ['https://cdn.example/lib.js', 'https://site.example/data.json'],
+    'a path blocked early does not block its host, an allow early does not allow it');
+  assert.deepEqual(checks, ['https://site.example/ads/early.js', 'https://cdn.example/lib.js',
+    'https://site.example/data.json', 'https://cdn.example/ads/late.js']);
+});
+
+test('under path rules an allow is not cached for its host (CB-012)', async () => {
+  const { w, fetched } = await setup(PATH_RULES(SATURATED));
+  await w.fetch('https://cdn.example/lib.js');
+  await assert.rejects(w.fetch('https://cdn.example/ads/x.js'));
+  assert.deepEqual(fetched, ['https://cdn.example/lib.js']);
 });
 
 test('a block the host cache answers is still reported, once per request (CB-012)', async () => {
