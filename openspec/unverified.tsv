@@ -176,4 +176,3 @@ WEBEXT-010	no check: that a nested screen's and a popup's WKWebView load the sam
 HINTS-005	no check: no tier runs the theme hint on more than one platform or asserts setThemePreference takes no platform branch
 # webview-pause-lifecycle
 PAUSE-003	process: a documentation rule (doc comments on WebViewController.pause/pauseAllJsTimers saying which is per-instance and which is process-global); no test or gate reads those comments
-PAUSE-011	no check: nothing fails if the memory-pressure re-entry guard (the pressure step's first branch) is removed; the activating-target protection is Inv_NoShownEvicted's, and a debounced navigation capture following its site by identity is held by test/nav_state_follow_test.dart (partly: "a navigation capture follows its site through a reorder")

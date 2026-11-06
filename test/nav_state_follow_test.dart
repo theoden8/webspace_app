@@ -111,7 +111,7 @@ void main() {
     });
   });
 
-  test('a navigation capture follows its site through a reorder '
+  test('PAUSE-011: a navigation capture follows its site through a reorder '
       'inside the window', () {
     fakeAsync((async) {
       final site = WebViewModel(initUrl: 'https://news.example/');
