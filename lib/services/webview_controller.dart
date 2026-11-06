@@ -524,7 +524,7 @@ class PlatformWebViewController implements WebViewController {
     // (typically light), since onUrlChanged dedups same-URL events
     // and skips its own evaluateJavascript reapplication.
     await _rotateShim(
-        themeColorSchemeGroup, shim: buildThemeColorSchemeShim(theme));
+        LiveShim.themeColorScheme, shim: buildThemeColorSchemeShim(theme));
   }
 
   @override
@@ -537,7 +537,7 @@ class PlatformWebViewController implements WebViewController {
     // iOS/macOS: WKWebView has no textZoom setting. Rotate the
     // DOCUMENT_START user script so future page loads pick up the new
     // value, then update the style element on the current page.
-    await _rotateShim('system_text_zoom', shim: buildTextZoomShim(zoomPercent));
+    await _rotateShim(LiveShim.systemTextZoom, shim: buildTextZoomShim(zoomPercent));
   }
 
   /// Ends the cache-first mode this webview was created in (Android's
@@ -549,10 +549,10 @@ class PlatformWebViewController implements WebViewController {
     await _native(() => _c.setSettings(settings: _settings));
   }
 
-  Future<void> _rotateShim(String group, {required String shim}) async {
-    await _native(() => _c.removeUserScriptsByGroupName(groupName: group));
-    await _native(() => _c.addUserScript(
-        userScript: pageShim(group, js: shim, frames: ShimFrames.all)));
+  Future<void> _rotateShim(LiveShim live, {required String shim}) async {
+    await _native(
+        () => _c.removeUserScriptsByGroupName(groupName: live.group.groupName));
+    await _native(() => _c.addUserScript(userScript: pageShim(live.group, js: shim)));
     await evaluateJavascript(shim);
   }
 

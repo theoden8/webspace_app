@@ -14,7 +14,6 @@ import 'package:webspace/services/live_swap.dart';
 import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/https_upgrade_engine.dart';
 import 'package:webspace/services/letterbox.dart';
-import 'package:webspace/services/page_shim.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_coverage_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
@@ -516,30 +515,20 @@ class WebViewFactory {
     // live swap counts only those asked after it.
     int? askedAtFirstLoad;
 
-    final page = PageScripts.buildPageScripts(config);
+    final keys = PageKeys.host;
+    final page = PageScripts.buildPageScripts(config, own: (keys: keys));
     final httpAuth = httpAuthSessionFor(config);
     final textZoom = page.textZoom;
     final userScripts = page.userScripts;
-    final pageFocus = PageFocus.install(keys: PageKeys.host, into: userScripts);
-    // Added here rather than in _buildPageScripts so a popup, which shares
-    // that builder, never reports into the site's icon.
+    final pageFocus = keys == null ? null : PageFocus(keys: keys);
     final siteIcon = config.siteIcon;
     final iconEngine =
         siteIcon == null ? null : SiteIconEngine(siteIcon.siteUrl);
     final iconSource = pageIconSource;
-    if (iconEngine != null) {
-      userScripts.add(pageShim('icon_link_watcher',
-          js: buildIconLinkWatcherShim(), frames: ShimFrames.top));
-      if (iconSource == PageIconSource.webview) {
-        unawaited(SiteIconNative.ensureEnabled());
-      }
+    if (iconEngine != null && iconSource == PageIconSource.webview) {
+      unawaited(SiteIconNative.ensureEnabled());
     }
     final siteSearch = config.siteSearch;
-    if (siteSearch != null) {
-      userScripts.add(pageShim(
-          'search_link_watcher', js: buildSearchLinkWatcherShim(),
-          frames: ShimFrames.top));
-    }
     final iconFetcher =
         iconEngine == null || iconSource != PageIconSource.declaredLinks
             ? null

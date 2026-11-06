@@ -10,9 +10,9 @@
 // grant. The first is a type; the other two are pinned structurally here:
 //
 //   1. The shim is injected `forMainFrameOnly: true`, unlike the camera and
-//      microphone shims: `CaptureKind.screenShare.frames` is `ShimFrames.top`
-//      (asserted in test/capture_test.dart), and `pageShim` takes it as a
-//      `ShimFrames`, so the injection passes it whole with nothing to map. On
+//      microphone shims: `ShimGroup.screenShare` is declared `ShimFrames.top`
+//      (asserted in test/capture_test.dart and test/page_shim_test.dart), and
+//      `pageShim` reads it off the group, so no call site passes frames. On
 //      Android the plugin implements that by wrapping the source in
 //      `if (window === window.top) {...}`; on iOS/macOS WebKit enforces it
 //      natively.

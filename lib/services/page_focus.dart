@@ -6,7 +6,6 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/keyboard_input.dart';
 import 'package:webspace/services/page_js.dart';
-import 'package:webspace/services/page_shim.dart';
 import 'package:webspace/services/remote_input.dart';
 
 const kRemoteEdgeHandler = 'wsRemoteEdge';
@@ -60,30 +59,14 @@ enum PageKeys {
 /// whichever of its frames had focus) moves focus out of it, toward the app
 /// bar or the tab strip.
 final class PageFocus {
-  @visibleForTesting
   PageFocus({required this.keys});
 
   final PageKeys keys;
 
-  /// The focus of a site page as [keys] drive it, a remote's page script
-  /// added [into] the page's scripts; null where nothing does.
-  static PageFocus? install({
-    required PageKeys? keys,
-    required List<inapp.UserScript> into,
-  }) {
-    if (keys == null) return null;
-    switch (keys) {
-      case PageKeys.remote:
-        into.add(pageShim(
-          'remote_edge',
-          js: PageJs.remoteEdge.withConfig({'handler': kRemoteEdgeHandler}),
-          frames: ShimFrames.all,
-        ));
-      case PageKeys.keyboard:
-        break;
-    }
-    return PageFocus(keys: keys);
-  }
+  /// The script by which a remote's page hands back an arrow it had no use
+  /// for, answered by [attach].
+  static String get edgeScript =>
+      PageJs.remoteEdge.withConfig({'handler': kRemoteEdgeHandler});
 
   Future<void> Function()? _focusView;
   bool _hasFocus = false;

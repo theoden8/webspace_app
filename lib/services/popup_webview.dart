@@ -167,7 +167,7 @@ abstract final class PopupWebView {
       return const SizedBox.shrink();
     }
     ProxyManager.noteStoreProxy(binding.containerId, proxy: binding.proxy);
-    final page = PageScripts.buildPageScripts(parent);
+    final page = PageScripts.buildPageScripts(parent, own: null);
     final httpAuth = httpAuthSessionFor(parent);
     final settings = WebViewFactory.siteSettings(
       binding,

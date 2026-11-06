@@ -52,7 +52,7 @@ abstract final class HeadlessSiteChecks {
     final posture = config.posture;
     BlockStatsService.instance.setSiteContributes(posture.siteId,
         contributes: posture.blocking.contributesStats);
-    final page = PageScripts.buildPageScripts(config);
+    final page = PageScripts.buildPageScripts(config, own: null);
     final httpAuth = httpAuthSessionFor(config);
     final check = HeadlessSiteCheck._();
     final created = Completer<inapp.InAppWebViewController>();

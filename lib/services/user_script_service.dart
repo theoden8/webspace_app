@@ -1,11 +1,9 @@
-import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:http/http.dart' as http;
 
 import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
-import 'package:webspace/services/page_shim.dart';
 import 'package:webspace/services/url_host.dart';
 import 'package:webspace/services/page_js.dart';
 import 'package:webspace/services/page_phase.dart';
@@ -256,20 +254,13 @@ class UserScriptService {
     );
   }
 
-  /// Build the list of [inapp.UserScript]s to pass to initialUserScripts.
-  /// Includes the shim (at DOCUMENT_START) followed by user scripts.
-  List<inapp.UserScript> buildInitialUserScripts() {
-    final result = <inapp.UserScript>[];
-    if (!hasScripts) return result;
-
-    if (shimScript != null) {
-      result.add(pageShim('script_fetch_shim', js: shimScript!,
-          frames: ShimFrames.top));
-    }
-
-    LogTag.userScript.debug(
-        'createWebView: ${_scripts.length} user scripts configured');
+  /// The enabled scripts injected at [time], in the order the user listed
+  /// them, each guarded to run once per document. The privileged bridge, when
+  /// one asked for it, is [shimScript], installed ahead of them.
+  List<String> sourcesAt(UserScriptInjectionTime time) {
+    final result = <String>[];
     for (final script in _scripts) {
+      if (script.injectionTime != time) continue;
       final src = _buildSource(script);
       if (!script.enabled || src.isEmpty) {
         LogTag.userScript.debug(
@@ -277,22 +268,10 @@ class UserScriptService {
             sensitive: true);
         continue;
       }
-      final time =
-          script.injectionTime == UserScriptInjectionTime.atDocumentStart
-          ? 'DOCUMENT_START'
-          : 'DOCUMENT_END';
       LogTag.userScript.debug(
-          'Adding to initialUserScripts: "${script.name}" at $time (${src.length} chars, url=${script.url ?? "none"})',
+          'Adding to initialUserScripts: "${script.name}" at ${time.name} (${src.length} chars, url=${script.url ?? "none"})',
           sensitive: true);
-      result.add(pageShim(
-        'user_scripts',
-        js: _guarded(script.id, source: src),
-        frames: ShimFrames.top,
-        at: switch (script.injectionTime) {
-          UserScriptInjectionTime.atDocumentStart => ShimTime.start,
-          UserScriptInjectionTime.atDocumentEnd => ShimTime.end,
-        },
-      ));
+      result.add(_guarded(script.id, source: src));
     }
     return result;
   }

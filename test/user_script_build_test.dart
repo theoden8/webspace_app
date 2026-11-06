@@ -1,16 +1,16 @@
-// Coverage for UserScriptService.buildInitialUserScripts() and the
-// once-per-document guard — the injection-list assembly that decides which
-// scripts reach the webview, in what order, at which injection time, and
-// wrapped in which guard. Controller-free (no webview needed).
+// Coverage for UserScriptService.sourcesAt() and the once-per-document guard:
+// which scripts reach the webview at each injection time, in what order, and
+// wrapped in which guard. Their group and timing are ShimGroup's
+// (test/page_shim_test.dart). Controller-free (no webview needed).
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
+import 'package:webspace/services/page_shim.dart';
 import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/user_script.dart';
 
 void main() {
-  group('buildInitialUserScripts', () {
+  group('sourcesAt', () {
     test('no enabled scripts produces an empty list and no shim', () {
       final svc = UserScriptService(
         scripts: [
@@ -19,7 +19,10 @@ void main() {
         proxy: OutboundProxy.app,
       );
       expect(svc.hasScripts, isFalse);
-      expect(svc.buildInitialUserScripts(), isEmpty);
+      expect(svc.shimScript, isNull);
+      for (final time in UserScriptInjectionTime.values) {
+        expect(svc.sourcesAt(time), isEmpty);
+      }
     });
 
     test(
@@ -37,23 +40,16 @@ void main() {
           ],
           proxy: OutboundProxy.app,
         );
-        final scripts = svc.buildInitialUserScripts();
-        expect(scripts.length, 2);
-
-        expect(scripts[0].groupName, 'script_fetch_shim');
+        expect(svc.shimScript, contains('Node.prototype.appendChild'));
+        expect(ShimGroup.scriptFetch.at, ShimTime.start);
         expect(
-          scripts[0].injectionTime,
-          inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+          ShimGroup.values.indexOf(ShimGroup.scriptFetch),
+          lessThan(ShimGroup.values.indexOf(ShimGroup.userScriptsAtStart)),
         );
-        expect(scripts[0].source, contains('Node.prototype.appendChild'));
-
-        expect(scripts[1].groupName, 'user_scripts');
-        expect(
-          scripts[1].injectionTime,
-          inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        );
-        expect(scripts[1].source, contains('MARK_A();'));
-        expect(scripts[1].source, contains('window.__wsRan_abc'));
+        final start = svc.sourcesAt(UserScriptInjectionTime.atDocumentStart);
+        expect(start.single, contains('MARK_A();'));
+        expect(start.single, contains('window.__wsRan_abc'));
+        expect(svc.sourcesAt(UserScriptInjectionTime.atDocumentEnd), isEmpty);
       },
     );
 
@@ -72,10 +68,11 @@ void main() {
         ],
         proxy: OutboundProxy.app,
       );
-      final scripts = svc.buildInitialUserScripts();
-      expect(scripts.length, 1);
-      expect(scripts.single.groupName, 'user_scripts');
-      expect(scripts.single.source, contains('MARK_A();'));
+      expect(svc.shimScript, isNull);
+      expect(
+        svc.sourcesAt(UserScriptInjectionTime.atDocumentStart).single,
+        contains('MARK_A();'),
+      );
     });
 
     test('disabled and empty-source scripts are skipped (US-002)', () {
@@ -87,16 +84,14 @@ void main() {
         ],
         proxy: OutboundProxy.app,
       );
-      final userScripts = svc
-          .buildInitialUserScripts()
-          .where((s) => s.groupName == 'user_scripts')
-          .toList();
+      final userScripts =
+          svc.sourcesAt(UserScriptInjectionTime.atDocumentEnd);
       expect(userScripts.length, 1);
-      expect(userScripts.single.source, contains('KEEP_A();'));
-      expect(userScripts.single.source, isNot(contains('DROP_B();')));
+      expect(userScripts.single, contains('KEEP_A();'));
+      expect(userScripts.single, isNot(contains('DROP_B();')));
     });
 
-    test('atDocumentEnd script maps to DOCUMENT_END injection time', () {
+    test('an atDocumentEnd script is installed at document end only', () {
       final svc = UserScriptService(
         scripts: [
           UserScriptConfig(
@@ -107,10 +102,11 @@ void main() {
         ],
         proxy: OutboundProxy.app,
       );
-      final user = svc.buildInitialUserScripts().firstWhere(
-        (s) => s.groupName == 'user_scripts',
+      expect(svc.sourcesAt(UserScriptInjectionTime.atDocumentStart), isEmpty);
+      expect(
+        svc.sourcesAt(UserScriptInjectionTime.atDocumentEnd).single,
+        contains('END();'),
       );
-      expect(user.injectionTime, inapp.UserScriptInjectionTime.AT_DOCUMENT_END);
     });
 
     test('urlSource library is concatenated before the user source', () {
@@ -120,11 +116,9 @@ void main() {
         ],
         proxy: OutboundProxy.app,
       );
-      final user = svc.buildInitialUserScripts().firstWhere(
-        (s) => s.groupName == 'user_scripts',
-      );
-      final libAt = user.source.indexOf('LIB();');
-      final initAt = user.source.indexOf('INIT();');
+      final user = svc.sourcesAt(UserScriptInjectionTime.atDocumentEnd).single;
+      final libAt = user.indexOf('LIB();');
+      final initAt = user.indexOf('INIT();');
       expect(libAt, greaterThanOrEqualTo(0));
       expect(initAt, greaterThan(libAt));
     });
@@ -134,10 +128,8 @@ void main() {
         scripts: [UserScriptConfig(id: UserScriptId('a-b.c'), name: 't', source: 'X();')],
         proxy: OutboundProxy.app,
       );
-      final user = svc.buildInitialUserScripts().firstWhere(
-        (s) => s.groupName == 'user_scripts',
-      );
-      expect(user.source, contains('window.__wsRan_a_b_c'));
+      final user = svc.sourcesAt(UserScriptInjectionTime.atDocumentEnd).single;
+      expect(user, contains('window.__wsRan_a_b_c'));
     });
   });
 }
