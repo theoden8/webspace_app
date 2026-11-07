@@ -17,7 +17,7 @@ import 'helpers/fake_platform_controller.dart';
 inapp.InAppWebViewController _wrapper(inapp.PlatformInAppWebViewController view) =>
     inapp.InAppWebViewController.fromPlatform(platform: view);
 
-typedef Lookup = DownloadTaskId? Function(String token, ViewKey view);
+typedef Lookup = DownloadTaskId? Function(String token, {required ViewKey view});
 
 void main() {
   final viewA = ViewKey.of(_wrapper(FakePlatformController()));
@@ -35,20 +35,21 @@ void main() {
   // lookup that ignores the view must not.
   void expectViewScoped(Lookup lookup) {
     final task = downloads.start(filename: 'a.bin', view: viewA);
-    expect(lookup(task.id.token, viewA), task.id,
+    expect(lookup(task.id.token, view: viewA), task.id,
         reason: "the starting view gets its own task");
-    expect(lookup(task.id.token, viewB), isNull,
+    expect(lookup(task.id.token, view: viewB), isNull,
         reason: "another view gets nothing for the same token");
   }
 
   test('DL-008: pageTask is view-scoped', () {
-    expectViewScoped((token, view) => downloads.pageTask(token, view: view));
+    expectViewScoped(
+        (token, {required view}) => downloads.pageTask(token, view: view));
   });
 
   test('DL-008: a token-only lookup (the planted mistake) fails the check', () {
     // The mistake: match on the token and ignore the view. Run the very check
     // pageTask passes; it must fail here, or the check proves nothing.
-    DownloadTaskId? tokenOnly(String token, ViewKey view) =>
+    DownloadTaskId? tokenOnly(String token, {required ViewKey view}) =>
         downloads.tasks.where((t) => t.id.token == token).firstOrNull?.id;
     expect(() => expectViewScoped(tokenOnly), throwsA(isA<TestFailure>()));
   });
