@@ -52,31 +52,45 @@ The fork already has `WebViewCompat.addWebMessageListener`
 
 ## Linux (WPE WebKit, non-Chromium)
 
-There is no clean parallel to Android's fix. WebKit's GLib script-message
-signal delivers only `(WebKitUserContentManager*, JSCValue* value,
-WebKitScriptMessageReply*)` (`user_content_controller.cc`,
-`onScriptMessageWithReplyReceived`): **no sending-frame origin, no main-frame
-flag.** `WebKitFrameInfo` exists for navigation policy decisions, not for
-script messages, so the native side cannot learn the calling frame from the
-platform the way Apple's `frameInfo` or Android's `addWebMessageListener` allow.
-`webkit_web_view_get_uri` gives the top document's URL for every caller.
+WebKit's GLib script-message signal delivers only
+`(WebKitUserContentManager*, JSCValue* value, WebKitScriptMessageReply*)`
+(`user_content_controller.cc`, `onScriptMessageWithReplyReceived`): **no
+sending-frame origin, no main-frame flag.** This is still true on current
+WebKitGTK/WPE (the signal, added in 2.40, keeps this shape through 2.54); an
+upstream request to add frame info exists but has not landed. So the UI process
+cannot learn the calling frame from this signal, and `webkit_web_view_get_uri`
+returns the top document's URL for every caller.
 
-So on Linux the fix is restriction, not attribution:
+The identity does exist, in the **web process**. The secure fix is a **WebKit
+web process extension** (`WebKitWebProcessExtension`), which the fork already
+loads: `webkit_web_context_set_web_process_extensions_directory`
+(`webview_environment.cc:238`, settings key `webProcessExtensionsDirectory`).
+The extension runs where the page's JS cannot reach it and where the real frame
+is available:
 
-- Inject the bridge **main-frame-only** on Linux (the bridge plugin script's
-  `forMainFrameOnly`, kept `false` elsewhere for the shims). Then only the top
-  document can call a handler, `webkit_web_view_get_uri` is that caller's own
-  origin, and a foreign (or same-origin) subframe is denied a capability by
-  absence rather than by a flag it supplies. The shims that need to reach
-  iframes (fingerprinting, etc.) stay all-frames; only the capability bridge is
-  restricted.
-- Trade-off: a **same-origin** subframe of the site loses handler access it has
-  today. That is the safe direction (deny), and matches what a cross-origin
-  iframe gets in a browser without an `allow=` attribute.
-- The only way to attribute a subframe's call on Linux is an upstream WebKit
-  change exposing the frame on script messages; track that separately. Until
-  then Linux keeps a residual caveat in [policy.md](policy.md): a same-origin
-  subframe is denied rather than attributed.
+1. At each frame's `window-object-cleared`, the extension binds the bridge's
+   `callHandler` for that document, capturing the frame's own origin (from
+   `webkit_frame`'s URI on the web-process side) and
+   `webkit_frame_is_main_frame`. The page cannot forge these; they are read in
+   the web process, not supplied by page script.
+2. A handler call is forwarded to the UI process with that captured identity
+   attached, as a user message (`webkit_web_page_send_message_to_view`), not in
+   a payload the page built.
+3. The UI process reads the origin and main-frame flag from the user message
+   and ignores anything the page put in the call body.
+
+This **attributes** every frame correctly, so it keeps full functionality
+(cross-origin iframes still answerable per PERM-002) and is secure. It is more
+work than Android's: it adds a web-process-extension library to the Linux
+bundle, built against the WPE headers, loaded from the per-site container's
+extension directory.
+
+Fallback if the extension is not yet built: inject the bridge
+**main-frame-only** on Linux (the bridge plugin script's `forMainFrameOnly`,
+kept `false` elsewhere for the shims). Only the top document can then call a
+handler, `webkit_web_view_get_uri` is that caller's own origin, and a subframe
+is denied a capability by absence. This is secure (fail-closed) but a
+same-origin subframe loses handler access, so it is a stopgap, not the target.
 
 ## App side
 
