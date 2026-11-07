@@ -1188,6 +1188,12 @@ jobs:
             build/macos/Build/Products/Release-direct/webspace.app
           rm -rf build/macos/Build/Products/Release-direct
 
+      # The builds' pod installs wrote both Podfile.locks, failed build
+      # included: no machine without macOS can.
+      - name: Hand in lock files
+        if: success() || failure()
+        uses: ./.github/actions/lockfiles
+
       # Reclaim disk before the macOS integration loop. The macos-latest
       # runner has a tight disk budget, and by this point three build trees
       # coexist: the iOS release archive (build/ios), the macOS *release*
@@ -1777,6 +1783,12 @@ jobs:
         timeout-minutes: 45
         run: fastlane ios screenshots device:${{ matrix.device }} udid:${{ steps.simulator.outputs.udid }}
 
+      - name: Hand in lock files
+        if: success() || failure()
+        uses: ./.github/actions/lockfiles
+        with:
+          name: screenshots-${{ matrix.device }}
+
       # The iPad lane builds with UIRequiresFullScreen and must put the
       # shipped Info.plist back, failed run included (SCREENSHOT-010).
       - name: Info.plist is as shipped
@@ -1837,6 +1849,10 @@ jobs:
         timeout-minutes: 30
         run: fastlane mac screenshots
 
+      - name: Hand in lock files
+        if: success() || failure()
+        uses: ./.github/actions/lockfiles
+
       - name: Upload macOS screenshots
         uses: actions/upload-artifact@v4
         with:
@@ -1878,6 +1894,12 @@ jobs:
           bundle install
           bash scripts/linux_test_session.sh bundle exec fastlane linux screenshots
 
+      # The bundle install above is not frozen, so it can add this
+      # platform to Gemfile.lock.
+      - name: Hand in lock files
+        if: success() || failure()
+        uses: ./.github/actions/lockfiles
+
       - name: Upload Linux screenshots
         uses: actions/upload-artifact@v4
         with:
@@ -1899,6 +1921,37 @@ jobs:
           name: screenshots
           pattern: '*-screenshots'
           separate-directories: true
+
+  # Every lock file in one download, as this run resolved it: the commit's,
+  # with what each job handed in laid over it (scripts/lockfiles.sh).
+  # Unzipped at the repository root it updates them all at once, the
+  # Podfile.locks only a macOS build writes among them. Runs when a job
+  # failed too: a failed build may be the one that needs a new lock file.
+  lockfiles:
+    name: Lock files
+    needs: [build-apple, screenshots-ios, screenshots-macos, screenshots-linux]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download each job's hand-in
+        uses: actions/download-artifact@v4
+        with:
+          pattern: lockfiles-*
+          path: ${{ runner.temp }}/lockfile-runs
+
+      - name: Lay them over the commit
+        run: bash scripts/lockfiles.sh bundle "$RUNNER_TEMP/lockfile-runs" "$RUNNER_TEMP/lockfiles"
+
+      - name: Upload every lock file
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lockfiles
+          path: ${{ runner.temp }}/lockfiles/
+          if-no-files-found: error
 
   release-summary:
     name: Release Summary
