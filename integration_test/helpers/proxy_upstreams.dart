@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/webspace_model.dart';
 
 import '../fixture_server.dart';
@@ -31,7 +32,8 @@ class RecordingUpstream {
   /// navigation carries.
   final List<String> navigations = [];
 
-  /// Each request line with when it arrived, for a failure's timeline.
+  /// Each request line with when it arrived, a navigation marked, for a
+  /// failure's timeline.
   final List<(DateTime, String)> timeline = [];
 
   RecordingUpstream._(this._server, {required this.label}) {
@@ -48,9 +50,10 @@ class RecordingUpstream {
             .listen((data) {
               buffer.write(latin1.decode(data));
               if (!buffer.toString().contains('\r\n\r\n')) return;
+              final at = DateTime.now();
               final lines = buffer.toString().split('\r\n');
               requestLines.add(lines.first);
-              timeline.add((DateTime.now(), lines.first));
+              var navigation = false;
               for (final line in lines.skip(1)) {
                 final header = line.toLowerCase();
                 if (header.startsWith('proxy-authorization:')) {
@@ -58,8 +61,10 @@ class RecordingUpstream {
                 }
                 if (header.startsWith('upgrade-insecure-requests:')) {
                   navigations.add(lines.first);
+                  navigation = true;
                 }
               }
+              timeline.add((at, navigation ? '${lines.first} (navigation)' : lines.first));
               socket.write(
                 'HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n'
                 'Content-Length: 13\r\nConnection: close\r\n\r\n'
@@ -83,6 +88,33 @@ class RecordingUpstream {
   bool onlyFor(String host) => requestLines.every((l) => l.contains(host));
 
   Future<void> close() => _server.close();
+}
+
+/// Every request each upstream saw, merged with the app's own proxy,
+/// unload and webview log lines, in the order they happened.
+String upstreamTimeline({
+  required RecordingUpstream a,
+  required RecordingUpstream b,
+}) {
+  const tags = {
+    'Proxy',
+    'ProxyRelay',
+    'SiteUnload',
+    'WebView',
+    'WebViewLifecycle',
+    'SiteIcon',
+    'Startup',
+    'Test',
+  };
+  final events = <(DateTime, String)>[
+    for (final (at, line) in a.timeline) (at, 'upstream A <- $line'),
+    for (final (at, line) in b.timeline) (at, 'upstream B <- $line'),
+    for (final e in LogService.instance.allEntriesMerged)
+      if (tags.contains(e.tag)) (e.timestamp, '[${e.tag}] ${e.message}'),
+  ]..sort((x, y) => x.$1.compareTo(y.$1));
+  return [
+    for (final (at, what) in events) '${at.toIso8601String()} $what',
+  ].join('\n');
 }
 
 /// Open the site named [name] from the drawer, as a user would, then give
