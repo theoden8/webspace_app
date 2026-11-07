@@ -15,6 +15,7 @@ import json
 import os
 import re
 import sys
+from collections import Counter
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
@@ -99,7 +100,7 @@ addons = [FetchGate()] if 'WS_FETCH_LOG' in os.environ else []
 
 def report(log):
     """Each refused fetch and each client that refused the gate's certificate, as ::error:: lines."""
-    refused, allowed = [], 0
+    refused, allowed = [], Counter()
     for line in Path(log).read_text().splitlines():
         entry = json.loads(line)
         if 'tls_failed' in entry:
@@ -107,10 +108,12 @@ def report(log):
         elif entry['why'] is None:
             refused.append(f"refused {entry['url']}: in neither {ALLOWLIST} nor a url: row of {COMPONENTS}")
         else:
-            allowed += 1
+            allowed[(entry['why'], urlsplit(entry['url']).hostname)] += 1
+    for (why, host), n in sorted(allowed.items()):
+        print(f'fetch gate: {n:5} allowed from {host} ({why})')
     for r in refused:
         print(f'::error::fetch gate (LICENSE-001): {r}')
-    print(f'fetch gate: {allowed} fetches allowed, {len(refused)} refused')
+    print(f'fetch gate: {sum(allowed.values())} fetches allowed, {len(refused)} refused')
     return 1 if refused else 0
 
 

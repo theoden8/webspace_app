@@ -51,7 +51,9 @@ test('LICENSE-001 the report fails on a refused fetch or a refused certificate, 
     fs.writeFileSync(path.join(dir, 'log'), lines.map((l) => JSON.stringify(l)).join('\n'));
     return spawnSync('python3', [GATE, 'report', path.join(dir, 'log')], { encoding: 'utf8' });
   };
-  assert.equal(report([{ url: 'https://index.crates.io/config.json', why: 'allowlist' }]).status, 0);
+  const clean = report([{ url: 'https://index.crates.io/config.json', why: 'allowlist' }]);
+  assert.equal(clean.status, 0);
+  assert.match(clean.stdout, /1 allowed from index\.crates\.io \(allowlist\)/);
   const refused = report([{ url: 'https://github.com/torvalds/linux', why: null }]);
   assert.equal(refused.status, 1);
   assert.match(refused.stdout, /::error::.*refused https:\/\/github\.com\/torvalds\/linux/);
