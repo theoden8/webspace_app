@@ -546,14 +546,24 @@ wait before the message, the wake driven and its post asserted, not opt-in.
 **When** Scenario P runs
 **Then** it fails, because the page never posts on load and no notification appears for the recorded message
 
-### Requirement: NOTIF-013 - A background wake lasts until its pages have loaded
+### Requirement: NOTIF-013 - A background wake lasts until its pages have loaded and run
 
 The handler for an OS background wake (iOS `BGAppRefreshTask`, Android
 `WorkManager`) SHALL NOT return until every notification site it
 reloaded has finished loading, or `BackgroundWakeEngine.settleDeadline` (20 s)
-has passed, plus `postGrace` (3 s) for the settled pages' JS to post.
+has passed, and then SHALL keep the pages open, their JS running, until the
+wake's `WakeTask` budget has passed since it started: 23 s on iOS, inside the
+refresh task's 30 s, and 45 s on Android, inside the 60 s the worker waits
+for Dart. It returns sooner only when none of its pages is left (a webview
+gone, or the app back on screen, which closes the headless ones).
 Returning is what completes the OS task, and iOS suspends the app once it is
 complete.
+
+A page posts what it missed once it has caught up with its server, which
+comes after its load: the wake used to close it 3 s after the load stopped,
+and a device log had ntfy's page post 10 s into a wake, about as late as
+that allowed (BUG-024 attempt 12). The iOS budget is the worst case the
+3 s grace already had, so no wake runs longer there than before.
 
 The handler used to return as soon as the reloads were issued
 (`WKWebView.reload()` returns immediately), so the task completed before any
@@ -580,8 +590,14 @@ just opened (BUG-024 attempt 11). Structural gate:
 
 **Given** a background wake reloads site A, whose load takes 3 seconds
 **When** the wake handler runs
-**Then** it returns after site A's load has stopped and the post grace has passed
+**Then** it returns after site A's load has stopped and the wake's budget has passed
 **And** only then is the OS task completed
+
+#### Scenario: A page that catches up after its load still posts
+
+**Given** a background wake opens site A, which posts its own notification 10 seconds after its load stops
+**When** the wake handler runs, on iOS or on Android
+**Then** site A is still open when it posts, and the wake reports that the page posted itself
 
 ### Requirement: NOTIF-014 - A wake posts for a site whose unread count rose
 

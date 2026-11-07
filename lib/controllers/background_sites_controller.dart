@@ -68,7 +68,8 @@ class BackgroundSitesController {
 
   final SiteRuntime _sites;
   final BackgroundSitesHost _host;
-  final BackgroundWakeEngine<WebViewModel> _wakeEngine = BackgroundWakeEngine();
+  final BackgroundWakeEngine<WebViewModel> _wakeEngine = BackgroundWakeEngine(
+      task: hostIsIOS ? WakeTask.iosRefresh : WakeTask.androidWorker);
   Timer? _foregroundPollTimer;
 
   /// The wake's side of the app: its checks, the route they run on, and

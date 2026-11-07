@@ -821,7 +821,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   }
 
   late final BackgroundWakeEngine<WebViewModel> wakeEngine =
-      BackgroundWakeEngine();
+      BackgroundWakeEngine(task: WakeTask.androidWorker);
   late final _WalkWake _wake = _WalkWake(this);
 
   /// A Tor runtime exists, whose one exit an activation repoints, when a

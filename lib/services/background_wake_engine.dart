@@ -267,28 +267,43 @@ class WakeReport {
   );
 }
 
+/// The OS task a wake runs in, and so how long its pages stay open to post
+/// what they missed (NOTIF-013): counted from the wake's start, and short of
+/// the task's own limit by the startup and closes around it.
+enum WakeTask {
+  /// `BGAppRefreshTask`, which iOS ends at about 30 s. The worst case the
+  /// wake had when it closed pages 3 s after a load at the 20 s deadline.
+  iosRefresh(Duration(seconds: 23)),
+
+  /// The `WorkManager` worker, which waits 60 s for Dart in a running engine
+  /// (`REFRESH_TIMEOUT_MS` in `NotificationRefreshWorker.kt`).
+  androidWorker(Duration(seconds: 45));
+
+  const WakeTask(this.budget);
+
+  final Duration budget;
+}
+
 /// NOTIF-013 / NOTIF-014 / NOTIF-016: a background wake (iOS
 /// `BGAppRefreshTask`, the Android `WorkManager`) checks every notification
 /// site, reloading a live webview in place and opening any other site in a
-/// headless webview, keeps the wake open until those loads settle and their
-/// JS has had a moment to post, then posts on behalf of any site that stayed
-/// silent while its unread count rose.
+/// headless webview, keeps those pages open until its [WakeTask]'s budget is
+/// spent so their own JS can catch up and post, then posts on behalf of any
+/// site that stayed silent while its unread count rose.
 ///
 /// Returning is what ends the OS task.
 class BackgroundWakeEngine<S extends Object> {
   BackgroundWakeEngine({
+    required this.task,
     this.settleDeadline = const Duration(seconds: 20),
-    this.postGrace = const Duration(seconds: 3),
     this.poll = const Duration(milliseconds: 500),
-  });
+  }) : assert(task.budget > settleDeadline,
+            'a page whose load settles at the deadline still gets time to post');
 
-  /// Longest the wake waits for loads to finish. iOS gives a refresh task
-  /// about 30 s and the Android worker caps Dart at 60 s, so this plus
-  /// [postGrace] stays inside both.
+  final WakeTask task;
+
+  /// Longest the wake waits for loads to finish, inside [task]'s budget.
   final Duration settleDeadline;
-
-  /// Time for a settled page's own JS to post before its title is read.
-  final Duration postGrace;
 
   final Duration poll;
 
@@ -391,7 +406,8 @@ class BackgroundWakeEngine<S extends Object> {
       table.runInput(StepContext(WakeFlow<S>(this, host: host)), from: WakePlace.foreground);
 
   /// Between the opens and the closes: the live sites reloaded, every check
-  /// settled, the titles read and the fallback posts made.
+  /// settled and held open for the rest of the budget, the titles read and
+  /// the fallback posts made.
   Future<void> _middle(WakeFlow<S> w) async {
     final host = w.host;
     final plan = w.plan!;
@@ -403,7 +419,7 @@ class BackgroundWakeEngine<S extends Object> {
     }
     final settle = await _awaitSettled(host,
         sites: w.checked, started: w.started, issuedAt: w.issuedAt);
-    if (w.checked.isNotEmpty) await host.delay(postGrace);
+    await _holdOpen(w);
 
     final outcomes = <WakeSiteOutcome>[];
     for (final e in plan.entries) {
@@ -438,6 +454,21 @@ class BackgroundWakeEngine<S extends Object> {
     }
     w.report =
         WakeReport(sites: outcomes, elapsed: host.now().difference(w.started));
+  }
+
+  /// Keeps the checked pages open, their JS running, until [task]'s budget
+  /// is spent: a page posts what it missed once it has caught up with its
+  /// server, which can take longer than its load. Ends sooner once none of
+  /// them is there: a webview gone, or the app back on screen, which closes
+  /// the headless ones.
+  Future<void> _holdOpen(WakeFlow<S> w) async {
+    final host = w.host;
+    final end = w.started.add(task.budget);
+    while (host.now().isBefore(end) &&
+        w.checked.any((e) => host.isLoading(e.site.siteId) != null)) {
+      final left = end.difference(host.now());
+      await host.delay(left < poll ? left : poll);
+    }
   }
 
   /// A load is settled once it has been seen to start and then stop, or once

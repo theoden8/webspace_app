@@ -4,22 +4,31 @@ import 'package:webspace/services/background_wake_engine.dart';
 import 'package:webspace/services/runtime_vars.dart';
 
 /// A page that loads for [loadTicks] polls after a reload, then shows
-/// [titleAfter], and posts its own notification on load when [postsOnLoad].
+/// [titleAfter], and posts its own notification on load when [postsOnLoad],
+/// or [postsAfter] its load stopped, as a page catching up with its server.
 class _Page {
   _Page({
     required this.titleBefore,
     required this.titleAfter,
     this.loadTicks = 3,
     this.postsOnLoad = false,
+    this.postsAfter,
   });
 
   final String? titleBefore;
   final String? titleAfter;
   final int loadTicks;
   final bool postsOnLoad;
+  final Duration? postsAfter;
   int? _ticksLeft;
+  DateTime? loadedAt;
   DateTime? postedAt;
   bool gone = false;
+
+  void _load() {
+    _ticksLeft = loadTicks;
+    loadedAt = null;
+  }
 
   bool get loading => _ticksLeft != null && _ticksLeft! > 0;
   String? get title => _ticksLeft == null ? titleBefore : (loading ? null : titleAfter);
@@ -104,7 +113,7 @@ class _Host implements BackgroundWakeHost<SiteId> {
   @override
   Future<void> reload(String siteId) async {
     events.add('reload $siteId');
-    pages[siteId]!._ticksLeft = pages[siteId]!.loadTicks;
+    pages[siteId]!._load();
   }
 
   @override
@@ -128,7 +137,7 @@ class _Host implements BackgroundWakeHost<SiteId> {
     if (vars.fore.value) return WakeSkip.appInForeground;
     events.add('open $siteId');
     headless.add(siteId);
-    pages[siteId]!._ticksLeft = pages[siteId]!.loadTicks;
+    pages[siteId]!._load();
     return null;
   }
 
@@ -171,16 +180,30 @@ class _Host implements BackgroundWakeHost<SiteId> {
   @override
   DateTime now() => _now;
 
+  /// Runs after each delay, once the pages have moved on.
+  void Function(_Host host)? onDelay;
+
   @override
   Future<void> delay(Duration d) async {
     _now = _now.add(d);
     for (final p in pages.values) {
       if (p._ticksLeft != null && p._ticksLeft! > 0) {
         p._ticksLeft = p._ticksLeft! - 1;
-        if (p._ticksLeft == 0 && p.postsOnLoad) p.postedAt = _now;
+        if (p._ticksLeft == 0) {
+          p.loadedAt = _now;
+          if (p.postsOnLoad) p.postedAt = _now;
+        }
+      }
+      final after = p.postsAfter;
+      final loadedAt = p.loadedAt;
+      if (after != null &&
+          loadedAt != null &&
+          !_now.isBefore(loadedAt.add(after))) {
+        p.postedAt ??= loadedAt.add(after);
       }
     }
     events.add('delay ${d.inMilliseconds}');
+    onDelay?.call(this);
   }
 
   /// What the wake did to the platform, without the polls.
@@ -234,7 +257,7 @@ void main() {
       final page = _Page(titleBefore: '(1) Chat', titleAfter: '(1) Chat',
           loadTicks: 6);
       final host = _Host({'a': page});
-      final engine = BackgroundWakeEngine<SiteId>();
+      final engine = BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker);
       await engine.wake(host);
       expect(page.loading, isFalse,
           reason: 'returning ends the OS task; a page still loading never '
@@ -242,27 +265,59 @@ void main() {
       expect(host.events.first, 'reload a');
     });
 
-    test('gives up at the settle deadline on a page that never finishes',
-        () async {
-      final page = _Page(titleBefore: null, titleAfter: null, loadTicks: 1000);
-      final host = _Host({'a': page});
-      final engine = BackgroundWakeEngine<SiteId>();
-      final start = host.now();
-      await engine.wake(host);
-      final spent = host.now().difference(start);
-      expect(spent, lessThanOrEqualTo(
-          engine.settleDeadline + engine.postGrace + engine.poll));
-    });
+    for (final task in WakeTask.values) {
+      test('${task.name}: a page that never finishes ends the wake inside the '
+          'task\'s budget', () async {
+        final page =
+            _Page(titleBefore: null, titleAfter: null, loadTicks: 1000);
+        final host = _Host({'a': page});
+        final engine = BackgroundWakeEngine<SiteId>(task: task);
+        final start = host.now();
+        await engine.wake(host);
+        expect(host.now().difference(start),
+            lessThanOrEqualTo(task.budget + engine.poll));
+      });
+
+      test('${task.name}: a page that posts 10 s after its load is still open '
+          'to post', () async {
+        final page = _Page(
+            titleBefore: 'Chat',
+            titleAfter: 'Chat',
+            postsAfter: const Duration(seconds: 10));
+        final host = _Host({'a': page}, live: {});
+        final engine = BackgroundWakeEngine<SiteId>(task: task);
+        final report = await engine.wake(host);
+        expect(report.sites.single.sitePosted, isTrue,
+            reason: 'a page posts what it missed once it has caught up with '
+                'its server, after its load; closing it 3 s after the load '
+                'stopped closed it first');
+      });
+    }
 
     test('a webview that goes away mid-wake does not hold it open', () async {
       final page = _Page(titleBefore: null, titleAfter: null, loadTicks: 1000)
         ..gone = true;
       final host = _Host({'a': page});
-      final engine = BackgroundWakeEngine<SiteId>();
+      final engine = BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker);
       final start = host.now();
       await engine.wake(host);
       expect(host.now().difference(start),
           lessThan(const Duration(seconds: 5)));
+    });
+
+    test('a page gone after its load ends the hold', () async {
+      final page = _Page(titleBefore: 'Chat', titleAfter: 'Chat');
+      final host = _Host({'a': page})
+        ..onDelay = (h) {
+          if (page.loadedAt != null) page.gone = true;
+        };
+      final engine = BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker);
+      final start = host.now();
+      await engine.wake(host);
+      expect(host.now().difference(start),
+          lessThan(const Duration(seconds: 5)),
+          reason: 'with no page left to run, nothing can post: the app back '
+              'on screen closes the headless checks this way');
     });
   });
 
@@ -271,7 +326,7 @@ void main() {
         () async {
       final page = _Page(titleBefore: '(2) Chat', titleAfter: '(5) Chat');
       final host = _Host({'a': page});
-      final engine = BackgroundWakeEngine<SiteId>()
+      final engine = BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker)
         ..noteBaseline(SiteId('a'), title: '(2) Chat');
       expect((await engine.wake(host)).posted, 1);
       expect(host.posts, ['Site a: (5) Chat']);
@@ -281,7 +336,7 @@ void main() {
       final page = _Page(titleBefore: '(2) Chat', titleAfter: '(5) Chat',
           postsOnLoad: true);
       final host = _Host({'a': page});
-      final engine = BackgroundWakeEngine<SiteId>()
+      final engine = BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker)
         ..noteBaseline(SiteId('a'), title: '(2) Chat');
       expect((await engine.wake(host)).posted, 0);
     });
@@ -289,7 +344,7 @@ void main() {
     test('one rise posts once across wakes', () async {
       final page = _Page(titleBefore: '(2) Chat', titleAfter: '(5) Chat');
       final host = _Host({'a': page});
-      final engine = BackgroundWakeEngine<SiteId>()
+      final engine = BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker)
         ..noteBaseline(SiteId('a'), title: '(2) Chat');
       await engine.wake(host);
       await engine.wake(host);
@@ -300,13 +355,13 @@ void main() {
         () async {
       final page = _Page(titleBefore: null, titleAfter: '(5) Chat');
       final host = _Host({'a': page});
-      final engine = BackgroundWakeEngine<SiteId>();
+      final engine = BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker);
       expect((await engine.wake(host)).posted, 0);
       expect(engine.baseline(SiteId('a')), 5);
     });
 
     test('forget drops sites that are gone', () {
-      final engine = BackgroundWakeEngine<SiteId>()
+      final engine = BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker)
         ..noteBaseline(SiteId('a'), title: '(1) A')
         ..noteBaseline(SiteId('b'), title: '(1) B');
       engine.forget({SiteId('a')});
@@ -319,7 +374,7 @@ void main() {
     test('a notification site with no webview is checked headless', () async {
       final page = _Page(titleBefore: null, titleAfter: '(5) Chat');
       final host = _Host({'a': page}, live: {});
-      final engine = BackgroundWakeEngine<SiteId>()
+      final engine = BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker)
         ..noteBaseline(SiteId('a'), title: '(2) Chat');
       final report = await engine.wake(host);
       expect(report.sites.single.mode, WakeMode.headless,
@@ -340,7 +395,7 @@ void main() {
         'b': _Page(titleBefore: null, titleAfter: '(2) B'),
         'c': _Page(titleBefore: null, titleAfter: null),
       }, live: {});
-      final report = await BackgroundWakeEngine<SiteId>().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker).wake(host);
       expect(report.count(WakeMode.headless), 3);
       expect(report.skipped, 0);
     });
@@ -350,7 +405,7 @@ void main() {
         'a': _Page(titleBefore: null, titleAfter: null),
         'b': _Page(titleBefore: null, titleAfter: null),
       }, live: {'a'});
-      final report = await BackgroundWakeEngine<SiteId>().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker).wake(host);
       expect(host.calls.take(3), ['route b', 'open b', 'reload a'],
           reason: 'the checks open first, so they load while the live sites '
               'reload');
@@ -363,7 +418,7 @@ void main() {
         'a': _Page(titleBefore: null, titleAfter: null),
         'b': _Page(titleBefore: null, titleAfter: null),
       }, live: {}, notificationsOff: {'b'});
-      final report = await BackgroundWakeEngine<SiteId>().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker).wake(host);
       expect([for (final o in report.sites) o.site.siteId], ['a']);
       expect(host.events, isNot(contains('open b')));
     });
@@ -375,7 +430,7 @@ void main() {
         'b': _Page(titleBefore: null, titleAfter: null),
       }, live: {})
         ..blocked['b'] = WakeSkip.torDown;
-      final report = await BackgroundWakeEngine<SiteId>().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker).wake(host);
       final b = report.sites.firstWhere((o) => o.site.siteId == 'b');
       expect(b.skip, WakeSkip.torDown);
       expect(host.events, isNot(contains('open b')));
@@ -388,7 +443,7 @@ void main() {
       final host = _Host({'a': _Page(titleBefore: null, titleAfter: null)},
           live: {})
         ..refuseOpen['a'] = WakeSkip.blockersNotAttached;
-      final report = await BackgroundWakeEngine<SiteId>().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker).wake(host);
       expect(report.sites.single.skip, WakeSkip.blockersNotAttached);
       expect(host.events, isNot(contains('close a')));
     });
@@ -399,14 +454,14 @@ void main() {
         'b': _Page(titleBefore: null, titleAfter: null),
       }, live: {})
         ..titleThrows = true;
-      await expectLater(BackgroundWakeEngine<SiteId>().wake(host), throwsStateError);
+      await expectLater(BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker).wake(host), throwsStateError);
       expect(host.headless, isEmpty);
       expect(host.events, containsAll(['close a', 'close b']));
     });
 
     test('back on screen mid-wake: the checks close and no other opens',
         () async {
-      final engine = BackgroundWakeEngine<SiteId>();
+      final engine = BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker);
       final host = _Host({
         'a': _Page(titleBefore: null, titleAfter: null),
         'b': _Page(titleBefore: null, titleAfter: null),
@@ -424,7 +479,7 @@ void main() {
     });
 
     test('a wake asked for while one runs joins it', () async {
-      final engine = BackgroundWakeEngine<SiteId>();
+      final engine = BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker);
       final host = _Host({'a': _Page(titleBefore: null, titleAfter: null)},
           live: {});
       final first = engine.wake(host);
@@ -439,7 +494,7 @@ void main() {
         'a': _Page(titleBefore: null, titleAfter: null, loadTicks: 1),
         'b': _Page(titleBefore: null, titleAfter: '(1) B', loadTicks: 0),
       }, live: {});
-      final report = await BackgroundWakeEngine<SiteId>().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker).wake(host);
       expect(report.sites.map((o) => o.settle!.kind),
           everyElement(isNot(WakeSettleKind.timedOut)));
     });
@@ -454,7 +509,7 @@ void main() {
         'c': _Page(titleBefore: null, titleAfter: null),
       }, live: {'a'})
         ..routes.addAll({'a': _p, 'b': _q, 'c': _p});
-      final report = await BackgroundWakeEngine<SiteId>().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker).wake(host);
       final byId = {for (final o in report.sites) o.site.siteId: o};
       expect(byId['a']!.mode, WakeMode.live);
       expect(byId['b']!.skip, WakeSkip.proxyConflict);
@@ -471,7 +526,7 @@ void main() {
         'b': _Page(titleBefore: null, titleAfter: null),
       }, live: {})
         ..routes.addAll({'a': _p, 'b': _q});
-      final report = await BackgroundWakeEngine<SiteId>().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker).wake(host);
       expect(host.calls.take(2), ['route a', 'open a']);
       expect(report.sites[1].skip, WakeSkip.proxyConflict,
           reason: 'a runs once its check opens, so b may not move the rule');
@@ -488,7 +543,7 @@ void main() {
         'tor': _Page(titleBefore: null, titleAfter: null),
       }, live: {'a'})
         ..routes['tor'] = (proxy: null, torExit: 'de');
-      final report = await BackgroundWakeEngine<SiteId>().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker).wake(host);
       expect(report.sites[1].mode, WakeMode.headless);
       expect(host.calls.first, 'route tor');
     });
@@ -500,7 +555,7 @@ void main() {
         'b': _Page(titleBefore: null, titleAfter: null),
       }, live: {'shown'}, notificationsOff: {'shown'})
         ..routes.addAll({'shown': _p, 'b': _q});
-      final report = await BackgroundWakeEngine<SiteId>().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker).wake(host);
       expect(report.sites.single.skip, WakeSkip.proxyConflict);
       expect(host.events.where((e) => e.startsWith('route')), isEmpty,
           reason: 'the site the user left on screen runs on its route; '
@@ -517,7 +572,7 @@ void main() {
           'shown': (proxy: null, torExit: 'de'),
           'tor': (proxy: null, torExit: 'fr'),
         });
-      final report = await BackgroundWakeEngine<SiteId>().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker).wake(host);
       expect(report.sites.single.skip, WakeSkip.proxyConflict);
       expect(host.events.where((e) => e.startsWith('route')), isEmpty);
     });
@@ -528,7 +583,7 @@ void main() {
       }, live: {})
         ..routes['a'] = _p
         ..routeApplies = false;
-      final report = await BackgroundWakeEngine<SiteId>().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker).wake(host);
       expect(report.sites.single.skip, WakeSkip.proxyUnavailable);
       expect(host.events, isNot(contains('open a')));
     });
@@ -540,7 +595,7 @@ void main() {
         'b': _Page(titleBefore: null, titleAfter: null),
       }, live: {})
         ..routes.addAll({'a': _p, 'b': _p});
-      await BackgroundWakeEngine<SiteId>().wake(host);
+      await BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker).wake(host);
       expect(host.runningAtApply[SiteId('a')], {SiteId('a')},
           reason: 'a preload landing while the route applies must see the '
               'check, or it could load on another route beside it');
@@ -552,25 +607,25 @@ void main() {
   group('NOTIF-014 baselines outlive the process', () {
     test('a restored baseline posts on the first wake after a relaunch',
         () async {
-      final before = BackgroundWakeEngine<SiteId>()
+      final before = BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker)
         ..noteBaseline(SiteId('a'), title: '(2) Chat');
       final kept = before.baselinesOf({SiteId('a')});
       final host = _Host({'a': _Page(titleBefore: null, titleAfter: '(4) Chat')},
           live: {});
-      final after = BackgroundWakeEngine<SiteId>()..restoreBaselines(kept);
+      final after = BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker)..restoreBaselines(kept);
       expect((await after.wake(host)).posted, 1);
       expect(host.posts, ['Site a: (4) Chat']);
     });
 
     test('only the sites asked for are handed to the store', () {
-      final engine = BackgroundWakeEngine<SiteId>()
+      final engine = BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker)
         ..noteBaseline(SiteId('a'), title: '(1) A')
         ..noteBaseline(SiteId('incognito'), title: '(3) B');
       expect(engine.baselinesOf({SiteId('a')}), {'a': 1});
     });
 
     test('a baseline taken in this process beats a restored one', () {
-      final engine = BackgroundWakeEngine<SiteId>()
+      final engine = BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker)
         ..noteBaseline(SiteId('a'), title: '(7) A')
         ..restoreBaselines({SiteId('a'): 2});
       expect(engine.baseline(SiteId('a')), 7);
@@ -585,7 +640,7 @@ void main() {
         'b': _Page(titleBefore: null, titleAfter: null, loadTicks: 0),
         'c': _Page(titleBefore: null, titleAfter: null)..gone = true,
       });
-      final engine = BackgroundWakeEngine<SiteId>()..noteBaseline(SiteId('a'), title: '(2) A');
+      final engine = BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker)..noteBaseline(SiteId('a'), title: '(2) A');
       final report = await engine.wake(host);
       final byId = {for (final o in report.sites) o.site.siteId: o};
       expect(byId['a']!.settle!.kind, WakeSettleKind.loaded);
@@ -602,7 +657,7 @@ void main() {
       final host = _Host({
         'a': _Page(titleBefore: null, titleAfter: null, loadTicks: 1000),
       });
-      final report = await BackgroundWakeEngine<SiteId>().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker).wake(host);
       expect(report.sites.single.settle!.kind, WakeSettleKind.timedOut);
     });
 
@@ -610,7 +665,7 @@ void main() {
         () async {
       final host = _Host({'a': _Page(titleBefore: null, titleAfter: null)},
           notificationsOff: {'a'});
-      final report = await BackgroundWakeEngine<SiteId>().wake(host);
+      final report = await BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker).wake(host);
       expect(report.sites, isEmpty);
       expect(host.events, isEmpty);
     });
@@ -619,7 +674,7 @@ void main() {
       final host = _Host({
         'secret-id': _Page(titleBefore: '(1) Inbox', titleAfter: '(3) Inbox'),
       });
-      final engine = BackgroundWakeEngine<SiteId>()
+      final engine = BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker)
         ..noteBaseline(SiteId('secret-id'), title: '(1) Inbox');
       final report = await engine.wake(host);
       final line = describeWakeSite(report.sites.single, position: 1, count: 1);
