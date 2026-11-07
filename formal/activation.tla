@@ -159,6 +159,8 @@ Init ==
     /\ dns = [lvl |-> 0, levels |-> {}]
     /\ told = [s \in Sites |-> -1]
     /\ gone = Joining
+    \* Each site under its own id, a clashing one under a listed site's.
+    /\ ids = [s \in Sites |-> IF s \in Clashing THEN Holder ELSE s]
     \* Where an archive is open, a loaded site's webview is mounted and an
     \* archive site's container is on disk once it was.
     /\ views = IF Boxed = {} THEN {} ELSE loaded
@@ -188,7 +190,7 @@ Move(from, to) ==
     /\ rows' = [q \in Pos |-> rows[CHOOSE j \in Pos : Moved(j, from, to) = q]]
     /\ seen' = seen \cup (IF Idle THEN {} ELSE {"movedMidFlight"})
     /\ Did("Move", inputs + 1, "", 0)
-    /\ UNCHANGED << loaded, current, version, marker, tier, nested, headless, fore,
+    /\ UNCHANGED << ids, loaded, current, version, marker, tier, nested, headless, fore,
                     sessions, turn, fl, newest, evictedShown, tabVars,
                     blocking, archived >>
 
@@ -199,6 +201,11 @@ Join(s) ==
     /\ Input
     /\ s \in Joining \cap gone
     /\ gone' = gone \ {s}
+    \* A site whose id a listed one holds runs under a fresh one (ARCH-016,
+    \* SEC-044); "joinkeepsid" joins it under the id it arrived with.
+    /\ ids' = [ids EXCEPT ![s] =
+                IF Mistake # "joinkeepsid" /\ \E t \in Sites \ gone : ids[t] = ids[s]
+                THEN FreshId(s) ELSE ids[s]]
     /\ seen' = seen \cup (IF Idle THEN {} ELSE {"joinedMidFlight"})
     /\ Did("Join", inputs + 1, "", s)
     /\ UNCHANGED << site, sessions, turn, fl, newest, evictedShown, tabVars,
@@ -214,7 +221,7 @@ Login(s) ==
     /\ jar' = jar \cup {s}
     /\ signedIn' = signedIn \cup {s}
     /\ Did("Login", inputs + 1, "", s)
-    /\ UNCHANGED << site, stored, turn, fl, ghosts, tabVars, blocking,
+    /\ UNCHANGED << ids, site, stored, turn, fl, ghosts, tabVars, blocking,
                     archived >>
 
 \* clearUnloaded at launch: the jar's first turn, emptied while nothing is
@@ -231,7 +238,7 @@ ClearJar ==
             /\ UNCHANGED seen
     /\ jar' = {}
     /\ Did("ClearJar", 0, "", 0)
-    /\ UNCHANGED << site, stored, signedIn, holder, dnsHolder, dnsQueue, fl,
+    /\ UNCHANGED << ids, site, stored, signedIn, holder, dnsHolder, dnsQueue, fl,
                     inputs, newest, evictedShown, tabVars, blocking, archived >>
 
 \* The level a site's webview runs at with the lists in force now
@@ -251,7 +258,7 @@ ViewBuilt(s) ==
     /\ told[s] = -1
     /\ told' = [told EXCEPT ![s] = Eff(s)]
     /\ Did("ViewBuilt", 0, "", s)
-    /\ UNCHANGED << site, sessions, turn, fl, inputs, ghosts, tabVars, dns,
+    /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabVars, dns,
                     archived >>
 
 ViewGone(s) ==
@@ -259,7 +266,7 @@ ViewGone(s) ==
     /\ told[s] # -1
     /\ told' = [told EXCEPT ![s] = -1]
     /\ Did("ViewGone", 0, "", s)
-    /\ UNCHANGED << site, sessions, turn, fl, inputs, ghosts, tabVars, dns,
+    /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabVars, dns,
                     archived >>
 
 \* A frame mounts a loaded site's webview, which binds its container, and
@@ -276,7 +283,7 @@ Frame(s) ==
        ELSE /\ views' = views \ {s}
             /\ UNCHANGED boxes
     /\ Did("Frame", 0, "", s)
-    /\ UNCHANGED << site, sessions, turn, fl, inputs, ghosts, tabVars,
+    /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabVars,
                     blocking, gone >>
 
 \* A loaded site's webview let go of, so the frame builds it afresh: a
@@ -292,7 +299,7 @@ LetGo(s) ==
     /\ built' = [built EXCEPT ![s] = 0]
     /\ hist' = [hist EXCEPT ![s] = 0]
     /\ Did("LetGo", 0, "", s)
-    /\ UNCHANGED << site, sessions, turn, fl, inputs, ghosts, tabs, active,
+    /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabs, active,
                     queued, file, minted, host, link, opener, blocking,
                     archived >>
 
@@ -309,7 +316,7 @@ Reframe(s) ==
     /\ hist' = Shown(s, loaded)
     /\ queued' = Taken(s, loaded)
     /\ Did("Reframe", 0, "", s)
-    /\ UNCHANGED << site, sessions, turn, fl, inputs, ghosts, tabs, active,
+    /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabs, active,
                     file, minted, host, link, opener, blocking, archived >>
 
 -----------------------------------------------------------------------------
@@ -489,6 +496,13 @@ DeleteOne == {1}
 RebuildOne == {1}
 \* The join config's: site 3, off the list at the start.
 JoinOne == {3}
+\* And arriving under a listed site's id (SEC-044).
+ClashOne == {3}
+
+\* R8, ARCH-016: no two listed sites share an id, so a lookup by id names
+\* one site.
+Inv_IdsUnique ==
+    \A s, t \in Sites \ gone : s # t => ids[s] # ids[t]
 \* The reset config's: site 3, loaded and signed in at the start, off screen.
 ResetOne == {3}
 \* The incognito config's: site 3, loaded and signed in at the start.

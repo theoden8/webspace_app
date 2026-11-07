@@ -1298,6 +1298,9 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         (m) => DnsBlockService.instance.views.told[m.siteId],
       ),
       ModelVar.gone => ids(_offList),
+      // A site's id never changes once it is made; a join that re-mints one
+      // makes a new model (Admitted.of), so only Join writes it.
+      ModelVar.ids => each((m) => m.siteId),
       ModelVar.views => ids(_mounted.keys),
       ModelVar.boxes => ids([
         for (final m in _followed)
@@ -1757,6 +1760,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         final j? => set([_siteNumber(j)]),
         null => null,
       },
+      // No world here opens an archive whose site a listed one's id holds.
+      ModelConst.clashing => null,
       ModelConst.boxed || ModelConst.noNavState => null,
       // An archive's sites are incognito too (`Incognito == Archive`).
       ModelConst.incognito => page.incognito.isEmpty

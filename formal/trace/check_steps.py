@@ -175,6 +175,7 @@ def module(name, trace, variables):
             "        /\\ gone = {} /\\ views = {} /\\ boxes = {}"]),
         "        /\\ signedIn = {} /\\ holder = 0",
         "        /\\ dnsHolder = 0 /\\ dnsQueue = << >>",
+        "        /\\ ids = [s \\in Sites |-> s]",
         "        /\\ queue = IF ColdStart /\\ ~Containers THEN << 0 >> ELSE << >>",
         "        /\\ fl = [f \\in Flows |-> NoFlow] /\\ inputs = 0",
         "        /\\ newest = 0 /\\ evictedShown = FALSE /\\ seen = {}",

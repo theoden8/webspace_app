@@ -4,8 +4,8 @@ import 'package:webspace/settings_import_engine.dart';
 
 // Two site records that share an id share one container: one cookie jar, one
 // storage partition (policy.md R8). Within one backup the planner keeps the
-// first record's id and mints a fresh one for each later copy. Across the app
-// tier and open archives nothing checks it yet (policy_debt.tsv).
+// first record's id and mints a fresh one for each later copy. An archive's
+// open admits its sites against the listed ids (ARCH-016).
 SettingsBackup _backup(List<Map<String, dynamic>> sites) => SettingsBackup(
       version: 1,
       sites: sites,

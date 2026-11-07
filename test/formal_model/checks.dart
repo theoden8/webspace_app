@@ -31,6 +31,7 @@ enum Env {
   resetOne(op: ModelConst.resettable, by: 'ResetOne'),
   rebuildOne(op: ModelConst.rebuilt, by: 'RebuildOne'),
   joinOne(op: ModelConst.joining, by: 'JoinOne'),
+  clashOne(op: ModelConst.clashing, by: 'ClashOne'),
   incognitoOne(op: ModelConst.incognito, by: 'IncognitoOne'),
   /// A refused read keeps the set the site last saved, so what the jar
   /// held of its session since is lost (ISO-014).
@@ -116,7 +117,10 @@ enum Inv {
   retired(
     atRest: true,
     reads: {ModelVar.boxes, ModelVar.current, ModelVar.gone, ModelVar.loaded, ModelVar.views},
-  );
+  ),
+
+  /// R8, ARCH-016: no two listed sites share an id.
+  idsUnique(reads: {ModelVar.gone, ModelVar.ids});
 
   const Inv({
     required this.reads,
@@ -161,6 +165,7 @@ const _core = [
   Inv.noShownEvicted,
   Inv.loadedNotSaved,
   Inv.places,
+  Inv.idsUnique,
 ];
 const _jar = [Inv.oneSitePerBase, Inv.noSessionLoss, Inv.noForeignSession];
 const _tabs = [
@@ -794,11 +799,12 @@ enum ActivationWorld {
     cookies: Cookies.sharedJar,
     coldStart: false,
     inputs: 3,
-    env: {Env.joinOne},
+    env: {Env.joinOne, Env.clashOne},
     invariants: [..._core, ..._jar, Inv.retired],
     holds:
         "shared jar, site 3 joining the list beside taps and the jar's "
-        'turns: it joins as nothing, and every session stays',
+        'turns, under an id site 1 or 2 holds: it joins as nothing, under '
+        'a fresh id, and every session stays',
   );
 
   const ActivationWorld({
@@ -1410,6 +1416,14 @@ enum HandMistake {
     doc:
         'a site whose webview is built before it joins the list is a loaded '
         'site off it (caught)',
+  ),
+  joinkeepsid(
+    world: ActivationWorld.joins,
+    slice: (allowed: {'GoHome'}),
+    caught: Breaks(Inv.idsUnique),
+    doc:
+        'a site that joins under the id a listed site holds shares it, so a '
+        'lookup by id names two sites (ARCH-016, SEC-044, caught)',
   );
 
   const HandMistake({

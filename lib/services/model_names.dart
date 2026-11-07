@@ -162,6 +162,11 @@ enum ModelVar {
     'sites that left the list (SiteRuntime.models)',
     type: r'gone \subseteq Sites',
   ),
+  ids(
+    'ids[s]: the id site s runs under, named by the site that held it first '
+    'or fresh (SiteId)',
+    type: r'ids \in [Sites -> IdSpace]',
+  ),
   views(
     'sites whose webview is mounted, binding its container (the platform)',
     type: r'views \subseteq Sites',
@@ -307,6 +312,7 @@ enum ModelConst {
   resettable(ConstKind.set, range: r'SUBSET Sites'),
   rebuilt(ConstKind.set, range: r'SUBSET Sites'),
   joining(ConstKind.set, range: r'SUBSET Sites'),
+  clashing(ConstKind.set, range: r'SUBSET Sites'),
   boxed(ConstKind.set, range: r'SUBSET Sites', follows: {archive, deletable}),
   incognito(ConstKind.set, range: r'SUBSET Sites', follows: {archive}),
   noNavState(ConstKind.set, range: r'SUBSET Sites', follows: {archive, incognito}),
