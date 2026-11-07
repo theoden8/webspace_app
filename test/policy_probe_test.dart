@@ -47,9 +47,28 @@ final make = planSettingsImport;
     const raw = "${preamble}void f() => "
         "DownloadsService.instance.fail('dl-1-0123456789abcdef', message: 'x');";
     const forge = "${preamble}final x = DownloadTaskId('dl-1-0123456789abcdef');";
+    // Nor through mint: it is library-private, so only DownloadsService.start
+    // mints an id. Without this, DL-008's "reachable to a handler only through
+    // pageTask" would rest on the token's unguessability, not on the type.
+    const mint = "${preamble}final x = "
+        'DownloadTaskId.mint(serial: 1, view: null);';
     expect(await errorsIn(held), isEmpty);
     expect(await errorsIn(raw), contains('argument_type_not_assignable'));
     expect(await errorsIn(forge), isNotEmpty,
         reason: 'DownloadTaskId has no public constructor');
+    expect(await errorsIn(mint), isNotEmpty, reason: 'mint is library-private');
+
+    // Planted mistake: a public mint lets any code make an id, reopening the
+    // hole — under it the probe compiles.
+    const owner = 'lib/services/download_manager.dart';
+    final source = File(owner).readAsStringSync();
+    final publicMint = source
+        .replaceFirst(
+            'factory DownloadTaskId._mint(', 'factory DownloadTaskId.mint(')
+        .replaceFirst(
+            'id: DownloadTaskId._mint(', 'id: DownloadTaskId.mint(');
+    expect(publicMint, isNot(source), reason: 'the planted mistake must apply');
+    expect(await errorsIn(mint, overlays: {owner: publicMint}), isEmpty,
+        reason: 'with a public mint any code could make an id');
   }, timeout: _probe);
 }

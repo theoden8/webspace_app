@@ -129,7 +129,10 @@ void main() {
 
   test('unknown id is a no-op', () {
     final s = DownloadsService.instance;
-    final missing = DownloadTaskId.mint(serial: 99, view: null);
+    // No public mint: take a real id, then remove its task so the id names
+    // nothing — the "cleared from history" case the methods guard against.
+    final missing = s.start(filename: 'gone').id;
+    s.dismiss(missing);
     s.updateProgress(missing, bytesDone: 100);
     s.complete(missing);
     s.fail(missing, message: 'err');

@@ -25,7 +25,11 @@ final class DownloadTaskId {
   static final RegExp _tokenPattern = RegExp(r'^dl-[0-9]+-[0-9a-f]{16}$');
 
   /// A fresh id for the [serial]th download of this run, started for [view].
-  factory DownloadTaskId.mint({required int serial, required ViewKey? view}) {
+  /// Library-private: only [DownloadsService.start] mints one, so no page
+  /// handler can make an id at all (DL-008). The view check in
+  /// [DownloadsService.pageTask], not the token's randomness, is what keeps a
+  /// handler off another view's task; the random suffix is defence in depth.
+  factory DownloadTaskId._mint({required int serial, required ViewKey? view}) {
     final a = _rng.nextInt(1 << 32).toRadixString(16).padLeft(8, '0');
     final b = _rng.nextInt(1 << 32).toRadixString(16).padLeft(8, '0');
     return DownloadTaskId._(view: view, token: 'dl-$serial-$a$b');
@@ -113,7 +117,7 @@ class DownloadsService extends ChangeNotifier {
     ViewKey? view,
   }) {
     final task = DownloadTask(
-      id: DownloadTaskId.mint(serial: ++_counter, view: view),
+      id: DownloadTaskId._mint(serial: ++_counter, view: view),
       filename: filename,
       url: url,
       view: view,

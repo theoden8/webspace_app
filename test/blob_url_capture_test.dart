@@ -6,7 +6,7 @@ import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/page_js.dart';
 import 'package:webspace/settings/shim_group.dart';
 
-final _task = DownloadTaskId.mint(serial: 1, view: null);
+final _task = DownloadsService.instance.start(filename: 'blob.bin').id;
 
 void main() {
   group('PageJs.blobUrlCapture.script', () {
