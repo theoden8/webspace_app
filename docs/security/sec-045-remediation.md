@@ -120,15 +120,27 @@ same-origin subframe loses handler access, so it is a stopgap, not the target.
   handler cannot build a requester from a page value. That moves R2's requester,
   CAM-013 and PASSKEY-004 from assumed to enforced.
 
-## Verification (what this session could not run)
+## Verification
+
+The fix is proved by type (Android/Apple, the `Requester` probe) where the
+platform supplies the identity. An integration test **partly** verifies it in
+addition, from the black box, on the real engine, which no type or model shows
+end to end. This is the lab's S2 scenario, and it is evidence, not proof: it
+covers the attacks tried, only after the fix exists, and each tier counts only
+for its own engine.
 
 1. Build the plugin example and the app on an Android emulator.
 2. Run the plugin's instrumented tests.
-3. Add an emulator test (the app's camera/permission tier): a cross-origin
-   iframe calling a capture, location, notification or passkey handler is
-   attributed to the iframe's origin, never the top document's, and is denied
-   the site's grant.
-4. On Linux, a subframe's handler call reports the subframe's origin.
+3. Add an integration test per real-engine tier (Android emulator, Linux WPE,
+   macOS WKWebView): a cross-origin iframe calling a capture, location,
+   notification or passkey handler is attributed to the iframe's origin, never
+   the top document's, and is denied the site's grant. On Linux a subframe's
+   call reports the subframe's origin.
+4. Keep the pre-fix build as the vulnerable control: the same test must show the
+   leak on it, or the test is measuring nothing. The Puppeteer browser tier uses
+   a mock bridge and never counts as native evidence (lab.md).
 
-Until 1 to 4 pass, SEC-045 stays open and R2 to R4 keep their platform caveat in
-[policy.md](policy.md) and their rows in [policy_debt.tsv](policy_debt.tsv).
+Type or model is the proof; these integration tests are the regression that
+shows it holds on the real engine. Until they pass, SEC-045 stays open and R2 to
+R4 keep their platform caveat in [policy.md](policy.md) and their rows in
+[policy_debt.tsv](policy_debt.tsv).
