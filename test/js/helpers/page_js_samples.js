@@ -40,7 +40,7 @@ const SAMPLES = {
   media_pause: pageJs('media_pause'),
   media_session: pageJs('media_session'),
   microphone_stream: CAPTURE.MICROPHONE,
-  notification_polyfill: pageJs('notification_polyfill', { siteId: 'site-fixture', notificationsEnabled: true }),
+  notification_polyfill: pageJs('notification_polyfill', { notificationsEnabled: true }),
   page_zoom_css: pageJs('page_zoom_css', { zoomPercent: 120 }),
   page_zoom_viewport: pageJs('page_zoom_viewport', {
     scale: 0.8, pinLayoutWidth: true, portraitWidth: 393, landscapeWidth: 851,
