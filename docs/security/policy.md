@@ -7,11 +7,14 @@ review runs in this directory report against it.
 A rule names the requirements that state it. How strongly each requirement is
 checked is not written here: `node tool/spec_map.js --policy` prints it from
 the checks that name each one, so it cannot go stale. A requirement is proved
-by a model (TLC or TLAPS), by a compile probe, a test that shows the
-compiler rejecting the mistake, or by a `webspace_lints` rule at error
-severity with its own test; an assert, a test or a source gate is evidence. A requirement counts as proved by its strongest check, which proves
-its central claim; details it lists beside that claim may rest on tests, so
-read the checks `spec_map.js` names before relying on one. A requirement nothing proves yet is owed in
+by a model (TLC or TLAPS), by a compile probe (a test that shows the compiler
+rejecting the mistake), or by a `webspace_lints` rule at error severity with its
+own test; an assert, a test or a source gate is evidence. (Whether an analyzer
+rule counts as proof rather than evidence is under review.) A requirement counts
+as proved only when its strongest check covers the requirement as stated, not
+merely its gist: where a check covers part, the requirement is split in its spec
+so the covered part has its own id, or it stays owed with the uncovered part
+named as the gap. A requirement nothing proves yet is owed in
 [policy_debt.tsv](policy_debt.tsv), with the kind of check that will close it
 and what that check is, and the list only shrinks:
 [test/js/security_policy.test.js](../../test/js/security_policy.test.js) fails

@@ -128,12 +128,24 @@ function checkFiles() {
  * not the rest of its file.
  */
 function probeIds(rel) {
-  const raw = read(rel);
-  if (!raw.includes('compile_probe.dart')) return [];
+  return rejectionProbeIds(read(rel), rel);
+}
+
+/**
+ * The ids a rejection probe in [src] names. A probe earns the `type` rung only
+ * where it shows the compiler *rejecting* a mistake: an `errorsIn` result
+ * asserted non-empty (`isNotEmpty`, `contains`, a named-code list). A body
+ * whose only `errorsIn` expects `isEmpty` shows a thing compiles and proves no
+ * rejection, so it names nothing here. Pure over the text, for its own test.
+ */
+function rejectionProbeIds(src, rel = 'probe') {
+  if (!src.includes('compile_probe.dart')) return [];
   const out = [];
-  for (const m of code(raw).matchAll(/\btest\s*\(/g)) {
-    const { body } = enclosed(raw, m.index + m[0].length - 1, '(', rel);
-    if (/\berrorsIn\s*\(/.test(body)) out.push(...idsIn(body));
+  for (const m of code(src).matchAll(/\btest\s*\(/g)) {
+    const { body } = enclosed(src, m.index + m[0].length - 1, '(', rel);
+    if (/errorsIn\s*\([^)]*\)\s*,\s*(isNotEmpty|contains|anyElement|\[)/.test(code(body))) {
+      out.push(...idsIn(body));
+    }
   }
   return out;
 }
@@ -272,4 +284,4 @@ function debt() {
   return out;
 }
 
-module.exports = { specMap, requirements, debt, problems, resolve, idsIn, DEBT, KINDS, ID };
+module.exports = { specMap, requirements, debt, problems, resolve, idsIn, rejectionProbeIds, DEBT, KINDS, ID };

@@ -6,7 +6,7 @@
 // below is shown catching the mistake it exists for.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { specMap, KINDS } = require('./helpers/spec_map');
+const { specMap, KINDS, rejectionProbeIds } = require('./helpers/spec_map');
 const { problems, current } = require('./helpers/security_policy');
 
 const map = { ...specMap(), kinds: KINDS };
@@ -63,4 +63,22 @@ test('a row owed a kind of check that proves nothing is caught', () => {
 test('a row for a requirement its rule does not name is caught', () => {
   const found = planted({ tsv: edit(policy.tsv, 'US-007\tR5\t', 'US-007\tR6\t') });
   assert.ok(found.some((p) => /debt row US-007: R6 does not name it/.test(p)), found.join('\n'));
+});
+
+// The type rung is for rejection probes only: a test showing the compiler
+// rejecting a mistake, not one showing code compiles (TLC review of 11e71d4).
+test('a probe that only shows code compiles earns no type rung', () => {
+  const positive = "import 'helpers/compile_probe.dart';\n"
+      + "void main() { test('FOO-001 compiles', () async {\n"
+      + '  expect(await errorsIn(src), isEmpty);\n'
+      + '}); }';
+  assert.deepEqual(rejectionProbeIds(positive), [],
+      'a body whose only errorsIn expects isEmpty proves no rejection');
+  const rejection = "import 'helpers/compile_probe.dart';\n"
+      + "void main() { test('FOO-001 rejected', () async {\n"
+      + '  expect(await errorsIn(src), isEmpty);\n'
+      + "  expect(await errorsIn(bad), contains('undefined_getter'));\n"
+      + '}); }';
+  assert.deepEqual(rejectionProbeIds(rejection), ['FOO-001'],
+      'a body asserting errorsIn is non-empty earns the rung');
 });
