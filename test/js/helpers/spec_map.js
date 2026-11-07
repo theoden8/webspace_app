@@ -121,6 +121,23 @@ function checkFiles() {
   };
 }
 
+/**
+ * The ids a compile probe names: a Dart test whose own body resolves source
+ * the compiler must reject (`errorsIn`, test/helpers/compile_probe.dart)
+ * proves its requirement on rung 1. Only the test that runs the probe counts,
+ * not the rest of its file.
+ */
+function probeIds(rel) {
+  const raw = read(rel);
+  if (!raw.includes('compile_probe.dart')) return [];
+  const out = [];
+  for (const m of code(raw).matchAll(/\btest\s*\(/g)) {
+    const { body } = enclosed(raw, m.index + m[0].length - 1, '(', rel);
+    if (/\berrorsIn\s*\(/.test(body)) out.push(...idsIn(body));
+  }
+  return out;
+}
+
 /** The ids an assert in a Dart file names in its condition or message. */
 function assertIds(rel) {
   const raw = read(rel);
@@ -156,6 +173,9 @@ function citations({ prefixes }) {
   for (const f of dartFiles()) {
     for (const id of assertIds(f)) note(id, 'assert', f);
   }
+  for (const f of optional('test', /_test\.dart$/)) {
+    for (const id of probeIds(f)) note(id, 'type', f);
+  }
   return cited;
 }
 
@@ -170,7 +190,7 @@ function resolve(id, byId) {
 }
 
 /** The kinds that verify a requirement, strongest rung first. */
-const KINDS = ['model', 'assert', 'test', 'integration', 'native', 'tool', 'gate'];
+const KINDS = ['model', 'type', 'assert', 'test', 'integration', 'native', 'tool', 'gate'];
 
 /**
  * The whole map: each requirement with the checks that name it, and the
@@ -236,4 +256,4 @@ function debt() {
   return out;
 }
 
-module.exports = { specMap, debt, problems, resolve, idsIn, DEBT, KINDS, ID };
+module.exports = { specMap, requirements, debt, problems, resolve, idsIn, DEBT, KINDS, ID };

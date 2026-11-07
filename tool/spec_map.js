@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Every requirement the specs declare and the checks that name it, strongest
-// rung first: a model (TLC or TLAPS), an assert at the owner, a test, an
+// rung first: a model (TLC or TLAPS), a compile probe (the compiler rejects
+// the mistake), an assert at the owner, a test, an
 // integration test, a native test, a gate over source text. Printed, never
 // committed; test/js/spec_verification.test.js holds the uncited ones to
 // openspec/unverified.tsv.
@@ -8,6 +9,7 @@
 //   node tool/spec_map.js            the map, one table per spec
 //   node tool/spec_map.js --summary  the counts per spec
 //   node tool/spec_map.js --json     the map as JSON
+//   node tool/spec_map.js --policy   docs/security/policy.md, each requirement with its strongest check
 const { specMap, debt, KINDS } = require('../test/js/helpers/spec_map');
 
 const { byId, checks, undeclared } = specMap();
@@ -62,6 +64,26 @@ const summary = [
 ];
 if (undeclared.size > 0) {
   summary.push('', `Ids checks name that no spec declares: ${[...undeclared.keys()].sort().join(', ')}`);
+}
+if (process.argv.includes('--policy')) {
+  const policy = require('../test/js/helpers/security_policy');
+  const { text, tsv } = policy.current();
+  const owedBy = new Map(policy.debt(tsv).map((r) => [r.requirement, r.owed]));
+  const map = { byId, checks, kinds: KINDS };
+  const lines = ['| Rule | Requirement | Strongest check | Proved | Owed |', '|---|---|---|---|---|'];
+  for (const r of policy.rules(text)) {
+    for (const id of r.ids) {
+      const top = policy.strongest(id, map);
+      lines.push(`| ${r.rule} | ${id} | ${top ?? 'none'} | ${policy.PROVES.has(top) ? 'yes' : 'no'} | ${owedBy.get(id) ?? ''} |`);
+    }
+  }
+  const unstated = policy.debt(tsv).filter((r) => r.requirement === policy.UNSTATED);
+  if (unstated.length > 0) {
+    lines.push('', 'Owed, with no requirement stating it yet:', '');
+    for (const r of unstated) lines.push(`- ${r.rule} (${r.owed}): ${r.gap}`);
+  }
+  process.stdout.write(`${lines.join('\n')}\n`);
+  process.exit(0);
 }
 if (process.argv.includes('--summary')) {
   process.stdout.write(`${summary.join('\n')}\n`);

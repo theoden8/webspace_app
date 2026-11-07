@@ -3,7 +3,7 @@
 A design and a staged plan, not an implementation. It asks one question: can an
 adaptive agent that controls a hostile website steal synthetic user data from
 WebSpace, or use authority the user granted to another site? Each answer is tied
-to a rule of the policy below and to the component that enforces that rule.
+to a rule of the [policy](policy.md) and to the component that enforces that rule.
 
 A pass is evidence against the attacks that were tried. It does not show that no
 attack exists, and nothing here is a formal proof.
@@ -16,82 +16,10 @@ findings are referred to by id only.
 
 ## 1. The policy
 
-### Subjects
-
-| Subject | What identifies it | Who supplies it | Never from |
-|---|---|---|---|
-| Site | `SiteId`, and the container it binds: `ws-<ContainerKey>`, an archive-tier site's key an HMAC of the archive key | the model, at build (`SitePosture.siteId`, `container`) | the page (NOTIF-010 drops a page-supplied `siteId`) |
-| Surface | the site's webview, a nested screen, a popup, a hosted tab (LIR-034), a headless wake check | the host, at build | the page |
-| Origin | `scheme://host[:port]` of the calling document | the platform: the bridge preamble's `origin`, a permission request's `origin` | a handler's arguments |
-| Frame | top document or subframe | the bridge preamble's `isMainFrame` | the page |
-| Document generation | one load of one webview | `PagePhases` / `PageScope`, `ViewKey` of `controller.platform` | a counter the page can read |
-| Standing | own, embedded or foreign: where an origin stands toward the site (PERM-001) | `SiteOrigins`, from the site's scheme and domain claims | the page |
-
-A site's own documents are those whose scheme is its address's and whose host
-one of its domain claims covers (`SiteOrigins.owns`). Every other document a
-surface of the site shows is foreign to it, however it got there.
-
-### Objects
-
-| Object | Where it lives | Isolated by |
-|---|---|---|
-| Cookies | the site's container; one shared jar in legacy mode | the engine's container; in legacy mode the jar swap (capture, clear, restore) |
-| localStorage, IndexedDB, service workers, HTTP cache | the site's container | **the container only.** Legacy mode shares them across every site (per-site-containers spec, the legacy section) |
-| HTTP auth credentials | `HttpAuthSession` per site, by host and realm | the app |
-| Proxy passwords, keychain secrets | `SecureJsonStore` per site | the OS keystore and the app |
-| Passkeys | the platform's credential provider | the provider, on the origin the app asserts (PASSKEY-004) |
-| Picked media (virtual camera, mic, screen) | the site's grant record | the app (PERM-001) |
-| Device capabilities: camera, mic, screen, location, notifications, background audio, protected content | the site's grants and settings | the app at the bridge, then the OS permission |
-| Imported settings: backup JSON, archive sections, QR | the import path | the import sanitizer, then a consent dialog |
-| Downloads | `DownloadsService`, global task ids | the app |
-| Network route: per-site proxy, process route, Tor circuit | `SitePosture.container.proxy`, `ProcessRoute`, `TorTag` | the app and the native proxy rule |
-| TLS trust pins | app-wide `(host, port, sha256)` | the app |
-
-### Actions and rules
-
-Default deny: a request no rule allows is refused. Complete mediation: every
-request passes one check at the component that owns the object, never at a
-reader of it.
-
-| Rule | Allowed | Enforced at | Check today |
-|---|---|---|---|
-| R1 storage | a document reads and writes only its own origin's storage, in its site's container | the engine (same-origin policy), the container binding | `settings_seam_test` (container id reaches the engine); no real-engine cross-site test |
-| R2 grants | a capability grant serves only the site's own documents; a foreign document is asked for itself, and its answer stays with its origin | `GrantStore`, `PageHandlers.requesterOf` | PERM-001 tests, `page_bridge_authority` gates |
-| R3 frames | a cross-origin frame inside the site's own document gets no device grant and no live location; the site's device-free answers only | the same | CAM-014, MIC-016, LOC-011 |
-| R4 identity | nothing the page passes names a site, origin, frame or tab | every bridge handler | `page_bridge_authority` |
-| R5 documents | a result decided for one document lands in that document only | `PageScope`, `ViewKey` | US-007, SEC-029 |
-| R6 surfaces | a share, a capture or a prompt ends when its document, view or site leaves the screen | `ScreenShare`, `isSiteActive` | SHARE-018, CAM-011 |
-| R7 import | an imported file creates no authority: no `real` grant, no enabled script, no live location, no notification permission without a fresh local consent | the import sanitizer, `BackupController` | BACKUP-015; **not** archive sections (SEC-041) |
-| R8 identity uniqueness | two site records never share a container | id minting, the import and archive open paths | backup dedupe within one file; **not** against device or archive ids (SEC-044) |
-| R9 routes | a site behind a proxy or Tor never loads direct, nor on another site's route | `ProcessRoute`, the native rule | LEAK-003, PROXY-008, `proxy_router_attribution_test` |
-| R10 navigation | a frame cannot steer the top document; a gesture-less cross-domain hop is refused; a popup kind is decided by the app, not the page | `NavigationDecisionEngine`, `onCreateWindow` | NESTED-013; captcha classification matches any `googleapis.com` host (SEC-042) |
-
-The asynchronous cases follow from R2 and R5:
-- **A prompt answered after a navigation** serves the origin it named, never the document that replaced it.
-- **A redirect, a popup or a worker** carries no standing of its own. Its origin, read from the platform, decides it.
-- **Revocation and disposal** end the grant at the store, which every later request reads.
-
-### Where each layer helps
-
-| Layer | Separates | Cannot separate |
-|---|---|---|
-| OS mandatory access control (SELinux on Android, the App Sandbox on Apple, AppArmor or a Flatpak/snap profile on Linux) | the app from other apps and the system; on Android the WebView renderer runs in a separate, more confined domain | one site from another: every site runs under the app's one identity, so the OS sees one subject |
-| The engine (WebKit, Chromium) | origins, by the same-origin policy; containers, where the engine has them | anything the app hands across, through a bridge, a shared container or a shared jar |
-| The app | sites, surfaces and standings, at its bridge, grant store, navigation and import paths | a compromised renderer, which this lab does not model |
-
-The FreeBSD MAC framework and SELinux are the model for the app's part: label
-every subject and object, and route every access through one check that reads
-the labels (`mac_check_*`, type enforcement). Here the labels are (site,
-surface, origin, frame, document), and the checks are the owners above.
-
-Access control is not at-rest encryption. fscrypt, the archive's Argon2id and
-AEAD, and the keychain protect data from someone reading the device offline.
-None of them stops code running inside the app from reading what it holds, and
-an open archive's sites are as reachable as any other. A different site id does
-not imply separate storage either:
-- **Legacy mode:** sites share every store but cookies.
-- **Shared id:** a record that reuses an id binds the same container (R8).
-- **Nested screens, popups and hosted tabs:** these run in the opener's container whatever page they show.
+The subjects, objects and rules the lab tests are in [policy.md](policy.md),
+each rule with the code that owns it and the requirements that state it.
+`node tool/spec_map.js --policy` prints how strongly each is checked, and
+[policy_debt.tsv](policy_debt.tsv) owes what nothing proves yet.
 
 ## 2. The lab
 
@@ -187,7 +115,7 @@ the app's native behaviour.
 
 | Stage | Delivers | Accepted when |
 |---|---|---|
-| 0. Policy as data | the matrix above as `docs/security/policy.md`, each rule naming its owner and its check, or "unverified" | every R-rule has an owner; spec ids resolve |
+| 0. Policy as data | `docs/security/policy.md`, each rule naming its owner and its requirements; strength printed by `spec_map.js --policy`; `policy_debt.tsv` owing what nothing proves | done: every rule has an owner, every id resolves, `security_policy.test.js` |
 | 1. Evaluator on Linux WPE | canary generator, victim fixture server, collector, recorder wiring, seeding by `WS_DIAG_SEED`, verdict classifier, positive control | the positive control is detected in 20 of 20 runs; a clean run classifies as completed with no violation |
 | 2. S1 and S2 on Linux | the scenarios as scripts; the pre-#887 build as S1's vulnerable control | the vulnerable build shows S1's violation and the clean build does not, in 10 runs each |
 | 3. Android tier | the same harness under the emulator, with `dumpsys` and location evidence | S1 and S2 classify on Android as on Linux |
