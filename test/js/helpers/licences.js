@@ -276,6 +276,30 @@ const GNU_DATED = [
 ];
 const SPDX_TAG = /SPDX-License-Identifier:\s*([^\r\n*]+)/g;
 
+const count = (text, re) => (text.match(re) ?? []).length;
+
+// The copyleft data the app downloads (LICENSE-002), each by what a copy
+// carries and a hand-made test sample does not: the list's upstream header,
+// or more entries than a sample needs.
+const COPYLEFT_DATA = [
+  ['a filter list (EasyList, AdGuard)', (t) => /^! Title:/m.test(t) && /^! (?:Version|Expires|Homepage|License):/m.test(t)],
+  ["a DNS blocklist (Hagezi's)", (t) => /^# Title:/m.test(t) && /^# (?:Version|Expires|Homepage|License|Syntax|Number of entries):/m.test(t)],
+  ['the ClearURLs rules', (t) => count(t, /"urlPattern"\s*:\s*"/g) >= 20],
+  ["tor's GeoIP table", (t) => count(t, /^[0-9a-f:]+,[0-9a-f:]+,[A-Z]{2}\r?$/gm) >= 100],
+  ['the time zone boundaries', (t) => count(t, /"tzid"\s*:\s*"/g) >= 20],
+];
+
+/** The copyleft data [text] is a copy of, by name. */
+function copyleftDataIn(text) {
+  return COPYLEFT_DATA.filter(([, is]) => is(text)).map(([name]) => name);
+}
+
+/** Whether [text] carries a GNU licence: its heading, its notice or its dated title. */
+function gnuNotice(text) {
+  const words = text.toLowerCase().replace(/[^a-z0-9]+/g, ' ');
+  return GNU_HEADING.test(text) || GNU_NOTICE.test(words) || GNU_DATED.some((h) => words.includes(h));
+}
+
 const RESTRICTED = [
   ['CC-BY-SA', /attribution[- ]sharealike/],
   ['CC-BY-NC', /attribution[- ]noncommercial|non[- ]commercial use only/],
@@ -339,10 +363,7 @@ function readingOf(file, { licenceFile }) {
   const text = textOf(file, { whole: licenceFile });
   if (text === null) return [];
   const out = [];
-  const words = text.toLowerCase().replace(/[^a-z0-9]+/g, ' ');
-  if (GNU_HEADING.test(text) || GNU_NOTICE.test(words) || GNU_DATED.some((h) => words.includes(h))) {
-    out.push('a GNU licence');
-  }
+  if (gnuNotice(text)) out.push('a GNU licence');
   for (const m of text.matchAll(SPDX_TAG)) out.push(m[1].replace(/\s*-->.*$/, '').trim());
   if (licenceFile) {
     const known = [...licencesIn(text)];
@@ -500,6 +521,6 @@ function pullSites(inputs = buildFiles()) {
 
 module.exports = {
   LICENCES, COMPONENTS, CASES, GO_MODULES, rows, goModules, policy, allows, registry, pinsOf, staleReads, pods, gradle, urls, pullSites,
-  buildFiles, shippedFiles, pubPackages, pluginBuildFiles, pubRefusals, licencesIn, readingOf, namesOnlyLgpl,
+  buildFiles, shippedFiles, pubPackages, pluginBuildFiles, pubRefusals, licencesIn, gnuNotice, copyleftDataIn, readingOf, namesOnlyLgpl,
   ATTRIBUTIONS, attributions, pubNotices, attributionGaps, podAttributionGaps,
 };
