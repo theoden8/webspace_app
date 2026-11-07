@@ -19,7 +19,7 @@ CAM-011	R6	model	a backgrounded site is denied, checked by tests only	the step t
 BACKUP-010	R7	type	no trust-granting state round-trips, checked by tests only	an imported site is a type that becomes a live site only through the sanitizer, with a probe that a new import path cannot skip it
 BACKUP-011	R7	type	imported sites are sanitised by a call each import path must make	the import type of BACKUP-010
 ARCH-015	R7	type	an archive section restored from a backup is sanitised by a call (SEC-041)	the import type of BACKUP-010
--	R8	model	site ids are unique within one backup only (settings_import_engine.dart), with no test; across the app tier and open archives nothing checks it (SEC-044, whose review is not in this repository)	a requirement, a test of the in-file dedupe, and id uniqueness in the activation model, which the TLC session owns
+-	R8	model	site ids are unique within one backup only (settings_import_engine.dart, test/import_site_ids_test.dart); across the app tier and open archives nothing checks it (SEC-044, whose review is not in this repository)	a requirement, and id uniqueness in the activation model, which the TLC session owns
 LEAK-003	R9	model	fail-closed is modeled by formal/proxy_failclosed.tla, which names no requirement	proxy_failclosed.tla citing LEAK-003, after ./formal/verify.sh
 NESTED-013	R10	type	whether a navigation is the top frame's is decided at run time	the frame type of CAM-014
 CAPTCHA-007	R10	type	the reCAPTCHA hosts are matched by a function	the captcha hosts as const data the classifier reads, with a probe
