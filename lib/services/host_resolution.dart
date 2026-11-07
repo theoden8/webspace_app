@@ -49,38 +49,101 @@ bool isPrivateOrLoopbackHost(String raw) {
   final host = Host(raw);
   if (host == 'localhost' || host.endsWith('.localhost')) return true;
 
-  // IPv6 literal (Uri.host strips the surrounding brackets).
   if (host.contains(':')) {
-    final h = host.split('%').first; // drop any zone id
-    if (h == '::1' || h == '::') return true;
-    // fc00::/7 unique-local, fe80::/10 link-local.
-    if (h.startsWith('fc') || h.startsWith('fd')) return true;
-    if (h.startsWith('fe8') ||
-        h.startsWith('fe9') ||
-        h.startsWith('fea') ||
-        h.startsWith('feb')) {
-      return true;
-    }
-    return false;
+    final groups = _ipv6Groups(host.split('%').first); // drop any zone id
+    if (groups == null) return false; // not a well-formed IPv6 literal
+    return _ipv6PrivateOrLoopback(groups);
   }
 
-  // IPv4 dotted-quad.
-  final parts = host.split('.');
-  if (parts.length == 4) {
-    final octets = <int>[];
-    for (final p in parts) {
-      final v = int.tryParse(p);
-      if (v == null || v < 0 || v > 255) return false; // not an IPv4 literal
-      octets.add(v);
-    }
-    final a = octets[0], b = octets[1];
-    if (a == 0) return true; // 0.0.0.0/8
-    if (a == 127) return true; // loopback
-    if (a == 10) return true; // private
-    if (a == 172 && b >= 16 && b <= 31) return true; // private
-    if (a == 192 && b == 168) return true; // private
-    if (a == 169 && b == 254) return true; // link-local + cloud metadata
+  final octets = _ipv4Octets(host);
+  return octets != null && _ipv4PrivateOrLoopback(octets);
+}
+
+/// The four octets of dotted-quad IPv4 [s] (`a.b.c.d`), or null. Decimal only:
+/// the one-number, hex and octal spellings a resolver would still accept are
+/// left to the resolving half, which sees what the device actually connects to.
+List<int>? _ipv4Octets(String s) {
+  final parts = s.split('.');
+  if (parts.length != 4) return null;
+  final octets = <int>[];
+  for (final p in parts) {
+    if (p.isEmpty || p.length > 3) return null;
+    final v = int.tryParse(p);
+    if (v == null || v < 0 || v > 255) return null;
+    octets.add(v);
   }
+  return octets;
+}
+
+bool _ipv4PrivateOrLoopback(List<int> o) {
+  final a = o[0], b = o[1];
+  if (a == 0) return true; // 0.0.0.0/8
+  if (a == 127) return true; // loopback
+  if (a == 10) return true; // private
+  if (a == 172 && b >= 16 && b <= 31) return true; // private
+  if (a == 192 && b == 168) return true; // private
+  if (a == 169 && b == 254) return true; // link-local + cloud metadata
+  return false;
+}
+
+/// The eight 16-bit groups of IPv6 literal [s] (lowercased, brackets and any
+/// zone id already stripped), or null if it is not a well-formed IPv6 literal.
+/// A trailing embedded IPv4 (`::ffff:1.2.3.4`) becomes the final two groups, so
+/// every spelling of a mapped address reduces to one check.
+List<int>? _ipv6Groups(String s) {
+  if (!s.contains(':')) return null;
+  final halves = s.split('::');
+  if (halves.length > 2) return null; // at most one '::'
+
+  List<int>? groupsOf(String part) {
+    if (part.isEmpty) return <int>[];
+    final out = <int>[];
+    final tokens = part.split(':');
+    for (var i = 0; i < tokens.length; i++) {
+      final t = tokens[i];
+      if (t.contains('.')) {
+        if (i != tokens.length - 1) return null; // v4 only as the last group
+        final v4 = _ipv4Octets(t);
+        if (v4 == null) return null;
+        out.add(v4[0] << 8 | v4[1]);
+        out.add(v4[2] << 8 | v4[3]);
+        continue;
+      }
+      if (t.isEmpty || t.length > 4) return null;
+      final v = int.tryParse(t, radix: 16);
+      if (v == null || v < 0 || v > 0xffff) return null;
+      out.add(v);
+    }
+    return out;
+  }
+
+  final left = groupsOf(halves[0]);
+  if (left == null) return null;
+  if (halves.length == 1) return left.length == 8 ? left : null;
+  final right = groupsOf(halves[1]);
+  if (right == null) return null;
+  final fill = 8 - left.length - right.length;
+  if (fill < 1) return null; // '::' stands for at least one zero group
+  return <int>[...left, ...List.filled(fill, 0), ...right];
+}
+
+bool _ipv6PrivateOrLoopback(List<int> g) {
+  final leadZero =
+      g[0] == 0 && g[1] == 0 && g[2] == 0 && g[3] == 0 && g[4] == 0;
+  // IPv4-mapped (::ffff:v4) and the deprecated IPv4-compatible (::v4): judge
+  // the embedded IPv4, so [::ffff:127.0.0.1] is loopback and
+  // [::ffff:169.254.169.254] is link-local metadata (SEC-048).
+  if (leadZero &&
+      (g[5] == 0xffff || (g[5] == 0 && (g[6] != 0 || g[7] > 1)))) {
+    return _ipv4PrivateOrLoopback(
+        <int>[g[6] >> 8, g[6] & 0xff, g[7] >> 8, g[7] & 0xff]);
+  }
+  // `::` (unspecified) and `::1` (loopback), in any spelling.
+  if (leadZero && g[5] == 0 && g[6] == 0 && (g[7] == 0 || g[7] == 1)) {
+    return true;
+  }
+  if ((g[0] & 0xfe00) == 0xfc00) return true; // fc00::/7 unique-local
+  if ((g[0] & 0xffc0) == 0xfe80) return true; // fe80::/10 link-local
   return false;
 }
 
