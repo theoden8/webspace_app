@@ -437,6 +437,52 @@ void main() {
 
       expect((controlCalls().single.arguments as Map)['artwork'], isNotNull);
     });
+
+    // SEC-050: the client follows redirects, and the first-URL guard only sees
+    // the first hop. A public host answering `302 Location: http://metadata/`
+    // would land a GET on the LAN past the guard. Every hop is re-judged, as
+    // the user-script and icon fetchers already do.
+    test('a redirect into the LAN is refused and never requested', () async {
+      fake.responder = (req) => req.url.host == 'art.example'
+          ? http.Response('', 302,
+              headers: {'location': 'http://169.254.169.254/latest/meta-data/'})
+          : http.Response.bytes(<int>[1, 2, 3, 4], 200);
+
+      await reportPlaying(SiteId('a'), artworkUrl: 'https://art.example/art.png');
+
+      expect((controlCalls().single.arguments as Map)['artwork'], isNull);
+      expect(
+        fake.requested.map((u) => u.host),
+        isNot(contains('169.254.169.254')),
+        reason: 'a page must not redirect the artwork fetch onto the LAN',
+      );
+    });
+
+    test('a redirect to another routable host is followed', () async {
+      fake.responder = (req) => req.url.host == 'art.example'
+          ? http.Response('', 302,
+              headers: {'location': 'https://cdn.example/real.png'})
+          : http.Response.bytes(<int>[5, 6, 7], 200);
+
+      await reportPlaying(SiteId('a'), artworkUrl: 'https://art.example/art.png');
+
+      expect((controlCalls().single.arguments as Map)['artwork'], <int>[5, 6, 7]);
+      expect(fake.requested.map((u) => u.host),
+          containsAllInOrder(<String>['art.example', 'cdn.example']));
+    });
+
+    test('a redirect that steps https down to http is refused', () async {
+      fake.responder = (req) => req.url.scheme == 'https'
+          ? http.Response('', 302,
+              headers: {'location': 'http://art.example/real.png'})
+          : http.Response.bytes(<int>[1], 200);
+
+      await reportPlaying(SiteId('a'), artworkUrl: 'https://art.example/art.png');
+
+      expect((controlCalls().single.arguments as Map)['artwork'], isNull);
+      expect(fake.requested.every((u) => u.scheme == 'https'), isTrue,
+          reason: 'artwork must not be fetched over a downgraded connection');
+    });
   });
 
   test('a raised-but-unposted notification is logged as a warning', () async {
