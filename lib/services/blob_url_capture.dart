@@ -12,5 +12,5 @@ String buildBlobDownloadIife({
     PageJs.blobDownload.withConfig({
       'blobUrl': blobUrl,
       'suggestedFilename': suggestedFilename ?? '',
-      'taskId': taskId,
+      'taskId': taskId.token,
     });

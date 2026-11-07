@@ -358,6 +358,35 @@ task list is empty.
 
 ---
 
+### Requirement: DL-008 — A page reports a download only for its own view
+
+A `blob:` download's progress, completion and failure are reported by the page
+handing a token back through the bridge handlers, which run in every frame. A
+handler SHALL act only on a download the calling view started: `DownloadTaskId`
+has a private constructor and is reachable to a handler only through
+`DownloadsService.pageTask(rawToken, view:)`, which returns an id only for a
+token minted for that same view. A page cannot name another view's download, nor
+mint an id from a raw string (policy R4). A compile probe
+([policy_probe_test.dart](../../../test/policy_probe_test.dart)) proves a handler
+cannot forge an id; a boundary test
+([download_view_scope_test.dart](../../../test/download_view_scope_test.dart))
+proves `pageTask` checks the view, which a token-only lookup would not.
+
+#### Scenario: A frame cannot report another view's download
+
+**Given** view A started a `blob:` download and view B holds its token
+**When** view B's handler calls `pageTask(tokenA, view: B)`
+**Then** it returns null, so view B advances, completes or fails nothing of A's
+
+#### Scenario: A raw string cannot become a task id
+
+**Given** a handler holds a token string the page sent
+**When** it tries to pass that string to a `DownloadsService` mutation
+**Then** it does not compile, because the method takes a `DownloadTaskId` and
+the type has no public constructor
+
+---
+
 ## Implementation
 
 ### Files
