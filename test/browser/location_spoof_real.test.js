@@ -31,7 +31,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const LOC = require('../js/helpers/location_configs');
 const { setupBrowser, requireBrowser } = require('./helpers/launch');
-const { startBlankServer, originOf } = require('./helpers/blank_server');
+const { startBlankServer, originOf, closeServer } = require('./helpers/blank_server');
 
 const FULL_COMBO = LOC.FULL_COMBO;
 const STATIC_TOKYO = LOC.STATIC_TOKYO;
@@ -469,7 +469,7 @@ async function withGrantedGeolocation(t, shim, fn) {
   } finally {
     await page.close();
     await context.clearPermissionOverrides();
-    await new Promise((r) => server.close(r));
+    await closeServer(server);
   }
 }
 

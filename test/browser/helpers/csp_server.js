@@ -9,6 +9,7 @@
 // the shim.
 
 const http = require('node:http');
+const { closeServer } = require('./blank_server');
 
 function html() {
   return `<!doctype html>
@@ -54,7 +55,7 @@ function start() {
       const { port } = server.address();
       resolve({
         url: `http://127.0.0.1:${port}/`,
-        close: () => new Promise((r) => server.close(r)),
+        close: () => closeServer(server),
       });
     });
   });

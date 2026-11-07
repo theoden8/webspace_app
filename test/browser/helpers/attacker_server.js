@@ -13,6 +13,7 @@
 const http = require('node:http');
 const { scriptOf } = require('../../js/helpers/script_of');
 const { recordCspViolations } = require('./page_probes');
+const { closeServer } = require('./blank_server');
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
 
@@ -26,12 +27,7 @@ function listen(server) {
       resolve({
         origin: `http://127.0.0.1:${port}`,
         url: `http://127.0.0.1:${port}/`,
-        // Chromium holds keep-alive sockets open; server.close() alone
-        // waits them out and turns teardown into tens of seconds.
-        close: () => new Promise((r) => {
-          server.closeAllConnections();
-          server.close(r);
-        }),
+        close: () => closeServer(server),
       });
     });
   });

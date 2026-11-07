@@ -18,7 +18,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
-const { startBlankServer, originOf } = require('./helpers/blank_server');
+const { startBlankServer, originOf, closeServer } = require('./helpers/blank_server');
 
 // Matches the view extents baked into the page_zoom fixtures.
 const DEVICE_WIDTH = 393;
@@ -39,7 +39,7 @@ test.before(async () => {
   host = { url: `${originOf(server)}/`, server };
 });
 test.after(async () => {
-  if (host) await new Promise((r) => host.server.close(r));
+  if (host) await closeServer(host.server);
 });
 
 // Load the page under mobile emulation with `shim` injected at document

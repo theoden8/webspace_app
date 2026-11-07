@@ -12,6 +12,16 @@ function listen(handler) {
 
 const originOf = (server) => `http://127.0.0.1:${server.address().port}`;
 
+// Chromium keeps a page's connection alive, so server.close() never fires its
+// callback until that socket times out; a test that awaits the close before the
+// browser is gone deadlocks and hangs the whole tier (seen on CI for hours).
+// Force the sockets shut first. closeAllConnections() is a no-op with none open,
+// so this is the one safe way any browser test tears a server down.
+const closeServer = (server) => {
+  server.closeAllConnections();
+  return new Promise((resolve) => server.close(resolve));
+};
+
 /** Serves `html` at every path. */
 const startBlankServer = (html = BLANK_PAGE, type = 'text/html') =>
   listen((_req, res) => {
@@ -19,4 +29,4 @@ const startBlankServer = (html = BLANK_PAGE, type = 'text/html') =>
     res.end(html);
   });
 
-module.exports = { BLANK_PAGE, listen, originOf, startBlankServer };
+module.exports = { BLANK_PAGE, listen, originOf, startBlankServer, closeServer };
