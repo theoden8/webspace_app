@@ -5,16 +5,17 @@
 # `flutter drive`: it still declares `--no-build`, but Flutter 3.44.9 never
 # reads the flag. `--use-application-binary` is what skips the build, and a
 # prebuilt app runs the entrypoint it was built with. So a tier builds one
-# entrypoint that holds every file, and each launch picks its file. Each file
-# still gets an app process of its own, and on Android an install of its own:
-# `flutter drive` uninstalls the app when it stops, as `flutter test` does.
+# entrypoint that holds every file, and each launch picks its file, and the
+# inputs its tier script gives it (TierInput, integration_test/helpers). Each
+# file still gets an app process of its own, and on Android an install of its
+# own: `flutter drive` uninstalls the app when it stops, as `flutter test` does.
 #
 #   integration_bundle.sh build <device> <integration_test/x_test.dart>...
 #       writes the entrypoint, builds it, and records the app for `run`
-#   integration_bundle.sh run <device> <integration_test/x_test.dart> <log>
+#   integration_bundle.sh run <device> <integration_test/x_test.dart> <log> [KEY=VALUE]...
 #       runs that file in an app process of its own, its output also in <log>:
 #       the recorded app through `flutter drive`, or that file's own
-#       `flutter test` when no app is recorded
+#       `flutter test` when no app is recorded, with those inputs
 #
 # <device> is macos, linux or android; android runs on the device
 # scripts/lib/android_tier.sh picks (ANDROID_SERIAL, else the first one adb
@@ -75,7 +76,7 @@ built_app() {
 }
 
 usage() {
-  echo "usage: $0 build <device> <file>... | run <device> <file> <log>" >&2
+  echo "usage: $0 build <device> <file>... | run <device> <file> <log> [KEY=VALUE]..." >&2
   exit 2
 }
 
@@ -105,6 +106,7 @@ case "$command" in
       echo "import 'dart:io';"
       echo "import 'dart:ui';"
       echo
+      echo "import '../../integration_test/helpers/tier_inputs.dart';"
       for f in "$@"; do
         echo "import '../../$f' as $(basename "$f" .dart);"
       done
@@ -116,19 +118,22 @@ case "$command" in
       echo "};"
       cat <<'EOF'
 
-// A desktop app inherits the environment `flutter drive` runs in, and the
-// desktop engines never read a route. An Android app inherits nothing, and
-// its route is the `route` extra `flutter drive --route` launches it with,
-// which flutter_test sets back to '/' for the app under test.
-String? _selected() => Platform.isAndroid
-    ? PlatformDispatcher.instance.defaultRouteName.substring(1)
-    : Platform.environment['WEBSPACE_INTEGRATION_FILE'];
+// `<file>,KEY=VALUE,...`. A desktop app inherits the environment
+// `flutter drive` runs in, and the desktop engines never read a route. An
+// Android app inherits nothing, and its route is the `route` extra
+// `flutter drive --route` launches it with, which flutter_test sets back to
+// '/' for the app under test.
+List<String> _launch() => (Platform.isAndroid
+        ? PlatformDispatcher.instance.defaultRouteName.substring(1)
+        : Platform.environment['WEBSPACE_INTEGRATION_LAUNCH'] ?? '')
+    .split(',');
 
 void main() {
-  final name = _selected();
-  final run = _files[name];
+  final launch = _launch();
+  TierInput.take(launch.skip(1));
+  final run = _files[launch.first];
   if (run == null) {
-    stderr.writeln('$name names no file in this build: '
+    stderr.writeln('${launch.first} names no file in this build: '
         '${_files.keys.join(' ')}');
     exit(64);
   }
@@ -157,14 +162,24 @@ EOF
     fi
     ;;
   run)
-    [ "$#" -eq 2 ] || usage
-    file="$1"; log="$2"
+    [ "$#" -ge 2 ] || usage
+    file="$1"; log="$2"; shift 2
+    # An Android launch string goes through `adb shell`, whose shell would
+    # split or expand any other character.
+    for pair in "$@"; do
+      if ! [[ "$pair" =~ ^[A-Z][A-Z0-9_]*=[A-Za-z0-9._:/@%+-]*$ ]]; then
+        echo "run: '$pair' is not KEY=VALUE in [A-Za-z0-9._:/@%+-]" >&2
+        exit 2
+      fi
+    done
+    inputs="$(IFS=,; echo "$*")"
+    launch="$(basename "$file")${inputs:+,$inputs}"
     if [ -f "$record" ]; then
       rc=0
-      WEBSPACE_INTEGRATION_FILE="$(basename "$file")" fvm flutter drive --no-pub \
+      WEBSPACE_INTEGRATION_LAUNCH="$launch" fvm flutter drive --no-pub \
         --driver=test_driver/plain_driver.dart --target="$entry" \
         --use-application-binary="$(cat "$record")" -d "$device_id" \
-        --route="/$(basename "$file")" 2>&1 \
+        --route="/$launch" 2>&1 \
         | tee "$log" || rc=$?
       [ "$rc" -eq 0 ] && exit 0
       # Once the driver reaches the app the outcome is the file, pass or
@@ -174,7 +189,8 @@ EOF
       rm -f "$record"
     fi
     # shellcheck disable=SC2046 # device_flags is zero or two words
-    fvm flutter test --no-pub "$file" -d "$device_id" $(device_flags "$device") 2>&1 \
+    fvm flutter test --no-pub "$file" -d "$device_id" $(device_flags "$device") \
+      ${inputs:+--dart-define=WEBSPACE_INTEGRATION_INPUTS=$inputs} 2>&1 \
       | tee "$log"
     ;;
   *) usage ;;

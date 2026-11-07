@@ -595,7 +595,7 @@ jobs:
           # taps on the system passkey sheet. The in-process tiers run from
           # one APK holding every file (scripts/integration_bundle.sh); a
           # `flutter test` per file built a debug APK for each of them, about
-          # 50 s apiece. The lifecycle and passkey tiers still build their own.
+          # 50 s apiece. The lifecycle tier still builds its own.
           script: |
             adb wait-for-device
             adb shell input keyevent 82
@@ -670,9 +670,12 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
+          # One APK for both tiers here (scripts/integration_bundle.sh): the
+          # desktop step below launches the one this step builds.
           script: |
             adb wait-for-device
             adb shell settings put global hide_error_dialogs 1
+            bash scripts/integration_bundle.sh build android integration_test/*_test.dart
             bash scripts/run_android_tv_tests.sh
 
       # Its own boot, not the emulator runner's: the runner presses a key
