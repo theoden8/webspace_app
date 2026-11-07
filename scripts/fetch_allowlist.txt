@@ -1,0 +1,15 @@
+# What a build may fetch besides a url: row of openspec/specs/legal/components.tsv
+# (scripts/fetch_gate.py, LICENSE-001): the registries, each held by its own
+# licence gate to what it serves.
+#
+# One URL prefix per line, held by whole path segments, and a comment naming
+# the gate that reads what comes from it. A source repository is never an
+# entry here: it is a components.tsv row, with its licence read.
+
+https://index.crates.io/             # cargo's index; rust/webspace_adblock/build.rs reads each crate's licence
+https://static.crates.io/crates/     # crate archives, read by the same build.rs
+https://proxy.golang.org/            # Go modules; go/iptproxy/build.sh check holds each to go/iptproxy/licences.tsv
+https://sum.golang.org/              # Go's checksum database, which serves no code
+https://pub.dev/api/                 # pub packages; test/js/licence_policy.test.js reads what each ships
+https://storage.googleapis.com/pub-packages/       # pub's archives, read by the same test
+https://storage.googleapis.com/flutter_infra_release/  # Flutter's engine, the url:https://github.com/flutter/flutter.git row

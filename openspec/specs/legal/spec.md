@@ -215,6 +215,21 @@ a build file pulls in outside pub and Cargo has a row in
   meek_lite is built without `go/meekutls`'s file, and on a framework that
   does not carry its round tripper
 
+#### Scenario: A build fetches what no build file names
+
+- **WHEN** a step of the Linux build, or a build script a dependency runs in
+  it, fetches over HTTP or HTTPS from a URL that is neither a registry prefix
+  in `scripts/fetch_allowlist.txt` nor under a `url:` row of
+  `components.tsv` (by whole path segments), nor a redirect one of those
+  answered with
+- **THEN** the fetch gate (`scripts/fetch_gate.sh`, mitmproxy running
+  `scripts/fetch_gate.py`) answers it 403, any other connection off the
+  runner is refused, and the job fails naming the URL
+- **AND** each arm refuses an unlisted repository on a listed host before
+  the build starts, and `test/js/fetch_gate.test.js` holds each rule
+- **AND** what a cache restores was fetched through the gate by the run that
+  filled it, so the gate needs no build from empty caches
+
 #### Scenario: A component moves to another version
 
 - **WHEN** a pod, a pub package or a download changes version

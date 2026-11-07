@@ -765,6 +765,22 @@ jobs:
       - name: Linux toolchain
         uses: ./.github/actions/linux-toolchain
 
+      # The bundle's lyrebird (TOR-016): linux/tor.cmake builds it with
+      # go/iptproxy/build.sh, and without a go command builds none.
+      - name: Setup Go (for the bundle's lyrebird)
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go/iptproxy/.go-version
+          cache: false
+
+      # LICENSE-001 over what the crate test and the build fetch: a request
+      # leaves only for a registry in scripts/fetch_allowlist.txt or a url:
+      # row of components.tsv. What the caches hold was fetched through the
+      # gate by the run that filled them.
+      - name: Arm the fetch gate
+        id: fetch-gate
+        run: bash scripts/fetch_gate.sh arm
+
       # Pin the upstream-crate behaviour the Dart-side procedural
       # backfill (procedural_action_backfill.dart) relies on. If
       # adblock-rust changes its handling of generic procedural rules
@@ -774,14 +790,6 @@ jobs:
       # tests are platform-agnostic — cheaper than re-running on macOS.
       - name: Test webspace_adblock crate
         run: cargo test --manifest-path rust/webspace_adblock/Cargo.toml --release --locked
-
-      # The bundle's lyrebird (TOR-016): linux/tor.cmake builds it with
-      # go/iptproxy/build.sh, and without a go command builds none.
-      - name: Setup Go (for the bundle's lyrebird)
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go/iptproxy/.go-version
-          cache: false
 
       # The Linux Rust .so is built by the CMake custom target wired
       # into linux/CMakeLists.txt (phase 11). flutter build linux
@@ -794,6 +802,10 @@ jobs:
           fvm flutter build linux --release \
             || { cmake --build build/linux/x64/release 2>&1 | tail -n 200; exit 1; }
           bash scripts/verify_adblock_shipped.sh linux
+
+      - name: Disarm the fetch gate and report
+        if: always() && steps.fetch-gate.conclusion != 'skipped'
+        run: bash scripts/fetch_gate.sh disarm
 
       # LICENSE-001 over what the bundle ships outside pub and Cargo: each
       # library tor's build copies beside it, by its Debian copyright file.
