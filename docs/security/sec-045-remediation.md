@@ -85,6 +85,24 @@ work than Android's: it adds a web-process-extension library to the Linux
 bundle, built against the WPE headers, loaded from the per-site container's
 extension directory.
 
+Two conditions on the implementation:
+
+- **The identity travels on a channel page JS cannot reach.** Use WebKit's
+  user-message API between the web process and the UI process
+  (`webkit_web_page_send_message_to_view`, and the UI-side `user-message-received`
+  signal), never a script message handler or any `window.*` the page can call.
+  The page cannot forge it because the message is composed in the web process
+  from the frame WebKit itself reports, and the user-message channel is not
+  exposed to page script at all: a page has no API to send a UI-process user
+  message or to name another frame's origin on one.
+- **BUG-007 applies.** The extension is native code a web-process thread runs, so
+  any state it shares with another thread is single-owner, immutable-snapshot, or
+  under one guard, never a lock on the writer alone
+  ([docs/bugs/007-native-shared-state-races.md](../bugs/007-native-shared-state-races.md)).
+  Ship it with a structural gate or test in the shape of the existing native
+  ones, plus a test that a subframe's handler call arrives tagged with the
+  subframe's own origin, not the top document's.
+
 Fallback if the extension is not yet built: inject the bridge
 **main-frame-only** on Linux (the bridge plugin script's `forMainFrameOnly`,
 kept `false` elsewhere for the shims). Only the top document can then call a
