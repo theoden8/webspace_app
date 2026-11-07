@@ -18,9 +18,11 @@ of re-auditing the whole surface.
   `policy_debt.tsv` owes what no model or compile probe proves yet, and only shrinks
   (`test/js/security_policy.test.js`).
 - `accepted_advisories.tsv`: each known advisory against a locked dependency that
-  is accepted, with why it cannot reach the app. `scripts/osv_scan.sh` (CI's
-  validate-sources job) scans every tracked lockfile against OSV and fails on one
-  not listed, or on a row no longer reported.
+  is accepted, with why it cannot reach the app. `scripts/osv_scan.sh` (the
+  `dependency-scan` workflow: weekly, on master, and on a PR that changes a
+  lockfile) scans every tracked lockfile against OSV and fails on one not listed,
+  or on a row no longer reported. Off the per-PR path on purpose: OSV is live
+  data, so an unrelated PR is never reddened by a newly published advisory.
 - `lab.md`: the design of an adversarial evaluation lab that tests the policy with
   fresh canaries and an independent collector.
 - Findings are closed by editing the run file's status column, not by deleting the

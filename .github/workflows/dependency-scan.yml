@@ -1,0 +1,41 @@
+# Every tracked lockfile against the OSV vulnerability database. Kept off the
+# per-PR path on purpose: OSV is live data, so a newly published advisory (or a
+# withdrawn accepted one) must not turn an unrelated PR red for a change it did
+# not make. It runs on a schedule, on a push to master, and on a PR only when
+# that PR changes a lockfile. scripts/osv_scan.sh builds osv-scanner from the
+# pinned Go module proxy and tool/osv_check.js holds the result to the
+# shrink-only docs/security/accepted_advisories.tsv.
+name: Dependency vulnerability scan
+
+on:
+  schedule:
+    - cron: '27 6 * * 1' # Mondays, a jittered minute
+  push:
+    branches: [master]
+  pull_request:
+    paths:
+      - '**/pubspec.lock'
+      - '**/Cargo.lock'
+      - '**/package-lock.json'
+      - scripts/osv_scan.sh
+      - tool/osv_check.js
+      - docs/security/accepted_advisories.tsv
+  workflow_dispatch:
+
+concurrency:
+  group: osv-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  osv:
+    name: Scan locked dependencies for known vulnerabilities
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - run: ./scripts/osv_scan.sh

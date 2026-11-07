@@ -210,10 +210,6 @@ jobs:
             puppeteer-${{ runner.os }}-
       - name: Install npm dependencies
         run: npm ci
-      # Every tracked lockfile against the OSV advisories: one nobody accepted
-      # with its reason fails, and so does an accepted one no longer reported.
-      - name: Scan locked dependencies for known vulnerabilities
-        run: ./scripts/osv_scan.sh
       # DESIGN-001: the designer's environment is the real app, so every UI
       # file has to keep compiling for web. This is a static import walk, so
       # it costs a second and catches the usual cause: a widget reaching
