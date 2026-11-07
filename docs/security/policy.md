@@ -7,10 +7,10 @@ review runs in this directory report against it.
 A rule names the requirements that state it. How strongly each requirement is
 checked is not written here: `node tool/spec_map.js --policy` prints it from
 the checks that name each one, so it cannot go stale. A requirement is proved
-by a model (TLC or TLAPS), by a compile probe (a test that shows the compiler
-rejecting the mistake), or by a `webspace_lints` rule at error severity with its
-own test; an assert, a test or a source gate is evidence. (Whether an analyzer
-rule counts as proof rather than evidence is under review.) A requirement counts
+by a model (TLC or TLAPS) or by a compile probe (a test that shows the compiler
+rejecting the mistake); a `webspace_lints` rule, an assert, a test or a source
+gate is evidence, an analyzer rule because it sees only the syntax it matches.
+A requirement counts
 as proved only when its strongest check covers the requirement as stated, not
 merely its gist: where a check covers part, the requirement is split in its spec
 so the covered part has its own id, or it stays owed with the uncovered part
