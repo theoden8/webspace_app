@@ -663,7 +663,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = org.codeberg.theoden8.webspace.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/webspace.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/webspace";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Webspace.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Webspace";
 			};
 			name = Debug;
 		};
@@ -678,7 +678,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = org.codeberg.theoden8.webspace.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/webspace.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/webspace";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Webspace.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Webspace";
 			};
 			name = Release;
 		};
@@ -693,7 +693,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = org.codeberg.theoden8.webspace.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/webspace.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/webspace";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Webspace.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Webspace";
 			};
 			name = Profile;
 		};
@@ -1108,7 +1108,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = org.codeberg.theoden8.webspace.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/webspace.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/webspace";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Webspace.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Webspace";
 			};
 			name = "Debug-direct";
 		};
@@ -1123,7 +1123,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = org.codeberg.theoden8.webspace.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/webspace.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/webspace";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Webspace.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Webspace";
 			};
 			name = "Release-direct";
 		};
@@ -1138,7 +1138,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = org.codeberg.theoden8.webspace.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/webspace.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/webspace";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Webspace.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Webspace";
 			};
 			name = "Profile-direct";
 		};
