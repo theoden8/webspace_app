@@ -7,9 +7,9 @@ review runs in this directory report against it.
 A rule names the requirements that state it. How strongly each requirement is
 checked is not written here: `node tool/spec_map.js --policy` prints it from
 the checks that name each one, so it cannot go stale. A requirement is proved
-by a model (TLC or TLAPS) or by a compile probe, a test that shows the
-compiler rejecting the mistake; an assert, a test or a source gate is
-evidence. A requirement counts as proved by its strongest check, which proves
+by a model (TLC or TLAPS), by a compile probe, a test that shows the
+compiler rejecting the mistake, or by a `webspace_lints` rule at error
+severity with its own test; an assert, a test or a source gate is evidence. A requirement counts as proved by its strongest check, which proves
 its central claim; details it lists beside that claim may rest on tests, so
 read the checks `spec_map.js` names before relying on one. A requirement nothing proves yet is owed in
 [policy_debt.tsv](policy_debt.tsv), with the kind of check that will close it
@@ -65,7 +65,7 @@ reader of it.
 | R6 surfaces | a share, a capture or a prompt ends when its document, view or site leaves the screen | `lib/services/screen_share.dart`, `lib/services/media_grant_engine.dart` | SHARE-017, SHARE-018, CAM-011 |
 | R7 import | an imported file creates no authority: no `real` grant, no enabled script, no live location, no notification permission without a fresh local consent | `lib/settings_import_engine.dart`, `lib/controllers/archive_controller.dart` | BACKUP-010, BACKUP-011, BACKUP-013, ARCH-015 |
 | R8 identity uniqueness | two site records never share a container, and a removed site leaves no container behind | `lib/settings/site_ids.dart`, `lib/settings_import_engine.dart`, `lib/controllers/archive_controller.dart` | ARCH-007, CONT-010 |
-| R9 routes | a site behind a proxy or Tor never loads direct, nor on another site's route | `lib/services/process_route.dart`, `lib/services/outbound_http_types.dart` | PROXY-008, LEAK-003 |
+| R9 routes | a site behind a proxy or Tor never loads direct, nor on another site's route | `lib/services/process_route.dart`, `lib/services/outbound_http_types.dart` | PROXY-008, LEAK-002, LEAK-003 |
 | R10 navigation | a frame cannot steer the top document; a gesture-less cross-domain hop is refused; a popup kind is decided by the app, not the page | `lib/services/navigation_decision_engine.dart`, `lib/services/popup_webview.dart` | NESTED-013, CAPTCHA-007 |
 
 The asynchronous cases follow from R2 and R5:

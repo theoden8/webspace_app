@@ -138,6 +138,19 @@ function probeIds(rel) {
   return out;
 }
 
+/**
+ * The ids an analyzer rule names: a rule of tool/webspace_lints at error
+ * severity, which CI's analyzer run fails on, with a test of its own that
+ * shows it reporting the violation, proves its requirement on rung 1.
+ */
+function analyzerIds(rel) {
+  const raw = read(rel);
+  const name = rel.split('/').pop().replace(/\.dart$/, '');
+  if (!/severity:\s*DiagnosticSeverity\.ERROR/.test(raw)) return [];
+  if (!exists(`tool/webspace_lints/test/${name}_test.dart`)) return [];
+  return idsIn(raw);
+}
+
 /** The ids an assert in a Dart file names in its condition or message. */
 function assertIds(rel) {
   const raw = read(rel);
@@ -176,6 +189,9 @@ function citations({ prefixes }) {
   for (const f of optional('test', /_test\.dart$/)) {
     for (const id of probeIds(f)) note(id, 'type', f);
   }
+  for (const f of optional('tool/webspace_lints/lib/src', /\.dart$/)) {
+    for (const id of analyzerIds(f)) note(id, 'analyzer', f);
+  }
   return cited;
 }
 
@@ -190,7 +206,7 @@ function resolve(id, byId) {
 }
 
 /** The kinds that verify a requirement, strongest rung first. */
-const KINDS = ['model', 'type', 'assert', 'test', 'integration', 'native', 'tool', 'gate'];
+const KINDS = ['model', 'type', 'analyzer', 'assert', 'test', 'integration', 'native', 'tool', 'gate'];
 
 /**
  * The whole map: each requirement with the checks that name it, and the

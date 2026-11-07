@@ -12,9 +12,9 @@ const POLICY = 'docs/security/policy.md';
 const DEBT = 'docs/security/policy_debt.tsv';
 
 // The kinds of check that prove a requirement rather than give evidence for
-// it: a model, or a compile probe (spec_map's `type`). An assert, a test or a
-// gate is evidence.
-const PROVES = new Set(['model', 'type']);
+// it: a model, a compile probe (spec_map's `type`) or an analyzer rule at
+// error severity. An assert, a test or a gate is evidence.
+const PROVES = new Set(['model', 'type', 'analyzer']);
 
 // A debt row for a gap no requirement states yet.
 const UNSTATED = '-';

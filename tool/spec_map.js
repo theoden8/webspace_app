@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Every requirement the specs declare and the checks that name it, strongest
 // rung first: a model (TLC or TLAPS), a compile probe (the compiler rejects
-// the mistake), an assert at the owner, a test, an
+// the mistake), an analyzer rule at error severity, an assert at the owner, a
+// test, an
 // integration test, a native test, a gate over source text. Printed, never
 // committed; test/js/spec_verification.test.js holds the uncited ones to
 // openspec/unverified.tsv.
