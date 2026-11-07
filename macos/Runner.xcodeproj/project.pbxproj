@@ -22,6 +22,8 @@
 
 /* Begin PBXBuildFile section */
 		331C80D8294CF71000263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C80D7294CF71000263BE5 /* RunnerTests.swift */; };
+		7E57C0DE00000000000000A2 /* TorControlParsingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E57C0DE00000000000000A1 /* TorControlParsingTests.swift */; };
+		7E57C0DE00000000000000B2 /* WebKitBlockedLoadsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E57C0DE00000000000000B1 /* WebKitBlockedLoadsTests.swift */; };
 		335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */; };
 		33CC10F12044A3C60003C045 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC10F02044A3C60003C045 /* AppDelegate.swift */; };
 		33CC10F32044A3C60003C045 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 33CC10F22044A3C60003C045 /* Assets.xcassets */; };
@@ -98,6 +100,8 @@
 		0854B5BCCFC6EC62D9FF0302 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
 		331C80D5294CF71000263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		331C80D7294CF71000263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
+		7E57C0DE00000000000000A1 /* TorControlParsingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TorControlParsingTests.swift; path = ../ios/RunnerTests/TorControlParsingTests.swift; sourceTree = SOURCE_ROOT; };
+		7E57C0DE00000000000000B1 /* WebKitBlockedLoadsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WebKitBlockedLoadsTests.swift; path = ../ios/RunnerTests/WebKitBlockedLoadsTests.swift; sourceTree = SOURCE_ROOT; };
 		333000ED22D3DE5D00554162 /* Warnings.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Warnings.xcconfig; sourceTree = "<group>"; };
 		335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = GeneratedPluginRegistrant.swift; sourceTree = "<group>"; };
 		33CC10ED2044A3C60003C045 /* Webspace.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Webspace.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -174,6 +178,8 @@
 			isa = PBXGroup;
 			children = (
 				331C80D7294CF71000263BE5 /* RunnerTests.swift */,
+				7E57C0DE00000000000000A1 /* TorControlParsingTests.swift */,
+				7E57C0DE00000000000000B1 /* WebKitBlockedLoadsTests.swift */,
 			);
 			path = RunnerTests;
 			sourceTree = "<group>";
@@ -578,6 +584,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				331C80D8294CF71000263BE5 /* RunnerTests.swift in Sources */,
+				7E57C0DE00000000000000A2 /* TorControlParsingTests.swift in Sources */,
+				7E57C0DE00000000000000B2 /* WebKitBlockedLoadsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

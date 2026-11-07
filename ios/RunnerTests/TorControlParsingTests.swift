@@ -1,6 +1,12 @@
 import XCTest
 
-@testable import Runner
+// The macOS app's module takes its product name; iOS and tool/swift_tests
+// name theirs Runner.
+#if os(macOS)
+  @testable import Webspace
+#else
+  @testable import Runner
+#endif
 
 /// Parsing of tor's control-port output (TOR-018).
 ///
@@ -11,7 +17,7 @@ import XCTest
 /// silently: the bar still moves and the line under it is simply absent.
 ///
 /// Run headlessly by tool/swift_tests on any Swift toolchain (CI's validate
-/// job), and in Xcode as part of RunnerTests.
+/// job), and by `xcodebuild test` in the macOS app (CI's Apple job).
 class TorControlParsingTests: XCTestCase {
 
   func testBootstrapPhaseFromGetInfo() {
