@@ -17,6 +17,10 @@ of re-auditing the whole surface.
   `node tool/spec_map.js --policy` prints how strongly each is checked;
   `policy_debt.tsv` owes what no model or compile probe proves yet, and only shrinks
   (`test/js/security_policy.test.js`).
+- `accepted_advisories.tsv`: each known advisory against a locked dependency that
+  is accepted, with why it cannot reach the app. `scripts/osv_scan.sh` (CI's
+  validate-sources job) scans every tracked lockfile against OSV and fails on one
+  not listed, or on a row no longer reported.
 - `lab.md`: the design of an adversarial evaluation lab that tests the policy with
   fresh canaries and an independent collector.
 - Findings are closed by editing the run file's status column, not by deleting the

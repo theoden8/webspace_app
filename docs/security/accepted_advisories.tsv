@@ -1,0 +1,6 @@
+advisory	package	reason
+GHSA-g3hv-75wg-m249	minimatch	test tooling: eslint matches only the globs in our own eslint.config.js, never input from a page or a user; the fix is in minimatch 11, which eslint 10 does not accept
+GHSA-28wg-ghj8-5hjv	nanoid	test tooling: cld3-asm's emscripten-wasm-loader calls nanoid(45) only, never with the negative size this needs; nanoid 3 changes the export the loader calls
+GHSA-2v37-7h3g-55p8	nanoid	test tooling: called as nanoid(45) only, never with size zero or a custom generator
+GHSA-mwcw-c2x4-8c55	nanoid	test tooling: called as nanoid(45) only, never with a non-integer size
+GHSA-xwg4-73v4-xw9w	nanoid	test tooling: called as nanoid(45) only, never with a size that overflows
