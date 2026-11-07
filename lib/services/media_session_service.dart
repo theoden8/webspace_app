@@ -383,13 +383,11 @@ class MediaSessionService {
           verdict == HostRangeVerdict.notResolvedHere;
     }
 
+    // Silent for an empty / non-http URL (the page gave no artwork) or a
+    // non-routable one, as before; every redirect hop below is re-judged the
+    // same way through [permitted].
     final first = Uri.tryParse(url);
-    if (first == null || !await permitted(first)) {
-      LogTag.mediaSession.warning(
-          'Artwork fetch skipped: $url is not a routable http(s) target',
-          sensitive: true);
-      return null;
-    }
+    if (first == null || !await permitted(first)) return null;
     final http.Client client;
     switch (outboundHttp.clientFor(effective)) {
       case OutboundClientBlocked(:final reason):
