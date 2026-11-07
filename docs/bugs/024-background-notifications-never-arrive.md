@@ -155,21 +155,22 @@ what it finds.**
    opened.
 
 12. **2026-11-07 — this change.** A wake keeps its pages open, their JS
-   running, until its budget has passed since it started (`WakeTask`: 23 s on
-   iOS, 45 s on Android), instead of closing them 3 s after their loads
-   stopped. It ends sooner once none of its pages is left. *Why*: a week of
-   a device's Android background log (0.4.2) had 45 wakes, every one ending
-   `unread fallback posts=0`, and not one `notification posted` line. An ntfy
-   site added to the same device then posted three notifications of its own
-   from a headless check in the worker's engine, about 10 s into a wake,
-   about as late as the 3 s grace allowed: a page posts what it missed once
-   it has caught up with its server, which comes after its load. The iOS
-   budget is the worst case the old grace already had, so no iOS wake runs
-   longer than before. *Why partial*: more time helps only a page that
-   notifies when it catches up; the device's two other sites posted nothing
-   in any wake, and whether they would given the time is not yet observed.
-   The same log had 21 of 28 live reloads never start and 3 of 4 headless
-   checks in a still-running process time out, which this leaves as it was.
+   running, 15 s after their loads settle (`afterLoad`), never past a budget
+   from its start (`WakeTask`: 23 s on iOS, 45 s on Android), instead of
+   closing them 3 s after their loads stopped. It ends sooner once none of
+   its pages is left. *Why*: a week of a device's Android background log
+   (0.4.2) had 45 wakes, every one ending `unread fallback posts=0`, and not
+   one `notification posted` line. An ntfy site added to the same device
+   then posted three notifications of its own from a headless check in the
+   worker's engine, about 5 s after its load and 10 s into a wake, about as
+   late as the 3 s grace allowed: a page posts what it missed once it has
+   caught up with its server, which comes after its load. The iOS budget is
+   the worst case the old grace already had, so no iOS wake runs longer than
+   before. *Why partial*: more time helps only a page that notifies when it
+   catches up; the device's two other sites posted nothing in any wake, and
+   whether they would given the time is not yet observed. The same log had
+   21 of 28 live reloads never start and 3 of 4 headless checks in a
+   still-running process time out, which this leaves as it was.
 
 ## Known open gaps
 

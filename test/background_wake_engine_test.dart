@@ -294,6 +294,20 @@ void main() {
       });
     }
 
+    test('a page that loads quickly is held afterLoad past it, not the whole '
+        'budget', () async {
+      final page = _Page(titleBefore: 'Chat', titleAfter: 'Chat');
+      final host = _Host({'a': page});
+      final engine = BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker);
+      final start = host.now();
+      await engine.wake(host);
+      final spent = host.now().difference(start);
+      expect(spent, greaterThanOrEqualTo(engine.afterLoad));
+      expect(spent, lessThan(engine.afterLoad + const Duration(seconds: 5)),
+          reason: 'every wake would otherwise run the OS task to its limit '
+              'for pages with nothing left to post');
+    });
+
     test('a webview that goes away mid-wake does not hold it open', () async {
       final page = _Page(titleBefore: null, titleAfter: null, loadTicks: 1000)
         ..gone = true;

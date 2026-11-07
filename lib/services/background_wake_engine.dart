@@ -267,7 +267,7 @@ class WakeReport {
   );
 }
 
-/// The OS task a wake runs in, and so how long its pages stay open to post
+/// The OS task a wake runs in, and so the latest its pages stay open to post
 /// what they missed (NOTIF-013): counted from the wake's start, and short of
 /// the task's own limit by the startup and closes around it.
 enum WakeTask {
@@ -287,15 +287,16 @@ enum WakeTask {
 /// NOTIF-013 / NOTIF-014 / NOTIF-016: a background wake (iOS
 /// `BGAppRefreshTask`, the Android `WorkManager`) checks every notification
 /// site, reloading a live webview in place and opening any other site in a
-/// headless webview, keeps those pages open until its [WakeTask]'s budget is
-/// spent so their own JS can catch up and post, then posts on behalf of any
-/// site that stayed silent while its unread count rose.
+/// headless webview, keeps those pages open [afterLoad] past their loads so
+/// their own JS can catch up and post, then posts on behalf of any site that
+/// stayed silent while its unread count rose.
 ///
 /// Returning is what ends the OS task.
 class BackgroundWakeEngine<S extends Object> {
   BackgroundWakeEngine({
     required this.task,
     this.settleDeadline = const Duration(seconds: 20),
+    this.afterLoad = const Duration(seconds: 15),
     this.poll = const Duration(milliseconds: 500),
   }) : assert(task.budget > settleDeadline,
             'a page whose load settles at the deadline still gets time to post');
@@ -304,6 +305,11 @@ class BackgroundWakeEngine<S extends Object> {
 
   /// Longest the wake waits for loads to finish, inside [task]'s budget.
   final Duration settleDeadline;
+
+  /// How long the pages stay open once their loads have settled, never past
+  /// [task]'s budget. A device's ntfy page posted what it had missed about
+  /// 5 s after its load.
+  final Duration afterLoad;
 
   final Duration poll;
 
@@ -406,8 +412,7 @@ class BackgroundWakeEngine<S extends Object> {
       table.runInput(StepContext(WakeFlow<S>(this, host: host)), from: WakePlace.foreground);
 
   /// Between the opens and the closes: the live sites reloaded, every check
-  /// settled and held open for the rest of the budget, the titles read and
-  /// the fallback posts made.
+  /// settled and held open, the titles read and the fallback posts made.
   Future<void> _middle(WakeFlow<S> w) async {
     final host = w.host;
     final plan = w.plan!;
@@ -456,14 +461,16 @@ class BackgroundWakeEngine<S extends Object> {
         WakeReport(sites: outcomes, elapsed: host.now().difference(w.started));
   }
 
-  /// Keeps the checked pages open, their JS running, until [task]'s budget
-  /// is spent: a page posts what it missed once it has caught up with its
-  /// server, which can take longer than its load. Ends sooner once none of
-  /// them is there: a webview gone, or the app back on screen, which closes
-  /// the headless ones.
+  /// Keeps the checked pages open, their JS running, [afterLoad] past their
+  /// settle or until [task]'s budget is spent, whichever comes first: a page
+  /// posts what it missed once it has caught up with its server, which comes
+  /// after its load. Ends sooner once none of them is there: a webview gone,
+  /// or the app back on screen, which closes the headless ones.
   Future<void> _holdOpen(WakeFlow<S> w) async {
     final host = w.host;
-    final end = w.started.add(task.budget);
+    final afterSettle = host.now().add(afterLoad);
+    final cap = w.started.add(task.budget);
+    final end = afterSettle.isBefore(cap) ? afterSettle : cap;
     while (host.now().isBefore(end) &&
         w.checked.any((e) => host.isLoading(e.site.siteId) != null)) {
       final left = end.difference(host.now());

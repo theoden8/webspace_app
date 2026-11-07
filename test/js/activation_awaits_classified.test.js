@@ -93,8 +93,8 @@ const CLASSIFIED = {
     'A wake\'s check only: an in-process dispose of a webview the wake made.',
   'BackgroundWake.settle':
     'A wake only: the reloads\' settle waits at most its deadline '
-    + '(BackgroundWakeEngine.settleDeadline), and the pages stay open after '
-    + 'it until the wake\'s budget (WakeTask.budget) has passed.',
+    + '(BackgroundWakeEngine.settleDeadline), and the pages stay open '
+    + 'afterLoad more, never past the wake\'s budget (WakeTask.budget).',
   'DnsBlockService.fetchLevel':
     'A DNS download only, which no activation waits on: each mirror is '
     + 'bounded by fetchViaAppProxy\'s timeout.',
