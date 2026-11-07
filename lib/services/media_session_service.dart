@@ -347,6 +347,15 @@ class MediaSessionService {
   static Future<Uint8List?> Function(String url,
       {required OutboundProxy proxy})? debugArtworkFetchOverride;
 
+  static const int _maxArtworkRedirects = 5;
+
+  static bool _isRedirectStatus(int status) =>
+      status == 301 ||
+      status == 302 ||
+      status == 303 ||
+      status == 307 ||
+      status == 308;
+
   /// Best-effort artwork fetch: the page's own declared artwork URL, capped and
   /// timed out. Decoding/scaling happens natively. Null on anything unexpected.
   ///
@@ -354,28 +363,31 @@ class MediaSessionService {
   /// attacker-reachable outbound request: it goes through the site's proxy
   /// (LEAK-002) and fails closed when that proxy cannot be honored, and it
   /// refuses loopback / private / link-local literals so a page cannot use it
-  /// to probe the LAN or cloud metadata.
+  /// to probe the LAN or cloud metadata. Redirects are followed by hand so
+  /// every hop is judged, not just the first: a public host answering
+  /// `302 Location: http://169.254.169.254/…` would otherwise land a GET on the
+  /// metadata endpoint past the guard (SEC-050), the hole the user-script and
+  /// icon fetchers already close.
   Future<Uint8List?> _fetchArtwork(String url,
       {required OutboundProxy proxy}) async {
     final override = debugArtworkFetchOverride;
     if (override != null) return override(url, proxy: proxy);
-    // dart:io refuses anything but http(s) with a host with an ArgumentError.
-    final host = Host.ofWebUrl(url);
-    if (host == null) return null;
-    final uri = Uri.parse(url);
-    if (isPrivateOrLoopbackHost(host)) return null;
     final effective = proxy.resolved;
-    // The artwork URL comes from the page's own media-session metadata, so a
-    // name pointing into the LAN turns this into a blind request the site
-    // chose. Nothing comes back to the page here, but a GET still lands.
-    final verdict = await classifyOutboundTarget(url, effective: effective);
-    if (verdict != HostRangeVerdict.public &&
-        verdict != HostRangeVerdict.notResolvedHere) {
-      LogTag.mediaSession.warning(
-          'Artwork fetch skipped: $url does not resolve to a routable address',
-          sensitive: true);
-      return null;
+    Future<bool> permitted(Uri target) async {
+      // dart:io refuses anything but http(s) with a host with an ArgumentError.
+      final host = Host.ofWebUrl(target.toString());
+      if (host == null || isPrivateOrLoopbackHost(host)) return false;
+      final verdict =
+          await classifyOutboundTarget(target.toString(), effective: effective);
+      return verdict == HostRangeVerdict.public ||
+          verdict == HostRangeVerdict.notResolvedHere;
     }
+
+    // Silent for an empty / non-http URL (the page gave no artwork) or a
+    // non-routable one, as before; every redirect hop below is re-judged the
+    // same way through [permitted].
+    final first = Uri.tryParse(url);
+    if (first == null || !await permitted(first)) return null;
     final http.Client client;
     switch (outboundHttp.clientFor(effective)) {
       case OutboundClientBlocked(:final reason):
@@ -387,10 +399,9 @@ class MediaSessionService {
     const cap = 1536 * 1024;
     const timeout = Duration(seconds: 5);
     try {
-      final response = await client.get(uri).timeout(timeout);
-      if (response.statusCode != 200) return null;
-      if (response.bodyBytes.length > cap) return null;
-      return response.bodyBytes;
+      return await _fetchArtworkBytes(client,
+              first: first, permitted: permitted, maxBytes: cap)
+          .timeout(timeout);
     } on http.ClientException {
       // http, SOCKS and TLS failures alike: the notification goes without art.
       return null;
@@ -402,6 +413,46 @@ class MediaSessionService {
       return null;
     } finally {
       client.close();
+    }
+  }
+
+  /// GET [first] with the client's own redirect following off, running every
+  /// `Location` back through [permitted] before the next hop and capping the
+  /// body at [maxBytes]. Returns the bytes, or null when a hop is refused, the
+  /// chain steps https down to http, outruns [_maxArtworkRedirects], or the
+  /// answer is not a 200 within the cap.
+  Future<Uint8List?> _fetchArtworkBytes(
+    http.Client client, {
+    required Uri first,
+    required Future<bool> Function(Uri target) permitted,
+    required int maxBytes,
+  }) async {
+    var target = first;
+    for (var hop = 0;; hop++) {
+      final response = await client
+          .send(http.Request('GET', target)..followRedirects = false);
+      final location = response.headers['location'];
+      if (_isRedirectStatus(response.statusCode) &&
+          location != null &&
+          location.isNotEmpty) {
+        final next = target.resolve(location);
+        if (hop >= _maxArtworkRedirects ||
+            (target.scheme == 'https' && next.scheme == 'http') ||
+            !await permitted(next)) {
+          return null;
+        }
+        target = next;
+        continue;
+      }
+      if (response.statusCode != 200) return null;
+      final length = response.contentLength;
+      if (length != null && length > maxBytes) return null;
+      final bytes = BytesBuilder(copy: false);
+      await for (final chunk in response.stream) {
+        bytes.add(chunk);
+        if (bytes.length > maxBytes) return null;
+      }
+      return bytes.takeBytes();
     }
   }
 }
