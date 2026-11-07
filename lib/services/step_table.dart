@@ -11,6 +11,7 @@ export 'package:webspace/services/model_names.dart';
 export 'package:webspace/services/step_print.dart';
 
 part 'model_exprs.dart';
+part 'step_lock.dart';
 part 'step_reads.dart';
 
 /// What a table's own code sees of one flow: the values its steps keep,
@@ -1488,24 +1489,6 @@ final class Within<W, P extends Enum> extends At<W, P> {
 /// No step of this table waits there: a flow leaves the table by it.
 final class Leaves<W, P extends Enum> extends At<W, P> {
   const Leaves();
-}
-
-/// A lock whose turn a step waits on: a platform object whose operations a
-/// queue serialises, one flow holding it at a time. The model prints the
-/// wait as [granted].
-enum Lock {
-  /// The shared cookie jar (`CookieIsolationEngine._turns`, ISO-003).
-  jar;
-
-  /// The model's guard for a flow `f` whose turn on the lock it is.
-  String get granted => switch (this) {
-    Lock.jar => 'Granted(f)',
-  };
-
-  /// What the guard reads of the shared state.
-  BaseOp get op => switch (this) {
-    Lock.jar => BaseOp.granted,
-  };
 }
 
 /// One step: what has to hold while a flow waits at its place ([holds]),

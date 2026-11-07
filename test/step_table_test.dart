@@ -229,9 +229,9 @@ void main() {
             then: [
               Act.of([_loaded.becomes(Expr.none())]),
               modelOnly(
-                'Enqueue(f)',
+                'queue\' = IF Kinds = {} THEN queue ELSE << >>',
                 writes: {ModelVar.queue},
-                reads: const Reads(base: {BaseOp.enqueue}),
+                reads: const Reads(vars: {ModelVar.queue}, base: {BaseOp.kinds}),
               ),
             ],
             next: to(_Place.done),
@@ -243,8 +243,9 @@ void main() {
     final [(:step, :reads, :writes, :arms, place: _, input: _, needs: _, guard: _)] = table
         .footprints();
     expect(step, ActivationStep.plan);
-    expect(reads.vars, {ModelVar.loaded}, reason: 'the branch reads loaded');
-    expect(reads.base, {BaseOp.enqueue});
+    expect(reads.vars, {ModelVar.loaded, ModelVar.queue},
+        reason: 'the branch reads loaded, the act queue');
+    expect(reads.base, {BaseOp.kinds});
     expect(writes, {ModelVar.loaded, ModelVar.queue, ModelVar.fl, ModelVar.last},
         reason: "its writes, the flow's own row and the step it marks");
     expect([for (final a in arms) a.fields], [

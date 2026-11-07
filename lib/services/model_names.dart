@@ -363,10 +363,11 @@ enum ModelDef {
 }
 
 /// The operators of the hand-written model (`activation_base.tla`) that a
-/// table's text calls and that read its state, with what each reads and
-/// writes of it, which the footprint gate holds to the definition's text.
-/// The base's constant data (`Routed`, `Archive`) reads nothing and is not
-/// named.
+/// table's text calls and that read its state, with what each reads of it,
+/// which the footprint gate holds to the definition's text. None writes:
+/// what a step writes through the model's own operators is a lock's turn,
+/// [Lock]'s. The base's constant data (`Routed`, `Archive`) reads nothing
+/// and is not named.
 enum BaseOp {
   kinds(reads: {ModelVar.fl}),
   listed(reads: {ModelVar.gone}),
@@ -381,22 +382,15 @@ enum BaseOp {
   ),
   hasFresh(reads: {ModelVar.minted}),
   mint(reads: {ModelVar.minted}),
-  enqueue(reads: {ModelVar.holder, ModelVar.queue}, writes: {ModelVar.queue}),
-  takeTurn(reads: {ModelVar.queue}, writes: {ModelVar.holder, ModelVar.queue}),
-  passTurn(reads: {ModelVar.queue}, writes: {ModelVar.holder, ModelVar.queue}),
-  release(writes: {ModelVar.holder}),
-  granted(reads: {ModelVar.holder, ModelVar.queue}),
-
   /// An input, which lands only where `Lands` lets it: on the page when no
   /// nested screen covers it, and on screen unless the OS made it.
   input(reads: {ModelVar.fore, ModelVar.nested});
 
-  const BaseOp({this.reads = const {}, this.writes = const {}, this.rows = const {}});
+  const BaseOp({this.reads = const {}, this.rows = const {}});
 
-  /// The model's variables its definition reads and writes, apart from
-  /// the checkers' own (`last`, `inputs`, `seen`).
+  /// The model's variables its definition reads, apart from the checkers'
+  /// own (`last`, `inputs`, `seen`).
   final Set<ModelVar> reads;
-  final Set<ModelVar> writes;
 
   /// The other flows' rows it reads, as [Reads.rows] says them.
   final Set<RowRead> rows;

@@ -208,7 +208,11 @@ Map<ActivationStep, Step<Object?, Enum>> _starts(Tables t) => {
 
 /// The modules `formal/` writes by hand that the printed ones extend, from
 /// the repository's root.
-const handWrittenModules = ['formal/activation_base.tla', 'formal/activation.tla'];
+const handWrittenModules = [
+  'formal/activation_lock.tla',
+  'formal/activation_base.tla',
+  'formal/activation.tla',
+];
 
 /// Everything there is to print, in one list: a new engine's model is a new
 /// entry here. [handWritten] is the text of the modules `formal/` writes by
@@ -410,7 +414,7 @@ List<({ActivationStep step, ComposedAction action})> stepActions(Tables t) {
           action: (
             name: f.step.action,
             reads: {...r.vars, for (final b in r.base) ...b.reads},
-            writes: {...f.writes, for (final b in r.base) ...b.writes},
+            writes: f.writes,
             rows: {...r.rows, for (final b in r.base) ...b.rows},
             kinds: {
               if (!f.input) ...?flows[f.place]?.keys,
@@ -519,6 +523,7 @@ String activationOps(Tables t) => [
   '(* Not committed; edit the definitions.                                    *)',
   'EXTENDS activation_base',
   '',
+  for (final l in Lock.values) ...[l.instance, ''],
   for (final d in t.ops) ...[d.tla, ''],
   ..._types(t),
   '=============================================================================',
@@ -681,8 +686,15 @@ String activationBaseOps() => [
     [
       b.tla,
       ([for (final v in b.reads) v.name]..sort()).join(' '),
-      ([for (final v in b.writes) v.name]..sort()).join(' '),
+      '',
     ].join('\t'),
+  for (final l in Lock.values)
+    for (final (:op, :reads, :writes) in l.ops)
+      [
+        op,
+        ([for (final v in reads) v.name]..sort()).join(' '),
+        ([for (final v in writes) v.name]..sort()).join(' '),
+      ].join('\t'),
   '',
 ].join('\n');
 
@@ -1291,15 +1303,17 @@ String _holds(Inv i) {
   ].join('\n');
 }
 
-/// The model's operators [s]'s action calls: `Granted` for a step the jar's
-/// turn grants, and the operator each of its acts opens with.
+/// The model's operators [s]'s action calls: its lock's `Granted` for a
+/// step a lock's turn grants, and the operator each of its acts opens with,
+/// an instance's by its instance (`Jar!Enqueue`).
 List<String> _operators(Step<Object?, Enum> s) => {
-  if (s.granted != null) 'Granted',
+  if (s.granted case final lock?) lock.granted.split('(').first,
   if (s.input || s.allArms.any((a) => a.then.any((e) => e is Spawn))) 'Starts',
   for (final arm in s.allArms)
     for (final e in arm.then)
       if (e is Act)
-        if (RegExp(r'^[A-Z]\w*').firstMatch(e.tla) case final m?) m[0]!,
+        if (RegExp(r'^[A-Z]\w*(?:![A-Z]\w*)?').firstMatch(e.tla) case final m?)
+          m[0]!,
 }.toList();
 
 /// Every engine's declared model: its steps, where each waits and what it

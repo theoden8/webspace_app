@@ -42,7 +42,8 @@ UNSHARED = {"last", "inputs", "seen"}
 # which is how the model schedules, not state a flow owns; and where an
 # input lands (Lands), which Did checks for the inputs alone.
 SCHEDULER = {"Calm", "Idle", "Lands"}
-IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+# A name, or an instance's definition by its instance (`Jar!Granted`).
+IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:![A-Za-z_][A-Za-z0-9_]*)?")
 
 
 def strip(text):
@@ -59,21 +60,40 @@ def modules(model):
              ("activation_vars.tla", "activation_steps.tla",
               "activation_ops.tla", "activation_tables.tla")]
     paths += [os.path.join(HERE, m) for m in
-              ("activation_base.tla", "activation.tla")]
+              ("activation_lock.tla", "activation_base.tla", "activation.tla")]
     return {os.path.basename(p)[:-4]: open(p).read() for p in paths}
 
 
-def definitions(sources):
-    """Every operator's body, by name, from the modules' column-0 heads."""
+def bodies(text):
+    """Each operator's body in one module, by name, from its column-0 heads."""
     defs = {}
     head = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)(\([^)]*\))? ==", re.M)
+    text = strip(text)
+    marks = list(head.finditer(text))
+    for i, m in enumerate(marks):
+        end = marks[i + 1].start() if i + 1 < len(marks) else len(text)
+        defs[m.group(1)] = text[m.end():end].split("\n====")[0]
+    return defs
+
+
+def definitions(sources):
+    """Every operator's body, by name. An instance (`I == INSTANCE m WITH
+    x <- e`) of one of the modules gives each definition D of m as I!D, its
+    body with the substitutions made, and is no definition itself."""
+    defs = {}
     for text in sources.values():
-        text = strip(text)
-        marks = list(head.finditer(text))
-        for i, m in enumerate(marks):
-            end = marks[i + 1].start() if i + 1 < len(marks) else len(text)
-            body = text[m.end():end].split("\n====")[0]
-            defs[m.group(1)] = body
+        defs.update(bodies(text))
+    for name, body in list(defs.items()):
+        m = re.match(r"\s*INSTANCE\s+(\w+)(?:\s+WITH\s+(.*))?$", body.strip(),
+                     re.S)
+        if not m:
+            continue
+        del defs[name]
+        subs = dict(re.match(r"\s*(\w+)\s*<-\s*(.*?)\s*$", w, re.S).groups()
+                    for w in (m.group(2) or "").split(",") if w.strip())
+        for op, text in bodies(sources[m.group(1)]).items():
+            defs["%s!%s" % (name, op)] = re.sub(
+                r"\b\w+\b", lambda t: subs.get(t.group(0), t.group(0)), text)
     return defs
 
 

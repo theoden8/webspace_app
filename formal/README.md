@@ -216,7 +216,10 @@ class.
   `Conflicts`, `Spare`, `Gone`, `Share`, the pressure plan's sets) is a `Def` in the engine
   that owns its variables, run there and printed as `activation_ops`. `activation_base.tla`
   holds the variables, the constants and the environment's operators (the inputs' timing,
-  the jar's turn, the ghosts);
+  the ghosts); `activation_lock.tla` is a lock's turn, the SerialQueue's semantics, written
+  once and instanced for each lock of the `Lock` enum over that lock's holder and queue
+  (`Jar == INSTANCE activation_lock WITH ...`, printed into `activation_ops`), so a step
+  waits on `Jar!Granted(f)` and takes the turn with `Jar!TakeTurn(f)`;
   `activation.tla` the environment's inputs (a row move, a page signing in, the launch
   clear), the invariants and the witnesses. A mistake in a table or a definition is a mutant,
   a copy with the fault printed beside it under `mutants/<name>/`; a mistake in the environment

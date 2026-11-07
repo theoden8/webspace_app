@@ -124,7 +124,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     };
     final reads = Reads.of([
       if (s.input) const Reads(vars: {ModelVar.inputs}, base: {BaseOp.input}),
-      if (s.granted case final lock?) Reads(base: {lock.op}),
+      if (s.granted case final lock?) lock.grantedReads,
       ?s.enabled?.reads,
       ?s.pick?.from.reads,
       ?s.site?.reads,

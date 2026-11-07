@@ -1042,7 +1042,7 @@ final _parameters = {
 /// The variables, constants and [definitions] [tla] names, the shared state
 /// a guard and a value may have in common.
 Set<String> _names(String tla, {required Map<String, String> definitions}) => {
-  for (final m in RegExp(r'\b([A-Za-z]\w*)\b').allMatches(tla))
+  for (final m in RegExp(r'\b([A-Za-z]\w*(?:![A-Z]\w*)?)\b').allMatches(tla))
     if (definitions.containsKey(m[1]) ||
         _parameters.contains(m[1]) ||
         ModelVar.values.any((v) => v.name == m[1] && v != ModelVar.fl))
@@ -1068,7 +1068,7 @@ Set<String> _reached(String tla, {required Map<String, String> definitions}) {
   while (frontier.isNotEmpty) {
     frontier = [
       for (final text in frontier)
-        for (final m in RegExp(r'\b([A-Z]\w*)\b').allMatches(text))
+        for (final m in RegExp(r'\b([A-Z]\w*(?:![A-Z]\w*)?)\b').allMatches(text))
           if (definitions[m[1]] case final body? when reached.add(m[1]!)) body,
     ];
   }
@@ -1077,8 +1077,37 @@ Set<String> _reached(String tla, {required Map<String, String> definitions}) {
 
 /// Each definition in [modules] by name, its body as written: a line that
 /// starts `Name ==` or `Name(...) ==` opens one, which runs to the next line
-/// that starts at the margin.
+/// that starts at the margin. An instance (`I == INSTANCE m WITH x <- e`)
+/// of a module among [modules] gives each definition `D` of `m` as `I!D`,
+/// its body with the substitutions made, and is no definition itself.
 Map<String, String> tlaDefinitions(List<String> modules) {
+  final defs = _definitionsOf(modules);
+  final named = {
+    for (final module in modules)
+      if (RegExp(r'MODULE\s+(\w+)').firstMatch(module) case final m?) m[1]!: module,
+  };
+  for (final MapEntry(:key, :value) in [...defs.entries]) {
+    final instance = RegExp(r'^\s*INSTANCE\s+(\w+)(?:\s+WITH\s+([^\n]*))?\s*$')
+        .firstMatch(value);
+    if (instance == null) continue;
+    defs.remove(key);
+    final subs = {
+      for (final w in (instance[2] ?? '').split(','))
+        if (RegExp(r'^\s*(\w+)\s*<-\s*(.*?)\s*$').firstMatch(w) case final m?)
+          m[1]!: m[2]!,
+    };
+    for (final MapEntry(key: op, value: body)
+        in _definitionsOf([named[instance[1]]!]).entries) {
+      defs['$key!$op'] = body.replaceAllMapped(
+        RegExp(r'\b(\w+)\b'),
+        (m) => subs[m[1]] ?? m[1]!,
+      );
+    }
+  }
+  return defs;
+}
+
+Map<String, String> _definitionsOf(List<String> modules) {
   final defs = <String, String>{};
   for (final module in modules) {
     String? name;
