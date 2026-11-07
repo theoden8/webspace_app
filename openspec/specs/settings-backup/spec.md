@@ -505,6 +505,22 @@ Import/Export options SHALL only appear when on the webspaces list screen.
 
 ---
 
+### Requirement: BACKUP-016 - Live State Is Reached Only Through A Planned Result
+
+`BackupController.import` SHALL obtain the `SettingsImportPlan` it applies only
+from `planSettingsImport`: `SettingsImportPlan`'s constructor is private, so no
+other code can build a plan that reaches live state. This is the type half of
+BACKUP-013's guarantee; that the plan is parsed whole and that apply reads
+nothing outside it remain BACKUP-013, verified by its scenarios.
+
+#### Scenario: No other caller can construct a plan to apply
+
+**Given** any code outside `planSettingsImport`
+**When** it tries to build a `SettingsImportPlan`
+**Then** it does not compile, because the constructor is private
+
+---
+
 ## Backup File Format
 
 ```json

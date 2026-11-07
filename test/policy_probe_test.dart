@@ -13,7 +13,7 @@ import 'helpers/compile_probe.dart';
 const _probe = Timeout(Duration(minutes: 2));
 
 void main() {
-  test('BACKUP-013: an import applies only a plan planSettingsImport made',
+  test('BACKUP-016: live state is reached only through a planSettingsImport plan',
       () async {
     const owner = 'lib/settings_import_engine.dart';
     const make = '''
