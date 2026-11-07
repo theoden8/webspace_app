@@ -366,7 +366,11 @@ handler SHALL act only on a download the calling view started: `DownloadTaskId`
 has a private constructor and is reachable to a handler only through
 `DownloadsService.pageTask(rawToken, view:)`, which returns an id only for a
 token minted for that same view. A page cannot name another view's download, nor
-mint an id from a raw string (policy R4).
+mint an id from a raw string (policy R4). A compile probe
+([policy_probe_test.dart](../../../test/policy_probe_test.dart)) proves a handler
+cannot forge an id; a boundary test
+([download_view_scope_test.dart](../../../test/download_view_scope_test.dart))
+proves `pageTask` checks the view, which a token-only lookup would not.
 
 #### Scenario: A frame cannot report another view's download
 
