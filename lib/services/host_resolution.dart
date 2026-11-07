@@ -112,7 +112,7 @@ bool _ipv4PrivateOrLoopback(List<int> o) {
   return false;
 }
 
-bool _embeddedV4PrivateOrLoopback(int hi, int lo) =>
+bool _embeddedV4PrivateOrLoopback({required int hi, required int lo}) =>
     _ipv4PrivateOrLoopback(<int>[hi >> 8, hi & 0xff, lo >> 8, lo & 0xff]);
 
 /// The eight 16-bit groups of IPv6 literal [s] (lowercased, brackets and any
@@ -162,7 +162,7 @@ bool _ipv6PrivateOrLoopback(List<int> g) {
   // IPv4-mapped (::ffff:v4): judge the embedded IPv4, so [::ffff:127.0.0.1] is
   // loopback and [::ffff:169.254.169.254] is link-local metadata (SEC-048).
   if (lead5Zero && g[5] == 0xffff) {
-    return _embeddedV4PrivateOrLoopback(g[6], g[7]);
+    return _embeddedV4PrivateOrLoopback(hi: g[6], lo: g[7]);
   }
   // `::` (unspecified) and `::1` (loopback), in any spelling.
   if (lead5Zero && g[5] == 0 && g[6] == 0 && (g[7] == 0 || g[7] == 1)) {
@@ -170,16 +170,16 @@ bool _ipv6PrivateOrLoopback(List<int> g) {
   }
   // Deprecated IPv4-compatible (::v4): judge the embedded IPv4.
   if (lead5Zero && g[5] == 0 && (g[6] != 0 || g[7] > 1)) {
-    return _embeddedV4PrivateOrLoopback(g[6], g[7]);
+    return _embeddedV4PrivateOrLoopback(hi: g[6], lo: g[7]);
   }
   // NAT64 well-known 64:ff9b::/96 and local-use 64:ff9b:1::/48: embedded v4.
   if (g[0] == 0x0064 &&
       g[1] == 0xff9b &&
       ((g[2] == 0 && g[3] == 0 && g[4] == 0 && g[5] == 0) || g[2] == 0x0001)) {
-    return _embeddedV4PrivateOrLoopback(g[6], g[7]);
+    return _embeddedV4PrivateOrLoopback(hi: g[6], lo: g[7]);
   }
   // 6to4 2002:V4::/16: the embedded v4 gateway is groups 1-2.
-  if (g[0] == 0x2002) return _embeddedV4PrivateOrLoopback(g[1], g[2]);
+  if (g[0] == 0x2002) return _embeddedV4PrivateOrLoopback(hi: g[1], lo: g[2]);
   // Teredo 2001:0000::/32 hides an obfuscated client v4; refuse, don't decode.
   if (g[0] == 0x2001 && g[1] == 0x0000) return true;
   // IPv6 documentation 2001:db8::/32: non-public.
