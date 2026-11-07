@@ -49,38 +49,122 @@ bool isPrivateOrLoopbackHost(String raw) {
   final host = Host(raw);
   if (host == 'localhost' || host.endsWith('.localhost')) return true;
 
-  // IPv6 literal (Uri.host strips the surrounding brackets).
   if (host.contains(':')) {
-    final h = host.split('%').first; // drop any zone id
-    if (h == '::1' || h == '::') return true;
-    // fc00::/7 unique-local, fe80::/10 link-local.
-    if (h.startsWith('fc') || h.startsWith('fd')) return true;
-    if (h.startsWith('fe8') ||
-        h.startsWith('fe9') ||
-        h.startsWith('fea') ||
-        h.startsWith('feb')) {
+    final List<int> bytes;
+    try {
+      bytes = Uri.parseIPv6Address(host.split('%').first); // drop any zone id
+    } on FormatException {
+      // A literal the parser cannot read is judged non-public, not waved
+      // through: a resolver might still make an address of it (SEC-048).
       return true;
     }
-    return false;
+    return _classifyIpBytes(bytes);
   }
 
-  // IPv4 dotted-quad.
+  final octets = _ipv4Octets(host);
+  if (octets != null) return _classifyIpBytes(octets);
+  // A numeric IPv4 in a non-canonical spelling (one decimal/hex number, hex or
+  // octal octets, or fewer than four parts) that a resolver would still accept
+  // as an address. Which address depends on the platform's inet_aton, so refuse
+  // it here rather than guess the range wrong (SEC-048).
+  if (_looksNumericIpv4(host)) return true;
+  return false;
+}
+
+final RegExp _numericIpv4Part = RegExp(r'^(0x[0-9a-f]+|[0-9]+)$');
+
+/// Whether [host] (lowercased, no port) is an IPv4 address written numerically
+/// in an `inet_aton` spelling other than the canonical dotted-quad: one to four
+/// dot-separated parts, each decimal, hex (`0x…`) or octal (leading zero).
+/// [_ipv4Octets] accepts the canonical form first, so this catches the rest.
+bool _looksNumericIpv4(String host) {
   final parts = host.split('.');
-  if (parts.length == 4) {
-    final octets = <int>[];
-    for (final p in parts) {
-      final v = int.tryParse(p);
-      if (v == null || v < 0 || v > 255) return false; // not an IPv4 literal
-      octets.add(v);
-    }
-    final a = octets[0], b = octets[1];
-    if (a == 0) return true; // 0.0.0.0/8
-    if (a == 127) return true; // loopback
-    if (a == 10) return true; // private
-    if (a == 172 && b >= 16 && b <= 31) return true; // private
-    if (a == 192 && b == 168) return true; // private
-    if (a == 169 && b == 254) return true; // link-local + cloud metadata
+  if (parts.isEmpty || parts.length > 4) return false;
+  for (final p in parts) {
+    if (!_numericIpv4Part.hasMatch(p)) return false;
   }
+  return true;
+}
+
+/// The four octets of a canonical dotted-quad IPv4 [s] (`a.b.c.d`, each a plain
+/// decimal 0-255 with no leading zero), or null. Non-canonical numeric spellings
+/// are refused by [_looksNumericIpv4] at the top level; a trailing embedded v4
+/// in an IPv6 literal must be canonical too.
+List<int>? _ipv4Octets(String s) {
+  final parts = s.split('.');
+  if (parts.length != 4) return null;
+  final octets = <int>[];
+  for (final p in parts) {
+    if (p.isEmpty || p.length > 3) return null;
+    if (p.length > 1 && p.startsWith('0')) return null; // no leading zero/octal
+    final v = int.tryParse(p);
+    if (v == null || v < 0 || v > 255) return null;
+    octets.add(v);
+  }
+  return octets;
+}
+
+bool _ipv4PrivateOrLoopback(List<int> o) {
+  final a = o[0], b = o[1], c = o[2];
+  if (a == 0) return true; // 0.0.0.0/8
+  if (a == 127) return true; // loopback
+  if (a == 10) return true; // private
+  if (a == 172 && b >= 16 && b <= 31) return true; // private
+  if (a == 192 && b == 168) return true; // private
+  if (a == 169 && b == 254) return true; // link-local + cloud metadata
+  if (a == 192 && b == 0 && c == 2) return true; // 192.0.2.0/24 documentation
+  if (a == 198 && b == 51 && c == 100) return true; // 198.51.100.0/24 doc
+  if (a == 203 && b == 0 && c == 113) return true; // 203.0.113.0/24 doc
+  return false;
+}
+
+bool _embeddedV4PrivateOrLoopback({required int hi, required int lo}) =>
+    _ipv4PrivateOrLoopback(<int>[hi >> 8, hi & 0xff, lo >> 8, lo & 0xff]);
+
+/// Judge one address by its raw bytes, the same whether it was a literal in a
+/// URL or an address a resolver returned (SEC-048 parity): four bytes for an
+/// IPv4 address, sixteen for an IPv6 one folded back into its eight 16-bit
+/// groups. The callers each produce one length or the other.
+bool _classifyIpBytes(List<int> b) {
+  if (b.length == 4) return _ipv4PrivateOrLoopback(b);
+  final groups = <int>[
+    for (var i = 0; i < b.length; i += 2) b[i] << 8 | b[i + 1],
+  ];
+  return _ipv6PrivateOrLoopback(groups);
+}
+
+bool _ipv6PrivateOrLoopback(List<int> g) {
+  final lead5Zero =
+      g[0] == 0 && g[1] == 0 && g[2] == 0 && g[3] == 0 && g[4] == 0;
+  // IPv4-mapped (::ffff:v4): judge the embedded IPv4, so [::ffff:127.0.0.1] is
+  // loopback and [::ffff:169.254.169.254] is link-local metadata (SEC-048).
+  if (lead5Zero && g[5] == 0xffff) {
+    return _embeddedV4PrivateOrLoopback(hi: g[6], lo: g[7]);
+  }
+  // `::` (unspecified) and `::1` (loopback), in any spelling.
+  if (lead5Zero && g[5] == 0 && g[6] == 0 && (g[7] == 0 || g[7] == 1)) {
+    return true;
+  }
+  // Deprecated IPv4-compatible (::v4): judge the embedded IPv4.
+  if (lead5Zero && g[5] == 0 && (g[6] != 0 || g[7] > 1)) {
+    return _embeddedV4PrivateOrLoopback(hi: g[6], lo: g[7]);
+  }
+  // NAT64 well-known 64:ff9b::/96 and local-use 64:ff9b:1::/48: embedded v4.
+  if (g[0] == 0x0064 &&
+      g[1] == 0xff9b &&
+      ((g[2] == 0 && g[3] == 0 && g[4] == 0 && g[5] == 0) || g[2] == 0x0001)) {
+    return _embeddedV4PrivateOrLoopback(hi: g[6], lo: g[7]);
+  }
+  // 6to4 2002:V4::/16: the embedded v4 gateway is groups 1-2.
+  if (g[0] == 0x2002) return _embeddedV4PrivateOrLoopback(hi: g[1], lo: g[2]);
+  // Teredo 2001:0000::/32 hides an obfuscated client v4; refuse, don't decode.
+  if (g[0] == 0x2001 && g[1] == 0x0000) return true;
+  // IPv6 documentation 2001:db8::/32: non-public.
+  if (g[0] == 0x2001 && g[1] == 0x0db8) return true;
+  if ((g[0] & 0xfe00) == 0xfc00) return true; // fc00::/7 unique-local
+  if ((g[0] & 0xffc0) == 0xfe80) return true; // fe80::/10 link-local
+  if ((g[0] & 0xffc0) == 0xfec0) return true; // fec0::/10 site-local (deprecated)
+  if ((g[0] & 0xff00) == 0xff00) return true; // ff00::/8 multicast
   return false;
 }
 
