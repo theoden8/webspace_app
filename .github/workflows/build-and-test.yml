@@ -779,7 +779,11 @@ jobs:
       # gate by the run that filled them.
       - name: Arm the fetch gate
         id: fetch-gate
-        run: bash scripts/fetch_gate.sh arm
+        # rustup completes the toolchain rust-toolchain.toml names on its
+        # first use in the checkout: a toolchain download, so before arming.
+        run: |
+          cargo --version
+          bash scripts/fetch_gate.sh arm
 
       # Pin the upstream-crate behaviour the Dart-side procedural
       # backfill (procedural_action_backfill.dart) relies on. If
