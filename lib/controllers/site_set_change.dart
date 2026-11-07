@@ -1,5 +1,6 @@
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/archive.dart';
+import 'package:webspace/services/archive_ids.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
@@ -40,10 +41,8 @@ sealed class SiteSetChange {
   /// The sites the change brings onto the page from outside it, whose zones
   /// are resolved before the grid can build them.
   List<WebViewModel> get arriving => switch (this) {
-        SitesLoaded(:final sites) ||
-        SitesReplaced(:final sites) ||
-        ArchiveOpened(:final sites) =>
-          sites,
+        SitesLoaded(:final sites) || SitesReplaced(:final sites) => sites,
+        ArchiveOpened(:final sites) => sites.sites,
         SiteAdded(:final site) => [site],
         SitesEdited() ||
         SiteSettingsSaved() ||
@@ -236,7 +235,10 @@ final class ArchiveOpened extends FunnelChange {
     required this.webspaces,
     required this.appTierMembership,
   });
-  final List<WebViewModel> sites;
+
+  /// Only an admission makes these, so none joins under a listed site's id
+  /// (SEC-044).
+  final Admitted<WebViewModel> sites;
   final List<Webspace> webspaces;
   final Map<WebspaceId, List<SiteId>> appTierMembership;
 }

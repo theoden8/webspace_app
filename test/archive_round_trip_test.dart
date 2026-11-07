@@ -24,6 +24,7 @@ import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/webspace_model.dart';
 import 'package:webspace/controllers/site_set_commit.dart';
 
 import 'helpers/isolations.dart';
@@ -176,6 +177,41 @@ void main() {
     expect(await cookies.loadCookiesForSite(id), isNotEmpty,
         reason: 'and erases none of the app-tier site\'s state');
     expect(await h.sealedShapes(), hasLength(1));
+  });
+
+  test('ARCH-016, SEC-044: an archived site whose id an app-tier site holds runs under '
+      'its own while open, and seals back under the archived one', () async {
+    final h = _Harness();
+    final id = SiteId.parse('shared')!;
+    final archived = _away(id);
+    h.load([archived]);
+    await h.archives.moveIn(archived);
+    final container = archived.archiveContainerKey;
+    await h.archives.closeArchiveOf(archived);
+
+    final restored = _away(id);
+    h.load([restored]);
+    h.runtime.webspaces
+        .add(Webspace(id: WebspaceId('w'), name: 'w', siteIds: [id]));
+
+    for (var round = 0; round < 2; round++) {
+      expect(await h.archives.open(_passphrase), isNotNull);
+      final ids = [for (final m in h.runtime.models) m.siteId];
+      expect(ids.toSet(), hasLength(2),
+          reason: 'round ${round + 1}: two listed sites, two ids');
+      final opened = h.runtime.models.singleWhere((m) => m.isArchiveTier);
+      expect(opened.siteId, isNot(id));
+      expect(opened.archiveContainerKey, container,
+          reason: 'its container is still the one sealed under its id');
+
+      await h.archives.closeArchiveOf(opened);
+      expect(h.runtime.models, [same(restored)]);
+      expect(h.runtime.webspaces.single.siteIds, [id],
+          reason: 'the close takes the archive\'s site out of the '
+              'collections, not the app-tier one');
+      expect((await h.sealedShapes()).keys, [id],
+          reason: 'sealed under the id it was archived under');
+    }
   });
 
   group('archive operations one at a time', () {

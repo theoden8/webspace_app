@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/archive_ids.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/controllers/site_set_commit.dart';
@@ -134,7 +135,12 @@ void main() {
         webspaces: [Webspace(id: WebspaceId('w'), name: 'w', siteIds: [SiteId('c')])],
         selectedWebspaceId: WebspaceId('w'),
       ),
-      (_) => const ArchiveOpened(sites: [], webspaces: [], appTierMembership: {}),
+      (_) => ArchiveOpened(
+            sites: Admitted.of(const [],
+                listed: const {}, build: (_) => throw StateError('none')),
+            webspaces: const [],
+            appTierMembership: const {},
+          ),
       (a) => ArchiveClosed(sites: [a], webspaceIds: const {}),
       (a) => SiteArchived(a, into: into),
       SiteUnarchived.new,

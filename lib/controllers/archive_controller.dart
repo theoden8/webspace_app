@@ -8,6 +8,7 @@ import 'package:webspace/controllers/site_set_commit.dart';
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/archive_crypto.dart';
+import 'package:webspace/services/archive_ids.dart';
 import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/archive_membership_engine.dart';
 import 'package:webspace/services/container_color_engine.dart';
@@ -21,6 +22,7 @@ import 'package:webspace/services/step_table.dart';
 import 'package:webspace/controllers/tab_vars.dart';
 import 'package:webspace/services/tab_leaves.dart';
 import 'package:webspace/services/webview_state_storage.dart';
+import 'package:webspace/settings/site_field.dart';
 import 'package:webspace/settings_import_engine.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/utils/concurrency.dart';
@@ -64,9 +66,15 @@ class _ArchiveSlice {
     required this.siteIds,
     required this.webspaceIds,
     required this.containerKeys,
+    required this.ids,
   });
+
+  /// The ids its sites run under in the lists.
   final Set<SiteId> siteIds;
   final Set<WebspaceId> webspaceIds;
+
+  /// Which of them its sealed state names otherwise (SEC-044).
+  final ArchiveIds ids;
 
   /// Opaque container keys of the archive's sites, deleted on close so no
   /// archive-tier container directory outlives it (ARCH-007).
@@ -149,39 +157,78 @@ class ArchiveController {
   /// [handle]'s sites and named collections at the end of the lists, marked
   /// archive-tier so neither enters app-tier persistence (ARCH-001).
   Future<void> _materialise(ArchiveHandle handle) async {
-    final sites = <WebViewModel>[];
-    for (final siteJson in handle.state.sites) {
-      final model = WebViewModel.fromJson(
-        Map<String, dynamic>.from(siteJson),
+    final admitted = Admitted.of(
+      handle.state.sites,
+      listed: {for (final m in _sites.models) m.siteId},
+      build: (record) => WebViewModel.fromJson(
+        Map<String, dynamic>.from(record),
         stateSetterF: _host.rebuild,
         isArchiveTier: true,
-      );
+      ),
+    );
+    final ids = admitted.ids;
+    for (final model in admitted.sites) {
+      final archived = ids.archived(model.siteId);
       model.archiveContainerKey =
-          await _containerKeyFor(handle.key, siteId: model.siteId);
-      final cookieList = handle.state.cookies[model.siteId];
+          await _containerKeyFor(handle.key, siteId: archived);
+      final cookieList = handle.state.cookies[archived];
       if (cookieList != null && cookieList.isNotEmpty) {
         model.setPendingArchiveCookies([
           for (final c in cookieList)
             cookieFromJson(Map<String, dynamic>.from(c)),
         ]);
       }
-      sites.add(model);
     }
     final webspaces = [
       for (final wsJson in handle.state.webspaces)
         Webspace.fromJson(Map<String, dynamic>.from(wsJson))
           ..isArchiveTier = true,
     ];
+    for (final w in webspaces) {
+      w.siteIds = [for (final id in w.siteIds) ids.listed(id)];
+    }
     _slices[handle] = _ArchiveSlice(
-      siteIds: {for (final m in sites) m.siteId},
+      siteIds: {for (final m in admitted.sites) m.siteId},
       webspaceIds: {for (final w in webspaces) w.id},
-      containerKeys: {for (final m in sites) m.archiveContainerKey!},
+      containerKeys: {for (final m in admitted.sites) m.archiveContainerKey!},
+      ids: ids,
     );
     await _host.commitSites(ArchiveOpened(
-      sites: sites,
+      sites: admitted,
       webspaces: webspaces,
-      appTierMembership: handle.state.appTierMembership,
+      appTierMembership: {
+        for (final MapEntry(key: ws, value: members)
+            in handle.state.appTierMembership.entries)
+          ws: [for (final id in members) ids.listed(id)],
+      },
     ));
+  }
+
+  /// [m]'s record as its archive seals it, under the id [ids] names it by.
+  static Map<String, dynamic> _sealedRecord(WebViewModel m,
+          {required ArchiveIds ids}) =>
+      {...m.toArchiveJson(), SiteField.siteId.key: ids.archived(m.siteId)};
+
+  /// Which app-tier collections the listed sites [of] are in, under the ids
+  /// [ids] seals them by, merged into [existing].
+  Map<WebspaceId, List<SiteId>> _membership(
+    ArchiveIds ids, {
+    required Set<SiteId> of,
+    Map<WebspaceId, List<SiteId>>? existing,
+  }) {
+    final out = <WebspaceId, List<SiteId>>{
+      if (existing != null)
+        for (final e in existing.entries) e.key: List<SiteId>.of(e.value),
+    };
+    for (final MapEntry(key: ws, value: members) in ArchiveMembershipEngine
+        .record(_sites.webspaces, siteIds: of)
+        .entries) {
+      final bucket = out.putIfAbsent(ws, () => <SiteId>[]);
+      for (final id in members.map(ids.archived)) {
+        if (!bucket.contains(id)) bucket.add(id);
+      }
+    }
+    return out;
   }
 
   /// ARCH-007: an HMAC of the archive key and the site id, shaped like an
@@ -298,27 +345,27 @@ class ArchiveController {
     }
 
     final capturedCookies = await _host.captureCookies(model);
+    final ids = _slices[target]!.ids;
+    final archived = ids.enter(model.siteId);
     // Before anything leaves the app tier (ARCH-011).
     final withSite = target.state.copyWith(
-      sites: [...target.state.sites, model.toArchiveJson()],
+      sites: [...target.state.sites, _sealedRecord(model, ids: ids)],
       cookies: {
         ...target.state.cookies,
-        model.siteId: [for (final c in capturedCookies) c.toJson()],
+        archived: [for (final c in capturedCookies) c.toJson()],
       },
-      appTierMembership: ArchiveMembershipEngine.record(
-        _sites.webspaces,
-        siteIds: {model.siteId},
-        existing: target.state.appTierMembership,
-      ),
+      appTierMembership: _membership(ids,
+          of: {model.siteId}, existing: target.state.appTierMembership),
     );
     if (!Archive.fits(withSite)) {
+      ids.forget(model.siteId);
       _host.toast((loc) => loc.homeArchiveFull);
       return;
     }
     // Derived before the flip so it is atomic: an archive-tier model with no
     // opaque id would rebuild against the cleartext `ws-<siteId>` container.
     final archiveContainerKey =
-        await _containerKeyFor(target.key, siteId: model.siteId);
+        await _containerKeyFor(target.key, siteId: archived);
 
     // The tier flips before the app-tier stores drop the site (ARCH-001): a
     // concurrent persist filters on `!isArchiveTier` when it rebuilds the
@@ -338,7 +385,7 @@ class ArchiveController {
 
     _slices[target]!.siteIds.add(model.siteId);
     _slices[target]!.containerKeys.add(archiveContainerKey);
-    target.state.cookies[model.siteId] =
+    target.state.cookies[archived] =
         capturedCookies.map((c) => c.toJson()).toList();
     await _host.commitSites(SiteArchived(model, into: target));
     _host.toast((loc) => loc.homeSiteMovedToArchive,
@@ -352,17 +399,15 @@ class ArchiveController {
     // Reached from _moveInHeld through SiteSetCommit's host, a hop no
     // static turn follows, so the turn is asserted here (rung 2).
     assert(_ops.isHeld, 'an archived copy written outside the move\'s turn');
-    into.state.sites.add(site.toArchiveJson());
+    final ids = _slices[into]!.ids;
+    into.state.sites.add(_sealedRecord(site, ids: ids));
     // Which app-tier collections the site came from: the runtime lists keep
     // it while the archive is open, and the persisted form strips it
     // (ARCH-001).
     into.state.appTierMembership
       ..clear()
-      ..addAll(ArchiveMembershipEngine.record(
-        _sites.webspaces,
-        siteIds: {site.siteId},
-        existing: into.state.appTierMembership,
-      ));
+      ..addAll(_membership(ids,
+          of: {site.siteId}, existing: into.state.appTierMembership));
     await _archive.save(into);
     await FaviconUrlCache.invalidate(site.initUrl);
   }
@@ -386,11 +431,14 @@ class ArchiveController {
         case (final key?, Containers(:final engine))) {
       await engine.containerNative.deleteContainer(key);
     }
-    handle.state.sites.removeWhere((s) => s['siteId'] == model.siteId);
-    handle.state.cookies.remove(model.siteId);
+    final archived = slice.ids.archived(model.siteId);
+    handle.state.sites
+        .removeWhere((s) => s[SiteField.siteId.key] == archived);
+    handle.state.cookies.remove(archived);
     ArchiveMembershipEngine.forget(handle.state.appTierMembership,
-        siteId: model.siteId);
+        siteId: archived);
     slice.siteIds.remove(model.siteId);
+    slice.ids.forget(model.siteId);
     if (containerKey != null) slice.containerKeys.remove(containerKey);
     await _archive.save(handle);
 
@@ -505,18 +553,24 @@ final class CloseFlow {
 
   late final ArchiveState sealed = handle.state.copyWith(
     cookies: {
-      for (final m in owned) m.siteId: [for (final c in m.cookies) c.toJson()],
+      for (final m in owned)
+        slice.ids.archived(m.siteId): [for (final c in m.cookies) c.toJson()],
     },
-    sites: [for (final m in owned) m.toArchiveJson()],
+    sites: [
+      for (final m in owned) ArchiveController._sealedRecord(m, ids: slice.ids),
+    ],
     // Renames, reorders and membership changes made while open persist.
     webspaces: [
       for (final w in _sites.webspaces)
-        if (slice.webspaceIds.contains(w.id)) w.toJson(),
+        if (slice.webspaceIds.contains(w.id))
+          Webspace(
+            id: w.id,
+            name: w.name,
+            glyph: w.glyph,
+            siteIds: [for (final id in w.siteIds) slice.ids.archived(id)],
+          ).toJson(),
     ],
-    appTierMembership: ArchiveMembershipEngine.record(
-      _sites.webspaces,
-      siteIds: slice.siteIds,
-    ),
+    appTierMembership: controller._membership(slice.ids, of: slice.siteIds),
   );
 
   /// The close ran to its end: false when the sealed state does not fit
@@ -593,7 +647,8 @@ final class CloseFlow {
       for (final m in _sites.models)
         if (!m.isArchiveTier) m.siteId,
     };
-    final traces = slice.siteIds.difference(appTier);
+    final traces = {...slice.siteIds, ...slice.siteIds.map(slice.ids.archived)}
+        .difference(appTier);
     if (_sites.isolation case Containers(:final engine)) {
       for (final sid in traces) {
         await engine.onSiteDeleted(ContainerKey.ofSite(sid));
