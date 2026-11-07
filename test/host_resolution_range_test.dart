@@ -59,4 +59,45 @@ void main() {
       });
     }
   });
+
+  // The resolving half judges each resolved address with the same function, so a
+  // name that *resolves* to a non-public address is blocked exactly as the
+  // literal is. This pins both halves to one classifier, not just the literal
+  // one (SEC-048).
+  group('classifyResolvedHost judges a resolved address like a literal', () {
+    tearDown(resetHostLookup);
+
+    Future<HostRangeVerdict> verdictFor(String name, List<String>? answer) {
+      hostLookup = (host) async => host == name ? answer : const <String>[];
+      return classifyResolvedHost(name);
+    }
+
+    test('a public name resolving to IPv4-mapped loopback is private', () async {
+      expect(await verdictFor('mapped.evil.example', const ['::ffff:127.0.0.1']),
+          HostRangeVerdict.private);
+    });
+
+    test('a public name resolving to mapped metadata is private', () async {
+      expect(
+          await verdictFor(
+              'meta.evil.example', const ['::ffff:169.254.169.254']),
+          HostRangeVerdict.private);
+    });
+
+    test('a name resolving to a routable address is public', () async {
+      expect(await verdictFor('good.example', const ['93.184.216.34']),
+          HostRangeVerdict.public);
+    });
+
+    test('any private address among several makes it private', () async {
+      expect(
+          await verdictFor('mixed.example', const ['93.184.216.34', '10.0.0.1']),
+          HostRangeVerdict.private);
+    });
+
+    test('a name that does not resolve is unresolvable', () async {
+      expect(await verdictFor('nothing.example', const <String>[]),
+          HostRangeVerdict.unresolvable);
+    });
+  });
 }
