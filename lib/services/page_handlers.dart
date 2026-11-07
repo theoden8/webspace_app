@@ -580,6 +580,28 @@ abstract final class PageHandlers {
         return result;
       },
     );
+    // The permission the polyfill reads at load, per frame, without asking: the
+    // calling frame's origin comes from the platform, never the page, so a
+    // foreign frame reads 'granted' only for a choice it was given, never the
+    // site's (NOTIF-020, PERM-002).
+    controller.addJavaScriptHandler(
+      handlerName: 'webNotificationPermission',
+      callback: (inapp.JavaScriptHandlerFunctionData call) async {
+        if (!config.posture.page.notifications) {
+          return NotificationPermission.denied.js;
+        }
+        final from = await requesterOf(controller, config: config, frame: call);
+        final state = grants?.notificationState(
+              from.origin,
+              standing: from.standing,
+              enabled: true,
+            ) ??
+            (from.standing == Standing.own
+                ? NotificationPermission.granted
+                : NotificationPermission.byDefault);
+        return state.js;
+      },
+    );
     userScriptService.registerHandlers(
       controller.addJavaScriptHandler,
       page: page.document,

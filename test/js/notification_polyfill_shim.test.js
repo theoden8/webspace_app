@@ -8,13 +8,17 @@ const shim = (notificationsEnabled) => pageJs('notification_polyfill', {
   notificationsEnabled,
 });
 
-function setup(fixture) {
+// The polyfill asks `webNotificationPermission` at load for this frame's real
+// answer, which the Dart handler computes from the platform's frame origin.
+// `permission` is what that handler returns for the frame under test.
+function setup(fixture, { permission = 'granted' } = {}) {
   const dom = makeDom();
   const calls = [];
   dom.window.flutter_inappwebview = {
     callHandler(name, arg) {
       calls.push({ name, arg: arg === undefined ? undefined : JSON.parse(JSON.stringify(arg)) });
-      return Promise.resolve('granted');
+      if (name === 'webNotificationPermission') return Promise.resolve(permission);
+      return Promise.resolve('granted'); // requestPermission
     },
   };
   dom.window.console.warn = () => {};
@@ -22,21 +26,38 @@ function setup(fixture) {
   return { w: dom.window, calls };
 }
 
-test('a granted site posts through the bridge', () => {
-  const { w, calls } = setup(shim(true));
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+const posts = (calls) => calls.filter((c) => c.name === 'webNotification');
+
+test("a frame the handler grants posts through the bridge", async () => {
+  const { w, calls } = setup(shim(true), { permission: 'granted' });
+  await tick();
   assert.equal(w.Notification.permission, 'granted');
   new w.Notification('Hi', { body: 'there', tag: 't' });
-  assert.deepEqual(calls, [{
+  assert.deepEqual(posts(calls), [{
     name: 'webNotification',
     arg: { title: 'Hi', body: 'there', icon: '', tag: 't' },
   }]);
 });
 
-test('a denied site posts nothing', () => {
-  const { w, calls } = setup(shim(false));
+test('a disabled site is denied and posts nothing', async () => {
+  const { w, calls } = setup(shim(false), { permission: 'denied' });
+  await tick();
   assert.equal(w.Notification.permission, 'denied');
   new w.Notification('Hi');
-  assert.deepEqual(calls, []);
+  assert.deepEqual(posts(calls), []);
+});
+
+test('NOTIF-020: a foreign frame never reads the site\'s granted', async () => {
+  // Enabled site, but this frame was never granted: the handler answers
+  // 'default'. The frame must never see 'granted', before or after the answer.
+  const { w, calls } = setup(shim(true), { permission: 'default' });
+  assert.equal(w.Notification.permission, 'default',
+      'an enabled site starts a frame at default, not granted');
+  await tick();
+  assert.equal(w.Notification.permission, 'default');
+  new w.Notification('Hi');
+  assert.deepEqual(posts(calls), [], 'a non-granted frame posts nothing');
 });
 
 test('the page cannot swap the polyfill out', () => {
@@ -47,18 +68,19 @@ test('the page cannot swap the polyfill out', () => {
 });
 
 test('requestPermission asks the bridge and adopts its answer', async () => {
-  const { w, calls } = setup(shim(false));
+  const { w, calls } = setup(shim(false), { permission: 'denied' });
   assert.equal(await w.Notification.requestPermission(), 'granted');
   assert.equal(w.Notification.permission, 'granted');
-  assert.equal(calls[0].name, 'webNotificationRequestPermission');
+  assert.ok(calls.some((c) => c.name === 'webNotificationRequestPermission'));
 });
 
 test('NOTIF-010: the polyfill tells no frame the site id, in its config or its calls', async () => {
   const { w, calls } = setup(shim(true));
+  await tick();
   new w.Notification('Hi');
   await w.Notification.requestPermission();
-  assert.deepEqual(calls.map((c) => c.name), ['webNotification', 'webNotificationRequestPermission']);
-  assert.ok(!('siteId' in calls[0].arg), 'a post names no site');
-  assert.equal(calls[1].arg, undefined, 'a permission request passes nothing');
+  for (const c of calls) {
+    assert.ok(c.arg === undefined || !('siteId' in c.arg), `${c.name} names no site`);
+  }
   assert.ok(!shim(true).includes('siteId'), 'the config names no site');
 });

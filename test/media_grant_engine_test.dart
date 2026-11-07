@@ -493,6 +493,39 @@ void main() {
           await s.notifications(_top, standing: Standing.own, enabled: false),
           isFalse);
     });
+
+    test('notificationState (NOTIF-020): the read-only answer reflects the '
+        'origin choice, never the site\'s for a foreign frame', () async {
+      final prompter = FakePrompter()
+        ..originAnswer = (_, {required origin}) => origin == foreign;
+      final s = store(prompter);
+      // Before anyone is asked. A read that skipped the per-origin choice would
+      // hand a foreign frame the site's 'granted'; it must read 'default'.
+      expect(s.notificationState(_top, standing: Standing.own, enabled: true),
+          NotificationPermission.granted);
+      expect(
+          s.notificationState(foreign, standing: Standing.foreign, enabled: true),
+          NotificationPermission.byDefault,
+          reason: 'a foreign frame never asked reads default, not granted');
+      expect(s.notificationState(_top, standing: Standing.own, enabled: false),
+          NotificationPermission.denied);
+      expect(prompter.originsAsked, isEmpty,
+          reason: 'the read-only state asks nothing');
+      // After each origin has its own answer, the read reflects it.
+      expect(
+          await s.notifications(foreign, standing: Standing.foreign, enabled: true),
+          isTrue);
+      const other = 'https://other.example';
+      expect(await s.notifications(other, standing: Standing.foreign, enabled: true),
+          isFalse);
+      expect(
+          s.notificationState(foreign, standing: Standing.foreign, enabled: true),
+          NotificationPermission.granted);
+      expect(
+          s.notificationState(other, standing: Standing.foreign, enabled: true),
+          NotificationPermission.denied,
+          reason: 'an origin that was refused reads denied, not default');
+    });
   });
 
   test('PERM-002: an answer outlives its surface, saved with the site',
