@@ -10,7 +10,7 @@ NOTIF-010	R4	type	the handler names the site itself and the polyfill passes none
 CAM-013	R4	type	the prompt's origin is read from the webview, held by a source gate	the origin type of PERM-001
 PASSKEY-004	R4	type	the origin asserted to Credential Manager is read from the bridge, held by a source gate	the origin type of PERM-001
 -	R4	type	a frame's origin and main-frame flag reach the handlers from the bridge script on Android and from the top document's URL and the bridge script on Linux, not from the platform as on iOS and macOS	the fork supplies both from the platform (on Android, AndroidX's web message listener reports the source origin and main frame), and a requirement says the handlers take nothing else
--	R4	type	the download handlers act on a page-supplied DownloadTaskId, and no requirement says they may not	a requirement, and a DownloadTaskId made only with the ViewKey that started it, with a probe
+-	R4	type	the blob download handlers now act only on a task started for the calling view (DownloadsService.pageTask, test/download_view_scope_test.dart), a guard at the owner; the id type itself does not yet carry the view	a requirement, and a DownloadTaskId constructible only with the ViewKey that started it, with a probe
 US-007	R5	type	the document a script lands in is checked at run time (PageScope)	a document handle a result can only be delivered through, with a probe
 -	R5	model	no requirement says a prompt or capture answer lands only in the document that asked	a requirement, then a step table across navigation
 SHARE-017	R6	model	a share ends with its view, checked by tests only	a step table of start, navigate, leave and stop, planted mistake: a share outlives its view
