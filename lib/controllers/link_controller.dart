@@ -23,7 +23,6 @@ import 'package:webspace/services/navigation_decision_engine.dart'
         NavigationStep,
         OpenerLanding;
 import 'package:webspace/services/outbound_preference.dart';
-import 'package:webspace/services/page_title.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/share_intent_service.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
@@ -848,12 +847,8 @@ class LinkController {
       domainClaims: a.initialClaims.isEmpty ? null : a.initialClaims,
       stateSetterF: _host.rebuild,
     );
-    final pageTitle = await getPageTitle(a.fullUrl, proxy: model.outboundProxy);
-    if (!_host.mounted) return;
-    if (pageTitle != null && pageTitle.isNotEmpty) {
-      model.name = pageTitle;
-      model.pageTitle = pageTitle;
-    }
+    // The site loads a.fullUrl right below, so it is named from its page
+    // title on first load (titleLoaded) — no out-of-band pre-fetch (SEC-051).
     await _host.registerSite(model);
     if (!_host.mounted) return;
     final controller = _host.controllerOf(model);

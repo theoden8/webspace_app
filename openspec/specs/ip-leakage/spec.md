@@ -183,20 +183,6 @@ came from `outboundHttp.clientFor(HTTP 10.0.0.1:8080)`
 **And** a `Blocked` result drops the artwork and still raises the
 notification, rather than fetching direct
 
-#### Scenario: Page-title probe passes the resolved proxy
-
-**Given** the app-global outbound proxy is `SOCKS5 127.0.0.1:9050`
-**When** `getPageTitle` runs — from add-site, the title refresh in the site
-editor, the shortcut create-site path, or `LinkController._executeCreateSite`
-handling an inbound shared link
-**Then** the recording fake observes `clientFor(SOCKS5 127.0.0.1:9050)` for a
-site whose proxy is `DEFAULT`, and the site's own proxy otherwise
-**And** a `Blocked` result skips the title fetch and returns null
-
-**Because** the URL comes from a share intent or deep link on the
-`_executeCreateSite` path, so a direct `http.get` handed an
-attacker-authored host the device IP of a user who had configured Tor.
-
 #### Scenario: Artwork cannot be used to probe the local network
 
 **Given** a page reports playback with an `artwork` URL whose host is a

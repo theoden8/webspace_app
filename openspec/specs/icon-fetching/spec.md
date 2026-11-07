@@ -223,7 +223,8 @@ finished
 **Given** a site has a cached favicon
 **When** the user taps "Refresh Title & Icon" in the site's edit dialog
 **Then** the favicon cache is invalidated and the icon is re-fetched
-**And** the page title is also refreshed, into the name field
+**And** the name field is refreshed from the site's live page title
+(`pageTitle`, kept current by `titleLoaded`), with no out-of-band fetch (SEC-051)
 
 ---
 
