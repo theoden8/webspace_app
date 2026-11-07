@@ -99,11 +99,12 @@ if [ -n "$table" ]; then
   skipped=$(printf '%s\n' "$rows" | awk -F'\t' '$3 == "no" { print $1 }')
 fi
 
-# The tree's files, relative to it, less tests and what the table marks `no`.
+# The tree's files, relative to it, less tests, what the table marks `no`, and
+# the build directory flatpak-builder makes inside it.
 tree_files() {
   (cd "$src" && find . \
     \( -name .git -o -name LayoutTests -o -name JSTests -o -name ManualTests \
-       -o -iname test -o -iname tests -o -iname testing \) -prune -o -type f -print) \
+       -o -iname test -o -iname tests -o -iname testing -o -name _flatpak_build \) -prune -o -type f -print) \
     | sed 's|^\./||' | LC_ALL=C sort \
     | awk -v skips="$skipped" 'BEGIN { n = split(skips, skip, "\n") }
         { for (i = 1; i <= n; i++) if (skip[i] != "" && index($0, skip[i] "/") == 1) next; print }'
