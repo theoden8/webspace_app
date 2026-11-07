@@ -50,13 +50,33 @@ The fork already has `WebViewCompat.addWebMessageListener`
    rather than trusting the page. Non-identity internal handlers may keep the
    old path.
 
-## Linux
+## Linux (WPE WebKit, non-Chromium)
 
-`webkit_user_content_manager`'s script-message callback has the sending frame:
-read the origin and main-frame flag from `WebKitFrameInfo`
-(`webkit_script_message_received`'s frame, `webkit_frame_info_is_main_frame`,
-the frame's security origin), and stop deriving the origin from
-`webkit_web_view_get_uri` (the top document's URL, wrong for every subframe).
+There is no clean parallel to Android's fix. WebKit's GLib script-message
+signal delivers only `(WebKitUserContentManager*, JSCValue* value,
+WebKitScriptMessageReply*)` (`user_content_controller.cc`,
+`onScriptMessageWithReplyReceived`): **no sending-frame origin, no main-frame
+flag.** `WebKitFrameInfo` exists for navigation policy decisions, not for
+script messages, so the native side cannot learn the calling frame from the
+platform the way Apple's `frameInfo` or Android's `addWebMessageListener` allow.
+`webkit_web_view_get_uri` gives the top document's URL for every caller.
+
+So on Linux the fix is restriction, not attribution:
+
+- Inject the bridge **main-frame-only** on Linux (the bridge plugin script's
+  `forMainFrameOnly`, kept `false` elsewhere for the shims). Then only the top
+  document can call a handler, `webkit_web_view_get_uri` is that caller's own
+  origin, and a foreign (or same-origin) subframe is denied a capability by
+  absence rather than by a flag it supplies. The shims that need to reach
+  iframes (fingerprinting, etc.) stay all-frames; only the capability bridge is
+  restricted.
+- Trade-off: a **same-origin** subframe of the site loses handler access it has
+  today. That is the safe direction (deny), and matches what a cross-origin
+  iframe gets in a browser without an `allow=` attribute.
+- The only way to attribute a subframe's call on Linux is an upstream WebKit
+  change exposing the frame on script messages; track that separately. Until
+  then Linux keeps a residual caveat in [policy.md](policy.md): a same-origin
+  subframe is denied rather than attributed.
 
 ## App side
 
