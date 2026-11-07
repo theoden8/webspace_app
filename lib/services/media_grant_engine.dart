@@ -349,18 +349,55 @@ sealed class GrantStore {
     return _askOrigin(SitePermission.location, origin: origin);
   }
 
+  /// The notification permission a document of [origin] has without asking:
+  /// `denied` when the site's notifications are off, `granted` for the site's
+  /// own documents or an origin already allowed, `denied` for one already
+  /// refused, and `default` for one never asked. The read-only half of the
+  /// origin rule [notifications] also reads, kept here once so the two cannot
+  /// drift: a foreign frame never reads `granted` for a choice it was never
+  /// given (NOTIF-020, PERM-002).
+  NotificationPermission notificationState(
+    String origin, {
+    required Standing standing,
+    required bool enabled,
+  }) {
+    if (!enabled) return NotificationPermission.denied;
+    if (standing == Standing.own) return NotificationPermission.granted;
+    return switch (origins.choices.of(SitePermission.notifications, origin: origin)) {
+      true => NotificationPermission.granted,
+      false => NotificationPermission.denied,
+      null => NotificationPermission.byDefault,
+    };
+  }
+
   /// Whether a document of [origin] may notify, the site's notifications
   /// being on ([enabled]): its own documents may, any other origin is asked
-  /// for itself once (NOTIF-020, PERM-002).
+  /// for itself once (NOTIF-020, PERM-002). The decision reads
+  /// [notificationState] first and prompts only where it is `default`, so the
+  /// origin rule has one owner.
   Future<bool> notifications(
     String origin, {
     required Standing standing,
     required bool enabled,
-  }) async {
-    if (!enabled) return false;
-    if (standing == Standing.own) return true;
-    return _askOrigin(SitePermission.notifications, origin: origin);
-  }
+  }) async =>
+      switch (notificationState(origin, standing: standing, enabled: enabled)) {
+        NotificationPermission.granted => true,
+        NotificationPermission.denied => false,
+        NotificationPermission.byDefault =>
+          _askOrigin(SitePermission.notifications, origin: origin),
+      };
+}
+
+/// A document's notification permission as the Web Notification API names it.
+enum NotificationPermission {
+  granted('granted'),
+  denied('denied'),
+  byDefault('default');
+
+  const NotificationPermission(this.js);
+
+  /// The string the `Notification.permission` getter reads.
+  final String js;
 }
 
 /// The site's own webview: its answers are the model's, saved with it.
