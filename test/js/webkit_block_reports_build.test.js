@@ -118,7 +118,9 @@ test('tool/swift_tests runs the files the Xcode projects compile, and CI runs it
     }
   }
   assert.deepEqual(linked.sort(), [
+    'ios/Runner/TorControllerPlugin.swift',
     'ios/Runner/WebKitBlockedLoads.swift',
+    'ios/RunnerTests/TorControlParsingTests.swift',
     'ios/RunnerTests/WebKitBlockedLoadsTests.swift',
   ]);
   for (const platform of ['ios', 'macos']) {
