@@ -73,6 +73,28 @@ The asynchronous cases follow from R2 and R5:
 - **A redirect, a popup or a worker** carries no standing of its own. Its origin, read from the platform, decides it.
 - **Revocation and disposal** end the grant at the store, which every later request reads.
 
+## Trusted base
+
+What the rules above take as given rather than check.
+
+- **The engines, the OS and the keystore.** Their own defects are outside this
+  policy; their known advisories are not: every tracked lockfile is scanned
+  against OSV in CI (`scripts/osv_scan.sh`, `accepted_advisories.tsv`).
+- **A frame's identity at the bridge.** R2, R3 and R4 decide by the origin and
+  main-frame flag `JavaScriptHandlerFunctionData` carries, which the plugin fork
+  (`theoden8/flutter_inappwebview`) supplies. Where it comes from differs by
+  platform, so those rules hold only as far as it does:
+
+  | Platform | Origin | Main frame |
+  |---|---|---|
+  | iOS, macOS | WebKit's `frameInfo.securityOrigin` | WebKit's `frameInfo.isMainFrame` |
+  | Android | the bridge script in the frame | the bridge script in the frame |
+  | Linux | the webview's current URL, the top document's for every frame | the bridge script in the frame |
+
+  On Android and Linux the bridge script's values are accepted on a secret the
+  fork makes per webview. Platform-supplied identity there is owed in
+  [policy_debt.tsv](policy_debt.tsv).
+
 ## Where each layer helps
 
 | Layer | Separates | Cannot separate |
