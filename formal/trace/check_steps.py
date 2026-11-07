@@ -174,6 +174,7 @@ def module(name, trace, variables):
           if boxed(trace) else [
             "        /\\ gone = {} /\\ views = {} /\\ boxes = {}"]),
         "        /\\ signedIn = {} /\\ holder = 0",
+        "        /\\ dnsHolder = 0 /\\ dnsQueue = << >>",
         "        /\\ queue = IF ColdStart /\\ ~Containers THEN << 0 >> ELSE << >>",
         "        /\\ fl = [f \\in Flows |-> NoFlow] /\\ inputs = 0",
         "        /\\ newest = 0 /\\ evictedShown = FALSE /\\ seen = {}",

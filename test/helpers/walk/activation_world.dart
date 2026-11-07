@@ -1303,8 +1303,11 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         for (final m in _followed)
           if (native.profiles.containsKey(m.containerKey)) m,
       ]),
-      // The jar keeps its turn to itself; its own tables' frame holds it.
-      ModelVar.holder || ModelVar.queue => null,
+      // A lock keeps its turn to itself; its own table's frame holds it.
+      ModelVar.holder ||
+      ModelVar.queue ||
+      ModelVar.dnsHolder ||
+      ModelVar.dnsQueue => null,
       // Kept by the model alone.
       ModelVar.signedIn ||
       ModelVar.minted ||

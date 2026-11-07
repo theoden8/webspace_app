@@ -114,7 +114,7 @@ Listed == Sites \ gone
 \* The variables are activation_vars, printed from ModelVar, grouped here.
 site == << rows, loaded, current, version, marker, tier, nested, headless, fore >>
 sessions == << jar, stored, signedIn >>
-turn == << holder, queue >>
+turn == << holder, queue, dnsHolder, dnsQueue >>
 ghosts == << newest, evictedShown, seen >>
 tabVars == << tabs, active, built, hist, queued, file, minted, host, link,
              opener >>

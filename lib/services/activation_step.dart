@@ -359,9 +359,13 @@ enum ActivationStep {
   ),
 
   /// A DNS level's list asked for (DnsBlockService, DNS-019, DNS-021): as
-  /// the app-wide level, or as one more a site may run at.
+  /// the app-wide level, or as one more a site may run at. Each change of
+  /// the lists is asked for as it lands and waits for the lists' turn,
+  /// which decides it: a level held already costs no request.
   dnsDownload(),
-  dnsAddLevel(outcomes: {StepOutcome.skip, StepOutcome.go}),
+  grantDnsDownload(),
+  dnsAddLevel(),
+  grantDnsAddLevel(outcomes: {StepOutcome.skip, StepOutcome.go}),
 
   /// The list fetched and folded in, or not had: on the fold the partition
   /// and the app-wide level are in force together, and each live view is
@@ -374,16 +378,19 @@ enum ActivationStep {
   /// DNS blocking turned off (level 0), and its lists deleted: then off is
   /// in force and every live view is told it.
   dnsClear(),
+  grantDnsClear(),
   dnsCleared(),
 
   /// The startup sweep's prune of the levels nothing asks for (DNS-021):
   /// nothing to drop, or the levels left written, then in force and told.
-  dnsPrune(outcomes: {StepOutcome.skip, StepOutcome.go}),
+  dnsPrune(),
+  grantDnsPrune(outcomes: {StepOutcome.skip, StepOutcome.go}),
   dnsPruned(),
 
   /// A settings import's app-wide level: the one in force already, or its
   /// lists deleted, then in force with none held and told.
-  dnsImport(outcomes: {StepOutcome.skip, StepOutcome.go}),
+  dnsImport(),
+  grantDnsImport(outcomes: {StepOutcome.skip, StepOutcome.go}),
   dnsImported(),
 
   /// A site's webview is built and attaches at its site's level, or is

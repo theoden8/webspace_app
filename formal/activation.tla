@@ -133,6 +133,8 @@ Init ==
     /\ fore = TRUE
     /\ tier = [s \in Sites |-> "resident"]
     /\ holder = 0
+    /\ dnsHolder = 0
+    /\ dnsQueue = << >>
     /\ fl = [f \in Flows |-> NoFlow]
     /\ inputs = 0
     /\ newest = 0
@@ -229,8 +231,8 @@ ClearJar ==
             /\ UNCHANGED seen
     /\ jar' = {}
     /\ Did("ClearJar", 0, "", 0)
-    /\ UNCHANGED << site, stored, signedIn, holder, fl, inputs, newest,
-                    evictedShown, tabVars, blocking, archived >>
+    /\ UNCHANGED << site, stored, signedIn, holder, dnsHolder, dnsQueue, fl,
+                    inputs, newest, evictedShown, tabVars, blocking, archived >>
 
 \* The level a site's webview runs at with the lists in force now
 \* (DnsBlockService.effectiveLevelFor).

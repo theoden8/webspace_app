@@ -76,7 +76,7 @@ enum Inv {
   noShownEvicted(reads: {ModelVar.evictedShown}),
   leftHidden(reads: {ModelVar.current, ModelVar.fl, ModelVar.version}),
   loadedNotSaved(atRest: true, reads: {ModelVar.loaded, ModelVar.tier}),
-  places(reads: {ModelVar.fl, ModelVar.holder}),
+  places(reads: {ModelVar.dnsHolder, ModelVar.fl, ModelVar.holder}),
   oneRoute(
     reads: {
       ModelVar.active,

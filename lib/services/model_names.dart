@@ -66,6 +66,14 @@ enum ModelVar {
     'flows waiting for the turn, in order; 0 is the jar clear queued at launch',
     type: r'queue \in Seq(Flows \cup {0})',
   ),
+  dnsHolder(
+    "the flow holding the DNS lists' turn, 0 for none",
+    type: r'dnsHolder \in Flows \cup {0}',
+  ),
+  dnsQueue(
+    "flows waiting for the DNS lists' turn, in order",
+    type: r'dnsQueue \in Seq(Flows)',
+  ),
   fl(
     'fl[f]: the flow the f-th input started',
     type: r'fl \in [Flows -> FlowRecord]',

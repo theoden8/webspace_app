@@ -173,8 +173,12 @@ class.
   every check, NOTIF-016); `wakeunchecked` (a check that does not ask the rule) and
   `wakebesidetap` (one that goes up beside an activation in flight) are printed mutants. The
   DNS lists are a table too (`DnsBlockService.table`): a download of the app-wide level, of a
-  level a site asks for, and the clear, whose one write puts the lists and the level in force
-  (`dns`) and tells each live view its site's level (`told`, `ViewBlockers`); a frame builds
+  level a site asks for, the clear, the startup sweep's prune and a settings import, whose one
+  write puts the lists and the level in force (`dns`) and tells each live view its site's level
+  (`told`, `ViewBlockers`). Each is asked for as it lands and joins the lists' queue (the `Dns`
+  instance of `activation_lock`, the code's `_mutations`), and its turn decides it: a level
+  held by then is not fetched again, a prune drops of what it asked only what is still held
+  and not the app-wide level, an import of the level in force changes nothing; a frame builds
   and drops the views (`ViewBuilt`, `ViewGone`, hand-written), and `activation_dns*.cfg` hold
   `Inv_Told` with the sites' levels (`SiteLevel`) and the levels a download picks
   (`DnsLevels`); `foldbeforelevel` (the views told with the level the fold replaces) is a
