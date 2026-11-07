@@ -1318,6 +1318,30 @@ jobs:
       - name: Prepare the macOS test run
         run: bash scripts/prepare_macos_ci_debug.sh
 
+      # The Runner's XCTests (macos/RunnerTests, which takes ios/RunnerTests'
+      # shared files too) inside the Debug app on the real Apple frameworks,
+      # where tool/swift_tests has only stand-ins. Signed ad-hoc like every CI
+      # build (macos/Runner/Configs/Signing.xcconfig), with the entitlements
+      # the step above writes; the derived data is the tier's below, whose
+      # Debug build then starts from this one.
+      - name: Run the macOS XCTests
+        timeout-minutes: 30
+        run: |
+          set -o pipefail
+          fvm flutter build macos --debug --config-only --no-pub
+          results="$RUNNER_TEMP/xctest.xcresult"
+          rm -rf "$results"
+          xcodebuild test -workspace macos/Runner.xcworkspace -scheme Runner \
+            -configuration Debug -destination 'platform=macOS' \
+            -derivedDataPath build/macos -resultBundlePath "$results" 2>&1 \
+            | tee "$RUNNER_TEMP/xctest.log" \
+            | grep -iE '^(Test (suite|case)|.*error:|\*\* TEST)' \
+            || { tail -80 "$RUNNER_TEMP/xctest.log"; exit 1; }
+          # TEST SUCCEEDED is also what a run that ran no test prints.
+          summary=$(xcrun xcresulttool get test-results summary --path "$results")
+          jq '{result, totalTestCount, passedTests, failedTests, skippedTests}' <<< "$summary"
+          jq -e '.passedTests > 0' <<< "$summary" > /dev/null
+
       # Runs even when an earlier step failed, and runs ahead of the Tor
       # scenario: that scenario is one file, and hiding the other eighteen --
       # the proxy-binding leak gate among them -- behind it turns one red

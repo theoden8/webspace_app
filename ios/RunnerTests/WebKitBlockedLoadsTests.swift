@@ -1,6 +1,12 @@
 import XCTest
 
-@testable import Runner
+// The macOS app's module takes its product name; iOS and tool/swift_tests
+// name theirs Runner.
+#if os(macOS)
+  @testable import Webspace
+#else
+  @testable import Runner
+#endif
 
 /// How WebKit's block reports become loads (content-blocker CB-023). WebKit
 /// reports a blocked load once per content rule list that acted on it, and
@@ -8,7 +14,7 @@ import XCTest
 /// counts some loads twice.
 ///
 /// Run headlessly by tool/swift_tests on any Swift toolchain (CI's validate
-/// job), and in Xcode as part of RunnerTests.
+/// job), and by `xcodebuild test` in the macOS app (CI's Apple job).
 final class WebKitBlockedLoadsTests: XCTestCase {
 
   func testALoadTwoListsBlockedCountsOnce() {
