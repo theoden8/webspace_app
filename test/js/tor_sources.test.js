@@ -152,8 +152,8 @@ test('each lyrebird rule catches the mistake it is for', () => {
   caught('verify', '  sh "$root/go/iptproxy/build.sh" check-lyrebird "$dir"\n', '', 'lyrebird unchecked');
   caught('verify', ' ! -path "$transports/lyrebird"', ' -name nothing', 'a second transport');
   caught('verify', 'if [ "${WEBSPACE_LYREBIRD:-}" = none ]; then', 'if false; then', 'none never checked');
-  caught('workflow', '          go-version-file: go/iptproxy/.go-version\n          cache: false\n\n      # The Linux Rust',
-    '          cache: false\n\n      # The Linux Rust', 'a Linux build with no go');
+  caught('workflow', '          go-version-file: go/iptproxy/.go-version\n          cache: false\n\n      # LICENSE-001 over what',
+    '          cache: false\n\n      # LICENSE-001 over what', 'a Linux build with no go');
   caught('workflow', 'apt-get install -y --no-install-recommends tor lyrebird\n', 'true\n', 'no bridge');
   caught('workflow', "          printf '#!/bin/sh\\nexit 101\\n' > /usr/sbin/policy-rc.d\n", '', 'a tor service started');
   caught('workflow', '          WS_TOR_BESIDE: build/linux/x64/release/bundle/webspace_app\n', '',
