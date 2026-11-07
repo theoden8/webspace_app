@@ -50,13 +50,19 @@ bool isPrivateOrLoopbackHost(String raw) {
   if (host == 'localhost' || host.endsWith('.localhost')) return true;
 
   if (host.contains(':')) {
-    final groups = _ipv6Groups(host.split('%').first); // drop any zone id
-    if (groups == null) return false; // not a well-formed IPv6 literal
-    return _ipv6PrivateOrLoopback(groups);
+    final List<int> bytes;
+    try {
+      bytes = Uri.parseIPv6Address(host.split('%').first); // drop any zone id
+    } on FormatException {
+      // A literal the parser cannot read is judged non-public, not waved
+      // through: a resolver might still make an address of it (SEC-048).
+      return true;
+    }
+    return _classifyIpBytes(bytes);
   }
 
   final octets = _ipv4Octets(host);
-  if (octets != null) return _ipv4PrivateOrLoopback(octets);
+  if (octets != null) return _classifyIpBytes(octets);
   // A numeric IPv4 in a non-canonical spelling (one decimal/hex number, hex or
   // octal octets, or fewer than four parts) that a resolver would still accept
   // as an address. Which address depends on the platform's inet_aton, so refuse
@@ -115,45 +121,16 @@ bool _ipv4PrivateOrLoopback(List<int> o) {
 bool _embeddedV4PrivateOrLoopback({required int hi, required int lo}) =>
     _ipv4PrivateOrLoopback(<int>[hi >> 8, hi & 0xff, lo >> 8, lo & 0xff]);
 
-/// The eight 16-bit groups of IPv6 literal [s] (lowercased, brackets and any
-/// zone id already stripped), or null if it is not a well-formed IPv6 literal.
-/// A trailing embedded IPv4 (`::ffff:1.2.3.4`) becomes the final two groups, so
-/// every spelling of a mapped address reduces to one check.
-List<int>? _ipv6Groups(String s) {
-  if (!s.contains(':')) return null;
-  final halves = s.split('::');
-  if (halves.length > 2) return null; // at most one '::'
-
-  List<int>? groupsOf(String part) {
-    if (part.isEmpty) return <int>[];
-    final out = <int>[];
-    final tokens = part.split(':');
-    for (var i = 0; i < tokens.length; i++) {
-      final t = tokens[i];
-      if (t.contains('.')) {
-        if (i != tokens.length - 1) return null; // v4 only as the last group
-        final v4 = _ipv4Octets(t);
-        if (v4 == null) return null;
-        out.add(v4[0] << 8 | v4[1]);
-        out.add(v4[2] << 8 | v4[3]);
-        continue;
-      }
-      if (t.isEmpty || t.length > 4) return null;
-      final v = int.tryParse(t, radix: 16);
-      if (v == null || v < 0 || v > 0xffff) return null;
-      out.add(v);
-    }
-    return out;
-  }
-
-  final left = groupsOf(halves[0]);
-  if (left == null) return null;
-  if (halves.length == 1) return left.length == 8 ? left : null;
-  final right = groupsOf(halves[1]);
-  if (right == null) return null;
-  final fill = 8 - left.length - right.length;
-  if (fill < 1) return null; // '::' stands for at least one zero group
-  return <int>[...left, ...List.filled(fill, 0), ...right];
+/// Judge one address by its raw bytes, the same whether it was a literal in a
+/// URL or an address a resolver returned (SEC-048 parity): four bytes for an
+/// IPv4 address, sixteen for an IPv6 one folded back into its eight 16-bit
+/// groups. The callers each produce one length or the other.
+bool _classifyIpBytes(List<int> b) {
+  if (b.length == 4) return _ipv4PrivateOrLoopback(b);
+  final groups = <int>[
+    for (var i = 0; i < b.length; i += 2) b[i] << 8 | b[i + 1],
+  ];
+  return _ipv6PrivateOrLoopback(groups);
 }
 
 bool _ipv6PrivateOrLoopback(List<int> g) {

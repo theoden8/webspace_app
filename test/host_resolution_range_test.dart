@@ -22,6 +22,9 @@ void main() {
       // IPv6 loopback / mapped / compatible spellings.
       '0:0:0:0:0:0:0:1', '::ffff:127.0.0.1', '::ffff:169.254.169.254',
       '::ffff:10.0.0.1', '::ffff:7f00:1', '::127.0.0.1',
+      // Ill-formed embedded v4 the parser rejects: judged non-public, not waved
+      // through (fail closed, SEC-048).
+      '::ffff:127.1',
       // Other v6 forms that embed a v4 — judged by the embedded address.
       '64:ff9b::127.0.0.1', '64:ff9b::169.254.169.254', '64:ff9b:1::127.0.0.1',
       '2002:7f00:1::', // 6to4 of 127.0.0.1
