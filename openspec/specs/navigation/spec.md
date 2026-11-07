@@ -203,6 +203,39 @@ and both disables the control and guards `onRefresh`.
 
 ---
 
+### Requirement: NAV-020 - A Refresh Leaves the Page's Top in Reach
+
+On iOS, once the pull-to-refresh indicator has gone, the page SHALL rest at its
+top again, however the webview changed size while the indicator showed. While
+`UIRefreshControl` refreshes, UIKit holds the indicator's height in the scroll
+view's `contentInset.top` and takes it back off when the refresh ends, so nothing
+in the webview SHALL rewrite that inset in between.
+
+#### Scenario: Resized while refreshing
+
+**Given** an iOS webview is refreshing with the indicator shown
+**When** the webview changes size
+**And** the refresh ends
+**Then** the scroll view's adjusted top inset is 0
+**And** the page rests at its top
+
+#### Scenario: Resized as the indicator closes
+
+**Given** an iOS webview's refresh has just ended and the indicator is closing
+**When** the webview changes size, once or through an animation
+**Then** the scroll view's adjusted top inset is 0 once the indicator has gone
+
+**Note:** The fork's `InAppWebView` frame setter zeroed `contentInset` on every
+resize, so a resize while refreshing left it at minus the indicator's height: the
+page's top about 60pt above where scrolling stops, shown only while dragged, with
+pull-to-refresh out of reach (upstream flutter_inappwebview #2253, closed unfixed
+by its stale bot). The fork's frame setter and keyboard handler now leave the inset
+alone while the control refreshes. `integration_test/ios_refresh_inset_test.dart`
+checks it on a simulator through `ScrollInsetProbe`, a debug-only Runner probe,
+since no plugin call reports the insets.
+
+---
+
 ### Requirement: NAV-007 - URL Bar Sync
 
 The URL bar SHALL stay in sync with the current webview URL across all navigation types, including BFCache restorations. Outside an active edit, its text SHALL be the site's current URL; a submit SHALL NOT leave the typed text behind. Lineage: [docs/bugs/015-url-bar-shows-another-url.md](../../../docs/bugs/015-url-bar-shows-another-url.md).

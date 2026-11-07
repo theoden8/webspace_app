@@ -973,6 +973,9 @@ jobs:
             # image; the android-tv job runs it.
             [ "$(basename "$t")" = "android_desktop_test.dart" ] && continue
             [ "$(basename "$t")" = "camera_test.dart" ] && continue
+            # iOS only (the pull-to-refresh control); the iOS refresh inset
+            # workflow runs it on a simulator.
+            [ "$(basename "$t")" = "ios_refresh_inset_test.dart" ] && continue
             # PASSKEY-012 needs the emulator harness (credential provider,
             # relying party, sheet taps); the Android job owns it.
             [ "$(basename "$t")" = "passkey_test.dart" ] && continue
@@ -1503,6 +1506,9 @@ jobs:
             # Android-only WebView media-gate suite (CAM-010); runs in the
             # emulator job.
             [ "$(basename "$t")" = "camera_test.dart" ] && continue
+            # iOS only (the pull-to-refresh control); the iOS refresh inset
+            # workflow runs it on a simulator.
+            [ "$(basename "$t")" = "ios_refresh_inset_test.dart" ] && continue
             # Android-only passkey gate (PASSKEY-012); emulator job.
             [ "$(basename "$t")" = "passkey_test.dart" ] && continue
             # Android-only LocalCDN interceptor (LCDN-007); emulator job.

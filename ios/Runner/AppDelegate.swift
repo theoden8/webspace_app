@@ -1,6 +1,9 @@
 import Flutter
 import UIKit
 import UserNotifications
+#if DEBUG
+import WebKit
+#endif
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -9,6 +12,9 @@ import UserNotifications
   private var mediaSessionPlugin: MediaSessionPlugin?
   private var torControllerPlugin: TorControllerPlugin?
   private var contentRuleListPlugin: ContentRuleListPlugin?
+  #if DEBUG
+  private var scrollInsetProbe: ScrollInsetProbe?
+  #endif
   // Held for the process: a refresh task can arrive before the scene has
   // started an engine, and an engine holds its scene delegates weakly.
   private let backgroundTask = BackgroundTaskPlugin()
@@ -54,5 +60,50 @@ import UserNotifications
     )
     backgroundTask.attach(to: messenger)
     shareIntent.attach(to: messenger)
+    #if DEBUG
+    scrollInsetProbe = ScrollInsetProbe(messenger: messenger)
+    #endif
   }
 }
+
+#if DEBUG
+/// Debug builds only: what each webview's scroll view holds, which no plugin
+/// call reads, for integration_test/ios_refresh_inset_test.dart. The top a page
+/// rests at is -adjustedContentInset.top.
+final class ScrollInsetProbe {
+  private let channel: FlutterMethodChannel
+
+  init(messenger: FlutterBinaryMessenger) {
+    channel = FlutterMethodChannel(
+      name: "webspace/debug_scroll_insets", binaryMessenger: messenger)
+    channel.setMethodCallHandler { call, result in
+      guard call.method == "read" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      result(ScrollInsetProbe.read())
+    }
+  }
+
+  private static func read() -> [[String: Double]] {
+    var views: [[String: Double]] = []
+    func walk(_ view: UIView) {
+      if let webView = view as? WKWebView {
+        let scroll = webView.scrollView
+        views.append([
+          "offsetY": Double(scroll.contentOffset.y),
+          "insetTop": Double(scroll.contentInset.top),
+          "adjustedTop": Double(scroll.adjustedContentInset.top),
+          "insetBottom": Double(scroll.contentInset.bottom),
+          "adjustedBottom": Double(scroll.adjustedContentInset.bottom),
+        ])
+      }
+      view.subviews.forEach(walk)
+    }
+    for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
+      scene.windows.forEach(walk)
+    }
+    return views
+  }
+}
+#endif
