@@ -264,6 +264,11 @@ class.
   (at least one); a sole uncached run gets all of them. The pool keeps their total
   within `FORMAL_SLOTS`. While waiting for a result, the report prints its workers,
   elapsed time and latest TLC progress every minute (`FORMAL_PROGRESS_SECONDS`).
+  Only a run that behaved keeps its time, and no run writes a checkpoint. On a machine
+  that stops a command after a while, `FORMAL_RUN_BUDGET=<seconds>` gives a run at least
+  the workers its last time needs to end within that much, and `FORMAL_DEADLINE=<seconds>`
+  starts no run that would end past it: such a run is deferred, the suite exits 3 naming
+  each, and the next suite remembers every run this one finished.
 - **`verify.sh`** — the one way to run all of it: prints the modules and writes the walk and
   step traces (`flutter test`), then `check.sh`, `trace/check_steps.sh` and the TLAPS
   proofs. CI runs its stages through [the formal workflow](../.github/workflows/formal.yml),

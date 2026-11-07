@@ -27,6 +27,15 @@
 # end, naming each that did not. Each run's time is
 # kept under FORMAL_CACHE (default ~/.cache/webspace-formal) to size the
 # next: the longest start first, with the most workers.
+# FORMAL_RUN_BUDGET=<seconds> gives a run at least the workers its last time
+# needs to end within that much wall time, for a machine that stops a
+# command after a while: there a world the share leaves on one core never
+# ends, and starts again from nothing.
+# FORMAL_DEADLINE=<seconds> starts no run whose last time, on the workers it
+# gets, would end it later than that many seconds after the suite began:
+# such a run is deferred, the suite exits 3 naming each, and the next suite
+# remembers every run this one finished. A run with no time yet always
+# starts.
 #
 # A run whose inputs are byte for byte those of one that behaved before
 # (for activation.tla, what of them its world can reach: world_key.py) is
@@ -71,6 +80,10 @@ SHARD_AT=$((10#${BASH_REMATCH[1]})) SHARD_COUNT=$((10#${BASH_REMATCH[2]}))
 COVERAGE_DIR="${FORMAL_COVERAGE:-$MODEL/coverage}"
 SLOTS="${FORMAL_SLOTS:-$(getconf _NPROCESSORS_ONLN)}"
 [ "$SLOTS" -ge 1 ] 2>/dev/null || { echo "FORMAL_SLOTS is not a count of cores: $SLOTS" >&2; exit 2; }
+BUDGET="${FORMAL_RUN_BUDGET:-0}"
+[ "$BUDGET" -ge 0 ] 2>/dev/null || { echo "FORMAL_RUN_BUDGET is not a count of seconds: $BUDGET" >&2; exit 2; }
+DEADLINE="${FORMAL_DEADLINE:-0}"
+[ "$DEADLINE" -ge 0 ] 2>/dev/null || { echo "FORMAL_DEADLINE is not a count of seconds: $DEADLINE" >&2; exit 2; }
 PROGRESS="${FORMAL_PROGRESS_SECONDS:-60}"
 [ "$PROGRESS" -ge 1 ] 2>/dev/null || { echo "FORMAL_PROGRESS_SECONDS is not a positive interval: $PROGRESS" >&2; exit 2; }
 CACHE="${FORMAL_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/webspace-formal}"
@@ -161,13 +174,14 @@ key() {
 # core. The longest start first, one with no time yet as long as the
 # mean of those with one. Without a time, split the cores between two runs:
 # starting every cold run with one worker strands the longest on one core.
+# Under FORMAL_RUN_BUDGET a run gets at least its time over the budget.
 plan() {
   local name job secs w cost
   while IFS=$'\t' read -r name job; do
     cost=-1
     if read -r secs w 2>/dev/null <"$TIMES/$name"; then cost=$((secs * w)); fi
     printf '%s\t%s\t%s\n' "$cost" "$name" "$job"
-  done <"$RUNS/jobs" | awk -F'\t' -v OFS='\t' -v slots="$SLOTS" '
+  done <"$RUNS/jobs" | awk -F'\t' -v OFS='\t' -v slots="$SLOTS" -v budget="$BUDGET" '
     { cost[NR] = $1; if ($1 > 0) { total += $1; known++ } name[NR] = $2
       sub(/^[^\t]*\t[^\t]*\t/, ""); job[NR] = $0 }
     END {
@@ -175,6 +189,8 @@ plan() {
       mean = known ? total / known : 0
       for (i = 1; i <= NR; i++) {
         w = cost[i] > 0 ? int((slots * cost[i] + total - 1) / total) : int(slots / 2)
+        if (budget > 0 && cost[i] > 0 && w < int((cost[i] + budget - 1) / budget))
+          w = int((cost[i] + budget - 1) / budget)
         if (NR == 1) w = slots
         if (w < 1) w = 1
         if (w > cap) w = cap
@@ -193,12 +209,18 @@ pool() {
   local free="$SLOTS" running="" name w cfg spec lib cover
   while IFS=$'\t' read -r -u 4 name w cfg spec lib cover; do
     while [ "$free" -lt "$w" ]; do reap; done
+    if ! fits "$name" "$w"; then
+      touch "$RUNS/$name.deferred" "$RUNS/$name.done"
+      continue
+    fi
     [ "$lib" != - ] || lib=""
     [ "$cover" != - ] || cover=""
     mkdir -p "$RUNS/$name.tmp"
     echo "$SECONDS $w" >"$RUNS/$name.started"
+    # No run resumes from a checkpoint, and each one copies the state queue
+    # beside it: the largest activation world ran the disk out at its second.
     java "-Djava.io.tmpdir=$RUNS/$name.tmp" ${lib:+"-DTLA-Library=$lib"} -cp "$JAR" \
-      tlc2.TLC -workers "$w" ${cover:+-coverage 100000} \
+      tlc2.TLC -workers "$w" -checkpoint 0 ${cover:+-coverage 100000} \
       -metadir "$RUNS/$name.states" -config "$cfg" "$spec" >"$RUNS/$name.out" 2>&1 &
     running="$running $!:$name:$w:$SECONDS"
     free=$((free - w))
@@ -206,7 +228,19 @@ pool() {
   while [ -n "$running" ]; do reap; done
 }
 
-# reap: marks done each run of the pool's that has ended, and keeps its time.
+# fits: whether run <name> on <w> workers, at its last time, ends before
+# FORMAL_DEADLINE; any run does without one, and a run with no time yet.
+fits() {
+  local secs w0
+  [ "$DEADLINE" -gt 0 ] || return 0
+  read -r secs w0 2>/dev/null <"$TIMES/$1" || return 0
+  [ $((SECONDS + (secs * w0 + $2 - 1) / $2)) -le "$DEADLINE" ]
+}
+
+# reap: marks done each run of the pool's that has ended, and keeps the time
+# of one that behaved. A run that died (the disk full, a kill) or stopped at
+# an unexpected violation ends early, and its time would hand the world too
+# few workers next time.
 reap() {
   sleep 0.2
   local alive still="" entry pid name w t0 tmp
@@ -215,9 +249,10 @@ reap() {
     IFS=: read -r pid name w t0 <<<"$entry"
     case "$alive" in *" $pid "*) still="$still $entry"; continue ;; esac
     rm -rf "$RUNS/$name.states" "$RUNS/$name.tmp"
-    tmp="$(mktemp "$TIMES/.$name.XXXXXX")"
-    echo "$((SECONDS - t0)) $w" >"$tmp" && mv "$tmp" "$TIMES/$name"
-    remember "$name"
+    if remember "$name"; then
+      tmp="$(mktemp "$TIMES/.$name.XXXXXX")"
+      echo "$((SECONDS - t0)) $w" >"$tmp" && mv "$tmp" "$TIMES/$name"
+    fi
     touch "$RUNS/$name.done"
     free=$((free + w))
   done
@@ -229,7 +264,7 @@ reap() {
 # wait in the list's order behind the longest.
 remember() {
   local name="$1" tmp
-  grep -E "$(cat "$RUNS/$name.expect")" "$RUNS/$name.out" >/dev/null || return 0
+  grep -E "$(cat "$RUNS/$name.expect")" "$RUNS/$name.out" >/dev/null || return 1
   tmp="$(mktemp "$MEMO/.$name.XXXXXX")"
   cp "$RUNS/$name.out" "$tmp" && mv "$tmp" "$MEMO/$(cat "$RUNS/$name.key")"
 }
@@ -249,7 +284,7 @@ section() {
 # What each passing config counts as, by what it expects: a model that holds,
 # a planted mistake caught, or a witness reached. verify.sh holds the totals
 # to formal/levels.tsv.
-HOLDS=0 CAUGHT=0 REACHED=0 FAILED=""
+HOLDS=0 CAUGHT=0 REACHED=0 FAILED="" DEFERRED=""
 expect() {
   selected || return 0
   local name kind ordinal="$ORDINAL"
@@ -293,6 +328,11 @@ expect() {
     fi
     sleep 0.2
   done
+  if [ -f "$RUNS/$name.deferred" ]; then
+    printf '  DEFER %-33s does not end before FORMAL_DEADLINE\n' "$(basename "$1")"
+    DEFERRED="$DEFERRED $(basename "$1")"
+    return 0
+  fi
   local out; out="$(cat "$RUNS/$name.out" 2>/dev/null || true)"
   if [ -n "${COVERAGE:-}" ]; then
     mkdir -p "$COVERAGE"
@@ -616,6 +656,9 @@ checks
 
 echo "TALLY holds=$HOLDS caught=$CAUGHT reached=$REACHED"
 if [ -n "$FAILED" ]; then echo "FAIL: did not behave:$FAILED" >&2; exit 1
+elif [ -n "$DEFERRED" ]; then
+  echo "DEFERRED past FORMAL_DEADLINE:$DEFERRED; run again, each run that ended is remembered" >&2
+  exit 3
 elif [ "$ORDINAL" -eq 0 ]; then echo "FAIL: no section is named $ONLY" >&2; exit 1
 elif [ -n "$ONLY" ]; then echo "Section $ONLY behaved as expected."
 elif [ "$SHARD_COUNT" -gt 1 ]; then echo "Model shard $SHARD behaved as expected."

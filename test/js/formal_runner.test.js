@@ -54,7 +54,7 @@ function runner(t) {
       ? fs.readFileSync(calls, 'utf8').trim().split('\n').map((s) => JSON.parse(s)) : [],
     memo: path.join(dir, 'cache', 'memo'),
     times: path.join(dir, 'cache', 'times'),
-    run({ section = 'GOOD', delay = 0, failure = false, shard = '0/1', rerun = false } = {}) {
+    run({ section = 'GOOD', delay = 0, failure = false, shard = '0/1', rerun = false, deadline = 0, budget = 0 } = {}) {
       const result = spawnSync('bash', [path.join(formal, 'check.sh')], {
         env: {
           ...process.env,
@@ -67,6 +67,8 @@ function runner(t) {
           FORMAL_SLOTS: '4',
           FORMAL_PROGRESS_SECONDS: '1',
           FORMAL_RERUN: rerun ? '1' : '',
+          FORMAL_DEADLINE: String(deadline),
+          FORMAL_RUN_BUDGET: String(budget),
           TLC_TEST_CALLS: calls,
           TLC_TEST_DELAY: String(delay),
           TLC_TEST_FAIL: String(failure),
@@ -146,6 +148,8 @@ test('failed TLC checks remain failures and are not remembered', (t) => {
   assert.equal(failed.status, 1, failed.stdout + failed.stderr);
   assert.match(failed.stdout + failed.stderr, /FAIL: kernel.cfg/);
   assert.deepEqual(fs.readdirSync(check.memo), []);
+  assert.deepEqual(fs.readdirSync(check.times), [],
+    'a run that did not behave keeps no time to size the next by');
   const retry = check.run();
   assert.equal(retry.status, 0, retry.stdout + retry.stderr);
   assert.equal(check.events().length, 4, 'the failed check must run again');
@@ -168,4 +172,44 @@ test('recorded timings still prioritize the expensive check within the core budg
     'kernel_conflict_evict.cfg': 1,
     'kernel_conflict_contaminate.cfg': 1,
   });
+});
+
+test('a run whose last time would end past the deadline is deferred, and the next suite runs only it', (t) => {
+  const check = runner(t);
+  fs.mkdirSync(check.times, { recursive: true });
+  for (const [name, seconds] of [
+    ['kernel_conflict_repaint', 9000],
+    ['kernel_conflict_evict', 5],
+    ['kernel_conflict_contaminate', 5],
+  ]) fs.writeFileSync(path.join(check.times, name), `${seconds} 1\n`);
+  const cut = check.run({ section: 'NEGATIVE', delay: 200, deadline: 100 });
+  assert.equal(cut.status, 3, cut.stdout + cut.stderr);
+  assert.match(cut.stdout, /DEFER +kernel_conflict_repaint\.cfg/);
+  assert.match(cut.stderr, /DEFERRED past FORMAL_DEADLINE: kernel_conflict_repaint\.cfg/);
+  assert.deepEqual(check.events().filter((e) => e.event === 'start').map((e) => e.config).sort(),
+    ['kernel_conflict_contaminate.cfg', 'kernel_conflict_evict.cfg']);
+  const rest = check.run({ section: 'NEGATIVE', delay: 200 });
+  assert.equal(rest.status, 0, rest.stdout + rest.stderr);
+  assert.match(rest.stdout, /TALLY holds=0 caught=3 reached=0/);
+  const starts = check.events().filter((e) => e.event === 'start').map((e) => e.config);
+  assert.deepEqual(starts.slice(2), ['kernel_conflict_repaint.cfg'],
+    'the runs that ended are remembered; only the deferred one starts');
+});
+
+test('a run budget gives a run at least the workers its last time needs to end within it', (t) => {
+  for (const [budget, expected] of [[0, 2], [20, 3]]) {
+    const check = runner(t);
+    fs.mkdirSync(check.times, { recursive: true });
+    for (const name of ['kernel_conflict_repaint', 'kernel_conflict_evict', 'kernel_conflict_contaminate']) {
+      fs.writeFileSync(path.join(check.times, name), '60 1\n');
+    }
+    const result = check.run({ section: 'NEGATIVE', budget });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.deepEqual(
+      [...new Set(check.events().filter((e) => e.event === 'start').map((e) => e.workers))],
+      [expected],
+      budget
+        ? 'sixty core-seconds in twenty seconds take three workers, the cap beside other runs'
+        : 'an even split of four cores');
+  }
 });
