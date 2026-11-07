@@ -33,4 +33,14 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
     return OutboundClientBlocked(
         'a browser cannot honour a ${route.type.name} proxy');
   }
+
+  @override
+  OutboundClient pageSteeredClientFor(ProxyRoute route,
+      {String? allowPrivateHost}) {
+    // On web the browser resolves and connects, and same-origin / CORS and the
+    // browser's own private-network access rules govern what a page can reach;
+    // there is no dart:io resolver to judge against, so this is the ordinary
+    // client. The design entrypoints are the only web caller.
+    return clientFor(route);
+  }
 }

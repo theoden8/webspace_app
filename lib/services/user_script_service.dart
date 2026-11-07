@@ -142,8 +142,11 @@ Future<({String? source, String? error})> fetchUserScriptSource(
       classifyScriptFetchUrl(candidate) != ScriptFetchUrlStatus.blocked &&
       await _resolvedTargetAllowed(candidate, effective: effective);
   if (!await allowed(url)) return (source: null, error: 'blocked URL');
+  // The URL and every redirect hop are checked above; the page-steered client
+  // also judges the destination address as it connects and pins to it, closing
+  // the rebind window between the check and the connect (SEC-049).
   final http.Client client;
-  switch (outboundHttp.clientFor(effective)) {
+  switch (pageSteeredClient(effective).result) {
     case OutboundClientBlocked(:final reason):
       return (source: null, error: reason);
     case OutboundClientReady(client: final ready):
@@ -348,9 +351,7 @@ class UserScriptService {
         LogTag.userScript.debug(
             'Fetching external script: $url', sensitive: true);
         final http.Client client;
-        switch (outboundHttp.clientFor(
-          _proxy.resolved,
-        )) {
+        switch (pageSteeredClient(_proxy.resolved).result) {
           case OutboundClientBlocked(:final reason):
             LogTag.userScript.debug('Blocked external script fetch: $reason');
             return false;
@@ -428,7 +429,7 @@ class UserScriptService {
           return {'status': 403};
         }
         final http.Client client;
-        switch (outboundHttp.clientFor(effective)) {
+        switch (pageSteeredClient(effective).result) {
           case OutboundClientBlocked(:final reason):
             LogTag.userScript.debug('Blocked resource fetch: $reason');
             return {'status': 403};

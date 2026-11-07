@@ -193,6 +193,19 @@ loopback, RFC1918, unique-local or link-local literal (including
 **Because** the URL is page-supplied and the media-session shim runs in
 every frame
 
+#### Scenario: A page-steerable fetch connects only to the address it judged (SEC-049)
+
+**Given** a page-steerable fetch (user script, media artwork, page-linked icon,
+or favicon) on a DEFAULT route whose host resolves into a private or loopback
+range
+**When** the page-steered client (`pageSteeredClient`) connects
+**Then** no byte — not even a TLS ClientHello — reaches that address
+**Because** it resolves the host once and connects only to the judged address,
+http and https alike, closing the rebind between a pre-flight check and the
+client's own connect
+**And** under a proxy it never connects direct, and a private or loopback
+literal is refused on every route
+
 ---
 
 ### Requirement: LEAK-003 - SOCKS5 tunneling and fail-closed posture
