@@ -455,6 +455,16 @@ the override under the sites already loaded.
   confirmed on a device; `proxy_one_rule_test` on the emulator is what
   checks it. A per-webview proxy (PROXY-013 router mode) is the case that
   does not depend on it.
+- It recurred with attempt 24 in place (2026-11-07, Build and Test run
+  42334800276 on #937's head, which carries #919): upstream B's third
+  request was `GET http://a.example.test/favicon.ico`, after two for B.
+  B's page started loading two seconds after B was opened, so the rule did
+  not move on `destroyWait`'s bound. The failure gave request lines only,
+  so which of B's requests were navigations, and whether A's came before
+  A's destroy or after the override's apply, is unknown. The test now
+  prints both upstreams' requests in one timeline with the app's proxy,
+  unload and webview log lines (navigations marked; the let-go's quiet and
+  destroy; each override's apply), so the next failure names the window.
 - A destroy that takes longer than `ProcessRoute.destroyWait` (a view the
   widget tree kept, a dispose that never loads `about:blank`) moves the
   rule anyway, with a warning in the log; `process_route.tla` has no clock
