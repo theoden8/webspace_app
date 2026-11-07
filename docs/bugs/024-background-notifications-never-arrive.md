@@ -154,7 +154,35 @@ what it finds.**
    headless check, and Battery Saver held most wakes until the app was
    opened.
 
+12. **2026-11-07 — this change.** A wake keeps its pages open, their JS
+   running, 15 s after their loads settle (`afterLoad`), never past a budget
+   from its start (`WakeTask`: 23 s on iOS, 45 s on Android), instead of
+   closing them 3 s after their loads stopped. It ends sooner once none of
+   its pages is left. *Why*: a week of a device's Android background log
+   (0.4.2) had 45 wakes, every one ending `unread fallback posts=0`, and not
+   one `notification posted` line. An ntfy site added to the same device
+   then posted three notifications of its own from a headless check in the
+   worker's engine, about 5 s after its load and 10 s into a wake, about as
+   late as the 3 s grace allowed: a page posts what it missed once it has
+   caught up with its server, which comes after its load. The iOS budget is
+   the worst case the old grace already had, so no iOS wake runs longer than
+   before. *Why partial*: more time helps only a page that notifies when it
+   catches up; the device's two other sites posted nothing in any wake, and
+   whether they would given the time is not yet observed. The same log had
+   21 of 28 live reloads never start and 3 of 4 headless checks in a
+   still-running process time out, which this leaves as it was.
+
 ## Known open gaps
+
+- In a process still running in the background, a wake's pages mostly do
+  not run on Android: in the log behind attempt 12, 21 of 28 live reloads
+  were `no load observed`, and 3 of 4 headless checks opened beside them
+  timed out at the deadline. The same checks in the worker's own engine
+  loaded in 4 to 17 s.
+- On iOS a site under Tracking Protection runs in Lockdown Mode (ETP-032),
+  which turns IndexedDB off. A web app that keeps its state there fails to
+  start (ntfy's page did, until its Lockdown Mode was turned off), so it
+  cannot catch up in a wake either.
 
 - Whether iOS connects the scene, and so starts an engine, in a launch it
   makes for a refresh task has not been observed. If it does not, the task
