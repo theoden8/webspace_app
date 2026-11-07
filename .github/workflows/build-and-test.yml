@@ -468,6 +468,25 @@ jobs:
           # ones included, as android/app/maven_licences.gradle listed them.
           node tool/check_maven_licences.js assets/native_notices/maven.json
 
+      - name: Verify APK licences
+        # LICENSE-001 and LICENSE-002 over what each APK ships: no GNU notice
+        # in a file, a binary's strings or base64 runs, no copy of a list the
+        # app downloads.
+        run: |
+          set -e
+          shopt -s nullglob
+          apks=( build/app/outputs/flutter-apk/*-fdroid-release.apk )
+          if [ ${#apks[@]} -eq 0 ]; then
+            echo "ERROR: no fdroid APK found to scan" >&2
+            exit 1
+          fi
+          for apk in "${apks[@]}"; do
+            dir=$(mktemp -d)
+            unzip -q "$apk" -d "$dir"
+            node tool/check_artifact_licences.js "$dir"
+            rm -rf "$dir"
+          done
+
       - name: Verify APK is free of Google Mobile Services
         # Per openspec/specs/per-site-profiles/spec.md PROF-007, no shipped
         # artifact may contain com.google.android.gms.* / firebase / play
@@ -1157,6 +1176,7 @@ jobs:
           # IPA anyway. An unsigned IPA is the .app under Payload/, zipped.
           app=build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app
           test -d "$app"
+          node tool/check_artifact_licences.js "$app"
           mkdir -p build/ios/ipa/Payload
           ditto "$app" build/ios/ipa/Payload/Runner.app
           (cd build/ios/ipa && zip -qry webspace-unsigned.ipa Payload && rm -rf Payload)
@@ -1178,6 +1198,7 @@ jobs:
             build/macos/Build/Products/Release/webspace.app/Contents/Frameworks/App.framework/App
           bash scripts/check_webkit_block_reports.sh absent \
             build/macos/Build/Products/Release/webspace.app
+          node tool/check_artifact_licences.js build/macos/Build/Products/Release/webspace.app
           bash scripts/sign_macos.sh adhoc
           # The direct flavor, as a Developer ID download is made, compiles
           # and carries the search; its products are not kept.
@@ -1186,6 +1207,7 @@ jobs:
             build/macos/Build/Products/Release-direct/webspace.app/Contents/Frameworks/App.framework/App
           bash scripts/check_webkit_block_reports.sh present \
             build/macos/Build/Products/Release-direct/webspace.app
+          node tool/check_artifact_licences.js build/macos/Build/Products/Release-direct/webspace.app
           rm -rf build/macos/Build/Products/Release-direct
 
       # Reclaim disk before the macOS integration loop. The macos-latest

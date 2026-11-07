@@ -165,6 +165,20 @@ a build file pulls in outside pub and Cargo has a row in
   `scripts/verify_tor_framework.sh` on a framework that links the GPL-only
   parts of tor
 
+#### Scenario: A built app carries code no build file names
+
+- **WHEN** a built APK, IPA or macOS app carries a file under a GNU licence,
+  whatever brought it in: a library's text file, a string compiled into a
+  binary, a file a library embeds base64-encoded, or a Go file of lyrebird
+  that `go/iptproxy/build.sh` deletes as GPL (its `GPL_PATHS`), which a Go
+  binary names by its package or file path
+- **THEN** CI fails after that build: `tool/check_artifact_licences.js` on the
+  unpacked app, which reads every file's text, a binary's printable strings
+  and the base64 runs in either, and exempts only the app's credits, byte for
+  byte the checkout's `assets/licenses/` and `assets/native_notices/`
+- **AND** each rule is caught on the mistake it is for in
+  `test/js/artifact_licences.test.js`
+
 #### Scenario: A build root keeps a library's debug sources
 
 - **WHEN** a built root holds a library's sources under
@@ -226,6 +240,17 @@ this repo or bundled into a release artifact.
 
 - **THEN** the service fetches it from upstream at runtime
 - **AND** no copy of the list enters `assets/` or the APK/IPA
+
+#### Scenario: A copy of a downloaded list is committed or built in
+
+- **WHEN** a file is a copy of a list the app downloads: a filter list or a
+  DNS blocklist by its upstream header, the ClearURLs rules, tor's GeoIP table
+  or the time zone boundaries by more entries than a test's sample holds
+- **THEN** `test/js/copyleft_data_committed.test.js` fails on a tracked file,
+  and `tool/check_artifact_licences.js` on a built APK, IPA or macOS app
+  carrying one as a file, in a binary's strings or base64-encoded
+- **AND** a hand-made sample, such as `test/fixtures/easylist_sample.txt`,
+  passes both (`test/js/artifact_licences.test.js`)
 
 #### Scenario: A dependency offers to bundle the data
 
