@@ -67,36 +67,42 @@ void main() {
   group('classifyResolvedHost judges a resolved address like a literal', () {
     tearDown(resetHostLookup);
 
-    Future<HostRangeVerdict> verdictFor(String name, List<String>? answer) {
+    Future<HostRangeVerdict> verdictFor(String name,
+        {required List<String>? answer}) {
       hostLookup = (host) async => host == name ? answer : const <String>[];
       return classifyResolvedHost(name);
     }
 
     test('a public name resolving to IPv4-mapped loopback is private', () async {
-      expect(await verdictFor('mapped.evil.example', const ['::ffff:127.0.0.1']),
+      expect(
+          await verdictFor('mapped.evil.example',
+              answer: const ['::ffff:127.0.0.1']),
           HostRangeVerdict.private);
     });
 
     test('a public name resolving to mapped metadata is private', () async {
       expect(
-          await verdictFor(
-              'meta.evil.example', const ['::ffff:169.254.169.254']),
+          await verdictFor('meta.evil.example',
+              answer: const ['::ffff:169.254.169.254']),
           HostRangeVerdict.private);
     });
 
     test('a name resolving to a routable address is public', () async {
-      expect(await verdictFor('good.example', const ['93.184.216.34']),
+      expect(
+          await verdictFor('good.example', answer: const ['93.184.216.34']),
           HostRangeVerdict.public);
     });
 
     test('any private address among several makes it private', () async {
       expect(
-          await verdictFor('mixed.example', const ['93.184.216.34', '10.0.0.1']),
+          await verdictFor('mixed.example',
+              answer: const ['93.184.216.34', '10.0.0.1']),
           HostRangeVerdict.private);
     });
 
     test('a name that does not resolve is unresolvable', () async {
-      expect(await verdictFor('nothing.example', const <String>[]),
+      expect(
+          await verdictFor('nothing.example', answer: const <String>[]),
           HostRangeVerdict.unresolvable);
     });
   });
