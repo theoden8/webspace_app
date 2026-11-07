@@ -1490,8 +1490,26 @@ final class Leaves<W, P extends Enum> extends At<W, P> {
   const Leaves();
 }
 
+/// A lock whose turn a step waits on: a platform object whose operations a
+/// queue serialises, one flow holding it at a time. The model prints the
+/// wait as [granted].
+enum Lock {
+  /// The shared cookie jar (`CookieIsolationEngine._turns`, ISO-003).
+  jar;
+
+  /// The model's guard for a flow `f` whose turn on the lock it is.
+  String get granted => switch (this) {
+    Lock.jar => 'Granted(f)',
+  };
+
+  /// What the guard reads of the shared state.
+  BaseOp get op => switch (this) {
+    Lock.jar => BaseOp.granted,
+  };
+}
+
 /// One step: what has to hold while a flow waits at its place ([holds]),
-/// for what (a [call], or the jar's turn when [granted]; neither for a step
+/// for what (a [call], or a lock's turn when [granted]; neither for a step
 /// that runs on from the one before, between two awaits), the element it
 /// [pick]s, and its branches. An arm's effects, its next place and the
 /// step's [site] are read over the state the step found, as the model's
@@ -1500,7 +1518,7 @@ final class Step<W, P extends Enum> extends At<W, P> {
   const Step(
     this.name, {
     required this.holds,
-    this.granted = false,
+    this.granted,
     this.call,
     this.pick,
     this.site,
@@ -1527,7 +1545,7 @@ final class Step<W, P extends Enum> extends At<W, P> {
   }) : input = true,
        spawned = false,
        holds = null,
-       granted = false,
+       granted = null,
        call = null,
        refused = null;
 
@@ -1545,7 +1563,7 @@ final class Step<W, P extends Enum> extends At<W, P> {
        spawned = true,
        enabled = null,
        holds = null,
-       granted = false,
+       granted = null,
        call = null,
        refused = null;
 
@@ -1560,7 +1578,7 @@ final class Step<W, P extends Enum> extends At<W, P> {
   /// and TLAPS hold every interleaving to. Null when the place needs
   /// nothing.
   final Expr<bool, W>? holds;
-  final bool granted;
+  final Lock? granted;
   final Call<W>? call;
   final Pick<Object?, W>? pick;
 
@@ -1589,7 +1607,7 @@ final class Step<W, P extends Enum> extends At<W, P> {
   }
 
   /// Whether the step runs between two awaits: nothing lands before it.
-  bool get internal => call == null && !granted && !input;
+  bool get internal => call == null && granted == null && !input;
 
   Step<W, P> withArms({
     List<Branch<W, P>>? branches,

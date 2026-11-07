@@ -511,7 +511,7 @@ class CookieIsolationEngine {
       UnloadPlace.uTurn => Step(
         ActivationStep.grantUnload,
         holds: null,
-        granted: true,
+        granted: Lock.jar,
         site: _victim.value,
         branches: [
           // A site no longer loaded was captured when it left, and the jar
@@ -741,7 +741,7 @@ class CookieIsolationEngine {
       RestorePlace.rTurn => Step(
         ActivationStep.grantRestore,
         holds: null,
-        granted: true,
+        granted: Lock.jar,
         branches: [
           // Superseded while waiting for its turn.
           Branch(

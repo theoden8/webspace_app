@@ -1294,7 +1294,7 @@ String _holds(Inv i) {
 /// The model's operators [s]'s action calls: `Granted` for a step the jar's
 /// turn grants, and the operator each of its acts opens with.
 List<String> _operators(Step<Object?, Enum> s) => {
-  if (s.granted) 'Granted',
+  if (s.granted != null) 'Granted',
   if (s.input || s.allArms.any((a) => a.then.any((e) => e is Spawn))) 'Starts',
   for (final arm in s.allArms)
     for (final e in arm.then)
@@ -1328,7 +1328,7 @@ List<Map<String, Object?>> _places<W, P extends Enum>(StepTable<W, P> t) => [
     {
       'place': place.name,
       'action': step.action,
-      'granted': step.granted,
+      'granted': step.granted != null,
       'input': step.input,
       'holds': step.holds?.tla,
       'next': {for (final a in step.allArms) a.outcome.tla: a.next.tla},

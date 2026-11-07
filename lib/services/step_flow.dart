@@ -23,14 +23,14 @@ final class GoTo<W, P extends Enum> extends Then<W, P> {
   final Expr<P, W> place;
 }
 
-/// The flow waits at [at] for its [call] (or the jar's turn when
+/// The flow waits at [at] for its [call] (or a lock's turn when
 /// [granted]), then decides as [decide] says.
 final class Await<W, P extends Enum> extends Then<W, P> {
   const Await(
     this.name, {
     required this.at,
     required this.holds,
-    this.granted = false,
+    this.granted,
     this.call,
     this.pick,
     this.site,
@@ -41,7 +41,7 @@ final class Await<W, P extends Enum> extends Then<W, P> {
   final P at;
   final ActivationStep name;
   final Expr<bool, W>? holds;
-  final bool granted;
+  final Lock? granted;
   final Call<W>? call;
   final Pick<Object?, W>? pick;
   final Expr<Object?, W>? site;
