@@ -594,7 +594,7 @@ abstract final class PageHandlers {
         final base64Data = args[1] is String ? args[1] as String : '';
         final mimeType = args[2] is String ? args[2] as String : '';
         final taskId = DownloadsService.instance.pageTask(
-            DownloadTaskId.parse(args[3]), view: ViewKey.of(controller));
+            args.length > 3 ? args[3] : null, view: ViewKey.of(controller));
         if (base64Data.isEmpty) {
           if (taskId != null) {
             DownloadsService.instance.fail(taskId, message: 'empty payload');
@@ -646,8 +646,7 @@ abstract final class PageHandlers {
       callback: (args) {
         final msg = args.isNotEmpty ? args[0].toString() : 'unknown';
         final taskId = args.length >= 2
-            ? DownloadsService.instance.pageTask(
-                DownloadTaskId.parse(args[1]), view: ViewKey.of(controller))
+            ? DownloadsService.instance.pageTask(args[1], view: ViewKey.of(controller))
             : null;
         if (taskId != null) {
           DownloadsService.instance.fail(taskId, message: msg);
@@ -660,7 +659,7 @@ abstract final class PageHandlers {
       callback: (args) {
         if (args.length < 3) return null;
         final taskId = DownloadsService.instance.pageTask(
-            DownloadTaskId.parse(args[0]), view: ViewKey.of(controller));
+            args.isNotEmpty ? args[0] : null, view: ViewKey.of(controller));
         final done = WebViewDownloads.asInt(args[1]);
         final total = WebViewDownloads.asInt(args[2]);
         if (taskId == null) return null;

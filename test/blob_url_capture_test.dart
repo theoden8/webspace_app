@@ -6,7 +6,7 @@ import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/page_js.dart';
 import 'package:webspace/settings/shim_group.dart';
 
-final _task = DownloadTaskId.mint(serial: 1);
+final _task = DownloadTaskId.mint(serial: 1, view: null);
 
 void main() {
   group('PageJs.blobUrlCapture.script', () {
@@ -110,7 +110,7 @@ void main() {
         suggestedFilename: 'doc with "quotes".pdf',
       );
       expect(iife, contains('"blob:https://example.test/abc"'));
-      expect(iife, contains('"$_task"'));
+      expect(iife, contains('"${_task.token}"'));
       expect(iife, contains(r'"doc with \"quotes\".pdf"'));
     });
 

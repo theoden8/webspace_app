@@ -27,23 +27,21 @@ void main() {
 
   test('a view may report on a download it started', () {
     final task = downloads.start(filename: 'a.bin', view: viewA);
-    expect(downloads.pageTask(task.id, view: viewA), task.id);
+    expect(downloads.pageTask(task.id.token, view: viewA), task.id);
   });
 
   test('another view cannot reach a download it did not start', () {
     final task = downloads.start(filename: 'a.bin', view: viewA);
-    expect(downloads.pageTask(task.id, view: viewB), isNull,
+    expect(downloads.pageTask(task.id.token, view: viewB), isNull,
         reason: "view B cannot fail, complete or advance view A's task");
   });
 
   test('an app-driven download is reportable by no page', () {
     final task = downloads.start(filename: 'http.bin'); // view: null
-    expect(downloads.pageTask(task.id, view: viewA), isNull);
+    expect(downloads.pageTask(task.id.token, view: viewA), isNull);
   });
 
   test('an id no task was started for resolves to nothing', () {
-    final forged = DownloadTaskId.parse('dl-999-0123456789abcdef');
-    expect(forged, isNotNull);
-    expect(downloads.pageTask(forged, view: viewA), isNull);
+    expect(downloads.pageTask('dl-999-0123456789abcdef', view: viewA), isNull);
   });
 }

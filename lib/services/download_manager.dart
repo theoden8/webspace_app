@@ -3,29 +3,47 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:webspace/services/view_key.dart';
 
-final RegExp _kDownloadTaskIdPattern = RegExp(r'^dl-[0-9]+-[0-9a-f]{16}$');
+/// A download's identity: the [view] that started it (null for an app-driven
+/// download the page never reports on) and an unguessable [token]. The page's
+/// blob handlers hand the token back, so this is a class, not a string a page
+/// can mint into an id: the only id a handler can obtain is one
+/// [DownloadsService.pageTask] returns for a token a task was started with for
+/// that same view, so a frame cannot name another view's download (policy R4).
+/// In memory only; never serialised. The token's 64-bit secure-random suffix
+/// also keeps it unguessable, defence in depth behind the view check.
+final class DownloadTaskId {
+  const DownloadTaskId._({required this.view, required this.token});
 
-/// A download's identity, which the page's blob handlers hand back
-/// (`_webspaceBlobDownload` and the rest). Unguessable: those handlers are
-/// page-reachable, so a sequential `dl-N` would let a hostile page
-/// enumerate and interfere with another site's download in flight; the
-/// 64-bit secure-random suffix defeats guessing.
-extension type const DownloadTaskId._(String raw) implements String {
-  /// A fresh id for the [serial]th download of this run.
-  factory DownloadTaskId.mint({required int serial}) {
-    final a = _rng.nextInt(1 << 32).toRadixString(16).padLeft(8, '0');
-    final b = _rng.nextInt(1 << 32).toRadixString(16).padLeft(8, '0');
-    return DownloadTaskId._('dl-$serial-$a$b');
-  }
+  /// The webview the download was started for; null for an app-driven one.
+  final ViewKey? view;
+
+  /// The string the page round-trips. Not an id on its own: it names a task
+  /// only together with the view, through [DownloadsService.pageTask].
+  final String token;
 
   static final Random _rng = Random.secure();
+  static final RegExp _tokenPattern = RegExp(r'^dl-[0-9]+-[0-9a-f]{16}$');
 
-  /// [raw] when it is an id [DownloadTaskId.mint] could have made; null
-  /// otherwise, as for a value a page made up.
-  static DownloadTaskId? parse(Object? raw) =>
-      raw is String && _kDownloadTaskIdPattern.hasMatch(raw)
-          ? DownloadTaskId._(raw)
-          : null;
+  /// A fresh id for the [serial]th download of this run, started for [view].
+  factory DownloadTaskId.mint({required int serial, required ViewKey? view}) {
+    final a = _rng.nextInt(1 << 32).toRadixString(16).padLeft(8, '0');
+    final b = _rng.nextInt(1 << 32).toRadixString(16).padLeft(8, '0');
+    return DownloadTaskId._(view: view, token: 'dl-$serial-$a$b');
+  }
+
+  /// Whether [raw] is shaped like a token this run could have minted.
+  static bool isToken(Object? raw) =>
+      raw is String && _tokenPattern.hasMatch(raw);
+
+  @override
+  bool operator ==(Object other) =>
+      other is DownloadTaskId && other.view == view && other.token == token;
+
+  @override
+  int get hashCode => Object.hash(view, token);
+
+  @override
+  String toString() => token;
 }
 
 enum DownloadState { downloading, completed, failed, cancelled }
@@ -95,7 +113,7 @@ class DownloadsService extends ChangeNotifier {
     ViewKey? view,
   }) {
     final task = DownloadTask(
-      id: DownloadTaskId.mint(serial: ++_counter),
+      id: DownloadTaskId.mint(serial: ++_counter, view: view),
       filename: filename,
       url: url,
       view: view,
@@ -106,17 +124,19 @@ class DownloadsService extends ChangeNotifier {
     return task;
   }
 
-  /// The id of a download a page reported on, but only when a task with that
-  /// id was started for [view]: a page may report progress, completion or
-  /// failure for its own view's downloads, never another view's (policy R4).
-  /// Null for an unknown id, a forged one, or one belonging to another view
-  /// or to an app-driven download. The page-reachable blob handlers resolve
-  /// the id through here before touching any task.
-  DownloadTaskId? pageTask(DownloadTaskId? id, {required ViewKey view}) {
-    if (id == null) return null;
-    final task = _tasks.where((t) => t.id == id).firstOrNull;
-    if (task == null || task.view != view) return null;
-    return id;
+  /// The id of a download a page reported on by its [rawToken], but only when a
+  /// task with that token was started for [view]: a page may report progress,
+  /// completion or failure for its own view's downloads, never another view's
+  /// (policy R4). Null for a malformed or forged token, or one belonging to
+  /// another view or to an app-driven download. This is the only page-reachable
+  /// way to obtain a [DownloadTaskId], so a handler cannot name a task the
+  /// calling view did not start.
+  DownloadTaskId? pageTask(Object? rawToken, {required ViewKey view}) {
+    if (!DownloadTaskId.isToken(rawToken)) return null;
+    return _tasks
+        .where((t) => t.id.token == rawToken && t.id.view == view)
+        .firstOrNull
+        ?.id;
   }
 
   /// Updates progress fields on an already-started task and notifies.

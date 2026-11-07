@@ -35,4 +35,21 @@ final make = planSettingsImport;
     expect(await errorsIn(make, overlays: {owner: public}), isEmpty,
         reason: 'with a public constructor any code could build a plan');
   }, timeout: _probe);
+  test('DL-008: a page cannot name a download task from a raw string',
+      () async {
+    const preamble =
+        "import 'package:webspace/services/download_manager.dart';\n";
+    // A handler holding a real id may mutate its task.
+    const held = "${preamble}void f(DownloadTaskId id) => "
+        "DownloadsService.instance.fail(id, message: 'x');";
+    // A raw token string the page sent cannot: the method takes a
+    // DownloadTaskId, which has no public constructor to forge one.
+    const raw = "${preamble}void f() => "
+        "DownloadsService.instance.fail('dl-1-0123456789abcdef', message: 'x');";
+    const forge = "${preamble}final x = DownloadTaskId('dl-1-0123456789abcdef');";
+    expect(await errorsIn(held), isEmpty);
+    expect(await errorsIn(raw), contains('argument_type_not_assignable'));
+    expect(await errorsIn(forge), isNotEmpty,
+        reason: 'DownloadTaskId has no public constructor');
+  }, timeout: _probe);
 }

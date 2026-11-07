@@ -1,6 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/webview_downloads.dart';
+import 'package:webspace/services/view_key.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
+
+import 'helpers/fake_platform_controller.dart';
+
+inapp.InAppWebViewController wrap(inapp.PlatformInAppWebViewController v) =>
+    inapp.InAppWebViewController.fromPlatform(platform: v);
 
 void main() {
   setUp(() => DownloadsService.instance.resetForTest());
@@ -19,9 +26,15 @@ void main() {
     expect(task.errorMessage, contains('ftp:'));
   });
 
-  test('a task id the page hands back parses only as one the app minted', () {
-    final minted = DownloadsService.instance.start(filename: 'a').id;
-    expect(DownloadTaskId.parse(minted as String), minted);
+  test('a page reports a download only by a token minted for its own view (R4)',
+      () {
+    final view = ViewKey.of(wrap(FakePlatformController()));
+    final other = ViewKey.of(wrap(FakePlatformController()));
+    final task = DownloadsService.instance.start(filename: 'a', view: view);
+    expect(DownloadsService.instance.pageTask(task.id.token, view: view),
+        task.id);
+    expect(DownloadsService.instance.pageTask(task.id.token, view: other), isNull,
+        reason: "another view cannot name this download");
     for (final madeUp in <Object?>[
       'dl-1',
       'task-9',
@@ -31,7 +44,8 @@ void main() {
       42,
       null,
     ]) {
-      expect(DownloadTaskId.parse(madeUp), isNull, reason: '$madeUp');
+      expect(DownloadsService.instance.pageTask(madeUp, view: view), isNull,
+          reason: '$madeUp');
     }
   });
 
@@ -115,7 +129,7 @@ void main() {
 
   test('unknown id is a no-op', () {
     final s = DownloadsService.instance;
-    final missing = DownloadTaskId.mint(serial: 99);
+    final missing = DownloadTaskId.mint(serial: 99, view: null);
     s.updateProgress(missing, bytesDone: 100);
     s.complete(missing);
     s.fail(missing, message: 'err');
