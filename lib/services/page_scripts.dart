@@ -209,7 +209,6 @@ final class _PageShims {
         ShimGroup.pageZoom => [?_pageZoom()],
         ShimGroup.notificationPolyfill => [
             buildNotificationPolyfillShim(
-              siteId: posture.siteId,
               notificationsEnabled: posture.page.notifications,
             ),
           ],

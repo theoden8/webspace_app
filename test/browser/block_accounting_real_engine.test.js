@@ -13,7 +13,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
-const { listen } = require('./helpers/blank_server');
+const { listen, closeServer } = require('./helpers/blank_server');
 
 const browser = setupBrowser();
 
@@ -148,7 +148,7 @@ async function load({ bloomAfterMs, inline }) {
     return { arrived, reached, port };
   } finally {
     await page.close();
-    await new Promise((r) => server.close(r));
+    await closeServer(server);
   }
 }
 

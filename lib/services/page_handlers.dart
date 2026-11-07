@@ -593,7 +593,8 @@ abstract final class PageHandlers {
         final filename = args[0] is String ? args[0] as String : '';
         final base64Data = args[1] is String ? args[1] as String : '';
         final mimeType = args[2] is String ? args[2] as String : '';
-        final taskId = DownloadTaskId.parse(args[3]);
+        final taskId = DownloadsService.instance.pageTask(
+            DownloadTaskId.parse(args[3]), view: ViewKey.of(controller));
         if (base64Data.isEmpty) {
           if (taskId != null) {
             DownloadsService.instance.fail(taskId, message: 'empty payload');
@@ -644,7 +645,10 @@ abstract final class PageHandlers {
       handlerName: '_webspaceBlobDownloadError',
       callback: (args) {
         final msg = args.isNotEmpty ? args[0].toString() : 'unknown';
-        final taskId = args.length >= 2 ? DownloadTaskId.parse(args[1]) : null;
+        final taskId = args.length >= 2
+            ? DownloadsService.instance.pageTask(
+                DownloadTaskId.parse(args[1]), view: ViewKey.of(controller))
+            : null;
         if (taskId != null) {
           DownloadsService.instance.fail(taskId, message: msg);
         }
@@ -655,7 +659,8 @@ abstract final class PageHandlers {
       handlerName: '_webspaceBlobProgress',
       callback: (args) {
         if (args.length < 3) return null;
-        final taskId = DownloadTaskId.parse(args[0]);
+        final taskId = DownloadsService.instance.pageTask(
+            DownloadTaskId.parse(args[0]), view: ViewKey.of(controller));
         final done = WebViewDownloads.asInt(args[1]);
         final total = WebViewDownloads.asInt(args[2]);
         if (taskId == null) return null;

@@ -1,12 +1,8 @@
 import 'package:webspace/services/page_js.dart';
-import 'package:webspace/settings/site_ids.dart';
 
-/// The notification polyfill for the site [siteId], under its own permission.
-String buildNotificationPolyfillShim({
-  required SiteId siteId,
-  required bool notificationsEnabled,
-}) =>
+/// The notification polyfill, under the site's own permission. It carries no
+/// site id: every frame runs it, and the handler names the site (NOTIF-010).
+String buildNotificationPolyfillShim({required bool notificationsEnabled}) =>
     PageJs.notificationPolyfill.withConfig({
-      'siteId': siteId,
       'notificationsEnabled': notificationsEnabled,
     });

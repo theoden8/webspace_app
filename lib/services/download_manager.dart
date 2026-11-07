@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:webspace/services/view_key.dart';
 
 final RegExp _kDownloadTaskIdPattern = RegExp(r'^dl-[0-9]+-[0-9a-f]{16}$');
 
@@ -32,6 +33,12 @@ enum DownloadState { downloading, completed, failed, cancelled }
 class DownloadTask {
   final DownloadTaskId id;
   final String? url;
+
+  /// The webview that started this download, when a page drives it (a blob
+  /// read the page hands back); null for an app-driven download (an HTTP or
+  /// data-URI fetch the page never reports on). A page may report progress or
+  /// completion only for its own view's tasks (policy R4): [DownloadsService.pageTask].
+  final ViewKey? view;
   String filename;
   int bytesDone;
   int? bytesTotal;
@@ -44,6 +51,7 @@ class DownloadTask {
     required this.id,
     required this.filename,
     this.url,
+    this.view,
     this.bytesDone = 0,
     this.bytesTotal,
     this.state = DownloadState.downloading,
@@ -84,16 +92,31 @@ class DownloadsService extends ChangeNotifier {
     required String filename,
     String? url,
     int? bytesTotal,
+    ViewKey? view,
   }) {
     final task = DownloadTask(
       id: DownloadTaskId.mint(serial: ++_counter),
       filename: filename,
       url: url,
+      view: view,
       bytesTotal: bytesTotal,
     );
     _tasks.insert(0, task);
     notifyListeners();
     return task;
+  }
+
+  /// The id of a download a page reported on, but only when a task with that
+  /// id was started for [view]: a page may report progress, completion or
+  /// failure for its own view's downloads, never another view's (policy R4).
+  /// Null for an unknown id, a forged one, or one belonging to another view
+  /// or to an app-driven download. The page-reachable blob handlers resolve
+  /// the id through here before touching any task.
+  DownloadTaskId? pageTask(DownloadTaskId? id, {required ViewKey view}) {
+    if (id == null) return null;
+    final task = _tasks.where((t) => t.id == id).firstOrNull;
+    if (task == null || task.view != view) return null;
+    return id;
   }
 
   /// Updates progress fields on an already-started task and notifies.

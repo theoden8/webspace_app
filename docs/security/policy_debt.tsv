@@ -1,0 +1,27 @@
+requirement	rule	owed	gap	closed by
+CONT-005	R1	type	a container name is made from a ContainerKey only, but ContainerKey.named accepts any path-safe string	a webview's containerId built only from its site's posture, with a probe that a string cannot become one
+ISO-006	R1	model	per-site localStorage, IndexedDB and cache hold only in container mode; legacy mode shares them	the legacy limit stated as a requirement, and storage per isolation mode in the model
+PERM-001	R2	type	the requester's origin is a String: requesterAt takes any	an origin type made only from the platform's frame data or permission request, with a probe that a handler argument cannot become one
+PERM-002	R2	model	an answer kept for an origin across navigation, revocation and disposal is checked by tests only	a step table for ask, answer, navigate and revoke, planted mistake: the answer lands on the document that replaced the asker
+CAM-014	R3	type	whether the caller is the top frame is a bool read from the bridge	a frame type made only from the platform's call data, with a probe
+MIC-016	R3	type	as CAM-014	the frame type of CAM-014
+LOC-011	R3	type	as CAM-014, and held by a source gate	the frame type of CAM-014
+NOTIF-010	R4	type	the handler names the site itself and the polyfill passes none, but a handler's arguments are untyped, so a new one could take an id from them, held by a source gate	page arguments as a type with no conversion to SiteId, with a probe
+CAM-013	R4	type	the prompt's origin is read from the webview, held by a source gate	the origin type of PERM-001
+PASSKEY-004	R4	type	the origin asserted to Credential Manager is read from the bridge, held by a source gate	the origin type of PERM-001
+-	R4	type	a frame's origin and main-frame flag reach the handlers from the bridge script on Android and from the top document's URL and the bridge script on Linux, not from the platform as on iOS and macOS	the fork supplies both from the platform (on Android, AndroidX's web message listener reports the source origin and main frame), and a requirement says the handlers take nothing else
+-	R4	type	the blob download handlers now act only on a task started for the calling view (DownloadsService.pageTask, test/download_view_scope_test.dart), a guard at the owner; the id type itself does not yet carry the view	a requirement, and a DownloadTaskId constructible only with the ViewKey that started it, with a probe
+US-007	R5	type	the document a script lands in is checked at run time (PageScope)	a document handle a result can only be delivered through, with a probe
+-	R5	model	no requirement says a prompt or capture answer lands only in the document that asked	a requirement, then a step table across navigation
+SHARE-017	R6	model	a share ends with its view, checked by tests only	a step table of start, navigate, leave and stop, planted mistake: a share outlives its view
+SHARE-018	R6	model	the share serves the top document only, checked by tests and a source gate	the step table of SHARE-017
+CAM-011	R6	model	a backgrounded site is denied, checked by tests only	the step table of SHARE-017, with capture beside the share
+BACKUP-010	R7	type	no trust-granting state round-trips, checked by tests only	an imported site is a type that becomes a live site only through the sanitizer, with a probe that a new import path cannot skip it
+BACKUP-011	R7	type	imported sites are sanitised by a call each import path must make	the import type of BACKUP-010
+BACKUP-013	R7	type	the probe proves live state is reached only through a planSettingsImport plan (BACKUP-016); that the plan is parsed whole and that apply reads nothing outside it rests on BACKUP-013's tests	apply refactored to a pure function over the plan, with a probe that it references no other service; parse-whole stays test-covered
+ARCH-015	R7	type	an archive section restored from a backup is sanitised by a call (SEC-041)	the import type of BACKUP-010
+-	R8	model	site ids are unique within one backup only (settings_import_engine.dart, test/import_site_ids_test.dart); across the app tier and open archives nothing checks it (SEC-044, whose review is not in this repository)	a requirement, and id uniqueness in the activation model, which the TLC session owns
+LEAK-002	R9	type	raw_http_client is an analyzer rule, a source-shape gate that sees only the syntax it matches; code reaching the network another way (a dependency, an unmatched callback type, dart:ffi) passes it	only an OutboundHttpFactory-made client can open a socket, enforced by a type with a probe
+LEAK-003	R9	model	fail-closed is modeled by formal/proxy_failclosed.tla, which names no requirement	proxy_failclosed.tla citing LEAK-003, after ./formal/verify.sh
+NESTED-013	R10	type	whether a navigation is the top frame's is decided at run time	the frame type of CAM-014
+CAPTCHA-007	R10	type	the reCAPTCHA hosts are matched by a function	the captcha hosts as const data the classifier reads, with a probe

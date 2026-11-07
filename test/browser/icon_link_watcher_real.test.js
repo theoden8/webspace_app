@@ -21,7 +21,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
-const { listen, originOf } = require('./helpers/blank_server');
+const { listen, originOf, closeServer } = require('./helpers/blank_server');
 
 const SHIM = pageJs('icon_link_watcher', { documentLoadedHandler: 'wsIconDocumentLoaded', linksHandler: 'wsIconLinks', linksChangedHandler: 'wsIconLinksChanged' });
 const PNG = Buffer.from(
@@ -94,7 +94,7 @@ test.before(async () => {
   origin = originOf(server);
 });
 
-test.after(() => new Promise((resolve) => server.close(resolve)));
+test.after(() => closeServer(server));
 
 async function visit(t, path) {
   if (!requireBrowser(browser, t)) return null;

@@ -15,7 +15,7 @@ const {
 const {
   EARLY_CSS, COSMETIC,
 } = require('../js/helpers/content_blocker_samples');
-const { startBlankServer, originOf } = require('./helpers/blank_server');
+const { startBlankServer, originOf, closeServer } = require('./helpers/blank_server');
 
 
 const browser = setupBrowser();
@@ -56,7 +56,7 @@ test.before(async () => {
   host = { url: `${originOf(server)}/`, server };
 });
 test.after(async () => {
-  if (host) await new Promise((r) => host.server.close(r));
+  if (host) await closeServer(host.server);
 });
 
 async function withShim(t, shim, fn, { atDocStart = true } = {}) {

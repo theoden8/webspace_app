@@ -86,6 +86,8 @@ final class HeldGlobalScript extends HeldScript {
   }
 }
 
+/// What an import applies, made only by [planSettingsImport], so nothing
+/// reaches live state that the whole backup was not checked for (BACKUP-013).
 class SettingsImportPlan {
   final List<WebViewModel> sites;
 
@@ -125,7 +127,7 @@ class SettingsImportPlan {
   final bool proxyPasswordsNeeded;
   final bool blocklistsNeedDownload;
 
-  const SettingsImportPlan({
+  const SettingsImportPlan._({
     required this.sites,
     required this.webspaces,
     required this.themeStorageIndex,
@@ -219,7 +221,7 @@ SettingsImportPlan planSettingsImport(
   final selected = backup.selectedWebspaceId;
   final current = backup.currentIndex;
 
-  return SettingsImportPlan(
+  return SettingsImportPlan._(
     sites: sites,
     webspaces: webspaces,
     themeStorageIndex: normalizeBackupThemeIndex(backup.themeMode, sites: backup.sites),

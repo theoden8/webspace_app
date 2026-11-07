@@ -19,7 +19,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
-const { startBlankServer, originOf } = require('./helpers/blank_server');
+const { startBlankServer, originOf, closeServer } = require('./helpers/blank_server');
 
 const LINUX = pageJs('desktop_mode', { platform: 'Linux x86_64' });
 const MACOS = pageJs('desktop_mode', { platform: 'MacIntel' });
@@ -42,7 +42,7 @@ test.before(async () => {
   host = { url: `${originOf(server)}/`, server };
 });
 test.after(async () => {
-  if (host) await new Promise((r) => host.server.close(r));
+  if (host) await closeServer(host.server);
 });
 
 async function withPage(t, shim, fn) {

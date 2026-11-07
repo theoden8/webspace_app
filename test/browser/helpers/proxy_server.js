@@ -13,6 +13,7 @@
 const http = require('node:http');
 const net = require('node:net');
 const url = require('node:url');
+const { closeServer } = require('./blank_server');
 
 function parseBasicAuth(header) {
   if (!header || !header.startsWith('Basic ')) return null;
@@ -157,7 +158,7 @@ function startProxy({ auth = null } = {}) {
         url: `http://127.0.0.1:${port}/`,
         log,
         clearLog: () => { log.length = 0; },
-        close: () => new Promise((r) => server.close(r)),
+        close: () => closeServer(server),
       });
     });
   });
@@ -187,7 +188,7 @@ function startOrigin({ body = 'origin-ok', contentType = 'text/html', cors = fal
         url: `http://127.0.0.1:${port}/`,
         log,
         clearLog: () => { log.length = 0; },
-        close: () => new Promise((r) => server.close(r)),
+        close: () => closeServer(server),
       });
     });
   });

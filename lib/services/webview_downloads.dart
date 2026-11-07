@@ -11,6 +11,7 @@ import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/view_key.dart';
 
 /// Downloads a site webview starts: http(s) through the site's proxy, data:
 /// and blob: URLs from the page, each saved where the user picks.
@@ -176,6 +177,7 @@ abstract final class WebViewDownloads {
           ? suggestedFilename!
           : 'download',
       url: blobUrl,
+      view: ViewKey.of(controller),
     );
     final script = buildBlobDownloadIife(
       blobUrl: blobUrl,

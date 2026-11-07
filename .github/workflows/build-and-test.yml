@@ -321,6 +321,7 @@ jobs:
       # tier on a misconfigured runner would defeat its purpose. See
       # requireBrowser() in test/browser/helpers/launch.js.
       - name: Run browser tests (real-Chromium shim tier)
+        timeout-minutes: 10
         run: npm run test:browser
 
   design-web:
