@@ -654,7 +654,10 @@ holds SHALL run under a fresh id while its archive is open. Its container key,
 cookies, sealed record, collections and app-tier membership SHALL stay under
 the archived id, so opening and closing an archive changes nothing it holds.
 A site moved into an open archive whose id the archive already seals another
-site under SHALL be sealed under a fresh id. No site joins the lists under a
+site under SHALL be sealed under a fresh id. A site an archive seals under the
+same id as another of its sites, which a build before ARCH-016 could seal by
+moving a site in beside its namesake, SHALL get a fresh id to run and be
+sealed under, and so a container of its own. No site joins the lists under a
 listed site's id (R8, SEC-044): a lookup by id names one site, and a close
 takes only the archive's own sites out of the collections. `ArchiveOpened`
 takes only admitted sites, and `SiteRuntime.apply` asserts every join.

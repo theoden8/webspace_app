@@ -76,6 +76,17 @@ class ArchiveHarness implements ArchiveHost, ArchivePrompts {
     return out;
   }
 
+  /// Adds [record] to the sealed archive as a build before ARCH-016 could:
+  /// beside a site it already seals under the same id.
+  Future<void> sealBeside(Map<String, dynamic> record) async {
+    final raw =
+        Archive(storage: ArchiveStorage(secureStorage: slots), deriveKey: _derive);
+    final handle = await raw.tryOpen(archivePassphrase);
+    handle!.state.sites.add(record);
+    await raw.save(handle);
+    await raw.close(handle);
+  }
+
   @override
   bool get mounted => true;
 

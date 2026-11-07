@@ -203,6 +203,35 @@ void main() {
     }
   });
 
+  test('ARCH-016: two sites an older build sealed under one id run under two, '
+      'each with a container of its own, and seal apart', () async {
+    final h = ArchiveHarness();
+    final id = SiteId.parse('shared')!;
+    final first = _away(id);
+    h.load([first]);
+    await h.archives.moveIn(first);
+    await h.archives.closeArchiveOf(first);
+    await h.sealBeside(
+        (_away(id)..currentUrl = 'https://shared.test/second').toArchiveJson());
+
+    Set<String?> containers() =>
+        {for (final m in h.runtime.models) m.archiveContainerKey?.toString()};
+    expect(await h.archives.open(archivePassphrase), isNotNull);
+    expect({for (final m in h.runtime.models) m.siteId}, hasLength(2));
+    expect(containers(), hasLength(2));
+    final ids = {for (final m in h.runtime.models) m.siteId};
+
+    await h.archives.closeArchiveOf(h.runtime.models.first);
+    final sealed = [for (final s in await h.sealedSites()) s['siteId']];
+    expect(sealed.toSet(), hasLength(2), reason: 'sealed apart');
+    expect(sealed, contains(id.toString()));
+
+    expect(await h.archives.open(archivePassphrase), isNotNull);
+    expect({for (final m in h.runtime.models) m.siteId}, ids,
+        reason: 'the second keeps the id it was given');
+    expect(containers(), hasLength(2));
+  });
+
   group('archive operations one at a time', () {
     test('a close while a move reads cookies seals the moved site too',
         () async {

@@ -20,20 +20,21 @@ final class Admitted<S> {
   }) {
     final key = SiteField.siteId.key;
     final ids = ArchiveIds.admit(
-      [
-        for (final r in records)
-          if (SiteId.parse(r[key]) case final id?) id,
-      ],
+      [for (final r in records) ?SiteId.parse(r[key])],
       listed: listed,
       mint: mint,
     );
-    return Admitted._(ids: ids, [
-      for (final r in records)
-        build(switch (SiteId.parse(r[key])) {
-          final id? when ids.listed(id) != id => {...r, key: ids.listed(id)},
-          _ => r,
-        }),
-    ]);
+    final runsAs = ids.admitted.iterator;
+    final sites = <S>[];
+    for (final r in records) {
+      final sealed = SiteId.parse(r[key]);
+      if (sealed != null && runsAs.moveNext() && runsAs.current != sealed) {
+        sites.add(build({...r, key: runsAs.current}));
+      } else {
+        sites.add(build(r));
+      }
+    }
+    return Admitted._(sites, ids: ids);
   }
 }
 
@@ -47,26 +48,41 @@ final class Admitted<S> {
 /// open; its container key, cookies and sealed record stay under the archived
 /// id, so opening and closing an archive changes nothing it holds.
 final class ArchiveIds {
-  ArchiveIds._(this._sealedAs);
+  ArchiveIds._(this._sealedAs, {required this.admitted});
 
   /// Each of the archive's sites, from the id it runs under to the id it is
   /// sealed under.
   final Map<SiteId, SiteId> _sealedAs;
 
+  /// The id each site passed to [ArchiveIds.admit] runs under, in order.
+  final List<SiteId> admitted;
+
   /// [archived] named for the lists: each keeps its id unless a site in
-  /// [listed], or one admitted before it, holds it already.
+  /// [listed] holds it already. A site sealed under the same id as one
+  /// before it, which a build before ARCH-016 could seal, gets an id of its
+  /// own to run and be sealed under, and so a container of its own.
   factory ArchiveIds.admit(
     Iterable<SiteId> archived, {
     required Set<SiteId> listed,
     SiteId Function() mint = SiteId.mint,
   }) {
-    final taken = {...listed};
+    final ids = archived.toList();
+    final taken = {...listed, ...ids};
+    final seen = <SiteId>{};
     final sealedAs = <SiteId, SiteId>{};
-    for (final id in archived) {
-      final runsAs = taken.add(id) ? id : _fresh(taken, mint: mint);
-      sealedAs[runsAs] = id;
+    final admitted = <SiteId>[];
+    for (final id in ids) {
+      final SiteId runsAs;
+      if (!seen.add(id)) {
+        runsAs = _fresh(taken, mint: mint);
+        sealedAs[runsAs] = runsAs;
+      } else {
+        runsAs = listed.contains(id) ? _fresh(taken, mint: mint) : id;
+        sealedAs[runsAs] = id;
+      }
+      admitted.add(runsAs);
     }
-    return ArchiveIds._(sealedAs);
+    return ArchiveIds._(sealedAs, admitted: admitted);
   }
 
   static SiteId _fresh(Set<SiteId> taken, {required SiteId Function() mint}) {
@@ -87,13 +103,6 @@ final class ArchiveIds {
 
   /// The id a listed site is sealed under.
   SiteId archived(SiteId listed) => _sealedAs[listed] ?? listed;
-
-  /// Every listed id its site is not sealed under.
-  Iterable<SiteId> get renamed => [
-        for (final MapEntry(key: listed, value: archived)
-            in _sealedAs.entries)
-          if (listed != archived) listed,
-      ];
 
   /// A listed site moves into the archive: sealed under its own id, unless
   /// the archive seals another site under it already.
