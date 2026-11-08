@@ -662,7 +662,11 @@ Future<_Search> _tryFaviconPackage(String url,
   // a site shows the placeholder rather than raising a CORS error per site.
   if (!hostCanReadCrossOriginResponses) return _NoIcon();
   try {
-    final favicons = await FaviconFinder.getAll(url, proxy: site).timeout(Duration(seconds: 15));
+    // Each fetch inside the discovery carries its own deadline (FaviconFinder
+    // reuses one guarded client and cuts a hung hop per fetch); this bounds the
+    // whole discovery's wall-clock against a page that declares many icon links.
+    final favicons =
+        await FaviconFinder.getAll(url, proxy: site).timeout(Duration(seconds: 15));
     if (favicons == null) return _Unreached();
     if (favicons.isEmpty) return _NoIcon();
 

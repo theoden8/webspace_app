@@ -7,12 +7,16 @@
 // range table and not the rest, a pre-flight check the client then re-resolved
 // past (the rebind), and auto-following fetchers whose client saw only the first
 // hop under a proxy. SEC-049 moved the decision to the connection and BUG-012's
-// closer moved redirect following to one place: `followPageSteered` is the one
-// function that follows a page-steered redirect, each hop a fresh request through
-// the guarded connect with the client's own following OFF, so every hop is
-// judged on every route. Its client (a `PageSteeredHttp`) is reachable nowhere
-// else — the field is library-private — so a page-steered fetch cannot sidestep
-// it. A page-steered client is also built in only one place, `buildPageSteeredClient`,
+// closer moved redirect following to one place: the page-steered follower is the
+// one loop that follows a page-steered redirect, reached through two thin entry
+// points (`followPageSteered`, which builds and closes its own client, and
+// `followPageSteeredReusing`, which drives a client the caller built through
+// `withPageSteeredClient` to share a connection pool across several fetches).
+// Each hop is a fresh request through the guarded connect with the client's own
+// following OFF, so every hop is judged on every route. Its client (a
+// `PageSteeredHttp`) is reachable nowhere else — the field is library-private —
+// so a page-steered fetch cannot sidestep it. A page-steered client is also
+// built in only one place, `buildPageSteeredClient`,
 // which the public re-export hides, so no caller reached through `outbound_http.dart`
 // can even name the build (SEC-049). The one path the compiler cannot close is a
 // direct `import` of the platform half `outbound_http_io.dart`, which this gate
@@ -40,8 +44,16 @@ const SEAMS = [
   'pageSteeredClient(',
   'buildPageSteeredClient(',
   'followPageSteered(',
+  'followPageSteeredReusing(',
+  'withPageSteeredClient(',
 ];
 const GATE = 'followPageSteered(';
+
+// A fetcher routes through the guarded follower by calling either entry point:
+// followPageSteered (builds and closes its own client) or followPageSteeredReusing
+// (uses one the caller built through withPageSteeredClient to share a connection
+// pool across several fetches). Both judge and pin every hop identically.
+const FOLLOWERS = ['followPageSteered(', 'followPageSteeredReusing('];
 
 // The raw client-producing seams. A GUARDED fetcher may not name any of them:
 // each hands out a usable client that would sidestep the follower —
@@ -49,9 +61,17 @@ const GATE = 'followPageSteered(';
 // (reachable only by a direct platform import, since the re-export hides it),
 // `clientFor` an unguarded one. A fetcher gets its client only by handing a
 // route to `followPageSteered`.
+//
+// These match the bare method/function name, not `outboundHttp.clientFor`, so a
+// GUARDED fetcher cannot slip a raw client past the gate by indirecting the
+// factory (`const DefaultOutboundHttpFactory().clientFor`, `final f =
+// outboundHttp; f.clientFor`), splitting the call across lines, or tearing off
+// `buildPageSteeredClient` without the call paren. (Across the rest of lib, the
+// text gate still has the edges LEAK-002's fold-the-halves debt tracks; the
+// GUARDED files are the few that matter and carry neither name otherwise.)
 const RAW_SEAMS = [
-  'outboundHttp.clientFor',
-  'buildPageSteeredClient(',
+  '.clientFor',
+  'buildPageSteeredClient',
   'fetchViaAppProxy(',
 ];
 
@@ -140,10 +160,10 @@ test('every classified seam still makes an outbound call', () => {
 for (const file of GUARDED) {
   test(`${file} routes page-chosen URLs through the page-steered client`, () => {
     const src = read(file);
-    assert.ok(src.includes(GATE),
+    assert.ok(FOLLOWERS.some((m) => src.includes(m)),
       `${file} takes a page-chosen URL, so it must connect through `
-      + `${GATE.slice(0, -1)}, which judges the destination as it connects. `
-      + `Dropping it reopens BUG-012 on this path.`);
+      + `${GATE.slice(0, -1)} (or followPageSteeredReusing), which judges the `
+      + `destination as it connects. Dropping it reopens BUG-012 on this path.`);
   });
 }
 

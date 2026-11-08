@@ -321,10 +321,13 @@ class UserScriptService {
         if (args.isEmpty || args[0] is! String) return false;
         final caller = page();
         final url = args[0] as String;
-        if (!await _allowScriptFetch(url)) return false;
         LogTag.userScript.debug(
             'Fetching external script: $url', sensitive: true);
         try {
+          // No pre-check here: the follower runs [_allowScriptFetch] as its
+          // first-hop permit, so a separate pre-check would prompt the user a
+          // second time for the same off-whitelist URL. A refused first hop
+          // comes back PageSteeredRefused and becomes `false` below.
           switch (await _fetchChecked(url,
               effective: _proxy.resolved, allow: _allowScriptFetch)) {
             case PageSteeredRefused(:final reason):
@@ -391,12 +394,10 @@ class UserScriptService {
             classifyScriptFetchUrl(candidate) !=
                 ScriptFetchUrlStatus.blocked &&
             await _resolvedTargetAllowed(candidate, effective: effective);
-        if (!await reachable(url)) {
-          LogTag.userScript.debug(
-              'Blocked resource fetch: $url', sensitive: true);
-          return {'status': 403};
-        }
         try {
+          // No pre-check: the follower runs [reachable] as its first-hop
+          // permit, so a separate pre-check would resolve the host a second
+          // time. A refused first hop becomes a 403 below.
           switch (await _fetchChecked(url, effective: effective, allow: reachable)) {
             case PageSteeredRefused():
               return {'status': 403};

@@ -133,16 +133,31 @@ than copy the range table.**
    code reached through `outbound_http.dart`: a page-steered client is built only
    by `buildPageSteeredClient`, which the public re-export hides (naming it
    elsewhere does not compile), and its `PageSteeredHttp` client field is
-   library-private, read only by `followPageSteered`. The platform split leaves
+   library-private, read only by the follower. The follower hands a read a plain
+   `http.StreamedResponse`, so a read cannot `detachSocket()` the live connection
+   (the method is not on the base type); a deliberate downcast fails at run time.
+   A non-default factory with no pin of its own is failed closed by
+   `buildPageSteeredClient` unless it opts into the test marker. The follower has
+   two thin entry points over one loop: `followPageSteered` builds and closes its
+   own client; `followPageSteeredReusing` drives one the caller built through
+   `withPageSteeredClient`, so the favicon discovery shares one connection pool
+   across its page and icon fetches rather than paying a handshake each. The review
+   of this PR also removed a double confirmation prompt (the script bridge ran the
+   whitelist check both before the follower and as its first-hop permit) and
+   restored charset-aware page decoding in the favicon finder (strict UTF-8 had
+   dropped icons on a non-UTF-8 home page). The platform split leaves
    `buildPageSteeredClient` public in `outbound_http_io.dart`, so a direct import
-   of that half could name it; that edge, and that fetchers route page-chosen URLs
-   through the follower rather than the general `clientFor`, are the remaining
-   `page_steered_outbound_reach` gate (rung 5). The gate's probes fire on a plant:
-   the follower is the sole `pageSteeredClient` consumer, only the seam names
-   `buildPageSteeredClient`, and no GUARDED fetcher sets `followRedirects` / reads
-   a `Location` header / names a raw seam. A proxy connection-count test fails on a
-   `followRedirects = true` mutation; a timeout test shows the deadline cuts the
-   socket.
+   of that half could name it; that edge, and that GUARDED fetchers route
+   page-chosen URLs through the follower rather than a raw client seam, are the
+   remaining `page_steered_outbound_reach` gate (rung 5), which matches text — it
+   catches `clientFor` however indirected and the build name in a GUARDED file, not
+   every spelling across lib. The gate's probes fire on a plant: the follower is
+   the sole `pageSteeredClient` consumer (through `withPageSteeredClient`), only
+   the seam names `buildPageSteeredClient`, and no GUARDED fetcher sets
+   `followRedirects` / reads a `Location` header / names a raw client seam. A proxy
+   connection-count test fails on a `followRedirects = true` mutation; a timeout
+   test shows the deadline cuts the socket; a refused-302-with-endless-body test
+   fails if the 3xx body is drained rather than cancelled.
    *Why:* attempt 5's pin judged every hop only under DEFAULT; under an on-device
    forwarding proxy an auto-follow fetcher's hop-2 redirect to a LAN literal was
    forwarded, seen by no guard.
@@ -158,8 +173,9 @@ than copy the range table.**
   once and connects to the judged address, so there is no second resolution to
   flip.
 - ~~**No structural gate.**~~ Closed: `test/js/page_steered_outbound_reach.test.js`
-  fails CI when a Dart-side fetch of a page-chosen URL does not route through
-  `pageSteeredClient`, unless it is listed EXEMPT with a reason.
+  fails CI when a Dart-side fetch of a page-chosen URL does not route through the
+  follower (`followPageSteered` / `followPageSteeredReusing`), unless it is listed
+  EXEMPT with a reason.
 - ~~**Auto-follow redirect to a private *literal* through a device-side proxy.**~~
   Closed by attempt 6 (the literal half): every page-steered fetch, the former
   auto-following ones included, now follows redirects through `followPageSteered`

@@ -304,8 +304,10 @@ void main() {
           // the client went away
         } on SocketException {
           // the client went away
-        } on StateError {
-          // the response was already closed
+        } on StateError catch (e) {
+          // Only the expected write-after-close once the follower cut the
+          // socket; any other StateError is a real bug and must surface.
+          if (!e.toString().toLowerCase().contains('clos')) rethrow;
         }
       });
       addTearDown(() => server.close(force: true));
@@ -329,6 +331,57 @@ void main() {
           reason: 'the deadline closed the client, so little or no more body '
               'arrived after the timeout (it would keep growing by ~15 KB if the '
               'socket stayed open)');
+    });
+  });
+
+  group('a refused redirect cancels its body, it does not drain it (BUG-012)',
+      () {
+    test('an endless 3xx body surfaces no uncaught error on the forced close',
+        () async {
+      // The 302 carries an endless chunked body and points at a host permit
+      // refuses. The follower cancels the 3xx body and returns the refusal, so
+      // the forced client close cuts the socket cleanly. Draining it instead
+      // (unawaited(response.stream.drain())) would keep reading until the close
+      // cut it, surfacing as an uncaught ClientException the test zone fails on.
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((req) async {
+        req.response.statusCode = 302;
+        req.response.headers.set('location', 'http://blocked.test/next');
+        req.response.bufferOutput = false;
+        try {
+          while (true) {
+            req.response.add(List.filled(256, 7));
+            await req.response.flush();
+            await Future<void>.delayed(const Duration(milliseconds: 5));
+          }
+        } on HttpException {
+          // the client went away
+        } on SocketException {
+          // the client went away
+        } on StateError catch (e) {
+          if (!e.toString().toLowerCase().contains('clos')) rethrow;
+        }
+      });
+      addTearDown(() => server.close(force: true));
+      hostLookup = (_) async => const ['127.0.0.1'];
+
+      final outcome = await followPageSteered(
+        OutboundProxy.app.resolved,
+        url: Uri.parse('http://start.test:${server.port}/'),
+        allowPrivateHost: 'start.test',
+        follow: PageSteeredFollow<void>(
+          // the start host is allowed; the redirect target is not, so the hop
+          // is refused before any final response is read.
+          permit: (t) async => t.host == 'start.test',
+          read: (r) => r.stream.drain<void>(),
+        ),
+      );
+      expect(outcome, isA<PageSteeredRefused<void>>());
+      expect((outcome as PageSteeredRefused<void>).kind,
+          PageSteeredRefusal.redirect);
+      // Let any mishandled 3xx body surface its close as an uncaught error (the
+      // client was closed on the follower's return); the test zone fails if so.
+      await Future<void>.delayed(const Duration(milliseconds: 300));
     });
   });
 }

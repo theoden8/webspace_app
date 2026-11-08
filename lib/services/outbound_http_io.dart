@@ -384,10 +384,18 @@ OutboundClient buildPageSteeredClient(
   OutboundHttpFactory factory, {
   required ProxyRoute route,
   String? allowPrivateHost,
-}) =>
-    factory is DefaultOutboundHttpFactory
-        ? factory._pageSteeredBuild(route, allowPrivateHost: allowPrivateHost)
-        : factory.clientFor(route);
+}) {
+  if (factory is DefaultOutboundHttpFactory) {
+    return factory._pageSteeredBuild(route, allowPrivateHost: allowPrivateHost);
+  }
+  // A non-default factory has no pin of its own, so it fails closed unless it
+  // opts in (a test fake that captures the fetch); production never reaches
+  // here, since the only non-default factory is one a test installs.
+  return factory is PageSteeredCapturingFactory
+      ? factory.clientFor(route)
+      : const OutboundClientBlocked(
+          'a page-steered client needs the default outbound factory');
+}
 
 /// A direct client was asked to connect to an onion service: nothing was
 /// sent, and the name never reached the device's resolver (LEAK-016). A

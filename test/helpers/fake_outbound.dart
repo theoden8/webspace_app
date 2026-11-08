@@ -8,7 +8,7 @@ import 'package:webspace/settings/proxy.dart';
 /// [OutboundHttpFactory] that records every proxy it is asked for and every
 /// request it serves. Answers with [responder], or hands out [client] when a
 /// test needs its own transport; refuses where [blockWhen] says.
-class FakeOutbound implements OutboundHttpFactory {
+class FakeOutbound implements OutboundHttpFactory, PageSteeredCapturingFactory {
   FakeOutbound({
     FutureOr<http.Response> Function(http.Request request)? responder,
     this.client,
@@ -46,8 +46,10 @@ class FakeOutbound implements OutboundHttpFactory {
   }
 
   // No pageSteeredClientFor: a page-steered fetch reaches this fake through
-  // `buildPageSteeredClient`, which routes a non-default factory to [clientFor]
-  // above (so the fake captures the fetch). The real resolve-and-pin judgement
-  // lives in the dart:io factory and is exercised by the connection-layer test
-  // (SEC-049), not through this fake.
+  // `buildPageSteeredClient`, which routes a PageSteeredCapturingFactory to
+  // [clientFor] above (so the fake captures the fetch). The real resolve-and-pin
+  // judgement lives in the dart:io factory and is exercised by the
+  // connection-layer test (SEC-049), not through this fake. Implementing the
+  // marker keeps that dispatch: a non-default factory that does not is failed
+  // closed by `buildPageSteeredClient`.
 }

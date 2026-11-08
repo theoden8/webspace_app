@@ -46,5 +46,11 @@ OutboundClient buildPageSteeredClient(
   OutboundHttpFactory factory, {
   required ProxyRoute route,
   String? allowPrivateHost,
-}) =>
-    factory.clientFor(route);
+}) {
+  if (factory is DefaultOutboundHttpFactory) return factory.clientFor(route);
+  // Mirror the io half: a non-default factory fails closed unless it opts in.
+  return factory is PageSteeredCapturingFactory
+      ? factory.clientFor(route)
+      : const OutboundClientBlocked(
+          'a page-steered client needs the default outbound factory');
+}

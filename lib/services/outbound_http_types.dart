@@ -272,6 +272,13 @@ abstract class OutboundHttpFactory {
   // library-private, and `followPageSteered` is its one consumer.
 }
 
+/// A test [OutboundHttpFactory] that asks `buildPageSteeredClient` to dispatch a
+/// page-steered build to its [OutboundHttpFactory.clientFor], so the fake
+/// captures the fetch. Nothing in production implements it, so a non-default
+/// factory that does not is failed closed: the real resolve-once-and-pin lives
+/// only on [DefaultOutboundHttpFactory] (SEC-049).
+abstract interface class PageSteeredCapturingFactory {}
+
 /// What a client does with a body the server compressed.
 enum BodyEncoding {
   /// Decoded as it arrives, as a fetch wants it.
