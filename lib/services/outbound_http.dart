@@ -189,10 +189,13 @@ class PageSteeredFollow<T> {
   /// use a redirect to drop the fetch off TLS (artwork, page-linked icons).
   final bool forbidHttpsDowngrade;
 
-  /// A deadline for the whole exchange, every hop and the body read. The
-  /// follower applies it where it can close the client, so a timeout cuts the
-  /// socket rather than leaving an unbounded body draining in the background.
-  /// A caller must pass it here rather than wrapping the call in `.timeout`.
+  /// A deadline for the whole exchange, every hop and the body read, for a
+  /// [followPageSteered] call (which owns its client): when it fires the client
+  /// is closed, so the socket is cut rather than left draining in the background,
+  /// and a caller passes it here rather than wrapping the call in `.timeout`.
+  /// [followPageSteeredReusing] does NOT own its client, so it cannot close it:
+  /// a reusing caller bounds and cuts its fetches with [withPageSteeredClient]'s
+  /// own deadline instead, which closes the shared client.
   final Duration? timeout;
 
   /// Called for each accepted redirect with its destination, for a caller that
@@ -259,15 +262,22 @@ Future<PageSteeredOutcome<T>> followPageSteeredReusing<T>(
 /// [body] drives the client only through [followPageSteeredReusing]; it cannot
 /// reach the client to send through it (the client field is library-private).
 /// This keeps [pageSteeredClient] internal to this seam, so a reusing fetcher
-/// names this helper, never the build.
+/// names this helper, never the build. [timeout] bounds the whole operation:
+/// when it fires the shared client is closed, which cuts any socket still open
+/// (a reused client's fetches have no deadline of their own to do so), and
+/// [body]'s abandoned future absorbs the resulting late error. So a caller sets
+/// the deadline here, not by wrapping this call in `.timeout`, which would leave
+/// the socket draining.
 Future<T> withPageSteeredClient<T>(
   ProxyRoute route, {
   String? allowPrivateHost,
+  Duration? timeout,
   required Future<T> Function(PageSteeredHttp client) body,
 }) async {
   final client = pageSteeredClient(route, allowPrivateHost: allowPrivateHost);
   try {
-    return await body(client);
+    final run = body(client);
+    return timeout == null ? await run : await run.timeout(timeout);
   } finally {
     client.close();
   }

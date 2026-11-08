@@ -28,6 +28,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/outbound_http.dart';
+// dart:io-only symbols the re-export does not carry (it resolves to the web half
+// under analysis): the real pin's private-target error and the env-proxy
+// injection point. This is a VM test, so the direct platform import is fine.
+import 'package:webspace/services/outbound_http_io.dart'
+    show pageSteeredFindProxy, resetPageSteeredFindProxy, PageSteeredPrivateTarget;
 import 'package:webspace/settings/proxy.dart';
 
 void main() {
@@ -382,6 +387,75 @@ void main() {
       // Let any mishandled 3xx body surface its close as an uncaught error (the
       // client was closed on the follower's return); the test zone fails if so.
       await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+  });
+
+  group('a reused client judges each destination behind an env proxy (BUG-012, M1)',
+      () {
+    test('a second destination resolving private is refused on a pooled '
+        'proxy connection', () async {
+      // dart:io pools plain-http connections by the env proxy's host:port, so a
+      // reused client carries a second destination over the first's connection
+      // and the per-connection connectionFactory judge never runs for it. The
+      // per-request guard resolves and judges every request, so b.test (which
+      // resolves to a private address) is refused even while sharing a.test's
+      // pooled proxy connection. On e62d0c8 (one client per fetch) this was
+      // refused by a fresh connection's judge; the shared client dropped it.
+      final proxied = <String>[];
+      final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      proxy.listen((req) async {
+        proxied.add(req.uri.host);
+        req.response.statusCode = 200;
+        req.response.write('ok');
+        await req.response.close();
+      });
+      addTearDown(() => proxy.close(force: true));
+
+      pageSteeredFindProxy = (_) => 'PROXY 127.0.0.1:${proxy.port}';
+      addTearDown(resetPageSteeredFindProxy);
+      // a.test (and the proxy) resolve public; b.test resolves into the LAN.
+      hostLookup = (host) async =>
+          host == 'b.test' ? const ['10.0.0.5'] : const ['93.184.216.34'];
+
+      Object? aErr;
+      Object? bErr;
+      await withPageSteeredClient(
+        OutboundProxy.app.resolved,
+        body: (client) async {
+          Future<Object?> get(String url) async {
+            try {
+              final outcome = await followPageSteeredReusing(
+                client,
+                url: Uri.parse(url),
+                follow: PageSteeredFollow<void>(
+                  permit: (_) async => true,
+                  read: (r) => r.stream.drain<void>(),
+                ),
+              ).timeout(const Duration(seconds: 5));
+              return switch (outcome) {
+                PageSteeredValue() => null,
+                PageSteeredRefused(:final reason) => StateError(reason),
+              };
+            } on IOException catch (e) {
+              return e;
+            } on TimeoutException catch (e) {
+              return e;
+            }
+          }
+
+          aErr = await get('http://a.test/a');
+          bErr = await get('http://b.test/b');
+        },
+      );
+
+      expect(aErr, isNull,
+          reason: 'the public destination goes through the proxy');
+      expect(bErr, isA<PageSteeredPrivateTarget>(),
+          reason: 'the private destination is refused per request, even on the '
+              'reused proxy connection');
+      expect(proxied, ['a.test'],
+          reason: 'only the public destination reached the proxy; b.test was '
+              'refused before any byte was sent');
     });
   });
 }

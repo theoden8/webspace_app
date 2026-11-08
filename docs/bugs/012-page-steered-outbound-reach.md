@@ -149,17 +149,34 @@ than copy the range table.**
    pinning `DefaultOutboundHttpFactory` are both hidden from the public re-export,
    so naming either outside the seam does not compile (`const
    DefaultOutboundHttpFactory().clientFor` included); the platform half keeps both
-   public, so a direct import of `outbound_http_io.dart` could still name them.
-   That edge, and that GUARDED fetchers route page-chosen URLs through the follower
-   rather than a raw client seam, are the remaining `page_steered_outbound_reach`
-   gate (rung 5), which matches text — it catches `clientFor` however indirected
-   and the build name in a GUARDED file, not every spelling across lib. The gate's probes fire on a plant: the follower is
-   the sole `pageSteeredClient` consumer (through `withPageSteeredClient`), only
-   the seam names `buildPageSteeredClient`, and no GUARDED fetcher sets
-   `followRedirects` / reads a `Location` header / names a raw client seam. A proxy
-   connection-count test fails on a `followRedirects = true` mutation; a timeout
-   test shows the deadline cuts the socket; a refused-302-with-endless-body test
-   fails if the 3xx body is drained rather than cancelled.
+   public, so a direct import of `outbound_http_io.dart` would see them, which the
+   `page_steered_outbound_reach` gate refuses (only `outbound_http.dart` may import
+   a half). That, and that GUARDED fetchers route page-chosen URLs through the
+   follower rather than a raw client seam, are held by the gate (rung 5) as text,
+   not a type; folding the halves so neither name need be public would make the
+   import a compile error, the remaining LEAK-002 debt. The gate's probes fire on a
+   plant: the follower is the sole `pageSteeredClient` consumer (through
+   `withPageSteeredClient`), only `outbound_http.dart` imports a half, and no
+   GUARDED fetcher sets `followRedirects` / reads a `Location` header / names a raw
+   client seam. A proxy connection-count test fails on a `followRedirects = true`
+   mutation; a timeout test shows the deadline cuts the socket; a
+   refused-302-with-endless-body test fails if the 3xx body is drained rather than
+   cancelled.
+   A second review round fixed a connection-reuse hole and tightened the claims
+   (all regression-tested, each red on `e62d0c8` and green at head): **M1** — the
+   shared client reused a pooled connection behind an OS env proxy, so a second
+   destination skipped the per-connection judge; `_PageSteeredLiteralGuard.send`
+   now resolves and judges every request when an env proxy carries a DEFAULT
+   route, closing the pooled and the kept-alive-redirect variants. **M2** — the
+   import probe above (no lib file but `outbound_http.dart` imports a half).
+   **L1** — the reused client cannot be closed per fetch, so the discovery-wide
+   deadline moved onto `withPageSteeredClient`, which closes the shared client and
+   cuts the socket; the outer `.timeout` is gone. **L3** — `raw_http_client`'s seam
+   exemption is limited to the `outbound_http*.dart` libraries, so a fake factory
+   in a fetcher gets no raw-client pass. Four committed regression tests pin the
+   first-round fixes: an off-whitelist URL confirmed once, `__wsFetch` one lookup,
+   a windows-1251 page still yielding its icon, and one shared client for a
+   multi-icon discovery.
    *Why:* attempt 5's pin judged every hop only under DEFAULT; under an on-device
    forwarding proxy an auto-follow fetcher's hop-2 redirect to a LAN literal was
    forwarded, seen by no guard.

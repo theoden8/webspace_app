@@ -217,7 +217,9 @@ connection pool) — takes each hop
 **Then** every hop — the initial URL and each `Location` — is a fresh request
 through the guarded connect with the client's own redirect-following off, so the
 private/loopback-literal guard (every route) and the resolve-and-pin (DEFAULT)
-judge the destination before a byte is sent, not just the first hop
+judge the destination before a byte is sent, not just the first hop, and — under
+an OS env proxy that pools plain-http connections by its host:port — per request,
+so a reused or pooled connection cannot carry a second, unjudged destination (M1)
 **And** no fetcher follows a redirect itself: a page-steered client is built only
 by `buildPageSteeredClient`, which the public re-export hides, and its
 `PageSteeredHttp` client is library-private, read only by the follower, so
@@ -228,11 +230,12 @@ time instead. The pinning `DefaultOutboundHttpFactory` is hidden from the
 re-export too, so `const DefaultOutboundHttpFactory().clientFor` does not compile
 outside the seam either. The `page_steered_outbound_reach` gate keeps the guarded
 fetchers off the raw client seams (`clientFor` however it is reached, the build
-name); folding the platform halves so neither the build nor the default factory
-need be public — closing the direct-platform-import edge — is the remaining
-LEAK-002 debt. So a hop-2 redirect to a private target cannot be taken unjudged,
-even under an on-device forwarding proxy that would otherwise forward it to the
-LAN
+name) and refuses a direct import of a platform half (only `outbound_http.dart`
+may import one, so no other lib file sees the public names); folding the halves so
+neither need be public — making that import a compile error rather than a gate —
+is the remaining LEAK-002 debt. So a hop-2 redirect to a private target cannot be
+taken unjudged, even under an on-device forwarding proxy that would otherwise
+forward it to the LAN
 
 ---
 

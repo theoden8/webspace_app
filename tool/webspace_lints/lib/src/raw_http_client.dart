@@ -101,13 +101,19 @@ class _Visitor extends SimpleAstVisitor<void> {
   static bool _inHttp(Element element) =>
       element.library?.uri.toString().startsWith('package:http/') ?? false;
 
-  /// Whether [node] is inside a class that implements `OutboundHttpFactory`.
+  /// Whether [node] is inside a class that implements `OutboundHttpFactory`
+  /// *within the outbound_http seam's own libraries*. The library check matters:
+  /// without it a fake that implements `OutboundHttpFactory` anywhere (a page
+  /// fetcher's planted `_Raw implements OutboundHttpFactory`) would inherit the
+  /// raw-client exemption and reach the network unseen (L3).
   static bool _inSeam(AstNode node) {
     final owner = node
         .thisOrAncestorOfType<ClassDeclaration>()
         ?.declaredFragment
         ?.element;
     if (owner == null) return false;
+    final uri = owner.library?.uri.toString() ?? '';
+    if (!uri.contains('/services/outbound_http')) return false;
     return owner.allSupertypes.any(
       (t) => t.element.name == 'OutboundHttpFactory',
     );

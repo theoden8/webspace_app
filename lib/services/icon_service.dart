@@ -662,11 +662,12 @@ Future<_Search> _tryFaviconPackage(String url,
   // a site shows the placeholder rather than raising a CORS error per site.
   if (!hostCanReadCrossOriginResponses) return _NoIcon();
   try {
-    // Each fetch inside the discovery carries its own deadline (FaviconFinder
-    // reuses one guarded client and cuts a hung hop per fetch); this bounds the
-    // whole discovery's wall-clock against a page that declares many icon links.
-    final favicons =
-        await FaviconFinder.getAll(url, proxy: site).timeout(Duration(seconds: 15));
+    // No outer .timeout: FaviconFinder bounds the whole discovery itself (one
+    // shared guarded client closed on a deadline, which cuts any open socket).
+    // Wrapping it here would abandon the await without closing the socket, so a
+    // hung fetch would drain in the background (it still throws TimeoutException,
+    // caught below).
+    final favicons = await FaviconFinder.getAll(url, proxy: site);
     if (favicons == null) return _Unreached();
     if (favicons.isEmpty) return _NoIcon();
 

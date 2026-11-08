@@ -103,6 +103,7 @@ class FaviconFinder {
     return withPageSteeredClient(
       effectiveProxy,
       allowPrivateHost: siteHost,
+      timeout: _discoveryTimeout,
       body: (client) async {
         final ({Uri url, String body, bool ok, List<Uri> faviconOrigins}) page;
         switch (await _fetchPage(Uri.parse(url), client: client)) {
@@ -190,10 +191,10 @@ class FaviconFinder {
     );
   }
 
-  /// How long a single favicon fetch may take before the follower cuts its
-  /// socket; the whole discovery reuses one client, so a hung hop is bounded
-  /// here rather than left draining for the caller's outer deadline to abandon.
-  static const _fetchTimeout = Duration(seconds: 15);
+  /// A deadline for the whole discovery. The fetches share one client (so no
+  /// single fetch can close it), so the bound lives on [withPageSteeredClient],
+  /// which closes the shared client when it fires and cuts any open socket.
+  static const _discoveryTimeout = Duration(seconds: 15);
 
   /// A favicon image larger than this is not a favicon: the capped read stops
   /// and the icon is dropped, so a hostile page cannot stream an unbounded body
@@ -204,6 +205,8 @@ class FaviconFinder {
   /// (SEC-049, BUG-012), reusing [client] so a discovery's several fetches share
   /// a connection pool, and draping the site's User-Agent. The guarded connect
   /// judges every hop's address; [permit] only keeps each hop a valid web URL.
+  /// No per-fetch deadline: a reused client cannot be closed per fetch, so the
+  /// discovery-wide deadline on [withPageSteeredClient] bounds and cuts them.
   static Future<PageSteeredOutcome<T>> _followFavicon<T>(
     Uri url, {
     required PageSteeredHttp client,
@@ -218,7 +221,6 @@ class FaviconFinder {
           read: read,
           maxRedirects: _maxRedirects,
           onRedirect: onRedirect,
-          timeout: _fetchTimeout,
           userAgent: HostBrowser.sentUserAgent,
         ),
       );

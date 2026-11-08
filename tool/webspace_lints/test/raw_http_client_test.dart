@@ -129,8 +129,16 @@ class Fetcher {
     ]);
   }
 
-  Future<void> test_the_seam_makes_clients() => assertNoDiagnostics('''
-$_ours
+  /// Source placed in a seam library (one named outbound_http*.dart under
+  /// services/), where an OutboundHttpFactory implementer is the seam and may
+  /// make a client. The exemption is limited to these libraries (L3).
+  Future<void> _okInSeam(String classBody) async {
+    final path = '$testPackageRootPath/lib/services/outbound_http_io.dart';
+    newFile(path, '$_ours\n$classBody');
+    await assertNoDiagnosticsInFile(path);
+  }
+
+  Future<void> test_the_seam_makes_clients() => _okInSeam('''
 class DefaultOutboundHttpFactory implements OutboundHttpFactory {
   @override
   http.Client clientFor() => IOClient(_inner());
@@ -138,14 +146,34 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
 }
 ''');
 
-  Future<void> test_a_wrapper_of_the_seam_is_the_seam() =>
-      assertNoDiagnostics('''
-$_ours
+  Future<void> test_a_wrapper_of_the_seam_is_the_seam() => _okInSeam('''
 class Wrapping implements OutboundHttpFactory {
   @override
   http.Client clientFor() => http.Client();
 }
 ''');
+
+  Future<void> test_a_fake_factory_outside_the_seam_is_not_exempt() async {
+    // L3: a class implementing OutboundHttpFactory in a non-seam library (the
+    // default lib/test.dart here, standing for a page fetcher) does not inherit
+    // the raw-client exemption — only the seam's own libraries do.
+    final source =
+        '''
+$_ours
+class Raw implements OutboundHttpFactory {
+  @override
+  http.Client clientFor() => /*here*/http.Client()/*end*/;
+}
+''';
+    final at = source.indexOf('/*here*/') + '/*here*/'.length;
+    await assertDiagnostics(source, [
+      lint(
+        at,
+        source.indexOf('/*end*/') - at,
+        messageContainsAll: ["'Client' opens a connection"],
+      ),
+    ]);
+  }
 
   Future<void> test_a_seam_by_name_alone_is_not() async {
     final source =

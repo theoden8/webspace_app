@@ -17,10 +17,11 @@
 // `PageSteeredHttp`) is reachable nowhere else — the field is library-private —
 // so a page-steered fetch cannot sidestep it. A page-steered client is also
 // built in only one place, `buildPageSteeredClient`,
-// which the public re-export hides, so no caller reached through `outbound_http.dart`
-// can even name the build (SEC-049). The one path the compiler cannot close is a
-// direct `import` of the platform half `outbound_http_io.dart`, which this gate
-// polices: only the seam library names `buildPageSteeredClient`.
+// which the public re-export hides, along with the pinning `DefaultOutboundHttpFactory`,
+// so no caller reached through `outbound_http.dart` can name either (SEC-049). The
+// one path the compiler cannot close is a direct `import` of a platform half
+// (`outbound_http_io.dart` / `outbound_http_web.dart`), which would see both public
+// names; this gate polices it: only `outbound_http.dart` may import a half.
 //
 // So this gate does not test the guard. It tests that every outbound seam has
 // been classified: either it routes page-chosen URLs through `followPageSteered`,
@@ -229,6 +230,25 @@ test('no fetcher follows a page-steered redirect by hand', () => {
       `${file} reads the Location header, so it follows a redirect itself. Route `
       + `it through followPageSteered instead (BUG-012).`);
   }
+});
+
+// M2: only the seam entry may import a platform half. buildPageSteeredClient and
+// DefaultOutboundHttpFactory are public in outbound_http_io.dart / _web.dart (the
+// re-export hides them), so a lib file that imports a half directly could name
+// either and reach a raw, unguarded client — the compiler cannot stop that, this
+// does. Plant `import '.../outbound_http_io.dart'` in any other lib file (a
+// `const DefaultOutboundHttpFactory().clientFor`, an `io.buildPageSteeredClient`
+// tear-off, or a helper a GUARDED fetcher then calls) and this fires. Tests live
+// under test/, not lib, so a VM test that builds the real factory is unaffected.
+test('only the seam entry imports a platform half', () => {
+  const re = /\b(import|export)\b[^\n;]*outbound_http_(io|web)\.dart/;
+  const importers = dartFiles('lib').filter((f) => re.test(read(f)));
+  assert.deepEqual(importers, ['lib/services/outbound_http.dart'],
+    'only lib/services/outbound_http.dart may import a platform half '
+    + '(outbound_http_io.dart / outbound_http_web.dart): it hides the raw '
+    + 'client-producing names (buildPageSteeredClient, DefaultOutboundHttpFactory) '
+    + 'from the re-export, so a direct import elsewhere would reopen the SEC-049 '
+    + 'edge. Reach the seam through outbound_http.dart.');
 });
 
 test('every exemption states a reason', () => {
