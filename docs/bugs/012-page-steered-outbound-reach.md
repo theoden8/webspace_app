@@ -95,27 +95,57 @@ than copy the range table.**
    partial:* it closes a spelling of the literal guard, nothing else in the
    gaps below.
 
+5. **2026-11-08 — the connection pin** (SEC-049).
+   A page-steered client (`pageSteeredClient`, the sole producer of
+   `PageSteeredHttp`) resolves the host once and connects only to the judged
+   address, http and https alike — https pins the raw socket to the judged IP and
+   runs TLS with SNI and certificate verification against the hostname. The
+   resolution that judges is now the resolution that connects: no byte, not even
+   a TLS ClientHello, reaches an address the judge did not accept, which closes
+   the TTL-flip race at the connection, where no seam can opt out of it.
+   `_PageSteeredLiteralGuard` refuses a private or loopback literal on every
+   route (the literal half, now uniform, including under a proxy), and a
+   page-steered proxied client gets no localhost bypass. The structural gate was
+   rewritten (`test/js/page_steered_outbound_reach.test.js`): the marker is now
+   `pageSteeredClient`, and favicons and page icon bytes — the enumeration gap
+   below — are GUARDED. Byte/connection-counting boundary test:
+   `test/outbound_http_page_steered_test.dart`. The fetchers keep their own
+   pre-flight range checks as defense in depth; under a proxy, where the pin is
+   not built, those by-hand per-hop checks are the only redirect judge.
+   *Why:* attempt 3 resolved and then connected as two separate resolutions, and
+   it was a rule each seam opted into by calling `classifyOutboundTarget`; the
+   pin removes both.
+   *Why it is partial:* the auto-follow fetchers use `client.get`, so the
+   request-level literal guard sees only hop 1; a hop-2 redirect to a private
+   target is seen by no guard (see gaps).
+
 ## Known open gaps
 
-- **The TTL-flip race.** The gate resolves the name; the `http` client resolves
-  it again when it connects. Closing this needs the connection pinned to the
-  address that was checked, which means a `HttpClient.connectionFactory` that
-  dials an `InternetAddress` while keeping TLS SNI and certificate validation
-  against the original name. Not attempted; the attack needs a sub-second TTL
-  and a resolver that honours it.
-- **Remote-DNS proxies are exempt.** Under SOCKS5, Tor, or an HTTP proxy the
-  destination name is resolved at the far end, so a local answer describes a
-  network the request never traverses — and a Tor user may have no local
-  resolver at all. The exemption is correct for the device's own LAN and wrong
-  for the *proxy's*: a fetch through a proxy can still reach whatever is private
-  to that proxy's network. Nothing on this side can see that.
-- **No structural gate.** Nothing fails CI when a new Dart-side fetch takes a
-  page-supplied URL without calling `classifyOutboundTarget`. Both seams found
-  so far (the bridge, the artwork fetch) were found by reading code. A gate
-  that greps for `outboundHttp.clientFor` in a file that also reads a
-  page-supplied URL would catch the next one; per BUG-007's practice, that gate
-  is the thing that makes the class stop recurring, and it is not written yet.
-- **Enumeration is incomplete.** Downloads, favicon probes, and the TLS-trust
-  prompt also make Dart-side requests with URLs derived from page content. They
-  are subject to different rules (a download is a user action; a favicon URL
-  comes from parsed markup) and have not been audited against this invariant.
+- ~~**The TTL-flip race.**~~ Closed by attempt 5: the page-steered client resolves
+  once and connects to the judged address, so there is no second resolution to
+  flip.
+- ~~**No structural gate.**~~ Closed: `test/js/page_steered_outbound_reach.test.js`
+  fails CI when a Dart-side fetch of a page-chosen URL does not route through
+  `pageSteeredClient`, unless it is listed EXEMPT with a reason.
+- **Auto-follow redirect to a private target through a device-side proxy.** The
+  auto-follow fetchers (favicons, page icon bytes) use `client.get`, so the
+  request-level literal guard sees only the first hop. (The manual-loop fetchers
+  — user scripts, media artwork, page-linked icons — judge every hop and are
+  unaffected.) Under DEFAULT the pin judges every hop, and under a *remote* proxy
+  a hop-2 private target is the proxy's network, not the device's. But an
+  on-device *forwarding* proxy (Privoxy, a local proxy app) forwards a hop-2
+  `302 -> http://127.0.0.1/` or a LAN literal to the device's own network. The
+  egress relay closes the loopback half (every dial is bound to a non-loopback
+  interface via `SO_BINDTODEVICE`, loopback excluded from the interface list) but
+  a LAN literal on hop 2 still reaches the user's LAN through it. Closed by making
+  the literal guard judge every hop on every route (`followRedirects` off +
+  per-hop re-entry) for the auto-follow fetchers; not done here.
+- **Remote-DNS proxies are exempt by design.** Under SOCKS5, Tor, or a remote
+  HTTP proxy the destination name is resolved at the far end, so a local answer
+  describes a network the request never traverses — and a Tor user may have no
+  local resolver at all. The literal guard still refuses private literals on
+  these routes; a name's far-end resolution is the proxy's to judge.
+- **Enumeration: downloads and the TLS-trust prompt remain.** Favicons and page
+  icon bytes are now GUARDED (attempt 5). A download is a user-confirmed action
+  that lands in a file, not back in the page, and the TLS-trust prompt is its own
+  surface; neither has been audited against this invariant.

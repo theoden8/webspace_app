@@ -388,8 +388,11 @@ class MediaSessionService {
     // same way through [permitted].
     final first = Uri.tryParse(url);
     if (first == null || !await permitted(first)) return null;
+    // The artwork URL and every redirect hop are judged above; the page-steered
+    // client judges the destination address again as it connects and pins to it,
+    // closing the rebind window between that check and the connect (SEC-049).
     final http.Client client;
-    switch (outboundHttp.clientFor(effective)) {
+    switch (pageSteeredClient(effective).result) {
       case OutboundClientBlocked(:final reason):
         LogTag.mediaSession.warning('Artwork fetch skipped: $reason');
         return null;

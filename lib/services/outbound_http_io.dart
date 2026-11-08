@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
+import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/trusted_hosts_x509.dart';
@@ -34,9 +35,32 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
   }) =>
       _clientFor(route, encoding: encoding);
 
+  @override
+  OutboundClient pageSteeredClientFor(ProxyRoute route,
+      {String? allowPrivateHost}) {
+    // Under a proxy the destination name is resolved at the far end, so the
+    // proxied client applies and the local resolve-and-pin would describe a
+    // network the request never traverses (classifyOutboundTarget); under
+    // DEFAULT the direct client resolves the host once and pins to the judged
+    // address. Either result is wrapped so a page cannot reach a private
+    // *literal* on any route: a name travels to the proxy and is resolved
+    // there, but `http://127.0.0.1/` is refused whether or not a proxy carries
+    // it, so a proxy never becomes a path to the loopback the pin guards.
+    final OutboundClient base = route.type != ProxyType.DEFAULT
+        ? _clientFor(route, encoding: BodyEncoding.decoded, pageSteered: true)
+        : OutboundClientReady(IOClient(
+            _pageSteeredDirectClient(allowPrivateHost: allowPrivateHost)));
+    if (base is OutboundClientReady) {
+      return OutboundClientReady(_PageSteeredLiteralGuard(base.client,
+          allowPrivateHost: allowPrivateHost?.toLowerCase()));
+    }
+    return base;
+  }
+
   OutboundClient _clientFor(
     UserProxySettings settings, {
     required BodyEncoding encoding,
+    bool pageSteered = false,
   }) {
     switch (settings.type) {
       case ProxyType.DEFAULT:
@@ -65,6 +89,7 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
           hostPort: hostPort,
           tls: settings.type == ProxyType.HTTPS,
           encoding: encoding,
+          pageSteered: pageSteered,
         );
 
       case ProxyType.TOR:
@@ -75,7 +100,8 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
         // would put the request on the device IP, which is the exact thing
         // the user turned Tor on to prevent (TOR-008).
         return switch (expandTorProxy(settings)) {
-          TorRouteUp(:final socks) => _clientFor(socks, encoding: encoding),
+          TorRouteUp(:final socks) =>
+            _clientFor(socks, encoding: encoding, pageSteered: pageSteered),
           TorRouteBlocked(:final reason) => OutboundClientBlocked(
               '$reason Outbound request blocked to avoid leaking the device '
               'IP via a direct fallback.',
@@ -160,6 +186,91 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
     return client;
   }
 
+  /// A direct client for a URL a loaded page can steer (SEC-049). Every
+  /// connection it makes — the first and each redirect hop, since dart:io asks
+  /// the connection factory per connection — judges the destination as it
+  /// connects, closing the window where a name that passed a pre-flight range
+  /// check rebinds into a private range before the client's own connect (the
+  /// residual [classifyOutboundTarget] documents).
+  ///
+  /// Both schemes pin the same way: [hostLookup] (the app's one resolver)
+  /// resolves the host once, the address is judged, and the socket connects only
+  /// to a judged address — never a name re-resolved at connect time. HTTPS runs
+  /// TLS over that pinned socket with SNI and certificate verification against
+  /// the hostname, so the TLS session is bound to the name while the bytes go
+  /// only to the judged address: no byte, not even the ClientHello, reaches an
+  /// address the judge did not accept. [allowPrivateHost] is the one host whose
+  /// own private address is acceptable (a page-linked resource's document host,
+  /// so a LAN site still serves its own icon).
+  static HttpClient _pageSteeredDirectClient({String? allowPrivateHost}) {
+    final client = _newHttpClient(encoding: BodyEncoding.decoded);
+    final allow = allowPrivateHost?.toLowerCase();
+    client.connectionFactory = (uri, proxyHost, proxyPort) async {
+      final host = Host(uri.host);
+      if (host.isOnion) throw OnionNeedsProxyFailure(host);
+      final allowed = allow != null && uri.host.toLowerCase() == allow;
+      // Judge the destination's local resolution before connecting, whichever
+      // way it is carried. The old pre-flight classify judged a DEFAULT route's
+      // local resolution even when the OS had a proxy set, so an OS proxy must
+      // not become a way to reach a private address unjudged. The throw happens
+      // here, before any socket opens.
+      final judged = await _judgedAddress(uri.host, allowPrivate: allowed);
+      // An OS proxy carries the request: it connects to the far end, so hand
+      // dart:io the socket to the proxy as [_directHttpClient] does. The local
+      // resolution is judged above; the proxy resolves its own.
+      if (proxyHost != null && proxyPort != null) {
+        return Socket.startConnect(proxyHost, proxyPort);
+      }
+      if (uri.scheme == 'https') {
+        return _pinnedSecureConnect(uri, judged: judged);
+      }
+      return Socket.startConnect(judged, uri.port);
+    };
+    return client;
+  }
+
+  /// Resolve [host] through the app's one resolver and return the address an
+  /// http page-steered connection pins to, or throw: [PageSteeredPrivateTarget]
+  /// when any resolved address is in a private or loopback range (unless
+  /// [allowPrivate]), a [SocketException] when the name does not resolve here.
+  /// Refusing on *any* private address matches [classifyResolvedHost], so a
+  /// name that answers with one public and one private address is refused, not
+  /// raced.
+  static Future<InternetAddress> _judgedAddress(String host,
+      {required bool allowPrivate}) async {
+    final addresses = await hostLookup(host);
+    if (addresses == null || addresses.isEmpty) {
+      throw SocketException('$host did not resolve');
+    }
+    if (!allowPrivate) {
+      for (final a in addresses) {
+        if (isPrivateOrLoopbackHost(a)) {
+          throw PageSteeredPrivateTarget(Host(host), resolvedAddress: a);
+        }
+      }
+    }
+    return InternetAddress(addresses.first);
+  }
+
+  /// A TLS connection for an https URL a page can steer, pinned to the already
+  /// [judged] address: the raw socket connects only to it, and TLS runs over
+  /// that socket with SNI and certificate verification against the hostname
+  /// ([uri.host]). The TLS session is bound to the name while the socket is
+  /// pinned to the judged address, so a rebind cannot be probed by the handshake
+  /// itself — no byte, not even the ClientHello, reaches an address the judge
+  /// did not accept.
+  static Future<ConnectionTask<Socket>> _pinnedSecureConnect(Uri uri,
+      {required InternetAddress judged}) async {
+    final Future<SecureSocket> secured = Socket.connect(judged, uri.port).then(
+        (raw) => SecureSocket.secure(
+              raw,
+              host: uri.host,
+              onBadCertificate: (cert) =>
+                  _isTrustedBadCert(cert, host: uri.host, port: uri.port),
+            ));
+    return _cancellableConnect(secured);
+  }
+
   /// [http.Client] routed through the HTTP proxy at [addr]. With [tls] the
   /// hop to the proxy is a TLS session: the factory hands dart:io a
   /// `SecureSocket` to the proxy, so `CONNECT` and the Basic credentials go
@@ -172,11 +283,15 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
     required (String, int) hostPort,
     required bool tls,
     required BodyEncoding encoding,
+    bool pageSteered = false,
   }) {
     final inner = _newHttpClient(encoding: encoding);
     inner.findProxy = (uri) {
-      final host = uri.host.toLowerCase();
-      if (_isLocalhost(host)) return 'DIRECT';
+      // A page-steered client gets no localhost bypass: for a page a loopback
+      // destination is the SSRF to block, and letting it go DIRECT would reopen
+      // the rebind/redirect hole the pin closes (SEC-049). Everything it fetches
+      // goes to the proxy, which resolves and connects at the far end.
+      if (!pageSteered && _isLocalhost(uri.host.toLowerCase())) return 'DIRECT';
       return 'PROXY $addr';
     };
     if (settings.hasCredentials) {
@@ -269,6 +384,49 @@ final class OnionNeedsProxyFailure extends SocketException {
             'proxy');
 
   final Host host;
+}
+
+/// A page-steered client refused to connect: [host] resolves to [address],
+/// which is in a private or loopback range a request a loaded page can steer
+/// may not reach (SEC-049). Nothing was sent. A [SocketException], so every
+/// caller reads it as the failed connection it is.
+final class PageSteeredPrivateTarget extends SocketException {
+  PageSteeredPrivateTarget(this.host, {required this.resolvedAddress})
+      : super('$host resolves to $resolvedAddress, a private or loopback '
+            'address a page-steered request may not reach');
+
+  final Host host;
+  final String resolvedAddress;
+}
+
+/// Refuses a page-steered request to a private or loopback *literal* on any
+/// route (SEC-049): under a proxy a name travels to the proxy and is resolved
+/// there, but `http://127.0.0.1/` or `http://[::1]/` must not become a way to
+/// reach the loopback the direct pin guards. [allowPrivateHost] (lowercased) is
+/// the one host whose own private literal is permitted. On a DEFAULT route the
+/// direct client also resolves and judges; this is the literal half, the same
+/// on every route, and the only range check the proxied fetchers without one of
+/// their own (favicons, page icon bytes) get under a proxy.
+class _PageSteeredLiteralGuard extends http.BaseClient {
+  _PageSteeredLiteralGuard(this._inner, {this.allowPrivateHost});
+
+  final http.Client _inner;
+  final String? allowPrivateHost;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    final host = request.url.host;
+    final allowed =
+        allowPrivateHost != null && host.toLowerCase() == allowPrivateHost;
+    if (!allowed && isPrivateOrLoopbackHost(host)) {
+      return Future.error(
+          PageSteeredPrivateTarget(Host(host), resolvedAddress: host));
+    }
+    return _inner.send(request);
+  }
+
+  @override
+  void close() => _inner.close();
 }
 
 /// A SOCKS5 connect cannot be aborted mid-handshake, so cancelling it only

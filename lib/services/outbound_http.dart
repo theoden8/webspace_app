@@ -40,7 +40,45 @@ class _DoNotTrackOutboundHttpFactory implements OutboundHttpFactory {
     }
     return result;
   }
+
+  @override
+  OutboundClient pageSteeredClientFor(ProxyRoute route,
+      {String? allowPrivateHost}) {
+    final result =
+        inner.pageSteeredClientFor(route, allowPrivateHost: allowPrivateHost);
+    if (result is OutboundClientReady) {
+      return OutboundClientReady(DoNotTrackClient(result.client));
+    }
+    return result;
+  }
 }
+
+/// A client for an outbound call a loaded page can steer, which judges the
+/// destination address as it connects (SEC-049). Only [pageSteeredClient]
+/// constructs one — the `._` constructor is private to this library — so a
+/// [PageSteeredHttp] in hand provably came from the guarded path. Which fetchers
+/// route through it, rather than the raw [OutboundHttpFactory.clientFor], is held
+/// by the `page_steered_outbound_reach` structural gate, not the compiler: a
+/// fetcher that reverted to `clientFor` would still compile, and the gate is what
+/// catches it. Lifting that to a type the four page-steerable fetchers (user
+/// scripts, media-session artwork, page-linked icons, favicons) take in their
+/// signatures is the LEAK-002 type-debt (`docs/security/policy_debt.tsv`).
+class PageSteeredHttp {
+  const PageSteeredHttp._(this.result);
+
+  /// The sealed build result: [OutboundClientReady] carries the guarded client
+  /// (the caller MUST close it), [OutboundClientBlocked] says why none could be
+  /// made, exactly as [OutboundHttpFactory.clientFor]'s result.
+  final OutboundClient result;
+}
+
+/// Build the [PageSteeredHttp] client for [route], the one producer of the
+/// type. [allowPrivateHost] is the single host whose own private address the
+/// guard permits (a page-linked resource's document host). Drapes the always-on
+/// DNT/Sec-GPC headers like every other outbound seam.
+PageSteeredHttp pageSteeredClient(ProxyRoute route, {String? allowPrivateHost}) =>
+    PageSteeredHttp._(
+        outboundHttp.pageSteeredClientFor(route, allowPrivateHost: allowPrivateHost));
 
 /// Global outbound HTTP factory. Use this from every Dart-side HTTP call
 /// that can carry user-identifying traffic.

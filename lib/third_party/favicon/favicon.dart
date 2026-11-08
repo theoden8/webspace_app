@@ -89,7 +89,13 @@ class FaviconFinder {
     if (Host.ofWebUrl(url) == null) return favicons;
 
     final effectiveProxy = proxy.resolved;
-    final clientResult = outboundHttp.clientFor(effectiveProxy);
+    // Favicon URLs come from page markup; the page-steered client judges every
+    // hop's destination address as it connects and pins to it (SEC-049). The
+    // site's own host is the one whose private address is allowed, so a site the
+    // user keeps on their LAN still serves its favicon.
+    final clientResult =
+        pageSteeredClient(effectiveProxy, allowPrivateHost: Host.ofWebUrl(url))
+            .result;
     if (clientResult is! OutboundClientReady) {
       return null; // proxy could not be honored — fail closed
     }

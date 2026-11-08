@@ -26,6 +26,10 @@ class FakeOutbound implements OutboundHttpFactory {
   final List<BodyEncoding> encodings = [];
   final List<http.Request> requests = [];
 
+  /// The `allowPrivateHost` each [pageSteeredClientFor] call was given, in order,
+  /// so a test can assert which document host a page-linked fetch permits.
+  final List<String?> allowPrivateHosts = [];
+
   UserProxySettings? get lastQuery => queries.isEmpty ? null : queries.last;
   List<Uri> get requested => [for (final r in requests) r.url];
   set block(bool value) => blockWhen = (_) => value;
@@ -43,5 +47,16 @@ class FakeOutbound implements OutboundHttpFactory {
           requests.add(req);
           return responder(req);
         }));
+  }
+
+  /// The fake serves the same transport for a page-steered fetch; the real
+  /// resolve-and-pin judgement lives in the dart:io factory and is exercised by
+  /// the connection-layer test (SEC-049), not through this fake. The requested
+  /// [allowPrivateHost] is recorded for assertions.
+  @override
+  OutboundClient pageSteeredClientFor(ProxyRoute route,
+      {String? allowPrivateHost}) {
+    allowPrivateHosts.add(allowPrivateHost);
+    return clientFor(route);
   }
 }

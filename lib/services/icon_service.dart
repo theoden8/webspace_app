@@ -18,8 +18,13 @@ import '../third_party/favicon/favicon.dart';
 /// be honored (e.g. malformed address). Callers MUST treat null as "abort
 /// the request" — falling back to the default `http` client would leak the
 /// device IP and defeat the proxy the user configured.
-http.Client? _proxiedClient(ProxyRoute proxy) {
-  final result = outboundHttp.clientFor(proxy);
+http.Client? _proxiedClient(ProxyRoute proxy, {String? allowPrivateHost}) {
+  // Favicon URLs are chosen by page markup, so the client judges every hop's
+  // destination address as it connects and pins to it (SEC-049). The fetchers
+  // below that know a document host (page-linked resources) pass it as the one
+  // host whose own private address is allowed, so a LAN site serves its icon.
+  final result =
+      pageSteeredClient(proxy, allowPrivateHost: allowPrivateHost).result;
   if (result is OutboundClientReady) {
     return SiteUserAgentClient(result.client,
         userAgent: HostBrowser.sentUserAgent);
@@ -188,7 +193,7 @@ Future<Uint8List?> fetchPageLinkedBytes(
 
   final first = Uri.tryParse(url);
   if (first == null || !await permitted(first)) return null;
-  final client = _proxiedClient(effective);
+  final client = _proxiedClient(effective, allowPrivateHost: documentHost);
   if (client == null) return null;
   try {
     return await _readPageLinked(client,
