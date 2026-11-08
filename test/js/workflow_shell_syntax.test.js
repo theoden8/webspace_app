@@ -167,6 +167,7 @@ test('every heavy job is gated on the plan job', () => {
     ['build-linux', 'linux'],
     ['build-apple', 'apple'],
     ['bridge-transports', 'apple'],
+    ['capture-screen-share', 'capture'],
     ['screenshots-android', 'screenshots'],
     ['screenshots-ios', 'screenshots'],
     ['screenshots-macos', 'screenshots'],
@@ -205,6 +206,42 @@ test('the ci-only marker is honoured on pull requests only', () => {
     /case ",\$only," in/,
     'token matching is not comma-delimited, so one token can enable another',
   );
+});
+
+test('capture selection runs only the requested job and never silences master', () => {
+  const workflow = YAML.parse(workflowText);
+  const picker = workflow.jobs.plan.steps.find((step) => step.id === 'pick').run;
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'capture-plan-'));
+  try {
+    execFileSync('git', ['init', '-q', dir]);
+    execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.com',
+      'commit', '--allow-empty', '-qm', 'Record the demo [ci-only: capture]'], { cwd: dir });
+    for (const [event, requested, capture, otherJobs] of [
+      ['pull_request', false, 'true', 'false'],
+      ['workflow_dispatch', true, 'true', 'false'],
+      ['workflow_dispatch', false, 'false', 'true'],
+      ['push', false, 'false', 'true'],
+    ]) {
+      const output = path.join(dir, 'output');
+      fs.writeFileSync(output, '');
+      const script = picker
+        .replaceAll('${{ github.event_name }}', event)
+        .replaceAll('${{ inputs.capture_only }}', String(requested))
+        .replace(/\$\{\{ inputs\.[a-z_]+ \}\}/g, 'false');
+      execFileSync('bash', ['-eu', '-c', script], {
+        cwd: dir, env: { ...process.env, GITHUB_OUTPUT: output },
+      });
+      const values = Object.fromEntries(fs.readFileSync(output, 'utf8').trim()
+        .split('\n').map((line) => line.split('=')));
+      assert.equal(values.capture, capture, `${event}: capture`);
+      for (const job of ['validate', 'design', 'android', 'linux', 'apple']) {
+        assert.equal(values[job], otherJobs, `${event}: ${job}`);
+      }
+      if (capture === 'true') assert.equal(values.only, 'capture');
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 // PASSKEY-012 runs inside the Android job rather than a job of its own, so no

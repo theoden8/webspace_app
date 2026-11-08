@@ -32,6 +32,10 @@ on:
         description: 'Only the store screenshots: every device at once, into the one screenshots artifact. No build or test job runs.'
         type: boolean
         default: false
+      capture_only:
+        description: 'Only record the Android screen-sharing review video.'
+        type: boolean
+        default: false
 
 # Supersede in-progress runs for the same ref: a new push cancels the
 # previous run instead of letting both consume runners. A hung job (e.g. a
@@ -54,8 +58,8 @@ jobs:
   #
   # Put `[ci-only: apple]` in the commit message -- or several, as
   # `[ci-only: apple,validate]` -- and everything else skips. Tokens are the
-  # job ids below: validate, design, android, linux, apple, and screenshots
-  # for the screenshot jobs, which a marker naming it runs on any PR.
+  # job ids below: validate, design, android, linux, apple, screenshots,
+  # and capture for the opt-in screen-sharing review recording.
   #
   # Honoured on pull_request only. The marker stays in the message after a
   # merge, so on master and on workflow_dispatch every job runs regardless
@@ -71,6 +75,7 @@ jobs:
       android: ${{ steps.pick.outputs.android }}
       linux: ${{ steps.pick.outputs.linux }}
       apple: ${{ steps.pick.outputs.apple }}
+      capture: ${{ steps.pick.outputs.capture }}
       only: ${{ steps.pick.outputs.only }}
       screenshots: ${{ steps.screenshots.outputs.screenshots }}
     steps:
@@ -92,6 +97,8 @@ jobs:
             only=validate
           elif [ "${{ inputs.screenshots_only }}" = true ]; then
             only=screenshots
+          elif [ "${{ inputs.capture_only }}" = true ]; then
+            only=capture
           fi
           pick() {
             if [ -z "$only" ]; then
@@ -109,6 +116,11 @@ jobs:
             pick android
             pick linux
             pick apple
+            # A review recording is opt-in, including on master.
+            case ",$only," in
+              *,capture,*) echo "capture=true" ;;
+              *) echo "capture=false" ;;
+            esac
             echo "only=$only"
           } >> "$GITHUB_OUTPUT"
           if [ -n "$only" ]; then
@@ -1705,6 +1717,51 @@ jobs:
           name: macos-app
           path: webspace-macos.zip
           if-no-files-found: error
+
+  capture-screen-share:
+    name: Record Android screen sharing
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: plan
+    if: needs.plan.outputs.capture == 'true'
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Android toolchain
+        uses: ./.github/actions/android-toolchain
+        with:
+          cargo-ndk-version: ${{ env.CARGO_NDK_VERSION }}
+      - name: Build the release app
+        run: fvm flutter build apk --release --flavor fdroid --target-platform android-x64
+      - name: Install video encoder
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+      - name: Android emulator
+        uses: ./.github/actions/android-emulator
+      - name: Capture the review walkthrough
+        timeout-minutes: 10
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: default
+          arch: x86_64
+          profile: pixel_5
+          disk-size: 4096M
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: python3 scripts/capture_screen_share_video.py
+      - name: Upload video and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screen-sharing-review-video
+          path: build/screen-share-video/
+          if-no-files-found: warn
+          retention-days: 30
 
   # The store screenshots, a job per device, so every set is taken at once
   # and none waits on a build or a test tier. The plan job decides which runs

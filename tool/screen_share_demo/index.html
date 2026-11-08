@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Screen sharing demo</title>
+<style>
+  body { margin: 24px; font: 17px system-ui; background: #f5f7fb; color: #17243b; }
+  h1 { font-size: 26px; }
+  button { padding: 14px 18px; font: inherit; border: 0; border-radius: 8px;
+    background: #2458cf; color: white; }
+  button:disabled { opacity: .5; }
+  video { width: 100%; height: 280px; object-fit: contain; background: #17243b;
+    border-radius: 8px; }
+  .motion { height: 14px; border-radius: 7px; margin: 20px 0;
+    background: linear-gradient(90deg, #2458cf, #edab39, #2458cf);
+    background-size: 200% 100%; animation: motion 2s linear infinite; }
+  @keyframes motion { to { background-position: 200% 0; } }
+</style>
+<h1>Screen sharing demo</h1>
+<p>Share your screen with this page to see a live preview.</p>
+<button id="start">Start sharing</button>
+<p id="status">Ready to share</p>
+<div class="motion" aria-hidden="true"></div>
+<video id="preview" autoplay muted playsinline></video>
+<p>Stop using WebSpace's <strong>Stop sharing</strong> notification.</p>
+<script>
+  const start = document.querySelector('#start');
+  const status = document.querySelector('#status');
+  const video = document.querySelector('#preview');
+  const sample = document.createElement('canvas');
+  sample.width = 16;
+  sample.height = 24;
+  const context = sample.getContext('2d', {willReadFrequently: true});
+  let frames = 0;
+  let changed = 0;
+  let previous = '';
+  let running = false;
+
+  function report(event, details = {}) {
+    return fetch('/event', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({event, frames, changed, ...details}),
+    });
+  }
+
+  function observe() {
+    if (!running) return;
+    context.drawImage(video, 0, 0, sample.width, sample.height);
+    const pixels = context.getImageData(0, 0, sample.width, sample.height).data;
+    const signature = Array.from(pixels).filter((_, i) => i % 4 !== 3).join(',');
+    const visible = pixels.some((value, i) => i % 4 !== 3 && value > 32);
+    if (visible) {
+      frames++;
+      if (previous && signature !== previous) changed++;
+      previous = signature;
+      if (frames % 10 === 0) void report('frames');
+    }
+    video.requestVideoFrameCallback(observe);
+  }
+
+  start.addEventListener('click', async () => {
+    start.disabled = true;
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({video: true, audio: false});
+      const track = stream.getVideoTracks()[0];
+      video.srcObject = stream;
+      await video.play();
+      status.textContent = 'Screen sharing is active';
+      running = true;
+      void report('started', {settings: track.getSettings()});
+      video.requestVideoFrameCallback(observe);
+      track.addEventListener('ended', () => {
+        running = false;
+        video.srcObject = null;
+        status.textContent = 'Screen sharing stopped';
+        start.disabled = false;
+        void report('ended');
+      });
+    } catch (error) {
+      status.textContent = `${error.name}: ${error.message}`;
+      start.disabled = false;
+      void report('error', {name: error.name, message: error.message});
+    }
+  });
+  void report('ready', {supported: typeof navigator.mediaDevices?.getDisplayMedia === 'function'});
+</script>
+</html>
