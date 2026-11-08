@@ -11,6 +11,7 @@ export 'package:webspace/services/model_names.dart';
 export 'package:webspace/services/step_print.dart';
 
 part 'model_exprs.dart';
+part 'step_lock.dart';
 part 'step_reads.dart';
 
 /// What a table's own code sees of one flow: the values its steps keep,
@@ -643,27 +644,38 @@ final class Shared<T> {
 /// which names why. A cell the code shares ([SharedAt]) writes only with
 /// one in hand, so a write outside them does not compile.
 final class Commit {
-  const Commit._() : unmodeled = null, environment = null;
+  const Commit._() : unmodeled = null, environment = null, _none = false;
 
   /// A write no step of the model takes yet: debt, which a step that takes
   /// it retires.
-  const Commit.unmodeled(Unmodeled this.unmodeled) : environment = null;
+  const Commit.unmodeled(Unmodeled this.unmodeled)
+      : environment = null,
+        _none = false;
 
   /// A write of one of the environment's actions `activation.tla` states by
   /// hand: the model takes it there, not in a table's step.
-  const Commit.environment(Environment this.environment) : unmodeled = null;
+  const Commit.environment(Environment this.environment)
+      : unmodeled = null,
+        _none = false;
+
+  /// A turn that writes none of the model's state: a change to what the
+  /// model does not hold, such as a site's name or its settings. A write in
+  /// it fails at once.
+  const Commit.none() : unmodeled = null, environment = null, _none = true;
 
   /// A model a test builds before any step runs.
   @visibleForTesting
-  const Commit.fixture() : unmodeled = null, environment = null;
+  const Commit.fixture() : unmodeled = null, environment = null, _none = false;
 
   final Unmodeled? unmodeled;
   final Environment? environment;
+  final bool _none;
 
   /// This commit wrote [variable]. A write no step takes is stamped, so a
   /// step that reads the variable once its flow's await is over learns it
   /// met one ([UnmodeledWrites]).
   void wrote(ModelVar variable) {
+    assert(!_none, 'a turn that writes none of the model wrote $variable');
     if (unmodeled case final by?) {
       UnmodeledWrites._last[variable] = (at: ++UnmodeledWrites._now, by: by);
     }
@@ -751,12 +763,20 @@ final class Planted {
 /// The environment's actions of `activation.tla` the code writes the
 /// model's variables in, hand-written there until the tables print them.
 enum Environment {
+  /// The sites the last session saved, read into an empty list before any
+  /// flow runs: the list `Init` starts from.
+  init,
+
   /// The frame that builds a loaded site's webview for its active tab and
   /// hands it the back stack queued for that tab (`Frame(s)`).
   frame,
 
   /// A row moved to another place in the list (`Move(from, to)`).
   move,
+
+  /// A site joining the list at its end, where the model kept its row
+  /// (`Join(s)`): an add, an archive's open.
+  join,
 
   /// A loaded site's webview let go of so the frame builds it afresh
   /// (`LetGo(s)`): a changed posture, proxy, user script, Tor binding or
@@ -767,11 +787,11 @@ enum Environment {
 
 /// The writes of the model's state that no step of a table takes yet.
 enum Unmodeled {
-  /// A change to the set of sites no step takes: an add, an import, an
-  /// archive's open, a site's edit (`SiteSetCommit.commit`). A delete and
-  /// an archive's close land in their drop's step, and a move is the
-  /// environment's.
-  siteSet,
+  /// An import, which replaces every site (`SitesReplaced`). A delete and
+  /// an archive's close land in their drop's step; a move, a join and the
+  /// startup load are the environment's; a site's edit writes none of the
+  /// model.
+  sitesReplaced,
 }
 
 /// An input the code marks by hand ([ActivationSteps.mark]) and what it
@@ -1472,7 +1492,7 @@ final class Leaves<W, P extends Enum> extends At<W, P> {
 }
 
 /// One step: what has to hold while a flow waits at its place ([holds]),
-/// for what (a [call], or the jar's turn when [granted]; neither for a step
+/// for what (a [call], or a lock's turn when [granted]; neither for a step
 /// that runs on from the one before, between two awaits), the element it
 /// [pick]s, and its branches. An arm's effects, its next place and the
 /// step's [site] are read over the state the step found, as the model's
@@ -1481,7 +1501,7 @@ final class Step<W, P extends Enum> extends At<W, P> {
   const Step(
     this.name, {
     required this.holds,
-    this.granted = false,
+    this.granted,
     this.call,
     this.pick,
     this.site,
@@ -1508,7 +1528,7 @@ final class Step<W, P extends Enum> extends At<W, P> {
   }) : input = true,
        spawned = false,
        holds = null,
-       granted = false,
+       granted = null,
        call = null,
        refused = null;
 
@@ -1526,7 +1546,7 @@ final class Step<W, P extends Enum> extends At<W, P> {
        spawned = true,
        enabled = null,
        holds = null,
-       granted = false,
+       granted = null,
        call = null,
        refused = null;
 
@@ -1541,7 +1561,7 @@ final class Step<W, P extends Enum> extends At<W, P> {
   /// and TLAPS hold every interleaving to. Null when the place needs
   /// nothing.
   final Expr<bool, W>? holds;
-  final bool granted;
+  final Lock? granted;
   final Call<W>? call;
   final Pick<Object?, W>? pick;
 
@@ -1570,7 +1590,7 @@ final class Step<W, P extends Enum> extends At<W, P> {
   }
 
   /// Whether the step runs between two awaits: nothing lands before it.
-  bool get internal => call == null && !granted && !input;
+  bool get internal => call == null && granted == null && !input;
 
   Step<W, P> withArms({
     List<Branch<W, P>>? branches,

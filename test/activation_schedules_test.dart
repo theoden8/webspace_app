@@ -167,6 +167,15 @@ const _wakeAlphabet = <SiteAction>[
   Foreground(),
 ];
 
+/// A DNS level the user downloads that lands while a background wake's
+/// checks load: each check is one of the views the lists tell as they move
+/// (DNS-022, NOTIF-016). A download starts only on screen.
+const _dnsWakeAlphabet = <SiteAction>[
+  DnsAddLevel(1),
+  Background(),
+  Wake(),
+];
+
 /// A link opening the site on another route beside a background wake
 /// (BUG-037): the app may leave the screen while the open waits on the
 /// proxy, and the wake's checks ask the rule beside an open in flight.
@@ -192,6 +201,18 @@ const _dnsAlphabet = <SiteAction>[
   DnsAddLevel(1),
   DnsClear(),
   Pressure(),
+];
+
+/// The startup sweep's prune and a settings import against the downloads
+/// and a tap: level 1 fetched for no site and dropped, or made the app's
+/// level and kept; an import of level 2 or of off (DNS-021, DNS-022).
+const _dnsTrimAlphabet = <SiteAction>[
+  Tap(1),
+  DnsDownload(0),
+  DnsAddLevel(0),
+  DnsPrune(),
+  DnsImport(1),
+  DnsImport(2),
 ];
 
 /// A wake the model broke before the code ran it, at three preemptions,
@@ -551,6 +572,23 @@ const _deleteAlphabet = <SiteAction>[
 ];
 
 const _deleteLength = 2;
+
+/// Site 3 joining the list beside the flows on it: a tap of site 3 finds
+/// it only once it has joined, and an activation in flight as it joins
+/// goes on (`Join`).
+const _joinSetups = <String, List<SiteAction>>{
+  'site 1 on screen': [Tap(0)],
+};
+
+const _joinAlphabet = <SiteAction>[
+  JoinSite(),
+  Tap(1),
+  Tap(2),
+  GoHome(),
+  Pressure(),
+];
+
+const _joinLength = 2;
 
 /// A delete of site 1 against its tabs' flows, which write the tabs'
 /// variables the delete drops: from site 1 on screen, or on its second tab
@@ -1028,6 +1066,35 @@ void main() {
     }
   }
 
+  _scheduleTest('mixed, containers, one site signed in, a DNS prune and an '
+      'import: every schedule holds', body: () async {
+    for (var length = 1; length <= _dnsLength; length++) {
+      for (final script in _scripts(length, alphabet: _dnsTrimAlphabet)) {
+        await _expectEvery(
+          world: () => ActivationWorld(_mixedContainers, dns: _dnsSites),
+          setup: _oneSignedIn,
+          script: script,
+          preemptions: _preemptions,
+        );
+      }
+    }
+  });
+
+  _scheduleTest("mixed, containers, a DNS download landing beside a wake's "
+      'checks: every schedule holds', body: () async {
+    for (var length = 1; length <= _dnsLength; length++) {
+      for (final script in _scripts(length, alphabet: _dnsWakeAlphabet)) {
+        await _expectEvery(
+          world: () =>
+              ActivationWorld(_mixedContainers, dns: _dnsSites, wakes: true),
+          setup: const [],
+          script: script,
+          preemptions: _preemptions,
+        );
+      }
+    }
+  });
+
   group('wake regressions', () {
     final (:page, :launch) = _launches['mixed, containers, from launch']!;
     for (final MapEntry(key: name, value: script) in _wakeRegressions.entries) {
@@ -1185,6 +1252,22 @@ void main() {
         for (final script in _scripts(length, alphabet: _deleteAlphabet)) {
           await _expectEvery(
             world: () => ActivationWorld(_mixedContainers, deletes: true),
+            setup: setup,
+            script: script,
+            preemptions: _preemptions,
+          );
+        }
+      }
+    });
+  }
+
+  for (final MapEntry(key: setupName, value: setup) in _joinSetups.entries) {
+    _scheduleTest('a site joining, shared jar, $setupName: every schedule '
+        'holds', body: () async {
+      for (var length = 1; length <= _joinLength; length++) {
+        for (final script in _scripts(length, alphabet: _joinAlphabet)) {
+          await _expectEvery(
+            world: () => ActivationWorld(_mixed, joins: true),
             setup: setup,
             script: script,
             preemptions: _preemptions,

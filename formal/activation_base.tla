@@ -1,10 +1,11 @@
 ------------------------- MODULE activation_base -------------------------
 (* The variables of formal/activation.tla, its constants, and the        *)
-(* operators of the environment: the inputs' timing, the jar's turn      *)
-(* (the SerialQueue's semantics) and the ghosts. The engines' own        *)
-(* operators are printed from their definitions (activation_ops), as the *)
-(* tables' steps are (activation_tables); `Outcomes` and                 *)
-(* `Internal_Tables` are printed too (activation_steps). Hand-written.   *)
+(* operators of the environment: the inputs' timing and the ghosts. A    *)
+(* lock's turn (the SerialQueue's semantics) is activation_lock, one     *)
+(* instance a lock, printed into activation_ops with the engines' own    *)
+(* operators, which are printed from their definitions, as the tables'   *)
+(* steps are (activation_tables); `Outcomes` and `Internal_Tables` are   *)
+(* printed too (activation_steps). Hand-written.                         *)
 
 EXTENDS Integers, Sequences, FiniteSets, activation_steps, activation_vars
 
@@ -95,6 +96,9 @@ Resettable == {}
 \* (LetGo, Reframe): a renderer gone, a setting's rebuild; the pages let go
 \* of none, so the worlds that do are the ones that set it.
 Rebuilt == {}
+\* The sites that start off the list and join it (Join): an add, an
+\* archive's open; the pages add none.
+Joining == {}
 \* The sites whose webviews and containers the model follows: what a close
 \* or a delete takes away.
 Boxed == Archive \cup Deletable
@@ -110,7 +114,7 @@ Listed == Sites \ gone
 \* The variables are activation_vars, printed from ModelVar, grouped here.
 site == << rows, loaded, current, version, marker, tier, nested, headless, fore >>
 sessions == << jar, stored, signedIn >>
-turn == << holder, queue >>
+turn == << holder, queue, dnsHolder, dnsQueue >>
 ghosts == << newest, evictedShown, seen >>
 tabVars == << tabs, active, built, hist, queued, file, minted, host, link,
              opener >>
@@ -144,16 +148,9 @@ Did(a, f, o, s) ==
 NoMarker == [t |-> 0, v |-> 0]
 
 
-\* Steps that run between two awaits run before any event lands. A flow the
-\* jar's turn is handed to takes it as any other step: the queue hands it on
-\* in a microtask, unordered with the continuation of the flow that passed it
-\* and with whatever else is due.
+\* Steps that run between two awaits run before any event lands. A flow a
+\* lock's turn is handed to takes it as any other step (activation_lock).
 Internal == Internal_Tables
-Queued == {"uTurn", "rTurn"}
-Granted(f) ==
-    /\ fl[f].pc \in Queued
-    /\ \/ Mistake = "noturns"
-       \/ holder = 0 /\ queue # << >> /\ Head(queue) = f
 Calm == \A f \in Flows : fl[f].pc \notin Internal
 Idle == \A f \in Flows : fl[f].pc = "done"
 
@@ -174,27 +171,9 @@ Input == Calm /\ Starts
 \* pressure event lands on no pressure plan, a preload on no preload.
 Kinds == {fl[g].kind : g \in Flows}
 
-Enqueue(f) ==
-    IF Mistake = "noturns"
-    THEN UNCHANGED << queue, seen >>
-    ELSE /\ queue' = Append(queue, f)
-         /\ seen' = seen \cup (IF holder # 0 THEN {"queued"} ELSE {})
-Release == IF Mistake \in {"noturns", "keepturn"} THEN UNCHANGED holder ELSE holder' = 0
-
 -----------------------------------------------------------------------------
 \* The live activation: the newest, not superseded since it began. A ghost,
 \* so the marker is held to it (the markerbytarget mutant).
 LiveTarget == IF newest # 0 /\ fl[newest].v = version THEN fl[newest].site ELSE 0
-
-\* The jar's turn starts: an unload of a site no longer loaded returns at
-\* once; a superseded restore bails.
-TakeTurn(f) ==
-    IF Mistake = "noturns" THEN UNCHANGED << holder, queue >>
-    ELSE /\ holder' = f
-         /\ queue' = Tail(queue)
-PassTurn ==
-    IF Mistake = "noturns" THEN UNCHANGED << holder, queue >>
-    ELSE /\ holder' = 0
-         /\ queue' = Tail(queue)
 
 =============================================================================

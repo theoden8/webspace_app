@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/connectivity_service.dart';
-import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/settings/shim_group.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/web_view_model.dart';

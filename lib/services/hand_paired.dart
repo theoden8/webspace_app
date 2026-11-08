@@ -130,6 +130,17 @@ enum HandPaired implements Pairing {
   /// A DNS download that fails, which the model never takes (`FALSE`).
   dnsFails,
 
+  /// The levels a prune may drop as it is asked: any held but the app-wide
+  /// level and those a listed site asks for (DNS-021).
+  dnsPrunes,
+
+  /// Those of them its turn drops: still held and not the app-wide level;
+  /// the code also keeps a level a fold brought since it was asked.
+  dnsPruneTurn,
+
+  /// The app-wide level an import names: off, or one a download may pick.
+  dnsImports,
+
   /// An argument of the DNS level's definition, by its name.
   levelAsk,
 

@@ -20,7 +20,7 @@ abstract interface class SiteDeletionHost implements PageHost {
 
   /// [change] in the parts the delete's steps run it in, so the lists move
   /// in the drop's turn (`SiteSetCommit.stage`).
-  SiteSetStage stageSites(SiteSetChange change);
+  SiteSetStage stageSites(SiteDrop drop);
 }
 
 /// Where a delete waits.

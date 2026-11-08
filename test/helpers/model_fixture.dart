@@ -31,6 +31,22 @@ extension SiteRuntimeFixture on SiteRuntime {
       retired(site, commit: const Commit.fixture());
 }
 
+/// A change run through the funnel as the page runs it: a drop in a step's
+/// turn, which a test's is a fixture's, the rest by [SiteSetCommit.commit].
+extension SiteSetCommitFixture on SiteSetCommit {
+  Future<void> landed(SiteSetChange change) async {
+    switch (change) {
+      case final SiteDrop drop:
+        final stage = this.stage(drop);
+        await stage.prepare();
+        stage.land(commit: const Commit.fixture());
+        await stage.follow();
+      case final FunnelChange change:
+        await commit(change);
+    }
+  }
+}
+
 /// A change to the lists a test's host lands as it is told, with nothing
 /// before or after it: the fake of a [SiteSetStage].
 final class AppliedStage implements SiteSetStage {

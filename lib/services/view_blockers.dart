@@ -11,8 +11,47 @@ typedef SiteBlockers = ({
   bool contentBlock,
 });
 
-/// A live site webview, by its platform view id, and its blockers.
-typedef ViewAttach = ({Object view, SiteBlockers blockers});
+/// A site webview whose native interceptor the app attaches, by the name
+/// the plugin knows it by: a platform view's id, or a headless webview's
+/// (NOTIF-016), which has no platform view.
+sealed class InterceptedView {
+  const InterceptedView();
+}
+
+/// A webview behind a platform view: a site's own, or a popup it opened.
+final class OnPlatformView extends InterceptedView {
+  const OnPlatformView(this.id);
+
+  final Object id;
+
+  @override
+  bool operator ==(Object other) => other is OnPlatformView && other.id == id;
+
+  @override
+  int get hashCode => Object.hash(OnPlatformView, id);
+
+  @override
+  String toString() => 'platform view $id';
+}
+
+/// A background wake's headless check (NOTIF-016).
+final class OnHeadless extends InterceptedView {
+  const OnHeadless(this.id);
+
+  final String id;
+
+  @override
+  bool operator ==(Object other) => other is OnHeadless && other.id == id;
+
+  @override
+  int get hashCode => Object.hash(OnHeadless, id);
+
+  @override
+  String toString() => 'headless webview $id';
+}
+
+/// A live site webview and its blockers.
+typedef ViewAttach = ({InterceptedView view, SiteBlockers blockers});
 
 /// One site webview as its native interceptor was last told (DNS-022).
 final class _View {
@@ -36,7 +75,8 @@ final class _View {
 
 /// Which DNS level each live site webview has told its native interceptor:
 /// the model's `told`. A view registers as it is built, at its site's level,
-/// and leaves as it goes. When the blockers' data moves, every view whose
+/// and leaves as it goes; a wake's headless check is one from its attach
+/// to its dispose. When the blockers' data moves, every view whose
 /// site now resolves to another level is told it, so a level that lands, or
 /// an app-wide level the user downloads, reaches a page without a rebuild.
 final class ViewBlockers {
@@ -48,13 +88,13 @@ final class ViewBlockers {
   /// The level a site asking for [siteLevel] runs at now.
   final int Function(int? siteLevel) resolve;
 
-  final Map<Object, _View> _views = {};
+  final Map<InterceptedView, _View> _views = {};
 
   /// [view] is built for [site]: it attaches at the level its site resolves
   /// to now, and is told again whenever that moves. Returns the attach its
   /// build sends.
   ViewAttach built(
-    Object view, {
+    InterceptedView view, {
     required SiteId site,
     required int? siteLevel,
     required bool localCdn,
@@ -80,7 +120,7 @@ final class ViewBlockers {
   }
 
   /// [view] has left the tree: nothing tells it any more.
-  void gone(Object view) => _views.remove(view);
+  void gone(InterceptedView view) => _views.remove(view);
 
   /// The blockers' data moved: each view whose site resolves elsewhere now
   /// is told so.

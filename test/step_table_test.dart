@@ -229,9 +229,9 @@ void main() {
             then: [
               Act.of([_loaded.becomes(Expr.none())]),
               modelOnly(
-                'Enqueue(f)',
+                'queue\' = IF Kinds = {} THEN queue ELSE << >>',
                 writes: {ModelVar.queue},
-                reads: const Reads(base: {BaseOp.enqueue}),
+                reads: const Reads(vars: {ModelVar.queue}, base: {BaseOp.kinds}),
               ),
             ],
             next: to(_Place.done),
@@ -243,8 +243,9 @@ void main() {
     final [(:step, :reads, :writes, :arms, place: _, input: _, needs: _, guard: _)] = table
         .footprints();
     expect(step, ActivationStep.plan);
-    expect(reads.vars, {ModelVar.loaded}, reason: 'the branch reads loaded');
-    expect(reads.base, {BaseOp.enqueue});
+    expect(reads.vars, {ModelVar.loaded, ModelVar.queue},
+        reason: 'the branch reads loaded, the act queue');
+    expect(reads.base, {BaseOp.kinds});
     expect(writes, {ModelVar.loaded, ModelVar.queue, ModelVar.fl, ModelVar.last},
         reason: "its writes, the flow's own row and the step it marks");
     expect([for (final a in arms) a.fields], [
@@ -699,12 +700,12 @@ void _definitions() {
 
     test('an unmodeled write of what the step reads is a meet', () async {
       expect(
-        await during(() => const Commit.unmodeled(Unmodeled.siteSet)
+        await during(() => const Commit.unmodeled(Unmodeled.sitesReplaced)
             .wrote(ModelVar.loaded)),
         {
           (
             step: ActivationStep.applied,
-            by: Unmodeled.siteSet,
+            by: Unmodeled.sitesReplaced,
             variable: ModelVar.loaded,
           ),
         },
@@ -721,11 +722,16 @@ void _definitions() {
     test('an unmodeled write of what the step does not read is none',
         () async {
       expect(
-        await during(() => const Commit.unmodeled(Unmodeled.siteSet)
+        await during(() => const Commit.unmodeled(Unmodeled.sitesReplaced)
             .wrote(ModelVar.queued)),
         isEmpty,
       );
     });
+  });
+
+  test('a turn that writes none of the model fails on a write', () {
+    expect(() => const Commit.none().wrote(ModelVar.loaded),
+        throwsA(isA<AssertionError>()));
   });
 
   test('a call records what it reads as it starts, on the arm that enters '

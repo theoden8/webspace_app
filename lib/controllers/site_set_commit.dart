@@ -50,35 +50,34 @@ final class SiteSetCommit {
   final SiteRuntime _sites;
   final SiteSetCommitHost _host;
 
-  Future<void> commit(SiteSetChange change) async {
-    final stage = this.stage(change);
+  Future<void> commit(FunnelChange change) async {
+    final stage = _FunnelStage(this, change: change);
     await stage.prepare();
-    stage.land(commit: _commitOf(change));
+    stage.land(commit: commitOf(change));
     await stage.follow();
   }
 
   /// The model's action [change] is: a row move is the environment's
-  /// `Move`; a delete and an archive's close land in their drop's step
-  /// ([stage]); the rest no step takes yet.
-  static Commit _commitOf(SiteSetChange change) => switch (change) {
+  /// `Move`, a site joining the list its `Join`, the startup load the list
+  /// `Init` starts from; a change to what the model does not hold writes
+  /// none of it; an import no step takes yet. A drop lands in its own step
+  /// ([stage]).
+  static Commit commitOf(FunnelChange change) => switch (change) {
     SitesMoved() => const Commit.environment(Environment.move),
+    SiteAdded() ||
+    ArchiveOpened() => const Commit.environment(Environment.join),
+    SitesLoaded() => const Commit.environment(Environment.init),
     SitesEdited() ||
     SiteSettingsSaved() ||
     SiteSettingsClosed() ||
-    SitesLoaded() ||
-    SiteAdded() ||
-    SiteRemoved() ||
-    SitesReplaced() ||
-    ArchiveOpened() ||
-    ArchiveClosed() ||
     SiteArchived() ||
-    SiteUnarchived() => const Commit.unmodeled(Unmodeled.siteSet),
+    SiteUnarchived() => const Commit.none(),
+    SitesReplaced() => const Commit.unmodeled(Unmodeled.sitesReplaced),
   };
 
-  /// [change] in the three parts a step table runs it in, so the lists
+  /// [drop] in the three parts a step table runs it in, so the lists
   /// move in a step's turn: what goes before, the move, what follows.
-  SiteSetStage stage(SiteSetChange change) =>
-      _FunnelStage(this, change: change);
+  SiteSetStage stage(SiteDrop drop) => _FunnelStage(this, change: drop);
 
   /// Before anything moves; false when the page went away meanwhile.
   Future<bool> _prepare(SiteSetChange change) async {

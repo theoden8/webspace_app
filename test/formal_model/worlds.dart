@@ -25,6 +25,13 @@ enum EnvAction {
     },
     writes: {ModelVar.rows},
   ),
+  join(
+    next: r'nested = 0 /\ fore /\ \E s \in Sites : Join(s)',
+    coverage: r'InputStep@nested = 0 /\ fore /\ \E s \in Sites : Join(s)',
+    reads: {ModelVar.fore, ModelVar.gone, ModelVar.nested},
+    writes: {ModelVar.gone},
+    needs: {(of: ModelConst.joining, set: true)},
+  ),
   login(
     next: r'\E s \in Sites : Login(s)',
     coverage: 'Login',
@@ -42,7 +49,7 @@ enum EnvAction {
   viewBuilt(
     next: r'\E s \in Sites : ViewBuilt(s)',
     coverage: 'ViewBuilt',
-    reads: {ModelVar.dns, ModelVar.loaded, ModelVar.told},
+    reads: {ModelVar.dns, ModelVar.headless, ModelVar.loaded, ModelVar.told},
     writes: {ModelVar.told},
     needs: {(of: ModelConst.dnsLevels, set: true)},
   ),
@@ -51,7 +58,7 @@ enum EnvAction {
   viewGone(
     next: r'\E s \in Sites : ViewGone(s)',
     coverage: 'ViewGone',
-    reads: {ModelVar.loaded, ModelVar.told},
+    reads: {ModelVar.told},
     writes: {ModelVar.told},
     needs: {(of: ModelConst.dnsLevels, set: true)},
   ),
@@ -224,6 +231,7 @@ Set<Env> _with(Env e) => switch (e) {
   Env.deleteOne ||
   Env.resetOne ||
   Env.rebuildOne ||
+  Env.joinOne ||
   Env.incognitoOne ||
   Env.jarRefuses ||
   Env.proxyRefuses ||
@@ -255,6 +263,7 @@ Env? _setting(ModelConst c, {required Set<Need> needs}) => switch (c) {
   ModelConst.deletable => Env.deleteOne,
   ModelConst.resettable => Env.resetOne,
   ModelConst.rebuilt => Env.rebuildOne,
+  ModelConst.joining => Env.joinOne,
   ModelConst.incognito => Env.incognitoOne,
   ModelConst.jarRefuses => Env.jarRefuses,
   ModelConst.proxyRefused => Env.proxyRefuses,

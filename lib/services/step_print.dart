@@ -124,7 +124,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     };
     final reads = Reads.of([
       if (s.input) const Reads(vars: {ModelVar.inputs}, base: {BaseOp.input}),
-      if (s.granted) const Reads(base: {BaseOp.granted}),
+      if (s.granted case final lock?) lock.grantedReads,
       ?s.enabled?.reads,
       ?s.pick?.from.reads,
       ?s.site?.reads,
@@ -301,9 +301,9 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
         'Input',
         'f = inputs + 1',
       ] else ...[
-        if ((!s.internal || awaited) && !s.granted) 'Calm',
+        if ((!s.internal || awaited) && s.granted == null) 'Calm',
         'fl[f].pc = "${place.name}"',
-        if (s.granted) 'Granted(f)',
+        if (s.granted case final lock?) lock.granted,
       ],
     ]);
     // The reply lands before the arms run, so within the step a read of

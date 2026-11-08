@@ -789,11 +789,7 @@ class SiteUnloadEngine {
         otherwise: Otherwise(
           StepOutcome.queued,
           then: [
-            modelOnly(
-              'Enqueue(f)',
-              writes: {ModelVar.queue, ModelVar.seen},
-              reads: const Reads(base: {BaseOp.enqueue}),
-            ),
+            Lock.jar.enqueue(),
           ],
           next: to(UnloadPlace.uTurn),
         ),

@@ -165,27 +165,38 @@ sealed class SiteSetChange {
       };
 }
 
+/// A change that takes sites off the list, which a table's drop step lands
+/// in its own turn (`SiteSetCommit.stage`): a delete, an archive's close.
+sealed class SiteDrop extends SiteSetChange {
+  const SiteDrop();
+}
+
+/// A change the funnel lands in a turn of its own (`SiteSetCommit.commit`).
+sealed class FunnelChange extends SiteSetChange {
+  const FunnelChange();
+}
+
 /// Fields of existing sites changed: a page, a tab, a name, a toggle.
-final class SitesEdited extends SiteSetChange {
+final class SitesEdited extends FunnelChange {
   const SitesEdited();
 }
 
-final class SiteSettingsSaved extends SiteSetChange {
+final class SiteSettingsSaved extends FunnelChange {
   const SiteSettingsSaved();
 }
 
-final class SiteSettingsClosed extends SiteSetChange {
+final class SiteSettingsClosed extends FunnelChange {
   const SiteSettingsClosed();
 }
 
 /// The persisted sites, loaded at startup.
-final class SitesLoaded extends SiteSetChange {
+final class SitesLoaded extends FunnelChange {
   const SitesLoaded(this.sites);
   final List<WebViewModel> sites;
 }
 
 /// A new site, appended and put in the selected named webspace.
-final class SiteAdded extends SiteSetChange {
+final class SiteAdded extends FunnelChange {
   const SiteAdded(this.site, {this.joins});
   final WebViewModel site;
 
@@ -193,20 +204,20 @@ final class SiteAdded extends SiteSetChange {
   final Set<WebspaceId>? joins;
 }
 
-final class SiteRemoved extends SiteSetChange {
+final class SiteRemoved extends SiteDrop {
   const SiteRemoved(this.site);
   final WebViewModel site;
 }
 
 /// The "All" order: the site at [from] moved to [to].
-final class SitesMoved extends SiteSetChange {
+final class SitesMoved extends FunnelChange {
   const SitesMoved(this.from, {required this.to});
   final int from;
   final int to;
 }
 
 /// A settings import replaced every site and webspace.
-final class SitesReplaced extends SiteSetChange {
+final class SitesReplaced extends FunnelChange {
   const SitesReplaced({
     required this.sites,
     required this.webspaces,
@@ -219,7 +230,7 @@ final class SitesReplaced extends SiteSetChange {
 
 /// An open archive's sites and collections, materialised at the end of the
 /// lists, its sites back in the app-tier collections they came from.
-final class ArchiveOpened extends SiteSetChange {
+final class ArchiveOpened extends FunnelChange {
   const ArchiveOpened({
     required this.sites,
     required this.webspaces,
@@ -231,7 +242,7 @@ final class ArchiveOpened extends SiteSetChange {
 }
 
 /// A sealed archive's rows leave the lists.
-final class ArchiveClosed extends SiteSetChange {
+final class ArchiveClosed extends SiteDrop {
   const ArchiveClosed({required this.sites, required this.webspaceIds});
 
   /// The archive's own rows, by identity: an app-tier site a backup brought
@@ -242,14 +253,14 @@ final class ArchiveClosed extends SiteSetChange {
 
 /// An app-tier site moved into the open archive [into]; its row stays
 /// where it is.
-final class SiteArchived extends SiteSetChange {
+final class SiteArchived extends FunnelChange {
   const SiteArchived(this.site, {required this.into});
   final WebViewModel site;
   final ArchiveHandle into;
 }
 
 /// An archived site moved back to the app tier.
-final class SiteUnarchived extends SiteSetChange {
+final class SiteUnarchived extends FunnelChange {
   const SiteUnarchived(this.site);
   final WebViewModel site;
 }

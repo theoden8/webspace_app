@@ -35,6 +35,8 @@ import 'package:webspace/controllers/startup_controller.dart';
 import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/dns_level_mask_engine.dart';
+import 'package:webspace/services/view_blockers.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
@@ -173,6 +175,23 @@ final class DnsClear extends SiteAction {
   String toString() => 'DnsClear()';
 }
 
+/// The startup sweep drops the levels no site and not the app ask for
+/// (`pruneLevels`), left running.
+final class DnsPrune extends SiteAction {
+  const DnsPrune();
+  @override
+  String toString() => 'DnsPrune()';
+}
+
+/// A settings import names the DNS level at [pick] of the page's, or off
+/// past them (`applyImportedLevel`), left running.
+final class DnsImport extends SiteAction {
+  const DnsImport(this.pick);
+  final int pick;
+  @override
+  String toString() => 'DnsImport($pick)';
+}
+
 /// The webspace at [pick] of the page's (`All` first) is chosen on the list
 /// (`WebspacesController.select`), left running; dropped while a site is
 /// on screen, where the list is not.
@@ -277,6 +296,14 @@ final class Add extends SiteAction {
   final int host;
   @override
   String toString() => 'Add($host)';
+}
+
+/// The page's last site, off the list until now, joins it (`SiteAdded`,
+/// `Join`, `JoinOne`).
+final class JoinSite extends SiteAction {
+  const JoinSite();
+  @override
+  String toString() => 'JoinSite()';
 }
 
 /// The site at [from] moves to [to] (`SitesMoved`).
@@ -526,6 +553,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     this.spaces,
     this.archived = false,
     this.deletes = false,
+    this.joins = false,
     this.rehosts = false,
     this.declared,
   }) {
@@ -557,11 +585,13 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     navStates
       ..pace = gate.pace
       ..onSave = _onSave;
+    final listed = [for (final h in page.hosts) _site(h)];
+    if (joins) _joining = listed.removeLast();
     sites
       ..isolation = page.containers
           ? Containers(engine: ContainerIsolationEngine(containerNative: native))
           : SharedJar(sharedJar)
-      ..applied(SitesLoaded([for (final h in page.hosts) _site(h)]));
+      ..applied(SitesLoaded(listed));
     if (tabbed && sites.models.isNotEmpty) {
       final first = sites.models.first;
       first.setTabs([...first.tabs, SiteTab(url: '${first.initUrl}two')]);
@@ -663,6 +693,20 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// site's webview, which binds its container (`Deletable`, `Frame`).
   final bool deletes;
 
+  /// The page's last site starts off the list, and the script may add it
+  /// ([JoinSite]) (`Joining`).
+  final bool joins;
+
+  /// The site that starts off the list, while [joins].
+  WebViewModel? _joining;
+
+  /// The sites off the list: those a close or a delete took, and the one
+  /// yet to join (`gone`).
+  Iterable<WebViewModel> get _offList => [
+    ..._followed.where(_gone),
+    if (_joining case final j? when _gone(j)) j,
+  ];
+
   /// Site 1 starts with a second tab, a link of its own into site 3's
   /// domain, which [Reroute] runs as site 3 or as site 1.
   final bool rehosts;
@@ -725,7 +769,11 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   /// The model's rows: the list, or as it stood at a drop.
   List<int> get _rows =>
-      _rowsAtDrop ?? [for (final m in sites.models) _siteNumber(m)];
+      _rowsAtDrop ??
+      [
+        for (final m in sites.models) _siteNumber(m),
+        if (_joining case final j? when _gone(j)) _siteNumber(j),
+      ];
 
   /// A frame's mounts and unmounts: a loaded site's webview mounts and binds
   /// its container, one no longer loaded unmounts (`Frame`).
@@ -794,29 +842,46 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   /// The frame between two events, as far as DNS sees it: a loaded site's
   /// webview attaches at its site's level, and one whose site has gone is
-  /// dropped (`ViewBuilt`, `ViewGone`).
+  /// dropped.
   void _frameViews() {
+    if (dns == null) return;
+    for (final m in _bySite) {
+      final live = sites.loaded.contains(m);
+      if (live && _framed.add(m)) {
+        _view(OnPlatformView(m), of: m, up: true);
+      } else if (!live && _framed.remove(m)) {
+        _view(OnPlatformView(m), of: m, up: false);
+      }
+    }
+  }
+
+  /// The sites whose webview a frame attached.
+  final Set<WebViewModel> _framed = {};
+
+  /// [view] of site [of] attaches ([up]) or goes, as the platform reports
+  /// it: a frame's webview, or a wake's check as its open and its dispose
+  /// do. The model's `told` is a site's, so a site's first view to attach is
+  /// its `ViewBuilt` and its last to go its `ViewGone`.
+  void _view(InterceptedView view, {required WebViewModel of, required bool up}) {
     final levels = dns?.siteLevels;
     if (levels == null) return;
     final views = DnsBlockService.instance.views;
+    final had = views.told.containsKey(of.siteId);
     inFlow(flow: _frameFlow, () {
-      for (final m in _bySite) {
-        final live = sites.loaded.contains(m);
-        final attached = views.told.containsKey(m.siteId);
-        if (live && !attached) {
-          views.built(
-            m,
-            site: m.siteId,
-            siteLevel: levels[_siteNumber(m) - 1],
-            localCdn: false,
-            contentBlock: false,
-          );
-          ActivationSteps.mark(ActivationStep.viewBuilt, site: m);
-        } else if (!live && attached) {
-          views.gone(m);
-          ActivationSteps.mark(ActivationStep.viewGone, site: m);
-        }
+      if (up) {
+        views.built(
+          view,
+          site: of.siteId,
+          siteLevel: levels[_siteNumber(of) - 1],
+          localCdn: false,
+          contentBlock: false,
+        );
+      } else {
+        views.gone(view);
       }
+      final has = views.told.containsKey(of.siteId);
+      if (!had && has) ActivationSteps.mark(ActivationStep.viewBuilt, site: of);
+      if (had && !has) ActivationSteps.mark(ActivationStep.viewGone, site: of);
     });
   }
 
@@ -1125,6 +1190,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     DnsDownload() ||
     DnsAddLevel() ||
     DnsClear() ||
+    DnsPrune() ||
+    DnsImport() ||
     SwitchWebspace() ||
     CloseArchive() ||
     Delete() ||
@@ -1145,6 +1212,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     Login() ||
     Fails() ||
     Add() ||
+    JoinSite() ||
     Move() ||
     RendererGone() ||
     Touch() ||
@@ -1155,7 +1223,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// keep it now, by its id rather than the model's numbering, which a
   /// read here must not move; null for one only the model keeps.
   ModelFrame _frameState() {
-    final bySite = [...sites.models, ..._followed.where(_gone)]
+    final bySite = [...sites.models, ..._offList]
       ..sort((a, b) => a.siteId.compareTo(b.siteId));
     FrameValues ids(Iterable<WebViewModel> ms) =>
         FrameValues([for (final m in ms) m.siteId]..sort());
@@ -1229,14 +1297,17 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       ModelVar.told => each(
         (m) => DnsBlockService.instance.views.told[m.siteId],
       ),
-      ModelVar.gone => ids(_followed.where(_gone)),
+      ModelVar.gone => ids(_offList),
       ModelVar.views => ids(_mounted.keys),
       ModelVar.boxes => ids([
         for (final m in _followed)
           if (native.profiles.containsKey(m.containerKey)) m,
       ]),
-      // The jar keeps its turn to itself; its own tables' frame holds it.
-      ModelVar.holder || ModelVar.queue => null,
+      // A lock keeps its turn to itself; its own table's frame holds it.
+      ModelVar.holder ||
+      ModelVar.queue ||
+      ModelVar.dnsHolder ||
+      ModelVar.dnsQueue => null,
       // Kept by the model alone.
       ModelVar.signedIn ||
       ModelVar.minted ||
@@ -1440,7 +1511,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     }.toList()..sort();
     // The model's per-site state is over every site, a closed archive's
     // included.
-    final bySite = [...sites.models, ..._followed.where(_gone)]
+    final bySite = [...sites.models, ..._offList]
       ..sort((a, b) => _siteNumber(a).compareTo(_siteNumber(b)));
     final activating = sites.activating;
     return {
@@ -1486,8 +1557,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         for (final m in bySite) owners(stored.allStorage[m.siteId] ?? const []),
       ],
       if (_followsTabs) ..._projectTabs(bySite),
-      if (_boxed) ...{
-        'gone': [for (final m in _followed.where(_gone)) _siteNumber(m)]
+      if (_boxed || joins) ...{
+        'gone': [for (final m in _offList) _siteNumber(m)]
           ..sort(),
         'views': [for (final m in _mounted.keys) _siteNumber(m)]..sort(),
         'boxes': [
@@ -1526,9 +1597,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   }
 
   /// The page's first sites by number, whatever rows they moved to.
-  List<WebViewModel> get _bySite =>
-      [...sites.models.where((m) => _siteNumber(m) <= page.hosts.length)]
-        ..sort((a, b) => _siteNumber(a).compareTo(_siteNumber(b)));
+  List<WebViewModel> get _bySite => [
+    for (final m in [...sites.models, ..._offList])
+      if (_siteNumber(m) <= page.hosts.length) m,
+  ]..sort((a, b) => _siteNumber(a).compareTo(_siteNumber(b)));
 
   /// The route each site's traffic takes as the code resolves it, numbered
   /// from 1 by first appearance, as the model's `Route`; direct is a route
@@ -1615,12 +1687,13 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
             '${spaces == null ? '' : '_spaces'}'
             '${archived ? '_archive' : ''}'
             '${deletes ? '_delete' : ''}'
+            '${joins ? '_join' : ''}'
             '${page.incognito.isEmpty ? '' : '_incognito'}'
             '${_faults.isEmpty ? '' : '_fails_${[for (final f in _faults) f.name].join('_')}'}',
         constants: (
           sites: page.hosts.length,
           tabbed: _followsTabs,
-          boxed: archived || deletes,
+          boxed: _boxed || joins,
           tla: {for (final c in ModelConst.values) c: ?_constant(c)},
         ),
         start: _project(),
@@ -1680,6 +1753,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       ModelConst.resettable => set(every),
       // A renderer dies only where the world builds webviews.
       ModelConst.rebuilt => set(_boxed || rehosts ? every : const <int>[]),
+      ModelConst.joining => switch (_joining) {
+        final j? => set([_siteNumber(j)]),
+        null => null,
+      },
       ModelConst.boxed || ModelConst.noNavState => null,
       // An archive's sites are incognito too (`Incognito == Archive`).
       ModelConst.incognito => page.incognito.isEmpty
@@ -1708,6 +1785,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     DnsDownload() => ActivationStep.dnsDownload,
     DnsAddLevel() => ActivationStep.dnsAddLevel,
     DnsClear() => ActivationStep.dnsClear,
+    DnsPrune() => ActivationStep.dnsPrune,
+    DnsImport() => ActivationStep.dnsImport,
     SwitchWebspace() => ActivationStep.spaceSwitch,
     CloseArchive() => ActivationStep.closeArchive,
     Delete() => ActivationStep.deleteSite,
@@ -1721,9 +1800,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     ChildTab() => ActivationStep.childTab,
     ParkChild() => ActivationStep.parkChild,
     Reroute() => ActivationStep.reroute,
-    // A move is the environment's, a move into an archive the model's
-    // setup, and the rest wait on the page.
+    // A move and a join are the environment's, a move into an archive the
+    // model's setup, and the rest wait on the page.
     Move() ||
+    JoinSite() ||
     ArchiveSite() ||
     Add() ||
     RendererGone() ||
@@ -1751,7 +1831,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   /// The page's `_commitSites`: the change, then a rebuild.
   /// The page's commit, the funnel the page itself runs.
-  Future<void> _commit(SiteSetChange change) => _siteSetCommit.commit(change);
+  Future<void> _commit(FunnelChange change) => _siteSetCommit.commit(change);
 
   /// The rows as a drop found them, for the replay; a close's replaces a
   /// delete's.
@@ -1762,13 +1842,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   /// Another component edits the rows, as `formal/activation.tla`'s
   /// environment does (`Move`): at once, between the flows' steps.
-  void _editRows(SiteSetChange change) {
-    sites.apply(
-      change,
-      commit: change is SitesMoved
-          ? const Commit.environment(Environment.move)
-          : const Commit.unmodeled(Unmodeled.siteSet),
-    );
+  void _editRows(FunnelChange change) {
+    sites.apply(change, commit: SiteSetCommit.commitOf(change));
     _drawn = sites.shown;
   }
 
@@ -2069,6 +2144,11 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         if (page.pool.isNotEmpty) {
           _editRows(SiteAdded(_site(page.pool[host % page.pool.length])));
         }
+      case JoinSite():
+        if (_joining case final j? when _gone(j)) {
+          _editRows(SiteAdded(j));
+          ActivationSteps.mark(ActivationStep.join, site: j);
+        }
       case Move(:final from, :final to):
         if (n > 0) {
           _editRows(SitesMoved(from % n, to: to % n));
@@ -2176,6 +2256,23 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         }
       case DnsClear():
         if (dns != null) _track(DnsBlockService.instance.downloadList(0));
+      // As the startup sweep asks, each listed site at the level the walk
+      // gives its views.
+      case DnsPrune():
+        if (dns case (levels: _, :final siteLevels)?) {
+          _track(DnsBlockService.instance.pruneLevels(requiredDnsLevels(
+            globalLevel: DnsBlockService.instance.level,
+            siteLevels: [
+              for (final m in sites.models) siteLevels[_siteNumber(m) - 1],
+            ],
+          )));
+        }
+      case DnsImport(:final pick):
+        if (dns case (:final levels, siteLevels: _)?) {
+          _track(DnsBlockService.instance.applyImportedLevel(
+            pick < levels.length ? levels[pick] : kDnsLevelOff,
+          ));
+        }
       case SwitchWebspace(:final pick):
         if (spaces != null) {
           final to = sites.webspaces[pick % sites.webspaces.length];
@@ -2281,6 +2378,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           UnloadSite() ||
           Preload() ||
           Add() ||
+          JoinSite() ||
           Move() ||
           RendererGone() ||
           OpenTab() ||
@@ -2299,6 +2397,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           DnsDownload() ||
           DnsAddLevel() ||
           DnsClear() ||
+          DnsPrune() ||
+          DnsImport() ||
           SwitchWebspace() ||
           ArchiveSite() ||
           CloseArchive() ||
@@ -2726,7 +2826,7 @@ final class _WalkHost implements ActivationHost, SurfaceHost, WebspacesHost {
   }) {}
 
   @override
-  Future<void> commitSites(SiteSetChange change) => throw UnsupportedError(
+  Future<void> commitSites(FunnelChange change) => throw UnsupportedError(
     'activation committed $change; the walk models '
     'no site-set change from inside an activation',
   );
@@ -2939,7 +3039,12 @@ final class _WalkWake implements BackgroundWakeHost<WebViewModel> {
   @override
   void closeAllHeadless() => unawaited(world._route.vacateEvery(
     RouteUse.headless,
-    close: () => Future.wait([..._opening]),
+    close: () async {
+      await Future.wait([..._opening]);
+      for (final siteId in [..._checks]) {
+        _checkGone(siteId);
+      }
+    },
   ));
 
   @override
@@ -2988,17 +3093,33 @@ final class _WalkWake implements BackgroundWakeHost<WebViewModel> {
     _opening.add(ended.future);
     try {
       await world.gate.pace(PlatformCall.headlessOpen);
-      return world.sites.fore ? WakeSkip.appInForeground : null;
+      if (world.sites.fore) return WakeSkip.appInForeground;
+      _checks.add(siteId);
+      world._view(OnHeadless('$siteId'), of: siteOf(siteId), up: true);
+      return null;
     } finally {
       _opening.remove(ended.future);
       ended.complete();
     }
   }
 
+  /// The checks open, each one of the views the DNS lists tell, as the
+  /// page's checks are (`HeadlessSiteCheck.follow`).
+  final Set<SiteId> _checks = {};
+
+  void _checkGone(SiteId siteId) {
+    if (_checks.remove(siteId)) {
+      world._view(OnHeadless('$siteId'), of: siteOf(siteId), up: false);
+    }
+  }
+
   @override
   Future<void> closeHeadless(SiteId siteId) => world._route.vacate(
     [(use: RouteUse.headless, site: siteId)],
-    close: () => world.gate.pace(PlatformCall.headlessClose),
+    close: () async {
+      _checkGone(siteId);
+      await world.gate.pace(PlatformCall.headlessClose);
+    },
   );
 
   @override
@@ -3099,7 +3220,7 @@ final class _WalkTabsHost implements TabsHost {
   }) {}
 
   @override
-  Future<void> commitSites(SiteSetChange change) => world._commit(change);
+  Future<void> commitSites(FunnelChange change) => world._commit(change);
 
   @override
   NavCapture? beginNavCapture(WebViewModel model) =>
@@ -3175,17 +3296,16 @@ final class _WalkArchiveHost implements ArchiveHost {
   }) {}
 
   @override
-  Future<void> commitSites(SiteSetChange change) async {
+  Future<void> commitSites(FunnelChange change) async {
     await world.gate.pace(PlatformCall.siteSetCommit);
-    if (change is ArchiveClosed) world._noteRowsAtDrop(overwrite: true);
     await world._commit(change);
   }
 
   @override
-  SiteSetStage stageSites(SiteSetChange change) => _WalkStage(
+  SiteSetStage stageSites(SiteDrop drop) => _WalkStage(
     world,
-    change: change,
-    before: () => world._noteRowsAtDrop(overwrite: change is ArchiveClosed),
+    drop: drop,
+    before: () => world._noteRowsAtDrop(overwrite: drop is ArchiveClosed),
   );
 
   @override
@@ -3220,16 +3340,16 @@ final class _WalkDeletionHost implements SiteDeletionHost {
   }) {}
 
   @override
-  Future<void> commitSites(SiteSetChange change) async {
+  Future<void> commitSites(FunnelChange change) async {
     await world.gate.pace(PlatformCall.siteSetCommit);
     world._noteRowsAtDrop(overwrite: false);
     await world._commit(change);
   }
 
   @override
-  SiteSetStage stageSites(SiteSetChange change) => _WalkStage(
+  SiteSetStage stageSites(SiteDrop drop) => _WalkStage(
     world,
-    change: change,
+    drop: drop,
     before: () => world._noteRowsAtDrop(overwrite: false),
   );
 
@@ -3245,9 +3365,9 @@ final class _WalkDeletionHost implements SiteDeletionHost {
 final class _WalkStage implements SiteSetStage {
   _WalkStage(
     this.world, {
-    required SiteSetChange change,
+    required SiteDrop drop,
     required void Function() before,
-  }) : _inner = world._siteSetCommit.stage(change),
+  }) : _inner = world._siteSetCommit.stage(drop),
        _before = before;
 
   final ActivationWorld world;

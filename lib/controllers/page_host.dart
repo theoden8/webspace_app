@@ -14,5 +14,5 @@ abstract interface class PageHost {
   });
 
   /// The one way the set of sites changes (`SiteSetCommit`).
-  Future<void> commitSites(SiteSetChange change);
+  Future<void> commitSites(FunnelChange change);
 }

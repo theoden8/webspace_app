@@ -3,7 +3,6 @@ import 'package:webspace/settings/site_ids.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
@@ -131,48 +130,30 @@ class WebInterceptNative {
     }
   }
 
-  /// Attaches the interceptor to [headless] alone (NOTIF-016), by its
-  /// headless id: a headless webview has no platform view. True once
-  /// attached.
-  static Future<bool> attachToHeadless(
-    inapp.HeadlessInAppWebView headless, {
-    required SiteBlockers blockers,
-  }) async {
-    if (!isSupported) return false;
-    try {
-      final attached = await _channel.invokeMethod<bool>('attachToHeadless', {
-        'headlessId': headless.id,
-        ..._told(blockers),
-      });
-      return attached ?? false;
-    } on PlatformException catch (e) {
-      LogTag.webIntercept.error(
-          'Failed to attach native interceptor to a headless webview: $e');
-      return false;
-    } on MissingPluginException {
-      return false;
-    }
-  }
-
-  /// Attaches the interceptor to the webview behind the platform view
-  /// [attach] names, for its site alone. True once attached; the view's
-  /// first load waits for it, so the first document's sub-resources meet the
-  /// site's blockers.
-  static Future<bool> attachToView(ViewAttach attach) async {
+  /// Attaches the interceptor to the webview [attach] names, for its site
+  /// alone: behind a platform view, or a headless check by its headless id
+  /// (NOTIF-016). True once attached; a view's first load waits for it, so
+  /// the first document's sub-resources meet the site's blockers.
+  static Future<bool> attach(ViewAttach attach) async {
     if (!isSupported) return true;
+    final (method, args) = switch (attach.view) {
+      OnPlatformView(:final id) => ('attachToView', {'viewId': id}),
+      OnHeadless(:final id) => ('attachToHeadless', {'headlessId': id}),
+    };
     try {
-      final attached = await _channel.invokeMethod<bool>('attachToView', {
-        'viewId': attach.view,
+      final attached = await _channel.invokeMethod<bool>(method, {
+        ...args,
         ..._told(attach.blockers),
       });
       if (attached != true) {
         LogTag.webIntercept.warning(
-            'No webview behind platform view ${attach.view} to attach to',
+            'No webview behind ${attach.view} to attach to',
             sensitive: true);
       }
       return attached ?? false;
     } on PlatformException catch (e) {
-      LogTag.webIntercept.error('Failed to attach native interceptor: $e');
+      LogTag.webIntercept.error(
+          'Failed to attach native interceptor to ${attach.view}: $e');
       return false;
     } on MissingPluginException {
       return false;

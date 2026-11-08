@@ -779,11 +779,7 @@ abstract final class ActivationTable {
     writes: {ModelVar.seen},
     reads: const Reads(vars: {ModelVar.seen}),
   );
-  static final _enqueue = modelOnly<ActivationFlow>(
-    'Enqueue(f)',
-    writes: {ModelVar.queue, ModelVar.seen},
-    reads: const Reads(base: {BaseOp.enqueue}),
-  );
+  static final _enqueue = Lock.jar.enqueue<ActivationFlow>();
 
   /// The marker goes only with its own activation: a newer one overwrote
   /// it, the same target on a double tap included (CONT-003).

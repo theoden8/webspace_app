@@ -37,6 +37,7 @@ import 'package:webspace/services/download_url_revert_engine.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/ios_universal_link_bypass.dart';
 import 'package:webspace/services/web_intercept_native.dart';
+import 'package:webspace/services/view_blockers.dart';
 import 'package:webspace/services/web_extension_native.dart';
 import 'package:webspace/services/icon_link_watcher_shim.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
@@ -55,6 +56,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/services/surface_nudge_scope.dart';
 import 'package:webspace/services/webview_config.dart';
+import 'package:webspace/services/blocker_follow.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/http_auth_challenge.dart';
 import 'package:webspace/services/webview_blocking.dart';
@@ -850,11 +852,14 @@ class WebViewFactory {
         if (firstLoadRefused != null) {
           reportBlocked((url: config.initialUrl, why: firstLoadRefused));
         }
-        final viewId = controller.getViewId();
+        final viewId = switch (controller.getViewId()) {
+          final Object id => OnPlatformView(id),
+          null => null,
+        };
         final attached = holdsFirstLoad && viewId != null
-            ? WebInterceptNative.attachToView(
+            ? WebInterceptNative.attach(
                 DnsBlockService.instance.views.built(
-                  viewId as Object,
+                  viewId,
                   site: config.posture.siteId,
                   siteLevel: config.siteDnsAsk,
                   localCdn: config.posture.blocking.localCdn,
@@ -872,10 +877,10 @@ class WebViewFactory {
           fileImport: fileImport,
         );
         stopFollowingBlockers?.call();
-        stopFollowingBlockers = _followBlockerData(
+        stopFollowingBlockers = followBlockerData(
           config,
-          view: wrappedController,
-          viewId: viewId,
+          view: viewId,
+          evaluate: wrappedController.evaluateJavascript,
           live: () => phases.live(view: controller.platform),
         );
         onControllerCreated(wrappedController);
@@ -1882,42 +1887,6 @@ class WebViewFactory {
     );
     return RouteCover.over(_applyLetterbox(config,
         webView: _applyRefreshGate(config, webView: pageFocus?.wrap(scoped) ?? scoped)));
-  }
-
-  /// Tells a live view when the blockers' data changes under it: a level's
-  /// list lands, a filter list downloads. Android's interceptor keeps the
-  /// level it was attached at, so the view is one of [ViewBlockers]', told
-  /// its site's level as the partition moves (DNS-022); WebKit's interceptor
-  /// answers from the bloom its document fetched, where a miss is a hard
-  /// allow, so the page reloads its bloom. Returns the undo, run when the
-  /// view unmounts or a new one replaces it.
-  static VoidCallback _followBlockerData(
-    WebViewConfig config, {
-    required PlatformWebViewController view,
-    required Object? viewId,
-    required bool Function() live,
-  }) {
-    if (WebInterceptNative.isSupported) {
-      final views = DnsBlockService.instance.views;
-      return () {
-        if (viewId != null) views.gone(viewId);
-      };
-    }
-    void changed() {
-      if (!live()) return;
-      if (config.posture.blocking.dns || config.posture.blocking.contentBlock) {
-        unawaited(view.evaluateJavascript(
-            'window.__wsReloadBlockBloom && window.__wsReloadBlockBloom()'));
-      }
-    }
-
-    final dns = DnsBlockService.instance..addBlocklistChangedListener(changed);
-    final blocker = ContentBlockerService.instance
-      ..addRulesChangedListener(changed);
-    return () {
-      dns.removeBlocklistChangedListener(changed);
-      blocker.removeRulesChangedListener(changed);
-    };
   }
 
   /// Feeds the raw pointer stream to [WebViewConfig.pullToRefreshGate].

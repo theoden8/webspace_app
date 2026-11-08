@@ -173,8 +173,12 @@ class.
   every check, NOTIF-016); `wakeunchecked` (a check that does not ask the rule) and
   `wakebesidetap` (one that goes up beside an activation in flight) are printed mutants. The
   DNS lists are a table too (`DnsBlockService.table`): a download of the app-wide level, of a
-  level a site asks for, and the clear, whose one write puts the lists and the level in force
-  (`dns`) and tells each live view its site's level (`told`, `ViewBlockers`); a frame builds
+  level a site asks for, the clear, the startup sweep's prune and a settings import, whose one
+  write puts the lists and the level in force (`dns`) and tells each live view its site's level
+  (`told`, `ViewBlockers`). Each is asked for as it lands and joins the lists' queue (the `Dns`
+  instance of `activation_lock`, the code's `_mutations`), and its turn decides it: a level
+  held by then is not fetched again, a prune drops of what it asked only what is still held
+  and not the app-wide level, an import of the level in force changes nothing; a frame builds
   and drops the views (`ViewBuilt`, `ViewGone`, hand-written), and `activation_dns*.cfg` hold
   `Inv_Told` with the sites' levels (`SiteLevel`) and the levels a download picks
   (`DnsLevels`); `foldbeforelevel` (the views told with the level the fold replaces) is a
@@ -216,7 +220,10 @@ class.
   `Conflicts`, `Spare`, `Gone`, `Share`, the pressure plan's sets) is a `Def` in the engine
   that owns its variables, run there and printed as `activation_ops`. `activation_base.tla`
   holds the variables, the constants and the environment's operators (the inputs' timing,
-  the jar's turn, the ghosts);
+  the ghosts); `activation_lock.tla` is a lock's turn, the SerialQueue's semantics, written
+  once and instanced for each lock of the `Lock` enum over that lock's holder and queue
+  (`Jar == INSTANCE activation_lock WITH ...`, printed into `activation_ops`), so a step
+  waits on `Jar!Granted(f)` and takes the turn with `Jar!TakeTurn(f)`;
   `activation.tla` the environment's inputs (a row move, a page signing in, the launch
   clear), the invariants and the witnesses. A mistake in a table or a definition is a mutant,
   a copy with the fault printed beside it under `mutants/<name>/`; a mistake in the environment

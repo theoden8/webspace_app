@@ -423,23 +423,9 @@ class CookieIsolationEngine {
     required Expr<List<Cookie>, W> of,
   }) => share<W>().call([site, of]);
 
-  static Act<W> _takeTurn<W>() =>
-      modelOnly(
-        'TakeTurn(f)',
-        writes: {ModelVar.holder, ModelVar.queue},
-        reads: const Reads(base: {BaseOp.takeTurn}),
-      );
-  static Act<W> _passTurn<W>() =>
-      modelOnly(
-        'PassTurn',
-        writes: {ModelVar.holder, ModelVar.queue},
-        reads: const Reads(base: {BaseOp.passTurn}),
-      );
-  static Act<W> _release<W>() => modelOnly(
-    'Release',
-    writes: {ModelVar.holder},
-    reads: const Reads(base: {BaseOp.release}),
-  );
+  static Act<W> _takeTurn<W>() => Lock.jar.takeTurn();
+  static Act<W> _passTurn<W>() => Lock.jar.passTurn();
+  static Act<W> _release<W>() => Lock.jar.release();
 
   static const _unloadSnap = Field<List<Cookie>, UnloadWorld>(FlowField.snap);
   static const _victim = Field<WebViewModel, UnloadWorld>(FlowField.victim);
@@ -511,7 +497,7 @@ class CookieIsolationEngine {
       UnloadPlace.uTurn => Step(
         ActivationStep.grantUnload,
         holds: null,
-        granted: true,
+        granted: Lock.jar,
         site: _victim.value,
         branches: [
           // A site no longer loaded was captured when it left, and the jar
@@ -741,7 +727,7 @@ class CookieIsolationEngine {
       RestorePlace.rTurn => Step(
         ActivationStep.grantRestore,
         holds: null,
-        granted: true,
+        granted: Lock.jar,
         branches: [
           // Superseded while waiting for its turn.
           Branch(

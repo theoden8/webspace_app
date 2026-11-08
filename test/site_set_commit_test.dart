@@ -144,10 +144,13 @@ void main() {
       host = _Host(sites);
       commit = SiteSetCommit(sites, host: host);
       final a = _site('a');
-      sites.applied(SitesLoaded([a, _site('b')]));
-      sites.seed(loaded: [a], shown: a);
       final c = change(a);
-      await commit.commit(c);
+      // The startup load fills the empty list; every other change finds one.
+      if (c is! SitesLoaded) {
+        sites.applied(SitesLoaded([a, _site('b')]));
+        sites.seed(loaded: [a], shown: a);
+      }
+      await commit.landed(c);
       final ran = [for (final call in host.calls) if (order.contains(call)) call];
       expect(ran, [for (final step in order) if (ran.contains(step)) step],
           reason: '${c.runtimeType} ran its steps out of order');
@@ -186,7 +189,7 @@ void main() {
     await commit.commit(SitesLoaded([a, _site('b')]));
     await commit.commit(const SitesEdited());
     expect(host.calls, isNot(contains('sweep')));
-    await commit.commit(SiteRemoved(a));
+    await commit.landed(SiteRemoved(a));
     expect(host.calls, contains('sweep'));
     host.calls.clear();
     await commit.commit(
@@ -199,7 +202,7 @@ void main() {
     final a = _site('a');
     await commit.commit(SitesLoaded([a, _site('b')]));
     sites.seed(loaded: [a], shown: a);
-    await commit.commit(SiteRemoved(a));
+    await commit.landed(SiteRemoved(a));
     expect(host.calls, contains('screenEmptied'));
     expect(sites.shown, isNull);
   });
