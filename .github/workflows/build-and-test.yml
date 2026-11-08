@@ -1735,6 +1735,8 @@ jobs:
           cargo-ndk-version: ${{ env.CARGO_NDK_VERSION }}
       - name: Build the release app
         run: fvm flutter build apk --release --flavor fdroid --target-platform android-x64
+      - name: Release build memory before booting the emulator
+        run: gradle --stop
       - name: Install video encoder
         run: |
           sudo apt-get update -qq

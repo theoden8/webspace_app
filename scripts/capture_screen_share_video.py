@@ -88,7 +88,7 @@ def wait_node(labels, timeout=60):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         tree = ui()
-        if labelled(tree, ["System UI isn't responding"]):
+        if labelled(tree, ["System UI isn't responding", "Quickstep isn't responding"]):
             tap(labelled(tree, ['Wait'])[-1])
             time.sleep(3)
             continue
@@ -227,6 +227,7 @@ def main():
         adb('shell', 'svc', 'power', 'stayon', 'true')
         adb('shell', 'settings', 'put', 'system', 'screen_off_timeout', '2147483647')
         adb('shell', 'settings', 'put', 'system', 'show_touches', '1')
+        adb('shell', 'settings', 'put', 'global', 'hide_error_dialogs', '1')
         adb('shell', 'input', 'keyevent', '82')
         adb('reverse', f'tcp:{PORT}', f'tcp:{PORT}')
         # Finish the cold app launch before the encoder competes for CPU.
