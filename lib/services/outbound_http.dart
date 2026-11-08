@@ -15,12 +15,19 @@ import 'package:webspace/services/outbound_http_web.dart'
     if (dart.library.io) 'package:webspace/services/outbound_http_io.dart';
 
 export 'package:webspace/services/outbound_http_types.dart';
-// buildPageSteeredClient is hidden: it is the sole producer of a page-steered
-// client, and only this library (via pageSteeredClient) may name it, so no
-// caller reached through the re-export can build one (SEC-049).
+// Two names are hidden from the re-export (SEC-049):
+//   - buildPageSteeredClient, the sole producer of a page-steered client: only
+//     this library (via pageSteeredClient) may name it, so no caller reached
+//     through the re-export can build one.
+//   - DefaultOutboundHttpFactory, the pinning factory: hiding it stops
+//     `const DefaultOutboundHttpFactory().clientFor(...)` compiling outside the
+//     seam, so a page-chosen URL cannot reach an unguarded client by building
+//     the factory by hand. This library still imports the platform half above,
+//     so its own `_factory` default keeps working; a test that needs the real
+//     factory imports outbound_http_io.dart directly.
 export 'package:webspace/services/outbound_http_web.dart'
     if (dart.library.io) 'package:webspace/services/outbound_http_io.dart'
-    hide buildPageSteeredClient;
+    hide buildPageSteeredClient, DefaultOutboundHttpFactory;
 
 OutboundHttpFactory _factory = const DefaultOutboundHttpFactory();
 

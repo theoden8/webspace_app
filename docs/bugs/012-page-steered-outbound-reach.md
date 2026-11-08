@@ -145,13 +145,15 @@ than copy the range table.**
    of this PR also removed a double confirmation prompt (the script bridge ran the
    whitelist check both before the follower and as its first-hop permit) and
    restored charset-aware page decoding in the favicon finder (strict UTF-8 had
-   dropped icons on a non-UTF-8 home page). The platform split leaves
-   `buildPageSteeredClient` public in `outbound_http_io.dart`, so a direct import
-   of that half could name it; that edge, and that GUARDED fetchers route
-   page-chosen URLs through the follower rather than a raw client seam, are the
-   remaining `page_steered_outbound_reach` gate (rung 5), which matches text — it
-   catches `clientFor` however indirected and the build name in a GUARDED file, not
-   every spelling across lib. The gate's probes fire on a plant: the follower is
+   dropped icons on a non-UTF-8 home page). `buildPageSteeredClient` and the
+   pinning `DefaultOutboundHttpFactory` are both hidden from the public re-export,
+   so naming either outside the seam does not compile (`const
+   DefaultOutboundHttpFactory().clientFor` included); the platform half keeps both
+   public, so a direct import of `outbound_http_io.dart` could still name them.
+   That edge, and that GUARDED fetchers route page-chosen URLs through the follower
+   rather than a raw client seam, are the remaining `page_steered_outbound_reach`
+   gate (rung 5), which matches text — it catches `clientFor` however indirected
+   and the build name in a GUARDED file, not every spelling across lib. The gate's probes fire on a plant: the follower is
    the sole `pageSteeredClient` consumer (through `withPageSteeredClient`), only
    the seam names `buildPageSteeredClient`, and no GUARDED fetcher sets
    `followRedirects` / reads a `Location` header / names a raw client seam. A proxy

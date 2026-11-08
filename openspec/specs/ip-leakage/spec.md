@@ -224,12 +224,15 @@ by `buildPageSteeredClient`, which the public re-export hides, and its
 building one outside the seam fails to compile and driving one outside the
 follower fails to compile — the final response a read receives is a plain
 `StreamedResponse` with no socket to detach, a deliberate downcast failing at run
-time instead. The `page_steered_outbound_reach` gate keeps the guarded fetchers
-off the raw client seams (`clientFor` however it is reached, the page-steered
-build); folding the platform halves so the build need not be public — closing the
-direct-platform-import edge — is the remaining LEAK-002 debt. So a hop-2 redirect
-to a private target cannot be taken unjudged, even under an on-device forwarding
-proxy that would otherwise forward it to the LAN
+time instead. The pinning `DefaultOutboundHttpFactory` is hidden from the
+re-export too, so `const DefaultOutboundHttpFactory().clientFor` does not compile
+outside the seam either. The `page_steered_outbound_reach` gate keeps the guarded
+fetchers off the raw client seams (`clientFor` however it is reached, the build
+name); folding the platform halves so neither the build nor the default factory
+need be public — closing the direct-platform-import edge — is the remaining
+LEAK-002 debt. So a hop-2 redirect to a private target cannot be taken unjudged,
+even under an on-device forwarding proxy that would otherwise forward it to the
+LAN
 
 ---
 
