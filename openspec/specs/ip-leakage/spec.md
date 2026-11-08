@@ -217,7 +217,9 @@ through the guarded connect with the client's own redirect-following off, so the
 private/loopback-literal guard (every route) and the resolve-and-pin (DEFAULT)
 judge the destination before a byte is sent, not just the first hop
 **And** no fetcher follows a redirect itself: a `PageSteeredHttp`'s client is
-reachable only through the follower (its field is library-private), so a hop-2
+library-private, so the follower is its one consumer (a type), and the
+`page_steered_outbound_reach` gate keeps every page-steered fetch on the follower
+and off the raw client factory (`pageSteeredClientFor`, `clientFor`), so a hop-2
 redirect to a private target cannot be taken unjudged, even under an on-device
 forwarding proxy that would otherwise forward it to the LAN
 

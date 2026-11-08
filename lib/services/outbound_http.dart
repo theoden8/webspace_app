@@ -143,8 +143,9 @@ class PageSteeredFollow<T> {
     this.method = PageSteeredMethod.get,
     this.maxRedirects = 5,
     this.forbidHttpsDowngrade = false,
+    this.timeout,
     this.onRedirect,
-    this.decorate,
+    this.userAgent,
   });
 
   /// Whether the fetch may reach [target] ([target] is the initial URL, then
@@ -168,14 +169,20 @@ class PageSteeredFollow<T> {
   /// use a redirect to drop the fetch off TLS (artwork, page-linked icons).
   final bool forbidHttpsDowngrade;
 
+  /// A deadline for the whole exchange, every hop and the body read. The
+  /// follower applies it where it can close the client, so a timeout cuts the
+  /// socket rather than leaving an unbounded body draining in the background.
+  /// A caller must pass it here rather than wrapping the call in `.timeout`.
+  final Duration? timeout;
+
   /// Called for each accepted redirect with its destination, for a caller that
   /// tracks the chain (the favicon finder's `/favicon.ico` origins).
   final void Function(Uri to)? onRedirect;
 
-  /// Wraps the guarded client, e.g. to add a User-Agent header. The wrap can
-  /// only add behaviour; the guarded connect stays at the bottom, so every hop
-  /// still goes through it.
-  final http.Client Function(http.Client)? decorate;
+  /// The User-Agent each hop sends (the value, not a client wrapper, so caller
+  /// code never touches the guarded client). Resolved per hop and set only when
+  /// the request has no User-Agent of its own, matching [SiteUserAgentClient].
+  final Future<String?> Function()? userAgent;
 }
 
 bool _isPageSteeredRedirect(int status) =>
@@ -190,13 +197,16 @@ bool _isPageSteeredRedirect(int status) =>
 /// fresh request through the guarded connect built from [route] (with the
 /// client's own redirect-following OFF), so under every route (not just DEFAULT,
 /// not just the first hop) each hop's address is judged before a byte is sent.
-/// This is the one consumer of a [PageSteeredHttp] — its client is reachable
-/// nowhere else — so a page-steered fetch cannot sidestep the per-hop judging.
-/// The initial [url] is judged by [PageSteeredFollow.permit] before any client
-/// is built, so a page naming an unreachable target opens no connection.
-/// [allowPrivateHost] is the one host whose own private address is allowed (a
-/// page-linked resource's document host). Closes the client when done;
-/// [PageSteeredFollow.read] has already consumed the final body by then.
+/// This is the one consumer of a [PageSteeredHttp]: its client is read nowhere
+/// else (the field is library-private), so once a page-steered client is built
+/// it cannot be driven except through this per-hop judging. The initial [url] is
+/// judged by [PageSteeredFollow.permit] before any client is built, so a page
+/// naming an unreachable target opens no connection. [allowPrivateHost] is the
+/// one host whose own private address is allowed (a page-linked resource's
+/// document host). The client is closed when done — on a normal return, a
+/// refusal, or [PageSteeredFollow.timeout] firing — which cuts any body still
+/// arriving; [PageSteeredFollow.read] has consumed the final body by a normal
+/// return.
 Future<PageSteeredOutcome<T>> followPageSteered<T>(
   ProxyRoute route, {
   required Uri url,
@@ -207,38 +217,50 @@ Future<PageSteeredOutcome<T>> followPageSteered<T>(
     return const PageSteeredRefused('blocked URL',
         kind: PageSteeredRefusal.url);
   }
-  final http.Client base;
+  final http.Client client;
   switch (pageSteeredClient(route, allowPrivateHost: allowPrivateHost)._result) {
     case OutboundClientBlocked(:final reason):
       return PageSteeredRefused(reason,
           kind: PageSteeredRefusal.clientUnavailable);
     case OutboundClientReady(client: final ready):
-      base = ready;
+      client = ready;
   }
-  final client = follow.decorate?.call(base) ?? base;
   try {
-    var target = url;
-    for (var hop = 0;; hop++) {
-      final response = await client
-          .send(http.Request(follow.method.token, target)..followRedirects = false);
-      final location = response.headers['location'];
-      if (_isPageSteeredRedirect(response.statusCode) &&
-          location != null &&
-          location.isNotEmpty) {
-        unawaited(response.stream.drain<void>());
-        final next = target.resolve(location);
-        final downgrades =
-            follow.forbidHttpsDowngrade && target.scheme == 'https' && next.scheme == 'http';
-        if (hop >= follow.maxRedirects || downgrades || !await follow.permit(next)) {
-          return const PageSteeredRefused('blocked redirect',
-              kind: PageSteeredRefusal.redirect);
+    Future<PageSteeredOutcome<T>> run() async {
+      var target = url;
+      for (var hop = 0;; hop++) {
+        final request = http.Request(follow.method.token, target)
+          ..followRedirects = false;
+        final agent = follow.userAgent == null ? null : await follow.userAgent!();
+        if (agent != null) request.headers.putIfAbsent('User-Agent', () => agent);
+        final response = await client.send(request);
+        final location = response.headers['location'];
+        if (_isPageSteeredRedirect(response.statusCode) &&
+            location != null &&
+            location.isNotEmpty) {
+          // Let the forced close cut a 3xx body still arriving; draining it
+          // would surface the close as an uncaught ClientException.
+          unawaited(response.stream.listen(null).cancel());
+          final next = target.resolve(location);
+          final downgrades = follow.forbidHttpsDowngrade &&
+              target.scheme == 'https' &&
+              next.scheme == 'http';
+          if (hop >= follow.maxRedirects ||
+              downgrades ||
+              !await follow.permit(next)) {
+            return const PageSteeredRefused('blocked redirect',
+                kind: PageSteeredRefusal.redirect);
+          }
+          follow.onRedirect?.call(next);
+          target = next;
+          continue;
         }
-        follow.onRedirect?.call(next);
-        target = next;
-        continue;
+        return PageSteeredValue(await follow.read(response));
       }
-      return PageSteeredValue(await follow.read(response));
     }
+
+    final timeout = follow.timeout;
+    return timeout == null ? await run() : await run().timeout(timeout);
   } finally {
     client.close();
   }

@@ -37,26 +37,35 @@ Future<PageSteeredOutcome<T>> _followIcon<T>(
   String url, {
   required ProxyRoute proxy,
   required Future<T> Function(http.StreamedResponse response) read,
+  required Duration timeout,
   Future<bool> Function(Uri target)? permit,
   String? allowPrivateHost,
   int maxRedirects = _maxIconRedirects,
   PageSteeredMethod method = PageSteeredMethod.get,
   bool forbidHttpsDowngrade = false,
-}) =>
-    followPageSteered(
-      proxy,
-      url: Uri.parse(url),
-      allowPrivateHost: allowPrivateHost,
-      follow: PageSteeredFollow<T>(
-        permit: permit ?? ((target) async => _validIconUrl(target)),
-        read: read,
-        method: method,
-        maxRedirects: maxRedirects,
-        forbidHttpsDowngrade: forbidHttpsDowngrade,
-        decorate: (c) =>
-            SiteUserAgentClient(c, userAgent: HostBrowser.sentUserAgent),
-      ),
-    );
+}) async {
+  final outcome = await followPageSteered(
+    proxy,
+    url: Uri.parse(url),
+    allowPrivateHost: allowPrivateHost,
+    follow: PageSteeredFollow<T>(
+      permit: permit ?? ((target) async => _validIconUrl(target)),
+      read: read,
+      method: method,
+      maxRedirects: maxRedirects,
+      forbidHttpsDowngrade: forbidHttpsDowngrade,
+      timeout: timeout,
+      userAgent: HostBrowser.sentUserAgent,
+    ),
+  );
+  if (outcome case PageSteeredRefused(
+    kind: PageSteeredRefusal.clientUnavailable,
+    :final reason
+  )) {
+    LogTag.icon.warning('Outbound blocked: $reason');
+  }
+  return outcome;
+}
 
 class IconUpdate {
   final String url;
@@ -105,7 +114,8 @@ Future<String?> getSvgContent(
       svgUrl,
       proxy: proxy.resolved,
       read: http.Response.fromStream,
-    ).timeout(const Duration(seconds: 5));
+      timeout: const Duration(seconds: 5),
+    );
     if (outcome case PageSteeredValue(value: final r) when r.statusCode == 200) {
       _svgContentCache[svgUrl] = r.body;
       if (persist) unawaited(onSvgContentCached?.call(svgUrl, content: r.body));
@@ -136,7 +146,8 @@ Future<Uint8List?> fetchIconBytes(String iconUrl, {required OutboundProxy proxy}
       iconUrl,
       proxy: proxy.resolved,
       read: http.Response.fromStream,
-    ).timeout(const Duration(seconds: 10));
+      timeout: const Duration(seconds: 10),
+    );
     if (outcome case PageSteeredValue(value: final r) when r.statusCode == 200) {
       return r.bodyBytes;
     }
@@ -212,7 +223,8 @@ Future<Uint8List?> fetchPageLinkedBytes(
       allowPrivateHost: documentHost,
       maxRedirects: _maxPageIconRedirects,
       forbidHttpsDowngrade: true,
-    ).timeout(const Duration(seconds: 15));
+      timeout: const Duration(seconds: 15),
+    );
     return switch (outcome) {
       PageSteeredValue(:final value) => value,
       PageSteeredRefused() => null,
@@ -377,11 +389,12 @@ Future<bool> _verifyIconUrl(String iconUrl,
       iconUrl,
       proxy: proxy,
       method: PageSteeredMethod.head,
+      timeout: const Duration(milliseconds: 8000),
       read: (response) async {
-        unawaited(response.stream.drain<void>());
+        unawaited(response.stream.listen(null).cancel());
         return response.statusCode;
       },
-    ).timeout(const Duration(milliseconds: 8000));
+    );
     final isValid = outcome is PageSteeredValue<int> && outcome.value == 200;
     if (isValid) _verifiedUrls.add(iconUrl);
     return isValid;
@@ -507,7 +520,8 @@ Future<bool> _isSvgColored(String svgUrl, {required ProxyRoute proxy}) async {
       svgUrl,
       proxy: proxy,
       read: http.Response.fromStream,
-    ).timeout(const Duration(seconds: 2));
+      timeout: const Duration(seconds: 2),
+    );
     if (outcome is! PageSteeredValue<http.Response> ||
         outcome.value.statusCode != 200) {
       return false;

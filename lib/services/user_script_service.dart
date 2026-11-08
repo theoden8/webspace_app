@@ -71,16 +71,21 @@ Future<PageSteeredOutcome<http.Response>> _fetchChecked(
   String url, {
   required ProxyRoute effective,
   required Future<bool> Function(String url) allow,
-}) =>
-    followPageSteered(
-      effective,
-      url: Uri.parse(url),
-      follow: PageSteeredFollow<http.Response>(
-        permit: (target) => allow(target.toString()),
-        read: http.Response.fromStream,
-        maxRedirects: _maxFetchRedirects,
-      ),
-    );
+}) async {
+  final target = Uri.tryParse(url);
+  if (target == null) {
+    return const PageSteeredRefused('blocked URL', kind: PageSteeredRefusal.url);
+  }
+  return followPageSteered(
+    effective,
+    url: target,
+    follow: PageSteeredFollow<http.Response>(
+      permit: (t) => allow(t.toString()),
+      read: http.Response.fromStream,
+      maxRedirects: _maxFetchRedirects,
+    ),
+  );
+}
 
 /// Whether the bridge may connect to [url], given the [effective] proxy.
 ///

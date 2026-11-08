@@ -391,8 +391,9 @@ class MediaSessionService {
           read: pageSteeredCappedBytes(cap),
           maxRedirects: _maxArtworkRedirects,
           forbidHttpsDowngrade: true,
+          timeout: timeout,
         ),
-      ).timeout(timeout);
+      );
       switch (outcome) {
         case PageSteeredValue(:final value):
           return value;

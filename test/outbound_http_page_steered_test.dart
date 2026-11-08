@@ -220,13 +220,17 @@ void main() {
           reason: 'a proxy must not become a path to the loopback literal');
     });
 
-    test('a proxy 302 to a loopback literal does not connect direct', () async {
-      // An auto-following fetch (favicon/icon bytes) under an HTTP proxy: the
-      // proxy answers 302 -> http://127.0.0.1:<private>/. If the client follows
-      // internally and _httpProxyClient's localhost bypass kicks in, hop 2 would
-      // connect direct to the loopback. It must not.
+    test('a proxy 302 to a loopback literal reaches the proxy at hop 1 only',
+        () async {
+      // The proxy answers hop 1 with 302 -> http://127.0.0.1:<private>/evil. The
+      // follower re-judges hop 2 (a loopback literal) and refuses it before any
+      // send, so the proxy never receives it. This is the case the follower
+      // closes over an auto-following client: with followRedirects=true the
+      // client would send hop 2 to the proxy, and this test would see '/evil'.
+      final proxyPaths = <String>[];
       final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       proxy.listen((req) async {
+        proxyPaths.add(req.uri.path);
         req.response.statusCode = 302;
         req.response.headers
             .set('location', 'http://127.0.0.1:$privatePort/evil');
@@ -240,9 +244,11 @@ void main() {
       await fetch('http://public.example/favicon.ico', route: route);
       await settle();
 
+      expect(proxyPaths, ['/favicon.ico'],
+          reason: 'the proxy saw only hop 1; hop 2 (the loopback literal) was '
+              'refused before any send, not forwarded to the proxy');
       expect(privateConnections, 0,
-          reason: 'a redirect to a loopback literal must not connect direct, '
-              'even under a proxy');
+          reason: 'and nothing connected direct to the loopback either');
     });
   });
 
@@ -251,9 +257,11 @@ void main() {
         () async {
       // hop 1 (cdn.test) is the allowed document host and resolves to the
       // loopback redirect server; it answers 302 -> http://nas.test:<private>/.
-      // hop 2 (nas.test) is a different host, so the follower re-judges it: it
-      // resolves onto the private listener and is refused before a byte reaches
-      // it. An auto-following client would have taken hop 2 unseen.
+      // hop 2 (nas.test) is a different host, so it is judged on connect and
+      // refused before a byte reaches the private listener. On a DEFAULT route
+      // the #949 per-connection pin refuses hop 2 even if the client auto-follows
+      // (it judges every connection), so this case does not by itself distinguish
+      // the follower; the proxy-302 case above is the one that does.
       hostLookup = (_) async => const ['127.0.0.1'];
       final redirect = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       redirect.listen((req) async {
@@ -270,6 +278,57 @@ void main() {
       expect(privateConnections, 0,
           reason: 'the redirect target is judged at the hop, so nothing reached '
               'the private listener');
+    });
+  });
+
+  group('a timeout cuts the socket, not just the await (BUG-012)', () {
+    test('an unbounded body stops arriving once the deadline closes the client',
+        () async {
+      // The server streams a body forever. The follower applies the timeout
+      // inside its own try, so the deadline closes the client and cuts the
+      // socket; the body stops arriving. With an external `.timeout` on the
+      // follower's future (the old shape), the socket stayed open and the body
+      // kept arriving in the background. Measured client-side, where the cut is
+      // observable (server-side writes buffer past a close).
+      var received = 0;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((req) async {
+        req.response.bufferOutput = false;
+        try {
+          while (true) {
+            req.response.add(List.filled(256, 7));
+            await req.response.flush();
+            await Future<void>.delayed(const Duration(milliseconds: 10));
+          }
+        } on HttpException {
+          // the client went away
+        } on SocketException {
+          // the client went away
+        } on StateError {
+          // the response was already closed
+        }
+      });
+      addTearDown(() => server.close(force: true));
+      hostLookup = (_) async => const ['127.0.0.1'];
+
+      final outcome = followPageSteered(
+        OutboundProxy.app.resolved,
+        url: Uri.parse('http://sink.test:${server.port}/'),
+        allowPrivateHost: 'sink.test',
+        follow: PageSteeredFollow<void>(
+          permit: (_) async => true,
+          read: (r) => r.stream.forEach((chunk) => received += chunk.length),
+          timeout: const Duration(milliseconds: 300),
+        ),
+      );
+      await expectLater(outcome, throwsA(isA<TimeoutException>()));
+
+      final atTimeout = received;
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+      expect(received, lessThan(atTimeout + 1024),
+          reason: 'the deadline closed the client, so little or no more body '
+              'arrived after the timeout (it would keep growing by ~15 KB if the '
+              'socket stayed open)');
     });
   });
 }

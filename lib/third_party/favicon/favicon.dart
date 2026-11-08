@@ -202,8 +202,7 @@ class FaviconFinder {
           read: read,
           maxRedirects: _maxRedirects,
           onRedirect: onRedirect,
-          decorate: (c) =>
-              SiteUserAgentClient(c, userAgent: HostBrowser.sentUserAgent),
+          userAgent: HostBrowser.sentUserAgent,
         ),
       );
 

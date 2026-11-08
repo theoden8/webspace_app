@@ -34,9 +34,21 @@ const SEAMS = [
   'outboundHttp.clientFor',
   'fetchViaAppProxy(',
   'pageSteeredClient(',
+  'pageSteeredClientFor(',
   'followPageSteered(',
 ];
 const GATE = 'followPageSteered(';
+
+// The raw client-producing seams. A GUARDED fetcher may not name any of them:
+// each hands out a usable client that would sidestep the follower (the factory's
+// `pageSteeredClientFor` gives a page-steered client with a public `.client`,
+// `clientFor` an unguarded one). A fetcher gets its client only by handing a
+// route to `followPageSteered`.
+const RAW_SEAMS = [
+  'outboundHttp.clientFor',
+  'pageSteeredClientFor(',
+  'fetchViaAppProxy(',
+];
 
 // Seams that take a URL a loaded page chose. Each MUST route through
 // `followPageSteered`, which judges every hop (the URL and each redirect) as it
@@ -85,6 +97,15 @@ const EXEMPT = {
     + 'app configures, pageSteeredClient (the page-steered producer, consumed '
     + 'only here) and followPageSteered, the one follower every GUARDED file '
     + 'routes through. Each caller is classified here on its own.',
+  'lib/services/outbound_http_types.dart':
+    'The seam\'s neutral types and the OutboundHttpFactory interface, including '
+    + 'the pageSteeredClientFor declaration the follower calls.',
+  'lib/services/outbound_http_io.dart':
+    'The dart:io seam: the real pageSteeredClientFor, the connection pin and the '
+    + 'literal guard. Reached only through followPageSteered.',
+  'lib/services/outbound_http_web.dart':
+    'The web seam: pageSteeredClientFor defers to the browser, which enforces '
+    + 'private-network access itself.',
   'lib/services/proxy_test_service.dart':
     'The probe target is the site\'s own home URL (typed by the user, not '
     + 'chosen by a loaded page) or the fixed example.com fallback, and '
@@ -123,9 +144,10 @@ for (const file of GUARDED) {
   });
 }
 
-// The page-steered client's field is library-private, so the follower is its
-// only consumer at compile time; this holds the structure that makes that so:
-// pageSteeredClient is called in exactly one file, the follower's own. Plant a
+// A PageSteeredHttp's client field is library-private, so the follower is the
+// only code that can read it: once a page-steered client is built, nothing but
+// followPageSteered can drive it. This holds the structure behind that — the
+// wrapper is built in exactly one file, the follower's own. Plant a
 // `pageSteeredClient(...)` in a fetcher and this fires.
 test('only the follower consumes the page-steered client', () => {
   const callers = dartFiles('lib').filter((f) =>
@@ -134,6 +156,39 @@ test('only the follower consumes the page-steered client', () => {
     'a PageSteeredHttp is consumed only by followPageSteered (its client field '
     + 'is library-private). Route a new page-steered fetch through '
     + 'followPageSteered, never pageSteeredClient directly.');
+});
+
+// The per-file "routes through" check above only sees that followPageSteered
+// appears somewhere in the file; a GUARDED fetcher could still reach a raw
+// client-producing seam beside it. So none may name one. Plant
+// `outboundHttp.clientFor(r).client.get(u)` (or `pageSteeredClientFor(r).client`)
+// in a GUARDED file and this fires.
+test('no fetcher reaches a raw client-producing seam', () => {
+  for (const file of GUARDED) {
+    const src = read(file);
+    for (const seam of RAW_SEAMS) {
+      assert.ok(!src.includes(seam),
+        `${file} names ${seam}, a raw client seam that sidesteps the follower. `
+        + `A page-chosen URL gets its client only from followPageSteered(route, ...).`);
+    }
+  }
+});
+
+// The factory's page-steered producer returns a client with a public `.client`,
+// so it is the one way to get a page-steered client outside a PageSteeredHttp.
+// Confine it to the seam library, where followPageSteered is the only consumer;
+// plant `outboundHttp.pageSteeredClientFor(r)` anywhere else and this fires.
+test('only the seam library calls the page-steered factory method', () => {
+  const callers = dartFiles('lib')
+    .filter((f) => read(f).includes('pageSteeredClientFor('))
+    .sort();
+  assert.deepEqual(callers, [
+    'lib/services/outbound_http.dart',
+    'lib/services/outbound_http_io.dart',
+    'lib/services/outbound_http_types.dart',
+    'lib/services/outbound_http_web.dart',
+  ], 'pageSteeredClientFor returns a page-steered client; call it only inside the '
+    + 'outbound_http seam, and consume the result only through followPageSteered.');
 });
 
 // Plant a `followRedirects` or a `headers['location']` loop in a GUARDED fetcher
