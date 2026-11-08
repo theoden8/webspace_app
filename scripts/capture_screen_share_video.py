@@ -140,7 +140,17 @@ def walkthrough():
     tree = ui()
     if not any(n.get('class') == 'android.widget.EditText' for n in tree.iter('node')):
         tap_label('Add Site')
-    field = wait_node(['Enter URL'])
+    deadline = time.monotonic() + 30
+    fields = []
+    while time.monotonic() < deadline:
+        fields = [n for n in ui().iter('node')
+                  if n.get('class') == 'android.widget.EditText']
+        if fields:
+            break
+        time.sleep(1)
+    if not fields:
+        raise RuntimeError('Add Site has no editable URL field')
+    field = fields[0]
     tap(field)
     adb('shell', 'input', 'text', f'http://localhost:{PORT}/')
     adb('shell', 'input', 'keyevent', 'KEYCODE_BACK')
