@@ -71,4 +71,37 @@ final make = planSettingsImport;
     expect(await errorsIn(mint, overlays: {owner: publicMint}), isEmpty,
         reason: 'with a public mint any code could make an id');
   }, timeout: _probe);
+  test('ARCH-016: an archive\'s sites join the lists only through an admission',
+      () async {
+    const preamble = "import 'package:webspace/controllers/site_set_change.dart';\n"
+        "import 'package:webspace/services/archive_ids.dart';\n"
+        "import 'package:webspace/web_view_model.dart';\n";
+    // Admitted against the listed ids, the sites join.
+    const admitted = '${preamble}ArchiveOpened f(Set<String> listed) => '
+        'ArchiveOpened(sites: Admitted.of(const [], listed: {}, '
+        'build: (r) => WebViewModel.fromJson(r, stateSetterF: null)), '
+        'webspaces: const [], appTierMembership: const {});';
+    // A list of models carries no admission: an archived site could join
+    // under an id a listed site holds.
+    const raw = '${preamble}ArchiveOpened f(List<WebViewModel> sites) => '
+        'ArchiveOpened(sites: sites, webspaces: const [], '
+        'appTierMembership: const {});';
+    // Nor can one be made by hand around them.
+    const forged = '${preamble}Admitted<WebViewModel> f(List<WebViewModel> s, '
+        'ArchiveIds ids) => Admitted._(s, ids: ids);';
+    expect(await errorsIn(admitted), isEmpty);
+    expect(await errorsIn(raw), contains('argument_type_not_assignable'));
+    expect(await errorsIn(forged), isNotEmpty,
+        reason: 'Admitted has no public constructor');
+
+    // Planted mistake: ArchiveOpened takes a plain list again, and the raw
+    // probe compiles.
+    const owner = 'lib/controllers/site_set_change.dart';
+    final source = File(owner).readAsStringSync();
+    final plain = source.replaceFirst(
+        'final Admitted<WebViewModel> sites;', 'final List<WebViewModel> sites;');
+    expect(plain, isNot(source), reason: 'the planted mistake must apply');
+    expect(await errorsIn(raw, overlays: {owner: plain}), isEmpty,
+        reason: 'with a plain list any caller could join unadmitted sites');
+  }, timeout: _probe);
 }

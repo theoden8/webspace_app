@@ -26,10 +26,17 @@ import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/services/archive_membership_engine.dart';
+import 'package:webspace/controllers/page_orphan_sweep.dart';
+import 'package:webspace/controllers/shell_store.dart';
+import 'package:webspace/controllers/site_list_store.dart';
+import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/services/orphan_sweep_engine.dart';
+import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings_import_engine.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/webspace_model.dart';
 
+import 'helpers/archive_harness.dart';
 import 'helpers/mock_cookie_manager.dart';
 import 'helpers/mock_secure_storage.dart';
 
@@ -373,6 +380,53 @@ void main() {
       } finally {
         await docs.delete(recursive: true);
       }
+    });
+  });
+
+  // SEC-044, ARCH-016: an archived site whose id an app-tier site holds (a
+  // backup brought it back) runs under another id while its archive is open.
+  // Its state lives in the archive, the app-tier site's under the shared id,
+  // so neither the open, nor the page's saves and sweeps while it is open,
+  // nor the close may change a byte of the app tier.
+  group('An archived site holding an app-tier id leaves the app tier as it was',
+      () {
+    test('over two opens and closes, the saves and the sweeps', () async {
+      final run = await _Clash.start();
+      for (var round = 0; round < 2; round++) {
+        final r = await run.round();
+        expect(r.opened, isNot(_Clash.id), reason: 'round ${round + 1}');
+        expect(r.whileOpen, run.before,
+            reason: 'round ${round + 1}: open, saved and swept');
+        expect(r.afterClose, run.before, reason: 'round ${round + 1}: closed');
+        expect(r.afterSweep, run.before,
+            reason: 'round ${round + 1}: swept after the close');
+        for (final MapEntry(key: store, value: live) in r.liveSets.entries) {
+          expect(live, contains(_Clash.id),
+              reason: 'round ${round + 1}: $store keeps the app-tier site');
+        }
+      }
+    });
+
+    test('a write under the running id is caught while the archive is open',
+        () async {
+      final run = await _Clash.start();
+      final r = await run.round(
+          plant: (h, {required opened}) => h.navStates.saveState(opened.activeStateKey,
+              state: Uint8List.fromList([9, 9, 9])));
+      expect(r.whileOpen, isNot(run.before));
+      expect(r.afterClose, run.before,
+          reason: 'the close erases what its sites left under their ids');
+    });
+
+    test('a write under the archived id is caught after the close', () async {
+      final run = await _Clash.start();
+      final r = await run.round(
+          plant: (h, {required opened}) => h.navStates.saveState(
+              webViewStateKey(_Clash.id, tabId: opened.activeTabId),
+              state: Uint8List.fromList([9, 9, 9])));
+      expect(r.whileOpen, isNot(run.before));
+      expect(r.afterClose, isNot(run.before),
+          reason: 'the app-tier site\'s back stack was overwritten');
     });
   });
 
@@ -817,3 +871,160 @@ WebViewModel _tabbedSite(SiteId siteId) => WebViewModel(
       ],
       activeTabId: TabId('child'),
     );
+
+/// An app-tier site and an archived one under the same id [id], driven
+/// through [ArchiveController] and the page's own stores and sweep.
+final class _Clash {
+  _Clash._(this.h, {required this.before});
+
+  static final id = SiteId('shared');
+  static final _w = WebspaceId('w');
+
+  final ArchiveHarness h;
+
+  /// The app tier's bytes with the archive closed.
+  final Map<String, Object?> before;
+
+  late final _sites = SiteListStore(
+      cookies: h.cookieStore, proxyPasswords: h.proxyPasswords);
+  late final _shell = ShellStore(h.runtime);
+
+  /// The archive holds the site and its membership of a webspace; the app
+  /// tier holds a site of its own under the same id, with a session, a
+  /// proxy password, a back stack and the same membership.
+  static Future<_Clash> start() async {
+    final h = ArchiveHarness();
+    final archived = _site(session: 'archived', password: 'archived-pw');
+    h.load([archived]);
+    h.runtime.webspaces.add(Webspace(id: _w, name: 'w', siteIds: [id]));
+    await h.archives.moveIn(archived);
+    await h.archives.closeArchiveOf(archived);
+
+    final restored = _site(session: 'app-tier', password: 'app-tier-pw');
+    h.load([restored]);
+    h.runtime.webspaces.single.siteIds.add(id);
+    await h.navStates.saveState(restored.activeStateKey,
+        state: Uint8List.fromList([1, 2, 3]));
+    final run = _Clash._(h, before: const {});
+    await run._persist();
+    return _Clash._(h, before: await run._bytes());
+  }
+
+  static WebViewModel _site({required String session, required String password}) =>
+      WebViewModel(
+        siteId: id,
+        initUrl: 'https://shared.test/',
+        proxySettings: UserProxySettings(
+            type: ProxyType.HTTP, address: 'p:8080', username: 'u',
+            password: password),
+      )..cookies = [Cookie(name: 'sid', value: session, domain: 'shared.test')];
+
+  /// What the page writes after a change to its lists.
+  Future<void> _persist() async {
+    await _sites.save(h.runtime.models);
+    await _shell.saveWebspaces();
+  }
+
+  /// The page's sweep over the stores the harness holds; the live set each
+  /// other store would be handed is recorded.
+  Future<Map<OrphanStore, Set<SiteId>>> _sweep() async {
+    final target = _SweepRecorder(PageOrphanSweep(h.runtime,
+        cookieStore: h.cookieStore,
+        proxyPasswords: h.proxyPasswords,
+        navStates: h.navStates));
+    await OrphanSweepEngine.sweep(
+      targets: target,
+      activeSiteIds: h.runtime.siteIds,
+      nonIncognitoSiteIds: h.runtime.nonIncognitoSiteIds,
+    );
+    return target.live;
+  }
+
+  /// Everything the app tier persists here: the preferences, the app
+  /// keychain and the back stacks.
+  Future<Map<String, Object?>> _bytes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final keys = await h.navStates.siteIds();
+    return {
+      'prefs': {for (final k in prefs.getKeys().toList()..sort()) k: prefs.get(k)},
+      'keychain': {...h.keychain.storage},
+      'navStates': {
+        for (final k in keys.toList()..sort())
+          k: base64.encode((await h.navStates.loadState(k))!),
+      },
+    };
+  }
+
+  /// The archive opens and its site is used: a new session, a page, its
+  /// webspace shown. The page saves, [plant] writes what a forgetful path
+  /// would, the page sweeps; then the archive closes and the page saves and
+  /// sweeps again.
+  Future<
+      ({
+        SiteId opened,
+        Map<String, Object?> whileOpen,
+        Map<String, Object?> afterClose,
+        Map<String, Object?> afterSweep,
+        Map<OrphanStore, Set<SiteId>> liveSets,
+      })> round({
+    Future<void> Function(ArchiveHarness h, {required WebViewModel opened})? plant,
+  }) async {
+    expect(await h.archives.open(archivePassphrase), isNotNull);
+    final opened = h.runtime.models.singleWhere((m) => m.isArchiveTier);
+    expect(h.runtime.webspaces.single.siteIds, containsAll([id, opened.siteId]),
+        reason: 'the archive\'s membership comes back under the running id');
+    expect(opened.activeTabPersistsNavState, isFalse,
+        reason: 'ARCH-006: every back-stack capture passes this gate');
+    opened
+      ..cookies = [Cookie(name: 'sid', value: 'used', domain: 'shared.test')]
+      ..currentUrl = 'https://shared.test/used'
+      ..pageTitle = 'Used';
+    await _persist();
+    await plant?.call(h, opened: opened);
+    final liveSets = await _sweep();
+    final whileOpen = await _bytes();
+
+    await h.archives.closeArchiveOf(opened);
+    expect(h.runtime.models.single.isArchiveTier, isFalse);
+    await _persist();
+    final afterClose = await _bytes();
+    for (final MapEntry(key: store, value: live) in (await _sweep()).entries) {
+      liveSets[store] = {...?liveSets[store], ...live};
+      expect(live, contains(id), reason: '$store after the close');
+    }
+    return (
+      opened: opened.siteId,
+      whileOpen: whileOpen,
+      afterClose: afterClose,
+      afterSweep: await _bytes(),
+      liveSets: liveSets,
+    );
+  }
+}
+
+/// [PageOrphanSweep] for the stores [ArchiveHarness] holds; for the
+/// process-wide ones it records the live set it would be handed.
+final class _SweepRecorder implements OrphanSweepTargets {
+  _SweepRecorder(this._page);
+
+  final PageOrphanSweep _page;
+  final live = <OrphanStore, Set<SiteId>>{};
+
+  @override
+  Future<void> removeOrphans(OrphanStore store,
+      {required Set<SiteId> liveSiteIds}) async {
+    live[store] = liveSiteIds;
+    switch (store) {
+      case OrphanStore.cookies ||
+            OrphanStore.proxyPasswords ||
+            OrphanStore.webViewState:
+        await _page.removeOrphans(store, liveSiteIds: liveSiteIds);
+      case OrphanStore.httpAuthCredentials ||
+            OrphanStore.htmlImports ||
+            OrphanStore.blockStatsSites ||
+            OrphanStore.siteIcons ||
+            OrphanStore.iconImages:
+        break;
+    }
+  }
+}

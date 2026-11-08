@@ -21,7 +21,10 @@ test('the close sweeps ws-<siteId> for the archive, never an app-tier site', () 
   const guard = close.slice(opaque, sweep);
   assert.match(guard, /if \(!m\.isArchiveTier\) m\.siteId/,
     'the sweep must know which ids app-tier sites hold');
-  assert.match(guard, /final traces = slice\.siteIds\.difference\(appTier\);/,
+  // The ids its sites ran under and the ids it seals them under (ARCH-016),
+  // less every id an app-tier site holds.
+  assert.match(guard,
+    /final traces = \{\.\.\.slice\.siteIds, \.\.\.slice\.siteIds\.map\(slice\.ids\.archived\)\}\s*\.difference\(appTier\);/,
     'an id an app-tier site also holds names that site\'s own container');
   const erase = close.slice(close.indexOf('Future<void> erase() async {'));
   for (const per of ['removeStatesForSite(sid)', 'saveCookiesForSite(sid', 'ProxyPasswordKey.site(sid)']) {

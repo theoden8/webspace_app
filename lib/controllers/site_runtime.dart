@@ -190,6 +190,15 @@ class SiteRuntime {
     siteIdsByPosition: [for (final m in models) m.siteId],
   );
 
+  /// R8, SEC-044: a site joins the list only under an id no listed site
+  /// holds, so a lookup by id names one site.
+  void _assertUnlisted(Iterable<WebViewModel> joining) {
+    assert(() {
+      final ids = {for (final m in models) m.siteId};
+      return joining.every((m) => ids.add(m.siteId));
+    }(), 'a site joined the list under an id a listed site holds (SEC-044)');
+  }
+
   /// Applies [change] to the lists. A site that goes leaves [loaded] and
   /// [shown] with it and lets go of its webview, the site on screen going
   /// makes [shown] null, and a change that moves or removes rows bumps
@@ -212,6 +221,7 @@ class SiteRuntime {
         assert(models.isEmpty, 'the startup load fills the empty list');
         models.addAll(sites);
       case SiteAdded(:final site, :final joins):
+        _assertUnlisted([site]);
         models.add(site);
         for (final ws in webspaces) {
           if (!ws.isAll &&
@@ -246,7 +256,8 @@ class SiteRuntime {
         webspaces: final spaces,
         :final appTierMembership,
       ):
-        models.addAll(opened);
+        _assertUnlisted(opened.sites);
+        models.addAll(opened.sites);
         webspaces.addAll(spaces);
         ArchiveMembershipEngine.attach(
           webspaces,

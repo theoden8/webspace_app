@@ -3,31 +3,21 @@
 @Timeout(Duration(minutes: 2))
 library;
 
-import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/archive_controller.dart';
-import 'package:webspace/controllers/site_runtime.dart';
-import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
-import 'package:webspace/services/archive.dart';
-import 'package:webspace/services/archive_crypto.dart';
-import 'package:webspace/services/archive_storage.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
-import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/site_tab.dart';
-import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/web_view_model.dart';
-import 'package:webspace/controllers/site_set_commit.dart';
+import 'package:webspace/webspace_model.dart';
 
-import 'helpers/isolations.dart';
-import 'helpers/mock_secure_storage.dart';
+import 'helpers/archive_harness.dart';
 import 'helpers/model_fixture.dart';
 
 /// ARCH-011 / ARCH-012: an archive closed and opened again, or a site moved
@@ -43,7 +33,7 @@ void main() {
 
   test('closing and opening an archive restores every site as it was (ARCH-004)',
       () async {
-    final h = _Harness();
+    final h = ArchiveHarness();
     final sites = _everyKind();
     h.load(sites);
     final before = {for (final m in sites) m.siteId: _shape(m)};
@@ -58,7 +48,7 @@ void main() {
       expect(h.runtime.models, isEmpty);
       expect(h.toasts.last(en), en.homeArchiveClosed);
 
-      expect(await h.archives.open(_passphrase), isNotNull);
+      expect(await h.archives.open(archivePassphrase), isNotNull);
       expect({for (final m in h.runtime.models) m.siteId: _shape(m)}, before,
           reason: 'round ${round + 1}: tabs, active tab and address come '
               'back as sealed, Always open Home and incognito included');
@@ -66,7 +56,7 @@ void main() {
   });
 
   test('moving a site in and out leaves its tabs as they were', () async {
-    final h = _Harness();
+    final h = ArchiveHarness();
     final sites = _everyKind();
     h.load(sites);
     final before = {for (final m in sites) m.siteId: _shape(m)};
@@ -80,12 +70,12 @@ void main() {
   });
 
   test('an archive with no room left stays open and unchanged', () async {
-    final h = _Harness();
+    final h = ArchiveHarness();
     final site = _tree(SiteId('big'), active: TabId('c'));
     h.load([site]);
     await h.archives.moveIn(site);
     await h.archives.closeArchiveOf(site);
-    await h.archives.open(_passphrase);
+    await h.archives.open(archivePassphrase);
     final reopened = h.runtime.models.single;
     final sealed = _shape(reopened);
 
@@ -97,7 +87,7 @@ void main() {
         reason: 'the archive stays open');
     expect(h.runtime.models, [reopened]);
     expect(reopened.isArchiveTier, isTrue);
-    expect(await h.sealedShapes(), {'big': sealed},
+    expect(await _sealedShapes(h), {'big': sealed},
         reason: 'the slot still holds the last state that fitted');
 
     reopened.setTabs(reopened.tabs.take(4).toList());
@@ -107,7 +97,7 @@ void main() {
   });
 
   test('closing every archive reports the one left open', () async {
-    final h = _Harness();
+    final h = ArchiveHarness();
     final site = _tree(SiteId('big'), active: TabId('c'));
     h.load([site]);
     await h.archives.moveIn(site);
@@ -119,7 +109,7 @@ void main() {
   });
 
   test('a site that does not fit an archive stays where it is', () async {
-    final h = _Harness();
+    final h = ArchiveHarness();
     final small = _tree(SiteId('small'), active: TabId('c'));
     final big = _tree(SiteId('big'), active: TabId('c'))
       ..cookies = [Cookie(name: 'sid', value: 'kept', domain: 'big.test')];
@@ -137,7 +127,7 @@ void main() {
     expect(_shape(big), before);
     expect(h.archives.archiveOf(big), isNull);
     await h.archives.closeArchiveOf(small);
-    expect((await h.sealedShapes()).keys, ['small'],
+    expect((await _sealedShapes(h)).keys, ['small'],
         reason: 'only the site that fitted is sealed');
   });
 
@@ -147,7 +137,7 @@ void main() {
   // ARCH-013
   test('ARCH-007: an app-tier site holding an archived id keeps its row and '
       'its state across the archive\'s open and close', () async {
-    final h = _Harness();
+    final h = ArchiveHarness();
     final id = SiteId.parse('shared')!;
     final archived = _away(id);
     h.load([archived]);
@@ -163,7 +153,7 @@ void main() {
       cookieFromJson({'name': 'sid', 'value': 'app-tier', 'domain': 'shared.test'}),
     ]);
 
-    expect(await h.archives.open(_passphrase), isNotNull);
+    expect(await h.archives.open(archivePassphrase), isNotNull);
     expect(h.runtime.models, hasLength(2));
     expect(h.archives.archiveOf(restored), isNull,
         reason: 'the app-tier site is not the archive\'s');
@@ -175,13 +165,77 @@ void main() {
         reason: 'the close seals the archive\'s own site, not the app-tier one');
     expect(await cookies.loadCookiesForSite(id), isNotEmpty,
         reason: 'and erases none of the app-tier site\'s state');
-    expect(await h.sealedShapes(), hasLength(1));
+    expect(await _sealedShapes(h), hasLength(1));
+  });
+
+  test('ARCH-016, SEC-044: an archived site whose id an app-tier site holds runs under '
+      'its own while open, and seals back under the archived one', () async {
+    final h = ArchiveHarness();
+    final id = SiteId.parse('shared')!;
+    final archived = _away(id);
+    h.load([archived]);
+    await h.archives.moveIn(archived);
+    final container = archived.archiveContainerKey;
+    await h.archives.closeArchiveOf(archived);
+
+    final restored = _away(id);
+    h.load([restored]);
+    h.runtime.webspaces
+        .add(Webspace(id: WebspaceId('w'), name: 'w', siteIds: [id]));
+
+    for (var round = 0; round < 2; round++) {
+      expect(await h.archives.open(archivePassphrase), isNotNull);
+      final ids = [for (final m in h.runtime.models) m.siteId];
+      expect(ids.toSet(), hasLength(2),
+          reason: 'round ${round + 1}: two listed sites, two ids');
+      final opened = h.runtime.models.singleWhere((m) => m.isArchiveTier);
+      expect(opened.siteId, isNot(id));
+      expect(opened.archiveContainerKey, container,
+          reason: 'its container is still the one sealed under its id');
+
+      await h.archives.closeArchiveOf(opened);
+      expect(h.runtime.models, [same(restored)]);
+      expect(h.runtime.webspaces.single.siteIds, [id],
+          reason: 'the close takes the archive\'s site out of the '
+              'collections, not the app-tier one');
+      expect((await _sealedShapes(h)).keys, [id],
+          reason: 'sealed under the id it was archived under');
+    }
+  });
+
+  test('ARCH-016: two sites an older build sealed under one id run under two, '
+      'each with a container of its own, and seal apart', () async {
+    final h = ArchiveHarness();
+    final id = SiteId.parse('shared')!;
+    final first = _away(id);
+    h.load([first]);
+    await h.archives.moveIn(first);
+    await h.archives.closeArchiveOf(first);
+    await h.sealBeside(
+        (_away(id)..currentUrl = 'https://shared.test/second').toArchiveJson());
+
+    Set<String?> containers() =>
+        {for (final m in h.runtime.models) m.archiveContainerKey?.toString()};
+    expect(await h.archives.open(archivePassphrase), isNotNull);
+    expect({for (final m in h.runtime.models) m.siteId}, hasLength(2));
+    expect(containers(), hasLength(2));
+    final ids = {for (final m in h.runtime.models) m.siteId};
+
+    await h.archives.closeArchiveOf(h.runtime.models.first);
+    final sealed = [for (final s in await h.sealedSites()) s['siteId']];
+    expect(sealed.toSet(), hasLength(2), reason: 'sealed apart');
+    expect(sealed, contains(id.toString()));
+
+    expect(await h.archives.open(archivePassphrase), isNotNull);
+    expect({for (final m in h.runtime.models) m.siteId}, ids,
+        reason: 'the second keeps the id it was given');
+    expect(containers(), hasLength(2));
   });
 
   group('archive operations one at a time', () {
     test('a close while a move reads cookies seals the moved site too',
         () async {
-      final h = _Harness();
+      final h = ArchiveHarness();
       final first = _tree(SiteId('first'), active: TabId('c'));
       final second = _tree(SiteId('second'), active: TabId('c'))
         ..cookies = [Cookie(name: 'sid', value: 'kept', domain: 'second.test')];
@@ -198,11 +252,11 @@ void main() {
       expect(await close, isTrue);
 
       expect(h.runtime.models, isEmpty);
-      expect((await h.sealedShapes()).keys.toSet(), {'first', 'second'});
+      expect((await _sealedShapes(h)).keys.toSet(), {'first', 'second'});
     });
 
     test('two closes at once seal once', () async {
-      final h = _Harness();
+      final h = ArchiveHarness();
       final site = _tree(SiteId('only'), active: TabId('c'));
       h.load([site]);
       await h.archives.moveIn(site);
@@ -211,17 +265,17 @@ void main() {
           [h.archives.close(handle), h.archives.close(handle)]);
       expect(results, [true, true]);
       expect(h.runtime.models, isEmpty);
-      expect((await h.sealedShapes()).keys, ['only']);
+      expect((await _sealedShapes(h)).keys, ['only']);
     });
 
     test('an open during a close brings the archive back once', () async {
-      final h = _Harness();
+      final h = ArchiveHarness();
       final site = _tree(SiteId('only'), active: TabId('c'));
       h.load([site]);
       await h.archives.moveIn(site);
       final handle = h.archives.archiveOf(site)!;
       final close = h.archives.close(handle);
-      final open = h.archives.open(_passphrase);
+      final open = h.archives.open(archivePassphrase);
       await close;
       expect(await open, isNotNull);
       expect([for (final m in h.runtime.models) m.siteId], ['only']);
@@ -229,8 +283,6 @@ void main() {
     });
   });
 }
-
-const _passphrase = 'correct horse';
 
 /// The sites a tab tree can belong to: plain, Always open Home and
 /// incognito (each with a tree, and alone on a page away from home), kiosk
@@ -295,120 +347,9 @@ String _shape(WebViewModel m) => jsonEncode({
       'kiosk': m.kioskMode,
     });
 
-/// Stand-in for Argon2id: a pure function of passphrase and salt, in
-/// microseconds (archive_test.dart pins the real derivation).
-Future<Uint8List> _derive(String passphrase, {required Uint8List? salt}) {
-  final material = Uint8List(32);
-  final src = salt ?? Uint8List.fromList(utf8.encode('legacy-salt'));
-  for (var i = 0; i < material.length; i++) {
-    material[i] = src[i % src.length];
-  }
-  return ArchiveCrypto.hmac(material, info: passphrase);
-}
-
-class _Harness implements ArchiveHost, ArchivePrompts {
-  _Harness() {
-    archives = ArchiveController(
-      runtime,
-      host: this,
-      prompts: this,
-      cookieStore: CookieSecureStorage(secureStorage: keychain),
-      proxyPasswords: ProxyPasswordSecureStorage(secureStorage: keychain),
-      navStates: InMemoryWebViewStateStorage(),
-      archive: Archive(
-          storage: ArchiveStorage(secureStorage: slots), deriveKey: _derive),
-    );
-  }
-
-  final keychain = MockFlutterSecureStorage();
-  // Archives exist for their containers' sake: each site's opaque one is
-  // deleted on close (ARCH-007).
-  final runtime = SiteRuntime()..isolation = fakeContainers();
-  final slots = MockFlutterSecureStorage();
-  late final ArchiveController archives;
-  final toasts = <String Function(AppLocalizations)>[];
-
-  void load(List<WebViewModel> sites) => runtime.applied(SitesLoaded(sites));
-
-  /// The shapes the slot holds now, read by a second pool over the same
-  /// keychain the way a relaunch would.
-  Future<Map<String, String>> sealedShapes() async {
-    final fresh =
-        Archive(storage: ArchiveStorage(secureStorage: slots), deriveKey: _derive);
-    final handle = await fresh.tryOpen(_passphrase);
-    final out = {
-      for (final json in handle!.state.sites)
-        json['siteId'] as String: _shape(WebViewModel.fromJson(
-            Map<String, dynamic>.from(json),
-            stateSetterF: null,
-            isArchiveTier: true)),
+/// The shapes the slot holds now, by the id each is sealed under.
+Future<Map<String, String>> _sealedShapes(ArchiveHarness h) async => {
+      for (final json in await h.sealedSites())
+        json['siteId'] as String: _shape(WebViewModel.fromJson(json,
+            stateSetterF: null, isArchiveTier: true)),
     };
-    await fresh.close(handle);
-    return out;
-  }
-
-  @override
-  bool get mounted => true;
-
-  @override
-  void rebuild() {}
-
-  @override
-  Future<void> endOfFrame() async {}
-
-  @override
-  void toast(
-    String Function(AppLocalizations loc) message, {
-    Duration? duration,
-    bool floating = false,
-  }) =>
-      toasts.add(message);
-
-  /// The archive steps of the page's `_commitSites`: the rows change, then a
-  /// moved site's archived copy is written.
-  @override
-  Future<void> commitSites(SiteSetChange change) async {
-    runtime.applied(change);
-    if (change case SiteArchived(:final site, :final into)) {
-      await archives.recordIn(site, into: into);
-    }
-  }
-
-  @override
-  SiteSetStage stageSites(SiteSetChange change) =>
-      AppliedStage((commit) => runtime.apply(change, commit: commit));
-
-  _Held? _cookieRead;
-
-  /// The next cookie read waits until released, so a test can land an
-  /// operation inside a move.
-  _Held holdCookies() => _cookieRead = _Held();
-
-  @override
-  Future<List<Cookie>> captureCookies(WebViewModel model) async {
-    final held = _cookieRead;
-    _cookieRead = null;
-    if (held != null) {
-      held._started.complete();
-      await held._released.future;
-    }
-    return model.cookies;
-  }
-
-  @override
-  Future<String?> passphrase(PassphrasePurpose purpose) async => _passphrase;
-
-  @override
-  Future<bool> createArchive(PassphrasePurpose purpose) async => true;
-
-  @override
-  Future<bool> includeOpenArchives(int count) async => false;
-}
-
-/// A cookie read held open by [_Harness.holdCookies].
-final class _Held {
-  final _started = Completer<void>();
-  final _released = Completer<void>();
-  Future<void> get started => _started.future;
-  void release() => _released.complete();
-}

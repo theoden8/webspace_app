@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/archive_ids.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/site_runtime.dart';
@@ -22,6 +23,19 @@ WebViewModel _site(SiteId id, {bool archive = false}) => WebViewModel(
   initUrl: 'https://$id.test',
   isArchiveTier: archive,
 );
+
+/// [sites] as an archive opening beside [r]'s lists admits them.
+Admitted<WebViewModel> _admitted(SiteRuntime r,
+        {required List<WebViewModel> sites}) =>
+    Admitted.of(
+      [for (final m in sites) m.toArchiveJson()],
+      listed: {for (final m in r.models) m.siteId},
+      build: (record) => WebViewModel.fromJson(
+        record,
+        stateSetterF: null,
+        isArchiveTier: true,
+      ),
+    );
 
 /// [ids] as rows, [loaded] and [shown] naming sites by id.
 SiteRuntime _runtime(
@@ -258,7 +272,7 @@ void main() {
       );
       r.applied(
         ArchiveOpened(
-          sites: [_site(SiteId('x'), archive: true)],
+          sites: _admitted(r, sites: [_site(SiteId('x'), archive: true)]),
           webspaces: const [],
           appTierMembership: {
             WebspaceId('w'): [SiteId('x')],
@@ -267,6 +281,32 @@ void main() {
       );
       expect(r.models.last.siteId, 'x');
       expect(r.webspaces.single.siteIndices, [0, 1]);
+    });
+
+    test('ARCH-016: an archived site whose id a listed site holds joins under its own '
+        '(SEC-044)', () {
+      final r = _runtime([_site(SiteId('a')), _site(SiteId('b'))]);
+      final opened = _admitted(r, sites: [
+        _site(SiteId('a'), archive: true),
+        _site(SiteId('c'), archive: true),
+      ]);
+      r.applied(ArchiveOpened(
+        sites: opened,
+        webspaces: const [],
+        appTierMembership: const {},
+      ));
+      final ids = [for (final m in r.models) m.siteId];
+      expect(ids.toSet(), hasLength(ids.length), reason: 'ids stay unique');
+      expect(ids.sublist(0, 2), ['a', 'b'], reason: 'the app tier keeps its');
+      expect(opened.ids.archived(ids[2]), 'a',
+          reason: 'sealed back under the id it was archived under');
+      expect(ids[3], 'c', reason: 'an id nobody holds is kept');
+    });
+
+    test('ARCH-016: a site never joins under an id a listed site holds', () {
+      final r = _runtime([_site(SiteId('a'))]);
+      expect(() => r.applied(SiteAdded(_site(SiteId('a')))),
+          throwsA(isA<AssertionError>()));
     });
 
     test('the startup load fills the empty list Init starts from', () {
@@ -310,7 +350,12 @@ void main() {
         SiteRemoved(_site(SiteId('a'))),
         const SitesMoved(0, to: 1),
         const SitesReplaced(sites: [], webspaces: [], selectedWebspaceId: null),
-        const ArchiveOpened(sites: [], webspaces: [], appTierMembership: {}),
+        ArchiveOpened(
+          sites: Admitted.of(const [],
+              listed: const {}, build: (_) => throw StateError('none')),
+          webspaces: const [],
+          appTierMembership: const {},
+        ),
         const ArchiveClosed(sites: [], webspaceIds: {}),
         SiteArchived(_site(SiteId('a')), into: into),
         SiteUnarchived(_site(SiteId('a'))),

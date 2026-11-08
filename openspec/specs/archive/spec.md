@@ -645,6 +645,40 @@ the section's cookies stay keyed to their sites.
 **When** the user restores the section and opens the archive
 **Then** the site asks for the camera, has location off and notifications off, and runs none of its scripts
 
+### Requirement: ARCH-016 — An archived site joins the lists under an id no listed site holds
+
+An archive open SHALL admit its sites against the ids listed at that moment:
+the app tier's and every other open archive's (`Admitted.of`,
+`lib/services/archive_ids.dart`). A site whose archived id a listed site
+holds SHALL run under a fresh id while its archive is open. Its container key,
+cookies, sealed record, collections and app-tier membership SHALL stay under
+the archived id, so opening and closing an archive changes nothing it holds.
+A site moved into an open archive whose id the archive already seals another
+site under SHALL be sealed under a fresh id. A site an archive seals under the
+same id as another of its sites, which a build before ARCH-016 could seal by
+moving a site in beside its namesake, SHALL get a fresh id to run and be
+sealed under, and so a container of its own. No site joins the lists under a
+listed site's id (R8, SEC-044): a lookup by id names one site, and a close
+takes only the archive's own sites out of the collections. `ArchiveOpened`
+takes only admitted sites, and `SiteRuntime.apply` asserts every join.
+
+The fresh id is drawn at random on each open, not derived from the archive's
+key. Nothing persists under it, and the close erases what a path that forgot
+the archive gate left there. A derived id would be a stable pseudonym of the
+archived site: one such leak would link that open to every later one.
+
+#### Scenario: An archive holds an app-tier site's id
+
+**Given** an app-tier site with id `shared`, in a collection, and an archive whose site was sealed under `shared`
+**When** the user opens the archive and closes it again
+**Then** while open the two sites have different ids, the app-tier site stays in its collection after the close, and the archive seals its site under `shared` with the same container
+
+#### Scenario: The app tier keeps its bytes across the clash
+
+**Given** that app-tier site with a session, a proxy password, a back stack and its collection saved
+**When** the archive opens, its site gets a new session and page, the page saves its lists and sweeps orphaned state, and the archive closes and the page saves and sweeps again
+**Then** the app tier's preferences, keychain and back stacks are byte-identical to before the open, both while the archive is open and after it closes, and every store's sweep counts `shared` live
+
 ## Implementation Details
 
 ### Crypto primitives
