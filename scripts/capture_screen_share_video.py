@@ -87,7 +87,12 @@ def labelled(tree, labels):
 def wait_node(labels, timeout=60):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        found = labelled(ui(), labels)
+        tree = ui()
+        if labelled(tree, ["System UI isn't responding"]):
+            tap(labelled(tree, ['Wait'])[-1])
+            time.sleep(3)
+            continue
+        found = labelled(tree, labels)
         if found:
             return found[-1]
         time.sleep(1)
@@ -214,6 +219,11 @@ def main():
         adb('shell', 'settings', 'put', 'system', 'show_touches', '1')
         adb('shell', 'input', 'keyevent', '82')
         adb('reverse', f'tcp:{PORT}', f'tcp:{PORT}')
+        # Finish the cold app launch before the encoder competes for CPU.
+        adb('shell', 'am', 'start', '-W', '-n', f'{APP}/.MainActivity')
+        wait_node(['Add', 'Add Site'], timeout=120)
+        adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
+        time.sleep(3)
         adb('logcat', '-c')
         with (OUT / 'logcat.txt').open('wb') as log:
             logcat = subprocess.Popen([*ADB, 'logcat', '-v', 'threadtime'], stdout=log)
