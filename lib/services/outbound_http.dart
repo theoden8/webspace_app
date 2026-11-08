@@ -15,8 +15,12 @@ import 'package:webspace/services/outbound_http_web.dart'
     if (dart.library.io) 'package:webspace/services/outbound_http_io.dart';
 
 export 'package:webspace/services/outbound_http_types.dart';
+// buildPageSteeredClient is hidden: it is the sole producer of a page-steered
+// client, and only this library (via pageSteeredClient) may name it, so no
+// caller reached through the re-export can build one (SEC-049).
 export 'package:webspace/services/outbound_http_web.dart'
-    if (dart.library.io) 'package:webspace/services/outbound_http_io.dart';
+    if (dart.library.io) 'package:webspace/services/outbound_http_io.dart'
+    hide buildPageSteeredClient;
 
 OutboundHttpFactory _factory = const DefaultOutboundHttpFactory();
 
@@ -40,31 +44,30 @@ class _DoNotTrackOutboundHttpFactory implements OutboundHttpFactory {
     }
     return result;
   }
-
-  @override
-  OutboundClient pageSteeredClientFor(ProxyRoute route,
-      {String? allowPrivateHost}) {
-    final result =
-        inner.pageSteeredClientFor(route, allowPrivateHost: allowPrivateHost);
-    if (result is OutboundClientReady) {
-      return OutboundClientReady(DoNotTrackClient(result.client));
-    }
-    return result;
-  }
 }
 
+/// Drape the always-on DNT/Sec-GPC headers over a built client, as the
+/// [_DoNotTrackOutboundHttpFactory] does for [clientFor]. The page-steered build
+/// does not go through that wrapper (it is not a factory method), so
+/// [pageSteeredClient] drapes it here.
+OutboundClient _withDoNotTrack(OutboundClient built) =>
+    built is OutboundClientReady
+        ? OutboundClientReady(DoNotTrackClient(built.client))
+        : built;
+
 /// A client for an outbound call a loaded page can steer, which judges the
-/// destination address as it connects (SEC-049). Only [pageSteeredClient]
-/// constructs one — the `._` constructor is private to this library — so a
-/// [PageSteeredHttp] in hand provably came from the guarded path, and its client
-/// is reachable only through [followPageSteered], the one function this library
-/// lets read [_result]. Every page-steered fetch therefore follows its redirects
-/// through that single guarded follower (SEC-049, BUG-012): a caller cannot send
-/// through the client, let alone let it follow a redirect itself, so a hop onto a
-/// rebinding or redirecting private target is judged on every route, not just the
-/// first hop and not only under DEFAULT. That the fetchers hand a [PageSteeredHttp]
-/// to the follower, rather than reaching the raw [OutboundHttpFactory.clientFor],
-/// is still held by the `page_steered_outbound_reach` structural gate.
+/// destination address as it connects (SEC-049). It is built only by
+/// `buildPageSteeredClient`, which the public re-export hides, and wrapped only
+/// by [pageSteeredClient] (the `._` constructor is private to this library), so
+/// no caller outside the seam can make or name a page-steered client. Its client
+/// is read only by [followPageSteered], the one function this library lets touch
+/// [_result]. The two together are a type: a page-steered client cannot be built
+/// outside the seam and cannot be driven except through the follower, which
+/// follows redirects per hop so a rebinding or redirecting private target is
+/// judged on every route, not just the first hop and not only under DEFAULT. That
+/// the fetchers route page-chosen URLs through the follower rather than the
+/// general [OutboundHttpFactory.clientFor] is the remaining
+/// `page_steered_outbound_reach` gate.
 class PageSteeredHttp {
   const PageSteeredHttp._(this._result);
 
@@ -75,13 +78,14 @@ class PageSteeredHttp {
   final OutboundClient _result;
 }
 
-/// Build the [PageSteeredHttp] client for [route], the one producer of the
-/// type. [allowPrivateHost] is the single host whose own private address the
-/// guard permits (a page-linked resource's document host). Drapes the always-on
-/// DNT/Sec-GPC headers like every other outbound seam.
+/// Build the [PageSteeredHttp] client for [route], the one producer of the type.
+/// [allowPrivateHost] is the single host whose own private address the guard
+/// permits (a page-linked resource's document host). Builds through the hidden
+/// `buildPageSteeredClient` and drapes the always-on DNT/Sec-GPC headers like
+/// every other outbound seam.
 PageSteeredHttp pageSteeredClient(ProxyRoute route, {String? allowPrivateHost}) =>
-    PageSteeredHttp._(
-        outboundHttp.pageSteeredClientFor(route, allowPrivateHost: allowPrivateHost));
+    PageSteeredHttp._(_withDoNotTrack(buildPageSteeredClient(_factory,
+        route: route, allowPrivateHost: allowPrivateHost)));
 
 /// What [followPageSteered] produced: the value its [PageSteeredFollow.read] made
 /// from the final response, or a refusal carrying [PageSteeredRefused.reason]

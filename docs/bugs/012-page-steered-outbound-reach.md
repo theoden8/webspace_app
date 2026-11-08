@@ -128,18 +128,21 @@ than copy the range table.**
    artwork, page-linked icons, the favicon document fetch) collapse into it, and
    the auto-following fetchers (favicons, page-icon bytes, the icon/SVG probes)
    route through it too, so under a proxy a hop-2 redirect to a private *literal*
-   is judged by the literal guard rather than forwarded. The invariant is held in
-   two parts: a `PageSteeredHttp`'s client field is library-private, so the
-   follower is its one consumer — a fetcher cannot drive the client, let alone
-   let it follow a redirect itself (a type, rung 1); and that fetchers route
-   through the follower rather than the raw client factory
-   (`pageSteeredClientFor`, which still hands out a usable page-steered client, or
-   `clientFor`) is the `page_steered_outbound_reach` gate (rung 5). The gate
-   gained probes that fire on a plant: the follower is the sole `pageSteeredClient`
-   consumer, no GUARDED fetcher sets `followRedirects` / reads a `Location` header
-   / names a raw seam, and `pageSteeredClientFor` is confined to the seam library.
-   A proxy connection-count test fails on a `followRedirects = true` mutation; a
-   timeout test shows the deadline cuts the socket.
+   is judged by the literal guard rather than forwarded. The SEC-049 claim — a
+   page-steered client is reachable only through the follower — is a type for all
+   code reached through `outbound_http.dart`: a page-steered client is built only
+   by `buildPageSteeredClient`, which the public re-export hides (naming it
+   elsewhere does not compile), and its `PageSteeredHttp` client field is
+   library-private, read only by `followPageSteered`. The platform split leaves
+   `buildPageSteeredClient` public in `outbound_http_io.dart`, so a direct import
+   of that half could name it; that edge, and that fetchers route page-chosen URLs
+   through the follower rather than the general `clientFor`, are the remaining
+   `page_steered_outbound_reach` gate (rung 5). The gate's probes fire on a plant:
+   the follower is the sole `pageSteeredClient` consumer, only the seam names
+   `buildPageSteeredClient`, and no GUARDED fetcher sets `followRedirects` / reads
+   a `Location` header / names a raw seam. A proxy connection-count test fails on a
+   `followRedirects = true` mutation; a timeout test shows the deadline cuts the
+   socket.
    *Why:* attempt 5's pin judged every hop only under DEFAULT; under an on-device
    forwarding proxy an auto-follow fetcher's hop-2 redirect to a LAN literal was
    forwarded, seen by no guard.

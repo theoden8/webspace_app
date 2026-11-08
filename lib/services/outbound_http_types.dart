@@ -265,24 +265,11 @@ abstract class OutboundHttpFactory {
     BodyEncoding encoding = BodyEncoding.decoded,
   });
 
-  /// The client for an outbound call a loaded page can steer (SEC-049): the
-  /// destination address is judged at the moment of connecting, not before,
-  /// so a name that resolves into a private or loopback range cannot reach the
-  /// LAN or cloud metadata even if it rebinds between a pre-flight check and
-  /// the connect (the residual [classifyOutboundTarget] documents).
-  ///
-  /// On a DEFAULT (direct) route this returns a client whose every connection,
-  /// the first and each redirect hop, resolves the host once and connects only
-  /// to a judged address. [allowPrivateHost] is the one host whose own private
-  /// address is acceptable: the document a page-linked resource belongs to, so
-  /// a site the user keeps on their LAN still serves its own icon (ICON-013).
-  ///
-  /// On a proxy route the far end resolves the name, so this is the ordinary
-  /// proxied client and the judgement does not apply (the local resolver never
-  /// sees the destination). Wrapped in a [PageSteeredHttp] by the sole producer
-  /// `pageSteeredClient`, so a fetcher a page can steer cannot be handed a
-  /// client that connects by an unjudged name.
-  OutboundClient pageSteeredClientFor(ProxyRoute route, {String? allowPrivateHost});
+  // There is no page-steered method here: a page-steered client is built only
+  // by `buildPageSteeredClient` (the platform halves of this seam), which the
+  // public re-export hides, so no caller outside the seam can name it (SEC-049).
+  // The build is wrapped in a `PageSteeredHttp` whose client field is
+  // library-private, and `followPageSteered` is its one consumer.
 }
 
 /// What a client does with a body the server compressed.

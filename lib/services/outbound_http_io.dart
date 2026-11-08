@@ -35,8 +35,7 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
   }) =>
       _clientFor(route, encoding: encoding);
 
-  @override
-  OutboundClient pageSteeredClientFor(ProxyRoute route,
+  OutboundClient _pageSteeredBuild(ProxyRoute route,
       {String? allowPrivateHost}) {
     // Under a proxy the destination name is resolved at the far end, so the
     // proxied client applies and the local resolve-and-pin would describe a
@@ -373,6 +372,22 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
     return OutboundClientReady(IOClient(inner));
   }
 }
+
+/// Build the page-steered client for [route] on [factory] — the sole producer
+/// of a page-steered client, hidden from `outbound_http.dart`'s public
+/// re-export so no caller outside the seam can name it (SEC-049). The real
+/// connection pin and literal guard live on [DefaultOutboundHttpFactory]; any
+/// other factory (a test fake) has no socket of its own, so its page-steered
+/// client is its [OutboundHttpFactory.clientFor] — the connection-layer test
+/// exercises the real pin, the fakes capture the fetch.
+OutboundClient buildPageSteeredClient(
+  OutboundHttpFactory factory, {
+  required ProxyRoute route,
+  String? allowPrivateHost,
+}) =>
+    factory is DefaultOutboundHttpFactory
+        ? factory._pageSteeredBuild(route, allowPrivateHost: allowPrivateHost)
+        : factory.clientFor(route);
 
 /// A direct client was asked to connect to an onion service: nothing was
 /// sent, and the name never reached the device's resolver (LEAK-016). A
