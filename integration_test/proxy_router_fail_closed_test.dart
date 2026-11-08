@@ -36,30 +36,8 @@ import 'package:webspace/widgets/unproxied_block.dart';
 import 'helpers/proxy_upstreams.dart';
 import 'secure_storage_fake.dart';
 
-/// Every request each upstream saw, merged with the app's own proxy,
-/// unload and webview log lines, in the order they happened.
-String timeline({required RecordingUpstream a, required RecordingUpstream b}) {
-  const tags = {
-    'Proxy',
-    'ProxyRelay',
-    'SiteUnload',
-    'WebView',
-    'WebViewLifecycle',
-    'SiteIcon',
-    'Startup',
-    'Test',
-  };
-  final events = <(DateTime, String)>[
-    for (final (at, line) in a.timeline) (at, 'upstream A <- $line'),
-    for (final (at, line) in b.timeline) (at, 'upstream B <- $line'),
-    for (final e in LogService.instance.allEntriesMerged)
-      if (tags.contains(e.tag)) (e.timestamp, '[${e.tag}] ${e.message}'),
-  ]..sort((x, y) => x.$1.compareTo(y.$1));
-  return [
-    'fallback timeline:',
-    for (final (at, what) in events) '${at.toIso8601String()} $what',
-  ].join('\n');
-}
+String timeline({required RecordingUpstream a, required RecordingUpstream b}) =>
+    'fallback timeline:\n${upstreamTimeline(a: a, b: b)}';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();

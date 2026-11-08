@@ -142,7 +142,11 @@ final class ProcessRoute {
     _claims.remove(occupant);
     return vacate([occupant], close: () async {
       await view.quiet();
+      LogTag.proxy.debug('$occupant is quiet, waiting for its destroy',
+          sensitive: true);
       await untilDestroyed(view.destroyed(), what: '$occupant');
+      LogTag.proxy.debug('$occupant left the process-wide proxy',
+          sensitive: true);
     });
   }
 

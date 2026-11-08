@@ -84,7 +84,8 @@ void main() {
       await openSiteFromDrawer(tester, name: name);
     }
 
-    final seen = '(A=${upstreamA.requestLines}, B=${upstreamB.requestLines})';
+    final seen = '(A=${upstreamA.requestLines}, B=${upstreamB.requestLines})\n'
+        '${upstreamTimeline(a: upstreamA, b: upstreamB)}';
     // The WebView's own navigations: the app's icon fetches reach each
     // site's proxy from Dart without it.
     expect(upstreamA.navigations, isNotEmpty,
