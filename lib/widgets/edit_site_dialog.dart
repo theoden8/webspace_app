@@ -7,7 +7,6 @@ import 'package:webspace/screens/add_site.dart'
     show FaviconUrlCache, UnifiedFaviconImage;
 import 'package:webspace/services/custom_icon.dart';
 import 'package:webspace/services/file_dialog.dart';
-import 'package:webspace/services/page_title.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/utils/url_utils.dart';
@@ -109,8 +108,9 @@ class _EditSiteDialogState extends State<EditSiteDialog> {
         // (UnifiedFaviconImage listens for it); the fetched title lands in the
         // name field, applied on Save like any other edit.
         await FaviconUrlCache.invalidate(site.initUrl);
-        final title = await getPageTitle(site.initUrl,
-            proxy: site.outboundProxy);
+        // The live page title the webview reported (titleLoaded keeps it
+        // current); no out-of-band fetch (SEC-051).
+        final title = site.pageTitle;
         if (!mounted || title == null || title.isEmpty) return;
         _name.text = title;
         ScaffoldMessenger.of(context).toast(

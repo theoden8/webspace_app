@@ -135,14 +135,18 @@ void main() {
   });
 
   // The icon refresh the drawer once had lives here now: it drops the cached
-  // icon so the preview fetches it again, and fills in the page's title.
-  testWidgets('Refresh Title & Icon drops the cached icon (ICON-008)',
+  // icon so the preview fetches it again, and fills the name field from the
+  // site's live page title — never an out-of-band title fetch (SEC-051,
+  // ICON-008). The responder returns a distinct title a fetch would parse; the
+  // live title must win and the fetched one must appear nowhere.
+  testWidgets('Refresh Title & Icon takes the live title, never fetches one (ICON-008)',
       (tester) async {
     outboundHttp = FakeOutbound(responder: (_) => http.Response(
-        '<html><head><title>Fetched Title</title></head></html>', 200));
+        '<html><head><title>FETCHED must not appear</title></head></html>', 200));
     addTearDown(resetOutboundHttp);
     addTearDown(clearFaviconCache);
-    final plain = WebViewModel(initUrl: 'https://example.com', name: 'Example');
+    final plain = WebViewModel(initUrl: 'https://example.com', name: 'Example')
+      ..pageTitle = 'Live Title';
     await tester.runAsync(
         () => getFaviconUrlStream(plain.initUrl, proxy: OutboundProxy.app).drain<void>());
     final dropped = <String>[];
@@ -155,6 +159,9 @@ void main() {
         () => Future<void>.delayed(const Duration(milliseconds: 50)));
     await tester.pump();
     expect(dropped, contains(plain.initUrl));
-    expect(find.widgetWithText(TextField, 'Fetched Title'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Live Title'), findsOneWidget,
+        reason: 'the name takes the site\'s live page title');
+    expect(find.widgetWithText(TextField, 'FETCHED must not appear'), findsNothing,
+        reason: 'SEC-051: Refresh Title reads the live title, it issues no fetch');
   });
 }

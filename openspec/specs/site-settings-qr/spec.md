@@ -297,18 +297,18 @@ does not carry one, so the model's auto-generation kicks in)
 **And** the model's `proxySettings.password` is null (the QR didn't
 carry it; the receiver must enter it manually if the proxy needs auth)
 
-#### Scenario: Page title fallback when QR's name is empty
+#### Scenario: An unnamed QR site is titled on its first load
 
 **Given** the QR payload's `name` is empty or null
 **When** `SiteEditingController.addSite` consumes the `qrSettings`
-**Then** the receiver issues `getPageTitle(initUrl)` and uses the
-returned title for both `name` and `pageTitle` if non-empty
+**Then** no title is fetched out of band; the site's `name` stays empty
+until its first load names it from the page title (`titleLoaded`, EDIT-001)
 
 #### Scenario: Page title kept when QR carries a name
 
 **Given** the QR payload's `name` is non-empty
 **When** `SiteEditingController.addSite` consumes the `qrSettings`
-**Then** no `getPageTitle` HTTP fetch happens
+**Then** no title is fetched
 **And** the model's `pageTitle` is set to its `name`
 
 ---

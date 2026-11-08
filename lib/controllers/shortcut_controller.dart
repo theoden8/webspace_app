@@ -14,7 +14,6 @@ import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/screens/home_shortcuts_settings.dart';
 import 'package:webspace/services/icon_png_export.dart';
 import 'package:webspace/services/log_service.dart';
-import 'package:webspace/services/page_title.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/site_icon_store.dart';
@@ -377,12 +376,8 @@ class ShortcutController implements HomeShortcutsHost {
             case MissingShortcutChoice.create:
               final model =
                   WebViewModel(initUrl: url, stateSetterF: _host.rebuild);
-              final title = await getPageTitle(url, proxy: model.outboundProxy);
-              if (!_host.mounted) return;
-              if (title != null && title.isNotEmpty) {
-                model.name = title;
-                model.pageTitle = title;
-              }
+              // Named on first load from its page title (titleLoaded), not an
+              // out-of-band pre-fetch (SEC-051).
               await _host.registerSite(model);
               if (!_host.mounted) return;
               await _rebind(shortcutSiteId, tile: tile, to: model.siteId);

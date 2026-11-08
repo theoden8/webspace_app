@@ -1,4 +1,3 @@
-import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/shell_store.dart';
 import 'package:webspace/controllers/shortcut_controller.dart';
@@ -6,7 +5,6 @@ import 'package:webspace/controllers/site_deletion.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/services/html_import_storage.dart';
-import 'package:webspace/services/page_title.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/redirect_domain_engine.dart';
 import 'package:webspace/services/reentry_guard.dart';
@@ -160,17 +158,9 @@ class SiteEditingController {
         SiteSettingsQrCodec.hydrateForFromJson(resultQrSettings),
         stateSetterF: stateSetter,
       );
-      if (model.name.isEmpty) {
-        final pageTitle = await getPageTitle(
-          model.initUrl,
-          proxy: model.outboundProxy,
-        );
-        if (!_host.mounted) return;
-        if (pageTitle != null && pageTitle.isNotEmpty) {
-          model.name = pageTitle;
-          model.pageTitle = pageTitle;
-        }
-      } else {
+      // A name the QR carried stays; an unnamed site is named on first load
+      // from its page title (titleLoaded), not an out-of-band fetch (SEC-051).
+      if (model.name.isNotEmpty) {
         model.pageTitle = model.name;
       }
     } else {
@@ -179,13 +169,8 @@ class SiteEditingController {
       final incognito = result['incognito'] as bool? ?? false;
       final htmlContent = result['htmlContent'] as String?;
 
-      // Try to fetch page title if custom name not provided (skip for local files)
-      String? pageTitle;
-      if (customName.isEmpty && htmlContent == null) {
-        pageTitle = await getPageTitle(url, proxy: OutboundProxy.app);
-        if (!_host.mounted) return;
-      }
-
+      // No custom name means the site is named on its first load, from the
+      // page title (titleLoaded) — never an out-of-band pre-fetch (SEC-051).
       model = WebViewModel(
         initUrl: url,
         incognito: incognito,
@@ -194,9 +179,6 @@ class SiteEditingController {
       if (customName.isNotEmpty) {
         model.name = customName;
         model.pageTitle = customName;
-      } else if (pageTitle != null && pageTitle.isNotEmpty) {
-        model.name = pageTitle;
-        model.pageTitle = pageTitle;
       }
 
       // Imported HTML files are the only copy of the user's data, so they
