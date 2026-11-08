@@ -1,0 +1,25 @@
+name: Hand in lock files
+description: >-
+  The lock files this job's checkout changed, uploaded for the lockfiles job
+  of Build and Test to lay over the commit (scripts/lockfiles.sh). Nothing is
+  uploaded when none changed.
+
+inputs:
+  name:
+    description: This job's hand-in among the run's; a matrix job names its leg.
+    required: false
+    default: ${{ github.job }}
+
+runs:
+  using: composite
+  steps:
+    - name: Collect the changed lock files
+      shell: bash
+      run: bash scripts/lockfiles.sh changed "$RUNNER_TEMP/lockfiles"
+
+    - name: Upload the changed lock files
+      uses: actions/upload-artifact@v4
+      with:
+        name: lockfiles-${{ inputs.name }}
+        path: ${{ runner.temp }}/lockfiles/
+        if-no-files-found: ignore

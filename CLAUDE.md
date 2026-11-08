@@ -343,6 +343,11 @@ suffixes the applicationId (`org.codeberg.theoden8.webspace.debug`, label "Websp
 Debug") so a dev build installs beside a store one; the namespace is unchanged, so
 `adb` component names in `scripts/` must be fully qualified, not `pkg/.Class`.
 
+A lock file only one platform writes (`Podfile.lock`, by a macOS build's pod
+install) comes from CI: every Build and Test run publishes a `lockfiles`
+artifact, each committed lock file at its path as that run resolved it, to
+unzip at the repository root ([scripts/lockfiles.sh](scripts/lockfiles.sh)).
+
 ## Architecture
 
 **Models**

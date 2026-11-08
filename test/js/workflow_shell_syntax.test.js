@@ -262,3 +262,34 @@ test('every device feeds the one screenshots artifact', () => {
   assert.match(ios, /name: \$\{\{ matrix\.device \}\}-framed-screenshots\n/,
     'the iOS framed sets no longer reach the merge');
 });
+
+// Some lock files are written only on one platform: Podfile.lock by the pod
+// install every job on the Apple toolchain runs, Gemfile.lock by a bundle
+// install that is not frozen. The lockfiles job lays what each job hands in
+// over the commit and publishes every lock file as one artifact. A job that
+// writes one and hands nothing in, or that the merge does not wait for, drops
+// it with every job green.
+test('every job that writes a lock file feeds the one lockfiles artifact', () => {
+  const { jobs } = YAML.parse(read(WORKFLOW));
+  const handIn = (j) => (j.steps ?? []).find((s) => s.uses === './.github/actions/lockfiles');
+  const writes = (j) => (j.steps ?? []).some((s) => s.uses === './.github/actions/apple-toolchain'
+    || /\bbundle install\b/.test(s.run ?? ''));
+  const writers = Object.keys(jobs).filter((id) => writes(jobs[id]));
+  assert.ok(writers.includes('build-apple'), 'no job writing a lock file was found');
+  for (const id of writers) {
+    const step = handIn(jobs[id]);
+    assert.ok(step, `${id} writes a lock file and does not hand it in`);
+    assert.equal(step.if, 'success() || failure()',
+      `${id} hands nothing in when its build fails, which is when a lock file is wanted`);
+    if (jobs[id].strategy?.matrix) {
+      assert.match(step.with?.name ?? '', /\$\{\{ matrix\./,
+        `${id}'s legs hand in under one name, and the second upload fails`);
+    }
+  }
+  const needs = [jobs.lockfiles.needs].flat();
+  for (const [id, j] of Object.entries(jobs)) {
+    if (handIn(j)) assert.ok(needs.includes(id), `the lockfiles merge does not wait for ${id}`);
+  }
+  assert.equal(jobs.lockfiles.if, '${{ !cancelled() }}',
+    'the lockfiles job skips when a build fails, which is when a lock file is wanted');
+});
