@@ -7,20 +7,12 @@
 [![Release](https://img.shields.io/github/v/release/theoden8/webspace_app)](https://github.com/theoden8/webspace_app/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/theoden8/webspace_app/total)](https://github.com/theoden8/webspace_app/releases)
 [![Build and Test](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml)
-<a href="https://github.com/sponsors/theoden8">
-  <img src="https://img.shields.io/badge/Sponsor-theoden8-ff69b4" alt="Sponsor theoden8">
-</a>
+<a href="https://github.com/sponsors/theoden8"><img src="https://img.shields.io/badge/Sponsor-theoden8-ff69b4" alt="Sponsor theoden8"></a>
 
-<a href="https://f-droid.org/packages/org.codeberg.theoden8.webspace">
-  <img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid" height="80" align="middle">
-</a>
-<a href="https://apps.apple.com/app/webspace-app/id6758049523">
-  <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download on the App Store" width="170" align="middle">
-</a>
+<a href="https://f-droid.org/packages/org.codeberg.theoden8.webspace"><img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid" height="80" align="middle"></a>
+<a href="https://apps.apple.com/app/webspace-app/id6758049523"><img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download on the App Store" width="170" align="middle"></a>
 &nbsp;&nbsp;
-<a href="https://play.google.com/store/apps/details?id=org.codeberg.theoden8.webspace">
-  <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Get it on Google Play" height="68" align="middle">
-</a>
+<a href="https://play.google.com/store/apps/details?id=org.codeberg.theoden8.webspace"><img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Get it on Google Play" height="68" align="middle"></a>
 
 </div>
 
