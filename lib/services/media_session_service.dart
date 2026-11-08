@@ -349,13 +349,6 @@ class MediaSessionService {
 
   static const int _maxArtworkRedirects = 5;
 
-  static bool _isRedirectStatus(int status) =>
-      status == 301 ||
-      status == 302 ||
-      status == 303 ||
-      status == 307 ||
-      status == 308;
-
   /// Best-effort artwork fetch: the page's own declared artwork URL, capped and
   /// timed out. Decoding/scaling happens natively. Null on anything unexpected.
   ///
@@ -383,28 +376,32 @@ class MediaSessionService {
           verdict == HostRangeVerdict.notResolvedHere;
     }
 
-    // Silent for an empty / non-http URL (the page gave no artwork) or a
-    // non-routable one, as before; every redirect hop below is re-judged the
-    // same way through [permitted].
-    final first = Uri.tryParse(url);
-    if (first == null || !await permitted(first)) return null;
-    // The artwork URL and every redirect hop are judged above; the page-steered
-    // client judges the destination address again as it connects and pins to it,
-    // closing the rebind window between that check and the connect (SEC-049).
-    final http.Client client;
-    switch (pageSteeredClient(effective).result) {
-      case OutboundClientBlocked(:final reason):
-        LogTag.mediaSession.warning('Artwork fetch skipped: $reason');
-        return null;
-      case OutboundClientReady(client: final ready):
-        client = ready;
-    }
+    // The follower judges the artwork URL and every redirect hop as it connects
+    // and pins to the judged address (SEC-049); [permitted] is the fetcher's own
+    // per-hop check on top. Silent for a page that gave no (or a non-routable)
+    // artwork URL; a proxy that cannot be honoured is logged.
     const cap = 1536 * 1024;
     const timeout = Duration(seconds: 5);
     try {
-      return await _fetchArtworkBytes(client,
-              first: first, permitted: permitted, maxBytes: cap)
-          .timeout(timeout);
+      final outcome = await followPageSteered(
+        effective,
+        url: Uri.parse(url),
+        follow: PageSteeredFollow<Uint8List?>(
+          permit: permitted,
+          read: pageSteeredCappedBytes(cap),
+          maxRedirects: _maxArtworkRedirects,
+          forbidHttpsDowngrade: true,
+        ),
+      ).timeout(timeout);
+      switch (outcome) {
+        case PageSteeredValue(:final value):
+          return value;
+        case PageSteeredRefused(:final kind, :final reason):
+          if (kind == PageSteeredRefusal.clientUnavailable) {
+            LogTag.mediaSession.warning('Artwork fetch skipped: $reason');
+          }
+          return null;
+      }
     } on http.ClientException {
       // http, SOCKS and TLS failures alike: the notification goes without art.
       return null;
@@ -414,48 +411,6 @@ class MediaSessionService {
       return null;
     } on TimeoutException {
       return null;
-    } finally {
-      client.close();
-    }
-  }
-
-  /// GET [first] with the client's own redirect following off, running every
-  /// `Location` back through [permitted] before the next hop and capping the
-  /// body at [maxBytes]. Returns the bytes, or null when a hop is refused, the
-  /// chain steps https down to http, outruns [_maxArtworkRedirects], or the
-  /// answer is not a 200 within the cap.
-  Future<Uint8List?> _fetchArtworkBytes(
-    http.Client client, {
-    required Uri first,
-    required Future<bool> Function(Uri target) permitted,
-    required int maxBytes,
-  }) async {
-    var target = first;
-    for (var hop = 0;; hop++) {
-      final response = await client
-          .send(http.Request('GET', target)..followRedirects = false);
-      final location = response.headers['location'];
-      if (_isRedirectStatus(response.statusCode) &&
-          location != null &&
-          location.isNotEmpty) {
-        final next = target.resolve(location);
-        if (hop >= _maxArtworkRedirects ||
-            (target.scheme == 'https' && next.scheme == 'http') ||
-            !await permitted(next)) {
-          return null;
-        }
-        target = next;
-        continue;
-      }
-      if (response.statusCode != 200) return null;
-      final length = response.contentLength;
-      if (length != null && length > maxBytes) return null;
-      final bytes = BytesBuilder(copy: false);
-      await for (final chunk in response.stream) {
-        bytes.add(chunk);
-        if (bytes.length > maxBytes) return null;
-      }
-      return bytes.takeBytes();
     }
   }
 }

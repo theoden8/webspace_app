@@ -119,6 +119,28 @@ than copy the range table.**
    request-level literal guard sees only hop 1; a hop-2 redirect to a private
    target is seen by no guard (see gaps).
 
+6. **2026-11-08 — one follower, every hop** (SEC-049 follow-up).
+   `followPageSteered` is now the one function that follows a page-steered
+   redirect: each hop — the initial URL and every `Location` — is a fresh request
+   through the guarded connect with the client's own following OFF, so the
+   literal guard (every route) and the resolve-and-pin (DEFAULT) judge every hop,
+   not just the first. The four manual per-hop loops (user scripts, media
+   artwork, page-linked icons, the favicon document fetch) collapse into it, and
+   the auto-following fetchers (favicons, page-icon bytes, the icon/SVG probes)
+   route through it too, so under a proxy a hop-2 redirect to a private target is
+   judged by the literal guard rather than forwarded. `PageSteeredHttp`'s client
+   field is library-private, so the follower is its only consumer at compile time
+   (rung 1): a fetcher cannot send through the client, let alone let it follow a
+   redirect itself. The structural gate gained two probes (the follower is the
+   sole `pageSteeredClient` consumer; no GUARDED fetcher sets `followRedirects` or
+   reads a `Location` header), and a DEFAULT-route connection-count test covers a
+   302 onto a name resolving private.
+   *Why:* attempt 5's pin judged every hop only under DEFAULT; under an on-device
+   forwarding proxy an auto-follow fetcher's hop-2 redirect to a LAN literal was
+   forwarded, seen by no guard.
+   *Why it is partial:* downloads and the TLS-trust prompt are still their own
+   surfaces (see gaps); neither uses the follower.
+
 ## Known open gaps
 
 - ~~**The TTL-flip race.**~~ Closed by attempt 5: the page-steered client resolves
@@ -127,19 +149,14 @@ than copy the range table.**
 - ~~**No structural gate.**~~ Closed: `test/js/page_steered_outbound_reach.test.js`
   fails CI when a Dart-side fetch of a page-chosen URL does not route through
   `pageSteeredClient`, unless it is listed EXEMPT with a reason.
-- **Auto-follow redirect to a private target through a device-side proxy.** The
-  auto-follow fetchers (favicons, page icon bytes) use `client.get`, so the
-  request-level literal guard sees only the first hop. (The manual-loop fetchers
-  — user scripts, media artwork, page-linked icons — judge every hop and are
-  unaffected.) Under DEFAULT the pin judges every hop, and under a *remote* proxy
-  a hop-2 private target is the proxy's network, not the device's. But an
-  on-device *forwarding* proxy (Privoxy, a local proxy app) forwards a hop-2
-  `302 -> http://127.0.0.1/` or a LAN literal to the device's own network. The
-  egress relay closes the loopback half (every dial is bound to a non-loopback
-  interface via `SO_BINDTODEVICE`, loopback excluded from the interface list) but
-  a LAN literal on hop 2 still reaches the user's LAN through it. Closed by making
-  the literal guard judge every hop on every route (`followRedirects` off +
-  per-hop re-entry) for the auto-follow fetchers; not done here.
+- ~~**Auto-follow redirect to a private target through a device-side proxy.**~~
+  Closed by attempt 6: every page-steered fetch, the former auto-following ones
+  included, now follows redirects through `followPageSteered` (`followRedirects`
+  off + per-hop re-entry), so the literal guard judges hop 2 on every route. An
+  on-device *forwarding* proxy (Privoxy, a local proxy app) can no longer forward
+  a hop-2 `302 -> http://127.0.0.1/` or a LAN literal past the guard, which was
+  the one route (DEFAULT pinned every hop; a *remote* proxy's hop 2 is the proxy's
+  network) where an auto-follow fetcher leaked.
 - **Remote-DNS proxies are exempt by design.** Under SOCKS5, Tor, or a remote
   HTTP proxy the destination name is resolved at the far end, so a local answer
   describes a network the request never traverses — and a Tor user may have no

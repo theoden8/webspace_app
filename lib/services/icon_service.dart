@@ -14,26 +14,49 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import '../third_party/favicon/favicon.dart';
 
-/// Acquire an HTTP client honoring [proxy], or null when the proxy cannot
-/// be honored (e.g. malformed address). Callers MUST treat null as "abort
-/// the request" — falling back to the default `http` client would leak the
-/// device IP and defeat the proxy the user configured.
-http.Client? _proxiedClient(ProxyRoute proxy, {String? allowPrivateHost}) {
-  // Favicon URLs are chosen by page markup, so the client judges every hop's
-  // destination address as it connects and pins to it (SEC-049). The fetchers
-  // below that know a document host (page-linked resources) pass it as the one
-  // host whose own private address is allowed, so a LAN site serves its icon.
-  final result =
-      pageSteeredClient(proxy, allowPrivateHost: allowPrivateHost).result;
-  if (result is OutboundClientReady) {
-    return SiteUserAgentClient(result.client,
-        userAgent: HostBrowser.sentUserAgent);
-  }
-  if (result is OutboundClientBlocked) {
-    LogTag.icon.warning('Outbound blocked: ${result.reason}');
-  }
-  return null;
-}
+/// Most redirects a page-chosen icon fetch follows.
+const int _maxIconRedirects = 5;
+
+/// The default per-hop check for an icon fetch without a document host of its
+/// own: a well-formed http(s) URL. The guarded connect does the SSRF judging on
+/// every hop — the private/loopback-literal guard on every route and the
+/// resolve-and-pin under DEFAULT — so this need not resolve the name itself
+/// (which under a proxy describes a network the request never traverses).
+bool _validIconUrl(Uri target) =>
+    (target.scheme == 'http' || target.scheme == 'https') &&
+    target.host.isNotEmpty;
+
+/// Fetch a page-chosen icon URL through the one guarded redirect follower
+/// (SEC-049, BUG-012): every hop (the link and each `Location`) is judged as it
+/// connects and pinned to the judged address, with the site's User-Agent draped
+/// on. Favicon URLs come from page markup, so none of this is optional.
+/// [allowPrivateHost] is the document host whose own private address is allowed
+/// (a LAN site serving its icon); null for an absolute URL, which may not reach
+/// a private address at all. [permit] defaults to [_validIconUrl].
+Future<PageSteeredOutcome<T>> _followIcon<T>(
+  String url, {
+  required ProxyRoute proxy,
+  required Future<T> Function(http.StreamedResponse response) read,
+  Future<bool> Function(Uri target)? permit,
+  String? allowPrivateHost,
+  int maxRedirects = _maxIconRedirects,
+  PageSteeredMethod method = PageSteeredMethod.get,
+  bool forbidHttpsDowngrade = false,
+}) =>
+    followPageSteered(
+      proxy,
+      url: Uri.parse(url),
+      allowPrivateHost: allowPrivateHost,
+      follow: PageSteeredFollow<T>(
+        permit: permit ?? ((target) async => _validIconUrl(target)),
+        read: read,
+        method: method,
+        maxRedirects: maxRedirects,
+        forbidHttpsDowngrade: forbidHttpsDowngrade,
+        decorate: (c) =>
+            SiteUserAgentClient(c, userAgent: HostBrowser.sentUserAgent),
+      ),
+    );
 
 class IconUpdate {
   final String url;
@@ -77,17 +100,17 @@ Future<String?> getSvgContent(
     _svgContentCache[svgUrl] = persistedContent;
     return persistedContent;
   }
-  final client = _proxiedClient(proxy.resolved);
-  if (client == null) return null;
   try {
-    final response = await client.get(Uri.parse(svgUrl)).timeout(
-      const Duration(seconds: 5),
-    );
-    if (response.statusCode == 200) {
-      _svgContentCache[svgUrl] = response.body;
-      if (persist) unawaited(onSvgContentCached?.call(svgUrl, content: response.body));
+    final outcome = await _followIcon<http.Response>(
+      svgUrl,
+      proxy: proxy.resolved,
+      read: http.Response.fromStream,
+    ).timeout(const Duration(seconds: 5));
+    if (outcome case PageSteeredValue(value: final r) when r.statusCode == 200) {
+      _svgContentCache[svgUrl] = r.body;
+      if (persist) unawaited(onSvgContentCached?.call(svgUrl, content: r.body));
       _imageController.add(svgUrl);
-      return response.body;
+      return r.body;
     }
   } on http.ClientException catch (e) {
     LogTag.icon.error('Failed to fetch SVG content: $e');
@@ -97,8 +120,6 @@ Future<String?> getSvgContent(
     LogTag.icon.error('Failed to fetch SVG content: $e');
   } on TimeoutException catch (e) {
     LogTag.icon.error('Failed to fetch SVG content: $e');
-  } finally {
-    client.close();
   }
   // Another fetch may have brought it while this one ran.
   return _svgContentCache[svgUrl];
@@ -110,14 +131,14 @@ Future<String?> getSvgContent(
 /// per-site proxy of the site the icon belongs to; null means the app-global
 /// outbound proxy applies.
 Future<Uint8List?> fetchIconBytes(String iconUrl, {required OutboundProxy proxy}) async {
-  final client = _proxiedClient(proxy.resolved);
-  if (client == null) return null;
   try {
-    final response = await client.get(Uri.parse(iconUrl)).timeout(
-      const Duration(seconds: 10),
-    );
-    if (response.statusCode == 200) {
-      return response.bodyBytes;
+    final outcome = await _followIcon<http.Response>(
+      iconUrl,
+      proxy: proxy.resolved,
+      read: http.Response.fromStream,
+    ).timeout(const Duration(seconds: 10));
+    if (outcome case PageSteeredValue(value: final r) when r.statusCode == 200) {
+      return r.bodyBytes;
     }
   } on http.ClientException catch (e) {
     LogTag.icon.error('Failed to fetch icon bytes: $e');
@@ -127,8 +148,6 @@ Future<Uint8List?> fetchIconBytes(String iconUrl, {required OutboundProxy proxy}
     LogTag.icon.error('Failed to fetch icon bytes: $e');
   } on TimeoutException catch (e) {
     LogTag.icon.error('Failed to fetch icon bytes: $e');
-  } finally {
-    client.close();
   }
   return null;
 }
@@ -137,13 +156,6 @@ Future<Uint8List?> fetchIconBytes(String iconUrl, {required OutboundProxy proxy}
 const int kMaxPageIconBytes = 1024 * 1024;
 
 const int _maxPageIconRedirects = 3;
-
-bool _isRedirectStatus(int status) =>
-    status == 301 ||
-    status == 302 ||
-    status == 303 ||
-    status == 307 ||
-    status == 308;
 
 /// GET [iconUrl], an icon link a site's page declared (ICON-013), through
 /// the site's [proxy]. Reads at most [kMaxPageIconBytes]; see
@@ -191,14 +203,20 @@ Future<Uint8List?> fetchPageLinkedBytes(
         verdict == HostRangeVerdict.notResolvedHere;
   }
 
-  final first = Uri.tryParse(url);
-  if (first == null || !await permitted(first)) return null;
-  final client = _proxiedClient(effective, allowPrivateHost: documentHost);
-  if (client == null) return null;
   try {
-    return await _readPageLinked(client,
-            first: first, permitted: permitted, maxBytes: maxBytes)
-        .timeout(const Duration(seconds: 15));
+    final outcome = await _followIcon<Uint8List?>(
+      url,
+      proxy: effective,
+      read: pageSteeredCappedBytes(maxBytes),
+      permit: permitted,
+      allowPrivateHost: documentHost,
+      maxRedirects: _maxPageIconRedirects,
+      forbidHttpsDowngrade: true,
+    ).timeout(const Duration(seconds: 15));
+    return switch (outcome) {
+      PageSteeredValue(:final value) => value,
+      PageSteeredRefused() => null,
+    };
   } on http.ClientException catch (e) {
     LogTag.icon.warning('Failed to fetch page link $url: $e', sensitive: true);
     return null;
@@ -211,43 +229,6 @@ Future<Uint8List?> fetchPageLinkedBytes(
   } on TimeoutException catch (e) {
     LogTag.icon.warning('Failed to fetch page link $url: $e', sensitive: true);
     return null;
-  } finally {
-    client.close();
-  }
-}
-
-Future<Uint8List?> _readPageLinked(
-  http.Client client, {
-  required Uri first,
-  required Future<bool> Function(Uri target) permitted,
-  required int maxBytes,
-}) async {
-  var target = first;
-  for (var hop = 0;; hop++) {
-    final response = await client
-        .send(http.Request('GET', target)..followRedirects = false);
-    final location = response.headers['location'];
-    if (_isRedirectStatus(response.statusCode) &&
-        location != null &&
-        location.isNotEmpty) {
-      final next = target.resolve(location);
-      if (hop >= _maxPageIconRedirects ||
-          (target.scheme == 'https' && next.scheme == 'http') ||
-          !await permitted(next)) {
-        return null;
-      }
-      target = next;
-      continue;
-    }
-    if (response.statusCode != 200) return null;
-    final length = response.contentLength;
-    if (length != null && length > maxBytes) return null;
-    final bytes = BytesBuilder(copy: false);
-    await for (final chunk in response.stream) {
-      bytes.add(chunk);
-      if (bytes.length > maxBytes) return null;
-    }
-    return bytes.takeBytes();
   }
 }
 
@@ -391,19 +372,18 @@ Future<bool> _verifyIconUrl(String iconUrl,
   if (_verifiedUrls.contains(iconUrl)) {
     return true;
   }
-  final client = _proxiedClient(proxy);
-  if (client == null) return false;
-
   try {
-    final response = await client.head(Uri.parse(iconUrl)).timeout(
-      Duration(milliseconds: 8000),
-      onTimeout: () => http.Response('', 408),
-    );
-
-    final isValid = response.statusCode == 200;
-    if (isValid) {
-      _verifiedUrls.add(iconUrl);
-    }
+    final outcome = await _followIcon<int>(
+      iconUrl,
+      proxy: proxy,
+      method: PageSteeredMethod.head,
+      read: (response) async {
+        unawaited(response.stream.drain<void>());
+        return response.statusCode;
+      },
+    ).timeout(const Duration(milliseconds: 8000));
+    final isValid = outcome is PageSteeredValue<int> && outcome.value == 200;
+    if (isValid) _verifiedUrls.add(iconUrl);
     return isValid;
   } on http.ClientException {
     return false;
@@ -411,8 +391,8 @@ Future<bool> _verifyIconUrl(String iconUrl,
     return false;
   } on FormatException {
     return false;
-  } finally {
-    client.close();
+  } on TimeoutException {
+    return false;
   }
 }
 
@@ -522,15 +502,18 @@ Future<bool> svgRendersBlank(String rawSvg) async {
 // real color AND actually render. A colored-but-blank SVG (or a theme-toggle
 // SVG flutter_svg masks) is demoted so raster fallbacks win.
 Future<bool> _isSvgColored(String svgUrl, {required ProxyRoute proxy}) async {
-  final client = _proxiedClient(proxy);
-  if (client == null) return false;
   try {
-    final response = await client.get(Uri.parse(svgUrl)).timeout(
-      Duration(seconds: 2),
-    );
-    if (response.statusCode != 200) return false;
+    final outcome = await _followIcon<http.Response>(
+      svgUrl,
+      proxy: proxy,
+      read: http.Response.fromStream,
+    ).timeout(const Duration(seconds: 2));
+    if (outcome is! PageSteeredValue<http.Response> ||
+        outcome.value.statusCode != 200) {
+      return false;
+    }
 
-    final rawSvg = response.body;
+    final rawSvg = outcome.value.body;
     final lowerSvg = rawSvg.toLowerCase();
 
     if (svgHasMaskingStyleToggle(lowerSvg)) {
@@ -568,8 +551,6 @@ Future<bool> _isSvgColored(String svgUrl, {required ProxyRoute proxy}) async {
   } on EngineImageFailure catch (e) {
     LogTag.icon.error('Failed to check SVG color: $e');
     return false;
-  } finally {
-    client.close();
   }
 }
 

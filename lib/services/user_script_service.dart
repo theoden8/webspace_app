@@ -60,47 +60,27 @@ const int _maxFetchBytes = 5 * 1024 * 1024;
 
 const int _maxFetchRedirects = 5;
 
-bool _isRedirect(int status) =>
-    status == 301 ||
-    status == 302 ||
-    status == 303 ||
-    status == 307 ||
-    status == 308;
-
-/// GET [url] with the client's own redirect following switched off, running
-/// every `Location` back through [allow] before the next hop.
-///
-/// `http` follows redirects transparently, and the URL classification only
-/// ever sees the first hop — so a public host answering
-/// `302 Location: http://169.254.169.254/…` would hand the private-network
-/// body straight back to page JS. Returns null when a hop is refused or the
-/// chain outruns [_maxFetchRedirects].
-Future<http.Response?> _getWithCheckedRedirects(
-  http.Client client, {
-  required String url,
+/// GET [url] through the page-steered follower, which judges the URL and every
+/// redirect hop as it connects and refuses a hop [allow] rejects — the one place
+/// a page-steered fetch follows a redirect (SEC-049, BUG-012). `http`'s own
+/// transparent redirect following would show the URL classification only the
+/// first hop, so a public host answering `302 Location: http://169.254.169.254/…`
+/// could hand the private-network body back to page JS. Returns the final
+/// response, or a refusal the caller turns into its own failure.
+Future<PageSteeredOutcome<http.Response>> _fetchChecked(
+  String url, {
+  required ProxyRoute effective,
   required Future<bool> Function(String url) allow,
-}) async {
-  var target = Uri.parse(url);
-  for (var hop = 0; hop <= _maxFetchRedirects; hop++) {
-    final request = http.Request('GET', target)..followRedirects = false;
-    final response = await http.Response.fromStream(await client.send(request));
-    final location = response.headers['location'];
-    if (!_isRedirect(response.statusCode) ||
-        location == null ||
-        location.isEmpty) {
-      return response;
-    }
-    final next = target.resolve(location);
-    if (!await allow(next.toString())) {
-      LogTag.userScript.debug(
-          'Blocked redirect target: $next', sensitive: true);
-      return null;
-    }
-    target = next;
-  }
-  LogTag.userScript.debug('Too many redirects for $url', sensitive: true);
-  return null;
-}
+}) =>
+    followPageSteered(
+      effective,
+      url: Uri.parse(url),
+      follow: PageSteeredFollow<http.Response>(
+        permit: (target) => allow(target.toString()),
+        read: http.Response.fromStream,
+        maxRedirects: _maxFetchRedirects,
+      ),
+    );
 
 /// Whether the bridge may connect to [url], given the [effective] proxy.
 ///
@@ -141,36 +121,25 @@ Future<({String? source, String? error})> fetchUserScriptSource(
   Future<bool> allowed(String candidate) async =>
       classifyScriptFetchUrl(candidate) != ScriptFetchUrlStatus.blocked &&
       await _resolvedTargetAllowed(candidate, effective: effective);
-  if (!await allowed(url)) return (source: null, error: 'blocked URL');
-  // The URL and every redirect hop are checked above; the page-steered client
-  // also judges the destination address as it connects and pins to it, closing
-  // the rebind window between the check and the connect (SEC-049).
-  final http.Client client;
-  switch (pageSteeredClient(effective).result) {
-    case OutboundClientBlocked(:final reason):
-      return (source: null, error: reason);
-    case OutboundClientReady(client: final ready):
-      client = ready;
-  }
+  // The follower judges the URL and every redirect hop as it connects and pins
+  // to the judged address, closing the rebind window (SEC-049); [allowed] is the
+  // caller's own per-hop check on top.
   try {
-    final response = await _getWithCheckedRedirects(
-      client,
-      url: url,
-      allow: allowed,
-    );
-    if (response == null) return (source: null, error: 'blocked redirect');
-    if (response.statusCode != 200) {
-      return (source: null, error: 'HTTP ${response.statusCode}');
+    switch (await _fetchChecked(url, effective: effective, allow: allowed)) {
+      case PageSteeredRefused(:final reason):
+        return (source: null, error: reason);
+      case PageSteeredValue(:final value):
+        if (value.statusCode != 200) {
+          return (source: null, error: 'HTTP ${value.statusCode}');
+        }
+        return (source: value.body, error: null);
     }
-    return (source: response.body, error: null);
   } on http.ClientException catch (e) {
     return (source: null, error: e.toString());
   } on IOException catch (e) {
     return (source: null, error: e.toString());
   } on FormatException catch (e) {
     return (source: null, error: e.toString());
-  } finally {
-    client.close();
   }
 }
 
@@ -350,45 +319,39 @@ class UserScriptService {
         if (!await _allowScriptFetch(url)) return false;
         LogTag.userScript.debug(
             'Fetching external script: $url', sensitive: true);
-        final http.Client client;
-        switch (pageSteeredClient(_proxy.resolved).result) {
-          case OutboundClientBlocked(:final reason):
-            LogTag.userScript.debug('Blocked external script fetch: $reason');
-            return false;
-          case OutboundClientReady(client: final ready):
-            client = ready;
-        }
         try {
-          final response = await _getWithCheckedRedirects(
-            client,
-            url: url,
-            allow: _allowScriptFetch,
-          );
-          if (response == null) return false;
-          if (response.statusCode == 200) {
-            if (response.body.length > _maxFetchBytes) {
+          switch (await _fetchChecked(url,
+              effective: _proxy.resolved, allow: _allowScriptFetch)) {
+            case PageSteeredRefused(:final reason):
+              LogTag.userScript.debug('External script fetch blocked: $reason');
+              return false;
+            case PageSteeredValue(:final value):
+              if (value.statusCode != 200) {
+                LogTag.userScript
+                    .debug('Fetch failed: HTTP ${value.statusCode}');
+                return false;
+              }
+              if (value.body.length > _maxFetchBytes) {
+                LogTag.userScript.debug(
+                    'Rejected: response too large (${value.body.length} bytes, max $_maxFetchBytes)');
+                return false;
+              }
               LogTag.userScript.debug(
-                  'Rejected: response too large (${response.body.length} bytes, max $_maxFetchBytes)');
-              return false;
-            }
-            LogTag.userScript.debug(
-                'Injecting fetched script (${response.body.length} bytes)');
-            if (!caller.current) {
-              LogTag.userScript.debug('Fetched script dropped: the page moved on');
-              return false;
-            }
-            await caller.evaluate(response.body);
-            return true;
+                  'Injecting fetched script (${value.body.length} bytes)');
+              if (!caller.current) {
+                LogTag.userScript
+                    .debug('Fetched script dropped: the page moved on');
+                return false;
+              }
+              await caller.evaluate(value.body);
+              return true;
           }
-          LogTag.userScript.debug('Fetch failed: HTTP ${response.statusCode}');
         } on http.ClientException catch (e) {
           LogTag.userScript.debug('Fetch failed: $e');
         } on IOException catch (e) {
           LogTag.userScript.debug('Fetch failed: $e');
         } on FormatException catch (e) {
           LogTag.userScript.debug('Fetch failed: $e');
-        } finally {
-          client.close();
         }
         return false;
       },
@@ -428,32 +391,22 @@ class UserScriptService {
               'Blocked resource fetch: $url', sensitive: true);
           return {'status': 403};
         }
-        final http.Client client;
-        switch (pageSteeredClient(effective).result) {
-          case OutboundClientBlocked(:final reason):
-            LogTag.userScript.debug('Blocked resource fetch: $reason');
-            return {'status': 403};
-          case OutboundClientReady(client: final ready):
-            client = ready;
-        }
         try {
-          final response = await _getWithCheckedRedirects(
-            client,
-            url: url,
-            allow: reachable,
-          );
-          if (response == null) return {'status': 403};
-          if (response.body.length > _maxFetchBytes) {
-            LogTag.userScript.debug(
-                'Resource too large: ${response.body.length} bytes');
-            return {'status': 413};
+          switch (await _fetchChecked(url, effective: effective, allow: reachable)) {
+            case PageSteeredRefused():
+              return {'status': 403};
+            case PageSteeredValue(:final value):
+              if (value.body.length > _maxFetchBytes) {
+                LogTag.userScript.debug(
+                    'Resource too large: ${value.body.length} bytes');
+                return {'status': 413};
+              }
+              return {
+                'status': value.statusCode,
+                'body': value.body,
+                'contentType': value.headers['content-type'] ?? '',
+              };
           }
-          final contentType = response.headers['content-type'] ?? '';
-          return {
-            'status': response.statusCode,
-            'body': response.body,
-            'contentType': contentType,
-          };
         } on http.ClientException catch (e) {
           LogTag.userScript.debug('Resource fetch failed: $e');
           return {'status': 500};
@@ -463,8 +416,6 @@ class UserScriptService {
         } on FormatException catch (e) {
           LogTag.userScript.debug('Resource fetch failed: $e');
           return {'status': 500};
-        } finally {
-          client.close();
         }
       },
     );

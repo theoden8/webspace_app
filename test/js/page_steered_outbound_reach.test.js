@@ -1,19 +1,25 @@
 // Structural gate: a Dart-side fetch whose URL page script can choose connects
 // only to an address the guard judged (BUG-012, SEC-049).
 //
-// The guard was partial four times, each because a new path opted out silently
+// The guard was partial five times, each because a new path opted out silently
 // rather than because the check was wrong: a redirect the client followed past
 // it, a name the resolver expanded past it, a second call site that copied the
-// range table and not the rest, and a pre-flight check the client then
-// re-resolved past (the rebind). SEC-049 moved the decision to the connection:
-// `pageSteeredClient` resolves the host once and connects only to the judged
-// address, http and https alike, so a page-steerable fetch routes through it.
+// range table and not the rest, a pre-flight check the client then re-resolved
+// past (the rebind), and auto-following fetchers whose client saw only the first
+// hop under a proxy. SEC-049 moved the decision to the connection and BUG-012's
+// closer moved redirect following to one place: `followPageSteered` is the one
+// function that follows a page-steered redirect, each hop a fresh request through
+// the guarded connect with the client's own following OFF, so every hop is
+// judged on every route. Its client (a `PageSteeredHttp`) is reachable nowhere
+// else — the field is library-private — so a page-steered fetch cannot sidestep
+// it.
 //
 // So this gate does not test the guard. It tests that every outbound seam has
-// been classified: either it routes page-chosen URLs through `pageSteeredClient`,
+// been classified: either it routes page-chosen URLs through `followPageSteered`,
 // or it is listed here with the reason it does not need to. A new
-// `outboundHttp.clientFor`, `fetchViaAppProxy` or `pageSteeredClient` caller in
-// neither list fails, which puts the decision in front of whoever adds it.
+// `outboundHttp.clientFor`, `fetchViaAppProxy`, `pageSteeredClient` or
+// `followPageSteered` caller in neither list fails, which puts the decision in
+// front of whoever adds it.
 //
 // Cross-links:
 //   docs/bugs/012-page-steered-outbound-reach.md
@@ -28,14 +34,16 @@ const SEAMS = [
   'outboundHttp.clientFor',
   'fetchViaAppProxy(',
   'pageSteeredClient(',
+  'followPageSteered(',
 ];
-const GATE = 'pageSteeredClient(';
+const GATE = 'followPageSteered(';
 
-// Seams that take a URL a loaded page chose. Each MUST route through the
-// page-steered client, which judges the destination as it connects and connects
-// only to the judged address (SEC-049). The fetchers keep their own pre-flight
-// range checks as well (defense in depth); under a proxy, where the pin is not
-// built, those by-hand per-hop checks are the only redirect judge.
+// Seams that take a URL a loaded page chose. Each MUST route through
+// `followPageSteered`, which judges every hop (the URL and each redirect) as it
+// connects and connects only to the judged address, on every route (SEC-049,
+// BUG-012). No fetcher follows a redirect itself (the `no fetcher follows a
+// page-steered redirect by hand` probe below), and none can reach the client to
+// try (the `only the follower consumes` probe).
 const GUARDED = [
   'lib/services/user_script_service.dart',
   'lib/services/media_session_service.dart',
@@ -74,9 +82,9 @@ const EXEMPT = {
     + 'loaded page chooses any of them.',
   'lib/services/outbound_http.dart':
     'The seam definitions themselves: fetchViaAppProxy for the downloads the '
-    + 'app configures, and pageSteeredClient, the page-steered producer every '
-    + 'GUARDED file above routes through. Each caller is classified here on its '
-    + 'own.',
+    + 'app configures, pageSteeredClient (the page-steered producer, consumed '
+    + 'only here) and followPageSteered, the one follower every GUARDED file '
+    + 'routes through. Each caller is classified here on its own.',
   'lib/services/proxy_test_service.dart':
     'The probe target is the site\'s own home URL (typed by the user, not '
     + 'chosen by a loaded page) or the fixed example.com fallback, and '
@@ -114,6 +122,35 @@ for (const file of GUARDED) {
       + `Dropping it reopens BUG-012 on this path.`);
   });
 }
+
+// The page-steered client's field is library-private, so the follower is its
+// only consumer at compile time; this holds the structure that makes that so:
+// pageSteeredClient is called in exactly one file, the follower's own. Plant a
+// `pageSteeredClient(...)` in a fetcher and this fires.
+test('only the follower consumes the page-steered client', () => {
+  const callers = dartFiles('lib').filter((f) =>
+    read(f).includes('pageSteeredClient('));
+  assert.deepEqual(callers, ['lib/services/outbound_http.dart'],
+    'a PageSteeredHttp is consumed only by followPageSteered (its client field '
+    + 'is library-private). Route a new page-steered fetch through '
+    + 'followPageSteered, never pageSteeredClient directly.');
+});
+
+// Plant a `followRedirects` or a `headers['location']` loop in a GUARDED fetcher
+// and this fires: the one follower follows the redirect, each hop through the
+// guarded connect, so a fetcher that re-grows a loop reopens BUG-012.
+test('no fetcher follows a page-steered redirect by hand', () => {
+  for (const file of GUARDED) {
+    const src = read(file);
+    assert.ok(!src.includes('followRedirects'),
+      `${file} sets followRedirects, so it follows a redirect itself. The one `
+      + `follower (followPageSteered) does that, with the client's own following `
+      + `off on every hop (BUG-012).`);
+    assert.ok(!/headers\[['"]location['"]\]/.test(src),
+      `${file} reads the Location header, so it follows a redirect itself. Route `
+      + `it through followPageSteered instead (BUG-012).`);
+  }
+});
 
 test('every exemption states a reason', () => {
   for (const [file, why] of Object.entries(EXEMPT)) {

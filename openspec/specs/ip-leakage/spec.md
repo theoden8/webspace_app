@@ -206,6 +206,21 @@ client's own connect
 **And** under a proxy it never connects direct, and a private or loopback
 literal is refused on every route
 
+#### Scenario: Every hop of a page-steerable fetch is judged (SEC-049, BUG-012)
+
+**Given** a page-steerable fetch (user script, media artwork, page-linked icon,
+favicon, or an icon/SVG probe) that a server answers with a redirect
+**When** `followPageSteered`, the one function that follows a page-steered
+redirect, takes each hop
+**Then** every hop — the initial URL and each `Location` — is a fresh request
+through the guarded connect with the client's own redirect-following off, so the
+private/loopback-literal guard (every route) and the resolve-and-pin (DEFAULT)
+judge the destination before a byte is sent, not just the first hop
+**And** no fetcher follows a redirect itself: a `PageSteeredHttp`'s client is
+reachable only through the follower (its field is library-private), so a hop-2
+redirect to a private target cannot be taken unjudged, even under an on-device
+forwarding proxy that would otherwise forward it to the LAN
+
 ---
 
 ### Requirement: LEAK-003 - SOCKS5 tunneling and fail-closed posture

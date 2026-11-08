@@ -86,25 +86,27 @@ class FaviconFinder {
   }) async {
     var favicons = <Favicon>[];
     var iconUrls = <String>[];
-    if (Host.ofWebUrl(url) == null) return favicons;
+    final siteHost = Host.ofWebUrl(url);
+    if (siteHost == null) return favicons;
 
     final effectiveProxy = proxy.resolved;
-    // Favicon URLs come from page markup; the page-steered client judges every
-    // hop's destination address as it connects and pins to it (SEC-049). The
-    // site's own host is the one whose private address is allowed, so a site the
-    // user keeps on their LAN still serves its favicon.
-    final clientResult =
-        pageSteeredClient(effectiveProxy, allowPrivateHost: Host.ofWebUrl(url))
-            .result;
-    if (clientResult is! OutboundClientReady) {
-      return null; // proxy could not be honored — fail closed
+    // Favicon URLs come from page markup; every fetch below runs through the one
+    // guarded redirect follower, which judges each hop's destination address as
+    // it connects and pins to it (SEC-049, BUG-012). The site's own host is the
+    // one whose private address is allowed, so a site the user keeps on their
+    // LAN still serves its favicon.
+    final ({Uri url, String body, bool ok, List<Uri> faviconOrigins}) page;
+    switch (await _fetchPage(Uri.parse(url),
+        proxy: effectiveProxy, allowPrivateHost: siteHost)) {
+      case PageSteeredRefused(:final kind):
+        // The proxy could not be honoured → fail closed, so the site is asked
+        // again later; a refused redirect or non-web URL → nothing was reached,
+        // so there are no icons (an empty list, not a retry).
+        return kind == PageSteeredRefusal.clientUnavailable ? null : favicons;
+      case PageSteeredValue(:final value):
+        page = value;
     }
-    final client = SiteUserAgentClient(clientResult.client,
-        userAgent: HostBrowser.sentUserAgent);
 
-    try {
-    final page = await _fetchPage(Uri.parse(url), client: client);
-    if (page == null) return favicons;
     // A relative link is relative to the document that declared it, which a
     // redirect can put on another host.
     final uri = page.url;
@@ -132,7 +134,8 @@ class FaviconFinder {
 
           iconUrl = iconUrl.split('?').first;
 
-          if (await _verifyImage(iconUrl, client: client)) {
+          if (await _verifyImage(iconUrl,
+              proxy: effectiveProxy, allowPrivateHost: siteHost)) {
             iconUrls.add(iconUrl);
           }
         }
@@ -141,7 +144,8 @@ class FaviconFinder {
 
     for (final origin in page.faviconOrigins) {
       final iconUrl = origin.replace(path: '/favicon.ico').toString();
-      if (await _verifyImage(iconUrl, client: client)) {
+      if (await _verifyImage(iconUrl,
+          proxy: effectiveProxy, allowPrivateHost: siteHost)) {
         iconUrls.add(iconUrl);
       }
     }
@@ -166,8 +170,9 @@ class FaviconFinder {
         continue;
       }
 
-      var image = decodeUntrustedImage(
-          (await client.get(Uri.parse(iconUrl))).bodyBytes);
+      final bytes = await _imageBytes(iconUrl,
+          proxy: effectiveProxy, allowPrivateHost: siteHost);
+      final image = bytes == null ? null : decodeUntrustedImage(bytes);
       if (image != null) {
         favicons
             .add(Favicon(iconUrl, width: image.width, height: image.height));
@@ -176,62 +181,110 @@ class FaviconFinder {
 
     if (favicons.isEmpty && !page.ok) return null;
     return favicons..sort();
-    } finally {
-      client.close();
-    }
   }
 
-  /// The document at [first] once its redirects are followed, at most
-  /// [_maxRedirects], or null on a redirect to a non-http(s) URL or one too
-  /// many. [faviconOrigins] are where its `/favicon.ico` is looked for: the
-  /// site's own origin, and the first other host a redirect sends it to.
-  /// gmail.com answers with a 301 to mail.google.com, whose favicon is
-  /// Gmail's, and that redirects on to a sign-in page on a third host whose
-  /// favicon is not.
-  static Future<({Uri url, String body, bool ok, List<Uri> faviconOrigins})?>
+  /// Follow a favicon fetch's redirects through the one guarded follower
+  /// (SEC-049, BUG-012), draping the site's User-Agent. The guarded connect
+  /// judges every hop's address; [permit] only keeps each hop a valid web URL.
+  static Future<PageSteeredOutcome<T>> _followFavicon<T>(
+    Uri url, {
+    required ProxyRoute proxy,
+    required String? allowPrivateHost,
+    required Future<T> Function(http.StreamedResponse response) read,
+    void Function(Uri to)? onRedirect,
+  }) =>
+      followPageSteered(
+        proxy,
+        url: url,
+        allowPrivateHost: allowPrivateHost,
+        follow: PageSteeredFollow<T>(
+          permit: (target) async => Host.ofWebUrl(target.toString()) != null,
+          read: read,
+          maxRedirects: _maxRedirects,
+          onRedirect: onRedirect,
+          decorate: (c) =>
+              SiteUserAgentClient(c, userAgent: HostBrowser.sentUserAgent),
+        ),
+      );
+
+  /// The bytes of the icon at [url], or null when the fetch was refused or not a
+  /// 200.
+  static Future<Uint8List?> _imageBytes(String url,
+      {required ProxyRoute proxy, required String? allowPrivateHost}) async {
+    if (Host.ofWebUrl(url) == null) return null;
+    final outcome = await _followFavicon<Uint8List?>(
+      Uri.parse(url),
+      proxy: proxy,
+      allowPrivateHost: allowPrivateHost,
+      read: (response) async =>
+          response.statusCode == 200 ? await response.stream.toBytes() : null,
+    );
+    return outcome is PageSteeredValue<Uint8List?> ? outcome.value : null;
+  }
+
+  /// The document at [first] once its redirects are followed through the guarded
+  /// follower, at most [_maxRedirects]; refused on a redirect to a non-web URL or
+  /// one too many (SEC-049, BUG-012). [faviconOrigins] are where its
+  /// `/favicon.ico` is looked for: the site's own origin, and the first other
+  /// host a redirect sends it to. gmail.com answers with a 301 to
+  /// mail.google.com, whose favicon is Gmail's, and that redirects on to a
+  /// sign-in page on a third host whose favicon is not.
+  static Future<
+          PageSteeredOutcome<
+              ({Uri url, String body, bool ok, List<Uri> faviconOrigins})>>
       _fetchPage(
-      Uri first,
-      {required http.Client client}) async {
+    Uri first, {
+    required ProxyRoute proxy,
+    required String? allowPrivateHost,
+  }) {
     final origins = [_origin(first)];
-    var target = first;
-    for (var hop = 0;; hop++) {
-      final response = await http.Response.fromStream(await client
-          .send(http.Request('GET', target)..followRedirects = false));
-      final location = response.headers['location'];
-      if (!_redirectStatuses.contains(response.statusCode) ||
-          location == null) {
+    // The document the chain lands on, which a relative icon link resolves
+    // against (ICON-002); tracked through the redirect hook rather than the
+    // response's request, which a test transport need not carry.
+    var landed = first;
+    return _followFavicon<
+        ({Uri url, String body, bool ok, List<Uri> faviconOrigins})>(
+      first,
+      proxy: proxy,
+      allowPrivateHost: allowPrivateHost,
+      onRedirect: (to) {
+        landed = to;
+        if (origins.length == 1 && to.host != first.host) {
+          origins.add(_origin(to));
+        }
+      },
+      read: (response) async {
+        final body = await response.stream.bytesToString();
         return (
-          url: target,
-          body: response.body,
+          url: landed,
+          body: body,
           ok: response.statusCode >= 200 && response.statusCode < 300,
           faviconOrigins: origins,
         );
-      }
-      final next = target.resolve(location);
-      if (hop >= _maxRedirects || Host.ofWebUrl(next.toString()) == null) {
-        return null;
-      }
-      if (origins.length == 1 && next.host != first.host) {
-        origins.add(_origin(next));
-      }
-      target = next;
-    }
+      },
+    );
   }
 
   static Uri _origin(Uri url) => Uri(
       scheme: url.scheme, host: url.host, port: url.hasPort ? url.port : null);
 
   static const int _maxRedirects = 5;
-  static const Set<int> _redirectStatuses = {301, 302, 303, 307, 308};
 
   static Future<bool> _verifyImage(String url,
-      {required http.Client client}) async {
+      {required ProxyRoute proxy, required String? allowPrivateHost}) async {
     // A link the fix-ups above leave without a host (`href="http:x.png"`):
     // dart:io refuses it with an ArgumentError.
     if (Host.ofWebUrl(url) == null) return false;
-    var response = await client.get(Uri.parse(url));
+    final outcome = await _followFavicon<http.Response>(
+      Uri.parse(url),
+      proxy: proxy,
+      allowPrivateHost: allowPrivateHost,
+      read: http.Response.fromStream,
+    );
+    if (outcome is! PageSteeredValue<http.Response>) return false;
+    final response = outcome.value;
 
-    var contentType = response.headers['content-type'];
+    final contentType = response.headers['content-type'];
     if (contentType == null || !contentType.contains('image')) return false;
 
     // Take extra care with ico's since they might be constructed manually

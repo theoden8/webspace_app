@@ -62,30 +62,32 @@ void main() {
     GlobalOutboundProxy.resetForTest();
   });
 
-  /// GET [url] through the real page-steered client on [route] (DEFAULT when
-  /// omitted). Returns the error it fails with, or null when the request
-  /// completed.
+  /// GET [url] through the real page-steered follower on [route] (DEFAULT when
+  /// omitted), the one consumer of a [PageSteeredHttp]. Follows redirects by
+  /// hand, so every hop goes through the guarded connect. Returns the error it
+  /// fails with, or null when the request completed.
   Future<Object?> fetch(String url,
       {String? allowPrivateHost, ProxyRoute? route}) async {
-    final result =
-        pageSteeredClient(route ?? OutboundProxy.app.resolved,
-                allowPrivateHost: allowPrivateHost)
-            .result;
-    if (result is! OutboundClientReady) {
-      return StateError('no client: $result');
-    }
-    final client = result.client;
     try {
-      await client.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
-      return null;
+      final outcome = await followPageSteered(
+        route ?? OutboundProxy.app.resolved,
+        url: Uri.parse(url),
+        allowPrivateHost: allowPrivateHost,
+        follow: PageSteeredFollow<void>(
+          permit: (_) async => true,
+          read: (response) => response.stream.drain<void>(),
+        ),
+      ).timeout(const Duration(seconds: 5));
+      return switch (outcome) {
+        PageSteeredValue() => null,
+        PageSteeredRefused(:final reason) => StateError(reason),
+      };
     } on http.ClientException catch (e) {
       return e;
     } on IOException catch (e) {
       return e;
     } on TimeoutException catch (e) {
       return e;
-    } finally {
-      client.close();
     }
   }
 
@@ -241,6 +243,33 @@ void main() {
       expect(privateConnections, 0,
           reason: 'a redirect to a loopback literal must not connect direct, '
               'even under a proxy');
+    });
+  });
+
+  group('a redirect\'s next hop is judged, not just the first (BUG-012)', () {
+    test('DEFAULT: a 302 onto a name resolving private is refused at hop 2',
+        () async {
+      // hop 1 (cdn.test) is the allowed document host and resolves to the
+      // loopback redirect server; it answers 302 -> http://nas.test:<private>/.
+      // hop 2 (nas.test) is a different host, so the follower re-judges it: it
+      // resolves onto the private listener and is refused before a byte reaches
+      // it. An auto-following client would have taken hop 2 unseen.
+      hostLookup = (_) async => const ['127.0.0.1'];
+      final redirect = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      redirect.listen((req) async {
+        req.response.statusCode = 302;
+        req.response.headers.set('location', 'http://nas.test:$privatePort/');
+        await req.response.close();
+      });
+      addTearDown(() => redirect.close(force: true));
+
+      final err = await fetch('http://cdn.test:${redirect.port}/',
+          allowPrivateHost: 'cdn.test');
+      expect(err, isNotNull, reason: 'hop 2 must be refused, not followed');
+      await settle();
+      expect(privateConnections, 0,
+          reason: 'the redirect target is judged at the hop, so nothing reached '
+              'the private listener');
     });
   });
 }
