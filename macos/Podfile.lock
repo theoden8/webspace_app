@@ -11,9 +11,10 @@ PODS:
   - flutter_secure_storage_darwin (10.0.0):
     - Flutter
     - FlutterMacOS
-  - flutter_zxing (0.0.1):
+  - flutter_zxing (3.1.0):
     - FlutterMacOS
   - FlutterMacOS (1.0.0)
+  - IPtProxy (5.5.1)
   - OrderedSet (6.0.3)
   - package_info_plus (0.0.1):
     - FlutterMacOS
@@ -42,6 +43,7 @@ DEPENDENCIES:
   - flutter_secure_storage_darwin (from `Flutter/ephemeral/.symlinks/plugins/flutter_secure_storage_darwin/darwin`)
   - flutter_zxing (from `Flutter/ephemeral/.symlinks/plugins/flutter_zxing/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
+  - IPtProxy (from `../go/iptproxy`)
   - package_info_plus (from `Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos`)
   - share_plus (from `Flutter/ephemeral/.symlinks/plugins/share_plus/macos`)
   - shared_preferences_foundation (from `Flutter/ephemeral/.symlinks/plugins/shared_preferences_foundation/darwin`)
@@ -70,6 +72,8 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/flutter_zxing/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
+  IPtProxy:
+    :path: "../go/iptproxy"
   package_info_plus:
     :path: Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos
   share_plus:
@@ -89,8 +93,9 @@ SPEC CHECKSUMS:
   flutter_inappwebview_macos: e69b76dd5c46a6d9471f195f3d8d36f11b3ab7a4
   flutter_local_notifications: 1fc7ffb10a83d6a2eeeeddb152d43f1944b0aad0
   flutter_secure_storage_darwin: acdb3f316ed05a3e68f856e0353b133eec373a23
-  flutter_zxing: 91e9d17c79c60860450e8879cced0ec54f6a2601
+  flutter_zxing: c4574479da5c1b105b54e4b7ed31765e990b2ec7
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
+  IPtProxy: e0473a5b7829ae20097785f7a25e70675f87e2d2
   OrderedSet: e539b66b644ff081c73a262d24ad552a69be3a94
   package_info_plus: f0052d280d17aa382b932f399edf32507174e870
   share_plus: 510bf0af1a42cd602274b4629920c9649c52f4cc
@@ -98,8 +103,8 @@ SPEC CHECKSUMS:
   sqflite_darwin: 20b2a3a3b70e43edae938624ce550a3cbf66a3d0
   Tor: 6162631fd67a5e69113eacdc552757a1d7944e63
   url_launcher_macos: f87a979182d112f911de6820aefddaf56ee9fbfd
-  webspace_adblock: 47488f869cce24ee20d883329710409ff77f099b
+  webspace_adblock: a91f379eac11765a0b505f0ceb7edd9296701763
 
-PODFILE CHECKSUM: 1428dbb1b1387ac7f7a1cf8c13c911006dc726cb
+PODFILE CHECKSUM: 5e82752048cbf2969ce9b13439ba028c9bda36c2
 
 COCOAPODS: 1.17.0
