@@ -177,7 +177,7 @@ def walkthrough():
         tap_label('Entire screen')
     evidence('04-android-consent')
     time.sleep(5)
-    tap_label('Start now', 'Start sharing', 'Share screen', 'Share')
+    tap_label('Start', 'Start now', 'Start sharing', 'Share screen', 'Share')
     wait_event('started')
     wait_event('frames', moving=True)
     projection = adb('shell', 'dumpsys', 'media_projection')
@@ -192,6 +192,12 @@ def walkthrough():
     time.sleep(8)
     adb('shell', 'cmd', 'statusbar', 'expand-notifications')
     wait_node(['Sharing your screen'])
+    tree = ui()
+    if not labelled(tree, ['Stop sharing']):
+        expand = [n for n in tree.iter('node')
+                  if n.get('resource-id', '').endswith('/expand_button')]
+        if expand:
+            tap(expand[-1])
     evidence('06-sharing-notification')
     time.sleep(5)
     tap_label('Stop sharing')
