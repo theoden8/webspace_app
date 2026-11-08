@@ -99,6 +99,14 @@ Rebuilt == {}
 \* The sites that start off the list and join it (Join): an add, an
 \* archive's open; the pages add none.
 Joining == {}
+\* The joining sites that arrive under an id a listed site holds: an
+\* archive opened beside the app-tier site a backup brought back (SEC-044);
+\* the pages bring none. Each arrives under Holder's id.
+Clashing == {}
+Holder == CHOOSE t \in Sites \ Joining : TRUE
+\* A fresh id (SiteId.mint), no site's own and no other fresh one.
+FreshId(s) == N + s
+IdSpace == Sites \cup {FreshId(s) : s \in Sites}
 \* The sites whose webviews and containers the model follows: what a close
 \* or a delete takes away.
 Boxed == Archive \cup Deletable
@@ -121,11 +129,11 @@ tabVars == << tabs, active, built, hist, queued, file, minted, host, link,
 blocking == << dns, told >>
 archived == << gone, views, boxes >>
 vars == << site, sessions, turn, fl, inputs, ghosts, last, tabVars, blocking,
-           archived >>
+           archived, ids >>
 
 \* What two states must agree on to be one: everything but `last`.
 View == << site, sessions, turn, fl, inputs, ghosts, tabVars, blocking,
-           archived >>
+           archived, ids >>
 
 \* A nested screen covers the page: until it pops, no input the user makes
 \* on the page lands, only a launch preload and the OS's memory pressure.

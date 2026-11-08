@@ -28,8 +28,8 @@ enum EnvAction {
   join(
     next: r'nested = 0 /\ fore /\ \E s \in Sites : Join(s)',
     coverage: r'InputStep@nested = 0 /\ fore /\ \E s \in Sites : Join(s)',
-    reads: {ModelVar.fore, ModelVar.gone, ModelVar.nested},
-    writes: {ModelVar.gone},
+    reads: {ModelVar.fore, ModelVar.gone, ModelVar.ids, ModelVar.nested},
+    writes: {ModelVar.gone, ModelVar.ids},
     needs: {(of: ModelConst.joining, set: true)},
   ),
   login(
@@ -223,6 +223,7 @@ Set<Env> _with(Env e) => switch (e) {
   Env.notifyAll || Env.wakesUp => {Env.notifyAll, Env.wakesUp},
   Env.dnsAsk || Env.dnsTwo => {Env.dnsAsk, Env.dnsTwo},
   Env.residentOne || Env.capTwo => {Env.residentOne, Env.capTwo},
+  Env.clashOne => {Env.joinOne, Env.clashOne},
   Env.routeSplit ||
   Env.awaySpaces ||
   Env.linkAny ||
@@ -264,6 +265,7 @@ Env? _setting(ModelConst c, {required Set<Need> needs}) => switch (c) {
   ModelConst.resettable => Env.resetOne,
   ModelConst.rebuilt => Env.rebuildOne,
   ModelConst.joining => Env.joinOne,
+  ModelConst.clashing => Env.clashOne,
   ModelConst.incognito => Env.incognitoOne,
   ModelConst.jarRefuses => Env.jarRefuses,
   ModelConst.proxyRefused => Env.proxyRefuses,
