@@ -49,31 +49,54 @@ needed() {
   readelf -d "$1" | sed -n 's/.*(NEEDED).*\[\(.*\)\]/\1/p'
 }
 
-# The copyright file of the package that installed [library], with each
-# common licence it points to, as docs/<package>.txt.
+# The notices of the package that installed [library], as docs/<package>.txt:
+# Debian's copyright file (and referenced common licences), or Fedora's
+# RPM %license files. Do not substitute an SPDX expression for licence text.
 notice() {
-  local real pkg copyright licence
+  local real pkg copyright licence files
+  local -a licences=()
   real="$(readlink -f "$1")"
-  pkg="$(dpkg-query -S "$real" 2>/dev/null | head -1 | cut -d: -f1)" ||
-    pkg=""
-  if [ -z "$pkg" ]; then
-    pkg="$(dpkg-query -S "${real#/usr}" 2>/dev/null | head -1 | cut -d: -f1)" || pkg=""
+  pkg=""
+  if command -v dpkg-query >/dev/null 2>&1; then
+    pkg="$(dpkg-query -S "$real" 2>/dev/null | head -1 | cut -d: -f1)" || pkg=""
+    if [ -z "$pkg" ]; then
+      pkg="$(dpkg-query -S "${real#/usr}" 2>/dev/null | head -1 | cut -d: -f1)" || pkg=""
+    fi
+    copyright="/usr/share/doc/$pkg/copyright"
+    if [ -n "$pkg" ] && [ -s "$copyright" ]; then
+      licences+=("$copyright")
+      while IFS= read -r licence; do
+        [ -f "$licence" ] && licences+=("$licence")
+      done < <({ grep -o '/usr/share/common-licenses/[A-Za-z0-9.+-]*' "$copyright" || true; } |
+        sed 's/\.$//' | sort -u)
+    fi
   fi
-  copyright="/usr/share/doc/$pkg/copyright"
-  if [ -z "$pkg" ] || [ ! -f "$copyright" ]; then
-    echo "tor_build.sh: no package copyright for $real; build on a Debian or" \
-      "Ubuntu system, or set WEBSPACE_TOR_SOURCE=none to build without tor" >&2
+  if [ "${#licences[@]}" -eq 0 ] && command -v rpm >/dev/null 2>&1; then
+    pkg="$(rpm -qf --qf '%{NAME}.%{ARCH}\n' "$real" 2>/dev/null)" || pkg=""
+    if [ -n "$pkg" ]; then
+      files="$(rpm -q --licensefiles "$pkg" 2>/dev/null)" || files=""
+      while IFS= read -r licence; do
+        [ -n "$licence" ] || continue
+        if [ ! -r "$licence" ] || [ ! -s "$licence" ]; then
+          echo "tor_build.sh: missing RPM licence file $licence for $pkg; reinstall the package with licence files enabled" >&2
+          exit 1
+        fi
+        licences+=("$licence")
+      done <<< "$files"
+    fi
+  fi
+  if [ "${#licences[@]}" -eq 0 ]; then
+    echo "tor_build.sh: no package licence files for $real; install the owning" \
+      "Debian/Ubuntu or Fedora RPM package with licence files enabled," \
+      "or set WEBSPACE_TOR_SOURCE=none to build without tor" >&2
     exit 1
   fi
   [ -f "$out/docs/$pkg.txt" ] && return
   {
-    cat "$copyright"
-    grep -o '/usr/share/common-licenses/[A-Za-z0-9.+-]*' "$copyright" |
-      sed 's/\.$//' | sort -u | while read -r licence; do
-        [ -f "$licence" ] || continue
-        printf '\n%s\n\n' "${licence##*/}"
-        cat "$licence"
-      done
+    for licence in "${licences[@]}"; do
+      printf '\n%s\n\n' "${licence##*/}"
+      cat "$licence"
+    done
   } > "$out/docs/$pkg.txt"
 }
 

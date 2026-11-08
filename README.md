@@ -78,6 +78,18 @@ To rebuild the crate alone (e.g. iterating on `rust/webspace_adblock/`) without 
 
 Without `cargo` on PATH the Flutter build still succeeds — the Rust step prints a "skipping" notice and content blocking no-ops at runtime (there is no Dart fallback; Windows ships without the library).
 
+### Bundled Tor on Linux
+
+Linux builds also compile Tor and bundle its shared-library dependencies with
+their licence notices. The notice collector supports Debian/Ubuntu package
+copyright files and Fedora RPM `%license` files. Keep the owning packages'
+licence files installed; a library installed outside the package manager cannot
+be bundled automatically without its notices.
+
+To build without bundled Tor and lyrebird, use
+`WEBSPACE_TOR_SOURCE=none fvm flutter run -d linux --release`. The app then uses
+Tor installed on the system, if available.
+
 ## Platform Support
 
 | Platform | Status | Purpose |
