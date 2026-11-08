@@ -130,18 +130,21 @@ final class ProcessRoute {
   /// [occupant]'s webview went but may still send: the plugin destroys a
   /// native webview only after it has loaded `about:blank`, and an icon or
   /// page it fetches meanwhile would leave through the next site's proxy.
-  /// Its claims are void at once; it leaves the rule once [view] is quiet
-  /// and destroyed, in the rule's turn, so a write asked for meanwhile waits
-  /// (PROXY-008; Leave, Gone and Vacated in formal/process_route.tla). With
-  /// no webview it leaves now.
+  /// Its claims are void at once and [view]'s quiet is asked for now, in the
+  /// caller's turn: the frame that unmounts the webview marks its controller
+  /// disposed, and a quiet asked for after that sends nothing. It leaves the
+  /// rule once the quiet has answered and [view] is destroyed, in the rule's
+  /// turn, so a write asked for meanwhile waits (PROXY-008; Leave, Gone and
+  /// Vacated in formal/process_route.tla). With no webview it leaves now.
   Future<void> leave(RouteOccupant occupant, {required LeavingView? view}) {
     if (view == null) {
       release(occupant);
       return Future.value();
     }
     _claims.remove(occupant);
+    final quieted = view.quiet();
     return vacate([occupant], close: () async {
-      await view.quiet();
+      await quieted;
       LogTag.proxy.debug('$occupant is quiet, waiting for its destroy',
           sensitive: true);
       await untilDestroyed(view.destroyed(), what: '$occupant');

@@ -306,7 +306,6 @@ the override under the sites already loaded.
    gets past it. *Why:* a block reaches only what is not yet intercepted,
    so a request in flight needs a cancel. *Partial:* see the gaps below:
    the cancel is asynchronous, and Dart has no signal to await for it.
-
 19. **2026-10-24, the child-tab PR.** A slot's reopen ran beside its own
    nested screen. A world the printer made for the child tab's landing
    beside the nested open's apply, under one process-wide proxy on two
@@ -446,6 +445,29 @@ the override under the sites already loaded.
    dispose drops the view's channel first. *Partial:* the wait is bounded
    (`ProcessRoute.destroyWait`, 5 s), so a destroy that never comes moves
    the rule anyway, and the model does not hold that bound.
+25. **2026-11-08, branch `claude/proxy-008-quiet-ordering`** (first pushed
+   2026-10-24, before attempt 24, and redone on it). A let-go webview's
+   quiet could send nothing. `ProcessRoute.leave` asked for it only once the
+   rule's turn came, and the frame that unmounts the webview marks its
+   controller disposed (`markDisposed`), after which `_native` sends
+   nothing: with the rule busy with another write, the turn came after the
+   unmount, so neither the block nor the stop went out and the rule waited
+   only for the destroy. `quiet` also sent the stop only once the block's
+   settings write had answered. Now `leave` asks for the quiet as it is
+   called, in the turn that lets go of the webview, and the rule's turn
+   awaits its replies and then the destroy; `quiet` sends every command
+   (each popup's block and stop, then its own) before it awaits any, and the
+   channel keeps their order. *Why:* attempt 24 holds the rule while the
+   view lives, but a load the stop never cancelled can still be in the
+   network service when the view is destroyed (the gaps below); the
+   commands were lost in Dart, before Chromium saw them. Planted in
+   `test/webview_dispose_route_test.dart` (the quiet asked for in the rule's
+   turn, with the rule busy and the unmount first: neither the block nor the
+   stop lands) and `test/webview_controller_lifetime_test.dart` (a quiet
+   that awaits each reply sends only its first command in the caller's
+   turn). *Partial:* the stop's cancel still lands after `stopLoading`
+   answers, and nothing reports it; whether the 2026-11-07 recurrence went
+   through this window is not known.
 
 ## Known open gaps
 
@@ -469,16 +491,37 @@ the override under the sites already loaded.
   widget tree kept, a dispose that never loads `about:blank`) moves the
   rule anyway, with a warning in the log; `process_route.tla` has no clock
   and does not hold that case.
-- Not determined which load started the old site's favicon download in the
-  CI run; Chromium's `IconHelper` downloads it through
-  `WebContents::DownloadImage`, and whether `WebContents::Stop` cancels an
-  image download already under way, rather than only frame loads, is read
-  from the code's shape and not confirmed on a device.
-- The quiet's `stopLoading` can meet the plugin's own dispose, which loads
-  `about:blank` on the same webview. A stop beside an in-flight cross-origin
-  redirect has crashed one Android WebView build before (the notes at the
-  external-scheme cancel in `webview.dart` and at the nested hop in
-  `web_view_model.dart`); this pair is untested on a device.
+- The favicon fetch is a browser download, which the stop cancels once it
+  runs but can also start (read from Chromium's source, not a device).
+  `IconHelper` asks for it through `WebContents::DownloadImage`, which the
+  renderer fetches as a loader on the document's `ResourceFetcher`; the
+  stop reaches `ResourceFetcher::StopFetching`, which cancels it, queued
+  ones too. Two paths make a new one: stopping a page still loading
+  completes its load event, which asks for the icon again, and a
+  `DownloadImage` reaches the renderer on its own pipe, unordered with the
+  stop. Both enter the interceptor after the block, so both are cache-only.
+  Which of these the old site's `favicon.ico` was, in run 40097824430 or in
+  the 2026-11-07 recurrence, is not determined.
+- What the quiet cannot reach (source, not device): a service worker's
+  request, intercepted through the process-wide `ServiceWorkerWebSettings`,
+  which the quiet does not block; a keepalive request, which outlives the
+  stop; and a request that entered the interceptor before the block, which
+  picks its proxy late (after the scheduler, the cookie read, the cache and
+  `shouldInterceptRequest`), so one still in the network service when the
+  view is destroyed can resolve against the next override.
+- The quiet's stop meets the plugin's `about:blank` load safely only by the
+  fork's dispose order. The fork's `InAppWebView.dispose()` drops the
+  channel handler before it calls `loadUrl("about:blank")`, in one
+  main-thread task, so a stop sent before the unmount (attempt 25) lands
+  first. A stop landing after that load and before its navigation starts
+  would cancel it silently: no `onPageFinished`, so the plugin's last client
+  never calls `destroy()`, and the rule moves only on `destroyWait`'s bound.
+  A fork change that loaded `about:blank` before dropping the handler would
+  reopen this, and no test covers the fork's order.
+- A stop beside an in-flight cross-origin redirect has crashed one Android
+  WebView build before (the notes at the external-scheme cancel in
+  `webview.dart` and at the nested hop in `web_view_model.dart`); the
+  quiet's stop beside one is untested on a device.
 
 - The model holds which sites run, not the route the rule is set to: the
   order of two writes (a nested open's apply against a webview build, a

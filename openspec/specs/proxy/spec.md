@@ -262,7 +262,11 @@ page opened holds no place of its own: it runs on its opener's, so it SHALL
 stop loading and close when its opener is told to. Android blocks the
 webview's network loads and then stops it: Chromium applies the block to a
 request only as its interception starts, so one already past that point is
-cancelled by the stop, not the block (BUG-037). Only Android without
+cancelled by the stop, not the block (BUG-037). Both SHALL be asked for as
+the webview is let go of, the block first, before the frame that unmounts
+it: once it unmounts, its controller sends nothing more, so a command asked
+for later, in the rule's turn or after an earlier reply, is lost. The rule's
+turn waits for their replies and then for the destroy. Only Android without
 per-site profiles has the one rule: every other host binds a proxy per store
 or routes it (PROXY-027).
 
@@ -304,6 +308,17 @@ it is loading before `ProxyController.setProxyOverride` applies P2
 destroyed, or the wait for it has run out
 **And** no request for Site A reaches P2, an icon fetched while the plugin
 tears the webview down included
+
+#### Scenario: Android — the quiet goes out before the webview unmounts
+
+**Given** Site A is loaded on Android with HTTP proxy P1
+**And** the process-wide rule is busy with another write
+**When** Site A's webview is let go of, and the frame that unmounts it runs
+before the rule's turn comes
+**Then** the block and the stop were both sent as the webview was let go
+of, the block first, so the plugin received them before it disposed its
+view
+**And** when Site B's P2 is applied, Site A's webview had been told both
 
 #### Scenario: Android — a nested screen and a wake check leave their route quiet
 
