@@ -120,7 +120,7 @@ def walkthrough():
         raise RuntimeError('The real foreground MediaPlaybackService is missing')
     sessions = capture.adb('shell', 'dumpsys', 'media_session')
     (OUT / 'sessions-playing.txt').write_text(sessions)
-    if capture.APP not in sessions or not re.search(r'state=3\b', sessions):
+    if capture.APP not in sessions or not re.search(r'state=(?:PLAYING\()?3(?:\)|\b)', sessions):
         raise RuntimeError('Android does not report a playing WebSpace media session')
     with capture.EVENT_LOCK:
         baseline = next(e for e in reversed(capture.EVENTS) if e['event'] == 'progress')
@@ -129,7 +129,7 @@ def walkthrough():
     progress_after(left, baseline['currentTime'] + 4)
     capture.evidence('03-audio-continues-on-home')
     capture.adb('shell', 'cmd', 'statusbar', 'expand-notifications')
-    capture.wait_node(['Demo melody', 'WebSpace audio demo'])
+    capture.wait_node(['Demo melody', 'WebSpace audio demo', 'Audio playback demo'])
     capture.evidence('04-media-notification')
     time.sleep(2)
     capture.tap_label('Pause')
@@ -137,7 +137,7 @@ def walkthrough():
     capture.evidence('05-notification-paused')
     sessions = capture.adb('shell', 'dumpsys', 'media_session')
     (OUT / 'sessions-paused.txt').write_text(sessions)
-    if capture.APP not in sessions or not re.search(r'state=2\b', sessions):
+    if capture.APP not in sessions or not re.search(r'state=(?:PAUSED\()?2(?:\)|\b)', sessions):
         raise RuntimeError('Android does not report paused playback after notification Pause')
     capture.adb('shell', 'cmd', 'statusbar', 'collapse')
     capture.adb('shell', 'am', 'start', '-W', '-n', f'{capture.APP}/.MainActivity')
@@ -150,32 +150,30 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     server = capture.http.server.ThreadingHTTPServer(('127.0.0.1', capture.PORT), Server)
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    recorder = None
     recording = False
     try:
         capture.prepare_emulator()
         capture.open_demo_site(title='Audio playback demo')
         enable_background_audio()
         capture.adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
-        # Record the emulator's actual output from its PulseAudio sink.
-        recorder = subprocess.Popen(['ffmpeg', '-y', '-v', 'error', '-f', 'pulse',
-            '-i', 'review_audio.monitor', '-c:a', 'pcm_s16le', str(OUT / 'audio.wav')])
-        audio_began = time.monotonic()
-        time.sleep(.5)
+        capture.adb('shell', 'cmd', 'media_session', 'volume', '--stream', '3', '--set', '15')
         capture.console('screenrecord', 'start', '--time-limit', '180', str(OUT / 'media-playback.webm'))
         began = time.monotonic()
-        offset = began - audio_began
         recording = True
         walkthrough()
         elapsed = time.monotonic() - began
         capture.console('screenrecord', 'stop')
         recording = False
-        recorder.terminate()
-        recorder.wait(timeout=10)
-        recorder = None
-        capture.run('ffmpeg', '-y', '-i', str(OUT / 'media-playback.webm'), '-ss', str(offset),
-            '-i', str(OUT / 'audio.wav'), '-map', '0:v', '-map', '1:a', '-c:v', 'libx264',
-            '-preset', 'fast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest',
+        source_check = subprocess.run(['ffmpeg', '-i', str(OUT / 'media-playback.webm'),
+            '-af', 'volumedetect', '-vn', '-f', 'null', '-'], capture_output=True,
+            text=True, check=True)
+        (OUT / 'source-audio-volume.txt').write_text(source_check.stderr)
+        source_peak = re.search(r'max_volume: (-?[\d.]+) dB', source_check.stderr)
+        if not source_peak or float(source_peak[1]) < -65:
+            raise RuntimeError('The original emulator recording contains no usable audio')
+        capture.run('ffmpeg', '-y', '-i', str(OUT / 'media-playback.webm'),
+            '-c:v', 'libx264', '-preset', 'fast', '-pix_fmt', 'yuv420p',
+            '-af', 'loudnorm=I=-18:TP=-2:LRA=11', '-c:a', 'aac',
             '-movflags', '+faststart', str(OUT / 'media-playback.mp4'), timeout=120)
         audio_check = subprocess.run(['ffmpeg', '-i', str(OUT / 'media-playback.mp4'),
             '-af', 'volumedetect', '-vn', '-f', 'null', '-'], capture_output=True,
@@ -193,9 +191,6 @@ def main():
     finally:
         if recording:
             capture.console('screenrecord', 'stop')
-        if recorder is not None:
-            recorder.terminate()
-            recorder.wait(timeout=10)
         server.shutdown()
         server.server_close()
 
