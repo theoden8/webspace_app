@@ -3,7 +3,7 @@ import json,re,subprocess,sys
 import numpy as np
 from PIL import Image
 root=Path(sys.argv[1]).resolve()
-source=root/('media-playback.mp4' if (root/'media-playback.mp4').exists() else 'screen-sharing.mp4')
+source=next(root/name for name in ['media-playback.mkv','media-playback.mp4','screen-sharing.mp4'] if (root/name).exists())
 playback=source.stem=='media-playback'
 rate=12; width=270; height=585
 proc=subprocess.Popen(['ffmpeg','-v','error','-i',str(source),'-vf',f'fps={rate},scale={width}:{height}','-f','rawvideo','-pix_fmt','rgb24','-'],stdout=subprocess.PIPE)
@@ -37,19 +37,20 @@ for point in activity:
     else:intervals.append([start,end])
 if duration-edge<=intervals[-1][1]+.25:intervals[-1][1]=duration
 else:intervals.append([duration-edge,duration])
-result={'method':'Automatic frame activity detection; ignore status clock, compression noise and full-width animated gradient; preserve sequence order and playback speed.','source_seconds':duration,'output_seconds':sum(b-a for a,b in intervals),'retained_intervals':intervals,'significant_changes':len(activity)}
+result={'method':'Automatic frame activity detection; ignore status clock, compression noise and full-width animated gradient; preserve sequence order and playback speed.','source_file':source.name,'source_seconds':duration,'output_seconds':sum(b-a for a,b in intervals),'retained_intervals':intervals,'significant_changes':len(activity)}
 gain=0
 if playback:
     volume=subprocess.run(['ffmpeg','-i',str(source),'-af','volumedetect','-vn','-f','null','-'],capture_output=True,text=True,check=True)
     peak=re.search(r'max_volume: (-?[\d.]+) dB',volume.stderr)
     if not peak:raise RuntimeError('Cannot measure the recorded audio')
-    gain=-8-float(peak[1])
+    gain=-3-float(peak[1])
     result['recorded_audio_gain_db']=gain
 (root/'idle-removal.json').write_text(json.dumps(result,indent=2)+'\n')
 print(json.dumps(result))
 parts=[];inputs=[]
 for i,(a,b) in enumerate(intervals):
-    parts += [f'[0:v]trim=start={a:.6f}:end={b:.6f},setpts=PTS-STARTPTS[v{i}]',f'[0:a]aresample=async=1:first_pts=0,apad,atrim=start={a:.6f}:end={b:.6f},asetpts=PTS-STARTPTS[a{i}]']
+    video_context='fps=30,tpad=stop_mode=clone:stop_duration=2,' if playback else ''
+    parts += [f'[0:v]{video_context}trim=start={a:.6f}:end={b:.6f},setpts=PTS-STARTPTS[v{i}]',f'[0:a]aresample=async=1:first_pts=0,apad,atrim=start={a:.6f}:end={b:.6f},asetpts=PTS-STARTPTS[a{i}]']
     inputs += [f'[v{i}][a{i}]']
 parts.append(''.join(inputs)+f'concat=n={len(intervals)}:v=1:a=1[v][joined]')
 parts.append(f'[joined]volume={gain}dB[a]')
