@@ -147,7 +147,7 @@ def wait_event(kind, *, moving=False, timeout=60):
     raise RuntimeError(f'Demo never reported {kind}, moving={moving}')
 
 
-def walkthrough():
+def open_demo_site(*, title='Screen sharing demo'):
     adb('shell', 'am', 'start', '-W', '-n', f'{APP}/.MainActivity')
     node = wait_node(['Open navigation menu'], timeout=90)
     time.sleep(3)
@@ -175,8 +175,12 @@ def walkthrough():
     ready = wait_event('ready')
     if not ready['supported']:
         raise RuntimeError('The page cannot reach getDisplayMedia in this build')
-    tap_label('Screen sharing demo', 'localhost')
+    tap_label(title, 'localhost')
     evidence('02-demo-page')
+
+
+def walkthrough():
+    open_demo_site()
     time.sleep(3)
     tap_label('Start sharing')
     wait_node(['Allow screen sharing?'])
@@ -229,6 +233,48 @@ def walkthrough():
     time.sleep(4)
 
 
+def prepare_emulator():
+    adb('wait-for-device')
+    if adb('shell', 'getprop', 'ro.kernel.qemu') != '1':
+        raise RuntimeError('This walkthrough clears app data; use a disposable emulator')
+    adb('install', '-r', str(APK), timeout=90)
+    adb('shell', 'pm', 'clear', APP)
+    adb('shell', 'pm', 'grant', APP, 'android.permission.POST_NOTIFICATIONS')
+    adb('shell', 'svc', 'power', 'stayon', 'true')
+    adb('shell', 'settings', 'put', 'system', 'screen_off_timeout', '2147483647')
+    adb('shell', 'settings', 'put', 'system', 'show_touches', '1')
+    adb('shell', 'settings', 'put', 'global', 'hide_error_dialogs', '1')
+    adb('shell', 'input', 'keyevent', '82')
+    adb('reverse', f'tcp:{PORT}', f'tcp:{PORT}')
+    # Finish the cold app launch before the encoder competes for CPU.
+    adb('shell', 'am', 'start', '-W', '-n', f'{APP}/.MainActivity')
+    wait_node(['Add', 'Add Site'], timeout=120)
+    tap_label('App Settings')
+    tap_label('Appearance')
+    for _ in range(5):
+        legacy = labelled(ui(), ['Legacy design'])
+        if legacy:
+            break
+        width, height = map(int, re.findall(r'\d+', adb('shell', 'wm', 'size'))[-2:])
+        adb('shell', 'input', 'swipe', str(width // 2), str(height * 3 // 4),
+            str(width // 2), str(height // 3), '400')
+    if not legacy:
+        raise RuntimeError('Appearance has no Legacy design switch')
+    if legacy_switch().get('checked') != 'true':
+        control = legacy_switch()
+        left, top, right, bottom = map(int, re.findall(r'\d+', control.get('bounds', '')))
+        # Flutter merges the row into the switch node; its centre can
+        # overlap the separate help icon. The toggle is at the right.
+        adb('shell', 'input', 'tap', str(right - (right - left) // 12),
+            str((top + bottom) // 2))
+    if legacy_switch().get('checked') != 'true':
+        raise RuntimeError('Legacy design is not enabled')
+    evidence('00-legacy-design-enabled')
+    adb('shell', 'input', 'keyevent', 'KEYCODE_BACK')
+    adb('shell', 'input', 'keyevent', 'KEYCODE_BACK')
+    wait_node(['Open navigation menu'])
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     for name in ('result.json', 'screen-sharing.webm', 'screen-sharing.mp4'):
@@ -241,45 +287,7 @@ def main():
     logcat = None
     raw = OUT / 'screen-sharing.webm'
     try:
-        adb('wait-for-device')
-        if adb('shell', 'getprop', 'ro.kernel.qemu') != '1':
-            raise RuntimeError('This walkthrough clears app data; use a disposable emulator')
-        adb('install', '-r', str(APK), timeout=90)
-        adb('shell', 'pm', 'clear', APP)
-        adb('shell', 'pm', 'grant', APP, 'android.permission.POST_NOTIFICATIONS')
-        adb('shell', 'svc', 'power', 'stayon', 'true')
-        adb('shell', 'settings', 'put', 'system', 'screen_off_timeout', '2147483647')
-        adb('shell', 'settings', 'put', 'system', 'show_touches', '1')
-        adb('shell', 'settings', 'put', 'global', 'hide_error_dialogs', '1')
-        adb('shell', 'input', 'keyevent', '82')
-        adb('reverse', f'tcp:{PORT}', f'tcp:{PORT}')
-        # Finish the cold app launch before the encoder competes for CPU.
-        adb('shell', 'am', 'start', '-W', '-n', f'{APP}/.MainActivity')
-        wait_node(['Add', 'Add Site'], timeout=120)
-        tap_label('App Settings')
-        tap_label('Appearance')
-        for _ in range(5):
-            legacy = labelled(ui(), ['Legacy design'])
-            if legacy:
-                break
-            width, height = map(int, re.findall(r'\d+', adb('shell', 'wm', 'size'))[-2:])
-            adb('shell', 'input', 'swipe', str(width // 2), str(height * 3 // 4),
-                str(width // 2), str(height // 3), '400')
-        if not legacy:
-            raise RuntimeError('Appearance has no Legacy design switch')
-        if legacy_switch().get('checked') != 'true':
-            control = legacy_switch()
-            left, top, right, bottom = map(int, re.findall(r'\d+', control.get('bounds', '')))
-            # Flutter merges the row into the switch node; its centre can
-            # overlap the separate help icon. The toggle is at the right.
-            adb('shell', 'input', 'tap', str(right - (right - left) // 12),
-                str((top + bottom) // 2))
-        if legacy_switch().get('checked') != 'true':
-            raise RuntimeError('Legacy design is not enabled')
-        evidence('00-legacy-design-enabled')
-        adb('shell', 'input', 'keyevent', 'KEYCODE_BACK')
-        adb('shell', 'input', 'keyevent', 'KEYCODE_BACK')
-        wait_node(['Open navigation menu'])
+        prepare_emulator()
         adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
         time.sleep(3)
         adb('logcat', '-c')

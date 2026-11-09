@@ -1718,6 +1718,67 @@ jobs:
           path: webspace-macos.zip
           if-no-files-found: error
 
+  capture-media-playback:
+    name: Record Android media playback
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: plan
+    if: needs.plan.outputs.only == 'playback'
+    permissions:
+      contents: read
+      actions: read
+    env:
+      QEMU_AUDIO_DRV: pa
+    steps:
+      - uses: actions/checkout@v4
+      - name: Android toolchain
+        uses: ./.github/actions/android-toolchain
+        with:
+          cargo-ndk-version: ${{ env.CARGO_NDK_VERSION }}
+      - name: Build the release app
+        run: fvm flutter build apk --release --flavor fdroid --target-platform android-x64
+      - name: Preserve the built APK for capture retries
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-playback-apk
+          path: build/app/outputs/flutter-apk/app-fdroid-release.apk
+          retention-days: 7
+      - name: Release build memory
+        run: gradle --stop
+      - name: Set up audio and video recording
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg pulseaudio python3-numpy python3-pil
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=review_audio
+          pactl set-default-sink review_audio
+          pactl info
+      - name: Android emulator
+        uses: ./.github/actions/android-emulator
+      - name: Record playback and notification controls
+        timeout-minutes: 10
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: default
+          arch: x86_64
+          profile: pixel_5
+          disk-size: 4096M
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -no-boot-anim
+          disable-animations: true
+          script: python3 scripts/capture_media_playback_video.py
+      - name: Remove unchanged waits
+        run: /usr/bin/python3 scripts/edit_screen_share_video.py build/media-playback-video
+      - name: Upload media-playback video and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-playback-review-video
+          path: build/media-playback-video/
+          if-no-files-found: warn
+          retention-days: 30
+
   edit-screen-share:
     name: Package edited screen-sharing video
     runs-on: ubuntu-latest

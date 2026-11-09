@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio playback demo</title>
+<style>
+body { margin: 24px; font: 18px system-ui; color: #17243b; background: #f5f7fb; }
+h1 { font-size: 27px; }
+button { padding: 16px 24px; font: inherit; color: white; background: #2458cf;
+  border: 0; border-radius: 8px; }
+audio { display: block; width: 100%; margin: 24px 0; }
+</style>
+<h1>Audio playback demo</h1>
+<p>Play the demo melody, then leave WebSpace. Audio continues in the background.</p>
+<button id="play">Play audio</button>
+<audio id="audio" controls preload="auto" src="/demo.wav"></audio>
+<p id="status">Audio ready</p>
+<p>Use the media notification to pause playback.</p>
+<script>
+const player = document.querySelector('#audio');
+const status = document.querySelector('#status');
+function report(event) {
+  void fetch('/event', {method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({event, currentTime: player.currentTime,
+      paused: player.paused, visibility: document.visibilityState,
+      supported: typeof player.play === 'function'})});
+}
+if (navigator.mediaSession) {
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: 'Demo melody', artist: 'WebSpace audio demo', album: 'Background playback'});
+  navigator.mediaSession.setActionHandler('play', () => player.play());
+  navigator.mediaSession.setActionHandler('pause', () => player.pause());
+  navigator.mediaSession.setActionHandler('stop', () => player.pause());
+}
+document.querySelector('#play').addEventListener('click', () => {
+  player.play().catch(error => {
+    status.textContent = error.message;
+    report('error');
+  });
+});
+player.addEventListener('playing', () => {
+  status.textContent = 'Audio playing';
+  if (navigator.mediaSession) navigator.mediaSession.playbackState = 'playing';
+  report('playing');
+});
+player.addEventListener('pause', () => {
+  status.textContent = 'Audio paused';
+  if (navigator.mediaSession) navigator.mediaSession.playbackState = 'paused';
+  report('paused');
+});
+setInterval(() => { if (!player.paused) report('progress'); }, 1000);
+report('ready');
+</script>
+</html>

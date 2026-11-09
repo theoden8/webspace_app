@@ -3,11 +3,13 @@ import json,subprocess,sys
 import numpy as np
 from PIL import Image
 root=Path(sys.argv[1]).resolve()
-source=root/'screen-sharing.mp4'
+source=root/('media-playback.mp4' if (root/'media-playback.mp4').exists() else 'screen-sharing.mp4')
 rate=12; width=270; height=585
 proc=subprocess.Popen(['ffmpeg','-v','error','-i',str(source),'-vf',f'fps={rate},scale={width}:{height}','-f','rawvideo','-pix_fmt','rgb24','-'],stdout=subprocess.PIPE)
-reference=np.array(Image.open(root/'05-live-screen.png').convert('RGB').resize((width,height))).astype(np.int16)
-reference_rows=np.flatnonzero(((((reference.max(axis=2)-reference.min(axis=2))>50)&(reference.max(axis=2)>120)).sum(axis=1)>width*.45))
+reference_rows=np.array([],dtype=int)
+if (root/'05-live-screen.png').exists():
+    reference=np.array(Image.open(root/'05-live-screen.png').convert('RGB').resize((width,height))).astype(np.int16)
+    reference_rows=np.flatnonzero(((((reference.max(axis=2)-reference.min(axis=2))>50)&(reference.max(axis=2)>120)).sum(axis=1)>width*.45))
 previous=None; previous_mask=None; activity=[]; index=0
 while True:
     raw=proc.stdout.read(width*height*3)
@@ -42,4 +44,4 @@ for i,(a,b) in enumerate(intervals):
     inputs += [f'[v{i}][a{i}]']
 parts.append(''.join(inputs)+f'concat=n={len(intervals)}:v=1:a=1[v][a]')
 (root/'idle-removal.ffmpeg').write_text(';\n'.join(parts))
-subprocess.run(['ffmpeg','-y','-i',str(source),'-filter_complex_script',str(root/'idle-removal.ffmpeg'),'-map','[v]','-map','[a]','-c:v','libx264','-preset','fast','-crf','20','-pix_fmt','yuv420p','-c:a','aac','-b:a','96k','-movflags','+faststart',str(root/'screen-sharing-idle-removed.mp4')],check=True,stdout=subprocess.DEVNULL,stderr=(root/'idle-removal.log').open('w'))
+subprocess.run(['ffmpeg','-y','-i',str(source),'-filter_complex_script',str(root/'idle-removal.ffmpeg'),'-map','[v]','-map','[a]','-c:v','libx264','-preset','fast','-crf','20','-pix_fmt','yuv420p','-c:a','aac','-b:a','96k','-movflags','+faststart',str(root/f'{source.stem}-idle-removed.mp4')],check=True,stdout=subprocess.DEVNULL,stderr=(root/'idle-removal.log').open('w'))
