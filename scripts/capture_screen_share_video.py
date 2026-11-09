@@ -110,6 +110,22 @@ def tap_label(*labels):
     tap(wait_node(labels))
 
 
+def legacy_switch():
+    tree = ui()
+    labels = labelled(tree, ['Legacy design'])
+    switches = [n for n in tree.iter('node')
+                if n.get('class') == 'android.widget.Switch']
+    if not labels or not switches:
+        raise RuntimeError('Legacy design switch is not visible')
+    def middle(node):
+        _, top, _, bottom = map(int, re.findall(r'\d+', node.get('bounds', '')))
+        return (top + bottom) // 2
+    target = min(switches, key=lambda n: abs(middle(n) - middle(labels[0])))
+    if abs(middle(target) - middle(labels[0])) > 120:
+        raise RuntimeError('No switch beside the Legacy design label')
+    return target
+
+
 def evidence(name):
     print(name, flush=True)
     (OUT / f'{name}.png').write_bytes(run(*ADB, 'exec-out', 'screencap', '-p'))
@@ -250,9 +266,9 @@ def main():
                 str(width // 2), str(height // 3), '400')
         if not legacy:
             raise RuntimeError('Appearance has no Legacy design switch')
-        if legacy[-1].get('checked') != 'true':
-            tap(legacy[-1])
-        if wait_node(['Legacy design']).get('checked') != 'true':
+        if legacy_switch().get('checked') != 'true':
+            tap(legacy_switch())
+        if legacy_switch().get('checked') != 'true':
             raise RuntimeError('Legacy design is not enabled')
         evidence('00-legacy-design-enabled')
         adb('shell', 'input', 'keyevent', 'KEYCODE_BACK')
