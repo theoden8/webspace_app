@@ -221,12 +221,6 @@ controls. Media playback is a Play-accepted foreground-service type (unlike
 intractable), so this does not carry the notification feature's review
 constraints.
 
-The site's native WebView SHALL also receive
-`allowBackgroundAudioPlaying: effectiveBackgroundAudioEnabled`. Keeping
-JavaScript timers and the media session alive alone does not stop Android's
-WebView from silencing its player when the activity's window is hidden.
-Ordinary and archive-tier sites SHALL keep this native exemption off.
-
 - A page-JS shim on background-audio sites
   ([media_session_shim.dart](../../../lib/services/media_session_shim.dart),
   Android + `backgroundAudioEnabled` only) observes every `<audio>`/`<video>`

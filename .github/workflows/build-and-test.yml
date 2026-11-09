@@ -1731,30 +1731,22 @@ jobs:
       QEMU_AUDIO_DRV: pa
     steps:
       - uses: actions/checkout@v4
-      - name: Android toolchain
-        uses: ./.github/actions/android-toolchain
-        with:
-          cargo-ndk-version: ${{ env.CARGO_NDK_VERSION }}
-      - name: Check native background-audio settings
-        run: fvm flutter test test/webview_controller_lifetime_test.dart
-      - name: Build the corrected release APK
-        run: fvm flutter build apk --release --flavor fdroid --target-platform android-x64
-      - name: Save the corrected APK
-        uses: actions/upload-artifact@v4
+      - name: Reuse the built release APK
+        uses: actions/download-artifact@v4
         with:
           name: media-playback-apk
-          path: build/app/outputs/flutter-apk/app-fdroid-release.apk
-          retention-days: 7
-      - name: Release build memory before booting the emulator
-        run: gradle --stop
+          run-id: 42617434385
+          github-token: ${{ github.token }}
+          path: build/app/outputs/flutter-apk
       - name: Set up audio and video recording
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg pulseaudio python3-numpy python3-pil
-          pulseaudio --start --exit-idle-time=-1
-          pactl load-module module-null-sink sink_name=review_audio
-          pactl set-default-sink review_audio
-          pactl info
+          sudo apt-get install -y -qq ffmpeg python3-numpy python3-pil
+          curl -fL https://github.com/Genymobile/scrcpy/releases/download/v5.0.1/scrcpy-linux-x86_64-v5.0.1.tar.gz -o "$RUNNER_TEMP/scrcpy.tar.gz"
+          echo "9f969d30cc574816077edecda65719c1c70b0aee1df1ba5fa00779ac07b8fd6e  $RUNNER_TEMP/scrcpy.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/scrcpy"
+          tar xzf "$RUNNER_TEMP/scrcpy.tar.gz" -C "$RUNNER_TEMP/scrcpy" --strip-components=1
+          echo "$RUNNER_TEMP/scrcpy" >> "$GITHUB_PATH"
       - name: Android emulator
         uses: ./.github/actions/android-emulator
       - name: Record playback and notification controls

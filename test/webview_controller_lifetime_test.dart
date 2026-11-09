@@ -205,8 +205,6 @@ Widget _webView({
                   isolation: fakeSharedJar()),
           hooks: hooks ?? _hooks(),
           initialUrl: 'https://example.com/',
-          backgroundAudioEnabled:
-              (site ?? _site).effectiveBackgroundAudioEnabled,
           cacheFirst: cacheFirst,
           onReloadIssued: onReloadIssued,
           onCookiesChanged: onCookiesChanged,
@@ -543,28 +541,6 @@ void main() {
       expect(settings.allowFileAccess, isTrue);
       expect(settings.allowContentAccess, isTrue);
       expect(settings.useOnDownloadStart, isTrue);
-    });
-
-    testWidgets('background audio keeps the native player audible only for '
-        'an opted-in, non-archive site', (tester) async {
-      for (final state in [
-        (enabled: false, archived: false, expected: false),
-        (enabled: true, archived: false, expected: true),
-        (enabled: true, archived: true, expected: false),
-      ]) {
-        await tester.pumpWidget(_webView(
-          key: UniqueKey(),
-          site: WebViewModel(
-            initUrl: 'https://example.com/',
-            backgroundAudioEnabled: state.enabled,
-            isArchiveTier: state.archived,
-          ),
-        ));
-        final settings = tester
-            .widget<inapp.InAppWebView>(find.byType(inapp.InAppWebView))
-            .platform.params.initialSettings!;
-        expect(settings.allowBackgroundAudioPlaying, state.expected);
-      }
     });
 
     // A navigation that goes ahead is counted where its document loads (the

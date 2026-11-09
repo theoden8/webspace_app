@@ -5,6 +5,7 @@ import json
 import math
 from pathlib import Path
 import re
+import signal
 import struct
 import subprocess
 import threading
@@ -109,7 +110,6 @@ def progress_after(moment, minimum):
 def audio_diagnostics(name):
     for service in ['audio', 'media.audio_flinger', 'media.audio_policy']:
         (OUT / f'{name}-{service}.txt').write_text(capture.adb('shell', 'dumpsys', service))
-    (OUT / f'{name}-pulse.txt').write_bytes(capture.run('pactl', 'list', 'sink-inputs'))
 
 
 def walkthrough():
@@ -158,36 +158,39 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     server = capture.http.server.ThreadingHTTPServer(('127.0.0.1', capture.PORT), Server)
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    recording = False
-    monitor = None
+    recorder = None
     try:
         capture.prepare_emulator()
         capture.open_demo_site(title='Audio playback demo')
         enable_background_audio()
         capture.adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
         capture.adb('shell', 'cmd', 'media_session', 'volume', '--stream', '3', '--set', '15')
-        monitor = subprocess.Popen(['ffmpeg', '-y', '-f', 'pulse', '-i',
-            'review_audio.monitor', '-ac', '2', '-ar', '44100', str(OUT / 'host-audio.wav')],
-            stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
-            stderr=(OUT / 'host-audio.log').open('w'))
-        capture.console('screenrecord', 'start', '--time-limit', '180', str(OUT / 'media-playback.webm'))
+        recording_log = OUT / 'recorder.log'
+        with recording_log.open('w') as log:
+            recorder = subprocess.Popen(['scrcpy', '--no-playback', '--no-control',
+                '--require-audio', '--audio-codec=aac', '--max-fps=30',
+                '--video-bit-rate=4M', '--time-limit=180',
+                f'--record={OUT / "media-playback.mkv"}'], stdout=log, stderr=log)
+        deadline = time.monotonic() + 30
+        while 'recording started' not in recording_log.read_text().lower():
+            if recorder.poll() is not None or time.monotonic() > deadline:
+                raise RuntimeError(recording_log.read_text())
+            time.sleep(.2)
         began = time.monotonic()
-        recording = True
         walkthrough()
         elapsed = time.monotonic() - began
-        capture.console('screenrecord', 'stop')
-        recording = False
-        monitor.communicate(b'q', timeout=15)
-        monitor = None
+        recorder.send_signal(signal.SIGINT)
+        recorder.wait(timeout=20)
+        recorder = None
         (OUT / 'audio-logcat.txt').write_text(capture.adb('logcat', '-d', '-t', '5000'))
-        source_check = subprocess.run(['ffmpeg', '-i', str(OUT / 'media-playback.webm'),
+        source_check = subprocess.run(['ffmpeg', '-i', str(OUT / 'media-playback.mkv'),
             '-af', 'volumedetect', '-vn', '-f', 'null', '-'], capture_output=True,
             text=True, check=True)
         (OUT / 'source-audio-volume.txt').write_text(source_check.stderr)
         source_peak = re.search(r'max_volume: (-?[\d.]+) dB', source_check.stderr)
         if not source_peak or float(source_peak[1]) < -65:
             raise RuntimeError('The original emulator recording contains no usable audio')
-        capture.run('ffmpeg', '-y', '-i', str(OUT / 'media-playback.webm'),
+        capture.run('ffmpeg', '-y', '-i', str(OUT / 'media-playback.mkv'),
             '-c:v', 'libx264', '-preset', 'fast', '-pix_fmt', 'yuv420p',
             '-af', 'aresample=async=1:first_pts=0,loudnorm=I=-18:TP=-2:LRA=11', '-c:a', 'aac',
             '-movflags', '+faststart', str(OUT / 'media-playback.mp4'), timeout=120)
@@ -205,10 +208,9 @@ def main():
             'design': 'legacy', 'app': capture.APP}, indent=2) + '\n')
         print('PASS: media-playback.mp4', flush=True)
     finally:
-        if monitor is not None:
-            monitor.communicate(b'q', timeout=15)
-        if recording:
-            capture.console('screenrecord', 'stop')
+        if recorder is not None and recorder.poll() is None:
+            recorder.send_signal(signal.SIGINT)
+            recorder.wait(timeout=20)
         server.shutdown()
         server.server_close()
 
