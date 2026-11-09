@@ -267,7 +267,12 @@ def main():
         if not legacy:
             raise RuntimeError('Appearance has no Legacy design switch')
         if legacy_switch().get('checked') != 'true':
-            tap(legacy_switch())
+            control = legacy_switch()
+            left, top, right, bottom = map(int, re.findall(r'\d+', control.get('bounds', '')))
+            # Flutter merges the row into the switch node; its centre can
+            # overlap the separate help icon. The toggle is at the right.
+            adb('shell', 'input', 'tap', str(right - (right - left) // 12),
+                str((top + bottom) // 2))
         if legacy_switch().get('checked') != 'true':
             raise RuntimeError('Legacy design is not enabled')
         evidence('00-legacy-design-enabled')
