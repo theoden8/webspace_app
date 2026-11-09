@@ -189,7 +189,7 @@ def main():
             raise RuntimeError('The original emulator recording contains no usable audio')
         capture.run('ffmpeg', '-y', '-i', str(OUT / 'media-playback.webm'),
             '-c:v', 'libx264', '-preset', 'fast', '-pix_fmt', 'yuv420p',
-            '-af', 'loudnorm=I=-18:TP=-2:LRA=11', '-c:a', 'aac',
+            '-af', 'aresample=async=1:first_pts=0,loudnorm=I=-18:TP=-2:LRA=11', '-c:a', 'aac',
             '-movflags', '+faststart', str(OUT / 'media-playback.mp4'), timeout=120)
         audio_check = subprocess.run(['ffmpeg', '-i', str(OUT / 'media-playback.mp4'),
             '-af', 'volumedetect', '-vn', '-f', 'null', '-'], capture_output=True,

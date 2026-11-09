@@ -49,7 +49,7 @@ if playback:
 print(json.dumps(result))
 parts=[];inputs=[]
 for i,(a,b) in enumerate(intervals):
-    parts += [f'[0:v]trim=start={a:.6f}:end={b:.6f},setpts=PTS-STARTPTS[v{i}]',f'[0:a]atrim=start={a:.6f}:end={b:.6f},asetpts=PTS-STARTPTS[a{i}]']
+    parts += [f'[0:v]trim=start={a:.6f}:end={b:.6f},setpts=PTS-STARTPTS[v{i}]',f'[0:a]aresample=async=1:first_pts=0,apad,atrim=start={a:.6f}:end={b:.6f},asetpts=PTS-STARTPTS[a{i}]']
     inputs += [f'[v{i}][a{i}]']
 parts.append(''.join(inputs)+f'concat=n={len(intervals)}:v=1:a=1[v][joined]')
 parts.append(f'[joined]volume={gain}dB[a]')

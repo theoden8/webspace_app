@@ -1731,13 +1731,22 @@ jobs:
       QEMU_AUDIO_DRV: pa
     steps:
       - uses: actions/checkout@v4
-      - name: Reuse the built release APK
-        uses: actions/download-artifact@v4
+      - name: Android toolchain
+        uses: ./.github/actions/android-toolchain
+        with:
+          cargo-ndk-version: ${{ env.CARGO_NDK_VERSION }}
+      - name: Check native background-audio settings
+        run: fvm flutter test test/webview_controller_lifetime_test.dart
+      - name: Build the corrected release APK
+        run: fvm flutter build apk --release --flavor fdroid --target-platform android-x64
+      - name: Save the corrected APK
+        uses: actions/upload-artifact@v4
         with:
           name: media-playback-apk
-          run-id: 42617434385
-          github-token: ${{ github.token }}
-          path: build/app/outputs/flutter-apk
+          path: build/app/outputs/flutter-apk/app-fdroid-release.apk
+          retention-days: 7
+      - name: Release build memory before booting the emulator
+        run: gradle --stop
       - name: Set up audio and video recording
         run: |
           sudo apt-get update -qq
