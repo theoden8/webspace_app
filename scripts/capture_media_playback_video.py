@@ -106,6 +106,12 @@ def progress_after(moment, minimum):
     raise RuntimeError('Audio did not advance while WebSpace was in the background')
 
 
+def audio_diagnostics(name):
+    for service in ['audio', 'media.audio_flinger', 'media.audio_policy']:
+        (OUT / f'{name}-{service}.txt').write_text(capture.adb('shell', 'dumpsys', service))
+    (OUT / f'{name}-pulse.txt').write_bytes(capture.run('pactl', 'list', 'sink-inputs'))
+
+
 def walkthrough():
     capture.adb('shell', 'am', 'start', '-W', '-n', f'{capture.APP}/.MainActivity')
     capture.wait_node(['Play audio'])
@@ -113,6 +119,7 @@ def walkthrough():
     capture.tap_label('Play audio')
     playing = capture.wait_event('playing')
     progress_after(playing['time'], 2)
+    audio_diagnostics('playing')
     capture.evidence('02-audio-playing')
     services = capture.adb('shell', 'dumpsys', 'activity', 'services', capture.APP)
     (OUT / 'services-playing.txt').write_text(services)
@@ -127,6 +134,7 @@ def walkthrough():
     capture.adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
     left = time.time()
     progress_after(left, baseline['currentTime'] + 4)
+    audio_diagnostics('background')
     capture.evidence('03-audio-continues-on-home')
     capture.adb('shell', 'cmd', 'statusbar', 'expand-notifications')
     capture.wait_node(['Demo melody', 'WebSpace audio demo', 'Audio playback demo'])
@@ -151,12 +159,17 @@ def main():
     server = capture.http.server.ThreadingHTTPServer(('127.0.0.1', capture.PORT), Server)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     recording = False
+    monitor = None
     try:
         capture.prepare_emulator()
         capture.open_demo_site(title='Audio playback demo')
         enable_background_audio()
         capture.adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
         capture.adb('shell', 'cmd', 'media_session', 'volume', '--stream', '3', '--set', '15')
+        monitor = subprocess.Popen(['ffmpeg', '-y', '-f', 'pulse', '-i',
+            'review_audio.monitor', '-ac', '2', '-ar', '44100', str(OUT / 'host-audio.wav')],
+            stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+            stderr=(OUT / 'host-audio.log').open('w'))
         capture.console('screenrecord', 'start', '--time-limit', '180', str(OUT / 'media-playback.webm'))
         began = time.monotonic()
         recording = True
@@ -164,6 +177,9 @@ def main():
         elapsed = time.monotonic() - began
         capture.console('screenrecord', 'stop')
         recording = False
+        monitor.communicate(b'q', timeout=15)
+        monitor = None
+        (OUT / 'audio-logcat.txt').write_text(capture.adb('logcat', '-d', '-t', '5000'))
         source_check = subprocess.run(['ffmpeg', '-i', str(OUT / 'media-playback.webm'),
             '-af', 'volumedetect', '-vn', '-f', 'null', '-'], capture_output=True,
             text=True, check=True)
@@ -189,6 +205,8 @@ def main():
             'design': 'legacy', 'app': capture.APP}, indent=2) + '\n')
         print('PASS: media-playback.mp4', flush=True)
     finally:
+        if monitor is not None:
+            monitor.communicate(b'q', timeout=15)
         if recording:
             capture.console('screenrecord', 'stop')
         server.shutdown()
