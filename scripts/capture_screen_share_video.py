@@ -133,7 +133,7 @@ def wait_event(kind, *, moving=False, timeout=60):
 
 def walkthrough():
     adb('shell', 'am', 'start', '-W', '-n', f'{APP}/.MainActivity')
-    node = wait_node(['Add', 'Add Site'], timeout=90)
+    node = wait_node(['Open navigation menu'], timeout=90)
     time.sleep(3)
     evidence('01-webspace')
     tap(node)
@@ -239,6 +239,25 @@ def main():
         # Finish the cold app launch before the encoder competes for CPU.
         adb('shell', 'am', 'start', '-W', '-n', f'{APP}/.MainActivity')
         wait_node(['Add', 'Add Site'], timeout=120)
+        tap_label('App Settings')
+        tap_label('Appearance')
+        for _ in range(5):
+            legacy = labelled(ui(), ['Legacy design'])
+            if legacy:
+                break
+            width, height = map(int, re.findall(r'\d+', adb('shell', 'wm', 'size'))[-2:])
+            adb('shell', 'input', 'swipe', str(width // 2), str(height * 3 // 4),
+                str(width // 2), str(height // 3), '400')
+        if not legacy:
+            raise RuntimeError('Appearance has no Legacy design switch')
+        if legacy[-1].get('checked') != 'true':
+            tap(legacy[-1])
+        if wait_node(['Legacy design']).get('checked') != 'true':
+            raise RuntimeError('Legacy design is not enabled')
+        evidence('00-legacy-design-enabled')
+        adb('shell', 'input', 'keyevent', 'KEYCODE_BACK')
+        adb('shell', 'input', 'keyevent', 'KEYCODE_BACK')
+        wait_node(['Open navigation menu'])
         adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
         time.sleep(3)
         adb('logcat', '-c')
@@ -248,6 +267,7 @@ def main():
             'commit': run('git', 'rev-parse', 'HEAD').decode().strip(),
             'apk_sha256': hashlib.sha256(APK.read_bytes()).hexdigest(),
             'variant': 'fdroidRelease',
+            'design': 'legacy (App Settings > Appearance > Legacy design)',
             'android_api': adb('shell', 'getprop', 'ro.build.version.sdk'),
             'recorder': 'adb emu screenrecord (host emulator, not MediaProjection)',
         }, indent=2) + '\n')

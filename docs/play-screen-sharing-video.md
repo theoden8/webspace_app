@@ -5,6 +5,11 @@ on an Android 15 emulator. It uses the existing `fdroid` flavor's CI signing,
 not the Play signing key. The app entrypoint, permission dialogs and Android
 MediaProjection service are the production implementations.
 
+Before recording, the runner enables **App Settings → Appearance → Legacy
+design** through the visible settings UI and verifies the switch is on. The
+walkthrough starts in the older webspace list and opens Add Site from its
+navigation drawer. The settings screenshot is included as evidence.
+
 Run only this job and its small planner by putting `[ci-only: capture]` in the
 PR head commit message. Once the workflow is on master, a manual **Build and
 Test** run with `capture_only: true` does the same. No other build, test or
