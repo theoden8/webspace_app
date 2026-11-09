@@ -639,6 +639,9 @@ class WebViewFactory {
       // that the desktop test tier drives, which is why the browser test
       // couldn't catch it.
       ..mediaPlaybackRequiresUserGesture = false
+      // Keeping JS alive alone does not keep Android WebView audible when
+      // its window is hidden. Let the opted-in site's native player continue.
+      ..allowBackgroundAudioPlaying = config.backgroundAudioEnabled
       // iOS/macOS: native Safari-style horizontal swipe for back/forward.
       // Only the root site webview opts in (see WebViewConfig.backForwardGestures).
       ..allowsBackForwardNavigationGestures = config.backForwardGestures
