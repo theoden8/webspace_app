@@ -1772,6 +1772,40 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
+  edit-media-playback:
+    name: Package edited media-playback video
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: plan
+    if: needs.plan.outputs.only == 'edit-playback'
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the verified playback recording
+        uses: actions/download-artifact@v4
+        with:
+          name: media-playback-review-video
+          run-id: 42620375523
+          github-token: ${{ github.token }}
+          path: build/playback-edit
+      - name: Install the video editing tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg python3-numpy python3-pil
+      - name: Remove idle intervals and amplify the recorded audio
+        run: /usr/bin/python3 scripts/edit_screen_share_video.py build/playback-edit
+      - name: Upload the edited MP4
+        uses: actions/upload-artifact@v4
+        with:
+          name: edited-media-playback-video
+          path: |
+            build/playback-edit/media-playback-idle-removed.mp4
+            build/playback-edit/idle-removal.json
+          if-no-files-found: error
+          retention-days: 30
+
   edit-screen-share:
     name: Package edited screen-sharing video
     runs-on: ubuntu-latest
