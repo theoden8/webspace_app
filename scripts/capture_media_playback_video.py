@@ -172,8 +172,7 @@ def main():
                 '--video-bit-rate=4M', '--time-limit=180',
                 f'--record={OUT / "media-playback.mkv"}'], stdout=log, stderr=log)
         deadline = time.monotonic() + 30
-        while ('recording started' not in recording_log.read_text().lower() or
-               not (OUT / 'media-playback.mkv').exists() or
+        while (not (OUT / 'media-playback.mkv').exists() or
                (OUT / 'media-playback.mkv').stat().st_size == 0):
             if recorder.poll() is not None or time.monotonic() > deadline:
                 raise RuntimeError(recording_log.read_text())
