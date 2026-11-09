@@ -1759,7 +1759,7 @@ jobs:
           profile: pixel_5
           disk-size: 4096M
           force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -no-boot-anim
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -no-boot-anim -memory 4096
           disable-animations: true
           script: python3 scripts/capture_media_playback_video.py
       - name: Remove unchanged waits

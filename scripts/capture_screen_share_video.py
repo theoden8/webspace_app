@@ -69,7 +69,14 @@ class DemoServer(http.server.BaseHTTPRequestHandler):
 
 
 def ui():
-    adb('shell', 'uiautomator', 'dump', '--compressed', '/sdcard/ws_capture_ui.xml')
+    for attempt in range(3):
+        try:
+            adb('shell', 'uiautomator', 'dump', '--compressed', '/sdcard/ws_capture_ui.xml')
+            break
+        except subprocess.CalledProcessError as error:
+            if error.returncode != 137 or attempt == 2:
+                raise
+            time.sleep(1)
     raw = adb('shell', 'cat', '/sdcard/ws_capture_ui.xml')
     (OUT / 'latest-ui.xml').write_text(raw)
     return ET.fromstring(raw)
