@@ -175,6 +175,7 @@ def walkthrough():
     ready = wait_event('ready')
     if not ready['supported']:
         raise RuntimeError('The page cannot reach getDisplayMedia in this build')
+    tap_label('Screen sharing demo', 'localhost')
     evidence('02-demo-page')
     time.sleep(3)
     tap_label('Start sharing')
@@ -205,7 +206,7 @@ def walkthrough():
     if 'ScreenShareService' not in service or 'isForeground=true' not in service:
         raise RuntimeError('ScreenShareService is not running in the foreground')
     evidence('05-live-screen')
-    time.sleep(8)
+    time.sleep(4)
     adb('shell', 'cmd', 'statusbar', 'expand-notifications')
     wait_node(['Sharing your screen'])
     tree = ui()
