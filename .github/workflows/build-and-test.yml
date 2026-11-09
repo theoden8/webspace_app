@@ -1718,6 +1718,40 @@ jobs:
           path: webspace-macos.zip
           if-no-files-found: error
 
+  edit-screen-share:
+    name: Package edited screen-sharing video
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: plan
+    if: needs.plan.outputs.only == 'edit'
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the verified legacy-design recording
+        uses: actions/download-artifact@v4
+        with:
+          name: screen-sharing-review-video
+          run-id: 42602417084
+          github-token: ${{ github.token }}
+          path: build/review-edit
+      - name: Install the video editing tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg python3-numpy python3-pil
+      - name: Remove idle intervals
+        run: /usr/bin/python3 scripts/edit_screen_share_video.py build/review-edit
+      - name: Upload the edited MP4
+        uses: actions/upload-artifact@v4
+        with:
+          name: edited-screen-sharing-video
+          path: |
+            build/review-edit/screen-sharing-idle-removed.mp4
+            build/review-edit/idle-removal.json
+          if-no-files-found: error
+          retention-days: 30
+
   capture-screen-share:
     name: Record Android screen sharing
     runs-on: ubuntu-latest
