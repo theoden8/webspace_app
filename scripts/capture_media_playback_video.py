@@ -167,12 +167,14 @@ def main():
         capture.adb('shell', 'cmd', 'media_session', 'volume', '--stream', '3', '--set', '15')
         recording_log = OUT / 'recorder.log'
         with recording_log.open('w') as log:
-            recorder = subprocess.Popen(['scrcpy', '--no-playback', '--no-control',
+            recorder = subprocess.Popen(['scrcpy', '--no-window', '--no-playback', '--no-control',
                 '--require-audio', '--audio-codec=aac', '--max-fps=30',
                 '--video-bit-rate=4M', '--time-limit=180',
                 f'--record={OUT / "media-playback.mkv"}'], stdout=log, stderr=log)
         deadline = time.monotonic() + 30
-        while 'recording started' not in recording_log.read_text().lower():
+        while ('recording started' not in recording_log.read_text().lower() or
+               not (OUT / 'media-playback.mkv').exists() or
+               (OUT / 'media-playback.mkv').stat().st_size == 0):
             if recorder.poll() is not None or time.monotonic() > deadline:
                 raise RuntimeError(recording_log.read_text())
             time.sleep(.2)
