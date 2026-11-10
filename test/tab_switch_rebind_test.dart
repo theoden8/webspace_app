@@ -59,7 +59,7 @@ void main() {
         final window = lines
             .sublist(i - 12 < 0 ? 0 : i - 12, i)
             .join('\n');
-        if (window.contains('_sites.loaded.contains(model)')) continue;
+        if (window.contains('_sites.loaded.holdsObject(model)')) continue;
         offenders.add('$rel:${i + 1}: ${lines[i].trim()}');
       }
     });
@@ -70,7 +70,7 @@ void main() {
       reason: 'each of these moves a site\'s active tab without going through '
           'switchActiveTab and without first establishing that the site has '
           'no webview to re-bind. Either call _switchActiveTab, or guard the '
-          'assignment with _sites.loaded.contains(model).',
+          'assignment with _sites.loaded.holdsObject(model).',
     );
   });
 

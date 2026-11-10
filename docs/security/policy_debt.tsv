@@ -1,4 +1,5 @@
 requirement	rule	owed	gap	closed by
+CONT-012	R8	type	flows compare sites by id through ModelKeyed's operators and the model_identity analyzer rule, which is evidence: Dart's ==, contains, indexOf and map keys take Object, so a comparison of two sites as objects outside a library that declares step tables, or by an operator the rule does not list, compiles	leaves typed SiteId (the loaded and current sites, each flow's site), so comparing sites by id is the only comparison the types allow
 CONT-005	R1	type	a container name is made from a ContainerKey only, but ContainerKey.named accepts any path-safe string	a webview's containerId built only from its site's posture, with a probe that a string cannot become one
 ISO-006	R1	model	per-site localStorage, IndexedDB and cache hold only in container mode; legacy mode shares them	the legacy limit stated as a requirement, and storage per isolation mode in the model
 PERM-001	R2	type	the requester's origin is a String: requesterAt takes any	an origin type made only from the platform's frame data or permission request, with a probe that a handler argument cannot become one

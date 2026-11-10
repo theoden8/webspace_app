@@ -80,7 +80,9 @@ class SiteRuntime {
   /// identity changed. Named here so that is the only writer beside the
   /// tables and [apply].
   bool retired(WebViewModel site, {required Commit commit}) {
-    final went = _loaded.remove(site);
+    final before = _loaded.length;
+    _loaded.removeWhere((m) => m.modelKey == site.modelKey);
+    final went = _loaded.length != before;
     if (went) commit.wrote(ModelVar.loaded);
     return went;
   }
@@ -99,17 +101,17 @@ class SiteRuntime {
   /// The row of [shown], or null on the webspace list.
   @Modeled(ModelVar.current)
   int? get current => switch (_shown) {
-    final s? => models.indexOf(s),
+    final s? => models.indexOfKey(s),
     null => null,
   };
 
   /// The rows of [loaded], in its order.
   @Modeled(ModelVar.loaded)
-  Set<int> get loadedRows => {for (final m in loaded) models.indexOf(m)};
+  Set<int> get loadedRows => {for (final m in loaded) models.indexOfKey(m)};
 
   /// Whether the site at [row] has a built webview.
   bool isLoadedAt(int row) =>
-      row >= 0 && row < models.length && _loaded.contains(models[row]);
+      row >= 0 && row < models.length && _loaded.hasKey(models[row]);
 
   /// Bumped by every activation and by every change that shifts positions,
   /// so an activation suspended across an await bails instead of resuming
@@ -230,7 +232,8 @@ class SiteRuntime {
           }
         }
       case SiteRemoved(:final site):
-        if (models.remove(site)) _drop([site]);
+        final row = models.indexOfKey(site);
+        if (row >= 0) _drop([models.removeAt(row)]);
         for (final ws in webspaces) {
           ws.siteIds.remove(site.siteId);
         }
@@ -276,7 +279,7 @@ class SiteRuntime {
         webspaces.removeWhere((w) => webspaceIds.contains(w.id));
     }
     for (final m in before) {
-      if (!models.contains(m)) m.disposeWebView(commit: commit);
+      if (!models.holdsObject(m)) m.disposeWebView(commit: commit);
     }
     // LIR-034: a tab follows a listed opener only, so one that left the list
     // leaves the tabs it opened following nothing, in the commit that takes
@@ -295,7 +298,7 @@ class SiteRuntime {
         ].contains(false);
     if (moved) {
       commit.wrote(ModelVar.rows);
-      if (before.any((m) => !models.contains(m))) commit.wrote(ModelVar.gone);
+      if (before.any((m) => !models.hasKey(m))) commit.wrote(ModelVar.gone);
     }
     if (was.loaded.length != _loaded.length ||
         !was.loaded.containsAll(_loaded)) {
@@ -305,8 +308,8 @@ class SiteRuntime {
     if (was.version != _version) commit.wrote(ModelVar.version);
     resolveWebspaceIndices();
     assert(
-      _loaded.every(models.contains) &&
-          (_shown == null || models.contains(_shown)),
+      _loaded.every(models.holdsObject) &&
+          (_shown == null || models.holdsObject(_shown!)),
       'a site that left the list is still loaded or shown',
     );
   }
@@ -346,7 +349,7 @@ class SiteRuntime {
   /// Of [among], evictable sites in least recently used order, the one an
   /// eviction takes first: the lowest retention priority, oldest first.
   WebViewModel firstToEvict(Iterable<WebViewModel> among) {
-    final rows = [for (final m in among) models.indexOf(m)];
+    final rows = [for (final m in among) models.indexOfKey(m)];
     return models[evictionOrder(rows, priorityOf: retentionPriority).first];
   }
 

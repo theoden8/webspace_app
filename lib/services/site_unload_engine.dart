@@ -297,7 +297,7 @@ class SiteUnloadEngine {
   }) {
     final models = host.models;
     // Rows hold for the plan, which awaits nothing; it names sites.
-    final loaded = {for (final m in host.vars.loaded.value) models.indexOf(m)};
+    final loaded = {for (final m in host.vars.loaded.value) models.indexOfKey(m)};
     final unloads = <({WebViewModel site, UnloadReason reason})>[];
     void unload(Iterable<int> indices, {required UnloadReason reason}) {
       for (final i in indices.toList()) {
@@ -308,7 +308,7 @@ class SiteUnloadEngine {
 
     final identities = host.identities();
     // The row of the site the slot at [slot] runs as (LIR-024).
-    int identityOf(int slot) => models.indexOf(identities[slot]);
+    int identityOf(int slot) => models.indexOfKey(identities[slot]);
     Set<int> proxyContenders({required int runsAs}) =>
         indicesToUnloadForProxyMismatch(
           runsAs: runsAs,
@@ -337,7 +337,7 @@ class SiteUnloadEngine {
         unload(
           [
             for (final m in conflictsOf(host, site: models[target]))
-              models.indexOf(m),
+              models.indexOfKey(m),
           ],
           reason: UnloadReason.domainConflict,
         );
@@ -902,7 +902,7 @@ class SiteUnloadEngine {
     required WebViewModel runsAs,
   }) => [
     for (final i in indicesToUnloadForProxyMismatch(
-      runsAs: host.models.indexOf(runsAs),
+      runsAs: host.models.indexOfKey(runsAs),
       sites: host.models,
       models: host.identities(),
       loadedIndices: _rows(host, of: host.vars.loaded.value),
@@ -919,7 +919,7 @@ class SiteUnloadEngine {
     required WebViewModel runsAs,
   }) => [
     for (final i in indicesToUnloadForTorExitMismatch(
-      runsAs: host.models.indexOf(runsAs),
+      runsAs: host.models.indexOfKey(runsAs),
       sites: host.models,
       models: host.identities(),
       loadedIndices: _rows(host, of: host.vars.loaded.value),
@@ -929,7 +929,7 @@ class SiteUnloadEngine {
   ];
 
   static Set<int> _rows(SiteUnloadHost host, {required Iterable<WebViewModel> of}) => {
-    for (final m in of) host.models.indexOf(m),
+    for (final m in of) host.models.indexOfKey(m),
   };
 
   /// Sites that must be unloaded because a webview running as the site at
@@ -1008,7 +1008,7 @@ class SiteUnloadEngine {
       ModelDef.runsAs.over([slot], run: (c) => _rowOf(_world.from(c), slot: slot.run(c)));
 
   static int _rowOf(ProxySlots w, {required int slot}) {
-    final row = w.sites.indexOf(w.slots[slot]);
+    final row = w.sites.indexOfKey(w.slots[slot]);
     assert(row >= 0, 'slot $slot runs as a site that is not listed');
     return row;
   }
@@ -1218,7 +1218,7 @@ class SiteUnloadEngine {
     required WebViewModel? shown,
     required Iterable<WebViewModel> loaded,
   }) => {
-    if (shown != null && loaded.contains(shown)) shown,
+    if (shown != null && loaded.hasKey(shown)) shown,
     ...loaded.toList().reversed,
   };
 
@@ -1274,7 +1274,7 @@ final class UnloadFlow implements Capturing {
   NavCapture? capture;
 
   UnloadReason reasonOf(WebViewModel site) =>
-      plan.unloads.firstWhere((u) => u.site == site).reason;
+      plan.unloads.firstWhere((u) => u.site.modelKey == site.modelKey).reason;
 
   void disposed(WebViewModel site) =>
       host.noteUnloaded(site, reason: reasonOf(site));

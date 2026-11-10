@@ -106,7 +106,7 @@ class SiteResetController {
   /// A site with tabs is not sent home in place: it lands on a tab at home,
   /// and the tab it was on stays in its list (TAB-014).
   Future<void> resetHomeOnLaunch(WebViewModel launched) async {
-    final launchedIndex = _sites.models.indexOf(launched);
+    final launchedIndex = _sites.models.indexOfObject(launched);
     if (launchedIndex < 0) return;
     final indices = WebspaceSelectionEngine.indicesToResetOnShortcutLaunch(
       launchedIndex: launchedIndex,
@@ -125,7 +125,7 @@ class SiteResetController {
         if (_tabs.enabledFor(m)) m,
     ];
     for (final m in sites) {
-      if (withTabs.contains(m)) continue;
+      if (withTabs.holdsObject(m)) continue;
       if (m.currentUrl == m.initUrl && m.webview == null) continue;
       await _tabs.bindOwnerRunTab(m);
       if (!_host.mounted) return;

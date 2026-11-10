@@ -136,7 +136,7 @@ void main() {
       final body = bodyOf(links, signature: 'Future<void> searchFromUrlBar(');
       expect(firstStatement(links, signature: 'Future<void> searchFromUrlBar('),
           contains('_host.kioskLocked'));
-      expect(body, contains('outboundCandidates(owner).contains(site)'));
+      expect(body, contains('outboundCandidates(owner).hasKey(site)'));
       expect(
           body,
           contains(

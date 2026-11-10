@@ -138,7 +138,7 @@ final class SiteSetCommit {
       if (!_host.mounted) return;
     }
     if (landed.shownBefore case final shown?
-        when !_sites.models.contains(shown)) {
+        when !_sites.models.holdsObject(shown)) {
       _host.screenEmptied();
     }
     if (_sites.selectedWebspaceId != landed.selectionBefore) {
