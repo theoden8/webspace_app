@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Pridėti {name}?",
   "extensionsAsks": "Jis prašo: {permissions}",
   "extensionsAsksNothing": "Jis neprašo jokių leidimų.",
+  "extensionsNotGiven": "Čia nesuteikiama: {permissions}. Tai, kam jų reikia, neveiks.",
   "extensionsReaches": "Puslapiai, kuriuos jis prašo pasiekti: {hosts}",
   "extensionsReachesNothing": "Jis neprašo pasiekti jokių puslapių.",
   "extensionsOnlyItsSite": "Kiekvienoje svetainėje, kurioje jį įjungiate, jis pasiekia tik tos svetainės puslapius.",

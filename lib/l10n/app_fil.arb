@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Idagdag ang {name}?",
   "extensionsAsks": "Hinihingi nito: {permissions}",
   "extensionsAsksNothing": "Wala itong hinihinging pahintulot.",
+  "extensionsNotGiven": "Hindi ibinibigay dito: {permissions}. Hindi gagana ang nangangailangan ng mga ito.",
   "extensionsReaches": "Mga pahinang gusto nitong maabot: {hosts}",
   "extensionsReachesNothing": "Wala itong pahinang gustong maabot.",
   "extensionsOnlyItsSite": "Sa bawat site kung saan mo ito ino-on, mga pahina lang ng site na iyon ang naaabot nito.",

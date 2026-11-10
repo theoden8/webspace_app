@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "要新增 {name} 嗎？",
   "extensionsAsks": "要求的權限：{permissions}",
   "extensionsAsksNothing": "不要求任何權限。",
+  "extensionsNotGiven": "此處不會授予：{permissions}。需要這些權限的部分將無法運作。",
   "extensionsReaches": "要求存取的網頁：{hosts}",
   "extensionsReachesNothing": "不要求存取任何網頁。",
   "extensionsOnlyItsSite": "在您為其開啟的每個網站上，它只能存取該網站的網頁。",

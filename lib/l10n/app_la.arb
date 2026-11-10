@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "{name} addere?",
   "extensionsAsks": "Petit: {permissions}",
   "extensionsAsksNothing": "Nullas permissiones petit.",
+  "extensionsNotGiven": "Hic non dantur: {permissions}. Quae eis egent non operabuntur.",
   "extensionsReaches": "Paginae quas attingere petit: {hosts}",
   "extensionsReachesNothing": "Nullas paginas attingere petit.",
   "extensionsOnlyItsSite": "In quoque situ pro quo eam accendis, solum paginas illius situs attingit.",

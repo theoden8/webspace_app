@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Iżżid {name}?",
   "extensionsAsks": "Titlob: {permissions}",
   "extensionsAsksNothing": "Ma titlob l-ebda permess.",
+  "extensionsNotGiven": "Mhux mogħtija hawn: {permissions}. Dak li jeħtieġhom mhux se jaħdem.",
   "extensionsReaches": "Paġni li titlob li tilħaq: {hosts}",
   "extensionsReachesNothing": "Ma titlob li tilħaq l-ebda paġna.",
   "extensionsOnlyItsSite": "Fuq kull sit fejn tixgħelha, tilħaq biss il-paġni ta' dak is-sit.",

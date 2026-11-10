@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "დაემატოს {name}?",
   "extensionsAsks": "ითხოვს: {permissions}",
   "extensionsAsksNothing": "არცერთ ნებართვას არ ითხოვს.",
+  "extensionsNotGiven": "აქ არ ეძლევა: {permissions}. რასაც ისინი სჭირდება, არ იმუშავებს.",
   "extensionsReaches": "გვერდები, რომლებზეც წვდომას ითხოვს: {hosts}",
   "extensionsReachesNothing": "არცერთ გვერდზე წვდომას არ ითხოვს.",
   "extensionsOnlyItsSite": "ყველა საიტზე, სადაც მას ჩართავთ, ის მხოლოდ ამ საიტის გვერდებს სწვდება.",

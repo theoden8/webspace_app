@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Legge til {name}?",
   "extensionsAsks": "Den ber om: {permissions}",
   "extensionsAsksNothing": "Den ber ikke om noen tillatelser.",
+  "extensionsNotGiven": "Gis ikke her: {permissions}. Det som trenger dem, vil ikke virke.",
   "extensionsReaches": "Sider den ber om tilgang til: {hosts}",
   "extensionsReachesNothing": "Den ber ikke om tilgang til noen sider.",
   "extensionsOnlyItsSite": "På hvert nettsted du slår den på for, når den bare sidene til det nettstedet.",

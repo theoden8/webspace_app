@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "{name} を追加しますか？",
   "extensionsAsks": "要求する権限: {permissions}",
   "extensionsAsksNothing": "権限は要求していません。",
+  "extensionsNotGiven": "ここでは与えられません: {permissions}。これらを必要とする機能は動作しません。",
   "extensionsReaches": "アクセスを求めるページ: {hosts}",
   "extensionsReachesNothing": "ページへのアクセスは求めていません。",
   "extensionsOnlyItsSite": "オンにした各サイトでは、そのサイトのページにのみアクセスします。",

@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Tambah {name}?",
   "extensionsAsks": "Ia meminta: {permissions}",
   "extensionsAsksNothing": "Ia tidak meminta sebarang kebenaran.",
+  "extensionsNotGiven": "Tidak diberikan di sini: {permissions}. Apa yang memerlukannya tidak akan berfungsi.",
   "extensionsReaches": "Halaman yang ingin dicapainya: {hosts}",
   "extensionsReachesNothing": "Ia tidak meminta untuk mencapai sebarang halaman.",
   "extensionsOnlyItsSite": "Pada setiap tapak yang anda hidupkannya, ia hanya mencapai halaman tapak itu.",

@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "{name} जोडायचे?",
   "extensionsAsks": "तो मागतो: {permissions}",
   "extensionsAsksNothing": "तो कोणतीही परवानगी मागत नाही.",
+  "extensionsNotGiven": "येथे दिल्या जात नाहीत: {permissions}. ज्यांना यांची गरज आहे ते काम करणार नाही.",
   "extensionsReaches": "तो पोहोचू इच्छित असलेली पृष्ठे: {hosts}",
   "extensionsReachesNothing": "तो कोणत्याही पृष्ठापर्यंत पोहोचू इच्छित नाही.",
   "extensionsOnlyItsSite": "तुम्ही तो चालू केलेल्या प्रत्येक साइटवर, तो फक्त त्या साइटच्या पृष्ठांपर्यंत पोहोचतो.",

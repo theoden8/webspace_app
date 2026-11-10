@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Bæta við {name}?",
   "extensionsAsks": "Hún biður um: {permissions}",
   "extensionsAsksNothing": "Hún biður ekki um neinar heimildir.",
+  "extensionsNotGiven": "Ekki veitt hér: {permissions}. Það sem þarfnast þeirra mun ekki virka.",
   "extensionsReaches": "Síður sem hún biður um aðgang að: {hosts}",
   "extensionsReachesNothing": "Hún biður ekki um aðgang að neinum síðum.",
   "extensionsOnlyItsSite": "Á hverju vefsvæði sem þú kveikir á henni fyrir nær hún aðeins til síðna þess vefsvæðis.",

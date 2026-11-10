@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Προσθήκη {name};",
   "extensionsAsks": "Ζητά: {permissions}",
   "extensionsAsksNothing": "Δεν ζητά καμία άδεια.",
+  "extensionsNotGiven": "Δεν παραχωρούνται εδώ: {permissions}. Ό,τι τις χρειάζεται δεν θα λειτουργεί.",
   "extensionsReaches": "Σελίδες στις οποίες ζητά πρόσβαση: {hosts}",
   "extensionsReachesNothing": "Δεν ζητά πρόσβαση σε καμία σελίδα.",
   "extensionsOnlyItsSite": "Σε κάθε ιστότοπο για τον οποίο την ενεργοποιείτε, φτάνει μόνο στις σελίδες αυτού του ιστότοπου.",

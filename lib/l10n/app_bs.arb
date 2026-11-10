@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Dodati {name}?",
   "extensionsAsks": "Traži: {permissions}",
   "extensionsAsksNothing": "Ne traži nikakve dozvole.",
+  "extensionsNotGiven": "Ovdje se ne daju: {permissions}. Ono što ih treba neće raditi.",
   "extensionsReaches": "Stranice kojima traži pristup: {hosts}",
   "extensionsReachesNothing": "Ne traži pristup nijednoj stranici.",
   "extensionsOnlyItsSite": "Na svakoj stranici za koju ga uključite doseže samo njene vlastite stranice.",

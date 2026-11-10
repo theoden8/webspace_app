@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "{name} gehitu?",
   "extensionsAsks": "Baimen hauek eskatzen ditu: {permissions}",
   "extensionsAsksNothing": "Ez du baimenik eskatzen.",
+  "extensionsNotGiven": "Hemen ez dira ematen: {permissions}. Horiek behar dituena ez da ibiliko.",
   "extensionsReaches": "Atzitu nahi dituen orriak: {hosts}",
   "extensionsReachesNothing": "Ez du orririk atzitu nahi.",
   "extensionsOnlyItsSite": "Aktibatzen duzun gune bakoitzean, gune horren orrietara soilik iristen da.",

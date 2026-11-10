@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "{name} ይታከል?",
   "extensionsAsks": "የሚጠይቀው: {permissions}",
   "extensionsAsksNothing": "ምንም ፈቃድ አይጠይቅም።",
+  "extensionsNotGiven": "እዚህ አይሰጡም፦ {permissions}። እነዚህን የሚፈልገው አይሰራም።",
   "extensionsReaches": "ሊደርስባቸው የሚጠይቃቸው ገጾች: {hosts}",
   "extensionsReachesNothing": "ምንም ገጽ ለመድረስ አይጠይቅም።",
   "extensionsOnlyItsSite": "ባበሩት በእያንዳንዱ ጣቢያ ላይ የሚደርሰው የዚያን ጣቢያ ገጾች ብቻ ነው።",

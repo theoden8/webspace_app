@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "{name} شامل کریں؟",
   "extensionsAsks": "یہ مانگتی ہے: {permissions}",
   "extensionsAsksNothing": "یہ کوئی اجازت نہیں مانگتی۔",
+  "extensionsNotGiven": "یہاں نہیں دی جاتیں: {permissions}۔ جسے ان کی ضرورت ہے وہ کام نہیں کرے گا۔",
   "extensionsReaches": "صفحات جن تک یہ پہنچنا چاہتی ہے: {hosts}",
   "extensionsReachesNothing": "یہ کسی صفحے تک نہیں پہنچنا چاہتی۔",
   "extensionsOnlyItsSite": "جس بھی سائٹ کے لیے آپ اسے آن کریں، وہاں یہ صرف اسی سائٹ کے صفحات تک پہنچتی ہے۔",

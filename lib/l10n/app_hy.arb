@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Ավելացնե՞լ {name}-ը",
   "extensionsAsks": "Այն պահանջում է՝ {permissions}",
   "extensionsAsksNothing": "Այն ոչ մի թույլտվություն չի պահանջում։",
+  "extensionsNotGiven": "Այստեղ չեն տրվում՝ {permissions}։ Այն, ինչին դրանք պետք են, չի աշխատի։",
   "extensionsReaches": "Էջեր, որոնց այն ուզում է հասնել՝ {hosts}",
   "extensionsReachesNothing": "Այն ոչ մի էջի հասնել չի խնդրում։",
   "extensionsOnlyItsSite": "Յուրաքանչյուր կայքում, որտեղ այն միացնում եք, այն հասնում է միայն այդ կայքի էջերին։",

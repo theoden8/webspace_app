@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Pievienot {name}?",
   "extensionsAsks": "Tas pieprasa: {permissions}",
   "extensionsAsksNothing": "Tas nepieprasa nekādas atļaujas.",
+  "extensionsNotGiven": "Šeit netiek piešķirtas: {permissions}. Tas, kam tās vajadzīgas, nedarbosies.",
   "extensionsReaches": "Lapas, kurām tas lūdz piekļuvi: {hosts}",
   "extensionsReachesNothing": "Tas nelūdz piekļuvi nevienai lapai.",
   "extensionsOnlyItsSite": "Katrā vietnē, kurā to ieslēdzat, tas piekļūst tikai šīs vietnes lapām.",

@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "إضافة {name}؟",
   "extensionsAsks": "تطلب: {permissions}",
   "extensionsAsksNothing": "لا تطلب أي أذونات.",
+  "extensionsNotGiven": "لا تُمنح هنا: {permissions}. ما يحتاج إليها لن يعمل.",
   "extensionsReaches": "الصفحات التي تطلب الوصول إليها: {hosts}",
   "extensionsReachesNothing": "لا تطلب الوصول إلى أي صفحات.",
   "extensionsOnlyItsSite": "في كل موقع تفعّلها له، لا تصل إلا إلى صفحات ذلك الموقع.",
