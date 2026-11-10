@@ -32,7 +32,11 @@ import 'package:webspace/services/outbound_http.dart';
 // under analysis): the real pin's private-target error and the env-proxy
 // injection point. This is a VM test, so the direct platform import is fine.
 import 'package:webspace/services/outbound_http_io.dart'
-    show pageSteeredFindProxy, resetPageSteeredFindProxy, PageSteeredPrivateTarget;
+    show
+        pageSteeredFindProxy,
+        resetPageSteeredFindProxy,
+        PageSteeredPrivateTarget,
+        OnionNeedsProxyFailure;
 import 'package:webspace/settings/proxy.dart';
 
 void main() {
@@ -399,8 +403,8 @@ void main() {
       // and the per-connection connectionFactory judge never runs for it. The
       // per-request guard resolves and judges every request, so b.test (which
       // resolves to a private address) is refused even while sharing a.test's
-      // pooled proxy connection. On e62d0c8 (one client per fetch) this was
-      // refused by a fresh connection's judge; the shared client dropped it.
+      // pooled proxy connection. Red against a plant that drops the per-request
+      // check (resolvesLocally skipped): b.test then reaches the proxy.
       final proxied = <String>[];
       final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       proxy.listen((req) async {
@@ -456,6 +460,177 @@ void main() {
       expect(proxied, ['a.test'],
           reason: 'only the public destination reached the proxy; b.test was '
               'refused before any byte was sent');
+    });
+
+    test('a redirect to a private target over a pooled proxy connection is '
+        'refused per request', () async {
+      // The redirect variant of M1: a 302 (empty body) to a host that resolves
+      // private, over the kept-alive proxied connection, is judged by the
+      // per-request guard at the hop, not only by the first connection's factory.
+      final proxied = <String>[];
+      final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      proxy.listen((req) async {
+        proxied.add(req.uri.host);
+        if (req.uri.host == 'a.test') {
+          req.response.statusCode = 302;
+          req.response.headers.set('location', 'http://lan.test/x');
+          req.response.headers.contentLength = 0;
+        } else {
+          req.response.statusCode = 200;
+        }
+        await req.response.close();
+      });
+      addTearDown(() => proxy.close(force: true));
+      pageSteeredFindProxy = (_) => 'PROXY 127.0.0.1:${proxy.port}';
+      addTearDown(resetPageSteeredFindProxy);
+      hostLookup = (h) async =>
+          h == 'lan.test' ? const ['10.0.0.9'] : const ['93.184.216.34'];
+
+      Object? err;
+      await withPageSteeredClient(
+        OutboundProxy.app.resolved,
+        body: (client) async {
+          try {
+            await followPageSteeredReusing(
+              client,
+              url: Uri.parse('http://a.test/start'),
+              follow: PageSteeredFollow<void>(
+                permit: (_) async => true,
+                read: (r) => r.stream.drain<void>(),
+              ),
+            ).timeout(const Duration(seconds: 5));
+          } on IOException catch (e) {
+            err = e;
+          }
+        },
+      );
+      expect(err, isA<PageSteeredPrivateTarget>());
+      expect(proxied, ['a.test'],
+          reason: 'the private redirect target was refused before it reached '
+              'the proxy over the pooled connection');
+    });
+  });
+
+  group('an onion host never reaches the device resolver (LEAK-016)', () {
+    test('an onion favicon on a DEFAULT route behind an env proxy is refused '
+        'before any lookup', () async {
+      // The per-request env-proxy judge used to resolve the destination, which
+      // leaked an onion name to the device resolver; the onion refusal now runs
+      // before the resolve.
+      final looked = <String>[];
+      hostLookup = (h) async {
+        looked.add(h);
+        return const ['93.184.216.34'];
+      };
+      pageSteeredFindProxy = (_) => 'PROXY 127.0.0.1:$privatePort';
+      addTearDown(resetPageSteeredFindProxy);
+
+      final err = await fetch('http://abcdefghij.onion/i.png');
+      expect(err, isA<OnionNeedsProxyFailure>());
+      expect(looked, isEmpty,
+          reason: 'the onion name never reached the device resolver');
+      expect(privateConnections, 0);
+    });
+
+    test('a redirect to an onion over a pooled proxy connection is refused '
+        'without a lookup', () async {
+      // a.test (public) answers a 302 to an onion; the onion hop, judged per
+      // request, is refused before any lookup over the shared proxied connection.
+      final looked = <String>[];
+      final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      proxy.listen((req) async {
+        if (req.uri.host == 'a.test') {
+          req.response.statusCode = 302;
+          req.response.headers.set('location', 'http://abcdefghij.onion/x');
+          req.response.headers.contentLength = 0;
+        } else {
+          req.response.statusCode = 200;
+        }
+        await req.response.close();
+      });
+      addTearDown(() => proxy.close(force: true));
+      pageSteeredFindProxy = (_) => 'PROXY 127.0.0.1:${proxy.port}';
+      addTearDown(resetPageSteeredFindProxy);
+      hostLookup = (h) async {
+        looked.add(h);
+        return const ['93.184.216.34'];
+      };
+
+      Object? err;
+      await withPageSteeredClient(
+        OutboundProxy.app.resolved,
+        body: (client) async {
+          try {
+            await followPageSteeredReusing(
+              client,
+              url: Uri.parse('http://a.test/start'),
+              follow: PageSteeredFollow<void>(
+                permit: (_) async => true,
+                read: (r) => r.stream.drain<void>(),
+              ),
+            ).timeout(const Duration(seconds: 5));
+          } on IOException catch (e) {
+            err = e;
+          }
+        },
+      );
+      expect(err, isA<OnionNeedsProxyFailure>());
+      expect(looked, isNot(contains('abcdefghij.onion')),
+          reason: 'the onion redirect target never reached the device resolver');
+    });
+  });
+
+  group('withPageSteeredClient bounds the discovery and cuts the socket (L1)',
+      () {
+    test('a hung fetch stops once the deadline closes the shared client',
+        () async {
+      // The reused client cannot be closed per fetch, so withPageSteeredClient
+      // owns the deadline: when it fires it closes the shared client, cutting the
+      // socket. Deleting the deadline leaves a hung page draining with no bound,
+      // so this test hangs (its TimeoutException never arrives).
+      var received = 0;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((req) async {
+        req.response.bufferOutput = false;
+        try {
+          while (true) {
+            req.response.add(List.filled(256, 7));
+            await req.response.flush();
+            await Future<void>.delayed(const Duration(milliseconds: 10));
+          }
+        } on HttpException {
+          // the client went away
+        } on SocketException {
+          // the client went away
+        } on StateError catch (e) {
+          if (!e.toString().toLowerCase().contains('clos')) rethrow;
+        }
+      });
+      addTearDown(() => server.close(force: true));
+      hostLookup = (_) async => const ['127.0.0.1'];
+
+      await expectLater(
+        withPageSteeredClient(
+          OutboundProxy.app.resolved,
+          allowPrivateHost: 'sink.test',
+          timeout: const Duration(milliseconds: 300),
+          body: (client) => followPageSteeredReusing(
+            client,
+            url: Uri.parse('http://sink.test:${server.port}/'),
+            follow: PageSteeredFollow<void>(
+              permit: (_) async => true,
+              read: (r) => r.stream.forEach((c) => received += c.length),
+            ),
+          ),
+        ),
+        throwsA(isA<TimeoutException>()),
+      );
+
+      final atTimeout = received;
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+      expect(received, lessThan(atTimeout + 1024),
+          reason: 'the deadline closed the shared client, so little or no more '
+              'body arrived after it fired');
     });
   });
 }

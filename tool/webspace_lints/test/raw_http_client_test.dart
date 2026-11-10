@@ -175,6 +175,31 @@ class Raw implements OutboundHttpFactory {
     ]);
   }
 
+  Future<void> test_a_lookalike_seam_library_is_not_exempt() async {
+    // L3: a library named like the seam's but not one of its four
+    // (lib/services/outbound_http_raw.dart) gets no exemption, so a factory it
+    // declares cannot open a raw client.
+    final path =
+        '$testPackageRootPath/lib/services/outbound_http_raw.dart';
+    final source =
+        '''
+$_ours
+class Raw implements OutboundHttpFactory {
+  @override
+  http.Client clientFor() => /*here*/http.Client()/*end*/;
+}
+''';
+    newFile(path, source);
+    final at = source.indexOf('/*here*/') + '/*here*/'.length;
+    await assertDiagnosticsInFile(path, [
+      lint(
+        at,
+        source.indexOf('/*end*/') - at,
+        messageContainsAll: ["'Client' opens a connection"],
+      ),
+    ]);
+  }
+
   Future<void> test_a_seam_by_name_alone_is_not() async {
     final source =
         '''

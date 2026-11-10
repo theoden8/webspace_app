@@ -241,7 +241,10 @@ test('no fetcher follows a page-steered redirect by hand', () => {
 // tear-off, or a helper a GUARDED fetcher then calls) and this fires. Tests live
 // under test/, not lib, so a VM test that builds the real factory is unaffected.
 test('only the seam entry imports a platform half', () => {
-  const re = /\b(import|export)\b[^\n;]*outbound_http_(io|web)\.dart/;
+  // Match the quoted URI string itself, on any line, so a directive split across
+  // lines (`import` on one line, the URI on the next) cannot slip past — CI runs
+  // no dart format to normalise it.
+  const re = /['"][^'"]*outbound_http_(io|web)\.dart['"]/;
   const importers = dartFiles('lib').filter((f) => re.test(read(f)));
   assert.deepEqual(importers, ['lib/services/outbound_http.dart'],
     'only lib/services/outbound_http.dart may import a platform half '

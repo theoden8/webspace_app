@@ -162,21 +162,27 @@ than copy the range table.**
    mutation; a timeout test shows the deadline cuts the socket; a
    refused-302-with-endless-body test fails if the 3xx body is drained rather than
    cancelled.
-   A second review round fixed a connection-reuse hole and tightened the claims
-   (all regression-tested, each red on `e62d0c8` and green at head): **M1** — the
-   shared client reused a pooled connection behind an OS env proxy, so a second
-   destination skipped the per-connection judge; `_PageSteeredLiteralGuard.send`
-   now resolves and judges every request when an env proxy carries a DEFAULT
-   route, closing the pooled and the kept-alive-redirect variants. **M2** — the
-   import probe above (no lib file but `outbound_http.dart` imports a half).
-   **L1** — the reused client cannot be closed per fetch, so the discovery-wide
-   deadline moved onto `withPageSteeredClient`, which closes the shared client and
-   cuts the socket; the outer `.timeout` is gone. **L3** — `raw_http_client`'s seam
-   exemption is limited to the `outbound_http*.dart` libraries, so a fake factory
-   in a fetcher gets no raw-client pass. Four committed regression tests pin the
-   first-round fixes: an off-whitelist URL confirmed once, `__wsFetch` one lookup,
-   a windows-1251 page still yielding its icon, and one shared client for a
-   multi-icon discovery.
+   Later review rounds fixed a connection-reuse hole, an onion-name leak it
+   introduced, and tightened the claims. **M1** — the shared client reused a
+   pooled connection behind an OS env proxy, so a second destination skipped the
+   per-connection judge; `_PageSteeredLiteralGuard.send` now resolves and judges
+   every request when an env proxy carries a DEFAULT route, closing the pooled and
+   the kept-alive-redirect variants. That per-request resolve briefly leaked an
+   onion name to the device resolver; an onion host is now refused before the
+   resolve (LEAK-016). **M2** — the import probe above refuses a direct import of a
+   platform half (only `outbound_http.dart` imports one), matching the quoted URI
+   on any line so a split directive cannot pass. **L1** — the reused client cannot
+   be closed per fetch, so the discovery-wide deadline moved onto
+   `withPageSteeredClient`, which closes the shared client and cuts the socket; the
+   outer `.timeout` is gone. **L3** — `raw_http_client`'s seam exemption is limited
+   to the seam's four libraries by exact URI, so a fake factory in a fetcher (or a
+   lookalike `outbound_http_raw.dart`) gets no raw-client pass. The four first-round
+   regression tests are red on `e62d0c8` and green at head (an off-whitelist URL
+   confirmed once, `__wsFetch` one lookup, a windows-1251 page still yielding its
+   icon, and one shared client *built* for a multi-icon discovery — it counts
+   `clientFor` builds, not TCP connections); M1's env-proxy and redirect tests, the
+   two onion tests and the deadline test are red against a plant, since the
+   injectable and the per-request guard postdate `e62d0c8`.
    *Why:* attempt 5's pin judged every hop only under DEFAULT; under an on-device
    forwarding proxy an auto-follow fetcher's hop-2 redirect to a LAN literal was
    forwarded, seen by no guard.
@@ -219,6 +225,13 @@ than copy the range table.**
   describes a network the request never traverses — and a Tor user may have no
   local resolver at all. The literal guard still refuses private literals on
   these routes; a name's far-end resolution is the proxy's to judge.
+- **A rebind between the per-request judge and an env proxy's own resolution.**
+  The M1 per-request guard refuses a name whose *local* answer is private, but an
+  OS env proxy resolves the name again at its end to connect. A record that flips
+  between the two, or an on-device forwarding proxy whose internal resolver
+  answers differently from the device's, reaches an address the guard did not
+  judge. Narrower than closing it at the egress, and it needs an attacker-chosen
+  short-TTL record plus an env proxy; recorded, not yet closed.
 - **Enumeration: downloads and the TLS-trust prompt remain.** Favicons and page
   icon bytes are now GUARDED (attempt 5). A download is a user-confirmed action
   that lands in a file, not back in the page, and the TLS-trust prompt is its own

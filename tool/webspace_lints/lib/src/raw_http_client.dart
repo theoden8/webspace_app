@@ -101,8 +101,18 @@ class _Visitor extends SimpleAstVisitor<void> {
   static bool _inHttp(Element element) =>
       element.library?.uri.toString().startsWith('package:http/') ?? false;
 
+  /// The outbound_http seam's four libraries, by the tail of their import URI.
+  /// The exemption below is limited to exactly these: a new
+  /// `lib/services/outbound_http_raw.dart` is not one, so it gets no pass (L3).
+  static const _seamLibraries = {
+    '/services/outbound_http.dart',
+    '/services/outbound_http_io.dart',
+    '/services/outbound_http_web.dart',
+    '/services/outbound_http_types.dart',
+  };
+
   /// Whether [node] is inside a class that implements `OutboundHttpFactory`
-  /// *within the outbound_http seam's own libraries*. The library check matters:
+  /// *within one of the seam's own libraries*. The library check matters:
   /// without it a fake that implements `OutboundHttpFactory` anywhere (a page
   /// fetcher's planted `_Raw implements OutboundHttpFactory`) would inherit the
   /// raw-client exemption and reach the network unseen (L3).
@@ -113,7 +123,7 @@ class _Visitor extends SimpleAstVisitor<void> {
         ?.element;
     if (owner == null) return false;
     final uri = owner.library?.uri.toString() ?? '';
-    if (!uri.contains('/services/outbound_http')) return false;
+    if (!_seamLibraries.any(uri.endsWith)) return false;
     return owner.allSupertypes.any(
       (t) => t.element.name == 'OutboundHttpFactory',
     );

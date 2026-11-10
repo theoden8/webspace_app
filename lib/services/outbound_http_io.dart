@@ -456,6 +456,13 @@ class _PageSteeredLiteralGuard extends http.BaseClient {
     if (!allowed && isPrivateOrLoopbackHost(host)) {
       throw PageSteeredPrivateTarget(Host(host), resolvedAddress: host);
     }
+    // An onion host must never reach the device's resolver (LEAK-016): refuse it
+    // before the per-request resolve below could look it up. On a DEFAULT route
+    // the destination is resolved on the device, so this is where the leak would
+    // be; a proxied route resolves at the far end and never calls this.
+    if (resolvesLocally && Host(host).isOnion) {
+      throw OnionNeedsProxyFailure(Host(host));
+    }
     // A DEFAULT page-steered request carried by an OS env proxy: dart:io pools
     // plain-http connections by the proxy's host:port, so a second destination
     // reuses the first's connection and the per-connection connectionFactory
