@@ -1,7 +1,18 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
+import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/outbound_http.dart';
+
+import 'helpers/fake_outbound.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -352,6 +363,44 @@ void main() {
           .toList();
       expect(lines.length, lines.toSet().length);
       expect(lines.length, service.domainCount);
+    });
+  });
+
+  group('DNS-001 a mirror is left only once it goes quiet', () {
+    tearDown(resetOutboundHttp);
+
+    /// A list of megabytes comes over Tor in parts seconds apart. A limit
+    /// of 15 s on the whole download gave up on it however steadily it came.
+    test('a list that arrives slowly is read whole, after a mirror that went '
+        'quiet', () {
+      final list = [for (var i = 0; i < 2000; i++) 'blocked$i.example'].join('\n');
+      Stream<List<int>> slowly() async* {
+        final part = (list.length / 5).ceil();
+        for (var at = 0; at < list.length; at += part) {
+          await Future<void>.delayed(const Duration(seconds: 20));
+          yield utf8.encode(list.substring(at, min(at + part, list.length)));
+        }
+      }
+
+      Stream<List<int>> quiet() async* {
+        await Completer<void>().future;
+      }
+
+      String? body;
+      fakeAsync((async) {
+        outboundHttp = FakeOutbound(
+          client: () => MockClient.streaming((request, _) async =>
+              http.StreamedResponse(
+                  request.url.host == 'quiet.example' ? quiet() : slowly(),
+                  200)),
+        );
+        unawaited(fetchDomainList(
+          ['https://quiet.example/list.txt', 'https://slow.example/list.txt'],
+          tag: LogTag.dnsBlock,
+        ).then((b) => body = b));
+        async.elapse(const Duration(minutes: 5));
+      });
+      expect(body, list);
     });
   });
 

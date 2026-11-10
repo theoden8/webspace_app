@@ -190,7 +190,7 @@ class TopSitesService {
             FixedUrls(:final urls) => urls,
           },
           tag: LogTag.topSites,
-          timeout: timeout,
+          timeout: TotalTimeout(timeout),
           tlds: tlds,
         );
     final allowSource = filter.allow;

@@ -21,7 +21,7 @@ A singleton `DnsBlockService` downloads domain lists from Hagezi mirrors, caches
 
 ### Requirement: DNS-001 - Blocklist Download with Mirror Fallback
 
-Users SHALL be able to download a DNS blocklist at their chosen severity level. The system SHALL try 3 mirror URLs in order on failure.
+Users SHALL be able to download a DNS blocklist at their chosen severity level. The system SHALL try 3 mirror URLs in order on failure. A mirror SHALL be left only once nothing has come from it for 30 s, never for how long its list takes, so a list of megabytes over a slow route (Tor) is read whole.
 
 #### Scenario: Download blocklist
 
@@ -35,10 +35,16 @@ Users SHALL be able to download a DNS blocklist at their chosen severity level. 
 
 #### Scenario: Primary mirror fails
 
-**Given** the primary mirror (`cdn.jsdelivr.net`) returns a non-200 status or times out (15s)
+**Given** the primary mirror (`cdn.jsdelivr.net`) returns a non-200 status or sends nothing for 30 s
 **When** the download is attempted
 **Then** the system tries `gitlab.com/hagezi/mirror` next
 **And** then `codeberg.org/hagezi/mirror2` if that also fails
+
+#### Scenario: Over a slow route
+
+**Given** the app-wide proxy is Tor, and a mirror sends its list in parts 20 s apart for 100 s
+**When** the download is attempted
+**Then** the whole list is read from that mirror
 
 #### Scenario: All mirrors fail
 
