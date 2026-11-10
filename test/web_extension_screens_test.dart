@@ -12,6 +12,7 @@ import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/site_extensions.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/web_extension_library.dart';
 import 'package:webspace/services/web_extension_native.dart';
 import 'package:webspace/services/web_extension_package_engine.dart';
@@ -629,6 +630,7 @@ void main() {
         initUrl: 'https://mail.example.com/',
         webExtensionChoices: {entry.id: true},
       );
+      site.liveExtensions = site.extensionHome(fakeContainers());
       await pumpLocalized(
         tester,
         home: SiteExtensionsScreen(
@@ -648,6 +650,42 @@ void main() {
             (page, entry.id, site.boundContainerId(fakeContainers())),
         ],
       );
+    });
+
+    testWidgets('WEBEXT-008 with no webview of the site to act on, its '
+        'Extensions screen offers no Menu', (tester) async {
+      final entry = await _imported();
+      await pumpLocalized(
+        tester,
+        home: SiteExtensionsScreen(
+          site: WebViewModel(
+            initUrl: 'https://mail.example.com/',
+            webExtensionChoices: {entry.id: true},
+          ),
+          isolation: fakeContainers(),
+          onChanged: () {},
+        ),
+      );
+      expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('Menu'), findsNothing);
+    });
+
+    testWidgets('WEBEXT-008 Menu acts on what the site\'s webview runs, '
+        'not on what it would run once built again', (tester) async {
+      final entry = await _imported();
+      final site = WebViewModel(initUrl: 'https://mail.example.com/');
+      site.liveExtensions = site.extensionHome(fakeContainers());
+      site.webExtensionChoices = {entry.id: true};
+      await pumpLocalized(
+        tester,
+        home: SiteExtensionsScreen(
+          site: site,
+          isolation: fakeContainers(),
+          onChanged: () {},
+        ),
+      );
+      expect(find.text('Menu'), findsNothing);
+      expect(siteMenuExtensions(site), isEmpty);
     });
 
     testWidgets('a page that cannot open says so', (tester) async {
@@ -699,6 +737,7 @@ void main() {
         initUrl: 'https://mail.example.com/',
         webExtensionChoices: {entry.id: true},
       );
+      site.liveExtensions = site.extensionHome(fakeContainers());
       await pumpLocalized(
         tester,
         home: Scaffold(
@@ -711,10 +750,7 @@ void main() {
                   tabsOn: false,
                   fullscreen: false,
                   offersShortcut: false,
-                  extensions: siteMenuExtensions(
-                    site,
-                    isolation: fakeContainers(),
-                  ),
+                  extensions: siteMenuExtensions(site),
                 ),
                 nav: (
                   back: () {},
@@ -742,14 +778,38 @@ void main() {
     testWidgets('a site whose extensions keep nothing lists none in its menu',
         (tester) async {
       final entry = await _imported();
+      final site = WebViewModel(
+        initUrl: 'https://mail.example.com/',
+        webExtensionChoices: {entry.id: true},
+        incognito: true,
+      );
+      site.liveExtensions = site.extensionHome(fakeContainers());
+      expect(siteMenuExtensions(site), isEmpty);
+    });
+
+    testWidgets('WEBEXT-008 the site\'s webview let go of takes its '
+        'extensions\' actions with it', (tester) async {
+      final entry = await _imported();
+      final site = WebViewModel(
+        initUrl: 'https://mail.example.com/',
+        webExtensionChoices: {entry.id: true},
+      );
+      site.webview = const SizedBox.shrink();
+      site.liveExtensions = site.extensionHome(fakeContainers());
+      expect(siteMenuExtensions(site), hasLength(1));
+      site.disposeWebView(commit: const Commit.environment(Environment.letGo));
+      expect(siteMenuExtensions(site), isEmpty);
+    });
+
+    testWidgets('WEBEXT-008 a site with no webview to act on lists none in '
+        'its menu', (tester) async {
+      final entry = await _imported();
       expect(
         siteMenuExtensions(
           WebViewModel(
             initUrl: 'https://mail.example.com/',
             webExtensionChoices: {entry.id: true},
-            incognito: true,
           ),
-          isolation: fakeContainers(),
         ),
         isEmpty,
       );

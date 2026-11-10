@@ -167,13 +167,20 @@ An extension's messages to an application, its native-messaging connections and 
 
 ### Requirement: WEBEXT-008 - An extension's own UI opens within its site
 
-Each enabled extension with an action SHALL appear in the site's menu; its popup and its options page SHALL open over the site. On the site's Extensions screen, Settings SHALL open its options page and Menu SHALL do what its toolbar button does in a browser. A request to open a tab SHALL open the extension's own page over the site, a URL of the site's domains as a nested screen of the site, and nothing for any other URL. A request to open a window SHALL be refused.
+Each enabled extension with an action SHALL appear in the site's menu; its popup and its options page SHALL open over the site. On the site's Extensions screen, Settings SHALL open its options page and Menu SHALL do what its toolbar button does in a browser. An action acts on the active tab, so the site's menu and its Extensions screen SHALL offer an extension's action only while a webview of the site runs that extension, and the action SHALL act on that webview; with no such webview open, the app SHALL NOT open the action. A request to open a tab SHALL open the extension's own page over the site, a URL of the site's domains as a nested screen of the site, and nothing for any other URL. A request to open a window SHALL be refused.
 
 #### Scenario: The action popup
 
 - **GIVEN** an extension with an action popup, switched on for the site on screen
 - **WHEN** the user picks it from the site's menu
 - **THEN** its popup opens over the site
+
+#### Scenario: No tab to act on
+
+- **GIVEN** an extension with an action popup, switched on for a site whose webview is not open, or was built before the extension was switched on
+- **WHEN** the user opens the site's Extensions screen
+- **THEN** it offers the extension's Settings but not its Menu
+- **AND** the site's menu lists no action for it
 
 #### Scenario: The extension's own page
 

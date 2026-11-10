@@ -6,7 +6,6 @@ import 'dart:typed_data';
 import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/web_extension_attach_engine.dart';
-import 'package:webspace/services/web_extension_library.dart';
 import 'package:flutter/material.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_color_engine.dart';
@@ -70,6 +69,7 @@ import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/web_view_model_json.dart';
 import 'package:webspace/web_view_model_domains.dart';
+import 'package:webspace/web_view_model_extensions.dart';
 import 'package:webspace/web_view_model_hosts.dart';
 import 'package:webspace/web_view_model_zone.dart';
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
@@ -80,6 +80,7 @@ import 'package:webspace/settings/blocked_cookie.dart';
 import 'package:webspace/services/page_js.dart';
 
 export 'package:webspace/web_view_model_domains.dart';
+export 'package:webspace/web_view_model_extensions.dart';
 export 'package:webspace/web_view_model_hosts.dart';
 export 'package:webspace/services/url_host.dart'
     show extractDomain, getBaseDomain, getNormalizedDomain;
@@ -213,6 +214,14 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
   @visibleForTesting
   set webview(Widget? built) => _webview = built;
   Widget? _webview;
+
+  /// Where the extensions [webview] was built with open their pages over
+  /// it (WEBEXT-008); null with no webview, or one that runs none. An
+  /// extension's action acts on the site's tab, which only that webview is.
+  ExtensionHome? get liveExtensions => _liveExtensions;
+  @visibleForTesting
+  set liveExtensions(ExtensionHome? built) => _liveExtensions = built;
+  ExtensionHome? _liveExtensions;
 
   /// The last main-frame navigation this site's webview refused to make
   /// because the app could not establish that it would go through the site's
@@ -692,25 +701,6 @@ class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
   /// its posture and its site info sheet name it (NAV-011).
   ContainerName? boundContainerId(Isolation isolation) => containerIdFor(
       isolation: isolation, key: containerKey, incognito: effectiveIncognito);
-
-  /// What the site's webviews load of the extension library (WEBEXT-016),
-  /// and why none when none: the posture's and the Extensions row's answer.
-  ExtensionAttach get extensionPlan => planExtensionAttach((
-        offered: webExtensionsOffered,
-        archived: isArchiveTier,
-        kiosk: effectiveKioskMode,
-        incognito: effectiveIncognito,
-        choices: webExtensionChoices,
-        library: WebExtensionLibrary.instance.loadable,
-        claims: effectiveDomainClaims,
-      ));
-
-  /// Where this site's extensions keep what they store and open their pages
-  /// under [isolation] (WEBEXT-008); null where they keep nothing.
-  ExtensionHome? extensionHome(Isolation isolation) => extensionHomeOf(
-        extensionPlan,
-        container: boundContainerId(isolation),
-      );
 
   /// Everything a webview that runs as this site applies (CLAUDE.md, "Per-site
   /// settings MUST apply to nested webviews"). The archive tier's overrides
@@ -1298,6 +1288,10 @@ bool dispatch(NavigationDecision decision,
       );
       _initialLoadDeferredForProxy = deferForProxy && !deferRestoreLoad;
       final iconSiteUrl = id.initUrl;
+      _liveExtensions = extensionHomeOf(
+        posture.page.extensions,
+        container: posture.container.containerId,
+      );
       _webview = WebViewFactory.createWebView(
         config: WebViewConfig(
           key: UniqueKey(), // Force new widget state when recreating
@@ -1790,6 +1784,7 @@ bool dispatch(NavigationDecision decision,
     required Commit commit,
   }) {
     _webview = null;
+    _liveExtensions = null;
     _controller = null;
     unawaited(ProcessRoute.instance.leave(routeClaim.occupant, view: view));
     tabBinding.unbind(commit: commit);

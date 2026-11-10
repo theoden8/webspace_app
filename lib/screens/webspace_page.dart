@@ -1236,7 +1236,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             final shown? => _shortcuts.offersShortcutFor(shown),
             null => false,
           },
-          extensions: siteMenuExtensions(_sites.shown, isolation: _sites.isolation),
+          extensions: siteMenuExtensions(_sites.shown),
         ),
         nav: (
           back: () => unawaited(_back.goBackIfPossible()),
