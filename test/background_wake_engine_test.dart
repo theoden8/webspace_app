@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/background_wake_engine.dart';
 import 'package:webspace/services/runtime_vars.dart';
+import 'package:webspace/services/step_table.dart';
 
 /// A page that loads for [loadTicks] polls after a reload, then shows
 /// [titleAfter], and posts its own notification on load when [postsOnLoad],
@@ -216,6 +217,89 @@ class _Host implements BackgroundWakeHost<SiteId> {
 const _Route _p = (proxy: '127.0.0.1:1080', torExit: null);
 const _Route _q = (proxy: '127.0.0.1:1081', torExit: null);
 
+/// A site as the app holds one: an object keyed by its id, so an import can
+/// list a new one under the same id while a wake holds the old.
+final class _Box with SiteKeyed {
+  _Box(this.siteId);
+
+  @override
+  final SiteId siteId;
+}
+
+/// [_Host] with its sites as objects: [siteOf] answers the one listed now,
+/// which [relist] replaces as an import does.
+final class _ObjectHost implements BackgroundWakeHost<_Box> {
+  _ObjectHost(this.inner)
+    : listed = {for (final id in inner.pages.keys) SiteId(id): _Box(SiteId(id))};
+
+  final _Host inner;
+  final Map<SiteId, _Box> listed;
+
+  void relist(SiteId id) => listed[id] = _Box(id);
+
+  @override
+  late final vars = RuntimeVars<_Box>.ofSet(
+    {for (final id in inner.live) listed[id]!},
+    onScreen: false,
+  );
+
+  @override
+  _Box siteOf(SiteId siteId) => listed[siteId]!;
+
+  @override
+  bool routeFree(_Box site) => inner.routeFree(site.siteId);
+
+  @override
+  bool get nestedOpening => inner.nestedOpening;
+
+  @override
+  void closeAllHeadless() => inner.closeAllHeadless();
+
+  @override
+  List<WakeCandidate> wakeCandidates() => inner.wakeCandidates();
+
+  @override
+  Future<void> reload(SiteId siteId) => inner.reload(siteId);
+
+  @override
+  Future<bool> applyRoute(SiteId siteId) => inner.applyRoute(siteId);
+
+  @override
+  void releaseRoute() => inner.releaseRoute();
+
+  @override
+  void leave(SiteId siteId) => inner.leave(siteId);
+
+  @override
+  Future<WakeSkip?> openHeadless(SiteId siteId) => inner.openHeadless(siteId);
+
+  @override
+  Future<void> closeHeadless(SiteId siteId) => inner.closeHeadless(siteId);
+
+  @override
+  bool? isLoading(SiteId siteId) => inner.isLoading(siteId);
+
+  @override
+  Future<String?> title(SiteId siteId) => inner.title(siteId);
+
+  @override
+  bool postedSince(SiteId siteId, {required DateTime since}) =>
+      inner.postedSince(siteId, since: since);
+
+  @override
+  Future<void> post({
+    required SiteId siteId,
+    required String siteName,
+    required String body,
+  }) => inner.post(siteId: siteId, siteName: siteName, body: body);
+
+  @override
+  DateTime now() => inner.now();
+
+  @override
+  Future<void> delay(Duration d) => inner.delay(d);
+}
+
 void main() {
   group('unreadCountFromTitle', () {
     test('reads the counts pages put in their titles', () {
@@ -382,6 +466,26 @@ void main() {
       expect(engine.baseline(SiteId('a')), 1);
       expect(engine.baseline(SiteId('b')), isNull);
     });
+  });
+
+  test('a wake finds its plan entry for a site an import lists again '
+      'mid-wake (CONT-012)', () async {
+    final inner = _Host({
+      'a': _Page(titleBefore: null, titleAfter: '(5) Chat'),
+    }, live: {});
+    final host = _ObjectHost(inner);
+    inner.onApply = (id) => host.relist(id);
+    final report = await BackgroundWakeEngine<_Box>(
+      task: WakeTask.androidWorker,
+    ).wake(host);
+    expect(
+      report.sites.single.mode,
+      WakeMode.headless,
+      reason: 'the wake read its entry by comparing the site it holds with '
+          'the one listed now, and threw once an import listed a new object '
+          'under the same id',
+    );
+    expect(inner.calls.take(2), ['route a', 'open a']);
   });
 
   group('NOTIF-016 a wake checks every notification site', () {

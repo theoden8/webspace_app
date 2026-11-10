@@ -559,10 +559,15 @@ final class WakeFlow<S extends Object> {
 
   WakeReport? report;
 
+  /// Each entry by the site the wake took for it: a site an import lists
+  /// again under its id mid-wake is still the one the wake holds.
+  late final Map<S, WakePlanEntry> _bySite = Map.identity()
+    ..addEntries([
+      for (final e in plan!.entries) MapEntry(host.siteOf(e.site.siteId), e),
+    ]);
+
   /// The entry the plan made for [site].
-  WakePlanEntry entryOf(S site) => plan!.entries.firstWhere(
-    (e) => identical(host.siteOf(e.site.siteId), site),
-  );
+  WakePlanEntry entryOf(S site) => _bySite[site]!;
 }
 
 /// What a wake's steps reach of their flow ([wakeTable]'s `wake` port):
@@ -577,8 +582,8 @@ final class WakeCalls<S extends Object> {
 
   /// The notification sites the plan checks headless.
   List<S> get offline => [
-    for (final e in _w.plan!.entries)
-      if (e.mode == WakeMode.headless) _w.host.siteOf(e.site.siteId),
+    for (final MapEntry(key: site, value: e) in _w._bySite.entries)
+      if (e.mode == WakeMode.headless) site,
   ];
 
   bool routeFree(S site) => _w.host.routeFree(site);
