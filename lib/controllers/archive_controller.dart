@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:webspace/settings/site_ids.dart';
 
+import 'package:webspace/controllers/container_retire.dart';
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
@@ -790,20 +791,14 @@ final _closeErase = Await<CloseFlow, ClosePlace>(
 );
 
 /// The containers no mounted webview binds are deleted.
-final _closeDelete = Await<CloseFlow, ClosePlace>(
+final _closeDelete = retireContainers<WebViewModel, CloseFlow, ClosePlace>(
   ActivationStep.closeDeleteReply,
   at: ClosePlace.cDelete,
-  holds: null,
-  call: Call.on(
-    _closeDeletePort,
-    run: (c) => c.api(),
-    writes: [
-      _closeBoxes.becomes(
-        _closeBoxes.value.less(_archiveSites.less(_closeViews.value)),
-      ),
-    ],
-  ),
-  decide: Ends(StepOutcome.none, next: _closeErase),
+  port: _closeDeletePort,
+  sites: _archiveSites,
+  boxes: _closeBoxes,
+  views: _closeViews,
+  next: _closeErase,
 );
 
 /// The frame unmounts the webviews of sites no longer loaded.
