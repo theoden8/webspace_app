@@ -161,10 +161,11 @@ Init ==
     /\ gone = Joining
     \* Each site under its own id, a clashing one under a listed site's.
     /\ ids = [s \in Sites |-> IF s \in Clashing THEN Holder ELSE s]
-    \* Where an archive is open, a loaded site's webview is mounted and an
-    \* archive site's container is on disk once it was.
+    \* Where an archive is open, a loaded site's webview is mounted and,
+    \* with containers, an archive site's container is on disk once it was;
+    \* the shared jar has none.
     /\ views = IF Boxed = {} THEN {} ELSE loaded
-    /\ boxes = Boxed \cap loaded
+    /\ boxes = IF Containers THEN Boxed \cap loaded ELSE {}
 
 -----------------------------------------------------------------------------
 (* Inputs. The tables start the flows (InputTableStep, printed); the rest *)
@@ -269,17 +270,18 @@ ViewGone(s) ==
     /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabVars, dns,
                     archived >>
 
-\* A frame mounts a loaded site's webview, which binds its container, and
-\* unmounts one whose site is no longer loaded (SiteWebviewStack). Only
-\* where a close or a delete can take a site away: the other configs follow
-\* no view's mount.
+\* A frame mounts a loaded site's webview, which binds its container (the
+\* shared jar has none), and unmounts one whose site is no longer loaded
+\* (SiteWebviewStack). Only where a close or a delete can take a site
+\* away: the other configs follow no view's mount.
 Frame(s) ==
     /\ Calm
     /\ Boxed # {}
     /\ (s \in loaded) # (s \in views)
     /\ IF s \in loaded
        THEN /\ views' = views \cup {s}
-            /\ boxes' = IF s \in Boxed THEN boxes \cup {s} ELSE boxes
+            /\ boxes' = IF Containers /\ s \in Boxed
+                        THEN boxes \cup {s} ELSE boxes
        ELSE /\ views' = views \ {s}
             /\ UNCHANGED boxes
     /\ Did("Frame", 0, "", s)
