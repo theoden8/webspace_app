@@ -26,6 +26,7 @@ import 'dart:typed_data';
 
 import 'package:html/parser.dart';
 import 'package:http/http.dart' as http;
+import 'package:meta/meta.dart';
 
 import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -194,7 +195,16 @@ class FaviconFinder {
   /// A deadline for the whole discovery. The fetches share one client (so no
   /// single fetch can close it), so the bound lives on [withPageSteeredClient],
   /// which closes the shared client when it fires and cuts any open socket.
-  static const _discoveryTimeout = Duration(seconds: 15);
+  static Duration _discoveryTimeout = const Duration(seconds: 15);
+
+  /// Shorten the discovery deadline in a test, so a page that never finishes is
+  /// driven without the 15s wait; reset with [resetDiscoveryTimeout].
+  @visibleForTesting
+  static set discoveryTimeout(Duration d) => _discoveryTimeout = d;
+
+  @visibleForTesting
+  static void resetDiscoveryTimeout() =>
+      _discoveryTimeout = const Duration(seconds: 15);
 
   /// A favicon image larger than this is not a favicon: the capped read stops
   /// and the icon is dropped, so a hostile page cannot stream an unbounded body

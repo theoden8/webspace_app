@@ -212,6 +212,10 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
     final allow = allowPrivateHost?.toLowerCase();
     client.connectionFactory = (uri, proxyHost, proxyPort) async {
       final host = Host(uri.host);
+      // Defense in depth. The primary onion refusal is _PageSteeredLiteralGuard
+      // .send, which runs before this client is reached, so a page-steered onion
+      // is already refused there (LEAK-016); this backstop covers any later
+      // caller of this client that does not front it with the guard.
       if (host.isOnion) throw OnionNeedsProxyFailure(host);
       final allowed = allow != null && uri.host.toLowerCase() == allow;
       // Judge the destination's local resolution before connecting, whichever

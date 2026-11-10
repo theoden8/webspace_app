@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
@@ -193,5 +195,23 @@ void main() {
     expect(site.queries.length, 1,
         reason: 'the discovery builds one shared page-steered client for all its '
             'fetches (page + icons + favicon.ico), not one per fetch');
+  });
+
+  test('the discovery deadline cuts a page that never finishes (L1)', () async {
+    // The fetches share one client, so no single fetch can close it; the bound
+    // lives on withPageSteeredClient (favicon.dart:106). A page whose response
+    // never completes otherwise keeps the discovery and its socket open
+    // unbounded. Drop the timeout there and getAll hangs here instead of
+    // raising, so this test is the deadline's only witness.
+    final site =
+        FakeOutbound(responder: (_) => Completer<http.Response>().future);
+    outboundHttp = site;
+    addTearDown(FaviconFinder.resetDiscoveryTimeout);
+    FaviconFinder.discoveryTimeout = const Duration(milliseconds: 300);
+
+    await expectLater(
+      FaviconFinder.getAll('https://example.com/', proxy: OutboundProxy.app),
+      throwsA(isA<TimeoutException>()),
+    );
   });
 }

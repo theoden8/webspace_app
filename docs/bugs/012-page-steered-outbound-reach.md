@@ -175,8 +175,10 @@ than copy the range table.**
    be closed per fetch, so the discovery-wide deadline moved onto
    `withPageSteeredClient`, which closes the shared client and cuts the socket; the
    outer `.timeout` is gone. **L3** — `raw_http_client`'s seam exemption is limited
-   to the seam's four libraries by exact URI, so a fake factory in a fetcher (or a
-   lookalike `outbound_http_raw.dart`) gets no raw-client pass. The four first-round
+   to the seam's four libraries by the tail of their import URI, so a fake factory
+   in a fetcher (or a lookalike `outbound_http_raw.dart`) gets no raw-client pass
+   (a library whose path merely ends in one of the four, like
+   `widgets/services/outbound_http.dart`, is a known gap below). The four first-round
    regression tests are red on `e62d0c8` and green at head (an off-whitelist URL
    confirmed once, `__wsFetch` one lookup, a windows-1251 page still yielding its
    icon, and one shared client *built* for a multi-icon discovery — it counts
@@ -232,6 +234,18 @@ than copy the range table.**
   answers differently from the device's, reaches an address the guard did not
   judge. Narrower than closing it at the egress, and it needs an attacker-chosen
   short-TTL record plus an env proxy; recorded, not yet closed.
+- **The reach gate and the raw-client lint are text/suffix matches, not
+  resolved-URI rules.** Two deliberate evasions pass today, each needing someone
+  editing the seam, not a page. (1) The `page_steered_outbound_reach` M2 import
+  probe matches a quoted platform-half URI literal, so a split adjacent literal,
+  `import 'package:webspace/services/outbound_http_' 'io.dart'`, passes analyze and
+  the probe. (2) `raw_http_client`'s seam exemption matches the *tail* of the
+  library URI (`uri.endsWith`), so a raw-client factory at
+  `lib/widgets/services/outbound_http.dart` ends in a seam path and gets no
+  diagnostic. The real fix for each is a `webspace_lints` rule on the *resolved*
+  import URI (as `layer_import` already does), or comparing the package-relative
+  path `package:webspace/services/<name>.dart` exactly. Recorded; LEAK-002 in
+  `policy_debt.tsv`.
 - **Enumeration: downloads and the TLS-trust prompt remain.** Favicons and page
   icon bytes are now GUARDED (attempt 5). A download is a user-confirmed action
   that lands in a file, not back in the page, and the TLS-trust prompt is its own
