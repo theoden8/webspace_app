@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
@@ -137,6 +139,41 @@ void main() {
         site('https://mail.example.com/', on: {refused.id}).extensionPlan,
         isA<NoExtensions>(),
       );
+    });
+  });
+
+  group('WEBEXT-003 an extension the app ended reading runs nowhere', () {
+    /// On a 2014 Intel Mac, WebKit's report of AdNauseam ended the app, and
+    /// every launch read it again, so the app ended at every launch.
+    test('it is not read again at that version, and an update is', () async {
+      engine.endsTheApp = true;
+      unawaited(_library.add(_package(name: 'Ends')));
+      await pumpEventQueue();
+      final ends = _library.installed.value.single.entry;
+
+      engine = FakeExtensionEngine()..anyFolder = _clean;
+      await relaunch();
+      expect(engine.inspected, isEmpty);
+      expect(_library.loadsHere(ends.id), isFalse);
+      expect(
+        site('https://mail.example.com/', on: {ends.id}).extensionPlan,
+        isA<NoExtensions>(),
+      );
+
+      await relaunch();
+      expect(engine.inspected, isEmpty, reason: 'still not read next launch');
+
+      final v2 = switch (readExtensionPackage(sampleZip(manifest: {
+        'name': 'Ends',
+        'version': '2.0',
+        'permissions': ['storage'],
+      }))) {
+        final ExtensionPackage package => package,
+        PackageRefused(:final why) => fail('refused: $why'),
+      };
+      await _library.install(ends.id, package: v2);
+      expect(engine.inspected, [disk.folderOf(ends.id)]);
+      expect(_library.loadsHere(ends.id), isTrue);
     });
   });
 

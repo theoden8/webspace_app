@@ -22,12 +22,16 @@ class FakeExtensionEngine implements ExtensionEngine {
   /// Where [inspect] was asked, in order.
   final List<String> inspected = [];
 
+  /// Whether a read never answers, as when WebKit ends the app reading.
+  bool endsTheApp = false;
+
   @override
   Stream<ExtensionProblem> get problems => problemsSent.stream;
 
   @override
   Future<ExtensionReport?> inspect(String folder) async {
     inspected.add(folder);
+    if (endsTheApp) await Completer<void>().future;
     return reports[folder] ?? anyFolder;
   }
 

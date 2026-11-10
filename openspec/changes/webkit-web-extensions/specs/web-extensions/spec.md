@@ -59,7 +59,7 @@ App Settings > Extensions SHALL import an extension from a file the user picks: 
 
 ### Requirement: WEBEXT-003 - Chrome-format extensions run as far as WebKit supports their APIs
 
-An extension written for Chrome SHALL be loaded as is, with no rewriting, through WebKit's support for the `chrome.*` and `browser.*` namespaces. What WebKit reports it could not load or does not support SHALL be shown on the extension's library entry. An extension WebKit does not load on this device at all (on iPhone and iPad, one whose background page stays loaded) SHALL say so on its entry and as the reason its switches are off, and SHALL run on no site and offer none of its pages.
+An extension written for Chrome SHALL be loaded as is, with no rewriting, through WebKit's support for the `chrome.*` and `browser.*` namespaces. What WebKit reports it could not load or does not support SHALL be shown on the extension's library entry. An extension WebKit does not load on this device at all (on iPhone and iPad, one whose background page stays loaded) SHALL say so on its entry and as the reason its switches are off, and SHALL run on no site and offer none of its pages. An extension whose reading by WebKit ended the app SHALL be treated the same way and not read again at that version, so the app does not end at every launch; a new version of it is read again.
 
 #### Scenario: An extension using an API WebKit lacks
 
@@ -67,6 +67,13 @@ An extension written for Chrome SHALL be loaded as is, with no rewriting, throug
 - **WHEN** the user opens its library entry
 - **THEN** the entry lists what WebKit reported
 - **AND** the extension is still offered to sites
+
+#### Scenario: An extension whose reading ended the app
+
+- **GIVEN** an imported extension whose reading by WebKit ended the app
+- **WHEN** the app is launched again
+- **THEN** WebKit does not read it again, and it says it doesn't run on this device, running on no site
+- **AND** once it is updated to another version, it is read again
 
 #### Scenario: An extension WebKit does not load here
 
