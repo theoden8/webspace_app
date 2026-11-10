@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:webspace/controllers/container_retire.dart';
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
@@ -172,22 +173,14 @@ final _deleteAlreadyGone = Expr.op<bool, DeleteFlow>(
 final _deleteDone = GoTo<DeleteFlow, DeletePlace>(to(DeletePlace.done));
 
 /// Its container, unless a mounted webview still binds it.
-final _deleteRetire = Await<DeleteFlow, DeletePlace>(
+final _deleteRetire = retireContainers<WebViewModel, DeleteFlow, DeletePlace>(
   ActivationStep.deleteRetireReply,
   at: DeletePlace.dRetire,
-  holds: null,
-  call: Call.on(
-    _deleteRetirePort,
-    run: (c) => c.api(),
-    writes: [
-      _deleteBoxes.becomes(
-        _deleteBoxes.value.less(
-          _deleteSite.value.asSet.less(_deleteViews.value),
-        ),
-      ),
-    ],
-  ),
-  decide: Ends(StepOutcome.none, next: _deleteDone),
+  port: _deleteRetirePort,
+  sites: _deleteSite.value.asSet,
+  boxes: _deleteBoxes,
+  views: _deleteViews,
+  next: _deleteDone,
 );
 
 /// The frame unmounts its webview.
