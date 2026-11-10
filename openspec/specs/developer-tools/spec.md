@@ -563,7 +563,7 @@ The features are:
 | Feature | Switch | Default | Gate |
 |---|---|---|---|
 | Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
-| The built-in Tor on Linux, a tor the app starts (`tor-proxy` TOR-027) | Built-in Tor | off | `TorService.builtInOffered`, read once at launch; Linux only |
+| The built-in Tor on Linux, a tor the app starts (`tor-proxy` TOR-027) | Built-in Tor | off | `TorService.builtInOffered`, read live, so it applies without a relaunch; Linux only |
 | Linux: a site's traffic bound to a network interface it names (`network-interface` NETIF-013) | Network interface per site | off | `EgressRelay.state`, read each time a site's route resolves and when a Network screen is built |
 | A site's service workers through its own blockers (`content-blocker` CB-022) | Service workers through blockers | off | `NativeIntercept.routeServiceWorkers`, read once at launch; Android only |
 | WebKit's own report of each request the content rule lists block (`content-blocker` CB-023) | WebKit's block counts | off | `WebKitBlockReports.start`, read once at launch; iOS and macOS built with `--flavor direct` only |

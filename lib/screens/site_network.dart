@@ -332,7 +332,7 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
           savedProxyId: _values.savedProxyId,
           gatewayId: _values.gatewayId,
           library: _library,
-          torAvailable: TorService.instance.isAvailable,
+          torAvailable: TorService.instance.offered,
           torExternal: TorService.instance.isExternal,
           onChanged: _pickProxy,
         )),
