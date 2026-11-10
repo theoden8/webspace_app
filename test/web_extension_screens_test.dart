@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
+import 'package:webspace/screens/app_extension_entry.dart';
 import 'package:webspace/screens/app_extensions.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/screens/settings.dart';
@@ -481,6 +482,44 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Extensions'), findsNothing);
       expect(site.webExtensionChoices, {entry.id: true});
+    });
+  });
+
+  group('WEBEXT-015 what an extension asks for and is never given is named',
+      () {
+    testWidgets('in the summary before it is added', (tester) async {
+      await pumpLocalized(
+        tester,
+        home: _library(picked: crx3Of(sampleZip(manifest: _manifest))),
+      );
+      await tester.tap(find.text('Import from a file'));
+      await tester.pumpAndSettle();
+      expect(_dialogText(tester),
+          contains('Not given here: nativeMessaging. What needs them will not '
+              'work.'));
+    });
+
+    testWidgets('on its page, and nothing for one that asks for what it gets',
+        (tester) async {
+      final entry = await _imported();
+      await pumpLocalized(tester, home: ExtensionEntryScreen(id: entry.id));
+      expect(
+          find.text('Not given here: nativeMessaging. What needs them will '
+              'not work.'),
+          findsOneWidget);
+
+      final plain = await WebExtensionLibrary.instance.add(
+        switch (readExtensionPackage(sampleZip(manifest: {
+          ..._manifest,
+          'name': 'Plain',
+          'permissions': ['storage'],
+        }))) {
+          final ExtensionPackage package => package,
+          PackageRefused(:final why) => fail('refused: $why'),
+        },
+      );
+      await pumpLocalized(tester, home: ExtensionEntryScreen(id: plain.id));
+      expect(find.textContaining('Not given here'), findsNothing);
     });
   });
 

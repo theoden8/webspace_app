@@ -7,6 +7,8 @@ import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/screens/app_extensions.dart'
     show PackageRefusalLabel, ReleaseProblemLabel;
 import 'package:webspace/services/reentry_guard.dart';
+import 'package:webspace/services/web_extension_grants_engine.dart'
+    show refusedPermissions;
 import 'package:webspace/services/web_extension_library.dart';
 import 'package:webspace/services/web_extension_package_engine.dart';
 import 'package:webspace/services/web_extension_source_engine.dart';
@@ -64,11 +66,13 @@ class _ExtensionEntryScreenState extends State<ExtensionEntryScreen> {
   List<Localized> _asks(WebExtensionEntry entry,
       {required AppLocalizations loc}) {
     final permissions = entry.permissions.toList()..sort();
+    final refused = refusedPermissions(entry.permissions).toList()..sort();
     final hosts = entry.hosts.toList()..sort();
     return [
       permissions.isEmpty
           ? loc.extensionsAsksNothing
           : loc.extensionsAsks(permissions.join(', ')),
+      if (refused.isNotEmpty) loc.extensionsNotGiven(refused.join(', ')),
       hosts.isEmpty
           ? loc.extensionsReachesNothing
           : loc.extensionsReaches(hosts.join(', ')),

@@ -329,13 +329,19 @@ On a site, an extension SHALL be granted the pages both a pattern it asked for a
 
 ### Requirement: WEBEXT-015 - An extension holds only the permissions the app allows
 
-An extension SHALL be granted only the API permissions it asked for that the app lets an extension hold (storage, tabs, scripting, alarms, context menus, cookies, declarative net request, web navigation, web request, clipboard write, active tab, unlimited storage), never `nativeMessaging` or any other.
+An extension SHALL be granted only the API permissions it asked for that the app lets an extension hold (storage, tabs, scripting, alarms, context menus, cookies, declarative net request, web navigation, web request, clipboard write, active tab, unlimited storage), never `nativeMessaging` or any other. The summary before adding an extension and its page SHALL name the permissions it asks for that it is never given, so it is clear why what needs them does not work.
 
 #### Scenario: Native messaging asked for
 
 - **GIVEN** an extension asking for `storage`, `tabs`, `scripting`, `nativeMessaging`, `debugger` and `downloads`
 - **WHEN** its grants are planned
 - **THEN** it is granted `storage`, `tabs` and `scripting`
+
+#### Scenario: What it is never given is named
+
+- **GIVEN** an extension asking for `storage`, `webRequestBlocking` and `privacy`
+- **WHEN** the user opens its page, or is asked whether to add it
+- **THEN** it says `privacy` and `webRequestBlocking` are not given here, and that what needs them will not work
 
 ### Requirement: WEBEXT-016 - A site's webviews attach what the site switched on, where it may
 
