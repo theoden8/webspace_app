@@ -32,8 +32,8 @@ abstract interface class Capturing {
 /// capture where it does not hold.
 typedef CaptureOf<S, W> = ({
   Expr<S, W> site,
-  TabId? Function(S site) built,
-  Map<TabId, S> Function(S site) hosts,
+  TabId? Function(W world, {required S site}) built,
+  Map<TabId, S> Function(W world, {required S site}) hosts,
   NavCapture? Function(StepView<W> c) begin,
   Expr<Object?, W>? marks,
   Expr<bool, W>? keeps,
