@@ -334,7 +334,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// blocked-navigation interstitial, which has to reach the proxy row of
   /// the site it is covering (LEAK-010).
   Future<void> _openSiteSettings(WebViewModel model) async {
-    if (!_sites.models.contains(model)) return;
+    if (!_sites.models.holdsObject(model)) return;
     await _siteSettingsGuard.run(() async {
       await Navigator.push(
         context,
@@ -373,7 +373,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// under one rule the loaded sites it now contends with go first (PROXY-008).
   Future<void> _beforeProxyChange(WebViewModel model) async {
     await _network.refreshRoutes(active: model);
-    final slot = _sites.models.indexOf(model);
+    final slot = _sites.models.indexOfObject(model);
     if (slot < 0 || !mounted || model.controller == null) return;
     await _activation.applyResidency(
       _activation.residencyPlan(SlotIdentityChanged(slot)),
@@ -595,7 +595,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         builder: (ctx) => LinkHandlingSettingsScreen(
           sites: List<WebViewModel>.from(_sites.models),
           onOpenSiteEditor: (site) {
-            if (_sites.models.contains(site)) {
+            if (_sites.models.holdsObject(site)) {
               Navigator.of(ctx).pop();
               unawaited(_editing.editSite(site));
             }
@@ -755,7 +755,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// fails the wipe with [CookieJarFailure], which the settings screen that
   /// asked reports.
   Future<void> _clearSiteData(WebViewModel model) async {
-    if (!_sites.models.contains(model)) return;
+    if (!_sites.models.holdsObject(model)) return;
 
     // Reroll the anti-fingerprinting seed so the post-wipe page can't be
     // re-identified via a stable fingerprint (window size, canvas, …) after
@@ -1298,9 +1298,9 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   Future<void> _showSiteContextMenu(BuildContext context,
       {required WebViewModel site, required Offset position}) async {
-    if (!_sites.models.contains(site)) return;
+    if (!_sites.models.holdsObject(site)) return;
     int listIndexOf() =>
-        _sites.filteredIndices().indexOf(_sites.models.indexOf(site));
+        _sites.filteredIndices().indexOf(_sites.models.indexOfObject(site));
     final listIndex = listIndexOf();
     // The library's icons move by dragging, as a launcher's do.
     final menuMoves = _webspaces.canReorderView && !_libraryDesign;
@@ -1313,7 +1313,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           listIndex < _sites.filteredIndices().length - 1,
       archived: site.isArchiveTier,
     );
-    if (!_sites.models.contains(site)) return;
+    if (!_sites.models.holdsObject(site)) return;
     switch (action) {
       case null:
         return;

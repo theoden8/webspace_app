@@ -37,6 +37,30 @@ extension OptionalExpr<E extends Object, W> on Expr<E?, W> {
   );
 }
 
+/// The model's keys of [xs]: two elements with one key are one to the model.
+Set<Object?> _keysOf(Iterable<Object?> xs) => {for (final x in xs) modelKeyOf(x)};
+
+/// [f]'s value under [at]'s model key; the map's own lookup for a key the
+/// model knows by value, which answers a default where it has one
+/// (`TabHosts`).
+Object? _entryOf<K, V>(Map<K, V> f, {required K at}) {
+  if (at is! ModelKeyed) return f[at];
+  for (final MapEntry(key: k, :value) in f.entries) {
+    if (modelKeyOf(k) == at.modelKey) return value;
+  }
+  return f[at];
+}
+
+/// [f] with [at]'s model key mapped to [to], replacing the entry it had.
+Map<K, V> _withEntry<K, V>(Map<K, V> f, {required K at, required V to}) {
+  if (at is! ModelKeyed) return {...f, at: to};
+  return {
+    for (final MapEntry(key: k, :value) in f.entries)
+      if (modelKeyOf(k) != at.modelKey) k: value,
+    at: to,
+  };
+}
+
 /// `r.name`: one field of a record the model keeps as one variable.
 extension RecordExpr<R, W> on Expr<R, W> {
   Expr<V, W> part<V>(String name, {required V Function(R record) get}) =>
@@ -48,14 +72,14 @@ extension RecordExpr<R, W> on Expr<R, W> {
 extension FunctionExpr<K, V, W> on Expr<Map<K, V>, W> {
   /// `F[k]`.
   Expr<V, W> at(Expr<K, W> k) => Expr._(
-    run: (c) => run(c)[k.run(c)] as V,
+    run: (c) => _entryOf(run(c), at: k.run(c)) as V,
     tla: '${tlaOperand(tla)}[${k.tla}]',
     reads: reads + k.reads,
   );
 
   /// `[F EXCEPT ![k] = v]`.
   Expr<Map<K, V>, W> except(Expr<K, W> k, {required Expr<V, W> to}) => Expr._(
-    run: (c) => {...run(c), k.run(c): to.run(c)},
+    run: (c) => _withEntry(run(c), at: k.run(c), to: to.run(c)),
     tla: '[${tlaOperand(tla)} EXCEPT ![${k.tla}] = ${to.tla}]',
     reads: reads + k.reads + to.reads,
   );
@@ -67,11 +91,11 @@ extension FunctionExpr<K, V, W> on Expr<Map<K, V>, W> {
     required Expr<V, W> to,
   }) => Expr._(
     run: (c) {
-      final keys = ks.run(c).toSet();
+      final keys = _keysOf(ks.run(c));
       final v = to.run(c);
       return {
         for (final MapEntry(:key, :value) in run(c).entries)
-          key: keys.contains(key) ? v : value,
+          key: keys.contains(modelKeyOf(key)) ? v : value,
       };
     },
     tla:
@@ -88,10 +112,10 @@ extension FunctionExpr<K, V, W> on Expr<Map<K, V>, W> {
     required Expr<V, W> to,
   }) => Expr._(
     run: (c) {
-      final keys = ks.run(c).toSet();
+      final keys = _keysOf(ks.run(c));
       return {
         for (final MapEntry(:key, :value) in run(c).entries)
-          key: keys.contains(key)
+          key: keys.contains(modelKeyOf(key))
               ? x._with(c, value: key, body: () => to.run(c))
               : value,
       };
@@ -114,10 +138,15 @@ extension Function2Expr<K, J, V, W> on Expr<Map<K, Map<J, V>>, W> {
     run: (c) {
       final f = run(c);
       final key = k.run(c);
-      return {
-        ...f,
-        key: {...f[key]!, at.run(c): to.run(c)},
-      };
+      return _withEntry(
+        f,
+        at: key,
+        to: _withEntry(
+          _entryOf(f, at: key) as Map<J, V>,
+          at: at.run(c),
+          to: to.run(c),
+        ),
+      );
     },
     tla: '[${tlaOperand(tla)} EXCEPT ![${k.tla}][${at.tla}] = ${to.tla}]',
     reads: reads + k.reads + at.reads + to.reads,
@@ -302,7 +331,7 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
   /// `e \in S`; [e] may be of a wider type (`0` for no site), then it is
   /// not in.
   Expr<bool, W> has(Expr<Object?, W> e) => Expr._(
-    run: (c) => run(c).contains(e.run(c)),
+    run: (c) => _keysOf(run(c)).contains(modelKeyOf(e.run(c))),
     tla: '${tlaOperand(e.tla)} \\in ${tlaOperand(tla)}',
     reads: reads + e.reads,
     needs: needs,
@@ -313,7 +342,7 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
     run: (c) {
       final x = e.run(c);
       final s = run(c);
-      return s.isNotEmpty && s.every((y) => y == x);
+      return s.isNotEmpty && s.every((y) => modelKeyOf(y) == modelKeyOf(x));
     },
     tla: '${tlaOperand(tla)} = {${e.tla}}',
     reads: reads + e.reads,
@@ -326,7 +355,7 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
       final x = e.run(c);
       return [
         for (final y in run(c))
-          if (y != x) y,
+          if (modelKeyOf(y) != modelKeyOf(x)) y,
       ];
     },
     tla: '${tlaOperand(tla)} \\ {${e.tla}}',
@@ -339,9 +368,10 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
   Expr<List<E>, W> union(Expr<Iterable<E>, W> other) => Expr._(
     run: (c) {
       final t = other.run(c).toList();
+      final keys = _keysOf(t);
       return [
         for (final e in run(c))
-          if (!t.contains(e)) e,
+          if (!keys.contains(modelKeyOf(e))) e,
         ...t,
       ];
     },
@@ -353,10 +383,10 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
   /// `S \ T`, [other] a set of the model.
   Expr<List<E>, W> less(Expr<Iterable<E>, W> other) => Expr._(
     run: (c) {
-      final t = other.run(c).toSet();
+      final keys = _keysOf(other.run(c));
       return [
         for (final e in run(c))
-          if (!t.contains(e)) e,
+          if (!keys.contains(modelKeyOf(e))) e,
       ];
     },
     tla: '${tlaOperand(tla)} \\ ${tlaOperand(other.tla)}',
@@ -375,7 +405,7 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
 
   /// `Cardinality(S)`.
   Expr<int, W> get size => Expr._(
-    run: (c) => run(c).toSet().length,
+    run: (c) => _keysOf(run(c)).length,
     tla: 'Cardinality(${tlaOperand(tla)})',
     reads: reads,
   );
@@ -409,7 +439,7 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
           '{C \\in SUBSET $s : ${tlaOperand(member.tla)} \\in C '
           '/\\ (C # $s \\/ ${tlaOperand(whole.tla)})}',
       holds: (c, {required pick, required all}) =>
-          pick.contains(member.run(c)) &&
+          _keysOf(pick).contains(modelKeyOf(member.run(c))) &&
           (pick.length < all.length || whole.run(c)),
       taken: taken,
       reads: reads + member.reads + whole.reads,
@@ -448,8 +478,8 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
       final pick = taken(c);
       assert(() {
         final all = run(c).toSet();
-        return pick.toSet().length == pick.length &&
-            all.containsAll(pick) &&
+        return _keysOf(pick).length == pick.length &&
+            _keysOf(all).containsAll(_keysOf(pick)) &&
             holds(c, pick: pick, all: all);
       }(), 'the code took $pick, which $tla does not offer');
       return [pick];

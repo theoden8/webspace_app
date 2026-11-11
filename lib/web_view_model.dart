@@ -87,7 +87,7 @@ export 'package:webspace/settings/blocked_cookie.dart';
 export 'package:webspace/settings/location.dart'
     show LocationMode, LocationGranularity, WebRtcPolicy;
 
-class WebViewModel implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
+class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
   @override
   final SiteId siteId;
   @override

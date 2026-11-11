@@ -173,7 +173,7 @@ class SiteNetworkController {
     for (final model in pinned) {
       // The unload input's: the site on screen stays loaded with a fresh
       // webview (LAZY-007), and one off screen goes as a home reset's does.
-      if (_sites.loaded.contains(model)) {
+      if (_sites.loaded.holdsObject(model)) {
         await _activation.unload(model, reason: UnloadReason.trustRevoked);
         if (!_host.mounted) return;
         unloaded = true;
@@ -241,7 +241,7 @@ class SiteNetworkController {
       shown: _sites.shown,
       loaded: _sites.loaded,
     );
-    final rows = [for (final m in order) _sites.models.indexOf(m)];
+    final rows = [for (final m in order) _sites.models.indexOfObject(m)];
     final plan = SiteUnloadEngine.plan(residency, event: TorExitSettled(rows));
     await SiteUnloadEngine.apply(residency, plan: plan,
         isStale: () => !_host.mounted);
@@ -271,7 +271,7 @@ class SiteNetworkController {
   /// Tor-bound site behind the interstitial from this call until the pin
   /// lands, and bounds the round trip itself.
   void syncTorExitPin(Iterable<WebViewModel> pinned) {
-    final rows = [for (final m in pinned) _sites.models.indexOf(m)];
+    final rows = [for (final m in pinned) _sites.models.indexOfObject(m)];
     final identities = _sites.slotIdentities();
     unawaited(TorService.instance.setExitCountry(
       SiteUnloadEngine.torExitNodesFor(indices: rows, models: identities),
@@ -322,7 +322,7 @@ class SiteNetworkController {
         ],
         sharedProfilePriority: [
           for (final m in [?active, ?_sites.shown, ..._sites.loaded])
-            _sites.models.indexOf(m),
+            _sites.models.indexOfObject(m),
         ],
       );
 

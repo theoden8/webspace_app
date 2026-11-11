@@ -56,6 +56,23 @@ List<String> _loadedIds(SiteRuntime r) => [for (final m in r.loaded) m.siteId];
 
 void main() {
   group('SiteRuntime.apply keeps the loaded and shown sites', () {
+    test('a removal names its site by id, whatever object carries the id '
+        '(CONT-012)', () {
+      final r = _runtime(
+        [_site(SiteId('a')), _site(SiteId('b'))],
+        loaded: ['a', 'b'],
+        shown: SiteId('b'),
+      );
+      r.applied(SiteRemoved(_site(SiteId('a'))));
+      expect(
+        [for (final m in r.models) m.siteId],
+        ['b'],
+        reason: 'an import lists a new object under a carried id while a '
+            'flow in flight holds the old one; the model removes by id',
+      );
+      expect(_loadedIds(r), ['b']);
+    });
+
     test('a delete before the shown site shifts it and the loaded set (LAZY-005)', () {
       final b = _site(SiteId('b'));
       final r = _runtime(

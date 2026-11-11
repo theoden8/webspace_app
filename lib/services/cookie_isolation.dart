@@ -760,7 +760,7 @@ class CookieIsolationEngine {
           run: (c) {
             final ls = _ls.of(c);
             final target = _target.of(c);
-            return c.api.snapshot(of: [...ls, if (!ls.contains(target)) target]);
+            return c.api.snapshot(of: [...ls, if (!ls.hasKey(target)) target]);
           },
           reply: _jar<RestoreWorld>().value,
         ),
@@ -989,7 +989,7 @@ class CookieIsolationEngine {
 
     final survivingSameBase = [
       for (final m in loaded)
-        if (!identical(m, deletedModel) &&
+        if (m.siteId != deletedModel.siteId &&
             !m.effectiveIncognito &&
             getBaseDomain(m.initUrl) == deletedBase)
           m,

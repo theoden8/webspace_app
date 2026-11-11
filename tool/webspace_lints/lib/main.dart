@@ -5,6 +5,7 @@ import 'src/catch_all.dart';
 import 'src/held_in_turn.dart';
 import 'src/layer_import.dart';
 import 'src/model_await.dart';
+import 'src/model_identity.dart';
 import 'src/positional_parameters.dart';
 import 'src/raw_http_client.dart';
 
@@ -22,6 +23,7 @@ class WebspaceLints extends Plugin {
       ..registerWarningRule(HeldInTurn())
       ..registerWarningRule(RawHttpClient())
       ..registerWarningRule(LayerImport())
-      ..registerWarningRule(ModelAwait());
+      ..registerWarningRule(ModelAwait())
+      ..registerWarningRule(ModelIdentity());
   }
 }

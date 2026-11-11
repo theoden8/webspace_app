@@ -267,7 +267,7 @@ class LinkController {
         },
       ));
       if (!_host.mounted || request == null) return;
-      if (!_sites.models.contains(owner)) return;
+      if (!_sites.models.holdsObject(owner)) return;
       var option = request.option;
       final add = request.add;
       if (option == null && add != null && !owner.isArchiveTier) {
@@ -333,12 +333,12 @@ class LinkController {
     required SiteId? siteId,
   }) async {
     if (_host.kioskLocked || _webSearchGuard.busy) return;
-    if (!_sites.models.contains(owner)) return;
+    if (!_sites.models.holdsObject(owner)) return;
     final identity = owner.runningIdentity;
     final site = siteId == null ? null : _sites.byId(siteId);
     final reachable = site != null &&
         (identical(site, identity) ||
-            outboundCandidates(owner).contains(site));
+            outboundCandidates(owner).hasKey(site));
     if (!reachable) {
       await webSearch(initialQuery: query);
       return;
@@ -362,7 +362,7 @@ class LinkController {
     required Uri url,
   }) async {
     final searchSite = _sites.byId(searchSiteId);
-    final index = _sites.models.indexOf(owner);
+    final index = _sites.models.indexOfObject(owner);
     if (searchSite == null || index < 0) return;
     final identity = owner.runningIdentity;
     final landing = WebSearchEngine.land(
@@ -588,7 +588,7 @@ class LinkController {
     required bool hadGesture,
   }) {
     final uri = Uri.tryParse(url);
-    if (uri == null || !_sites.models.contains(owner)) return null;
+    if (uri == null || !_sites.models.holdsObject(owner)) return null;
     final action = LinkIntentDispatchEngine.routeToTab(
       url: uri,
       urlNavigationDomain: getNormalizedDomain(url),
@@ -798,7 +798,7 @@ class LinkController {
       if (!_host.mounted) return;
     }
     if (a.disposeBeforeLoad) {
-      if (_sites.loaded.contains(model)) {
+      if (_sites.loaded.holdsObject(model)) {
         await _host.unloadSite(model, reason: UnloadReason.homeReset);
         if (!_host.mounted) return;
       } else {
@@ -813,7 +813,7 @@ class LinkController {
       model.cookies = const [];
     }
     if (!_host.mounted) return;
-    if (!_sites.models.contains(model)) return; // deleted during the awaits
+    if (!_sites.models.holdsObject(model)) return; // deleted during the awaits
     // A search opens its own tab (LIR-030). Tabs can have been switched off
     // since the engine decided; the search then loads in place.
     if (a.newTab && _tabs.enabledFor(model)) {
@@ -912,7 +912,7 @@ class LinkController {
   /// `shouldOverrideUrlLoading` for a programmatic load.
   Future<void> openLinkAsTapped(WebViewModel model,
       {required String url}) async {
-    if (!_sites.models.contains(model)) return;
+    if (!_sites.models.holdsObject(model)) return;
     final active = identical(model, _sites.shown);
     // A hosted tab navigates by its host's rules (LIR-018), except that a
     // link back into the owner's domain returns to the owner.
@@ -979,7 +979,7 @@ class LinkController {
   Future<void> openTypedAddress(WebViewModel model, {required String url}) async {
     // Decide on the tab the switch in flight lands on, not the one it leaves.
     await _tabs.settled();
-    if (!_host.mounted || !_sites.models.contains(model)) return;
+    if (!_host.mounted || !_sites.models.holdsObject(model)) return;
     final identity = model.runningIdentity;
     final decision = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
       targetUrl: url,
@@ -1043,7 +1043,7 @@ class LinkController {
   /// the site has a webview to load it in.
   bool takesBack(WebViewModel owner, {required TabId tabId}) =>
       _host.mounted &&
-      _sites.models.contains(owner) &&
+      _sites.models.holdsObject(owner) &&
       owner.tabs.any((t) => t.id == tabId) &&
       _host.controllerOf(owner) != null;
 
@@ -1052,7 +1052,7 @@ class LinkController {
   /// [url], as a browser's window closes into the page that opened it.
   Future<void> returnFromNested(WebViewModel owner,
       {required TabId tabId, required String url}) async {
-    if (!_host.mounted || !_sites.models.contains(owner)) return;
+    if (!_host.mounted || !_sites.models.holdsObject(owner)) return;
     if (owner.activeTabId != tabId) {
       if (!owner.tabs.any((t) => t.id == tabId)) return;
       await _tabs.openTab(owner, tabId: tabId);

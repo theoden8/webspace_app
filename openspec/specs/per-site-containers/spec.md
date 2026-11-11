@@ -720,6 +720,31 @@ absent.
 **When** the user opens App Settings
 **Then** no such row is shown
 
+### Requirement: CONT-012 — Flows Know a Site by Its Id
+
+A step table, the residency and jar engines, a wake and the site-set
+funnel SHALL compare sites by their id, the key the model knows them by,
+never as objects. An import lists a new object under a carried site's id
+while a flow in flight still holds the old one, so a comparison of objects
+there reads the site as gone, or as another site, where the model still
+lists it. Code that means this very object, still listed after an await,
+SHALL say so (`holdsObject`, `indexOfObject`). In a library that declares
+step tables, the `model_identity` analyzer rule refuses an implicit
+comparison of two sites: `==`, `!=`, `contains`, `indexOf`, `lastIndexOf`,
+`remove`, `containsKey`, `containsValue` and a map lookup.
+
+#### Scenario: A removal names its site by id
+
+**Given** sites A and B are listed, A loaded
+**When** a removal names A through another object carrying A's id
+**Then** the listed A leaves the list and the loaded set
+
+#### Scenario: A wake across an import
+
+**Given** a background wake checks site A headless
+**When** an import lists A again under its id before the check opens
+**Then** the wake finds its plan entry for A and checks it
+
 ## Implementation Details
 
 ### Logic Engines

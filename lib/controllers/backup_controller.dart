@@ -131,8 +131,8 @@ class BackupController {
       // A row among the exported sites, which an archive-tier row before
       // the shown site would shift.
       currentIndex: switch (_sites.shown) {
-        final shown? when appTierModels.contains(shown) =>
-          appTierModels.indexOf(shown),
+        final shown? when appTierModels.holdsObject(shown) =>
+          appTierModels.indexOfObject(shown),
         _ => null,
       },
       suggestedSites: _shell.suggestedSites

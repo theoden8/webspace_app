@@ -14,6 +14,37 @@ part 'model_exprs.dart';
 part 'step_lock.dart';
 part 'step_reads.dart';
 
+/// A value the model knows by a key: two are the same to the model when
+/// their keys are, whatever objects they are. An import lists a new object
+/// under a carried site's id while a flow in flight holds the old one
+/// (CONT-012).
+abstract interface class ModelKeyed {
+  Object get modelKey;
+}
+
+/// A site's key is its id.
+mixin SiteKeyed implements ModelKeyed {
+  Object get siteId;
+
+  @override
+  Object get modelKey => siteId;
+}
+
+/// [v]'s key where it has one, else [v].
+Object? modelKeyOf(Object? v) => v is ModelKeyed ? v.modelKey : v;
+
+/// Membership by the model's key, or by this very object where a caller
+/// means the live object after an await.
+extension KeyedIterable<E extends ModelKeyed> on Iterable<E> {
+  bool hasKey(E e) => any((x) => x.modelKey == e.modelKey);
+  bool holdsObject(E e) => any((x) => identical(x, e));
+}
+
+extension KeyedList<E extends ModelKeyed> on List<E> {
+  int indexOfKey(E e) => indexWhere((x) => x.modelKey == e.modelKey);
+  int indexOfObject(E e) => indexWhere((x) => identical(x, e));
+}
+
 /// What a table's own code sees of one flow: the values its steps keep,
 /// the element a step picked, the names a quantifier bound. Not the
 /// engine's world: a step reaches that only through the leaves and ports
@@ -195,8 +226,8 @@ final class Expr<T, W> {
     run: (c) {
       final engine = run(c).toList();
       assert(() {
-        final printed = rule.run(c).toSet();
-        final ran = {for (final e in engine) key(e)};
+        final printed = {for (final p in rule.run(c)) modelKeyOf(p)};
+        final ran = {for (final e in engine) modelKeyOf(key(e))};
         return printed.length == ran.length && printed.containsAll(ran);
       }(), why);
       return engine;
@@ -261,14 +292,14 @@ final class Expr<T, W> {
   );
 
   Expr<bool, W> eq(Expr<T, W> other) => Expr._(
-    run: (c) => run(c) == other.run(c),
+    run: (c) => modelKeyOf(run(c)) == modelKeyOf(other.run(c)),
     tla: '${tlaOperand(tla)} = ${tlaOperand(other.tla)}',
     reads: reads + other.reads,
     unless: _differs(other),
   );
 
   Expr<bool, W> neq(Expr<T, W> other) => Expr._(
-    run: (c) => run(c) != other.run(c),
+    run: (c) => modelKeyOf(run(c)) != modelKeyOf(other.run(c)),
     tla: '${tlaOperand(tla)} # ${tlaOperand(other.tla)}',
     reads: reads + other.reads,
     needs: _differs(other),

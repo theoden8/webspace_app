@@ -129,7 +129,7 @@ class TabsController {
   /// closed and it shows its active tab alone.
   bool enabledFor(WebViewModel? site) =>
       site != null &&
-      _sites.models.contains(site) &&
+      _sites.models.holdsObject(site) &&
       site.effectiveTabsEnabled;
 
   /// [act] on the site on screen when called, or null where that site has no
@@ -176,7 +176,7 @@ class TabsController {
       await _gate.idle();
     }
     ClosedTabs? kept;
-    if (_host.mounted && _sites.models.contains(model)) {
+    if (_host.mounted && _sites.models.holdsObject(model)) {
       assert(!_gate.busy, 'a close from the Tabs sheet asks on a free gate');
       kept = await closeTab(model, tabId: tabId, subtree: subtree);
     }
@@ -430,7 +430,7 @@ class TabsController {
     for (final MapEntry(key: model, value: from) in movedFrom.entries) {
       final moves =
           TabCalls(this).movesRule(from: from, to: model.runningIdentity);
-      if (moves && loadedBefore.contains(model)) {
+      if (moves && loadedBefore.holdsObject(model)) {
         _host.noteUnloaded(model, why: 'identity change');
       }
       model.disposeWebView(commit: commit);
@@ -480,7 +480,7 @@ class TabsController {
       return;
     }
     await _gate.run(() async {
-      if (!_sites.models.contains(model)) return;
+      if (!_sites.models.holdsObject(model)) return;
       final from = _sites.shown;
       final back = from == null ? null : wayBackFrom(from);
       final trail = from == null
@@ -498,7 +498,7 @@ class TabsController {
       // directly: no load of the tab the site happened to be on, and no
       // dispose right after it.
       final moves = model.activeTabId != tabId;
-      final loaded = _sites.loaded.contains(model);
+      final loaded = _sites.loaded.holdsObject(model);
       commitInput(ActivationStep.openTab, outcome: StepOutcome.go, site: model,
           writes: (commit) {
         if (!moves || loaded) return;
@@ -533,7 +533,7 @@ class TabsController {
     final ws = _sites.webspaces.where((w) => w.id == webspaceId).firstOrNull;
     if (ws == null ||
         webspaceId == _sites.selectedWebspaceId ||
-        !(ws.isAll || ws.siteIndices.contains(_sites.models.indexOf(model)))) {
+        !(ws.isAll || ws.siteIndices.contains(_sites.models.indexOfObject(model)))) {
       await _host.revealSite(model);
       return;
     }
@@ -569,7 +569,7 @@ class TabsController {
     while (_gate.busy) {
       await _gate.idle();
     }
-    if (!_host.mounted || !_sites.models.contains(model)) return;
+    if (!_host.mounted || !_sites.models.holdsObject(model)) return;
     final move = TabLifecycleEngine.ownerRunMove(model.tabs,
         activeTabId: model.activeTabId,
         homeUrl: model.initUrl,
@@ -595,7 +595,7 @@ class TabsController {
     // Sites, not rows: each close awaits, and a row can name another site
     // after an await.
     for (final model in [..._sites.models]) {
-      if (!_sites.models.contains(model)) continue;
+      if (!_sites.models.holdsObject(model)) continue;
       if (!model.tabs.any((t) => t.hostSiteId != null)) continue;
       final result = TabLifecycleEngine.closeWhere(
         model.tabs,
@@ -629,13 +629,13 @@ class TabsController {
       return;
     }
     await _gate.run(() async {
-      if (!_sites.models.contains(model)) return;
+      if (!_sites.models.holdsObject(model)) return;
       final tab = SiteTab(url: url ?? model.initUrl);
       // A site with a live webview has to go through the switch even when it
       // is offscreen: moving `activeTabId` on its own would leave that webview
       // showing the tab it was on while the model says otherwise, and the
       // outgoing tab's back stack would never be captured.
-      final live = _sites.loaded.contains(model);
+      final live = _sites.loaded.holdsObject(model);
       commitInput(ActivationStep.newTab, outcome: StepOutcome.go, site: model,
           writes: (commit) {
         WebViewModel.tabsCell
@@ -672,7 +672,7 @@ class TabsController {
     String? homeUrl,
   }) async {
     if (!owner.effectiveTabsEnabled) return;
-    if (!_sites.models.contains(owner)) return;
+    if (!_sites.models.holdsObject(owner)) return;
     final parent = parentTabId != null &&
             owner.tabs.any((t) => t.id == parentTabId)
         ? parentTabId
@@ -715,7 +715,7 @@ class TabsController {
       return;
     }
     await _gate.run(() async {
-      if (!_sites.models.contains(model)) return;
+      if (!_sites.models.holdsObject(model)) return;
       final c = StepContext(TabFlow(this, site: model));
       c.world.fresh = _copyOf(model.activeTab);
       TabTable._kind.put(c, value: FlowKind.tab);
@@ -796,7 +796,7 @@ class TabsController {
     while (_gate.busy) {
       await _gate.idle();
     }
-    if (!_host.mounted || !_sites.models.contains(model)) return;
+    if (!_host.mounted || !_sites.models.holdsObject(model)) return;
     final tab = child();
     if (tab == null) return;
     final c = StepContext(TabFlow(this, site: model)
@@ -836,7 +836,7 @@ class TabsController {
       while (_gate.busy) {
         await _gate.idle();
       }
-      if (!_host.mounted || !_sites.models.contains(model)) break;
+      if (!_host.mounted || !_sites.models.holdsObject(model)) break;
       final was = entry.tab;
       final host = switch (was.hostSiteId) {
         final id? => _sites.byId(id),
@@ -950,7 +950,7 @@ class TabsController {
     }
     ClosedTabs? closed;
     await _gate.run(() async {
-      if (!_sites.models.contains(model)) return;
+      if (!_sites.models.holdsObject(model)) return;
       final result = subtree
           ? TabLifecycleEngine.closeSubtree(model.tabs,
               activeTabId: model.activeTabId, closeId: tabId)

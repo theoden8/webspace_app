@@ -340,7 +340,7 @@ class ArchiveController {
       {required ArchiveHandle into}) async {
     final target = into;
     // A turn since the prompt: the site may have moved or gone meanwhile.
-    if (!_host.mounted || model.isArchiveTier || !_sites.models.contains(model)) {
+    if (!_host.mounted || model.isArchiveTier || !_sites.models.holdsObject(model)) {
       return;
     }
 

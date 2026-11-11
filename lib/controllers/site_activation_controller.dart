@@ -93,7 +93,7 @@ class SiteActivationController {
       assert(
         _sites.activating != null ||
             _sites.shown == null ||
-            _sites.loaded.contains(_sites.shown),
+            _sites.loaded.holdsObject(_sites.shown!),
         'memory pressure unloaded the site on screen (PAUSE-006)',
       );
       if (plan.unloads.isNotEmpty) {
@@ -137,7 +137,7 @@ class SiteActivationController {
   /// The input's own step, before any await: the version, the marker and
   /// the place the flow starts at ([ActivationTable.activationFlow]).
   Future<void> activate(WebViewModel? site) async {
-    if (site != null && !_sites.models.contains(site)) return;
+    if (site != null && !_sites.models.holdsObject(site)) return;
     final flow = _flow(target: site);
     if (site == null) {
       // The goHome step commits the screen before any await (NAV-010):
@@ -149,7 +149,7 @@ class SiteActivationController {
       return;
     }
     LogTag.cookieIsolation.debug(
-      'Switching to site ${_sites.models.indexOf(site)}: '
+      'Switching to site ${_sites.models.indexOfObject(site)}: '
       '"${site.name}" (siteId: ${site.siteId})',
       sensitive: true,
     );
@@ -272,7 +272,7 @@ class SiteActivationController {
     WebViewModel target, {
     required NestedRequest opening,
   }) async {
-    if (!_sites.models.contains(target)) return;
+    if (!_sites.models.holdsObject(target)) return;
     final flow = _flow(target: target, opening: opening);
     if (!ActivationTable.activationFlow.admits(ActivationPlace.nested, on: flow)) {
       _flows.remove(flow);
@@ -302,7 +302,7 @@ class SiteActivationController {
   /// nothing.
   Future<void> unload(WebViewModel site, {required UnloadReason reason}) async {
     assert(reason.chosen, 'the unload input picks its site ($reason)');
-    if (!_sites.models.contains(site)) return;
+    if (!_sites.models.holdsObject(site)) return;
     if (identical(site, _sites.shown)) {
       site.disposeWebView(commit: const Commit.environment(Environment.letGo));
       return;
@@ -352,7 +352,7 @@ class SiteActivationController {
   void followNavigation(WebViewModel site) {
     site.onNavigationCommitted = () {
       _navDebouncer.schedule(site.siteId, capture: () {
-        if (!_host.mounted || !_sites.models.contains(site)) return;
+        if (!_host.mounted || !_sites.models.holdsObject(site)) return;
         unawaited(captureStateBytes(site));
       });
     };

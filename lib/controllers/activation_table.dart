@@ -322,7 +322,7 @@ abstract final class ActivationTable {
   static final _siteGone = Expr.op<bool, ActivationFlow>(
     HandPaired.activationSiteGone,
     tla: '${_site.value.tla} \\in gone',
-    run: (c) => !ActivationFlow.page.from(c).models.contains(_site.of(c)),
+    run: (c) => !ActivationFlow.page.from(c).models.hasKey(_site.of(c)),
     reads: _site.value.reads + const Reads(vars: {ModelVar.gone}),
   );
   static final _tier = tierOf<ActivationFlow>();
@@ -553,7 +553,7 @@ abstract final class ActivationTable {
   static ResidencyPlan _nestedPlan(StepView<ActivationFlow> c) {
     final page = ActivationFlow.page.from(c);
     return page.residencyPlan(
-      NestedOpening(page.models.indexOf(_site.of(c))),
+      NestedOpening(page.models.indexOfKey(_site.of(c))),
     );
   }
   static final _screenVictims = Expr.checked(
@@ -724,16 +724,16 @@ abstract final class ActivationTable {
     final models = page.models;
     return ActivationFlow.state.from(c).plan ??= page.residencyPlan(switch (kind.of(c)) {
         FlowKind.tap || FlowKind.preload || FlowKind.home => Activating(
-          models.indexOf(_site.of(c)),
+          models.indexOfKey(_site.of(c)),
         ),
         FlowKind.pressure => throw StateError('made by the pressure plan step'),
         FlowKind.unload => throw StateError('made by the unload\'s caller'),
-        FlowKind.nested => NestedOpening(models.indexOf(_site.of(c))),
+        FlowKind.nested => NestedOpening(models.indexOfKey(_site.of(c))),
         FlowKind.space => WebspaceSwitched(
           leaving: {
             for (final m in _away.of(c))
-              if (models.contains(m) && !identical(m, _behind.of(c)))
-                models.indexOf(m),
+              if (models.hasKey(m) && m.modelKey != _behind.of(c)?.modelKey)
+                models.indexOfKey(m),
           },
         ),
         FlowKind.tab => throw StateError('a tab flow plans no residency'),

@@ -38,7 +38,7 @@ final class SiteDeletion {
   final SiteDeletionHost _host;
 
   Future<void> delete(WebViewModel site) async {
-    if (!_sites.models.contains(site)) return;
+    if (!_sites.models.holdsObject(site)) return;
     final c = StepContext(DeleteFlow._(this, site: site));
     final next = deleteTable.runInput(c, from: DeletePlace.delete);
     if (next == DeletePlace.done) return;
@@ -91,7 +91,7 @@ final _deleteNamed = Port<({WebViewModel site, bool Function() listed}), DeleteF
   'named',
   reads: {ModelVar.gone},
   changes: const {},
-  of: (w) => (site: w.site, listed: () => w._sites.models.contains(w.site)),
+  of: (w) => (site: w.site, listed: () => w._sites.models.hasKey(w.site)),
 );
 
 /// The page's commit, which takes the site off the lists, the loaded set

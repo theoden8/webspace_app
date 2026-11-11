@@ -77,12 +77,12 @@ class SiteEditingController {
   Future<void> offerRedirectHome(WebViewModel source, {required String url}) async {
     await _redirectHomeGuard.run(() async {
       if (!_host.mounted || !_sites.fore || !identical(_sites.shown, source) ||
-          !_sites.models.contains(source) || source.runsForeignTab ||
+          !_sites.models.holdsObject(source) || source.runsForeignTab ||
           source.currentUrl != url) {
         return;
       }
       final site = source.runningIdentity;
-      if (!_sites.models.contains(site)) return;
+      if (!_sites.models.holdsObject(site)) return;
       final resolved = Uri.tryParse(url);
       if (resolved == null) return;
       DomainClaim? candidate() => redirectDomainClaim(SiteRoute(site),
@@ -93,7 +93,7 @@ class SiteEditingController {
       if (claim == null || !site.offeredRedirectDomains.add(claim)) return;
       final home = site.initUrl;
       final accepted = await _prompts.updateRedirectHome(url);
-      if (!_host.mounted || !_sites.models.contains(site)) return;
+      if (!_host.mounted || !_sites.models.holdsObject(site)) return;
       if (accepted && _sites.fore && site.initUrl == home &&
           identical(_sites.shown, source) && source.currentUrl == url &&
           !source.runsForeignTab && identical(source.runningIdentity, site) &&
@@ -202,7 +202,7 @@ class SiteEditingController {
         spaces: [for (final ws in _sites.webspaces) if (!ws.isAll) ws]);
     if (result == null || !_host.mounted) return;
     // Deleted while the dialog was open.
-    if (!_sites.models.contains(model)) return;
+    if (!_sites.models.holdsObject(model)) return;
 
     final (:name, :url, :icon, :spaces) = result;
     final joinedOrLeft = spaces != null &&
@@ -229,7 +229,7 @@ class SiteEditingController {
     final confirmed = await _prompts.confirmDelete(deletedModel);
 
     if (confirmed != true || !_host.mounted) return;
-    if (!_sites.models.contains(deletedModel)) return;
+    if (!_sites.models.holdsObject(deletedModel)) return;
     // HS-013: the tiles reaching the site, read before it goes.
     final reachingTiles = await _shortcuts.tilesReaching(deletedModel);
     if (!_host.mounted) return;

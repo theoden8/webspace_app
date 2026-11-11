@@ -89,7 +89,7 @@ final class TabCalls {
     return topology.contends(from) || topology.contends(to) || torRuntime;
   }
   bool isShown(WebViewModel site) => identical(site, _c._sites.shown);
-  bool isLoaded(WebViewModel site) => _c._sites.loaded.contains(site);
+  bool isLoaded(WebViewModel site) => _c._sites.loaded.hasKey(site);
 
   NavCapture? beginCapture(WebViewModel site) {
     _c._host.cancelPendingCapture(site.siteId);
