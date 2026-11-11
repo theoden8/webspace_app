@@ -14,25 +14,67 @@
 (***************************************************************************)
 EXTENDS activation_tables_proof
 
+\* Each lemma names the definitions its step needs, so no obligation holds
+\* Inv_Places's every place unless it reasons about them: proved with the
+\* places in every case's hypotheses, InitInd and the Join case needed the
+\* cache to land, and failed cold.
 LEMMA InitInd == Init => IndInv
-  BY DEF Init, WarmInit, ColdInit, IndInv, FlowsOK, Fresh, Inv_Places, NoFlow,
-         Flows
+  <1> SUFFICES ASSUME Init PROVE IndInv
+    OBVIOUS
+  <1>1. fl = [g \in Flows |-> NoFlow] /\ inputs = 0
+    BY DEF Init
+  <1>2. NoFlow.pc = "done"
+    BY DEF NoFlow
+  <1> QED
+    BY <1>1, <1>2 DEF IndInv, FlowsOK, Fresh, Inv_Places
+
+\* A step that moves no flow and passes no turn keeps IndInv.
+LEMMA KeepsTurns ==
+    ASSUME IndInv, inputs' \in {inputs, inputs + 1}, fl' = fl,
+           holder' = holder, dnsHolder' = dnsHolder
+    PROVE  IndInv'
+  <1>1. inputs' \in Nat
+    BY DEF IndInv
+  <1>2. FlowsOK'
+    BY DEF IndInv, FlowsOK
+  <1>3. Fresh'
+    BY DEF IndInv, Fresh, Flows
+  <1>4. Inv_Places'
+    BY DEF IndInv, Inv_Places
+  <1> QED
+    BY <1>1, <1>2, <1>3, <1>4 DEF IndInv
 
 LEMMA StepInd == Good /\ IndInv /\ [Next]_vars => IndInv'
   <1> SUFFICES ASSUME Good, IndInv, [Next]_vars
                PROVE  IndInv'
     OBVIOUS
-  <1> USE DEF Good, IndInv, FlowsOK, Fresh, Inv_Places, NoFlow, Flows,
-              site, sessions, turn, ghosts, Did
   <1>1. CASE InputStep
     <2>1. CASE \E f \in Flows : InputTableStep(f)
       BY <2>1, InputStepInd
     <2>2. CASE \E from, to \in Pos : Move(from, to)
-      BY <2>2 DEF Move, Input, Starts
+      <3> PICK from, to \in Pos : Move(from, to)
+        BY <2>2
+      <3>1. inputs' = inputs + 1 /\ fl' = fl /\ holder' = holder
+            /\ dnsHolder' = dnsHolder
+        BY DEF Move, Input, Starts, turn
+      <3> QED
+        BY <3>1, KeepsTurns
     <2>3. CASE \E s \in Sites : Login(s)
-      BY <2>3 DEF Login, Input, Starts
+      <3> PICK s \in Sites : Login(s)
+        BY <2>3
+      <3>1. inputs' = inputs + 1 /\ fl' = fl /\ holder' = holder
+            /\ dnsHolder' = dnsHolder
+        BY DEF Login, Input, Starts, turn
+      <3> QED
+        BY <3>1, KeepsTurns
     <2>4. CASE \E s \in Sites : Join(s)
-      BY <2>4 DEF Join, Input, Starts
+      <3> PICK s \in Sites : Join(s)
+        BY <2>4
+      <3>1. inputs' = inputs + 1 /\ fl' = fl /\ holder' = holder
+            /\ dnsHolder' = dnsHolder
+        BY DEF Join, Input, Starts, turn
+      <3> QED
+        BY <3>1, KeepsTurns
     <2> QED
       BY <1>1, <2>1, <2>2, <2>3, <2>4 DEF InputStep
   <1>2. CASE \E f \in Flows : FlowStep(f)
@@ -43,19 +85,55 @@ LEMMA StepInd == Good /\ IndInv /\ [Next]_vars => IndInv'
     <2> QED
       BY <2>1 DEF FlowStep
   <1>3. CASE ClearJar
-    BY <1>3 DEF ClearJar
+    <2>1. inputs' = inputs /\ fl' = fl /\ holder' = holder
+          /\ dnsHolder' = dnsHolder
+      BY <1>3 DEF ClearJar
+    <2> QED
+      BY <2>1, KeepsTurns
   <1>5. CASE Done
-    BY <1>5 DEF Done, vars
+    <2>1. inputs' = inputs /\ fl' = fl /\ holder' = holder
+          /\ dnsHolder' = dnsHolder
+      BY <1>5 DEF Done, vars, turn
+    <2> QED
+      BY <2>1, KeepsTurns
   <1>4. CASE UNCHANGED vars
-    BY <1>4 DEF vars
+    <2>1. inputs' = inputs /\ fl' = fl /\ holder' = holder
+          /\ dnsHolder' = dnsHolder
+      BY <1>4 DEF vars, turn
+    <2> QED
+      BY <2>1, KeepsTurns
   <1>6. CASE \E s \in Sites : ViewBuilt(s) \/ ViewGone(s)
-    BY <1>6 DEF ViewBuilt, ViewGone
+    <2> PICK s \in Sites : ViewBuilt(s) \/ ViewGone(s)
+      BY <1>6
+    <2>1. inputs' = inputs /\ fl' = fl /\ holder' = holder
+          /\ dnsHolder' = dnsHolder
+      BY DEF ViewBuilt, ViewGone, turn
+    <2> QED
+      BY <2>1, KeepsTurns
   <1>7. CASE \E s \in Sites : Frame(s)
-    BY <1>7 DEF Frame
+    <2> PICK s \in Sites : Frame(s)
+      BY <1>7
+    <2>1. inputs' = inputs /\ fl' = fl /\ holder' = holder
+          /\ dnsHolder' = dnsHolder
+      BY DEF Frame, turn
+    <2> QED
+      BY <2>1, KeepsTurns
   <1>8. CASE \E s \in Sites : LetGo(s)
-    BY <1>8 DEF LetGo
+    <2> PICK s \in Sites : LetGo(s)
+      BY <1>8
+    <2>1. inputs' = inputs /\ fl' = fl /\ holder' = holder
+          /\ dnsHolder' = dnsHolder
+      BY DEF LetGo, turn
+    <2> QED
+      BY <2>1, KeepsTurns
   <1>9. CASE \E s \in Sites : Reframe(s)
-    BY <1>9 DEF Reframe
+    <2> PICK s \in Sites : Reframe(s)
+      BY <1>9
+    <2>1. inputs' = inputs /\ fl' = fl /\ holder' = holder
+          /\ dnsHolder' = dnsHolder
+      BY DEF Reframe, turn
+    <2> QED
+      BY <2>1, KeepsTurns
   <1> QED
     BY <1>1, <1>2, <1>3, <1>4, <1>5, <1>6, <1>7, <1>8, <1>9 DEF Next
 
