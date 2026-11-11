@@ -8,6 +8,7 @@ import 'checks.dart';
 import 'lean_footprints.dart';
 import 'types_proof.dart';
 import 'worlds.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/tab_leaves.dart';
 import 'package:webspace/services/site_tab.dart';
@@ -46,7 +47,7 @@ typedef Tables = ({
   StepTable<UnloadFlow, UnloadPlace> unload,
   StepTable<UnloadWorld, UnloadPlace> jar,
   StepTable<RestoreWorld, RestorePlace> restore,
-  StepTable<WakeFlow<WebViewModel>, WakePlace> wake,
+  StepTable<WakeFlow<SiteId>, WakePlace> wake,
   StepTable<DnsFlow, DnsPlace> dns,
   StepTable<CloseFlow, ClosePlace> archive,
   StepTable<DeleteFlow, DeletePlace> delete,
@@ -101,7 +102,7 @@ final Tables tables = (
   unload: SiteUnloadEngine.unloadFlow,
   jar: CookieIsolationEngine.unloadSteps,
   restore: CookieIsolationEngine.restoreSteps,
-  wake: wakeTable<WebViewModel>(),
+  wake: wakeTable<SiteId>(),
   dns: DnsTable.table,
   archive: ArchiveController.closeTable,
   delete: SiteDeletion.deleteTable,

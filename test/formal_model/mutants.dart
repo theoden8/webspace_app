@@ -223,7 +223,7 @@ Tables _with({
   StepTable<UnloadFlow, UnloadPlace>? unload,
   StepTable<UnloadWorld, UnloadPlace>? jar,
   StepTable<RestoreWorld, RestorePlace>? restore,
-  StepTable<WakeFlow<WebViewModel>, WakePlace>? wake,
+  StepTable<WakeFlow<SiteId>, WakePlace>? wake,
   StepTable<DnsFlow, DnsPlace>? dns,
   StepTable<CloseFlow, ClosePlace>? archive,
   StepTable<DeleteFlow, DeletePlace>? delete,
@@ -246,7 +246,7 @@ Tables _with({
   ops: ops ?? tables.ops,
 );
 
-final _asks = wakeAsks<WebViewModel>();
+final _asks = wakeAsks<SiteId>();
 
 /// [m] as code: each table and definition its tables replace, for the
 /// runner to take in place of the code's while a test runs it.
@@ -859,7 +859,7 @@ Tables mutated(Mutant m) => switch (m) {
           for (final b in s.branches)
             Branch(
               b.outcome,
-              when: Var<bool, WakeFlow<WebViewModel>>(
+              when: Var<bool, WakeFlow<SiteId>>(
                 ModelVar.fore,
                 read: (w) => w.host.vars.fore.value,
               ).value,
