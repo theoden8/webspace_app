@@ -9,7 +9,7 @@ const root = path.resolve(__dirname, '../..');
 
 function proofRun(t, {
   outcome, shortModule = '', solvers = '', hang = false, cache = null, rerun = false,
-  script = 'formal/proofs/check_proofs.sh',
+  script = 'formal/proofs/check_proofs.sh', shard = '',
 }) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'proof-exit-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
@@ -62,6 +62,7 @@ function proofRun(t, {
         TMPDIR: tmp,
         TLAPM_CACHE_DIR: cache ?? path.join(dir, 'cache'),
         FORMAL_RERUN: rerun ? '1' : '',
+        FORMAL_PROOF_SHARD: shard,
         PROOF_CALLS: calls,
         PROOF_OBLIGATIONS: outcome === 'failure' ? '0' : '1000',
         PROOF_SHORT_MODULE: shortModule,
@@ -278,3 +279,61 @@ for (const [mistake, breaks, from, to] of planted) {
     assert.throws(() => run(t, plantedScript(t, { from, to })), assert.AssertionError);
   });
 }
+
+// The proof job's shards (FORMAL_PROOF_SHARD): each proves its own modules,
+// and the finish's merge requires every module proved by exactly one.
+function shardRun(t, { shards, outcome = 'success', shortModule = '' }) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'proof-shards-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const cache = sharedCache(t);
+  const runs = [];
+  for (let i = 0; i < shards; i++) {
+    const run = proofRun(t, { outcome, shortModule, cache, shard: `${i}/${shards}` });
+    const result = prove(run);
+    const report = path.join(dir, `report-${i}`);
+    fs.writeFileSync(report, result.stdout);
+    runs.push({ run, result, report });
+  }
+  const merge = (reports) => spawnSync('python3', ['-I', path.join(root, 'formal/proofs/proof_shards.py'),
+    'merge', '--model', runs[0].run.model, '--proofs', path.join(root, 'formal/proofs'), ...reports],
+  { encoding: 'utf8' });
+  return { runs, merge, reports: runs.map((r) => r.report) };
+}
+
+test('each shard proves only its own modules, and the shards together prove each once', (t) => {
+  const { runs, merge, reports } = shardRun(t, { shards: 2 });
+  const asked = runs.map(({ run }) => run.asked());
+  for (const { result } of runs) assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.equal(new Set([...asked[0], ...asked[1]]).size, asked[0].length + asked[1].length,
+    'no module is proved by two shards');
+  assert.equal(asked[0].length + asked[1].length, runs[0].run.modules, 'every module is proved');
+  assert.ok(asked[0].length > 0 && asked[1].length > 0, 'both shards prove some');
+  const merged = merge(reports);
+  assert.equal(merged.status, 0, merged.stdout + merged.stderr);
+  assert.match(merged.stdout, /All TLAPS proofs checked\./);
+});
+
+test('the merge fails when a shard reported nothing', (t) => {
+  const { merge, reports } = shardRun(t, { shards: 2 });
+  const merged = merge(reports.slice(0, 1));
+  assert.equal(merged.status, 1);
+  assert.match(merged.stdout, /shards \[1\] reported nothing/);
+  assert.match(merged.stdout, /no shard proved it/);
+});
+
+test('the merge fails when two shards report one module', (t) => {
+  const { merge, reports } = shardRun(t, { shards: 2 });
+  const doubled = reports[1] + '.doubled';
+  const first = fs.readFileSync(reports[0], 'utf8').match(/^── \S+ ──\n {2}OK: .*\n/m)[0];
+  fs.writeFileSync(doubled, fs.readFileSync(reports[1], 'utf8') + first);
+  const merged = merge([reports[0], doubled]);
+  assert.equal(merged.status, 1);
+  assert.match(merged.stdout, /reported by two shards/);
+});
+
+test('a short table module in one shard fails the merged sum', (t) => {
+  const { merge, reports } = shardRun(t, { shards: 2, shortModule: 'activation_tables_3_proof.tla' });
+  const merged = merge(reports);
+  assert.equal(merged.status, 1);
+  assert.match(merged.stdout, /activation_tables_3_proof\.tla: its shard reported no proved count|the tables' step modules proved only/);
+});

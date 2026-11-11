@@ -14,11 +14,11 @@ const main = YAML.parse(read('.github/workflows/build-and-test.yml'));
 
 // Each stage's cache and the job that keeps it: the TLC shards hand what they
 // added to the memo job, which keeps one memo for all four (`work` is the step
-// whose outcome says there is something to keep).
+// whose outcome says there is something to keep). The proof shards each keep
+// a slice of their own, below.
 const stages = [
   { name: 'models', id: 'formal-cache', keeper: 'memo', work: 'formal-merge' },
   { name: 'steps', id: 'replay-cache', keeper: 'steps', work: 'formal-verify' },
-  { name: 'proofs', id: 'tlapm-cache', keeper: 'proofs', work: 'formal-verify' },
 ];
 for (const { name, id, keeper, work } of stages) {
   const job = jobs[name];
@@ -84,6 +84,72 @@ for (const { name, id, keeper, work } of stages) {
     }
   });
 }
+
+// The proof shards: each restores every shard's slice into one directory,
+// so a module the split moves stays warm, and saves its own.
+const proofs = jobs.proofs;
+const slices = proofs.strategy.matrix.shard;
+const proofVerify = proofs.steps.find((s) => s.id === 'formal-verify');
+test('each proof shard restores every slice before it proves, and saves its own after', () => {
+  assert.ok(slices.length > 1);
+  assert.equal(proofs.strategy['fail-fast'], false);
+  assert.equal(proofVerify.env.FORMAL_PROOF_SHARD, '${{ strategy.job-index }}/${{ strategy.job-total }}');
+  assert.ok(proofVerify['timeout-minutes'] > 0, 'a shard leaves time to save what it proved');
+  assert.ok(proofVerify['timeout-minutes'] < (proofs['timeout-minutes'] ?? 360));
+  const prefix = '${{ steps.tools.outputs.tlapm-pin }}';
+  const restores = proofs.steps.filter((s) => s.uses === 'actions/cache/restore@v4');
+  assert.deepEqual(restores.map((s) => s.id), ['tlapm-cache', ...slices.map((k) => `tlapm-cache-${k}`)]);
+  for (const restore of restores) {
+    assert.equal(restore.if, '${{ !inputs.cold }}');
+    assert.equal(restore.with.path, 'formal/proofs/.tlacache');
+    assert.ok(proofs.steps.indexOf(restore) < proofs.steps.indexOf(proofVerify));
+  }
+  for (const k of slices) {
+    const restore = restores.find((s) => s.id === `tlapm-cache-${k}`);
+    assert.equal(restore.with['restore-keys'], `tlapm-\${{ runner.os }}-${prefix}-s${k}-`);
+  }
+  const save = proofs.steps.find((s) => s.uses === 'actions/cache/save@v4');
+  assert.equal(save.with.path, 'formal/proofs/.tlacache');
+  assert.equal(save.with.key,
+    `tlapm-\${{ runner.os }}-${prefix}-s\${{ strategy.job-index }}-\${{ github.run_id }}-\${{ github.run_attempt }}`);
+  assert.ok(proofs.steps.indexOf(save) > proofs.steps.indexOf(proofVerify));
+  const guard = save.if.trim().slice(3, -2).replaceAll('steps.formal-verify.outcome', 'outcome');
+  for (const outcome of ['success', 'failure', 'cancelled', 'skipped', '']) {
+    assert.equal(vm.runInNewContext(guard, { outcome, always: () => true }),
+      ['success', 'failure', 'cancelled'].includes(outcome), outcome);
+  }
+});
+
+test("a proof shard with no cache at all takes master's newest artifact of every slice", () => {
+  const fallback = proofs.steps.find((s) => (s.run ?? '').includes('restore_formal_artifact.sh'));
+  for (const id of ['tlapm-cache', ...slices.map((k) => `tlapm-cache-${k}`)]) {
+    assert.match(fallback.if, new RegExp(`steps\\.${id}\\.outputs\\.cache-matched-key == ''`), id);
+  }
+  assert.equal(fallback.env.GH_TOKEN, '${{ github.token }}');
+  assert.ok(proofs.steps.indexOf(fallback) < proofs.steps.indexOf(proofVerify));
+  const upload = proofs.steps.find((s) => s.uses === 'actions/upload-artifact@v4' &&
+    s.with.path === 'formal/proofs/.tlacache');
+  assert.equal(upload.with.name, 'formal-tlacache-${{ steps.tools.outputs.tlapm-pin }}-${{ strategy.job-index }}');
+  assert.match(fallback.run, new RegExp(`-\\{${slices.join(',')}\\}`));
+  assert.equal(upload.with['include-hidden-files'], true);
+  const guard = upload.if.trim().slice(3, -2)
+    .replaceAll('steps.formal-verify.outcome', 'outcome')
+    .replaceAll('github.event_name', 'event').replaceAll('github.ref', 'ref');
+  for (const [event, ref] of [['push', 'refs/heads/master'], ['pull_request', 'refs/heads/master']]) {
+    for (const outcome of ['success', 'failure', 'skipped']) {
+      assert.equal(vm.runInNewContext(guard, { event, ref, outcome, always: () => true }),
+        event === 'push' && outcome !== 'skipped', `${event} ${outcome}`);
+    }
+  }
+});
+
+test('the finish merges every proof shard\'s report', () => {
+  const download = jobs.finish.steps.find((s) => s.with?.pattern === 'formal-proofs-*');
+  assert.equal(download.with.path, 'build/formal/proof-shards');
+  const report = proofs.steps.find((s) => s.with?.name === 'formal-proofs-${{ strategy.job-index }}');
+  assert.equal(report.with.path, 'build/formal/proofs.log');
+  assert.match(read('formal/verify.sh'), /proof_shards\.py" merge/);
+});
 
 test("the formal stages' token may list and download this repository's artifacts", () => {
   assert.deepEqual(main.jobs.formal.permissions, { contents: 'read', actions: 'read' });

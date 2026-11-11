@@ -141,6 +141,20 @@ secure-storage no-lost-update, site-switch version guard) for unbounded domains 
 TLC's `N = 3`. The only TLC-bounded model left is `renderer.tla`, which has no size parameter
 (its state space is finite and fully enumerated), so an unbounded proof would be vacuous.
 
+## Shards
+
+CI proves the modules on four runners (`FORMAL_PROOF_SHARD=i/n`): a cold run
+is about sixteen hours of module time, which one runner no longer ends inside
+its 300 minutes. [proof_shards.py](proof_shards.py) gives each shard its
+modules, longest first onto the least loaded, by the cold times in
+[proof_times.tsv](proof_times.tsv), so every shard computes the same split; a
+module with no time counts as the longest. Each shard restores every shard's
+slice of the cache, so a module the split moves stays warm, and saves its own.
+The finish merges the shards' reports and fails unless each module was proved
+by exactly one, with a count, and the tables' step modules sum to their pin;
+a run with one shard merges its own report the same way. A shard proves no
+more modules side by side than its memory holds at `TLAPM_MODULE_MB` each.
+
 ## Check
 
 ```bash

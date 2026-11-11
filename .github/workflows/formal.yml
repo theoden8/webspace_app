@@ -233,9 +233,18 @@ jobs:
           path: build/formal/steps.log
           if-no-files-found: error
   proofs:
-    name: Prove every obligation
+    name: Prove every obligation (${{ matrix.shard }})
     needs: prepare
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # A cold run proves for about sixteen hours of module time, which
+        # one runner no longer ends inside its 300 minutes. The modules share
+        # nothing, so each shard proves those proof_shards.py gives it by
+        # their cold times (formal/proofs/proof_times.tsv), and the finish
+        # requires every module proved by exactly one.
+        shard: [0, 1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       - id: tools
@@ -246,32 +255,70 @@ jobs:
         with:
           name: formal-model
           path: build/formal/model
+      # Every shard's slice of the fingerprints and kept verdicts, so a module
+      # the split moves to another shard is still warm there: each restore
+      # adds its files to one directory. The unsharded job's cache comes
+      # first, for the runs before any slice was saved.
       - id: tlapm-cache
         uses: actions/cache/restore@v4
         if: ${{ !inputs.cold }}
         with:
           path: formal/proofs/.tlacache
-          key: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-unsharded
           restore-keys: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-
-      - name: Restore from master's newest artifact when the cache is gone
-        if: ${{ !inputs.cold && steps.tlapm-cache.outputs.cache-matched-key == '' }}
+      - id: tlapm-cache-0
+        uses: actions/cache/restore@v4
+        if: ${{ !inputs.cold }}
+        with:
+          path: formal/proofs/.tlacache
+          key: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-s0
+          restore-keys: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-s0-
+      - id: tlapm-cache-1
+        uses: actions/cache/restore@v4
+        if: ${{ !inputs.cold }}
+        with:
+          path: formal/proofs/.tlacache
+          key: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-s1
+          restore-keys: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-s1-
+      - id: tlapm-cache-2
+        uses: actions/cache/restore@v4
+        if: ${{ !inputs.cold }}
+        with:
+          path: formal/proofs/.tlacache
+          key: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-s2
+          restore-keys: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-s2-
+      - id: tlapm-cache-3
+        uses: actions/cache/restore@v4
+        if: ${{ !inputs.cold }}
+        with:
+          path: formal/proofs/.tlacache
+          key: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-s3
+          restore-keys: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-s3-
+      - name: Restore from master's newest artifacts when the cache is gone
+        if: ${{ !inputs.cold && steps.tlapm-cache.outputs.cache-matched-key == '' && steps.tlapm-cache-0.outputs.cache-matched-key == '' && steps.tlapm-cache-1.outputs.cache-matched-key == '' && steps.tlapm-cache-2.outputs.cache-matched-key == '' && steps.tlapm-cache-3.outputs.cache-matched-key == '' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: scripts/restore_formal_artifact.sh "formal-tlacache-${{ steps.tools.outputs.tlapm-pin }}" "formal/proofs/.tlacache"
+        run: |
+          for name in "formal-tlacache-${{ steps.tools.outputs.tlapm-pin }}" \
+            "formal-tlacache-${{ steps.tools.outputs.tlapm-pin }}"-{0,1,2,3}; do
+            scripts/restore_formal_artifact.sh "$name" "formal/proofs/.tlacache"
+          done
       - id: formal-verify
         run: |
           if [ "${{ inputs.cold }}" = true ]; then rm -rf formal/proofs/.tlacache; fi
           ./formal/verify.sh --stage proofs
         timeout-minutes: 300
+        env:
+          FORMAL_PROOF_SHARD: ${{ strategy.job-index }}/${{ strategy.job-total }}
       - uses: actions/cache/save@v4
         if: ${{ always() && steps.formal-verify.outcome != '' && steps.formal-verify.outcome != 'skipped' }}
         with:
           path: formal/proofs/.tlacache
-          key: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-s${{ strategy.job-index }}-${{ github.run_id }}-${{ github.run_attempt }}
       - uses: actions/upload-artifact@v4
         if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/master' && steps.formal-verify.outcome != '' && steps.formal-verify.outcome != 'skipped' }}
         with:
-          name: formal-tlacache-${{ steps.tools.outputs.tlapm-pin }}
+          name: formal-tlacache-${{ steps.tools.outputs.tlapm-pin }}-${{ strategy.job-index }}
           path: formal/proofs/.tlacache
           include-hidden-files: true
           retention-days: 14
@@ -279,7 +326,7 @@ jobs:
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
-          name: formal-proofs
+          name: formal-proofs-${{ strategy.job-index }}
           path: build/formal/proofs.log
           if-no-files-found: error
   finish:
@@ -307,8 +354,8 @@ jobs:
           path: build/formal
       - uses: actions/download-artifact@v4
         with:
-          name: formal-proofs
-          path: build/formal
+          pattern: formal-proofs-*
+          path: build/formal/proof-shards
       - run: ./formal/verify.sh --stage finish
       - uses: actions/upload-artifact@v4
         if: always()
