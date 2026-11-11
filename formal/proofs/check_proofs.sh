@@ -16,12 +16,26 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+KERNEL_DIR="$(cd .. && pwd)"
+# What the proofs rest on (integrity.py): its own planted mistakes first;
+# without tlapm, the rules that read the modules alone; with it, those
+# before proving and every rule once each module's proving run has ended,
+# its holes read from that run's own output, so no second tlapm runs.
+integrity() {
+  python3 -I integrity.py --allow "${FORMAL_ASSUMPTIONS:-assumptions.tsv}" \
+    --search "$KERNEL_DIR" \
+    --search "$FORMAL_MODEL" "$@" "$FORMAL_MODEL"/*_proof.tla *.tla
+}
+python3 -I integrity.py --plant
+
 if ! command -v tlapm >/dev/null 2>&1; then
+  if [ -n "${FORMAL_MODEL:-}" ] && [ -f "$FORMAL_MODEL/activation_tables.tla" ]; then
+    integrity
+  fi
   echo "SKIP: tlapm not on PATH (see header for install). Proofs not checked." >&2
   exit 0
 fi
 
-KERNEL_DIR="$(cd .. && pwd)"
 # Some proofs are over the modules printed from the code (activation_turns).
 if [ -z "${FORMAL_MODEL:-}" ] || [ ! -f "$FORMAL_MODEL/activation_tables.tla" ]; then
   echo "FORMAL_MODEL names no printed modules; run formal/verify.sh" >&2
@@ -146,7 +160,7 @@ while IFS= read -r f; do MINE+=("$f"); done < <(python3 -I proof_shards.py assig
 # (activation_tables_proof, the tables' cases of activation_turns) are checked here
 # on their own.
 work="$(mktemp -d)"
-mkdir "$work/groups"
+mkdir "$work/groups" "$work/outputs"
 reap() {
   local g
   for g in "$work"/groups/*; do
@@ -181,6 +195,7 @@ check() {
     # first hit and SIGPIPE tlapm, which `pipefail` then reports as a failure.
     out="$(prove ${again:+--nofp} "$f")"
   fi
+  printf '%s\n' "$out" >"$work/outputs/$(basename "$f" .tla).out"
   proved="$(obligations "$out")"
   want="$(min_obligations "$name")"
   if [ -n "$proved" ] && [ "$proved" -ge "$want" ]; then
@@ -213,7 +228,7 @@ check() {
 }
 # A printed steps module restates the lemmas it cites, omitted, instead of
 # extending the modules that prove them: each is held to one proved here.
-python3 omitted.py "$FORMAL_MODEL"/*_proof.tla *.tla
+integrity
 # The longest start first.
 for f in "${MINE[@]}"; do
   while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do sleep 1; done
@@ -234,6 +249,11 @@ ok=1
   done
 } | tee "$work/report"
 ! grep -q '  FAIL: ' "$work/report" || ok=0
+# The holes of the modules this shard proved; that every module was proved
+# by one shard is proof_shards.py's merge.
+echo "── what the proofs rest on ──"
+proved="$(for f in "${MINE[@]}"; do basename "$f" .tla; done | paste -sd, -)"
+integrity --outputs "$work/outputs" --proved "$proved" || ok=0
 if [ "$SHARD" = 0/1 ]; then
   python3 -I proof_shards.py merge --model "$FORMAL_MODEL" --proofs . "$work/report" || ok=0
 else

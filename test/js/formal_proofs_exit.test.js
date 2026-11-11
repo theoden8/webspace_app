@@ -43,6 +43,10 @@ function proofRun(t, {
     '  echo "All $PROOF_OBLIGATIONS obligations proved."',
     'fi',
   ].join('\n'), { mode: 0o755 });
+  // The stub modules print nothing, so the printed assumptions are no row of theirs.
+  const assumptions = path.join(dir, 'assumptions.tsv');
+  fs.writeFileSync(assumptions, fs.readFileSync(path.join(root, 'formal/proofs/assumptions.tsv'), 'utf8')
+    .split('\n').filter((line) => !line.startsWith('activation_')).join('\n'));
   const calls = path.join(dir, 'calls');
   fs.writeFileSync(calls, '');
   return {
@@ -64,6 +68,7 @@ function proofRun(t, {
         FORMAL_RERUN: rerun ? '1' : '',
         FORMAL_PROOF_SHARD: shard,
         PROOF_CALLS: calls,
+        FORMAL_ASSUMPTIONS: assumptions,
         PROOF_OBLIGATIONS: outcome === 'failure' ? '0' : '1000',
         PROOF_SHORT_MODULE: shortModule,
         PROOF_SOLVERS: solvers,
