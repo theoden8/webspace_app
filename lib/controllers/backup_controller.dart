@@ -3,17 +3,16 @@ import 'package:webspace/controllers/archive_controller.dart';
 import 'package:webspace/controllers/background_sites_controller.dart';
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/shell_store.dart';
+import 'package:webspace/controllers/site_import.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/archive_membership_engine.dart';
 import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/content_blocker_service.dart';
-import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
-import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/services/settings_backup.dart';
@@ -73,11 +72,13 @@ class BackupController {
     required ShellStore shell,
     required ArchiveController archives,
     required BackgroundSitesController background,
+    required SiteImport imports,
   })  : _host = host,
         _prompts = prompts,
         _shell = shell,
         _archives = archives,
-        _background = background;
+        _background = background,
+        _imports = imports;
 
   final SiteRuntime _sites;
   final BackupHost _host;
@@ -85,6 +86,7 @@ class BackupController {
   final ShellStore _shell;
   final ArchiveController _archives;
   final BackgroundSitesController _background;
+  final SiteImport _imports;
 
   Future<void> export() async {
     final prefs = await SharedPreferences.getInstance();
@@ -261,30 +263,19 @@ class BackupController {
     final extensionsMissing = await _restoreExtensions(plan);
     if (!_host.mounted) return;
     _shell.theme = AppThemeSettings.fromStorageIndex(plan.themeStorageIndex);
-    await _host.commitSites(SitesReplaced(
+    // On the shared jar the import empties the jar in its own turn, after
+    // saving the share of each loaded site it carries again (ISO-015).
+    final replaced = await _imports.replace(SitesReplaced(
       sites: plan.sites,
       webspaces: plan.webspaces,
       selectedWebspaceId: plan.selectedWebspaceId,
     ));
-    if (!_host.mounted) return;
+    if (!replaced || !_host.mounted) return;
 
-    // The site, read before the jar clear's await can move the rows.
     final restore = switch (plan.currentIndex) {
       final i? when i >= 0 && i < _sites.models.length => _sites.models[i],
       _ => null,
     };
-    // With no site activated no restore empties the shared jar, so what
-    // the replaced sites left there would stay. Under containers there is no
-    // shared jar, and no clear is issued without a site in hand (BUG-007).
-    if ((restore, _sites.isolation) case (null, SharedJar(:final jar))) {
-      try {
-        await jar.clearUnloaded(loaded: _sites.loaded);
-      } on CookieJarFailure catch (e) {
-        // No site is shown, and the next activation empties the jar before
-        // one is (ISO-012), so the import goes on.
-        LogTag.import.warning('Jar clear after import failed: $e');
-      }
-    }
     await _host.activate(restore);
     if (!_host.mounted) return;
     _host.rebuild();

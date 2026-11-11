@@ -1,6 +1,6 @@
 # BUG-032 — A second switch reads the shared jar while the first has it emptied
 
-Status: closed
+Status: **open, narrowed.** The import no longer empties the jar outside its turn (attempt 4); `clearUnloaded` is safe only as the jar's first turn, which no type holds a caller to.
 
 **Spec:** [per-site-cookie-isolation](../../openspec/specs/per-site-cookie-isolation/spec.md)
 ISO-003 ("Concurrent activation is serialized")
@@ -72,9 +72,25 @@ operation reads the jar while another has it emptied.**
    is the engine's (`test/js/global_cookie_clear_funnel.test.js`), each in its
    turn, and no site enters `SiteRuntime.loaded` but through a restore.
 
+4. **2026-11-10 — this branch (import as a step table).** The settings import
+   asked for `clearUnloaded` after it landed, outside the jar's turn order of
+   the activation it then started, and that op judges "no site is loaded" by
+   `SiteRuntime.loaded`, which a restore refills the jar ahead of: a tap that
+   landed between the import's commit and its clear had its session set back
+   and then emptied, and showed signed out. The import now takes the jar's
+   turn itself, saves the share of each loaded site it carries again, empties
+   the jar and lands, all in that turn (`SiteImport`, ISO-015), and
+   `clearUnloaded` is the launch's alone. *Why*: found by the schedules once
+   the import ran as a step table. *Why it was partial before*: attempt 3
+   moved the import onto the same op as the launch, whose guard is safe only
+   as the jar's first turn.
+
 ## Known open gaps
 
-None for the engine's own operations. A page's own cookie write that lands
+`clearUnloaded`'s guard reads the loaded set, which is safe only while it is
+the jar's first turn (at launch): no type holds a caller to that, so a later
+caller would reopen attempt 4's race. None otherwise for the engine's own
+operations. A page's own cookie write that lands
 between a snapshot and its nuke is lost: the shared jar cannot order the page
 against the engine, which is what per-site containers remove. The walk's
 `Login` settles before it writes for this reason. The site-scoped deletes the

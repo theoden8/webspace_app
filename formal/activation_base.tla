@@ -89,6 +89,13 @@ Online == TRUE
 Archive == {}
 \* The sites a delete may name (SiteDeletion); the pages delete none.
 Deletable == {}
+\* The sites a settings import carries, by id (SiteImport): a listed one
+\* stays on the list, one off it joins, and every other listed site leaves
+\* (BACKUP-003); the pages import none.
+Importing == {}
+\* Whether a world imports a backup at all; the code may import one any
+\* time, an empty one too.
+Imports == Importing # {}
 \* The sites a home reset may unload off screen (SiteActivationController.
 \* unload); the pages reset none.
 Resettable == {}
@@ -107,9 +114,10 @@ Holder == CHOOSE t \in Sites \ Joining : TRUE
 \* A fresh id (SiteId.mint), no site's own and no other fresh one.
 FreshId(s) == N + s
 IdSpace == Sites \cup {FreshId(s) : s \in Sites}
-\* The sites whose webviews and containers the model follows: what a close
-\* or a delete takes away.
-Boxed == Archive \cup Deletable
+\* The sites whose webviews and containers the model follows: what a close,
+\* a delete or an import takes away.
+Boxed == Archive \cup Deletable \cup
+         (IF Importing = {} THEN {} ELSE Sites \ Importing)
 \* Incognito sites keep nothing to capture or restore, and a tab in
 \* NoNavState keeps no back stack (a kiosk's); an archive's sites are both
 \* (ARCH-006), and an incognito site keeps no back stack either

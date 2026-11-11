@@ -165,7 +165,8 @@ sealed class SiteSetChange {
 }
 
 /// A change that takes sites off the list, which a table's drop step lands
-/// in its own turn (`SiteSetCommit.stage`): a delete, an archive's close.
+/// in its own turn (`SiteSetCommit.stage`): a delete, an archive's close,
+/// an import.
 sealed class SiteDrop extends SiteSetChange {
   const SiteDrop();
 }
@@ -215,8 +216,8 @@ final class SitesMoved extends FunnelChange {
   final int to;
 }
 
-/// A settings import replaced every site and webspace.
-final class SitesReplaced extends FunnelChange {
+/// A settings import replaced every site and webspace (`SiteImport`).
+final class SitesReplaced extends SiteDrop {
   const SitesReplaced({
     required this.sites,
     required this.webspaces,

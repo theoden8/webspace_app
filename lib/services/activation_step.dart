@@ -1,7 +1,21 @@
 import 'package:webspace/services/site_tab.dart';
 
 /// What started a flow, as `fl[f].kind` names it.
-enum FlowKind { tap, preload, home, pressure, tab, nested, wake, dns, space, close, delete, unload }
+enum FlowKind {
+  tap,
+  preload,
+  home,
+  pressure,
+  tab,
+  nested,
+  wake,
+  dns,
+  space,
+  close,
+  delete,
+  import,
+  unload,
+}
 
 /// Every platform call a step may wait on, which a fake reports as it is
 /// made (`pace`): a step declares its calls from here and a fake can only
@@ -444,6 +458,36 @@ enum ActivationStep {
   deleteDropReply(calls: {PlatformCall.siteSetCommit}),
   deleteFrameReply(calls: {PlatformCall.frame}),
   deleteRetireReply(calls: {PlatformCall.containerDelete}),
+
+  /// A settings import (SiteImport, BACKUP-003, ISO-015, CONT-010): on the
+  /// shared jar it waits for the jar's turn, saves the share of each loaded
+  /// site the backup carries again, empties the jar and lands, all in that
+  /// turn; on containers it lands at once. Its landing replaces the lists,
+  /// and the sites it drops lose their webviews with the next frame, then
+  /// their containers.
+  importSites(outcomes: {StepOutcome.go, StepOutcome.queued}),
+  grantImport(outcomes: {StepOutcome.snap}),
+  importSnapReply(
+    outcomes: {StepOutcome.save, StepOutcome.nuke, StepOutcome.refused},
+    calls: {PlatformCall.cookiesGetAll},
+  ),
+  importSaveReply(
+    outcomes: {StepOutcome.more, StepOutcome.nuke},
+    calls: {PlatformCall.cookieStoreSave},
+  ),
+  importNukeReply(
+    outcomes: {StepOutcome.none, StepOutcome.refused},
+    calls: {PlatformCall.cookiesDeleteAll},
+  ),
+  importLandTurnReply(calls: {PlatformCall.siteSetCommit}),
+  importLandReply(calls: {PlatformCall.siteSetCommit}),
+  importFrameReply(calls: {PlatformCall.frame}),
+  importRetireReply(
+    calls: {PlatformCall.containerDelete},
+    severalAwaits: 'one container per site the import dropped, which '
+        'nothing between two can bind again: their sites are off the lists '
+        'and their webviews gone',
+  ),
 
   /// A tab handler's input (TabsController), after its synchronous
   /// prelude; dropped while another holds the tab gate. Its mark names

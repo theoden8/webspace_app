@@ -3,14 +3,13 @@
 // handed a StepView, which has no world (step_table.dart), so an undeclared
 // read or write of the model's state does not compile. A site's own
 // variables of the model are written only with a Commit, which only the
-// runner, a hand-marked input or a named Unmodeled debt gives. Both are rung
+// runner or a hand-marked input gives. Both are rung
 // 1; this test is the planted mistake that proves each, resolving a probe
 // the compiler must reject beside a control it must accept. The probe lives
 // only in the analyzer's overlay, never on disk, so `flutter analyze` never
 // sees it. The last tests are rung 5, since an enum value no code names still
-// compiles: every Unmodeled debt names a write the code still makes, every
-// Environment action one it still writes in, and every HandPaired value the
-// one site that names it.
+// compiles: every Environment action names one the code still writes in, and
+// every HandPaired value the one site that names it.
 
 import 'dart:io';
 
@@ -141,14 +140,14 @@ void f(WebViewModel m) =>
         reason: "only step_table.dart makes a step's commit");
   }, timeout: const Timeout(Duration(minutes: 2)));
 
-  test('the same write under a named debt compiles', () async {
+  test("the same write in an environment action's commit compiles", () async {
     final errors = await errorsIn('''
 $_site
 void f(WebViewModel m) {
   WebViewModel.tabsCell.write(
-      at: m, to: m.tabs, commit: const Commit.unmodeled(Unmodeled.sitesReplaced));
+      at: m, to: m.tabs, commit: const Commit.environment(Environment.join));
   m.tabBinding.queue(Uint8List(0),
-      tab: m.activeTabId, commit: const Commit.unmodeled(Unmodeled.sitesReplaced));
+      tab: m.activeTabId, commit: const Commit.environment(Environment.frame));
   m.tabBinding.bind(m.activeTabId,
       commit: const Commit.environment(Environment.frame));
   m.disposeWebView(commit: const Commit.environment(Environment.letGo));
@@ -156,18 +155,6 @@ void f(WebViewModel m) {
 ''');
     expect(errors, isEmpty, reason: 'the probe fails only for the commit');
   }, timeout: const Timeout(Duration(minutes: 2)));
-
-  test('every unmodeled write names a write the code still makes', () {
-    final named = <String>{
-      for (final f in Directory('lib').listSync(recursive: true))
-        if (f is File && f.path.endsWith('.dart') &&
-            !f.path.endsWith('services/step_table.dart'))
-          for (final m in RegExp(r'Unmodeled\.(\w+)').allMatches(f.readAsStringSync()))
-            m[1]!,
-    };
-    expect({for (final u in Unmodeled.values) u.name}.difference(named), isEmpty,
-        reason: 'a debt no write names is paid: drop it from Unmodeled');
-  });
 
   test("every environment action the code writes in is one it still makes",
       () {

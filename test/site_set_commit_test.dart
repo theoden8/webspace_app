@@ -29,10 +29,6 @@ final class _Host implements SiteSetCommitHost {
   @override
   void rebuild() => calls.add('rebuild');
 
-
-  @override
-  Future<void> closeArchives() async => calls.add('closeArchives');
-
   @override
   Future<void> recordInArchive(SiteArchived change) async =>
       calls.add('recordIn');
@@ -94,14 +90,12 @@ void main() {
 
   // Which steps a change needs is SiteSetChange.effects (site_runtime_test);
   // the order they run in is the funnel's, the same for every change:
-  //   - ARCH-010: open archives seal before an import replaces their rows.
   //   - LIR-017 / LIR-031 before ARCH-001's archive record: references
   //     settle before the archived copy is taken, which is written before
   //     the app tier drops the site.
   //   - TOR-002: the refcount is reconciled ahead of the demo-mode bail in
   //     the writes.
   const order = [
-    'closeArchives',
     'rebuild',
     'prune',
     'reconcile',
@@ -166,7 +160,7 @@ void main() {
 
   test('the reconcile (LIR-034) runs before ineligible hosted tabs close',
       () async {
-    await commit.commit(
+    await commit.landed(
       SitesReplaced(sites: [_site('a')], webspaces: const [], selectedWebspaceId: null),
     );
     expect(host.calls.indexOf('reconcile'), greaterThan(-1));
@@ -198,10 +192,10 @@ void main() {
     await commit.landed(SiteRemoved(a));
     expect(host.calls, contains('sweep'));
     host.calls.clear();
-    await commit.commit(
+    await commit.landed(
       SitesReplaced(sites: [_site('c')], webspaces: const [], selectedWebspaceId: null),
     );
-    expect(host.calls, containsAllInOrder(['closeArchives', 'sweep']));
+    expect(host.calls, contains('sweep'));
   });
 
   test('the site on screen leaving empties the screen', () async {

@@ -550,8 +550,8 @@ const _owed = <String, Set<String>>{
   // archive's record of a closed site, the link tabs' reconcile), which
   // reads the screen, the version, the loaded sites and their tabs in the
   // stage's turn, each tab's host and opener among them as the record
-  // writes the tabs. Lifted when those steps of the funnel are table steps
-  // that read through leaves.
+  // writes the tabs: a close's, a delete's and an import's. Lifted when
+  // those steps of the funnel are table steps that read through leaves.
   'lib/controllers/archive_controller.dart drop': {
     'active',
     'tabs',
@@ -577,6 +577,21 @@ const _owed = <String, Set<String>>{
     'opener',
   },
   'lib/controllers/site_deletion.dart frame': {
+    'active',
+    'tabs',
+    'host',
+    'opener',
+  },
+  'lib/controllers/site_import.dart land': {
+    'active',
+    'tabs',
+    'host',
+    'opener',
+    'current',
+    'version',
+    'loaded',
+  },
+  'lib/controllers/site_import.dart frame': {
     'active',
     'tabs',
     'host',
