@@ -76,6 +76,12 @@ abstract interface class ExtensionEngine {
   /// Unloads [extension] wherever it runs and deletes what it stored in
   /// every site's container.
   Future<void> forget(WebExtensionId extension);
+
+  /// Who answers an extension's request for a tab at a web page, true once
+  /// it opened the page; with none, every such request is refused.
+  void answerTabRequests(
+    Future<bool> Function(ExtensionTabRequest request)? handler,
+  );
 }
 
 final class NativeExtensionEngine implements ExtensionEngine {
@@ -155,5 +161,26 @@ final class NativeExtensionEngine implements ExtensionEngine {
     } on MissingPluginException catch (e) {
       LogTag.webExtension.info('$extension data stays: $e');
     }
+  }
+
+  @override
+  void answerTabRequests(
+    Future<bool> Function(ExtensionTabRequest request)? handler,
+  ) {
+    _native.setWebExtensionTabHandler(
+      handler == null
+          ? null
+          : (request) async {
+              final extension = WebExtensionId.parse(request.extensionId);
+              final container = ContainerName.parse(request.containerId);
+              final url = Uri.tryParse(request.url);
+              if (extension == null || container == null || url == null) {
+                return false;
+              }
+              return handler(
+                (extension: extension, container: container, url: url),
+              );
+            },
+    );
   }
 }

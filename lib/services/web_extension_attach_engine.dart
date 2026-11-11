@@ -92,6 +92,47 @@ ExtensionAttach planExtensionAttach(ExtensionAttachInputs inputs) {
 /// bind.
 typedef ExtensionHome = ({AttachExtensions plan, ContainerName container});
 
+/// A web extension's request for a tab at a web page, from the container
+/// whose webviews it runs in (WEBEXT-008).
+typedef ExtensionTabRequest = ({
+  WebExtensionId extension,
+  ContainerName container,
+  Uri url,
+});
+
+/// Why an extension's request for a tab at a web page opens nothing.
+enum TabRefusal {
+  /// It was asked from a container other than the site on screen's, or
+  /// with nothing on screen.
+  otherSite,
+
+  /// The site's webview on screen does not run the extension.
+  notRunning,
+
+  /// The page is not one of the site's.
+  notTheSitesPage,
+}
+
+/// Whether [request] opens as a nested screen of the site on screen, whose
+/// webview runs [live] and whose claims cover the page or not
+/// ([claimsPage]): null when it does, else why not (WEBEXT-008). A page
+/// opened for a site not on screen, or one of another site, would run
+/// outside the site the extension was asked from.
+TabRefusal? refuseTab(
+  ExtensionTabRequest request, {
+  required ExtensionHome? live,
+  required bool claimsPage,
+}) {
+  if (live == null || live.container != request.container) {
+    return TabRefusal.otherSite;
+  }
+  if (!live.plan.loads.any((load) => load.id == request.extension)) {
+    return TabRefusal.notRunning;
+  }
+  if (!claimsPage) return TabRefusal.notTheSitesPage;
+  return null;
+}
+
 /// [plan]'s home in [container], or null where its extensions keep nothing:
 /// a site that loads none, an incognito site, a site with no container.
 ExtensionHome? extensionHomeOf(
