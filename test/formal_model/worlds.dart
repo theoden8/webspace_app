@@ -224,6 +224,10 @@ Set<Env> _with(Env e) => switch (e) {
   Env.dnsAsk || Env.dnsTwo => {Env.dnsAsk, Env.dnsTwo},
   Env.residentOne || Env.capTwo => {Env.residentOne, Env.capTwo},
   Env.clashOne => {Env.joinOne, Env.clashOne},
+  // The backup brings site 3, which starts off the list; beside an open
+  // archive it carries site 1 alone.
+  Env.importOne => {Env.importOne, Env.joinOne},
+  Env.importKeep => {Env.importKeep, Env.archiveOne},
   Env.routeSplit ||
   Env.awaySpaces ||
   Env.linkAny ||
@@ -264,6 +268,7 @@ Env? _setting(ModelConst c, {required Set<Need> needs}) => switch (c) {
   ModelConst.archive || ModelConst.noNavState || ModelConst.boxed =>
     Env.archiveOne,
   ModelConst.deletable => Env.deleteOne,
+  ModelConst.importing || ModelConst.imports => Env.importOne,
   ModelConst.resettable => Env.resetOne,
   ModelConst.rebuilt => Env.rebuildOne,
   ModelConst.joining => Env.joinOne,

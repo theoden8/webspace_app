@@ -31,7 +31,6 @@ import 'helpers/walk/schedules.dart';
 import 'helpers/walk/shards.dart';
 import 'helpers/walk/step_traces.dart';
 import 'helpers/walk/footprint_reads.dart';
-import 'helpers/walk/unmodeled_meets.dart';
 import 'helpers/walk/table_commutes.dart';
 
 /// Three sites as in formal/kernel.cfg: all on one base domain, so each
@@ -607,6 +606,58 @@ const _tabDeleteAlphabet = <SiteAction>[
   Tap(0),
 ];
 
+/// An import beside the flows on the sites it carries and drops: it carries
+/// site 1 again and brings site 3, which starts off the list, and site 2
+/// leaves (BACKUP-003). On the shared jar it saves site 1's share before
+/// it empties the jar (ISO-015); with containers it deletes site 2's once
+/// the frame has unmounted its webview (CONT-010).
+const _importSetups = <String, List<SiteAction>>{
+  'site 1 signed in on screen': _signedInOnScreen,
+  'site 2 signed in behind site 1': [Tap(1), Login(1), Tap(0)],
+};
+
+const _importAlphabet = <SiteAction>[
+  ImportBackup(),
+  Tap(0),
+  Tap(1),
+  GoHome(),
+  Pressure(),
+];
+
+const _importLength = 2;
+
+/// The races an import's old path lost, at two preemptions: it emptied the
+/// jar without saving the session of a site it carried again, and the
+/// clear it asked for after landing could empty a jar a tap's restore had
+/// just refilled (ISO-015). Then the jar's turn with two carried sites
+/// loaded, and a jar that refuses the import's read or its empty: what it
+/// could not save stays unsaved, and it lands all the same (ISO-014).
+const _importRegressions =
+    <String, ({List<SiteAction> setup, List<SiteAction> script})>{
+  "an import keeps a carried site's session (ISO-015)": (
+    setup: _signedInOnScreen,
+    script: [ImportBackup()],
+  ),
+  'a tap after an import keeps the session its restore set back (ISO-015)': (
+    setup: _signedInOnScreen,
+    script: [ImportBackup(), Tap(0)],
+  ),
+  'an import saves the share of every loaded site it carries (ISO-015)': (
+    setup: [Tap(0), Login(0), JoinSite(), Tap(2), Login(2)],
+    script: [ImportBackup()],
+  ),
+  'an import whose read the jar refuses empties it and lands (ISO-014)': (
+    setup: [..._signedInOnScreen, Fails(Fault.jarRead)],
+    script: [ImportBackup()],
+  ),
+  'an import whose empty the jar refuses lands (ISO-014)': (
+    setup: [..._signedInOnScreen, Fails(Fault.jarClear)],
+    script: [ImportBackup()],
+  ),
+};
+
+const _signedInOnScreen = <SiteAction>[Tap(0), Login(0)];
+
 /// The race the delete's old order lost, at two preemptions: it
 /// deleted the container before the commit took the site off the list, so
 /// a tap landing meanwhile built the site again on it.
@@ -904,7 +955,6 @@ void main() {
     ),
   );
   tearDownAll(StepTraces.instance.writeIfAsked);
-  tearDownAll(expectOnlyOwedMeets);
   tearDownAll(expectReadsInFootprints);
   tearDownAll(() {
     if ((Platform.environment['SCHEDULE_STATS'] ?? '').isEmpty) return;
@@ -1261,6 +1311,52 @@ void main() {
     });
   }
 
+  for (final cookies in ['shared jar', 'containers']) {
+    for (final MapEntry(key: setupName, value: setup)
+        in _importSetups.entries) {
+      _scheduleTest('an import, $cookies, $setupName: every schedule holds',
+          body: () async {
+        for (var length = 1; length <= _importLength; length++) {
+          for (final script in _scripts(length, alphabet: _importAlphabet)) {
+            await _expectEvery(
+              world: () => ActivationWorld(
+                cookies == 'containers' ? _mixedContainers : _mixed,
+                joins: true,
+                imports: true,
+              ),
+              setup: setup,
+              script: script,
+              preemptions: _preemptions,
+            );
+          }
+        }
+      });
+    }
+  }
+
+  // A delete in flight as an import carries its site again: the delete
+  // names the site by id, so it removes the one listed under it and only
+  // that site's container (CONT-012).
+  _scheduleTest('a delete beside an import, containers: every schedule '
+      'holds', body: () async {
+    for (final script in const [
+      <SiteAction>[Delete(), ImportBackup()],
+      <SiteAction>[ImportBackup(), Delete()],
+    ]) {
+      await _expectEvery(
+        world: () => ActivationWorld(
+          _mixedContainers,
+          deletes: true,
+          joins: true,
+          imports: true,
+        ),
+        setup: const [Tap(0)],
+        script: script,
+        preemptions: _preemptions,
+      );
+    }
+  });
+
   for (final MapEntry(key: setupName, value: setup) in _joinSetups.entries) {
     _scheduleTest('a site joining, shared jar, $setupName: every schedule '
         'holds', body: () async {
@@ -1340,6 +1436,20 @@ void main() {
       }
     });
   }
+
+  group('import regressions', () {
+    for (final MapEntry(key: name, value: (:setup, :script))
+        in _importRegressions.entries) {
+      _scheduleTest(name, body: () async {
+        await _expectEvery(
+          world: () => ActivationWorld(_mixed, joins: true, imports: true),
+          setup: setup,
+          script: script,
+          preemptions: _onePast,
+        );
+      });
+    }
+  });
 
   group('delete regressions', () {
     for (final MapEntry(key: name, value: script)

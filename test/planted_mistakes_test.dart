@@ -334,6 +334,39 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [Delete()],
     breaks: _offTheList,
   ),
+  Mutant.importnocapture => _By(
+    world: (d) => ActivationWorld(
+      _mixed,
+      joins: true,
+      imports: true,
+      declared: d,
+    ),
+    setup: _oneSignedIn,
+    script: const [ImportBackup()],
+    breaks: 'walk-0 lost cookies its page set, while unloaded',
+  ),
+  Mutant.importkeepsbox => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      joins: true,
+      imports: true,
+      declared: d,
+    ),
+    setup: const [Tap(1), Tap(0)],
+    script: const [ImportBackup()],
+    breaks: _offTheList,
+  ),
+  Mutant.importnoframe => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      joins: true,
+      imports: true,
+      declared: d,
+    ),
+    setup: const [Tap(1)],
+    script: const [ImportBackup()],
+    breaks: _offTheList,
+  ),
   Mutant.closenoframe => _By(
     world: (d) =>
         ActivationWorld(_mixedContainers, archived: true, declared: d),

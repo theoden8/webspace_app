@@ -19,6 +19,7 @@ import 'package:webspace/controllers/nested_open_binding.dart';
 import 'package:webspace/controllers/page_keyboard.dart';
 import 'package:webspace/controllers/page_orphan_sweep.dart';
 import 'package:webspace/controllers/site_deletion.dart';
+import 'package:webspace/controllers/site_import.dart';
 import 'package:webspace/controllers/site_set_commit.dart';
 import 'package:webspace/controllers/backup_controller.dart';
 import 'package:webspace/controllers/fullscreen_controller.dart';
@@ -217,6 +218,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     deletion: _deletion,
   );
   late final SiteDeletion _deletion = SiteDeletion(_sites, host: _PageHost(this));
+  late final SiteImport _imports = SiteImport(_sites, host: _PageHost(this));
   late final SiteSetCommit _commit = SiteSetCommit(_sites, host: _PageHost(this));
   late final PageOrphanSweep _sweep = PageOrphanSweep(
     _sites,
@@ -248,6 +250,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     shell: _shell,
     archives: _archives,
     background: _background,
+    imports: _imports,
   );
   late final ArchiveController _archives = ArchiveController(
     _sites,
@@ -1689,6 +1692,7 @@ class _PageHost
         StartupHost,
         SiteSetCommitHost,
         SiteDeletionHost,
+        SiteImportHost,
         KeyboardShortcutHost {
   const _PageHost(this._s);
 
@@ -1713,11 +1717,6 @@ class _PageHost
 
   @override
   SiteSetStage stageSites(SiteDrop drop) => _s._commit.stage(drop);
-
-  @override
-  Future<void> closeArchives() async {
-    await _s._archives.closeAll();
-  }
 
   @override
   Future<void> recordInArchive(SiteArchived change) =>

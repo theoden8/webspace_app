@@ -670,92 +670,33 @@ final class Shared<T> {
 }
 
 /// A turn in which the model's state may be written: the runner makes one
-/// for each arm it applies, [commitInput] for an input the code marks by
-/// hand, and [Commit.unmodeled] for a write no step of the model takes yet,
-/// which names why. A cell the code shares ([SharedAt]) writes only with
-/// one in hand, so a write outside them does not compile.
+/// for each arm it applies, and [commitInput] for an input the code marks
+/// by hand. A cell the code shares ([SharedAt]) writes only with one in
+/// hand, so a write outside them does not compile.
 final class Commit {
-  const Commit._() : unmodeled = null, environment = null, _none = false;
-
-  /// A write no step of the model takes yet: debt, which a step that takes
-  /// it retires.
-  const Commit.unmodeled(Unmodeled this.unmodeled)
-      : environment = null,
-        _none = false;
+  const Commit._() : environment = null, _none = false;
 
   /// A write of one of the environment's actions `activation.tla` states by
   /// hand: the model takes it there, not in a table's step.
-  const Commit.environment(Environment this.environment)
-      : unmodeled = null,
-        _none = false;
+  const Commit.environment(Environment this.environment) : _none = false;
 
   /// A turn that writes none of the model's state: a change to what the
   /// model does not hold, such as a site's name or its settings. A write in
   /// it fails at once.
-  const Commit.none() : unmodeled = null, environment = null, _none = true;
+  const Commit.none() : environment = null, _none = true;
 
   /// A model a test builds before any step runs.
   @visibleForTesting
-  const Commit.fixture() : unmodeled = null, environment = null, _none = false;
+  const Commit.fixture() : environment = null, _none = false;
 
-  final Unmodeled? unmodeled;
   final Environment? environment;
   final bool _none;
 
-  /// This commit wrote [variable]. A write no step takes is stamped, so a
-  /// step that reads the variable once its flow's await is over learns it
-  /// met one ([UnmodeledWrites]).
+  /// This commit wrote [variable].
   void wrote(ModelVar variable) {
     assert(!_none, 'a turn that writes none of the model wrote $variable');
-    if (unmodeled case final by?) {
-      UnmodeledWrites._last[variable] = (at: ++UnmodeledWrites._now, by: by);
-    }
   }
 }
-
-/// The writes of the model's variables no step takes ([Commit.unmodeled]),
-/// stamped as they happen, and each step that met one: a step that read,
-/// after its flow's await, a variable such a write changed during it. That
-/// step decides on a state the model never has there, so its timing is
-/// outside what TLC checked; the walks hold [met] to the list they owe.
-abstract final class UnmodeledWrites {
-  static int _now = 0;
-  static final _last = <ModelVar, ({int at, Unmodeled by})>{};
-  static final _met = <UnmodeledMeet>{};
-
-  /// Where each flow last landed a step, on the stamps' clock, keyed by the
-  /// fields every table of the flow shares.
-  static final _landed = Expando<int>('landed');
-
-  static Set<UnmodeledMeet> get met => Set.unmodifiable(_met);
-
-  @visibleForTesting
-  static void forget() => _met.clear();
-
-  static void _meet(
-    ActivationStep step, {
-    required Set<ModelVar> read,
-    required Object flow,
-  }) {
-    final since = _landed[flow];
-    if (since != null) {
-      for (final v in read) {
-        if (_last[v] case (:final at, :final by) when at > since) {
-          _met.add((step: step, by: by, variable: v));
-        }
-      }
-    }
-    _landed[flow] = _now;
-  }
-}
-
-/// A step that read [variable] after [by] wrote it while the step's flow
-/// waited.
-typedef UnmodeledMeet = ({
-  ActivationStep step,
-  Unmodeled by,
-  ModelVar variable,
-});
 
 /// A planted mistake run as code: the tables and definitions the runner
 /// takes in place of the code's own while [run]'s body runs, so a test
@@ -816,15 +757,6 @@ enum Environment {
   letGo,
 }
 
-/// The writes of the model's state that no step of a table takes yet.
-enum Unmodeled {
-  /// An import, which replaces every site (`SitesReplaced`). A delete and
-  /// an archive's close land in their drop's step; a move, a join and the
-  /// startup load are the environment's; a site's edit writes none of the
-  /// model.
-  sitesReplaced,
-}
-
 /// An input the code marks by hand ([ActivationSteps.mark]) and what it
 /// writes of the model, in one synchronous turn: [writes] runs with the
 /// input's [Commit], then the step is marked.
@@ -840,8 +772,8 @@ void commitInput(
 
 /// A variable of the model that is a function of a key (`tabs[s]`), as
 /// the state that owns it keeps it: read anywhere, written only with a
-/// [Commit], which a table's arm ([Indexed.over]), a hand-marked input
-/// ([commitInput]) or a named debt ([Commit.unmodeled]) gives; or, where
+/// [Commit], which a table's arm ([Indexed.over]) or a hand-marked input
+/// ([commitInput]) gives; or, where
 /// the model holds only a value's [members], rearranged without one.
 final class SharedAt<K, V> {
   SharedAt(
@@ -962,6 +894,33 @@ final class Indexed<K, V, W> {
       final key = k.run(c);
       final value = to.run(c);
       return () => write(c._world, at: key, to: value);
+    },
+  );
+
+  /// `name' = [x \in DOMAIN name |-> IF x \in ks THEN to ELSE name[x]]`:
+  /// every key of [ks] to its own value, [to] over [x].
+  Write<W> exceptEach(
+    Expr<Iterable<K>, W> ks, {
+    required Bound<K, W> x,
+    required Expr<V, W> to,
+  }) => Write._(
+    _variable ?? (throw StateError('$name is a constant of the model')),
+    to:
+        '[${x.name} \\in DOMAIN $name |-> IF ${x.name} \\in '
+        '${tlaOperand(ks.tla)} THEN ${to.tla} ELSE $name[${x.name}]]',
+    reads: Reads(vars: {_variable}) + ks.reads + to.reads,
+    stage: (c) {
+      final write = _write;
+      if (write == null) return () {};
+      final entries = [
+        for (final key in ks.run(c))
+          (key, x._with(c, value: key, body: () => to.run(c))),
+      ];
+      return () {
+        for (final (key, value) in entries) {
+          write(c._world, at: key, to: value);
+        }
+      };
     },
   );
 }
@@ -1857,13 +1816,12 @@ final class StepTable<W, P extends Enum> {
     try {
       return _charged(
         action,
-        run: (reading) {
+        run: (_) {
           final next = _landReading(step, on: c, refused: refused);
           assert(() {
             (StepReads._read[action] ??= {}).addAll(step.call?.reaches ?? {});
             return true;
           }());
-          UnmodeledWrites._meet(step.name, read: reading, flow: c._fields);
           _enteredBy[c._fields] = action;
           return next;
         },

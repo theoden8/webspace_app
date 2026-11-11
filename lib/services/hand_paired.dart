@@ -46,6 +46,9 @@ enum HandPaired implements Pairing {
   /// The delete's site taken off the list first (`site \in gone`).
   deleteSiteGone,
 
+  /// The sites on the list an import replaces (`Listed`).
+  importListed,
+
   /// The back stack queued for no tab (`NoQueued`).
   noQueued,
 

@@ -227,6 +227,8 @@ Tables _with({
   StepTable<DnsFlow, DnsPlace>? dns,
   StepTable<CloseFlow, ClosePlace>? archive,
   StepTable<DeleteFlow, DeletePlace>? delete,
+  StepTable<ImportFlow, ImportPlace>? import,
+  StepTable<ImportFlow, ImportPlace>? importTurn,
   List<Def<Object?, Object?>>? ops,
 }) => (
   activation: activation ?? tables.activation,
@@ -239,6 +241,8 @@ Tables _with({
   dns: dns ?? tables.dns,
   archive: archive ?? tables.archive,
   delete: delete ?? tables.delete,
+  import: import ?? tables.import,
+  importTurn: importTurn ?? tables.importTurn,
   ops: ops ?? tables.ops,
 );
 
@@ -428,6 +432,52 @@ Tables mutated(Mutant m) => switch (m) {
   // A delete's drop leaves the tabs its site opened following it, as the
   // reconcile after the commit forgot it before the drop wrote `opener`:
   // a tab follows a site no longer listed (LIR-034).
+  // An import that empties the jar without first saving the share of each
+  // loaded site it carries again, as the import did before it took the
+  // jar's turn (ISO-015).
+  Mutant.importnocapture => _with(
+    importTurn: _withArms(
+      tables.importTurn,
+      step: ActivationStep.grantImport,
+      arms: (s) => s.withArms(
+        otherwise: Otherwise(
+          s.otherwise.outcome,
+          then: s.otherwise.then,
+          next: to(ImportPlace.iNuke),
+        ),
+      ),
+    ),
+  ),
+  // An import that leaves the containers of the sites it drops, as it did
+  // before it ran as a table: the next startup's sweep alone took them.
+  Mutant.importkeepsbox => _with(
+    import: _withArms(
+      tables.import,
+      step: ActivationStep.importRetireReply,
+      arms: (s) => Step(
+        s.name,
+        holds: s.holds,
+        call: Call(run: (_) async {}, writes: const []),
+        branches: s.branches,
+        otherwise: s.otherwise,
+      ),
+    ),
+  ),
+  // An import that deletes containers without waiting for the frame that
+  // unmounts the webviews binding them (CONT-010).
+  Mutant.importnoframe => _with(
+    import: _withArms(
+      tables.import,
+      step: ActivationStep.importFrameReply,
+      arms: (s) => Step(
+        s.name,
+        holds: s.holds,
+        call: Call(run: (_) async {}, writes: const []),
+        branches: s.branches,
+        otherwise: s.otherwise,
+      ),
+    ),
+  ),
   Mutant.deletekeepsopener => _with(
     delete: _withArms(
       tables.delete,
