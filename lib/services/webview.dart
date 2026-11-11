@@ -62,6 +62,7 @@ import 'package:webspace/services/http_auth_challenge.dart';
 import 'package:webspace/services/webview_blocking.dart';
 import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/services/file_import_document.dart';
+import 'package:webspace/services/frame_origin.dart';
 import 'package:webspace/services/webview_tls.dart';
 import 'package:webspace/services/webview_downloads.dart';
 import 'package:webspace/services/page_scripts.dart';
@@ -760,7 +761,7 @@ class WebViewFactory {
                       inapp.PermissionResourceType.PROTECTED_MEDIA_ID);
               if (wantsProtectedMedia) {
                 final from = await PageHandlers.requesterAt(controller,
-                    config: config, origin: request.origin.toString());
+                    config: config, origin: FrameOrigin.ofRequest(request));
                 final granted = await grants.protectedContent(from.origin,
                     standing: from.standing);
                 return inapp.PermissionResponse(
@@ -775,7 +776,7 @@ class WebViewFactory {
               // Asked lazily: a request the app leaves to the platform needs
               // no origin.
               late final where = PageHandlers.requesterAt(controller,
-                  config: config, origin: request.origin.toString());
+                  config: config, origin: FrameOrigin.ofRequest(request));
               final cameraAndMicrophone =
                   inapp.PermissionResourceType.CAMERA_AND_MICROPHONE;
               final resources = request.resources;

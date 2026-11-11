@@ -46,10 +46,6 @@ String originOf(String url) {
       : '${uri.scheme}://$host';
 }
 
-/// Who asks: the requesting frame's origin, as grant keys and popups name it,
-/// and where it [Standing]s toward the site.
-typedef Requester = ({String origin, Standing standing});
-
 /// Where a request stands toward the site whose surface it came from.
 enum Standing {
   /// The site's own top document, or a frame of its origin: it answers for

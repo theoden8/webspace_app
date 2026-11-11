@@ -31,6 +31,7 @@ const read = (rel) => source.code(source.read(rel));
 const WEBVIEW = [
   'lib/services/webview.dart',
   'lib/services/page_handlers.dart',
+  'lib/services/frame_origin.dart',
   'lib/services/page_scripts.dart',
   'lib/services/popup_webview.dart',
   'lib/services/headless_site_check.dart',
@@ -516,15 +517,19 @@ test('CAM-013 / MIC-013: capture prompts name an origin read from the webview (S
   assert.ok(CAPTURE_BRIDGE.replace(/\s+/g, ' ').includes('requesterOf(controller, config: config, frame: data)'),
     'a capture bridge must derive the origin from the frame the plugin reports');
   assert.match(WEBVIEW,
-    /final origin = originOf\(frame\.origin\.toString\(\)\);/,
-    'a prompt must name the calling frame, not the document that embeds it');
+    /final origin = FrameOrigin\.ofFrame\(frame\);/,
+    'a prompt must name the calling frame as a FrameOrigin the engine supplied, '
+    + 'not the document that embeds it and not a page value (PERM-001)');
   assert.match(WEBVIEW,
     /top: frame\.isMainFrame \? origin : await _top\(controller, config: config\)/,
     'a main-frame request is judged by the document that made it, not by '
     + 'whatever the webview navigated to since (PERM-001)');
   assert.match(WEBVIEW,
-    /_top\([\s\S]{0,300}?await controller\.getUrl\(\)\)\?\.toString\(\) \?\? config\.initialUrl/,
-    'a subframe\'s top document is read from the webview, falling back to the site URL');
+    /FrameOrigin\.ofTopDocument\(controller, fallbackUrl: config\.initialUrl\)/,
+    'a subframe\'s top document is read from the webview through FrameOrigin');
+  assert.match(WEBVIEW,
+    /ofTopDocument\([\s\S]{0,300}?await controller\.getUrl\(\)\)\?\.toString\(\) \?\? fallbackUrl/,
+    'the top document origin is the engine\'s own URL, not a page value');
 });
 
 test('CAM-014 / MIC-016: a device grant does not travel to a subframe', () => {
@@ -685,4 +690,31 @@ test('PERM-001: every grant is asked for the origin the platform reports', () =>
   assert.ok(mode.includes('inapp.JavaScriptHandlerFunctionData data')
       && mode.includes('standing: from.standing'),
     'a page the site does not own must not read the site\'s mode');
+});
+
+// PERM-001 / R2: the requester's origin is a type, FrameOrigin, that only
+// engine frame data or a platform permission request can mint — the probe the
+// policy owed, so a handler cannot hand requesterAt/requesterOf a page string.
+test('PERM-001: a FrameOrigin is minted only from engine frame data', () => {
+  const frameOrigin = read('lib/services/frame_origin.dart');
+  assert.match(frameOrigin, /extension type const FrameOrigin\._\(String value\) implements String/,
+    'the representation constructor must stay library-private: a public '
+    + 'String constructor would let a handler name any origin');
+  for (const factory of [
+    'FrameOrigin.ofFrame(inapp.JavaScriptHandlerFunctionData frame)',
+    'FrameOrigin.ofRequest(inapp.PermissionRequest request)',
+    'static Future<FrameOrigin> ofTopDocument(',
+  ]) {
+    assert.ok(frameOrigin.includes(factory),
+      `FrameOrigin's only ways in each read an engine object; ${factory} is gone`);
+  }
+  const minters = dartFiles('lib').filter((f) =>
+    f !== 'lib/services/frame_origin.dart' && read(f).includes('FrameOrigin._('));
+  assert.deepEqual(minters, [],
+    'FrameOrigin._ is reached only from frame_origin.dart: elsewhere it would '
+    + 'mint one from a raw string, which is the hole the type closes');
+  const handlers = read('lib/services/page_handlers.dart');
+  assert.match(handlers, /required FrameOrigin origin,/,
+    'requesterAt must take a FrameOrigin, not a String: the platform permission '
+    + 'request supplies it (R2/PERM-001)');
 });
