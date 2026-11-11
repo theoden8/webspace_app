@@ -63,7 +63,9 @@ Def<Object?, Object?> definition(ModelDef d) => switch (d) {
   ModelDef.evictable => RuntimeVars.evictable<Object>(),
   ModelDef.pages => RuntimeVars.pagesOf<Object>(),
   ModelDef.running => RuntimeVars.runningSites<Object>(),
-  ModelDef.runsAs => TabVars.runsAs<Object?>(),
+  ModelDef.runsAs => TabVars.runsAs<WebViewModel, Object?>(
+    keys: TabVars.objects<Object?>(),
+  ),
   ModelDef.midActivation => ActivationTable.midActivation,
   ModelDef.pressureResident => ActivationTable.pressureResident,
   ModelDef.pressureCleared => ActivationTable.pressureCleared,
@@ -82,12 +84,16 @@ Def<Object?, Object?> definition(ModelDef d) => switch (d) {
   ModelDef.reopens => TabTable.reopens,
   ModelDef.movesRule => TabTable.movesRule,
   ModelDef.misplaced => TabTable.misplaced,
-  ModelDef.capture => TabVars.capture<Object?>(),
-  ModelDef.bound => TabVars.bound<Object?>(),
+  ModelDef.capture => TabVars.capture<WebViewModel, Object?>(),
+  ModelDef.bound => TabVars.bound<WebViewModel, Object?>(
+    keys: TabVars.objects<Object?>(),
+  ),
   ModelDef.takes => takesOf<Object?>(),
-  ModelDef.shown => TabVars.shown<Object?>(),
-  ModelDef.taken => TabVars.taken<Object?>(),
-  ModelDef.staged => TabVars.staged<Object?>(),
+  ModelDef.shown => TabVars.shown<WebViewModel, Object?>(
+    keys: TabVars.objects<Object?>(),
+  ),
+  ModelDef.taken => TabVars.taken<WebViewModel, Object?>(),
+  ModelDef.staged => TabVars.staged<WebViewModel, Object?>(),
   ModelDef.resolveLevel => resolveLevelDef<Object?>(),
 };
 

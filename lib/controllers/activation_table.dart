@@ -27,9 +27,15 @@ abstract final class ActivationTable {
   /// The jar refused a call of the flow's restore, so its target is not
   /// shown (ISO-014).
   static const unrestored = Field<bool, ActivationFlow>(FlowField.unrestored);
-  static const _victims = Field<List<WebViewModel>, ActivationFlow>(FlowField.victims);
-  static const _clears = Field<List<WebViewModel>, ActivationFlow>(FlowField.clears);
-  static const _picked = Field<List<WebViewModel>, ActivationFlow>(FlowField.picked);
+  static const _victims = Field<List<WebViewModel>, ActivationFlow>(
+    FlowField.victims,
+  );
+  static const _clears = Field<List<WebViewModel>, ActivationFlow>(
+    FlowField.clears,
+  );
+  static const _picked = Field<List<WebViewModel>, ActivationFlow>(
+    FlowField.picked,
+  );
   static Expr<bool, ActivationFlow> _is(FlowKind k) => kind.isKind(k);
 
   /// The activation was superseded by a newer input. A preload's version is
@@ -62,10 +68,14 @@ abstract final class ActivationTable {
 
   /// The target's saved back stack queued for its active tab, and the
   /// frame after a commit building its webview (TAB-003).
-  static final _queuedWrite = TabVars.queued<ActivationFlow>().becomes(
-    TabVars.staged<ActivationFlow>()
-        .call([_site.value, _navAs.value, _navTab.value]),
-  );
+  static final _queuedWrite = TabVars.queued<WebViewModel, ActivationFlow>()
+      .becomes(
+        TabVars.staged<WebViewModel, ActivationFlow>().call([
+          _site.value,
+          _navAs.value,
+          _navTab.value,
+        ]),
+      );
 
   /// What the nav read names when it is issued: the site the target's slot
   /// runs as, and the tab it is on. A home landing can move the tab before
@@ -73,8 +83,17 @@ abstract final class ActivationTable {
   static const _navAs = Field<WebViewModel, ActivationFlow>(FlowField.navAs);
   static const _navTab = Field<TabId, ActivationFlow>(FlowField.navTab);
   static final _readsAs = [
-    _navAs.becomes(TabVars.slotHost<ActivationFlow>(_site.value)),
-    _navTab.becomes(TabVars.active<ActivationFlow>().at(_site.value)),
+    _navAs.becomes(
+      TabVars.slotHost<WebViewModel, ActivationFlow>(
+        _site.value,
+        keys: TabVars.objects(),
+      ),
+    ),
+    _navTab.becomes(
+      TabVars.active<WebViewModel, ActivationFlow>(
+        keys: TabVars.objects<ActivationFlow>(),
+      ).at(_site.value),
+    ),
   ];
   static final _queued = Act.of([_queuedWrite], then: _queueNav);
 
@@ -91,15 +110,21 @@ abstract final class ActivationTable {
       );
     }
   }
+
   /// The frame after the resume builds the target's webview, if it is
   /// still loaded.
-  static final _framed = TabVars.framed(_site.value, loaded: _loaded.value);
+  static final _framed = TabVars.framed(
+    _site.value,
+    loaded: _loaded.value,
+    keys: TabVars.objects(),
+  );
 
   /// The frame after a preload's commit builds the site's webview: the
   /// commit loads it, so the frame sees it loaded.
   static final _preloadFramed = TabVars.framed(
     _site.value,
     loaded: _loaded.value.union(_site.value.asSet),
+    keys: TabVars.objects(),
   );
   static final _containers = Constant<bool, ActivationFlow>(
     ModelConst.containers,
@@ -132,7 +157,8 @@ abstract final class ActivationTable {
     Expr.op(
       HandPaired.listedSites,
       tla: 'Listed',
-      run: (c) => [ActivationFlow.state.from(c).target!], reads: const Reads(base: {BaseOp.listed}),
+      run: (c) => [ActivationFlow.state.from(c).target!],
+      reads: const Reads(base: {BaseOp.listed}),
     ),
   );
   static final _chosen = _eachSite.it;
@@ -184,12 +210,11 @@ abstract final class ActivationTable {
 
   /// Another site by any way leaves the Tabs sheet's way back behind
   /// (TAB-019); a jump the sheet makes puts its own back once it lands.
-  static final _forgetReturns = Note<ActivationFlow>(
-    (c) {
-      final p = ActivationFlow.page.from(c);
-      if (!identical(ActivationFlow.state.from(c).target, p.shown)) p.forgetTabReturns();
-    },
-  );
+  static final _forgetReturns = Note<ActivationFlow>((c) {
+    final p = ActivationFlow.page.from(c);
+    if (!identical(ActivationFlow.state.from(c).target, p.shown))
+      p.forgetTabReturns();
+  });
 
   /// A target with a webview keeps its back stack; one about to be built
   /// first reads the stack saved for it, unless its tab keeps none (a
@@ -199,11 +224,10 @@ abstract final class ActivationTable {
     test: (_, {required member}) => !member.activeTabPersistsNavState,
   );
 
-  static Expr<bool, ActivationFlow> _inFlight(FlowKind k) =>
-      Expr.inFlight(
-        k,
-        run: (c) => ActivationFlow.page.from(c).kindsInFlight.contains(k),
-      );
+  static Expr<bool, ActivationFlow> _inFlight(FlowKind k) => Expr.inFlight(
+    k,
+    run: (c) => ActivationFlow.page.from(c).kindsInFlight.contains(k),
+  );
 
   /// A memory-pressure event while one is still applying its plan is
   /// dropped.
@@ -219,10 +243,9 @@ abstract final class ActivationTable {
   static const _u = Bound<WebViewModel, ActivationFlow>('u');
   static Expr<bool, ActivationFlow> _evictable(
     Expr<WebViewModel, ActivationFlow> s,
-  ) => ModelDef.evictable.over(
-    [s],
-    run: (c) => ActivationFlow.page.from(c).isEvictable(s.run(c)),
-  );
+  ) => ModelDef.evictable.over([
+    s,
+  ], run: (c) => ActivationFlow.page.from(c).isEvictable(s.run(c)));
   static Expr<bool, ActivationFlow> _at(
     Expr<WebViewModel, ActivationFlow> s, {
     required SiteLifecycleState tier,
@@ -285,10 +308,9 @@ abstract final class ActivationTable {
   /// `Conflicts`).
   static Expr<List<WebViewModel>, ActivationFlow> _conflicts(
     Expr<WebViewModel, ActivationFlow> s,
-  ) => ModelDef.conflicts.over(
-    [s],
-    run: (c) => ActivationFlow.page.from(c).conflicts(s.run(c)),
-  );
+  ) => ModelDef.conflicts.over([
+    s,
+  ], run: (c) => ActivationFlow.page.from(c).conflicts(s.run(c)));
   static Expr<bool, ActivationFlow> _baseFree(
     Expr<WebViewModel, ActivationFlow> s,
   ) => _conflicts(s).isEmpty;
@@ -355,8 +377,9 @@ abstract final class ActivationTable {
   static final _oneRoute =
       _loaded.value.forAll(_u, holds: _alone(_runsAs(_u.it))) &
       _pages.forAll(_u, holds: _alone(_u.it));
-  static Expr<bool, ActivationFlow> _alone(Expr<WebViewModel, ActivationFlow> a) =>
-      _contendersOf(a).isEmpty & _dissentersOf(a).isEmpty;
+  static Expr<bool, ActivationFlow> _alone(
+    Expr<WebViewModel, ActivationFlow> a,
+  ) => _contendersOf(a).isEmpty & _dissentersOf(a).isEmpty;
 
   /// The switch leaves a site: the one on screen is another loaded site
   /// (nothing to do when the user tapped the site they are on).
@@ -372,13 +395,10 @@ abstract final class ActivationTable {
   /// loads (LIR-024): the model's `Routed`, which holds no site there.
   static final _routed = Members<WebViewModel, ActivationFlow>(
     ModelConst.routed,
-    test: (w, {required member}) =>
-        switch (w.reach.residency.proxyTopology) {
-          RoutedProxy(:final sharesDefaultSession) => sharesDefaultSession(
-            member,
-          ),
-          PerSessionProxy() || ProcessGlobalProxy() => false,
-        },
+    test: (w, {required member}) => switch (w.reach.residency.proxyTopology) {
+      RoutedProxy(:final sharesDefaultSession) => sharesDefaultSession(member),
+      PerSessionProxy() || ProcessGlobalProxy() => false,
+    },
   ).has(_site.value);
 
   /// The site whose nested screen is up (`nested`), 0 for none.
@@ -391,9 +411,10 @@ abstract final class ActivationTable {
 
   /// The pages whose traffic runs, each as its own site: a nested screen
   /// and a wake's checks (the runtime's `Pages`).
-  static final _pages = ModelDef.pages.named<Iterable<WebViewModel>, ActivationFlow>(
-    run: (c) => ActivationFlow.page.from(c).pages,
-  );
+  static final _pages = ModelDef.pages
+      .named<Iterable<WebViewModel>, ActivationFlow>(
+        run: (c) => ActivationFlow.page.from(c).pages,
+      );
 
   /// The sites a link may open nested: any in the code, as many as a
   /// configuration of the model follows (`Linked`).
@@ -425,7 +446,9 @@ abstract final class ActivationTable {
       run: (c) => [ActivationFlow.state.from(c).leaving!.toList()],
     ),
   );
-  static const _away = Field<List<WebViewModel>, ActivationFlow>(FlowField.away);
+  static const _away = Field<List<WebViewModel>, ActivationFlow>(
+    FlowField.away,
+  );
   static const _behind = Field<WebViewModel?, ActivationFlow>(FlowField.behind);
 
   /// The target of the activation in flight while no input has superseded
@@ -483,7 +506,8 @@ abstract final class ActivationTable {
     holds: null,
     call: Call.on(
       ActivationFlow.page,
-      run: (c) async => ActivationFlow.state.from(c).online = await c.api.isOnline(),
+      run: (c) async =>
+          ActivationFlow.state.from(c).online = await c.api.isOnline(),
       writes: const [],
     ),
     decide: When(
@@ -542,7 +566,10 @@ abstract final class ActivationTable {
         _v.becomes(_version.value.plus(1)),
         _bump,
         _newestNone,
-      ] else ...[_behind.becomes(_noSite), _v.becomes(_version.value)],
+      ] else ...[
+        _behind.becomes(_noSite),
+        _v.becomes(_version.value),
+      ],
     ],
     next: _spaceOnline,
   );
@@ -556,6 +583,7 @@ abstract final class ActivationTable {
       NestedOpening(page.models.indexOfKey(_site.of(c))),
     );
   }
+
   static final _screenVictims = Expr.checked(
     rule: _contendersOf(_site.value).union(_dissentersOf(_site.value)),
     run: (c) => {for (final u in _nestedPlan(c).unloads) u.site},
@@ -569,7 +597,9 @@ abstract final class ActivationTable {
     _victims.becomes(_screenVictims),
     _clears.becomes(Expr.none()),
     _picked.becomes(Expr.none()),
-    Note<ActivationFlow>((c) => ActivationFlow.state.from(c).plan = _nestedPlan(c)),
+    Note<ActivationFlow>(
+      (c) => ActivationFlow.state.from(c).plan = _nestedPlan(c),
+    ),
   ];
 
   /// The screen is gone, and what it ran on is released.
@@ -583,14 +613,15 @@ abstract final class ActivationTable {
   /// screen for its own site whatever its slot shows (`NestedOpening`).
   static Expr<List<WebViewModel>, ActivationFlow> _contendersOf(
     Expr<WebViewModel, ActivationFlow> a,
-  ) => ModelDef.proxyContenders.over(
-    [a],
-    run: (c) => ActivationFlow.page.from(c).proxyContenders(runsAs: a.run(c)),
-  );
+  ) => ModelDef.proxyContenders.over([
+    a,
+  ], run: (c) => ActivationFlow.page.from(c).proxyContenders(runsAs: a.run(c)));
 
   static Expr<WebViewModel, ActivationFlow> _runsAs(
     Expr<WebViewModel, ActivationFlow> s,
-  ) => TabVars.runsAs<ActivationFlow>().call([s]);
+  ) => TabVars.runsAs<WebViewModel, ActivationFlow>(
+    keys: TabVars.objects<ActivationFlow>(),
+  ).call([s]);
 
   /// The running sites whose Tor exit a webview running as [a] would
   /// repoint, when a Tor runtime exists (`TorDissenters`).
@@ -598,10 +629,9 @@ abstract final class ActivationTable {
     Expr<WebViewModel, ActivationFlow> a,
   ) => Expr.choose(
     when: _torRuntime,
-    then: ModelDef.torDissenters.over(
-      [a],
-      run: (c) => ActivationFlow.page.from(c).torDissenters(runsAs: a.run(c)),
-    ),
+    then: ModelDef.torDissenters.over([
+      a,
+    ], run: (c) => ActivationFlow.page.from(c).torDissenters(runsAs: a.run(c))),
     otherwise: Expr.none(),
   );
   static final _torRuntime = Constant<bool, ActivationFlow>(
@@ -722,27 +752,28 @@ abstract final class ActivationTable {
   static ResidencyPlan _planOf(StepView<ActivationFlow> c) {
     final page = ActivationFlow.page.from(c);
     final models = page.models;
-    return ActivationFlow.state.from(c).plan ??= page.residencyPlan(switch (kind.of(c)) {
-        FlowKind.tap || FlowKind.preload || FlowKind.home => Activating(
-          models.indexOfKey(_site.of(c)),
-        ),
-        FlowKind.pressure => throw StateError('made by the pressure plan step'),
-        FlowKind.unload => throw StateError('made by the unload\'s caller'),
-        FlowKind.nested => NestedOpening(models.indexOfKey(_site.of(c))),
-        FlowKind.space => WebspaceSwitched(
-          leaving: {
-            for (final m in _away.of(c))
-              if (models.hasKey(m) && m.modelKey != _behind.of(c)?.modelKey)
-                models.indexOfKey(m),
-          },
-        ),
-        FlowKind.tab => throw StateError('a tab flow plans no residency'),
-        FlowKind.wake => throw StateError('a wake plans no residency'),
-        FlowKind.dns => throw StateError('a DNS download plans no residency'),
-        FlowKind.close => throw StateError('an archive close plans no residency'),
-        FlowKind.delete => throw StateError('a delete plans no residency'),
-        FlowKind.import => throw StateError('an import plans no residency'),
-      });
+    return ActivationFlow.state.from(c).plan ??= page.residencyPlan(switch (kind
+        .of(c)) {
+      FlowKind.tap ||
+      FlowKind.preload ||
+      FlowKind.home => Activating(models.indexOfKey(_site.of(c))),
+      FlowKind.pressure => throw StateError('made by the pressure plan step'),
+      FlowKind.unload => throw StateError('made by the unload\'s caller'),
+      FlowKind.nested => NestedOpening(models.indexOfKey(_site.of(c))),
+      FlowKind.space => WebspaceSwitched(
+        leaving: {
+          for (final m in _away.of(c))
+            if (models.hasKey(m) && m.modelKey != _behind.of(c)?.modelKey)
+              models.indexOfKey(m),
+        },
+      ),
+      FlowKind.tab => throw StateError('a tab flow plans no residency'),
+      FlowKind.wake => throw StateError('a wake plans no residency'),
+      FlowKind.dns => throw StateError('a DNS download plans no residency'),
+      FlowKind.close => throw StateError('an archive close plans no residency'),
+      FlowKind.delete => throw StateError('a delete plans no residency'),
+      FlowKind.import => throw StateError('an import plans no residency'),
+    });
   }
 
   /// Where a spent plan goes: the unload engine's own rule.
@@ -813,9 +844,7 @@ abstract final class ActivationTable {
   /// nothing else would leave that site with no webview behind it (LAZY-007,
   /// BUG-029).
   static final _screenEmpty =
-      _shows &
-      _current.value.neq(_noSite) &
-      ~_loaded.value.has(_current.value);
+      _shows & _current.value.neq(_noSite) & ~_loaded.value.has(_current.value);
 
   /// On to the target's cookies: its container, or its turn on the jar.
   static List<Branch<ActivationFlow, ActivationPlace>> _toCookies(
@@ -904,7 +933,8 @@ abstract final class ActivationTable {
           site: _site.value,
           built: (_, {required site}) => site.tabBinding.built,
           hosts: (_, {required site}) => site.tabHosts,
-          begin: (c) => ActivationFlow.page.from(c).beginNavCapture(_site.of(c)),
+          begin: (c) =>
+              ActivationFlow.page.from(c).beginNavCapture(_site.of(c)),
           marks: null,
           keeps: null,
         ),
@@ -993,7 +1023,8 @@ abstract final class ActivationTable {
         branches: [
           Branch(
             StepOutcome.empty,
-            when: pressureResident.value.isEmpty & pressureCleared.value.isEmpty,
+            when:
+                pressureResident.value.isEmpty & pressureCleared.value.isEmpty,
             then: [],
             next: to(ActivationPlace.done),
           ),
@@ -1274,7 +1305,9 @@ abstract final class ActivationTable {
         call: Call.on(
           ActivationFlow.boxes,
           run: (c) =>
-              c.api?.containerNative.deleteContainer(_site.of(c).containerKey) ??
+              c.api?.containerNative.deleteContainer(
+                _site.of(c).containerKey,
+              ) ??
               Future.value(),
           writes: [
             _boxes.becomes(
@@ -1332,7 +1365,8 @@ abstract final class ActivationTable {
           run: (c) async {
             final target = _site.of(c);
             // restoreState applies only to a freshly created controller.
-            if (!target.activeTabPersistsNavState || target.controller != null) {
+            if (!target.activeTabPersistsNavState ||
+                target.controller != null) {
               return;
             }
             ActivationFlow.state.from(c).navBytes = await c.api.loadState(
@@ -1512,13 +1546,18 @@ abstract final class ActivationTable {
         site: _site.value,
         call: Call.on(
           ActivationFlow.state,
-          run: (c) => c.api.opening!.screen.launch(_site.of(c), url: c.api.opening!.url),
+          run: (c) => c.api.opening!.screen.launch(
+            _site.of(c),
+            url: c.api.opening!.url,
+          ),
           writes: const [],
         ),
         branches: [
           Branch(
             StepOutcome.go,
-            when: _current.value.neq(_noSite) & ~_loaded.value.has(_current.value),
+            when:
+                _current.value.neq(_noSite) &
+                ~_loaded.value.has(_current.value),
             then: [
               _nestedDown,
               _screenGone,
@@ -1566,7 +1605,9 @@ abstract final class ActivationTable {
               _loadedAdd,
               _preloaded,
               _preloadFramed,
-              Note((c) => ActivationFlow.page.from(c).rebuildAndNoteBackground()),
+              Note(
+                (c) => ActivationFlow.page.from(c).rebuildAndNoteBackground(),
+              ),
             ],
             next: to(ActivationPlace.exit),
           ),
@@ -1598,7 +1639,9 @@ abstract final class ActivationTable {
           then: [
             _framed,
             Note(
-              (c) => ActivationFlow.page.from(c).afterResume(_site.of(c), version: _v.of(c)),
+              (c) => ActivationFlow.page
+                  .from(c)
+                  .afterResume(_site.of(c), version: _v.of(c)),
             ),
           ],
           next: to(ActivationPlace.exit),
@@ -1623,7 +1666,8 @@ abstract final class ActivationTable {
               _newestOff,
               _bailedAfterUnload,
               Note(
-                (c) => ActivationFlow.page.from(c).cookiesNotRestored(_site.of(c)),
+                (c) =>
+                    ActivationFlow.page.from(c).cookiesNotRestored(_site.of(c)),
               ),
             ],
             next: to(ActivationPlace.done),

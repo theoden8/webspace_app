@@ -72,7 +72,8 @@ Def<bool, TabFlow> _movesRuleOf(
   Expr<bool, TabFlow> Function({
     required Expr<WebViewModel, TabFlow> from,
     required Expr<WebViewModel, TabFlow> to,
-  }) body,
+  })
+  body,
 ) {
   const a = Bound<WebViewModel, TabFlow>('a');
   const b = Bound<WebViewModel, TabFlow>('b');
@@ -113,13 +114,14 @@ Def<List<int>, ProxySlots> _contendersSkippingOwnSlot() {
       siteId: w.sites[at].siteId,
     ),
   );
-  Expr<int, ProxySlots> runsAs(Expr<int, ProxySlots> slot) => ModelDef.runsAs.over(
-    [slot],
-    run: (c) {
-      final w = world.from(c);
-      return w.sites.indexOf(w.slots[slot.run(c)]);
-    },
-  );
+  Expr<int, ProxySlots> runsAs(Expr<int, ProxySlots> slot) =>
+      ModelDef.runsAs.over(
+        [slot],
+        run: (c) {
+          final w = world.from(c);
+          return w.sites.indexOf(w.slots[slot.run(c)]);
+        },
+      );
   Expr<bool, ProxySlots> differs(Expr<int, ProxySlots> as) =>
       contending.has(as) & route.at(as).neq(route.at(a.it));
   return Def(
@@ -143,9 +145,11 @@ _captureAtReply() {
   final t = Bound<TabId?, Object?>('t');
   final h = Bound<TabId?, Object?>('h');
   final a = Bound<WebViewModel, Object?>('a');
-  final built = TabVars.built<Object?>().at(s.it);
+  final built = TabVars.built<WebViewModel, Object?>(
+    keys: TabVars.objects<Object?>(),
+  ).at(s.it);
   final builtTab = built.unwrapped;
-  final file = TabVars.file<Object?>().value;
+  final file = TabVars.file<WebViewModel, Object?>().value;
   return Def(
     ModelDef.capture,
     params: [s, t, h, a],
@@ -164,8 +168,8 @@ final _queuedAtReply = () {
   const site = Field<WebViewModel, ActivationFlow>(FlowField.site);
   return Act.of(
     [
-      TabVars.queued<ActivationFlow>().becomes(
-        TabVars.staged<ActivationFlow>().call([
+      TabVars.queued<WebViewModel, ActivationFlow>().becomes(
+        TabVars.staged<WebViewModel, ActivationFlow>().call([
           site.value,
           const Field<WebViewModel, ActivationFlow>(FlowField.navAs).value,
           const Field<TabId, ActivationFlow>(FlowField.navTab).value,
@@ -175,7 +179,11 @@ final _queuedAtReply = () {
     then: (c) {
       final target = site.of(c);
       if (ActivationFlow.state.from(c).navBytes case final bytes?) {
-        target.tabBinding.queue(bytes, tab: target.activeTabId, commit: c.commit);
+        target.tabBinding.queue(
+          bytes,
+          tab: target.activeTabId,
+          commit: c.commit,
+        );
       }
     },
   );
@@ -185,19 +193,26 @@ Def<Map<WebViewModel, QueuedStack>, Object?> _stagedAtReply() {
   final s = Bound<WebViewModel, Object?>('s');
   final a = Bound<WebViewModel, Object?>('a');
   final t = Bound<TabId, Object?>('t');
-  final queued = TabVars.queued<Object?>().value;
-  final saved = TabVars.file<Object?>().value.at(s.it).at(t.it).at(a.it);
+  final queued = TabVars.queued<WebViewModel, Object?>().value;
+  final saved = TabVars.file<WebViewModel, Object?>().value
+      .at(s.it)
+      .at(t.it)
+      .at(a.it);
   return Def(
     ModelDef.staged,
     params: [s, a, t],
     body: Expr.choose(
-      when: TabVars.tabbed<Object?>().has(s.it) & saved.neq(noTab()),
+      when:
+          TabVars.tabbed<WebViewModel, Object?>().has(s.it) &
+          saved.neq(noTab()),
       then: queued.except(
         s.it,
-        to: record(
-          {'t': TabVars.active<Object?>().at(s.it), 'h': saved},
-          run: (_) => throw StateError('queued is the platform\'s'),
-        ),
+        to: record({
+          't': TabVars.active<WebViewModel, Object?>(
+            keys: TabVars.objects<Object?>(),
+          ).at(s.it),
+          'h': saved,
+        }, run: (_) => throw StateError('queued is the platform\'s')),
       ),
       otherwise: queued,
     ),
@@ -403,7 +418,9 @@ Tables mutated(Mutant m) => switch (m) {
           s.otherwise.outcome,
           then: [
             Act.of([
-              TabVars.active<TabFlow>().except(
+              TabVars.active<WebViewModel, TabFlow>(
+                keys: TabVars.objects<TabFlow>(),
+              ).except(
                 const Field<WebViewModel, TabFlow>(FlowField.site).value,
                 to: const Field<TabId, TabFlow>(FlowField.tab).value,
               ),
@@ -507,7 +524,9 @@ Tables mutated(Mutant m) => switch (m) {
           then: [
             ...s.otherwise.then,
             Act.of([
-              TabVars.active<TabFlow>().except(
+              TabVars.active<WebViewModel, TabFlow>(
+                keys: TabVars.objects<TabFlow>(),
+              ).except(
                 const Field<WebViewModel, TabFlow>(FlowField.site).value,
                 to: const Field<TabId, TabFlow>(FlowField.tab).value,
               ),
@@ -552,7 +571,9 @@ Tables mutated(Mutant m) => switch (m) {
           s.otherwise.outcome,
           then: [
             for (final e in s.otherwise.then)
-              if (e case Act(:final writes) when writes.contains(ModelVar.queued))
+              if (e case Act(
+                :final writes,
+              ) when writes.contains(ModelVar.queued))
                 _queuedAtReply
               else
                 e,
@@ -686,6 +707,7 @@ Tables mutated(Mutant m) => switch (m) {
                   if (e is Act<ActivationFlow> &&
                       e.writes.contains(ModelVar.built))
                     TabVars.framed(
+                      keys: TabVars.objects(),
                       const Field<WebViewModel, ActivationFlow>(
                         FlowField.site,
                       ).value,
@@ -789,10 +811,15 @@ Tables mutated(Mutant m) => switch (m) {
             else
               Branch(
                 b.outcome,
-                when: b.when &
+                when:
+                    b.when &
                     const Field<TabId, TabFlow>(FlowField.tab).value.eq(
-                      TabVars.active<TabFlow>().at(
-                        const Field<WebViewModel, TabFlow>(FlowField.site).value,
+                      TabVars.active<WebViewModel, TabFlow>(
+                        keys: TabVars.objects<TabFlow>(),
+                      ).at(
+                        const Field<WebViewModel, TabFlow>(
+                          FlowField.site,
+                        ).value,
                       ),
                     ),
                 pick: b.pick,
