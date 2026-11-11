@@ -11,9 +11,12 @@ inputs:
     default: 'false'
     description: Install TLAPS.
 outputs:
-  tlapm-version:
-    value: ${{ steps.tlapm.outputs.version }}
-    description: The installed TLAPS version.
+  tlapm-pin:
+    value: ${{ steps.tlapm.outputs.pin }}
+    description: >-
+      The SHA-256 of the TLAPS build installed: the key its proof cache is
+      kept under, since the release's version string stays the same when
+      upstream rebuilds it.
 runs:
   using: composite
   steps:
@@ -65,14 +68,39 @@ runs:
       run: |
         [ -x "$HOME/.elan/bin/elan" ] || curl -fsSL --retry 4 https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none --no-modify-path
         echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-    - id: tlapm
+    # The 1.6.0-pre asset is rebuilt in place upstream, so the build is
+    # pinned by its hash: master caches the tarball under that hash, and a
+    # download that does not match fails. Moving the pin is a deliberate
+    # change, paid for with one cold proof run.
+    - id: pin
       shell: bash
       if: inputs.proofs == 'true'
       run: |
-        curl -fsSL --retry 4 --retry-delay 2 -o /tmp/tlapm.tar.gz \
-          https://github.com/tlaplus/tlapm/releases/download/1.6.0-pre/tlapm-1.6.0-pre-x86_64-linux-gnu.tar.gz
-        tar -xzf /tmp/tlapm.tar.gz -C "$HOME"
-        rm -f /tmp/tlapm.tar.gz
+        echo "url=https://github.com/tlaplus/tlapm/releases/download/1.6.0-pre/tlapm-1.6.0-pre-x86_64-linux-gnu.tar.gz" >> "$GITHUB_OUTPUT"
+        echo "sha256=99db29f119cb6f43ffed653b212ba2d005e5bf8e242c53468876cb0d08da6bcc" >> "$GITHUB_OUTPUT"
+    - uses: ./.github/actions/master-cache
+      if: inputs.proofs == 'true'
+      with:
+        path: ~/tlapm-dist
+        key: tlapm-dist-${{ runner.os }}-${{ steps.pin.outputs.sha256 }}
+    - id: tlapm
+      shell: bash
+      if: inputs.proofs == 'true'
+      env:
+        TLAPM_URL: ${{ steps.pin.outputs.url }}
+        TLAPM_SHA256: ${{ steps.pin.outputs.sha256 }}
+      run: |
+        tarball="$HOME/tlapm-dist/tlapm.tar.gz"
+        if [ ! -f "$tarball" ]; then
+          mkdir -p "$HOME/tlapm-dist"
+          curl -fsSL --retry 4 --retry-delay 2 -o "$tarball" "$TLAPM_URL"
+        fi
+        got="$(sha256sum "$tarball" | cut -d' ' -f1)"
+        if [ "$got" != "$TLAPM_SHA256" ]; then
+          echo "::error::the TLAPS build at $TLAPM_URL is $got, not the pinned $TLAPM_SHA256: upstream rebuilt it. Move the pin in .github/actions/setup-formal/action.yml; the next proof run is cold."
+          exit 1
+        fi
+        tar -xzf "$tarball" -C "$HOME"
         echo "$HOME/tlapm/bin" >> "$GITHUB_PATH"
         "$HOME/tlapm/bin/tlapm" --version
-        echo "version=$("$HOME/tlapm/bin/tlapm" --version)" >> "$GITHUB_OUTPUT"
+        echo "pin=$TLAPM_SHA256" >> "$GITHUB_OUTPUT"

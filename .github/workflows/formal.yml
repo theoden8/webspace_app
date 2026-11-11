@@ -251,13 +251,13 @@ jobs:
         if: ${{ !inputs.cold }}
         with:
           path: formal/proofs/.tlacache
-          key: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-version }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-version }}-
+          key: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-
       - name: Restore from master's newest artifact when the cache is gone
         if: ${{ !inputs.cold && steps.tlapm-cache.outputs.cache-matched-key == '' }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: scripts/restore_formal_artifact.sh "formal-tlacache-${{ steps.tools.outputs.tlapm-version }}" "formal/proofs/.tlacache"
+        run: scripts/restore_formal_artifact.sh "formal-tlacache-${{ steps.tools.outputs.tlapm-pin }}" "formal/proofs/.tlacache"
       - id: formal-verify
         run: |
           if [ "${{ inputs.cold }}" = true ]; then rm -rf formal/proofs/.tlacache; fi
@@ -267,11 +267,11 @@ jobs:
         if: ${{ always() && steps.formal-verify.outcome != '' && steps.formal-verify.outcome != 'skipped' }}
         with:
           path: formal/proofs/.tlacache
-          key: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-${{ github.run_id }}-${{ github.run_attempt }}
       - uses: actions/upload-artifact@v4
         if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/master' && steps.formal-verify.outcome != '' && steps.formal-verify.outcome != 'skipped' }}
         with:
-          name: formal-tlacache-${{ steps.tools.outputs.tlapm-version }}
+          name: formal-tlacache-${{ steps.tools.outputs.tlapm-pin }}
           path: formal/proofs/.tlacache
           include-hidden-files: true
           retention-days: 14
