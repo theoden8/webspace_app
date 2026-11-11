@@ -867,6 +867,36 @@ final class Indexed<K, V, W> {
   final ModelVar? _variable;
   final ModelConst? _fixed;
   String get name => _variable?.name ?? _fixed!.tla;
+  /// This variable indexed by [J], each key resolved through the world to
+  /// the [K] the variable is held under: a site's id to the site, while the
+  /// tab variables live on the site objects (CONT-012). The same variable,
+  /// so it prints as this one does.
+  Indexed<J, V, W> keyedBy<J>(K Function(W world, {required J key}) resolve) {
+    final read = _read;
+    final write = _write;
+    return Indexed<J, V, W>._of(
+      _variable,
+      fixed: _fixed,
+      read: read == null
+          ? null
+          : (w, {required at}) => read(w, at: resolve(w, key: at)),
+      write: write == null
+          ? null
+          : (w, {required at, required to}) =>
+              write(w, at: resolve(w, key: at), to: to),
+    );
+  }
+
+  const Indexed._of(
+    ModelVar? variable, {
+    required ModelConst? fixed,
+    required V Function(W world, {required K at})? read,
+    required void Function(W world, {required K at, required V to})? write,
+  }) : _variable = variable,
+       _fixed = fixed,
+       _read = read,
+       _write = write;
+
   final V Function(W world, {required K at})? _read;
   final void Function(W world, {required K at, required V to})? _write;
 
