@@ -78,7 +78,7 @@ void main() {
       expect(r.vars.loaded.value, [SiteId('a'), SiteId('b')]);
       expect(r.vars.current.value, SiteId('b'));
       expect(r.vars.marker.value, isNull);
-      expect(r.vars.version.value, r.objectVars.version.value);
+      expect(r.vars.version.value, r.activationVersion);
     });
 
     test('a write keeps the site it holds under an id, else names the listed '

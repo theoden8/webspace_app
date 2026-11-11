@@ -73,7 +73,7 @@ class SiteRuntime {
   late final RuntimeVars<SiteId> vars = RuntimeVars(
     loaded: Shared(
       ModelVar.loaded,
-      read: () => {for (final m in _loaded) m.siteId},
+      read: () => _idsOf(_loaded),
       write: (to) {
         final held = [..._loaded];
         _loaded
@@ -83,7 +83,7 @@ class SiteRuntime {
     ),
     current: Shared(
       ModelVar.current,
-      read: () => _shown?.siteId,
+      read: () => _idOf(_shown),
       write: (to) => _show(switch (to) {
         final id? => _site(id, held: [?_shown]),
         null => null,
@@ -93,7 +93,7 @@ class SiteRuntime {
     marker: Shared(
       ModelVar.marker,
       read: () => switch (_activating) {
-        final m? => (target: m.target.siteId, version: m.version),
+        final m? => (target: _idOf(m.target)!, version: m.version),
         null => null,
       },
       write: (to) => _mark(switch (to) {
@@ -106,7 +106,7 @@ class SiteRuntime {
     ),
     nested: Shared(
       ModelVar.nested,
-      read: () => _nested?.siteId,
+      read: () => _idOf(_nested),
       write: (to) => _nested = switch (to) {
         final id? => _site(id, held: [?_nested]),
         null => null,
@@ -114,7 +114,7 @@ class SiteRuntime {
     ),
     headless: Shared(
       ModelVar.headless,
-      read: () => {for (final m in _headless) m.siteId},
+      read: () => _idsOf(_headless),
       write: (to) {
         final held = [..._headless];
         _headless
@@ -124,6 +124,12 @@ class SiteRuntime {
     ),
     fore: objectVars.fore,
   );
+
+  /// Ids read off the objects outside the cells' `read:` closures, which
+  /// name only the fields that hold each variable (`test/port_reads_test`).
+  static SiteId? _idOf(WebViewModel? site) => site?.siteId;
+  static Set<SiteId> _idsOf(Iterable<WebViewModel> sites) =>
+      {for (final m in sites) m.siteId};
 
   /// The site [id] names for a write through [vars]: the one [held] has
   /// under it, else the listed one.
