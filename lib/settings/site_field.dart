@@ -5,6 +5,16 @@ import 'package:webspace/settings/capture.dart';
 /// device and bytes that would blow the code's capacity do not.
 enum QrShare { carried, withheld }
 
+/// Whether a QR scan's review dialog must name a simple boolean protection
+/// toggle before a shared site adopts it (QR-008), and in which direction. The
+/// review iterates this so a newly carried protection toggle cannot disable a
+/// protection the dialog leaves unnamed (SEC: "review parses looser than
+/// apply"). Fields that weaken by a non-boolean value (a DNS level below the
+/// app's, a non-empty disabled-filter list, a location mode, a kiosk the
+/// device can pin) are named by their own special cases in the review, not
+/// here.
+enum QrReview { none, weakenedWhenOff, grantedWhenOn }
+
 /// Whether a backup carries a field: everything a site's JSON holds, but for
 /// trust the user gave other origins on this device (PERM-002).
 enum BackupShare { carried, withheld }
@@ -27,8 +37,10 @@ enum SiteField {
   userAgent('userAgent', qr: QrShare.carried),
   // A read recovers it from the user agent it rendered.
   uaPreset('uaPreset', qr: QrShare.withheld),
-  thirdPartyCookiesEnabled('thirdPartyCookiesEnabled', qr: QrShare.carried),
-  httpsUpgradeEnabled('httpsUpgradeEnabled', qr: QrShare.carried),
+  thirdPartyCookiesEnabled('thirdPartyCookiesEnabled',
+      qr: QrShare.carried, review: QrReview.grantedWhenOn),
+  httpsUpgradeEnabled('httpsUpgradeEnabled',
+      qr: QrShare.carried, review: QrReview.weakenedWhenOff),
   incognito('incognito', qr: QrShare.carried),
   alwaysOpenHome('alwaysOpenHome', qr: QrShare.carried),
   kioskMode('kioskMode', qr: QrShare.carried),
@@ -39,14 +51,20 @@ enum SiteField {
   language('language', qr: QrShare.carried),
   zoomPercent('zoomPercent', qr: QrShare.carried),
   theme('theme', qr: QrShare.carried),
-  clearUrlEnabled('clearUrlEnabled', qr: QrShare.carried),
-  dnsBlockEnabled('dnsBlockEnabled', qr: QrShare.carried),
+  clearUrlEnabled('clearUrlEnabled',
+      qr: QrShare.carried, review: QrReview.weakenedWhenOff),
+  dnsBlockEnabled('dnsBlockEnabled',
+      qr: QrShare.carried, review: QrReview.weakenedWhenOff),
   dnsBlockLevel('dnsBlockLevel', qr: QrShare.carried),
   disabledFilterLists('disabledFilterLists', qr: QrShare.carried),
-  contentBlockEnabled('contentBlockEnabled', qr: QrShare.carried),
-  trackingProtectionEnabled('trackingProtectionEnabled', qr: QrShare.carried),
-  lockdownModeEnabled('lockdownModeEnabled', qr: QrShare.carried),
-  localCdnEnabled('localCdnEnabled', qr: QrShare.carried),
+  contentBlockEnabled('contentBlockEnabled',
+      qr: QrShare.carried, review: QrReview.weakenedWhenOff),
+  trackingProtectionEnabled('trackingProtectionEnabled',
+      qr: QrShare.carried, review: QrReview.weakenedWhenOff),
+  lockdownModeEnabled('lockdownModeEnabled',
+      qr: QrShare.carried, review: QrReview.weakenedWhenOff),
+  localCdnEnabled('localCdnEnabled',
+      qr: QrShare.carried, review: QrReview.weakenedWhenOff),
   // Never shared so far: sharing it is its own decision.
   externalLinkMode('externalLinkMode',
       qr: QrShare.withheld, legacyKeys: ['externalLinksInBrowser']),
@@ -57,8 +75,11 @@ enum SiteField {
       qr: QrShare.withheld, legacyKeys: ['tabBarButtonOnRight']),
   htmlCachingEnabled('htmlCachingEnabled', qr: QrShare.carried),
   notificationsEnabled('notificationsEnabled',
-      qr: QrShare.carried, legacyKeys: ['backgroundPoll']),
-  backgroundAudioEnabled('backgroundAudioEnabled', qr: QrShare.carried),
+      qr: QrShare.carried,
+      review: QrReview.grantedWhenOn,
+      legacyKeys: ['backgroundPoll']),
+  backgroundAudioEnabled('backgroundAudioEnabled',
+      qr: QrShare.carried, review: QrReview.grantedWhenOn),
   // A remembered decision is trust given one device's prompt.
   protectedContentAllowed('protectedContentAllowed', qr: QrShare.withheld),
   // Each capture kind's own keys, which [keys] names; the virtual sources
@@ -113,6 +134,7 @@ enum SiteField {
   const SiteField(
     this.key, {
     required this.qr,
+    this.review = QrReview.none,
     this.legacyKeys = const [],
     this.backup = BackupShare.carried,
   });
@@ -122,6 +144,9 @@ enum SiteField {
   final String key;
 
   final QrShare qr;
+
+  /// Whether the QR review names this toggle, and in which direction (QR-008).
+  final QrReview review;
 
   final BackupShare backup;
 
