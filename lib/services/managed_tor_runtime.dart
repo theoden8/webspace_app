@@ -293,11 +293,17 @@ class ManagedTorRuntime implements TorRuntime {
   Stream<TorStatus> get events => _events.stream;
 
   /// A no-op while tor is running, as the engine's Retry relies on
-  /// (TOR-020). A tor that has exited is started again: unlike Apple's, a
-  /// child process leaves nothing behind in this one.
+  /// (TOR-020), but for saying again where its bootstrap is: a tor that
+  /// cannot reach a relay stays at one phase, so nothing else would move the
+  /// Retry's `starting` on. A tor that has exited is started again: unlike
+  /// Apple's, a child process leaves nothing behind in this one.
   @override
   Future<void> start() => _lifecycle.run(() async {
-        if (_run != null) return;
+        if (_run != null) {
+          final status = _status;
+          if (status is TorBootstrapping) _emit(status);
+          return;
+        }
         // Its data directory is this one's, and tor locks it.
         await _retiring;
         final generation = ++_generation;
