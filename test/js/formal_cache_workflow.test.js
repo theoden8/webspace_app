@@ -197,3 +197,57 @@ test('a merged memo holds what each shard added and keeps what it used', () => {
   assert.ok(Math.abs(fs.statSync(at(keeper, 'memo/idle')).mtimeMs - old.getTime()) < 1000, 'unused ages');
   fs.rmSync(root, { recursive: true, force: true });
 });
+
+// The TLAPS release asset is rebuilt in place upstream under the same version
+// string, so a proof cache keyed on `tlapm --version` went cold without notice.
+// A workflow's keys have no type, so the pin is held here.
+const setup = YAML.parse(read('.github/actions/setup-formal/action.yml'));
+const setupStep = (id) => setup.runs.steps.find((s) => s.id === id);
+
+test('the proof cache is keyed on the pinned TLAPS build, never on its version string', () => {
+  assert.match(setupStep('pin').run, /sha256=[0-9a-f]{64}"/, 'the pin names one SHA-256');
+  const dist = setup.runs.steps.find((s) => s.with?.path === '~/tlapm-dist');
+  assert.equal(dist.uses, './.github/actions/master-cache', 'only master saves the tarball');
+  assert.match(dist.with.key, /\$\{\{ steps\.pin\.outputs\.sha256 \}\}$/);
+  assert.equal(setupStep('tlapm').env.TLAPM_SHA256, '${{ steps.pin.outputs.sha256 }}');
+  assert.equal(setup.outputs['tlapm-pin'].value, '${{ steps.tlapm.outputs.pin }}');
+  const proofs = jobs.proofs.steps;
+  assert.doesNotMatch(JSON.stringify(proofs), /tlapm-version|tlapm --version/);
+  assert.match(proofs.find((s) => s.id === 'tlapm-cache').with.key,
+    /^tlapm-\$\{\{ runner\.os \}\}-\$\{\{ steps\.tools\.outputs\.tlapm-pin \}\}-/);
+});
+
+test('a TLAPS tarball that is not the pinned build fails the install, and the pinned one installs', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tlapm-pin-'));
+  const build = path.join(home, 'build');
+  fs.mkdirSync(path.join(build, 'tlapm', 'bin'), { recursive: true });
+  fs.writeFileSync(path.join(build, 'tlapm', 'bin', 'tlapm'), '#!/bin/sh\necho "TLAPS fake"\n',
+    { mode: 0o755 });
+  fs.mkdirSync(path.join(home, 'tlapm-dist'));
+  const tarball = path.join(home, 'tlapm-dist', 'tlapm.tar.gz');
+  execFileSync('tar', ['-czf', tarball, '-C', build, 'tlapm']);
+  const sha = execFileSync('sha256sum', [tarball], { encoding: 'utf8' }).split(' ')[0];
+  const install = (pinned) => {
+    const out = path.join(home, `out-${pinned.slice(0, 8)}`);
+    fs.writeFileSync(out, '');
+    try {
+      execFileSync('bash', ['-eo', 'pipefail', '-c', setupStep('tlapm').run], {
+        env: { ...process.env, HOME: home, GITHUB_OUTPUT: out,
+          GITHUB_PATH: path.join(home, 'path'), TLAPM_URL: 'http://127.0.0.1:9/unreachable',
+          TLAPM_SHA256: pinned },
+        stdio: 'pipe',
+      });
+      return { ok: true, out: fs.readFileSync(out, 'utf8') };
+    } catch (e) {
+      return { ok: false, out: fs.readFileSync(out, 'utf8'), said: String(e.stdout) };
+    }
+  };
+  const other = install('0'.repeat(64));
+  assert.equal(other.ok, false, 'a rebuilt asset fails the install');
+  assert.match(other.said, /upstream rebuilt it/);
+  assert.equal(other.out, '', 'and names no pin');
+  const pinned = install(sha);
+  assert.equal(pinned.ok, true);
+  assert.equal(pinned.out.trim(), `pin=${sha}`);
+  fs.rmSync(home, { recursive: true, force: true });
+});
