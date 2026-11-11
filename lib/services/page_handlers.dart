@@ -17,6 +17,7 @@ import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/download_engine.dart';
 import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/file_dialog.dart' show FileDialogFailure;
+import 'package:webspace/services/frame_origin.dart';
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_grant_engine.dart';
@@ -58,7 +59,7 @@ abstract final class PageHandlers {
     required WebViewConfig config,
     required inapp.JavaScriptHandlerFunctionData frame,
   }) async {
-    final origin = originOf(frame.origin.toString());
+    final origin = FrameOrigin.ofFrame(frame);
     return _stand(
       origin,
       top: frame.isMainFrame ? origin : await _top(controller, config: config),
@@ -72,22 +73,22 @@ abstract final class PageHandlers {
   static Future<Requester> requesterAt(
     inapp.InAppWebViewController controller, {
     required WebViewConfig config,
-    required String origin,
+    required FrameOrigin origin,
   }) async => _stand(
-    originOf(origin),
+    origin,
     top: await _top(controller, config: config),
     config: config,
   );
 
-  static Future<String> _top(
+  static Future<FrameOrigin> _top(
     inapp.InAppWebViewController controller, {
     required WebViewConfig config,
-  }) async =>
-      originOf((await controller.getUrl())?.toString() ?? config.initialUrl);
+  }) =>
+      FrameOrigin.ofTopDocument(controller, fallbackUrl: config.initialUrl);
 
   static Requester _stand(
-    String origin, {
-    required String top,
+    FrameOrigin origin, {
+    required FrameOrigin top,
     required WebViewConfig config,
   }) => (
     origin: origin,
