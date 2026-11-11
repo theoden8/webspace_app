@@ -89,22 +89,24 @@ final class TabVars {
   /// opened following, in that step (LIR-034, `SiteRuntime.apply`):
   /// nothing, so they have no link; and a tab whose link led to one of
   /// them runs as its opener while that routes, its link's one host gone.
-  static List<Write<W>> openersGone<W>(Expr<Iterable<WebViewModel>, W> gone) {
-    final o = Bound<WebViewModel, W>('go');
+  static List<Write<W>> openersGone<S, W>(Expr<Iterable<S>, W> gone) {
+    final opener = Mutable<Map<S, Map<TabId, S?>>, W>.remote(ModelVar.opener);
+    final link = Mutable<Map<S, Map<TabId, S?>>, W>.remote(ModelVar.link);
+    final o = Bound<S, W>('go');
     final t = Bound<TabId, W>('gt');
-    final none = Expr.constant<WebViewModel?, W>(null, tla: '0');
-    final by = openerFn<W>().value.at(o.it).at(t.it);
-    final to = linkFn<W>().value.at(o.it).at(t.it);
+    final none = Expr.constant<S?, W>(null, tla: '0');
+    final by = opener.value.at(o.it).at(t.it);
+    final to = link.value.at(o.it).at(t.it);
     return [
-      openerFn<W>().becomes(
-        openerFn<W>().value.remap(
+      opener.becomes(
+        opener.value.remap(
           o,
           j: t,
           to: Expr.choose(when: gone.has(by), then: none, otherwise: by),
         ),
       ),
-      linkFn<W>().becomes(
-        linkFn<W>().value.remap(
+      link.becomes(
+        link.value.remap(
           o,
           j: t,
           to: Expr.choose(
