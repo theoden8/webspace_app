@@ -852,6 +852,25 @@ Map<String, Map<FlowKind, List<FlowWay>>> waysAt(List<Footprint> all) {
   return at;
 }
 
+/// `Inv_Places`, one conjunct for each need over every place of every table
+/// that needs it, as a membership: the places a lock's turn is held at are
+/// one statement, however many tables wait there, so a table that waits on
+/// the jar adds a place to a set and no conjunct to every step's lemma.
+List<String> invPlaces(Tables t) {
+  final byNeed = <String, List<String>>{};
+  for (final table in _all(t)) {
+    for (final (:place, :need) in table.placeNeeds) {
+      (byNeed[need] ??= []).add(place);
+    }
+  }
+  return [
+    for (final MapEntry(key: need, value: places) in byNeed.entries)
+      places.length == 1
+          ? '(fl[f].pc = "${places.single}" => ($need))'
+          : '(fl[f].pc \\in {${[for (final p in places) '"$p"'].join(', ')}} => ($need))',
+  ];
+}
+
 /// The kinds of flow a row can hold at each place ([flowsAt]).
 Map<String, Set<FlowKind>> kindsAt(List<Footprint> all) => {
   for (final MapEntry(:key, :value) in flowsAt(all).entries)
@@ -872,8 +891,7 @@ String activationTables(
   r'\* What a flow needs at each place it waits at, as the code asserts it',
   r"\* on the way in and after the place's call (Step.holds).",
   r'Inv_Places == \A f \in Flows :',
-  for (final table in _all(t))
-    for (final c in table.placesTla) '    /\\ $c',
+  for (final c in invPlaces(t)) '    /\\ $c',
   '',
   for (final table in _all(t))
     table.tla(
@@ -989,7 +1007,7 @@ List<PrintedFile> activationTablesParts(Tables t) {
             _armsInd(
               s,
               arms: arms[s.name]!,
-              places: [for (final table in _all(t)) ...table.placesTla],
+              places: invPlaces(t),
               footprint: footprints[s.name]!,
               held: held,
             ),
