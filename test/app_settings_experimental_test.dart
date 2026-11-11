@@ -17,7 +17,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
-import 'package:webspace/platform/host_platform.dart' show hostIsLinux;
 import 'package:webspace/widgets/search_site_picker.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/theme/app_theme.dart';
@@ -172,37 +171,6 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
     expect(prefs.getBool(AppPref.legacyDesign.key), isTrue);
   });
 
-  testWidgets('TOR-027 Developer offers Built-in Tor on Linux only, off by '
-      'default (DEVTOOLS-011)', (tester) async {
-    await tester.pumpWidget(host());
-    await tester.pumpAndSettle();
-    await openCategory(tester, title: 'Developer');
-    await tester.scrollUntilVisible(find.text('Reset icon cache'), 200,
-        scrollable: find.byType(Scrollable).first);
-    await tester.pumpAndSettle();
-    final title = find.text('Built-in Tor');
-    if (!hostIsLinux) {
-      expect(title, findsNothing);
-      return;
-    }
-    final runtime = FakeTorRuntime();
-    TorService.overrideEngine(
-      TorEngine(runtime: runtime, sessionSecret: 's'),
-      builtInOffered: () =>
-          TorService.builtInOfferedNow(platform: TargetPlatform.linux),
-    );
-    expect(TorService.instance.offered, isFalse);
-    final row = find.ancestor(of: title, matching: find.byType(SwitchListTile));
-    expect(tester.widget<SwitchListTile>(row).value, isFalse);
-    await tester.tap(find.descendant(of: row, matching: find.byType(Switch)));
-    await tester.pumpAndSettle();
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool(AppPref.experimentalLinuxTor.key), isTrue);
-    expect(TorService.instance.offered, isTrue,
-        reason: 'the running app offers TOR as the switch moves, no relaunch');
-    expect(TorService.instance.isAvailable, isTrue);
-  });
-
   group('Tor in App settings (TOR-004, TOR-007)', () {
     late FakeTorRuntime runtime;
 
@@ -350,7 +318,7 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
       await tester.pumpWidget(host(externalTorRunsHere: true));
       await tester.pumpAndSettle();
       await openCategory(tester, title: 'Developer');
-      await tester.scrollUntilVisible(find.text('Experimental'), 400,
+      await tester.scrollUntilVisible(find.text('Reset icon cache'), 400,
           scrollable: find.byType(Scrollable).first);
       await tester.pumpAndSettle();
       expect(find.text('Tor (external)', skipOffstage: false), findsNothing);
@@ -405,16 +373,12 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
       await openCategory(tester, title: 'Developer');
-      final header = find.text('Experimental');
-      await tester.scrollUntilVisible(header, 400,
+      await tester.scrollUntilVisible(find.text('Reset icon cache'), 400,
           scrollable: find.byType(Scrollable).first);
       await tester.pumpAndSettle();
-      expect(header, findsOneWidget,
-          reason: 'site tabs run on every platform, so the group always has '
-              'a row');
-      expect(find.text('Built-in Tor'), hostIsLinux ? findsOneWidget : findsNothing,
-          reason: "Apple's built-in Tor graduated (TOR-007); Linux's is the "
-              'Built-in Tor experiment (TOR-027)');
+      expect(find.text('Built-in Tor', skipOffstage: false), findsNothing,
+          reason: "the built-in Tor graduated, Apple's (TOR-007) and then "
+              "Linux's (TOR-027)");
       expect(find.text('Link routing between sites'), findsNothing,
           reason: 'link routing is no longer experimental');
     });
@@ -422,7 +386,8 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
     testWidgets('Saved proxies have a row, not a switch (PROXY-030)',
         (tester) async {
       Finder savedProxies(Type tile) => find.ancestor(
-          of: find.text('Saved proxies'), matching: find.byType(tile));
+          of: find.text('Saved proxies', skipOffstage: false),
+          matching: find.byType(tile, skipOffstage: false));
 
       DeveloperModeService.instance.debugSet(on: false);
       await tester.pumpWidget(host());
@@ -439,7 +404,7 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
       await openCategory(tester, title: 'Developer');
-      await tester.scrollUntilVisible(find.text('Experimental'), 400,
+      await tester.scrollUntilVisible(find.text('Reset icon cache'), 400,
           scrollable: find.byType(Scrollable).first);
       await tester.pumpAndSettle();
       expect(savedProxies(SwitchListTile), findsNothing,
@@ -511,13 +476,13 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
       await openCategory(tester, title: 'Developer');
-      await tester.scrollUntilVisible(find.text('Experimental'), 400,
+      await tester.scrollUntilVisible(find.text('Reset icon cache'), 400,
           scrollable: find.byType(Scrollable).first);
       await tester.pumpAndSettle();
       expect(
           find.ancestor(
-              of: find.text('Site tabs'),
-              matching: find.byType(SwitchListTile)),
+              of: find.text('Site tabs', skipOffstage: false),
+              matching: find.byType(SwitchListTile, skipOffstage: false)),
           findsNothing,
           reason: 'tabs are not experimental');
     });
@@ -526,13 +491,13 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
       await openCategory(tester, title: 'Developer');
-      await tester.scrollUntilVisible(find.text('Experimental'), 400,
+      await tester.scrollUntilVisible(find.text('Reset icon cache'), 400,
           scrollable: find.byType(Scrollable).first);
       await tester.pumpAndSettle();
       expect(
           find.ancestor(
-              of: find.text('Proxy router'),
-              matching: find.byType(SwitchListTile)),
+              of: find.text('Proxy router', skipOffstage: false),
+              matching: find.byType(SwitchListTile, skipOffstage: false)),
           findsNothing,
           reason: 'its switch is on the Network screen, with developer mode '
               'on or off');
@@ -542,13 +507,13 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
       await openCategory(tester, title: 'Developer');
-      await tester.scrollUntilVisible(find.text('Experimental'), 400,
+      await tester.scrollUntilVisible(find.text('Reset icon cache'), 400,
           scrollable: find.byType(Scrollable).first);
       await tester.pumpAndSettle();
       expect(
           find.ancestor(
-              of: find.text('Site icons only'),
-              matching: find.byType(SwitchListTile)),
+              of: find.text('Site icons only', skipOffstage: false),
+              matching: find.byType(SwitchListTile, skipOffstage: false)),
           findsNothing,
           reason: 'every icon comes from the site itself');
     });

@@ -169,6 +169,8 @@ const Map<String, String> _retiredKeys = {
       'out of the Experimental group; Legacy design is its switch, which a '
       'device decides from what it ran and a backup without it restores at '
       'its default',
+  'experimentalLinuxTor': 'TOR-027: the built-in Tor on Linux graduated out '
+      'of the Experimental group; there is no switch to restore',
 };
 
 /// A pref whose default HEAD changed, and why. A release's minimal backup

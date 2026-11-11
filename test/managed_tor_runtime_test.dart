@@ -19,7 +19,6 @@ import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_holders.dart';
 import 'package:webspace/services/tor_log.dart';
 import 'package:webspace/services/tor_service.dart' show builtInTorOffered;
-import 'package:webspace/settings/app_prefs.dart';
 
 import 'helpers/fake_managed_tor_host.dart';
 
@@ -476,6 +475,35 @@ void main() {
     expect(socks.address, '127.0.0.1:41337');
   });
 
+  // A tor that cannot reach a relay stays at one phase and backs off, so
+  // nothing it says would move a Retry's `starting` on (TOR-020).
+  test('TOR-027 a Retry on a tor stuck bootstrapping reports where it is',
+      () {
+    fakeAsync((async) {
+      final engine = TorEngine(
+        runtime: runtime,
+        sessionSecret: 'secret',
+        bootstrapTimeout: const Duration(seconds: 90),
+      );
+      unawaited(engine.acquire(const TorAppWideHolder()));
+      async.elapse(kManagedTorAttachPoll);
+      host.tor.bootstrap(10, tag: 'conn_done');
+      async.elapse(const Duration(seconds: 91));
+      expect(engine.status, isA<TorErrored>());
+
+      unawaited(engine.restart());
+      async.elapse(Duration.zero);
+      expect(host.launches.where((c) => c.launch.executable == _install.tor),
+          hasLength(1),
+          reason: 'a Retry never starts a second tor');
+      final status = engine.status;
+      expect(status, isA<TorBootstrapping>());
+      expect((status as TorBootstrapping).percent, 10);
+      unawaited(engine.dispose());
+      async.flushTimers();
+    });
+  });
+
   group('parsers', () {
     test('a managed transport line', () {
       expect(PtLine.parse('CMETHOD obfs4 socks5 127.0.0.1:4711'),
@@ -517,24 +545,22 @@ void main() {
     });
   });
 
-  test('TOR-027 Linux offers the built-in Tor only with its experiment on, '
-      'Apple always, no other platform (DEVTOOLS-011)', () {
+  test('TOR-027 Linux offers the built-in Tor as Apple does, with no switch; '
+      'no other platform has one', () {
     for (final platform in TargetPlatform.values) {
-      for (final on in [false, true]) {
-        expect(builtInTorOffered(platform: platform, linuxExperiment: on),
-            switch (platform) {
-              TargetPlatform.iOS || TargetPlatform.macOS => true,
-              TargetPlatform.linux => on,
-              TargetPlatform.android ||
-              TargetPlatform.fuchsia ||
-              TargetPlatform.windows =>
-                false,
-            },
-            reason: '$platform, experiment ${on ? 'on' : 'off'}');
-      }
+      expect(builtInTorOffered(platform: platform),
+          switch (platform) {
+            TargetPlatform.iOS ||
+            TargetPlatform.macOS ||
+            TargetPlatform.linux =>
+              true,
+            TargetPlatform.android ||
+            TargetPlatform.fuchsia ||
+            TargetPlatform.windows =>
+              false,
+          },
+          reason: '$platform');
     }
-    expect(AppPref.experimentalLinuxTor.fallback, isFalse,
-        reason: 'a new experiment starts off');
   });
 
   group('TOR-027 which tor runs', () {

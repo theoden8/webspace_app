@@ -278,25 +278,25 @@ not forced to migrate.
 ### Requirement: TOR-007 - Platform gate
 
 The embedded runtime SHALL operate on iOS and macOS, and on Linux the
-built-in Tor is a tor the app starts (TOR-027), offered while its experiment
-is on and where the build bundles one or the machine has one; nowhere else. Android, Linux and macOS
+built-in Tor is a tor the app starts (TOR-027), where the build bundles one
+or the machine has one; nowhere else. Android, Linux and macOS
 can instead name a tor already running on the device (TOR-025). `TorService.isAvailable` SHALL be the platform check, or
 the external tor being chosen, and nothing more. `TorService.offered`, which
-is `isAvailable` or a Linux build whose experiment is on and only lacks a tor
-(TOR-027), SHALL be the single reader both the per-site and app-global
+is `isAvailable` or a Linux build that only lacks a tor (TOR-027), SHALL be
+the single reader both the per-site and app-global
 proxy-type dropdowns consult; with it false the `TOR` option SHALL be absent
 from both.
 Existing per-site SOCKS5 configuration (manual `host:port`, with or without
 credentials) SHALL remain available on every platform that supports proxies
 today, so Android users can still point at Orbot's SOCKS5 endpoint manually.
 
-**No developer mode, no experimental switch,** on Apple: Linux's built-in
-Tor is the Experimental group's Built-in Tor switch (TOR-027). Tor was
-reachable only with
+**No developer mode, no experimental switch.** Tor was reachable only with
 developer mode on and the Experimental group's Built-in Tor switch on
 (DEVTOOLS-011). It graduated: the switch, its pref (`experimentalTor`, never
 in a release), `TorGate.switchedOff` and the TOR-023 confirmations went with
-it, and turning developer mode on or off has no effect on Tor.
+it, and turning developer mode on or off has no effect on Tor. Linux's
+built-in Tor came in behind a Built-in Tor switch of its own and graduated
+the same way (TOR-027).
 
 It graduated with two of BUG-013's gaps still open, and they are the cost of
 shipping it rather than reasons it works. Tor runs at most once per process
@@ -1938,8 +1938,8 @@ a Mac.
 ### Requirement: TOR-027 - The built-in Tor on Linux is a tor the app starts
 
 On Linux the built-in Tor SHALL be a tor the app starts as a child process
-and drives over its control socket, offered only while the Experimental
-group's Built-in Tor switch is on (DEVTOOLS-011), off by default (`ManagedTorRuntime`,
+and drives over its control socket, offered as on iOS and macOS, with no
+switch (`builtInTorOffered`; `ManagedTorRuntime`,
 [managed_tor_runtime.dart](../../../../../lib/services/managed_tor_runtime.dart)),
 offering what the Apple runtime offers: per-site SOCKS isolation (TOR-003),
 bootstrap phases and tor's log (TOR-018), New circuits (TOR-005), exit
@@ -1949,17 +1949,10 @@ listeners (TOR-024). The runtime decides nothing the engine decides; it
 implements `TorRuntime` as the method channel does, so `TorEngine` and
 everything above it are the same on every platform.
 
-**Followed as it moves.** `TorService` reads the switch live
-(`builtInOfferedNow`, over `builtInTorOffered`) and follows every pref
-change, so turning it on, turning developer mode off, or an import applies
-without a relaunch: once it is on, every site set to `TOR` is held and starts
-tor; once it is off, they are let go and `stopped` is published, so each
-Tor-bound site rebinds and blocks, and what tor says no longer reaches the
-app. A tor already running is left running, as a release always leaves it
-(TOR-020). With it off a Linux build is what it was before: Tor only
-through Tor (external) (TOR-025), no `TOR` in the proxy pickers otherwise,
-nothing that starts a tor, and the unavailable copy of every other platform
-without one. With it on and no tor on the machine, `TOR` is still offered
+**No switch.** It came in behind the Experimental group's Built-in Tor
+switch and graduated: the switch and its pref (`experimentalLinuxTor`, which
+an older backup may still carry and an import ignores) went with it. With no
+tor on the machine and none in the build, `TOR` is still offered
 (`TorService.offered`), and a site set to it says to install tor rather than
 the option being missing with no reason given.
 
@@ -2043,33 +2036,16 @@ asked only under `WEBSPACE_TOR_NETWORK=1`, as in TOR-021.
 #### Scenario: A Linux build offers Tor
 
 - **GIVEN** the Linux bundle, on a machine with no tor installed, with
-  developer mode on
-- **WHEN** the user turns the Built-in Tor experiment on, with no relaunch,
-  and opens a site's Network settings
+  developer mode off
+- **WHEN** the user opens a site's Network settings
 - **THEN** `TOR` is offered in the proxy-type dropdown
 - **AND** choosing it starts the bundled tor, which comes up on a loopback
   SOCKS port the per-site credentials isolate
 
-#### Scenario: The experiment off
-
-- **GIVEN** a Linux build with the Built-in Tor experiment off
-- **WHEN** the app starts
-- **THEN** no tor is started and `TOR` is offered only while Tor (external)
-  is on
-- **AND** a site set to `TOR` reads the unavailable copy it read before
-  TOR-027
-
-#### Scenario: The experiment turned off while Tor is up
-
-- **GIVEN** a site set to `TOR`, its tor up
-- **WHEN** the user turns the experiment, or developer mode, off
-- **THEN** the site blocks at once, with no relaunch, and nothing it loads
-  goes out through tor or directly
-
 #### Scenario: A Linux build's bridges run on its own lyrebird
 
 - **GIVEN** the Linux bundle, on a machine with neither lyrebird nor
-  obfs4proxy, with the experiment on and obfs4 bridges set with a line
+  obfs4proxy, with obfs4 bridges set with a line
 - **WHEN** Tor starts
 - **THEN** the obfs4 transport is the bundle's `pluggable_transports/lyrebird`
 - **AND** tor reaches the bridge through it, the bridge as released having
@@ -2088,8 +2064,7 @@ asked only under `WEBSPACE_TOR_NETWORK=1`, as in TOR-021.
 
 #### Scenario: A build without the bundled tor
 
-- **GIVEN** a Linux build made with `WEBSPACE_TOR_SOURCE=none`, with the
-  experiment on
+- **GIVEN** a Linux build made with `WEBSPACE_TOR_SOURCE=none`
 - **WHEN** the machine has a `tor` on `PATH` or in `/usr/sbin`
 - **THEN** that tor is the built-in Tor
 - **WHEN** it has none

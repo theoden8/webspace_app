@@ -39,6 +39,8 @@ const RETIRED = {
     'NESTED-014: sign-in popups graduated out of the Experimental group; the app and each site have their own switch',
   experimentalDesktopTray:
     'NOTIF-019: the tray icon graduated out of the Experimental group; Keep running when closed alone shows it',
+  experimentalLinuxTor:
+    'TOR-027: the built-in Tor on Linux graduated out of the Experimental group; there is no switch to restore',
   html_cache_version:
     'the page snapshot cache it stamped is gone: HTML caching reads the engine\'s own cache, '
     + 'and retireSnapshotCache only asks whether a release left one behind, then removes it',

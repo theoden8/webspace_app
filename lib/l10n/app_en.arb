@@ -4702,9 +4702,9 @@
   "@torUnavailableTitle": {
     "description": "Heading shown in place of a site that is set to use Tor, on a device with no built-in Tor client."
   },
-  "torUnavailableBody": "The built-in Tor client runs on iOS and macOS only. This site is set to use Tor, so it stays blocked rather than loading over your real IP address. Change its proxy in the site's settings to open it here.",
+  "torUnavailableBody": "The built-in Tor client runs on iOS, macOS and Linux only. This site is set to use Tor, so it stays blocked rather than loading over your real IP address. Change its proxy in the site's settings to open it here.",
   "@torUnavailableBody": {
-    "description": "Explains why a site set to use Tor shows nothing on a platform without a Tor client, and what the user can do about it."
+    "description": "Explains why a site set to use Tor shows nothing on a platform without a Tor client (Android, for one), and what the user can do about it. iOS, macOS and Linux are product names; keep them."
   },
   "torMissingBody": "This build carries no Tor client, and none is installed on this computer: install tor to use Tor here. This site is set to use Tor, so it stays blocked rather than loading over your real IP address. Change its proxy in the site's settings to open it here.",
   "@torMissingBody": {
@@ -5584,14 +5584,6 @@
   "appSettingsExperimentalExtensionSearchHint": "Adds a search of addons.mozilla.org to the Extensions screen, each result labelled by how well WebKit is expected to run it. Offered only in builds from outside the App Store, and only while Web extensions is on.",
   "@appSettingsExperimentalExtensionSearchHint": {
     "description": "Explanation behind the hint button of the Extension search experiment switch. addons.mozilla.org is a website, WebKit is the browser engine and Web extensions is the name of another switch; keep those names as they are."
-  },
-  "appSettingsExperimentalLinuxTor": "Built-in Tor",
-  "@appSettingsExperimentalLinuxTor": {
-    "description": "Title of an Experimental switch in App settings > Developer, on Linux only, that lets sites use a Tor client the app starts itself, rather than only a Tor program already running on the computer. Tor is a product name; keep it."
-  },
-  "appSettingsExperimentalLinuxTorHint": "Offers Tor as a site's proxy through a tor the app starts itself: the one this build carries, or else the tor installed on this computer. Each site gets circuits of its own.",
-  "@appSettingsExperimentalLinuxTorHint": {
-    "description": "Explanation behind the hint button of the Built-in Tor switch in App settings > Developer > Experimental, on Linux. tor, in lower case, is the name of the program the app starts; Tor is the product name; keep both. A circuit is Tor's path through the network."
   },
   "networkInterfaceTitle": "Network interface",
   "@networkInterfaceTitle": {

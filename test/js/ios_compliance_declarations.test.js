@@ -232,7 +232,7 @@ test('TOR-007: every ProxyType dropdown handles TOR', () => {
       src, /torAvailable: TorService\.instance\.offered/,
       `${rel} renders a ProxyType dropdown but does not take ` +
       'TorService.offered, so it offers TOR on platforms with no Tor ' +
-      'runtime, or hides it where the Built-in Tor experiment offers it ' +
+      'runtime, or hides it where Linux offers it with no tor to start ' +
       '(TOR-007, TOR-027).',
     );
   }
