@@ -253,7 +253,11 @@ back as drawn, and a partly transparent pixel keeps the values premultiplied
 alpha allows. Pixels the page wrote with `putImageData` SHALL read back as
 written while they stand. The shim SHALL NOT draw on the page's canvas, and
 SHALL NOT give a context to a canvas that has none. A context or canvas from
-another frame SHALL be read through that frame's own shim.
+another frame SHALL be read through that frame's own shim. The shim SHALL
+decide whether a context belongs to the page's own frame by a check the page
+cannot redirect: a captured `Object.prototype.isPrototypeOf`, never
+`instanceof` (whose result a page sets through `Symbol.hasInstance`), so a page
+that forges `instanceof` on the context constructor still reads noised pixels.
 
 Not hidden: a page that writes a pattern with `putImageData`, copies it to
 a second canvas and reads both sees the copy noised where the written one
@@ -293,6 +297,13 @@ with `putImageData`
 **Given** a canvas no context was asked of
 **When** the page encodes it
 **Then** the original encode runs on it, and no context is made
+
+#### Scenario: A page cannot escape the noise by forging instanceof
+
+**Given** the shim is loaded and the page redefines `Symbol.hasInstance` on
+`CanvasRenderingContext2D` to return false
+**When** the page draws a text canvas and encodes it with `toDataURL`
+**Then** the encode reads the same noised pixels an unmodified page reads
 
 ---
 
