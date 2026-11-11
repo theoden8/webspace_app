@@ -156,3 +156,96 @@ test('shim handles a malformed selector without throwing', () => {
     '<!doctype html><html><body><div>safe</div></body></html>' });
   assert.doesNotThrow(() => runInDom(dom, PROCEDURAL));
 });
+
+// A re-run after a DOM change looks only around what changed (CB-004). A page
+// that re-renders as the user types changes the DOM on every key, and a pass
+// over the whole document read the text of every candidate each time: on a
+// long thread, every answer block for a `:has-text()` rule.
+const SPONSORED = pageJs('procedural_cosmetic', { rules: [
+  { selector: [{ type: 'css-selector', arg: 'div.answer:has-text(Sponsored)' }] },
+  { selector: [{ type: 'css-selector', arg: 'div.x:has(span.y) + div.ad' }] },
+  { selector: [{ type: 'css-selector', arg: 'div.banner:has-text(Get the app)' }], action: { type: 'style', arg: 'opacity: 0 !important' } },
+] });
+
+const settle = () => new Promise((resolve) => setTimeout(resolve, 80));
+
+function textReadsOf(el, window) {
+  const counter = { reads: 0 };
+  const get = Object.getOwnPropertyDescriptor(window.Node.prototype, 'textContent').get;
+  Object.defineProperty(el, 'textContent', {
+    configurable: true,
+    get() { counter.reads++; return get.call(this); },
+  });
+  return counter;
+}
+
+function sponsoredDom() {
+  return makeDom({ url: 'https://example.com/', html:
+    `<!doctype html><html><body>
+      <div id="far" class="answer"><p>a long answer nobody edits</p></div>
+      <div id="near" class="answer"><p id="near-p">an answer</p></div>
+      <div id="editor"></div>
+      <div class="x" id="x"></div><div class="ad" id="ad">ad</div>
+      <div class="banner" id="banner">Get the app</div>
+    </body></html>` });
+}
+
+test('a re-run reads no candidate away from the change (CB-004)', async () => {
+  const dom = sponsoredDom();
+  const doc = dom.window.document;
+  const far = textReadsOf(doc.getElementById('far'), dom.window);
+  runInDom(dom, SPONSORED);
+  await settle();
+  const afterFirstRun = far.reads;
+  assert.equal(afterFirstRun, 1, 'the first run reads every candidate');
+  for (let i = 0; i < 5; i++) {
+    doc.getElementById('editor').appendChild(doc.createElement('span'));
+    await settle();
+  }
+  assert.equal(far.reads, afterFirstRun,
+    'typing elsewhere must not re-read an answer it cannot change');
+});
+
+test('text added inside a candidate makes it match on the re-run (CB-004)', async () => {
+  const dom = sponsoredDom();
+  const doc = dom.window.document;
+  runInDom(dom, SPONSORED);
+  await settle();
+  const near = doc.getElementById('near');
+  assert.notEqual(near.style.display, 'none');
+  doc.getElementById('near-p').appendChild(doc.createTextNode(' Sponsored'));
+  await settle();
+  assert.equal(near.style.display, 'none',
+    'the candidate above the change is an ancestor of it, and must be checked');
+  assert.notEqual(doc.getElementById('far').style.display, 'none');
+});
+
+test('a :has() rule sees what a change elsewhere made match (CB-004)', async () => {
+  const dom = sponsoredDom();
+  const doc = dom.window.document;
+  runInDom(dom, SPONSORED);
+  await settle();
+  const ad = doc.getElementById('ad');
+  assert.notEqual(ad.style.display, 'none');
+  const span = doc.createElement('span');
+  span.className = 'y';
+  doc.getElementById('x').appendChild(span);
+  await settle();
+  assert.equal(ad.style.display, 'none',
+    'the ad is the changed element\'s sibling, outside what the change touched');
+});
+
+test(':style() applies its declarations once however often it re-runs (CB-004)', async () => {
+  const dom = sponsoredDom();
+  const doc = dom.window.document;
+  runInDom(dom, SPONSORED);
+  await settle();
+  const banner = doc.getElementById('banner');
+  for (let i = 0; i < 4; i++) {
+    banner.appendChild(doc.createElement('i'));
+    await settle();
+  }
+  const style = banner.getAttribute('style') || '';
+  assert.equal(style.split('opacity: 0 !important').length - 1, 1,
+    `the declarations must appear once, got: ${style}`);
+});

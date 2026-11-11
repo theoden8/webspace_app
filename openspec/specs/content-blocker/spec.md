@@ -349,6 +349,14 @@ The system SHALL hide page elements by injecting CSS `display: none !important` 
 **Then** the JSON strings are returned verbatim
 **And** the procedural shim parses each entry and runs the action against the live DOM
 
+#### Scenario: A procedural re-run looks only around what changed
+
+**Given** the procedural shim has run its rules over the document
+**When** the page changes the children of some elements (a re-render as the user types)
+**Then** the debounced re-run checks a rule only against the elements under those, and those and their ancestors
+**And** a rule whose selector holds `:has()`, where a change under one element can make another match, queries the whole document
+**And** an action already in force on an element is not written again, so `:style()` adds its declarations once however often it re-runs
+
 #### Scenario: Late-added or class-flipped elements hide reactively
 
 **Given** the early `<style>` tag is installed at `DOCUMENT_START`
