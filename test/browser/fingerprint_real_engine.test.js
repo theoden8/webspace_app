@@ -225,6 +225,87 @@ test('FingerprintJS: non-incognito (siteId-only seed) differs from ' +
       + 'fingerprint a real fingerprinter sees');
   });
 
+// ---------- ETP-005 canvas noise survives Symbol.hasInstance poisoning ----------
+//
+// The canvas encode path (toDataURL/toBlob) reads a noised copy only when the
+// context passes a realm-membership check. An earlier version used
+// `ctx instanceof CanvasRenderingContext2D`, which dispatches through a
+// page-settable `Symbol.hasInstance`: a page that forces that to return false
+// made the shim fall back to the real, un-noised canvas. The fix tests
+// membership through a captured `Object.prototype.isPrototypeOf`. This tier
+// proves the bypass is closed end to end: a page that poisons
+// `Symbol.hasInstance` must still read the SAME noised pixels an honest page
+// reads, and both must differ from a raw un-shimmed draw.
+
+// Draw one deterministic canvas and return its data URL. With `poison`, the
+// page first redefines `Symbol.hasInstance` on the 2D context constructors to
+// always return false — the attack that defeated the old `instanceof` gate.
+function drawCanvas(poison) {
+  if (poison) {
+    const lie = { value: function () { return false; }, configurable: true };
+    try {
+      Object.defineProperty(CanvasRenderingContext2D, Symbol.hasInstance, lie);
+    } catch (e) { /* non-configurable: attack simply fails, still a valid run */ }
+    if (typeof OffscreenCanvasRenderingContext2D !== 'undefined') {
+      try {
+        Object.defineProperty(
+          OffscreenCanvasRenderingContext2D, Symbol.hasInstance, lie);
+      } catch (e) { /* as above */ }
+    }
+  }
+  const c = document.createElement('canvas');
+  c.width = 240;
+  c.height = 60;
+  const ctx = c.getContext('2d');
+  ctx.textBaseline = 'top';
+  ctx.font = '14px Arial';
+  ctx.fillStyle = '#f60';
+  ctx.fillRect(10, 10, 100, 30);
+  ctx.fillStyle = '#069';
+  ctx.fillText('WebSpace canvas fp 0123', 2, 2);
+  ctx.fillStyle = 'rgba(102,204,0,0.7)';
+  ctx.fillText('WebSpace canvas fp 0123', 4, 4);
+  return c.toDataURL();
+}
+
+async function rawCanvas(page) {
+  return page.evaluate(drawCanvas, false);
+}
+
+test('FingerprintJS/ETP-005: a page poisoning Symbol.hasInstance still reads ' +
+     'noised canvas pixels, not the real canvas',
+  async (t) => {
+    if (!requireBrowser(browser, t)) return;
+    // Raw baseline: the identical drawing with no shim at all.
+    const rawPage = await browser.browser.newPage();
+    let raw;
+    try {
+      await rawPage.goto('about:blank', { waitUntil: 'load' });
+      raw = await rawCanvas(rawPage);
+    } finally {
+      await rawPage.close();
+    }
+
+    let shimClean;
+    let shimPoisoned;
+    await withShim(t, ANTI_FP_STABLE, async (page) => {
+      shimClean = await page.evaluate(drawCanvas, false);
+    });
+    await withShim(t, ANTI_FP_STABLE, async (page) => {
+      shimPoisoned = await page.evaluate(drawCanvas, true);
+    });
+    if (!shimClean || !shimPoisoned) return;
+
+    // The shim must actually noise: both shimmed reads differ from raw.
+    assert.notEqual(shimClean, raw,
+      'shimmed canvas must differ from the raw draw (noise is applied)');
+    // The attack must be a no-op: poisoning hasInstance changes nothing.
+    assert.equal(shimPoisoned, shimClean,
+      'poisoning Symbol.hasInstance on CanvasRenderingContext2D must not ' +
+      'change the encoded canvas; equality with the raw draw would mean the ' +
+      'encode path read the un-noised canvas (ETP-005 bypass)');
+  });
+
 test('FingerprintJS: shim survives full report without throwing',
   async (t) => {
     // Several FingerprintJS sources call into surfaces we patch
