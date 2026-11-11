@@ -44,7 +44,7 @@
 
 ## 6. End to end and bookkeeping
 
-- [ ] 6.1 Add `integration_test/web_extensions_test.dart` (design D9, end to end) and run it in the macOS CI job; verify it passes on a macOS 15.4+ runner and fails with the planted shared controller
+- [x] 6.1 Add `integration_test/web_extensions_test.dart` (design D9, end to end) and run it in the macOS CI job: a probe extension written at test time runs on the granted host only, keeps its storage per container, shared by the container's webviews and lost with its delete (WEBEXT-005, WEBEXT-006, WEBEXT-010); it skips below macOS 15.4. The planted shared controller is the case its other-container check reads, not a run of its own
 - [x] 6.2 Add a map row for the extension plan to `CLAUDE.md` and the slug to its OpenSpec table; verify `npm run test:js` passes
 - [ ] 6.3 Remove WEBEXT-001 to WEBEXT-012 from `openspec/unverified.tsv` as their tests land; verify `node --test test/js/spec_verification.test.js` passes
 - [ ] 6.4 Run `./scripts/test_all.sh`, `fvm flutter analyze` and `npx openspec validate --no-interactive --all`; verify each exits 0
