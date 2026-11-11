@@ -245,20 +245,24 @@ void main() {
       'none',
     );
     await tester.pumpWidget(const SizedBox.shrink());
+    // The webview lets go of the store only once a frame disposes its
+    // platform view, so frames run between the attempts.
     var deleted = false;
-    await tester.runAsync(() async {
-      final deadline = DateTime.now().add(const Duration(seconds: 20));
-      while (!deleted && DateTime.now().isBefore(deadline)) {
+    for (var attempt = 0; attempt < 40 && !deleted; attempt++) {
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.runAsync(() async {
         deleted = await inapp.ContainerController.instance().deleteContainer(
           site,
         );
         if (!deleted) {
-          await Future<void>.delayed(const Duration(milliseconds: 500));
+          await Future<void>.delayed(const Duration(milliseconds: 250));
         }
-      }
-      // The extension's records go after the store, on the main queue.
-      await Future<void>.delayed(const Duration(seconds: 2));
-    });
+      });
+    }
+    // The extension's records go after the store, on the main queue.
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(seconds: 2)),
+    );
     expect(deleted, isTrue, reason: 'the container was never deleted');
     expect(
       await markOn(
