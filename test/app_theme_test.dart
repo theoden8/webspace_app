@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart' show ThemeMode;
+import 'package:flutter/material.dart' show Brightness, ThemeMode;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/controllers/shell_store.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/settings/web_view_theme.dart';
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -13,6 +14,15 @@ void _appTheme(ThemeMode mode) =>
 
 void main() {
   tearDown(() => WebViewModel.appTheme = WebViewTheme.light);
+
+  test('a glyph the font lacks comes from the colour emoji font first, in either brightness', () {
+    for (final brightness in Brightness.values) {
+      final text = buildAppTheme(accentBlue, brightness: brightness).textTheme;
+      for (final style in [text.bodyMedium, text.bodyLarge, text.titleMedium, text.labelLarge]) {
+        expect(style!.fontFamilyFallback, contains('Noto Color Emoji'), reason: '$brightness');
+      }
+    }
+  });
 
   test('HINTS-001: a site that follows the app is told its theme mode', () {
     final site = WebViewModel(initUrl: 'https://example.com/');
