@@ -100,7 +100,7 @@ test('each proof shard restores every slice before it proves, and saves its own 
   const restores = proofs.steps.filter((s) => s.uses === 'actions/cache/restore@v4');
   assert.deepEqual(restores.map((s) => s.id), ['tlapm-cache', ...slices.map((k) => `tlapm-cache-${k}`)]);
   for (const restore of restores) {
-    assert.equal(restore.if, '${{ !inputs.cold }}');
+    assert.equal(restore.if, '${{ !(inputs.cold || inputs.cold_proofs) }}');
     assert.equal(restore.with.path, 'formal/proofs/.tlacache');
     assert.ok(proofs.steps.indexOf(restore) < proofs.steps.indexOf(proofVerify));
   }
@@ -316,4 +316,20 @@ test('a TLAPS tarball that is not the pinned build fails the install, and the pi
   assert.equal(pinned.ok, true);
   assert.equal(pinned.out.trim(), `pin=${sha}`);
   fs.rmSync(home, { recursive: true, force: true });
+});
+
+test('a scheduled and manual run proves everything cold, off the PR path', () => {
+  const cold = YAML.parse(read('.github/workflows/formal-cold.yml'));
+  assert.ok(cold.on.schedule?.length >= 1, 'it runs on a schedule');
+  assert.ok('workflow_dispatch' in cold.on, 'and on demand');
+  assert.ok(!('pull_request' in cold.on) && !('push' in cold.on), 'never per PR or push');
+  const [job] = Object.values(cold.jobs);
+  assert.equal(job.uses, './.github/workflows/formal.yml');
+  assert.equal(job.with.cold_proofs, true, 'every proof cache restore is skipped');
+  assert.ok(!job.with.cold, 'TLC and the replay keep their memo');
+  const formal = YAML.parse(read('.github/workflows/formal.yml'));
+  for (const [name, j] of Object.entries(formal.jobs)) {
+    const reads = JSON.stringify(j).includes('cold_proofs');
+    assert.equal(reads, name === 'proofs', `${name} ${name === 'proofs' ? 'reads' : 'ignores'} cold_proofs`);
+  }
 });

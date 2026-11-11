@@ -1,0 +1,25 @@
+# Every proof, weekly and on demand, with no proof cache: a cached verdict can
+# hide an obligation that no longer proves from scratch (a solver near its
+# limit, a TLAPS rebuild), as two of activation_turns.tla's obligations once
+# did. Kept off the PR path, so the next one fails here within a week instead
+# of on an unrelated PR whose cache happens to be cold. TLC and the replay keep
+# their memo: its key is everything a run reads, and a run is deterministic.
+name: Formal verification, cold proofs
+
+on:
+  schedule:
+    - cron: '41 3 * * 0' # Sundays, a jittered minute
+  workflow_dispatch:
+
+concurrency:
+  group: formal-cold
+  cancel-in-progress: false
+
+jobs:
+  formal:
+    uses: ./.github/workflows/formal.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      cold_proofs: true
