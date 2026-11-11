@@ -939,7 +939,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     });
   }
 
-  late final BackgroundWakeEngine<WebViewModel> wakeEngine =
+  late final BackgroundWakeEngine<SiteId> wakeEngine =
       BackgroundWakeEngine(task: WakeTask.androidWorker);
   late final _WalkWake _wake = _WalkWake(this);
 
@@ -1114,13 +1114,13 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
             ? 0
             : _modelFlows.putIfAbsent(f, () => _modelFlows.length + 1),
         outcome: outcome.tla,
-        // Every mark's site is a model or nothing: the cast is the assert.
-        site: switch (site as WebViewModel?) {
+        // Every mark's site is a model, its id (a table on the id view,
+        // CONT-012) or nothing.
+        site: switch (site) {
           null => 0,
-          final m => switch (tab) {
-            null => _siteNumber(m),
-            final t => _tabNumber(m.siteId, tab: t),
-          },
+          final WebViewModel m => _markNumber(m.siteId, tab: tab),
+          final SiteId id => _markNumber(id, tab: tab),
+          final other => throw StateError('a mark names $other as its site'),
         },
         state: _project(),
       ));
@@ -1389,6 +1389,12 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// A site as `formal/activation.tla` numbers it: by its place in the
   /// page's first list, from 1.
   static int _siteNumber(WebViewModel site) => _siteNumberOf(site.siteId);
+
+  /// A mark's site as the model numbers it: the site, or its tab [tab].
+  int _markNumber(SiteId id, {required TabId? tab}) => switch (tab) {
+    null => _siteNumberOf(id),
+    final t => _tabNumber(id, tab: t),
+  };
 
   static int _siteNumberOf(SiteId id) =>
       int.parse(id.substring('walk-'.length)) + 1;
@@ -3121,7 +3127,7 @@ final class _WalkNestedScreen implements NestedScreenHost {
 /// The app's side of a wake, as the platform answers it: the route's move,
 /// each headless open and close, and the reloads' settle are replies a
 /// schedule releases; the pages post nothing and show no count.
-final class _WalkWake implements BackgroundWakeHost<WebViewModel> {
+final class _WalkWake implements BackgroundWakeHost<SiteId> {
   _WalkWake(this.world);
 
   final ActivationWorld world;
@@ -3132,13 +3138,19 @@ final class _WalkWake implements BackgroundWakeHost<WebViewModel> {
   DateTime _now = DateTime(2026, 10, 13);
 
   @override
-  RuntimeVars<WebViewModel> get vars => world.sites.objectVars;
+  RuntimeVars<SiteId> get vars => world.sites.vars;
+
+  /// The sites the wake was handed, by id, as the page's host keeps them.
+  Map<SiteId, WebViewModel> _planned = const {};
 
   @override
-  WebViewModel siteOf(SiteId siteId) => world.sites.byId(siteId)!;
+  SiteId siteOf(SiteId siteId) => siteId;
 
   @override
-  bool routeFree(WebViewModel site) => world.activation.routeFreeFor(site);
+  bool routeFree(SiteId site) => world.activation.routeFreeFor(_site(site));
+
+  /// The site the wake planned under [id], else the listed one.
+  WebViewModel _site(SiteId id) => _planned[id] ?? world.sites.byId(id)!;
 
   @override
   bool get nestedOpening => world.activation.opensNested;
@@ -3163,7 +3175,9 @@ final class _WalkWake implements BackgroundWakeHost<WebViewModel> {
       world._route.release((use: RouteUse.headless, site: siteId));
 
   @override
-  List<WakeCandidate> wakeCandidates() => [
+  List<WakeCandidate> wakeCandidates() {
+    _planned = {for (final m in world.sites.models) m.siteId: m};
+    return [
     for (final m in world.sites.models)
       WakeCandidate(
         site: WakeSite(siteId: m.siteId, name: m.name),
@@ -3173,6 +3187,7 @@ final class _WalkWake implements BackgroundWakeHost<WebViewModel> {
             world.page.containers ? null : WakeSkip.legacyIsolation,
       ),
   ];
+  }
 
   @override
   Future<void> reload(SiteId siteId) async {}
@@ -3184,7 +3199,7 @@ final class _WalkWake implements BackgroundWakeHost<WebViewModel> {
       await world._route.claim(
         (use: RouteUse.headless, site: siteId),
         route: ProxyConflictEngine.routeOf(
-          siteOf(siteId).proxySettings,
+          _site(siteId).proxySettings,
           siteId: siteId,
         ),
         write: world._writeRule,
@@ -3206,7 +3221,7 @@ final class _WalkWake implements BackgroundWakeHost<WebViewModel> {
       await world.gate.pace(PlatformCall.headlessOpen);
       if (world.sites.fore) return WakeSkip.appInForeground;
       _checks.add(siteId);
-      world._view(OnHeadless('$siteId'), of: siteOf(siteId), up: true);
+      world._view(OnHeadless('$siteId'), of: _site(siteId), up: true);
       return null;
     } finally {
       _opening.remove(ended.future);
@@ -3220,7 +3235,7 @@ final class _WalkWake implements BackgroundWakeHost<WebViewModel> {
 
   void _checkGone(SiteId siteId) {
     if (_checks.remove(siteId)) {
-      world._view(OnHeadless('$siteId'), of: siteOf(siteId), up: false);
+      world._view(OnHeadless('$siteId'), of: _site(siteId), up: false);
     }
   }
 

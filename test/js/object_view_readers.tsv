@@ -6,7 +6,6 @@
 # file	what reads it
 lib/controllers/activation_flow.dart	the activation's world: its residency record and the operators it runs
 lib/controllers/activation_table.dart	the activation table's leaves
-lib/controllers/background_sites_controller.dart	the wake's host, while the page's wake runs over WebViewModel
 lib/controllers/site_import.dart	the import table's leaves and its residency host
 lib/controllers/tab_table.dart	the tab tables' leaves
 lib/screens/webspace_page_residency.dart	the page's residency host for the unload engine
