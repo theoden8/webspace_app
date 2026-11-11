@@ -569,15 +569,8 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
   /// in-memory and die with the session.
   bool get contributesBlockStats => !isArchiveTier;
 
-  /// Whether this site may be moved into an archive (ARCH-006). A file import's
-  /// only copy is its HTML in app-tier `HtmlImportStorage`, keyed by a
-  /// cleartext siteId and sealed under the app-tier device key. The archive
-  /// neither carries that blob into its ciphertext nor erases it on close, so
-  /// moving one in would leave the HTML as app-tier residue (a break of
-  /// ARCH-001 byte-identity and the passphrase gate) and lose it to the next
-  /// orphan sweep. The spec marks file-imported sites "unavailable"
-  /// archive-tier; this is the one owner of that fact, read by the move gate
-  /// and the menu.
+  /// Whether this site may be moved into an archive; a file import is not
+  /// (ARCH-006, its only HTML copy being app-tier). Owner read by gate and menu.
   bool get archivable => !isFileImportUrl(initUrl);
 
   /// Whether this site may persist/restore webview navigation state
