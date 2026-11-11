@@ -570,6 +570,37 @@ success), so there a failed read still arrives as an empty jar.
 **When** the jar refuses a delete
 **Then** the screen says the cookie store failed, not "Cookies cleared"
 
+### Requirement: ISO-015 - An Import Keeps the Sessions of the Sites It Carries
+
+A settings import on the shared jar SHALL wait for the jar's turn, save the
+share of each loaded site the backup carries again (by id) to that site's
+stored session, empty the jar, and land, all in that one turn
+([`SiteImport`](../../../lib/controllers/site_import.dart)). Its landing
+replaces every site with a new model, so a session held only in the jar
+would otherwise be lost with the old one; and a jar emptied after the
+landing, outside the turn, could empty a session a tap's restore had just
+set back. A site the backup brings onto the list starts with the backup's
+cookies alone (BACKUP-003).
+
+`formal/activation.tla` takes the import as a step table in its import
+worlds (`Importing`): `importnocapture`, an import that empties the jar
+without the save, is caught by `Inv_NoSessionLoss`.
+
+#### Scenario: A signed-in site the backup carries again
+
+**Given** Site A is on screen and signed in, its session in the jar alone
+**When** the user imports a backup that carries A
+**Then** A's share of the jar is saved to its stored session before the jar
+  is emptied
+**And** once the import lands, A's next activation restores that session
+
+#### Scenario: A tap right after the import lands
+
+**Given** an import has landed and emptied the jar in its turn
+**When** the user taps a site the backup carries
+**Then** the tap's restore fills the jar with that site's stored session
+**And** nothing empties the jar after it
+
 ## Implementation Details
 
 ### Logic Engines
@@ -859,35 +890,3 @@ flutter test
 3. On each site, navigate within its own domain
 4. Verify all navigations stay in their respective webviews
 5. Verify no site uses another site's domain for URL blocking
-
-### Requirement: ISO-015 - An Import Keeps the Sessions of the Sites It Carries
-
-A settings import on the shared jar SHALL wait for the jar's turn, save the
-share of each loaded site the backup carries again (by id) to that site's
-stored session, empty the jar, and land, all in that one turn
-([`SiteImport`](../../../lib/controllers/site_import.dart)). Its landing
-replaces every site with a new model, so a session held only in the jar
-would otherwise be lost with the old one; and a jar emptied after the
-landing, outside the turn, could empty a session a tap's restore had just
-set back. A site the backup brings onto the list starts with the backup's
-cookies alone (BACKUP-003).
-
-`formal/activation.tla` takes the import as a step table in its import
-worlds (`Importing`): `importnocapture`, an import that empties the jar
-without the save, is caught by `Inv_NoSessionLoss`.
-
-#### Scenario: A signed-in site the backup carries again
-
-**Given** Site A is on screen and signed in, its session in the jar alone
-**When** the user imports a backup that carries A
-**Then** A's share of the jar is saved to its stored session before the jar
-  is emptied
-**And** once the import lands, A's next activation restores that session
-
-#### Scenario: A tap right after the import lands
-
-**Given** an import has landed and emptied the jar in its turn
-**When** the user taps a site the backup carries
-**Then** the tap's restore fills the jar with that site's stored session
-**And** nothing empties the jar after it
-
