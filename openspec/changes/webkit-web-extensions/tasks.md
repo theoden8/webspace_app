@@ -26,7 +26,7 @@
 - [x] 3.5b Let a backup carry the library as the user chooses (WEBEXT-011): `BackupPrompts.chooseExtensionCarry` names each choice's size from `offerExtensionCarry`; an import holds the sites' choices (`HeldExtensionChoices`), relinks by fingerprint (`planExtensionRelink`), adds what it carries files of after one summary, and gives the sites back their choices (`relinkChoices`); verified by `test/web_extension_backup_test.dart`
 - [x] 3.5c Add an extension from a link and check it for updates (WEBEXT-017, WEBEXT-018): `parseExtensionSource` and `readRelease` (`web_extension_source_engine.dart`) over a release read through `fetchViaAppProxy`; the entry keeps its source, when it was checked and the newer version found; a check runs when the user asks, and daily only once `AppPref.webExtensionsCheckUpdates` is on (off by default, so no request reaches a source unasked); an update installs over the same id after the user accepts what it asks for beyond the installed version, and the fork reads the files again by the load's `revision` (the fork's `3bcb16b`); verified by `test/web_extension_source_test.dart` and `test/web_extension_links_test.dart`
 - [x] 3.5d Outside the App Store only (`hostDistribution`: an iOS or macOS build made with `--flavor direct`, `builtFor` in `platform/app_distribution.dart`), search addons.mozilla.org behind its own Experimental switch (`ExperimentalFeature.extensionSearch`, off by default; `readAmoSearch`, each result labelled by `webKitFitOf`, none hidden) and install an update that asks for nothing new without asking (`AppPref.webExtensionsAutoUpdate`) (WEBEXT-019); verified by `test/web_extension_search_test.dart` and `test/web_extension_store_rules_test.dart`
-- [ ] 3.6 Add `OrphanStore.webExtensionData` and its sweep in `PageOrphanSweep`; verify `fvm flutter analyze` is clean (the sweep's exhaustive switch) and the orphan sweep test passes
+- [x] 3.6 Sweep the extension data of sites no longer listed: no `OrphanStore` of its own, since a site's extensions keep their data in its container's controller and the fork's `deleteContainer` removes it with the container (`WebExtensionHost.removeData(forContainer:)`), so the container sweep (`ContainerIsolationEngine.garbageCollectOrphans`) already reclaims it; a second store would be a second owner
 
 ## 4. Fork (iOS and macOS)
 
@@ -39,8 +39,8 @@
 ## 5. Runner and UI glue
 
 - [x] 5.1 Show each attached extension's action in the site menu (`lib/widgets/site_menu.dart`, `siteMenuExtensions`) and call `performAction` on pick, and its Settings and Open in the site's Extensions screen (WEBEXT-008); verified by `test/web_extension_screens_test.dart` with the fake engine
-- [ ] 5.2 Remove a deleted site's extension data through `SiteDeletion`; if it adds an await, make it a `Step` of `SiteDeletion.deleteTable` and run `./formal/verify.sh`; verify the deletion test and, if touched, `verify.sh` pass
-- [ ] 5.3 Commit the 66 translated `app_*.arb` files in their own commit after the strings of groups 2 and 3; verify `npm run test:js` passes `l10n_coverage` and `l10n_language`
+- [x] 5.2 Remove a deleted site's extension data through `SiteDeletion`: its delete of the site's container (CONT-010) removes it natively, as 3.6 says, so no step is added
+- [x] 5.3 Commit the 66 translated `app_*.arb` files in their own commit after the strings of groups 2 and 3; verify `npm run test:js` passes `l10n_coverage` and `l10n_language`
 
 ## 6. End to end and bookkeeping
 
