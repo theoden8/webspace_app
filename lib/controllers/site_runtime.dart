@@ -48,7 +48,9 @@ class SiteRuntime {
 
   /// The model's variables this runtime owns, as the tables write them
   /// (`Mutable.over`): what a step declares it writes is all it can write.
-  late final RuntimeVars<WebViewModel> vars = RuntimeVars(
+  /// Read as the sites themselves by the tables not yet on [vars]
+  /// (CONT-012; `test/js/object_view.test.js` lists them).
+  late final RuntimeVars<WebViewModel> objectVars = RuntimeVars(
     loaded: Shared.ofSet(_loaded, variable: ModelVar.loaded),
     current: Shared(ModelVar.current, read: () => _shown, write: _show),
     version: Shared(ModelVar.version, read: () => _version, write: (to) => _version = to),
@@ -61,6 +63,81 @@ class SiteRuntime {
     headless: Shared.ofSet(_headless, variable: ModelVar.headless),
     fore: Shared(ModelVar.fore, read: () => _fore, write: (to) => _fore = to),
   );
+
+  /// The same variables as the model knows them, by id (CONT-012): read off
+  /// [objectVars] on every access, so the two cannot disagree. A write keeps
+  /// the site it already holds under an id and otherwise names a listed one.
+  late final RuntimeVars<SiteId> vars = RuntimeVars(
+    loaded: Shared(
+      ModelVar.loaded,
+      read: () => _idsOf(_loaded),
+      write: (to) {
+        final held = [..._loaded];
+        _loaded
+          ..clear()
+          ..addAll([for (final id in to) _site(id, held: held)]);
+      },
+    ),
+    current: Shared(
+      ModelVar.current,
+      read: () => _idOf(_shown),
+      write: (to) => _show(switch (to) {
+        final id? => _site(id, held: [?_shown]),
+        null => null,
+      }),
+    ),
+    version: objectVars.version,
+    marker: Shared(
+      ModelVar.marker,
+      read: () => switch (_activating) {
+        final m? => (target: _idOf(m.target)!, version: m.version),
+        null => null,
+      },
+      write: (to) => _mark(switch (to) {
+        final m? => (
+          target: _site(m.target, held: [?_activating?.target]),
+          version: m.version,
+        ),
+        null => null,
+      }),
+    ),
+    nested: Shared(
+      ModelVar.nested,
+      read: () => _idOf(_nested),
+      write: (to) => _nested = switch (to) {
+        final id? => _site(id, held: [?_nested]),
+        null => null,
+      },
+    ),
+    headless: Shared(
+      ModelVar.headless,
+      read: () => _idsOf(_headless),
+      write: (to) {
+        final held = [..._headless];
+        _headless
+          ..clear()
+          ..addAll([for (final id in to) _site(id, held: held)]);
+      },
+    ),
+    fore: objectVars.fore,
+  );
+
+  /// Ids read off the objects outside the cells' `read:` closures, which
+  /// name only the fields that hold each variable (`test/port_reads_test`).
+  static SiteId? _idOf(WebViewModel? site) => site?.siteId;
+  static Set<SiteId> _idsOf(Iterable<WebViewModel> sites) =>
+      {for (final m in sites) m.siteId};
+
+  /// The site [id] names for a write through [vars]: the one [held] has
+  /// under it, else the listed one.
+  WebViewModel _site(SiteId id, {required Iterable<WebViewModel> held}) {
+    for (final m in held) {
+      if (m.siteId == id) return m;
+    }
+    final listed = byId(id);
+    assert(listed != null, 'a write through the id view names a listed site');
+    return listed!;
+  }
 
   /// The site whose nested screen is up: it runs as that site, beside the
   /// loaded ones. Written by the nested open's table steps.
@@ -327,7 +404,7 @@ class SiteRuntime {
   SiteRetentionPriority retentionPriority(int index) {
     if (index >= 0 && index < models.length) {
       final m = models[index];
-      if (!vars.isEvictable(m)) {
+      if (!vars.isEvictable(m.siteId)) {
         return identical(m, _shown)
             ? SiteRetentionPriority.active
             : SiteRetentionPriority.activating;

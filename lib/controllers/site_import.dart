@@ -96,7 +96,7 @@ final class ImportFlow extends JarWorld {
   };
 
   @override
-  RuntimeVars<WebViewModel> get vars => _sites.vars;
+  RuntimeVars<WebViewModel> get vars => _sites.objectVars;
 
   /// The page's commit of the replacement.
   late final SiteSetStage _stage = controller._host.stageSites(replacement);
@@ -249,15 +249,15 @@ final _running = Expr.inFlight<ImportFlow>(
 
 final _importLoaded = Mutable<Iterable<WebViewModel>, ImportFlow>.over(
   ModelVar.loaded,
-  of: (w) => w._sites.vars.loaded,
+  of: (w) => w._sites.objectVars.loaded,
 );
 final _importCurrent = Mutable<WebViewModel?, ImportFlow>.over(
   ModelVar.current,
-  of: (w) => w._sites.vars.current,
+  of: (w) => w._sites.objectVars.current,
 );
 final _importVersion = Mutable<int, ImportFlow>.over(
   ModelVar.version,
-  of: (w) => w._sites.vars.version,
+  of: (w) => w._sites.objectVars.version,
 );
 final _importGone = Mutable<Iterable<WebViewModel>, ImportFlow>.remote(
   ModelVar.gone,

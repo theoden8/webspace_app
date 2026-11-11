@@ -417,7 +417,7 @@ class _WakeHost implements BackgroundWakeHost<WebViewModel> {
   final Map<SiteId, HeadlessSiteCheck> _headless = {};
 
   @override
-  RuntimeVars<WebViewModel> get vars => _sites.vars;
+  RuntimeVars<WebViewModel> get vars => _sites.objectVars;
 
   @override
   WebViewModel siteOf(SiteId siteId) => _sites.byId(siteId)!;

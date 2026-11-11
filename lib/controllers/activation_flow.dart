@@ -64,10 +64,10 @@ final class ActivationCalls {
 
   WebViewModel? get shown => _r.sites.shown;
   List<WebViewModel> get models => _r.sites.models;
-  Iterable<WebViewModel> get pages => _r.sites.vars.pages;
+  Iterable<WebViewModel> get pages => _r.sites.objectVars.pages;
   Iterable<FlowKind> get kindsInFlight => _r.answers.kindsInFlight();
-  bool isEvictable(WebViewModel site) => _r.sites.vars.isEvictable(site);
-  WebViewModel? get liveTarget => _r.sites.vars.liveTarget;
+  bool isEvictable(WebViewModel site) => _r.sites.objectVars.isEvictable(site);
+  WebViewModel? get liveTarget => _r.sites.objectVars.liveTarget;
   void keepLoading(WebViewModel site) => _r.answers.keepLoading(site);
   WebViewModel firstToEvict(List<WebViewModel> among) =>
       _r.sites.firstToEvict(among);
@@ -186,7 +186,7 @@ final class ActivationFlow implements Capturing, ActivationState {
     of: (w) => (
       residency: w.reach.residency,
       isolation: w.reach.sites.isolation,
-      vars: w.reach.sites.vars,
+      vars: w.reach.sites.objectVars,
     ),
   );
 

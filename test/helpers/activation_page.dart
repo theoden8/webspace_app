@@ -81,7 +81,7 @@ final class FakeResidency implements ResidencyHost {
   List<WebViewModel> get models => sites.models;
 
   @override
-  RuntimeVars<WebViewModel> get vars => sites.vars;
+  RuntimeVars<WebViewModel> get vars => sites.objectVars;
 
   @override
   Isolation get isolation => sites.isolation;

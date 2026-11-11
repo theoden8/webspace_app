@@ -10,7 +10,7 @@ mixin SiteListState {
   final SiteRuntime runtime = SiteRuntime();
 
   List<WebViewModel> get sites => runtime.models;
-  RuntimeVars<WebViewModel> get vars => runtime.vars;
+  RuntimeVars<WebViewModel> get vars => runtime.objectVars;
   Set<int> get loadedIndices => runtime.loadedRows;
   int? get currentIndex => runtime.current;
 

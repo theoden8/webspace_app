@@ -758,15 +758,15 @@ final _closeTooBig = Expr.op<bool, CloseFlow>(
 
 final _closeLoaded = Mutable<Iterable<WebViewModel>, CloseFlow>.over(
   ModelVar.loaded,
-  of: (w) => w._sites.vars.loaded,
+  of: (w) => w._sites.objectVars.loaded,
 );
 final _closeCurrent = Mutable<WebViewModel?, CloseFlow>.over(
   ModelVar.current,
-  of: (w) => w._sites.vars.current,
+  of: (w) => w._sites.objectVars.current,
 );
 final _closeVersion = Mutable<int, CloseFlow>.over(
   ModelVar.version,
-  of: (w) => w._sites.vars.version,
+  of: (w) => w._sites.objectVars.version,
 );
 final _closeGone = Mutable<Iterable<WebViewModel>, CloseFlow>.remote(
   ModelVar.gone,

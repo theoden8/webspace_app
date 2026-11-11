@@ -3112,7 +3112,7 @@ final class _WalkWake implements BackgroundWakeHost<WebViewModel> {
   DateTime _now = DateTime(2026, 10, 13);
 
   @override
-  RuntimeVars<WebViewModel> get vars => world.sites.vars;
+  RuntimeVars<WebViewModel> get vars => world.sites.objectVars;
 
   @override
   WebViewModel siteOf(SiteId siteId) => world.sites.byId(siteId)!;
@@ -3255,7 +3255,7 @@ final class _WalkResidency implements ResidencyHost {
   List<WebViewModel> get models => world.sites.models;
 
   @override
-  RuntimeVars<WebViewModel> get vars => world.sites.vars;
+  RuntimeVars<WebViewModel> get vars => world.sites.objectVars;
 
   @override
   Isolation get isolation => world.sites.isolation;

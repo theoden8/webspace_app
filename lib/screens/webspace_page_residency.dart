@@ -13,7 +13,7 @@ class _ResidencyHost implements ResidencyHost {
   List<WebViewModel> get models => state._sites.models;
 
   @override
-  RuntimeVars<WebViewModel> get vars => state._sites.vars;
+  RuntimeVars<WebViewModel> get vars => state._sites.objectVars;
 
   @override
   Isolation get isolation => state._sites.isolation;
