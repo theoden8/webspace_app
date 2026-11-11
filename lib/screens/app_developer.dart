@@ -46,10 +46,6 @@ List<(ExperimentalFeature, IconData, Localized title, Localized hint)>
         (ExperimentalFeature.extensionSearch, Icons.search,
             loc.appSettingsExperimentalExtensionSearch,
             loc.appSettingsExperimentalExtensionSearchHint),
-      if (hostIsLinux)
-        (ExperimentalFeature.linuxTor, Icons.security_outlined,
-            loc.appSettingsExperimentalLinuxTor,
-            loc.appSettingsExperimentalLinuxTorHint),
       if (EgressRelay.instance.offered)
         (ExperimentalFeature.networkInterface, Icons.alt_route,
             loc.appSettingsExperimentalNetworkInterface,

@@ -563,7 +563,6 @@ The features are:
 | Feature | Switch | Default | Gate |
 |---|---|---|---|
 | Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
-| The built-in Tor on Linux, a tor the app starts (`tor-proxy` TOR-027) | Built-in Tor | off | `TorService.builtInOffered`, read live, so it applies without a relaunch; Linux only |
 | Linux: a site's traffic bound to a network interface it names (`network-interface` NETIF-013) | Network interface per site | off | `EgressRelay.state`, read each time a site's route resolves and when a Network screen is built |
 | A site's service workers through its own blockers (`content-blocker` CB-022) | Service workers through blockers | off | `NativeIntercept.routeServiceWorkers`, read once at launch; Android only |
 | WebKit's own report of each request the content rule lists block (`content-blocker` CB-023) | WebKit's block counts | off | `WebKitBlockReports.start`, read once at launch; iOS and macOS built with `--flavor direct` only |
@@ -590,6 +589,8 @@ Webspace icon groups, the library (`webspaces` WEBSPACE-002), were in the group 
 
 The tray icon while a close only hides the window (`web-push-notifications` NOTIF-019) was in the group under the Tray icon switch; it graduated on Linux first and then on macOS, and follows Keep running when closed alone, with developer mode on or off. The switch's pref (`experimentalDesktopTray`) is no longer read.
 
+The built-in Tor on Linux (`tor-proxy` TOR-027), a tor the app starts, was in the group under its own Built-in Tor switch, which defaulted off; it graduated as Apple's had, and is offered on every Linux build with developer mode on or off. The switch's pref (`experimentalLinuxTor`) is no longer read.
+
 #### Scenario: The group appears with developer mode
 
 - **GIVEN** an iOS 18.4 build with developer mode off
@@ -608,7 +609,7 @@ The tray icon while a close only hides the window (`web-push-notifications` NOTI
 
 - **GIVEN** a Linux build with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists Built-in Tor, off
+- **THEN** the Experimental group lists no Built-in Tor switch, and a site's proxy picker offers `TOR`
 
 #### Scenario: Switches survive a backup round trip
 

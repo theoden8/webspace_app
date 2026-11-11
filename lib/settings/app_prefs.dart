@@ -79,8 +79,6 @@ enum AppPref<T extends Object> {
   webExtensionsCheckUpdates('webExtensionsCheckUpdates', fallback: false),
   // WEBEXT-019: offered only in a build from outside the App Store.
   webExtensionsAutoUpdate('webExtensionsAutoUpdate', fallback: false),
-  // TOR-027: the built-in Tor on Linux, read once at launch.
-  experimentalLinuxTor('experimentalLinuxTor', fallback: false),
   // NETIF-013: a site's traffic bound to a network interface, where the
   // platform binds one.
   experimentalNetworkInterface('experimentalNetworkInterface', fallback: false),

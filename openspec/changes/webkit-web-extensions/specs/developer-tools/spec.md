@@ -41,6 +41,8 @@ Sign-in popups (`nested-url-blocking` NESTED-014) were in the group under the Si
 
 The tray icon while a close only hides the window (`web-push-notifications` NOTIF-019) was in the group under the Tray icon switch; it graduated on Linux first and then on macOS, and follows Keep running when closed alone, with developer mode on or off. The switch's pref (`experimentalDesktopTray`) is no longer read.
 
+The built-in Tor on Linux (`tor-proxy` TOR-027), a tor the app starts, was in the group under its own Built-in Tor switch, which defaulted off; it graduated as Apple's had, and is offered on every Linux build with developer mode on or off. The switch's pref (`experimentalLinuxTor`) is no longer read.
+
 #### Scenario: The group appears with developer mode
 
 - **GIVEN** an iOS build with developer mode off

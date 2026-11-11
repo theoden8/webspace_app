@@ -315,6 +315,37 @@ void main() {
       expect(tor.socksFor(siteId: SiteId('site-a')), isNull);
     });
 
+    test('TOR-014 a switch that makes Tor available is announced, and what '
+        'wanted Tor meanwhile is held', () async {
+      final absent = FakeTorRuntime(isAvailable: false);
+      TorService.overrideEngines(
+          embedded: TorEngine(runtime: absent, sessionSecret: 'e'),
+          external: engine,
+          externalRuntime: runtime);
+      final tor = TorService.instance;
+      var announced = 0;
+      final sub = tor.availabilityChanges.listen((_) => announced++);
+      await tor.syncHolders({TorSiteHolder(SiteId('site-a'))});
+      expect(tor.isAvailable, isFalse, reason: 'no built-in tor here');
+
+      wantExternal = true;
+      await tor.runtimeChoiceChanged();
+      await _settle();
+      expect(tor.isAvailable, isTrue);
+      expect(announced, 1,
+          reason: 'the page settles its Tor sites and their pins on it');
+      expect(engine.holders, {TorSiteHolder(SiteId('site-a'))},
+          reason: 'asked for while no tor ran, held once one does');
+
+      wantExternal = false;
+      await tor.runtimeChoiceChanged();
+      await _settle();
+      expect(tor.isAvailable, isFalse);
+      expect(announced, 2);
+      await sub.cancel();
+      await absent.dispose();
+    });
+
     test('a flip during a flip lands on the last one', () async {
       final tor = TorService.instance;
       await tor.syncHolders({TorSiteHolder(SiteId('site-a'))});

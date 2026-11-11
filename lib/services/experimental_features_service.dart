@@ -20,10 +20,6 @@ enum ExperimentalFeature {
   /// from outside the App Store (WEBEXT-019). New, so off by default.
   extensionSearch(AppPref.experimentalExtensionSearch),
 
-  /// The built-in Tor on Linux, a tor the app starts itself (TOR-027),
-  /// followed as the switch moves. New, so off by default.
-  linuxTor(AppPref.experimentalLinuxTor),
-
   /// A site's traffic bound to a network interface it names, refused when
   /// that interface is down (network-interface NETIF-013). New, so off by
   /// default.

@@ -100,6 +100,14 @@ void main() {
             'on Linux (DEVTOOLS-011)');
   });
 
+  test("Linux's built-in Tor graduated: it has no switch (TOR-027)", () {
+    expect(
+        ExperimentalFeature.values.map((f) => f.pref.key),
+        isNot(contains('experimentalLinuxTor')),
+        reason: 'Linux offers its built-in Tor as iOS and macOS do '
+            '(DEVTOOLS-011)');
+  });
+
   test('Proxy router graduated: its switch is not an experiment (PROXY-013)',
       () {
     expect(

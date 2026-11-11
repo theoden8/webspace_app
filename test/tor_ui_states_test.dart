@@ -521,8 +521,8 @@ void main() {
       await settle(t);
 
       expect(find.text('Tor is not available on this device'), findsOneWidget);
-      expect(find.textContaining('iOS and macOS only'), findsOneWidget,
-          reason: 'Linux without the Built-in Tor experiment reads as before');
+      expect(find.textContaining('iOS, macOS and Linux only'), findsOneWidget,
+          reason: 'a platform with no built-in Tor, as Android');
       expect(find.byType(LinearProgressIndicator), findsNothing);
     });
 
@@ -530,7 +530,7 @@ void main() {
         (t) async {
       TorService.overrideEngine(
         TorEngine(runtime: FakeTorRuntime(isAvailable: false), sessionSecret: 's'),
-        builtInOffered: () => true,
+        builtInOffered: true,
       );
       await t.pumpWidget(
           host(const TorBootstrapPlaceholder(), size: const Size(430, 430)));
@@ -538,8 +538,8 @@ void main() {
 
       expect(find.text('Tor is not available on this device'), findsOneWidget);
       expect(find.textContaining('install tor to use Tor here'), findsOneWidget);
-      expect(find.textContaining('iOS and macOS only'), findsNothing,
-          reason: 'the experiment offers it here; this machine only lacks a tor');
+      expect(find.textContaining('iOS, macOS and Linux only'), findsNothing,
+          reason: 'Linux offers it; this machine only lacks a tor');
     });
   });
 
