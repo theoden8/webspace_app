@@ -46,6 +46,12 @@ concurrency:
 # seds this line; every job reads it via the env context. Bump here only.
 env:
   CARGO_NDK_VERSION: "4.1.2"
+  # The Debian sid the Linux containers install from: a dated
+  # snapshot.debian.org view, so a transition landing in sid cannot break
+  # every PR's install at once. Moving it is a deliberate change, made
+  # where the install still resolves and libwpewebkit-2.0-dev still meets
+  # CONT-009's floor.
+  DEBIAN_SNAPSHOT: "20261111T180000Z"
 
 jobs:
   # Which jobs this commit actually needs. A bisection that only reads the
@@ -714,10 +720,8 @@ jobs:
     # webkit_navigation_action_is_for_main_frame (added in 2.50) and
     # webkit_web_view_get_theme_color (also 2.50). Trixie ships 2.48
     # which is too old; Ubuntu Noble has no WPE packages at all; Jammy
-    # is 2.36. Sid has 2.54.0. Sid is technically "unstable" but the
-    # WPE WebKit toolchain there has been the most stable path; if
-    # anything else in the apt set breaks we'll surface the package
-    # name and pin if needed. The Android job stays untouched on the
+    # is 2.36. Sid has 2.54.0. Sid is technically "unstable", so the
+    # container installs from the dated snapshot DEBIAN_SNAPSHOT names. The Android job stays untouched on the
     # ubuntu-latest host runner — only Linux is in this container.
     #
     # Sid's 2.54.0-1 is the first Debian wpewebkit to ship
@@ -756,9 +760,13 @@ jobs:
       FLUTTER_SUPPRESS_ANALYTICS: "true"
     steps:
       # git before the checkout, so it is a clone and not a REST download:
-      # debian:sid-slim ships without it.
+      # debian:sid-slim ships without it. Every apt step after this one
+      # reads the snapshot written here.
       - name: Install git
-        run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates
+        run: |
+          printf 'Types: deb\nURIs: http://snapshot.debian.org/archive/debian/%s/\nSuites: sid\nComponents: main\nSigned-By: /usr/share/keyrings/debian-archive-keyring.gpg\nCheck-Valid-Until: no\n' \
+            "$DEBIAN_SNAPSHOT" >/etc/apt/sources.list.d/debian.sources
+          apt-get update && apt-get install -y --no-install-recommends git ca-certificates
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -1941,9 +1949,13 @@ jobs:
       image: debian:sid-slim
     steps:
       # git before the checkout, so it is a clone and not a REST download:
-      # debian:sid-slim ships without it.
+      # debian:sid-slim ships without it. Every apt step after this one
+      # reads the snapshot written here.
       - name: Install git
-        run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates
+        run: |
+          printf 'Types: deb\nURIs: http://snapshot.debian.org/archive/debian/%s/\nSuites: sid\nComponents: main\nSigned-By: /usr/share/keyrings/debian-archive-keyring.gpg\nCheck-Valid-Until: no\n' \
+            "$DEBIAN_SNAPSHOT" >/etc/apt/sources.list.d/debian.sources
+          apt-get update && apt-get install -y --no-install-recommends git ca-certificates
 
       - name: Checkout code
         uses: actions/checkout@v4
