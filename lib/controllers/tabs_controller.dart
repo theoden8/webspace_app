@@ -253,7 +253,7 @@ class TabsController {
     if (!(tabs ?? model.tabs).any((t) => t.id == targetTabId)) return;
     final c = StepContext(TabFlow(this, site: model));
     TabTable._kind.put(c, value: FlowKind.tab);
-    TabTable._site.put(c, value: model);
+    TabTable._site.put(c, value: model.siteId);
     TabTable._tab.put(c, value: targetTabId);
     TabTable._keep.put(c, value: captureOutgoing);
     if (tabs != null) TabTable._rest.put(c, value: tabs);
@@ -429,7 +429,7 @@ class TabsController {
     }
     for (final MapEntry(key: model, value: from) in movedFrom.entries) {
       final moves =
-          TabCalls(this).movesRule(from: from, to: model.runningIdentity);
+          TabCalls(this, sites: _sites).movesRule(from: from, to: model.runningIdentity);
       if (moves && loadedBefore.holdsObject(model)) {
         _host.noteUnloaded(model, why: 'identity change');
       }
@@ -719,7 +719,7 @@ class TabsController {
       final c = StepContext(TabFlow(this, site: model));
       c.world.fresh = _copyOf(model.activeTab);
       TabTable._kind.put(c, value: FlowKind.tab);
-      TabTable._site.put(c, value: model);
+      TabTable._site.put(c, value: model.siteId);
       TabTable._tab.put(c, value: model.activeTabId);
       TabTable._copy.put(c, value: c.world.fresh!.id);
       ActivationSteps.mark(ActivationStep.duplicateTab,
@@ -915,7 +915,7 @@ class TabsController {
         },
     );
     TabTable._kind.put(c, value: FlowKind.tab);
-    TabTable._site.put(c, value: model);
+    TabTable._site.put(c, value: model.siteId);
     TabTable._tab.put(
       c,
       value: result.activeChanged ? model.activeTabId : result.closedIds.first,
@@ -923,7 +923,7 @@ class TabsController {
     TabTable._keep.put(c, value: false);
     TabTable._rest.put(c, value: result.tabs);
     TabTable._closing.put(c, value: result.closedIds);
-    TabTable._ranAs.put(c, value: model.tabHosts);
+    TabTable._ranAs.put(c, value: model.tabHostIds);
     await _runTabFlow(c, from: TabPlace.tClosed);
   }
 

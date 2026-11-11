@@ -1071,7 +1071,13 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     // a reroute's that keeps the slot loaded.
     if (step == ActivationStep.tabRebind || step == ActivationStep.rerouteFlip) {
       // The rebind binds its site itself, in its turn: no frame of a let-go.
-      _letGo.remove(site);
+      // A table marks the site by its id.
+      final id = switch (site) {
+        final WebViewModel m => m.siteId,
+        final SiteId id => id,
+        _ => null,
+      };
+      _letGo.removeWhere((m) => m.siteId == id);
       _buildWebViews(frame: false);
     }
     final calls = _unmarked.remove(flow) ?? const <PlatformCall>[];
@@ -2072,22 +2078,35 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   }
 
   /// CONT-012: the runtime's id view reads, after every step, the ids of
-  /// what its object view holds, also while an import's replacement and the
-  /// departed site it replaced share an id.
+  /// the sites it holds, also while an import's replacement and the
+  /// departed site it replaced share an id; and each id finds the site
+  /// held under it, or the listed one that replaced it.
   void _checkIdView() {
     final ids = sites.vars;
-    final objects = sites.objectVars;
     final checks = {
-      'loaded': (ids.loaded.value.toList(), [for (final m in objects.loaded.value) m.siteId]),
-      'current': ([?ids.current.value], [?objects.current.value?.siteId]),
-      'marker': ([?ids.marker.value?.target], [?objects.marker.value?.target.siteId]),
-      'nested': ([?ids.nested.value], [?objects.nested.value?.siteId]),
-      'headless': (ids.headless.value.toList(), [for (final m in objects.headless.value) m.siteId]),
+      'loaded': (ids.loaded.value.toList(), [for (final m in sites.loaded) m.siteId]),
+      'current': ([?ids.current.value], [?sites.shown?.siteId]),
+      'marker': ([?ids.marker.value?.target], [?sites.activating?.target.siteId]),
+      'nested': ([?ids.nested.value], [?sites.nested?.siteId]),
+      'headless': (ids.headless.value.toList(), [for (final m in sites.headless) m.siteId]),
     };
     for (final MapEntry(key: name, value: (byId, byObject)) in checks.entries) {
       if (!const ListEquality<SiteId>().equals(byId, byObject)) {
         _violations.add('the id view reads $name as $byId where the runtime '
             'holds $byObject (CONT-012)');
+      }
+    }
+    for (final m in [
+      ...sites.loaded,
+      ?sites.shown,
+      ?sites.nested,
+      ...sites.headless,
+      ?sites.activating?.target,
+    ]) {
+      final found = sites.siteOf(m.siteId);
+      if (!identical(found, m) && sites.models.holdsObject(m)) {
+        _violations.add('${m.siteId} finds another site than the listed one '
+            'held under it (CONT-012)');
       }
     }
   }
@@ -3294,7 +3313,10 @@ final class _WalkResidency implements ResidencyHost {
   List<WebViewModel> get models => world.sites.models;
 
   @override
-  RuntimeVars<WebViewModel> get vars => world.sites.objectVars;
+  RuntimeVars<SiteId> get vars => world.sites.vars;
+
+  @override
+  WebViewModel siteOf(SiteId id) => world.sites.siteOf(id);
 
   @override
   Isolation get isolation => world.sites.isolation;

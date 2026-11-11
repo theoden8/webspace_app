@@ -1,6 +1,7 @@
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/tab_leaves.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// How a table names its sites ([S], an id or the object itself), the
@@ -29,8 +30,15 @@ typedef SiteKeys<S, W> = ({
 final class TabVars {
   const TabVars._();
 
-  /// How [TabVars] names a table's sites: as the objects the tab variables
-  /// live on, the tables not yet on the runtime's id view (CONT-012).
+  /// How [TabVars] names a table's sites: by id, as the model knows them,
+  /// the object the tab variables live on found through the world.
+  static SiteKeys<SiteId, W> ids<W extends SitesById>() => (
+    site: (w, {required key}) => w.siteOf(key),
+    keyOf: (site) => site.siteId,
+  );
+
+  /// As the objects the tab variables live on, for the tables not yet on
+  /// the runtime's id view (CONT-012).
   static SiteKeys<WebViewModel, W> objects<W>() =>
       (site: (_, {required key}) => key, keyOf: (site) => site);
 
@@ -54,10 +62,12 @@ final class TabVars {
   static Indexed<S, Map<TabId, S>, W> host<S, W>({
     required SiteKeys<S, W> keys,
   }) => hostReported<S, W>(
-    read: (w, {required site}) => {
-      for (final MapEntry(:key, :value)
-          in keys.site(w, key: site).tabHosts.entries)
-        key: keys.keyOf(value),
+    read: (w, {required site}) {
+      final of = keys.site(w, key: site);
+      return TabHosts({
+        for (final MapEntry(:key, :value) in of.tabHosts.entries)
+          key: keys.keyOf(value),
+      }, site: keys.keyOf(of));
     },
   );
 

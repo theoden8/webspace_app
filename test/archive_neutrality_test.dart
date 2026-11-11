@@ -3,6 +3,7 @@
 @Timeout(Duration(minutes: 2))
 library;
 
+import 'helpers/sites_of.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -547,10 +548,11 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
       );
 
       await engine.unloadSiteForDomainSwitch(
-        site: archived,
+        site: archived.siteId,
         world: UnloadWorld(
           engine: engine,
-          vars: RuntimeVars.ofSet({archived}),
+          vars: RuntimeVars.ofSet({archived.siteId}),
+          sites: SitesOf([archived]),
           answers: (
             spared: () => false,
             disposed: () {},
@@ -590,16 +592,18 @@ bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
 
       // Activating the app-tier site sweeps every loaded site into storage.
       await engine.restoreCookiesForSite(
-        site: appSite,
-        vars: RuntimeVars.ofSet({appSite, archived}),
+        site: appSite.siteId,
+        vars: RuntimeVars.ofSet({appSite.siteId, archived.siteId}),
+        sites: SitesOf([appSite, archived]),
         versionAtEntry: 0,
       );
       expect(storage.allStorage.keys.toSet(), equals({'app-1'}));
 
       // Activating the archive site itself must also write nothing.
       await engine.restoreCookiesForSite(
-        site: archived,
-        vars: RuntimeVars.ofSet({appSite, archived}),
+        site: archived.siteId,
+        vars: RuntimeVars.ofSet({appSite.siteId, archived.siteId}),
+        sites: SitesOf([appSite, archived]),
         versionAtEntry: 0,
       );
       expect(storage.allStorage.containsKey('arch-1'), isFalse);

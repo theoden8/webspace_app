@@ -15,6 +15,7 @@ import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/step_flow.dart';
 import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/tab_leaves.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// What an import asks of the page beside its steps.
@@ -96,7 +97,15 @@ final class ImportFlow extends JarWorld {
   };
 
   @override
-  RuntimeVars<WebViewModel> get vars => _sites.objectVars;
+  RuntimeVars<SiteId> get vars => _sites.vars;
+
+  @override
+  SitesById get sites => this;
+
+  /// A listed or held site, else one the import replaced.
+  @override
+  WebViewModel siteOf(SiteId id) =>
+      _sites.find(id) ?? _replaced.firstWhere((m) => m.siteId == id);
 
   /// The page's commit of the replacement.
   late final SiteSetStage _stage = controller._host.stageSites(replacement);
@@ -209,8 +218,8 @@ final _turn = Port<({CookieIsolationEngine jar, ImportFlow world}), ImportFlow>(
 );
 
 final _importKind = Field<FlowKind, ImportFlow>(FlowField.kind);
-final _dropped = Field<Iterable<WebViewModel>, ImportFlow>(FlowField.dropped);
-final _ls = Field<List<WebViewModel>, ImportFlow>(FlowField.ls);
+final _dropped = Field<Iterable<SiteId>, ImportFlow>(FlowField.dropped);
+final _ls = Field<List<SiteId>, ImportFlow>(FlowField.ls);
 
 final _containers = Constant<bool, ImportFlow>(
   ModelConst.containers,
@@ -218,15 +227,15 @@ final _containers = Constant<bool, ImportFlow>(
 ).value;
 
 /// Every site the model names (`Sites`), as the page knows them: listed.
-final _sitesAll = Constant<Iterable<WebViewModel>, ImportFlow>(
+final _sitesAll = Constant<Iterable<SiteId>, ImportFlow>(
   ModelConst.sites,
-  read: (w) => w._sites.models,
+  read: (w) => [for (final m in w._sites.models) m.siteId],
 ).value;
 
 /// The sites the backup carries, the model's `Importing`.
-final _importing = Constant<Iterable<WebViewModel>, ImportFlow>(
+final _importing = Constant<Iterable<SiteId>, ImportFlow>(
   ModelConst.importing,
-  read: (w) => w.replacement.sites,
+  read: (w) => [for (final m in w.replacement.sites) m.siteId],
 ).value;
 
 /// Whether the world imports a backup: the code may import one any time,
@@ -236,10 +245,10 @@ final _imports = Expr.ofConstant<bool, ImportFlow>(
   run: (_) => true,
 );
 
-final _listed = Expr.op<Iterable<WebViewModel>, ImportFlow>(
+final _listed = Expr.op<Iterable<SiteId>, ImportFlow>(
   HandPaired.importListed,
   tla: 'Listed',
-  run: (c) => _page.from(c).listed,
+  run: (c) => [for (final m in _page.from(c).listed) m.siteId],
   reads: const Reads(base: {BaseOp.listed}),
 );
 final _running = Expr.inFlight<ImportFlow>(
@@ -247,36 +256,36 @@ final _running = Expr.inFlight<ImportFlow>(
   run: (c) => _runs.from(c)(),
 );
 
-final _importLoaded = Mutable<Iterable<WebViewModel>, ImportFlow>.over(
+final _importLoaded = Mutable<Iterable<SiteId>, ImportFlow>.over(
   ModelVar.loaded,
-  of: (w) => w._sites.objectVars.loaded,
+  of: (w) => w._sites.vars.loaded,
 );
-final _importCurrent = Mutable<WebViewModel?, ImportFlow>.over(
+final _importCurrent = Mutable<SiteId?, ImportFlow>.over(
   ModelVar.current,
-  of: (w) => w._sites.objectVars.current,
+  of: (w) => w._sites.vars.current,
 );
 final _importVersion = Mutable<int, ImportFlow>.over(
   ModelVar.version,
-  of: (w) => w._sites.objectVars.version,
+  of: (w) => w._sites.vars.version,
 );
-final _importGone = Mutable<Iterable<WebViewModel>, ImportFlow>.remote(
+final _importGone = Mutable<Iterable<SiteId>, ImportFlow>.remote(
   ModelVar.gone,
 );
-final _importViews = Mutable<Iterable<WebViewModel>, ImportFlow>.remote(
+final _importViews = Mutable<Iterable<SiteId>, ImportFlow>.remote(
   ModelVar.views,
 );
-final _importBoxes = Mutable<Iterable<WebViewModel>, ImportFlow>.remote(
+final _importBoxes = Mutable<Iterable<SiteId>, ImportFlow>.remote(
   ModelVar.boxes,
 );
-final _signedIn = Mutable<Iterable<WebViewModel>, ImportFlow>.remote(
+final _signedIn = Mutable<Iterable<SiteId>, ImportFlow>.remote(
   ModelVar.signedIn,
 );
-final _noSite = Expr.constant<WebViewModel?, ImportFlow>(null, tla: '0');
+final _noSite = Expr.constant<SiteId?, ImportFlow>(null, tla: '0');
 
 final _done = GoTo<ImportFlow, ImportPlace>(to(ImportPlace.done));
 
 /// The dropped sites' containers, unless a mounted webview still binds one.
-final _retire = retireContainers<WebViewModel, ImportFlow, ImportPlace>(
+final _retire = retireContainers<SiteId, ImportFlow, ImportPlace>(
   ActivationStep.importRetireReply,
   at: ImportPlace.iRetire,
   port: _retirePort,
@@ -334,8 +343,8 @@ Call<ImportFlow> _landCall() => Call.on(
 final _dropping = _dropped.becomes(
   Expr.checked(
     rule: _listed.less(_importing),
-    run: (c) => _page.from(c).dropped,
-    key: (m) => m,
+    run: (c) => [for (final m in _page.from(c).dropped) m.siteId],
+    key: (id) => id,
     why: 'the import retires the listed sites the backup does not carry '
         '(CONT-010)',
   ),
@@ -404,7 +413,7 @@ final StepTable<ImportFlow, ImportPlace> _importTable = StepTable(
 
 /// The loaded sites the backup carries again, whose shares are saved.
 final _carriedLoaded = () {
-  final l = Bound<WebViewModel, ImportFlow>('l');
+  final l = Bound<SiteId, ImportFlow>('l');
   return _importLoaded.value.where(l, holds: _importing.has(l.it));
 }();
 
@@ -478,6 +487,6 @@ final StepTable<ImportFlow, ImportPlace> _turnTable = StepTable(
 final _snapNone = Field<List<Cookie>, ImportFlow>(
   FlowField.snap,
 ).becomes(Expr.none());
-final _todoNone = Field<List<WebViewModel>, ImportFlow>(
+final _todoNone = Field<List<SiteId>, ImportFlow>(
   FlowField.todo,
 ).becomes(Expr.none());

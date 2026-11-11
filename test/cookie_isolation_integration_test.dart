@@ -13,6 +13,7 @@ import 'package:webspace/web_view_model.dart';
 
 import 'helpers/fake_nav_capture.dart';
 import 'helpers/mock_cookie_manager.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'helpers/site_list_state.dart';
 import 'package:webspace/services/cookie_manager.dart';
 
@@ -39,13 +40,13 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
   /// The runtime's variables with this harness's own [version], which it
   /// bumps as `SiteActivationController` does.
   @override
-  late final RuntimeVars<WebViewModel> vars = RuntimeVars(
-    loaded: runtime.objectVars.loaded,
-    current: runtime.objectVars.current,
-    marker: runtime.objectVars.marker,
-    nested: runtime.objectVars.nested,
-    headless: runtime.objectVars.headless,
-    fore: runtime.objectVars.fore,
+  late final RuntimeVars<SiteId> vars = RuntimeVars(
+    loaded: runtime.vars.loaded,
+    current: runtime.vars.current,
+    marker: runtime.vars.marker,
+    nested: runtime.vars.nested,
+    headless: runtime.vars.headless,
+    fore: runtime.vars.fore,
     version: Shared(ModelVar.version, read: () => version, write: (to) => version = to),
   );
 
@@ -114,8 +115,9 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
     }
 
     if (!await engine.restoreCookiesForSite(
-      site: target,
+      site: target.siteId,
       vars: vars,
+      sites: runtime,
       versionAtEntry: v,
     )) {
       return;
@@ -1404,8 +1406,9 @@ void main() {
       ++harness.version; // v=2, the "newer" call bumps it right away
 
       await harness.engine.restoreCookiesForSite(
-        site: harness.sites[0],
+        site: harness.sites[0].siteId,
         vars: harness.vars,
+        sites: harness.runtime,
         versionAtEntry: staleVersion,
       );
 
@@ -1431,8 +1434,9 @@ void main() {
 
       final v = ++harness.version;
       await harness.engine.restoreCookiesForSite(
-        site: harness.sites[0],
+        site: harness.sites[0].siteId,
         vars: harness.vars,
+        sites: harness.runtime,
         versionAtEntry: v,
       );
 
@@ -1453,8 +1457,9 @@ void main() {
 
       final v = ++harness.version;
       await harness.engine.restoreCookiesForSite(
-        site: harness.sites[0],
+        site: harness.sites[0].siteId,
         vars: harness.vars,
+        sites: harness.runtime,
         versionAtEntry: v,
       );
 

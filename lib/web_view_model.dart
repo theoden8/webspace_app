@@ -88,6 +88,9 @@ export 'package:webspace/settings/blocked_cookie.dart';
 export 'package:webspace/settings/location.dart'
     show LocationMode, LocationGranularity, WebRtcPolicy;
 
+/// Where code holding sites by id finds the site it acts on (CONT-012).
+abstract interface class SitesById { WebViewModel siteOf(SiteId id); }
+
 class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
   @override
   final SiteId siteId;

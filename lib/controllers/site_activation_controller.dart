@@ -453,7 +453,7 @@ class SiteActivationController {
   bool routeFreeFor(WebViewModel site) => ActivationTable.routeFree.evaluate(
     ActivationFlow(_reach,
         target: null, launch: null, opening: null, leaving: null),
-    args: [site],
+    args: [site.siteId],
   );
 
   /// What the activation does once its target's webview resumed: the probe,

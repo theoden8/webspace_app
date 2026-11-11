@@ -22,7 +22,7 @@ import 'package:webspace/webspace_model.dart';
 /// it here too. Rows, which the page draws and an input names, are read
 /// off them when asked for, and mean a site only until the next await;
 /// [activationVersion] is what an activation suspended across one checks.
-class SiteRuntime {
+class SiteRuntime implements SitesById {
   /// Written only by [apply].
   final List<WebViewModel> models = [];
 
@@ -46,30 +46,14 @@ class SiteRuntime {
     _shown = site;
   }
 
-  /// The model's variables this runtime owns, as the tables write them
-  /// (`Mutable.over`): what a step declares it writes is all it can write.
-  /// Read as the sites themselves by the tables not yet on [vars]
-  /// (CONT-012; `test/js/object_view.test.js` lists them).
-  late final RuntimeVars<WebViewModel> objectVars = RuntimeVars(
-    loaded: Shared.ofSet(_loaded, variable: ModelVar.loaded),
-    current: Shared(ModelVar.current, read: () => _shown, write: _show),
-    version: Shared(ModelVar.version, read: () => _version, write: (to) => _version = to),
-    marker: Shared(ModelVar.marker, read: () => _activating, write: _mark),
-    nested: Shared(
-      ModelVar.nested,
-      read: () => _nested,
-      write: (to) => _nested = to,
-    ),
-    headless: Shared.ofSet(_headless, variable: ModelVar.headless),
-    fore: Shared(ModelVar.fore, read: () => _fore, write: (to) => _fore = to),
-  );
-
-  /// The same variables as the model knows them, by id (CONT-012): read off
-  /// [objectVars] on every access, so the two cannot disagree. Object to id
-  /// is total but not one to one: after an import a departed site and its
-  /// replacement share an id, and a read gives that id once, as the model
-  /// has it. A write keeps the object a variable already holds under an id,
-  /// the one whose webview it is, and otherwise names the listed site.
+  /// The model's variables this runtime owns, as the model knows them, by
+  /// id (CONT-012), and as the tables write them (`Mutable.over`): what a
+  /// step declares it writes is all it can write. Read off the sites held
+  /// on every access. Site to id is total but not one to one: after an
+  /// import a departed site and its replacement share an id, and a read
+  /// gives that id once, as the model has it. A write keeps the site a
+  /// variable already holds under an id, the one whose webview it is, and
+  /// otherwise names the listed site.
   late final RuntimeVars<SiteId> vars = RuntimeVars(
     loaded: Shared(
       ModelVar.loaded,
@@ -89,7 +73,11 @@ class SiteRuntime {
         null => null,
       }),
     ),
-    version: objectVars.version,
+    version: Shared(
+      ModelVar.version,
+      read: () => _version,
+      write: (to) => _version = to,
+    ),
     marker: Shared(
       ModelVar.marker,
       read: () => switch (_activating) {
@@ -107,9 +95,12 @@ class SiteRuntime {
     nested: Shared(
       ModelVar.nested,
       read: () => _idOf(_nested),
-      write: (to) => _nested = switch (to) {
-        final id? => _site(id, held: [?_nested]),
-        null => null,
+      write: (to) {
+        _nested = switch (to) {
+          final id? => _site(id, held: [?_nested]),
+          null => null,
+        };
+        _pin();
       },
     ),
     headless: Shared(
@@ -120,12 +111,13 @@ class SiteRuntime {
         _headless
           ..clear()
           ..addAll([for (final id in to) _site(id, held: held)]);
+        _pin();
       },
     ),
-    fore: objectVars.fore,
+    fore: Shared(ModelVar.fore, read: () => _fore, write: (to) => _fore = to),
   );
 
-  /// Ids read off the objects outside the cells' `read:` closures, which
+  /// Ids read off the sites outside the cells' `read:` closures, which
   /// name only the fields that hold each variable (`test/port_reads_test`).
   static SiteId? _idOf(WebViewModel? site) => site?.siteId;
   static Set<SiteId> _idsOf(Iterable<WebViewModel> sites) =>
@@ -138,9 +130,42 @@ class SiteRuntime {
       if (m.siteId == id) return m;
     }
     final listed = byId(id);
-    assert(listed != null, 'a write through the id view names a listed site');
+    assert(listed != null, 'an id names a site held under it or a listed one');
     return listed!;
   }
+
+  /// The site [id] names: the listed one, else the one the nested screen,
+  /// a wake's check or the activation in flight still holds after it left
+  /// the list. The loaded sites and the one on screen are always listed
+  /// ([apply]). Read off [_pinned], not the variables, so finding a site
+  /// reads none of the model's state (`test/port_reads_test`); where a
+  /// departed site and its replacement share an id, the replacement.
+  @override
+  WebViewModel siteOf(SiteId id) {
+    final site = find(id);
+    assert(site != null, 'an id names a listed site or one a variable holds');
+    return site!;
+  }
+
+  /// [siteOf], null where no site is listed or held under [id].
+  WebViewModel? find(SiteId id) => byId(id) ?? _pinned[id];
+
+  /// Every site [siteOf] finds now, by id: what a flow keeps as it starts,
+  /// so an id it names still finds its site once that left the list.
+  Map<SiteId, WebViewModel> known() => {
+    ..._pinned,
+    for (final m in models) m.siteId: m,
+  };
+
+  /// The sites the nested screen, the wake's checks and the activation in
+  /// flight hold, by id, kept by every write of those variables.
+  final Map<SiteId, WebViewModel> _pinned = {};
+  void _pin() => _pinned
+    ..clear()
+    ..addAll({
+      for (final m in [?_nested, ..._headless, ?_activating?.target])
+        m.siteId: m,
+    });
 
   /// The site whose nested screen is up: it runs as that site, beside the
   /// loaded ones. Written by the nested open's table steps.
@@ -209,6 +234,7 @@ class SiteRuntime {
   ActivationMarker<WebViewModel>? get activating => _activating;
   void _mark(ActivationMarker<WebViewModel>? value) {
     _activating = value;
+    _pin();
     if (value == null) {
       _settled?.complete();
       _settled = null;

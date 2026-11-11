@@ -9,6 +9,7 @@ import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/site_unload_engine.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// The page as an activation sees it, recording what it tells the user.
@@ -81,7 +82,10 @@ final class FakeResidency implements ResidencyHost {
   List<WebViewModel> get models => sites.models;
 
   @override
-  RuntimeVars<WebViewModel> get vars => sites.objectVars;
+  RuntimeVars<SiteId> get vars => sites.vars;
+
+  @override
+  WebViewModel siteOf(SiteId id) => sites.siteOf(id);
 
   @override
   Isolation get isolation => sites.isolation;

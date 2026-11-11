@@ -13,6 +13,7 @@ import 'package:webspace/services/nav_capture.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
 
 import 'helpers/fake_nav_capture.dart';
@@ -78,19 +79,38 @@ class _ContainerPage implements ResidencyHost {
   ActivationMarker<WebViewModel>? activating;
   var version = 0;
   @override
-  late final vars = RuntimeVars(
-    loaded: Shared.ofSet(loadedSet, variable: ModelVar.loaded),
-    current: Shared(ModelVar.current, read: () => shown, write: (to) => shown = to),
+  late final vars = RuntimeVars<SiteId>(
+    loaded: Shared(
+      ModelVar.loaded,
+      read: () => {for (final m in loadedSet) m.siteId},
+      write: (to) => loadedSet
+        ..clear()
+        ..addAll([for (final id in to) siteOf(id)]),
+    ),
+    current: Shared(
+      ModelVar.current,
+      read: () => shown?.siteId,
+      write: (to) => shown = to == null ? null : siteOf(to),
+    ),
     version: Shared(ModelVar.version, read: () => version, write: (to) => version = to),
     marker: Shared(
       ModelVar.marker,
-      read: () => activating,
-      write: (to) => activating = to,
+      read: () => switch (activating) {
+        final m? => (target: m.target.siteId, version: m.version),
+        null => null,
+      },
+      write: (to) => activating = switch (to) {
+        final m? => (target: siteOf(m.target), version: m.version),
+        null => null,
+      },
     ),
     nested: Shared(ModelVar.nested, read: () => null, write: (_) {}),
     headless: Shared(ModelVar.headless, read: () => const [], write: (_) {}),
     fore: Shared(ModelVar.fore, read: () => true, write: (_) {}),
   );
+
+  @override
+  WebViewModel siteOf(SiteId id) => models.firstWhere((m) => m.siteId == id);
 
   /// The rows of [loaded], for assertions.
   Set<int> get loadedIndices => {for (final m in loadedSet) models.indexOf(m)};
@@ -156,12 +176,12 @@ void main() {
       page.loadedSet
         ..clear()
         ..addAll([accounts, other]);
-      expect(SiteUnloadEngine.conflictsOf(page, site: mail), [accounts]);
-      expect(SiteUnloadEngine.conflictsOf(page, site: other), isEmpty);
+      expect(SiteUnloadEngine.conflictsOf(page, site: mail.siteId), [accounts.siteId]);
+      expect(SiteUnloadEngine.conflictsOf(page, site: other.siteId), isEmpty);
       page.loadedSet.add(mail);
       expect(
-        SiteUnloadEngine.conflictsOf(page, site: mail),
-        [accounts],
+        SiteUnloadEngine.conflictsOf(page, site: mail.siteId),
+        [accounts.siteId],
         reason: 'never the site itself',
       );
     });
@@ -174,16 +194,16 @@ void main() {
         incognito: true,
       );
       final page = _ContainerPage([mail, accounts, secret]);
-      expect(SiteUnloadEngine.conflictsOf(page, site: mail), isEmpty);
+      expect(SiteUnloadEngine.conflictsOf(page, site: mail.siteId), isEmpty);
       page.isolation = SharedJar(
         CookieIsolationEngine(
           cookieManager: MockCookieManager(),
           storage: MockCookieSecureStorage(),
         ),
       );
-      expect(SiteUnloadEngine.conflictsOf(page, site: mail), [accounts],
+      expect(SiteUnloadEngine.conflictsOf(page, site: mail.siteId), [accounts.siteId],
           reason: 'the incognito site keeps nothing in the jar');
-      expect(SiteUnloadEngine.conflictsOf(page, site: secret), isEmpty);
+      expect(SiteUnloadEngine.conflictsOf(page, site: secret.siteId), isEmpty);
     });
 
     test('prints as the model\'s definition', () {
