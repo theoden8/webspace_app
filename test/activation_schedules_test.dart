@@ -1437,6 +1437,31 @@ void main() {
     });
   }
 
+  // A wake's headless check on a site an import carries again: the check
+  // holds the departed object while the list holds its replacement under
+  // the same id, and the runtime's id view reads that id once (CONT-012).
+  for (final cookies in ['shared jar', 'containers']) {
+    _scheduleTest('a wake checks a site an import carries again, $cookies: '
+        'the id view reads it once (CONT-012)', body: () async {
+      for (final script in const [
+        <SiteAction>[Wake(), ImportBackup()],
+        <SiteAction>[ImportBackup(), Wake()],
+      ]) {
+        await _expectEvery(
+          world: () => ActivationWorld(
+            cookies == 'containers' ? _mixedContainers : _mixed,
+            joins: true,
+            imports: true,
+            wakes: true,
+          ),
+          setup: const [Background()],
+          script: script,
+          preemptions: _preemptions,
+        );
+      }
+    });
+  }
+
   group('import regressions', () {
     for (final MapEntry(key: name, value: (:setup, :script))
         in _importRegressions.entries) {

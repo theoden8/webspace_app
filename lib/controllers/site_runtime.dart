@@ -65,8 +65,11 @@ class SiteRuntime {
   );
 
   /// The same variables as the model knows them, by id (CONT-012): read off
-  /// [objectVars] on every access, so the two cannot disagree. A write keeps
-  /// the site it already holds under an id and otherwise names a listed one.
+  /// [objectVars] on every access, so the two cannot disagree. Object to id
+  /// is total but not one to one: after an import a departed site and its
+  /// replacement share an id, and a read gives that id once, as the model
+  /// has it. A write keeps the object a variable already holds under an id,
+  /// the one whose webview it is, and otherwise names the listed site.
   late final RuntimeVars<SiteId> vars = RuntimeVars(
     loaded: Shared(
       ModelVar.loaded,
