@@ -111,12 +111,12 @@ abstract final class ActivationTable {
   /// screen and the marker of the activation in flight.
   static final _version = Mutable<int, ActivationFlow>.over(
     ModelVar.version,
-    of: (w) => w.reach.sites.vars.version,
+    of: (w) => w.reach.sites.objectVars.version,
   );
   static final _marker =
       Mutable<({WebViewModel target, int version})?, ActivationFlow>.over(
         ModelVar.marker,
-        of: (w) => w.reach.sites.vars.marker,
+        of: (w) => w.reach.sites.objectVars.marker,
       );
 
   static final _markerVersion = _marker.value.part('v', get: (m) => m?.version);
@@ -294,11 +294,11 @@ abstract final class ActivationTable {
   ) => _conflicts(s).isEmpty;
   static final _loaded = Mutable<Iterable<WebViewModel>, ActivationFlow>.over(
     ModelVar.loaded,
-    of: (w) => w.reach.sites.vars.loaded,
+    of: (w) => w.reach.sites.objectVars.loaded,
   );
   static final _current = Mutable<WebViewModel?, ActivationFlow>.over(
     ModelVar.current,
-    of: (w) => w.reach.sites.vars.current,
+    of: (w) => w.reach.sites.objectVars.current,
   );
   static final _noSite = Expr.constant<WebViewModel?, ActivationFlow>(
     null,
@@ -384,7 +384,7 @@ abstract final class ActivationTable {
   /// The site whose nested screen is up (`nested`), 0 for none.
   static final _nested = Mutable<WebViewModel?, ActivationFlow>.over(
     ModelVar.nested,
-    of: (w) => w.reach.sites.vars.nested,
+    of: (w) => w.reach.sites.objectVars.nested,
   );
   static final _nestedUp = Act.of([_nested.becomes(_site.value)]);
   static final _nestedDown = Act.of([_nested.becomes(_noSite)]);

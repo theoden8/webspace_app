@@ -79,7 +79,7 @@ abstract final class TabTable {
 
   static final _nestedVar = Var<WebViewModel?, TabFlow>(
     ModelVar.nested,
-    read: (w) => w._c._sites.vars.nested.value,
+    read: (w) => w._c._sites.objectVars.nested.value,
   );
   static final _noSite = Expr.constant<WebViewModel?, TabFlow>(null, tla: '0');
 
@@ -102,7 +102,7 @@ abstract final class TabTable {
   static final _reopened = reopens.call([_site.value]);
   static final _loaded = Mutable<Iterable<WebViewModel>, TabFlow>.over(
     ModelVar.loaded,
-    of: (w) => w._c._sites.vars.loaded,
+    of: (w) => w._c._sites.objectVars.loaded,
   );
   static final _active = TabVars.active<TabFlow>();
   static final _tier = tierOf<TabFlow>();

@@ -142,15 +142,15 @@ final _eachDeletable = Pick<WebViewModel, DeleteFlow>(
 
 final _deleteLoaded = Mutable<Iterable<WebViewModel>, DeleteFlow>.over(
   ModelVar.loaded,
-  of: (w) => w._sites.vars.loaded,
+  of: (w) => w._sites.objectVars.loaded,
 );
 final _deleteCurrent = Mutable<WebViewModel?, DeleteFlow>.over(
   ModelVar.current,
-  of: (w) => w._sites.vars.current,
+  of: (w) => w._sites.objectVars.current,
 );
 final _deleteVersion = Mutable<int, DeleteFlow>.over(
   ModelVar.version,
-  of: (w) => w._sites.vars.version,
+  of: (w) => w._sites.objectVars.version,
 );
 final _deleteGone = Mutable<Iterable<WebViewModel>, DeleteFlow>.remote(
   ModelVar.gone,

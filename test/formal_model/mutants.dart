@@ -608,7 +608,7 @@ Tables mutated(Mutant m) => switch (m) {
         final marker =
             Mutable<({WebViewModel target, int version})?, ActivationFlow>.over(
               ModelVar.marker,
-              of: (w) => w.reach.sites.vars.marker,
+              of: (w) => w.reach.sites.objectVars.marker,
             );
         final byTarget = Act.of([
           marker.becomes(

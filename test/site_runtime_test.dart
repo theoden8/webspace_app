@@ -11,6 +11,8 @@ import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/archive_storage.dart';
 import 'package:webspace/services/process_route.dart';
 import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/services/model_names.dart';
+import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/step_table.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -54,7 +56,59 @@ SiteRuntime _runtime(
 
 List<String> _loadedIds(SiteRuntime r) => [for (final m in r.loaded) m.siteId];
 
+/// The id view written as a table writes it: through a [Mutable] over it.
+void _writeIds(
+  SiteRuntime r, {
+  required Shared<Iterable<SiteId>> Function(RuntimeVars<SiteId> v) cell,
+  required ModelVar variable,
+  required List<SiteId> to,
+}) => Mutable<Iterable<SiteId>, SiteRuntime>.over(
+  variable,
+  of: (w) => cell(w.vars),
+).becomes(Expr.constant<List<SiteId>, SiteRuntime>(to)).stage(StepContext(r))();
+
 void main() {
+  group('the runtime by id (CONT-012)', () {
+    test('reads its variables as the ids of the sites it holds', () {
+      final r = _runtime(
+        [_site(SiteId('a')), _site(SiteId('b'))],
+        loaded: ['a', 'b'],
+        shown: SiteId('b'),
+      );
+      expect(r.vars.loaded.value, [SiteId('a'), SiteId('b')]);
+      expect(r.vars.current.value, SiteId('b'));
+      expect(r.vars.marker.value, isNull);
+      expect(r.vars.version.value, r.objectVars.version.value);
+    });
+
+    test('a write keeps the site it holds under an id, else names the listed '
+        'one', () {
+      final r = _runtime(
+        [_site(SiteId('a')), _site(SiteId('b'))],
+        loaded: ['a'],
+      );
+      final held = r.loaded.single;
+      _writeIds(r,
+          cell: (v) => v.loaded,
+          variable: ModelVar.loaded,
+          to: [SiteId('a'), SiteId('b')]);
+      expect(r.loaded.first, same(held),
+          reason: 'an id the runtime holds keeps its object');
+      expect(r.loaded.last, same(r.byId(SiteId('b'))));
+    });
+
+    test('a write naming no listed site fails at the write', () {
+      final r = _runtime([_site(SiteId('a'))]);
+      expect(
+        () => _writeIds(r,
+            cell: (v) => v.loaded,
+            variable: ModelVar.loaded,
+            to: [SiteId('gone')]),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+  });
+
   group('SiteRuntime.apply keeps the loaded and shown sites', () {
     test('a removal names its site by id, whatever object carries the id '
         '(CONT-012)', () {
