@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:collection/collection.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1129,6 +1131,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     _checkTabBound();
     _checkTold();
     _checkOneRoute();
+    _checkIdView();
   }
 
   /// Whether [step] is the first mark of [flow], a flow a step's spawn
@@ -2058,6 +2061,27 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       if (m.tabBinding.built case final t? when t != m.activeTabId) {
         _violations.add("${m.siteId}'s webview is built for tab $t while "
             'its active tab is ${m.activeTabId} (TAB-003)');
+      }
+    }
+  }
+
+  /// CONT-012: the runtime's id view reads, after every step, the ids of
+  /// what its object view holds, also while an import's replacement and the
+  /// departed site it replaced share an id.
+  void _checkIdView() {
+    final ids = sites.vars;
+    final objects = sites.objectVars;
+    final checks = {
+      'loaded': (ids.loaded.value.toList(), [for (final m in objects.loaded.value) m.siteId]),
+      'current': ([?ids.current.value], [?objects.current.value?.siteId]),
+      'marker': ([?ids.marker.value?.target], [?objects.marker.value?.target.siteId]),
+      'nested': ([?ids.nested.value], [?objects.nested.value?.siteId]),
+      'headless': (ids.headless.value.toList(), [for (final m in objects.headless.value) m.siteId]),
+    };
+    for (final MapEntry(key: name, value: (byId, byObject)) in checks.entries) {
+      if (!const ListEquality<SiteId>().equals(byId, byObject)) {
+        _violations.add('the id view reads $name as $byId where the runtime '
+            'holds $byObject (CONT-012)');
       }
     }
   }
