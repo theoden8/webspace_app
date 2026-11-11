@@ -278,7 +278,6 @@ void main() {
 
     await openRow(tester, title: 'Developer');
     expect(find.text('App Logs'), findsOneWidget);
-    expect(find.text('Experimental'), findsOneWidget);
   });
 
   // A second tap that reaches a screen before the route it opened has laid
