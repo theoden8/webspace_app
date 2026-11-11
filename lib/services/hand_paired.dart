@@ -114,7 +114,8 @@ enum HandPaired implements Pairing {
   duplicateSourceStays,
 
   /// The notification sites a wake checks headless
-  /// (`IF Containers THEN Notified \ loaded ELSE {}`).
+  /// (`IF Containers THEN (Notified \cap Listed) \ loaded ELSE {}`): a site
+  /// off the list has no candidate to check.
   offlineNotified,
 
   /// A headless check the platform refuses to open, which the model never

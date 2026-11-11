@@ -730,7 +730,7 @@ final class _WakeTable<S extends Object> {
   );
 
   /// The notification sites the wake checks headless: under containers,
-  /// every one with no webview and nothing that keeps it out (the pages
+  /// every listed one with no webview and nothing that keeps it out (the pages
   /// have no such reason); under the shared jar, none (legacyIsolation).
   late final _offlineSites = Port<List<S>, WakeFlow<S>>(
     'offline',
@@ -740,9 +740,9 @@ final class _WakeTable<S extends Object> {
   );
   late final _offline = Expr.op<List<S>, WakeFlow<S>>(
     HandPaired.offlineNotified,
-    tla: 'IF Containers THEN Notified \\ loaded ELSE {}',
+    tla: 'IF Containers THEN (Notified \\cap Listed) \\ loaded ELSE {}',
     run: _offlineSites.from,
-    reads: const Reads(vars: {ModelVar.loaded}),
+    reads: const Reads(vars: {ModelVar.loaded}, base: {BaseOp.listed}),
     needs: const {
       (of: ModelConst.containers, set: true),
       (of: ModelConst.notified, set: true),
