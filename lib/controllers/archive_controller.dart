@@ -677,9 +677,9 @@ final class CloseFlow {
 final _closeKind = Field<FlowKind, CloseFlow>(FlowField.kind);
 
 /// The archive's sites on the page, the model's `Archive`.
-final _archiveSites = Constant<Iterable<WebViewModel>, CloseFlow>(
+final _archiveSites = Constant<Iterable<SiteId>, CloseFlow>(
   ModelConst.archive,
-  read: (w) => w.owned,
+  read: (w) => [for (final m in w.owned) m.siteId],
 ).value;
 
 /// What the close asks of its archive before it starts: whether it is
@@ -756,28 +756,28 @@ final _closeTooBig = Expr.op<bool, CloseFlow>(
   reads: Reads.none,
 );
 
-final _closeLoaded = Mutable<Iterable<WebViewModel>, CloseFlow>.over(
+final _closeLoaded = Mutable<Iterable<SiteId>, CloseFlow>.over(
   ModelVar.loaded,
-  of: (w) => w._sites.objectVars.loaded,
+  of: (w) => w._sites.vars.loaded,
 );
-final _closeCurrent = Mutable<WebViewModel?, CloseFlow>.over(
+final _closeCurrent = Mutable<SiteId?, CloseFlow>.over(
   ModelVar.current,
-  of: (w) => w._sites.objectVars.current,
+  of: (w) => w._sites.vars.current,
 );
 final _closeVersion = Mutable<int, CloseFlow>.over(
   ModelVar.version,
-  of: (w) => w._sites.objectVars.version,
+  of: (w) => w._sites.vars.version,
 );
-final _closeGone = Mutable<Iterable<WebViewModel>, CloseFlow>.remote(
+final _closeGone = Mutable<Iterable<SiteId>, CloseFlow>.remote(
   ModelVar.gone,
 );
-final _closeViews = Mutable<Iterable<WebViewModel>, CloseFlow>.remote(
+final _closeViews = Mutable<Iterable<SiteId>, CloseFlow>.remote(
   ModelVar.views,
 );
-final _closeBoxes = Mutable<Iterable<WebViewModel>, CloseFlow>.remote(
+final _closeBoxes = Mutable<Iterable<SiteId>, CloseFlow>.remote(
   ModelVar.boxes,
 );
-final _closeNoSite = Expr.constant<WebViewModel?, CloseFlow>(null, tla: '0');
+final _closeNoSite = Expr.constant<SiteId?, CloseFlow>(null, tla: '0');
 
 final _closeDone = GoTo<CloseFlow, ClosePlace>(to(ClosePlace.done));
 
@@ -795,7 +795,7 @@ final _closeErase = Await<CloseFlow, ClosePlace>(
 );
 
 /// The containers no mounted webview binds are deleted.
-final _closeDelete = retireContainers<WebViewModel, CloseFlow, ClosePlace>(
+final _closeDelete = retireContainers<SiteId, CloseFlow, ClosePlace>(
   ActivationStep.closeDeleteReply,
   at: ClosePlace.cDelete,
   port: _closeDeletePort,
