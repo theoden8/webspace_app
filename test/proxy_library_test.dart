@@ -6,6 +6,7 @@ import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/settings/proxy_ids.dart';
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/outbound_http_io.dart' show DefaultOutboundHttpFactory;
 import 'package:webspace/services/proxy_form_engine.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/settings_backup.dart';

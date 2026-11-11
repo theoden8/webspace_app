@@ -150,6 +150,48 @@ void main() {
     });
   });
 
+  group('the follower runs the whitelist/resolve check once (review M3)', () {
+    test('an off-whitelist URL is confirmed once, not twice', () async {
+      // The script bridge used to run the whitelist confirm in a pre-check and
+      // again as the follower's first-hop permit, asking the user twice.
+      var confirms = 0;
+      outboundHttp = FakeOutbound(responder: (_) => http.Response('CODE();', 200));
+      final ctrl = FakeUserScriptController();
+      serviceWith(oneScript, confirm: (_) async {
+        confirms++;
+        return true;
+      }).registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
+
+      final ok = await ctrl.handler(scriptPrefix)(['https://ok.example/x.js']);
+      expect(ok, isTrue);
+      expect(confirms, 1,
+          reason: 'the off-whitelist confirm runs once (the follower judges the '
+              'first hop), not again in a pre-check');
+    });
+
+    test('__wsFetch resolves the destination once, not twice', () async {
+      // The resource bridge used to resolve the host in a pre-check and again as
+      // the follower's first-hop permit, a double DNS lookup.
+      var lookups = 0;
+      hostLookup = (host) async {
+        lookups++;
+        return const ['93.184.216.34'];
+      };
+      outboundHttp = FakeOutbound(
+          responder: (_) => http.Response('BODY', 200,
+              headers: {'content-type': 'text/css'}));
+      final ctrl = FakeUserScriptController();
+      serviceWith(oneScript)
+          .registerHandlers(ctrl.addJavaScriptHandler, page: ctrl.page);
+
+      final res = await ctrl.handler(fetchPrefix)(['https://example.com/x.css']);
+      expect((res as Map)['status'], 200);
+      expect(lookups, 1,
+          reason: 'the resolving range check runs once (the follower judges the '
+              'first hop), not again in a pre-check');
+    });
+  });
+
   group('inline script handler', () {
     test('evaluates the bridged inline source', () async {
       final ctrl = FakeUserScriptController();

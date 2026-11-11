@@ -3,6 +3,7 @@
 
 import 'dart:io';
 
+import 'package:meta/meta.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:webspace/services/host_resolution.dart';
@@ -35,8 +36,7 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
   }) =>
       _clientFor(route, encoding: encoding);
 
-  @override
-  OutboundClient pageSteeredClientFor(ProxyRoute route,
+  OutboundClient _pageSteeredBuild(ProxyRoute route,
       {String? allowPrivateHost}) {
     // Under a proxy the destination name is resolved at the far end, so the
     // proxied client applies and the local resolve-and-pin would describe a
@@ -52,7 +52,8 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
             _pageSteeredDirectClient(allowPrivateHost: allowPrivateHost)));
     if (base is OutboundClientReady) {
       return OutboundClientReady(_PageSteeredLiteralGuard(base.client,
-          allowPrivateHost: allowPrivateHost?.toLowerCase()));
+          allowPrivateHost: allowPrivateHost?.toLowerCase(),
+          resolvesLocally: route.type == ProxyType.DEFAULT));
     }
     return base;
   }
@@ -204,9 +205,17 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
   /// so a LAN site still serves its own icon).
   static HttpClient _pageSteeredDirectClient({String? allowPrivateHost}) {
     final client = _newHttpClient(encoding: BodyEncoding.decoded);
+    // Route by the same env-proxy source the per-request guard reads, so the two
+    // agree on whether a proxy carries the request (M1). In production this is
+    // dart:io's own findProxyFromEnvironment, i.e. the default; a test swaps it.
+    client.findProxy = _pageSteeredFindProxy;
     final allow = allowPrivateHost?.toLowerCase();
     client.connectionFactory = (uri, proxyHost, proxyPort) async {
       final host = Host(uri.host);
+      // Defense in depth. The primary onion refusal is _PageSteeredLiteralGuard
+      // .send, which runs before this client is reached, so a page-steered onion
+      // is already refused there (LEAK-016); this backstop covers any later
+      // caller of this client that does not front it with the guard.
       if (host.isOnion) throw OnionNeedsProxyFailure(host);
       final allowed = allow != null && uri.host.toLowerCase() == allow;
       // Judge the destination's local resolution before connecting, whichever
@@ -374,6 +383,30 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
   }
 }
 
+/// Build the page-steered client for [route] on [factory] — the sole producer
+/// of a page-steered client, hidden from `outbound_http.dart`'s public
+/// re-export so no caller outside the seam can name it (SEC-049). The real
+/// connection pin and literal guard live on [DefaultOutboundHttpFactory]; any
+/// other factory (a test fake) has no socket of its own, so its page-steered
+/// client is its [OutboundHttpFactory.clientFor] — the connection-layer test
+/// exercises the real pin, the fakes capture the fetch.
+OutboundClient buildPageSteeredClient(
+  OutboundHttpFactory factory, {
+  required ProxyRoute route,
+  String? allowPrivateHost,
+}) {
+  if (factory is DefaultOutboundHttpFactory) {
+    return factory._pageSteeredBuild(route, allowPrivateHost: allowPrivateHost);
+  }
+  // A non-default factory has no pin of its own, so it fails closed unless it
+  // opts in (a test fake that captures the fetch); production never reaches
+  // here, since the only non-default factory is one a test installs.
+  return factory is PageSteeredCapturingFactory
+      ? factory.clientFor(route)
+      : const OutboundClientBlocked(
+          'a page-steered client needs the default outbound factory');
+}
+
 /// A direct client was asked to connect to an onion service: nothing was
 /// sent, and the name never reached the device's resolver (LEAK-016). A
 /// [SocketException], so every caller reads it as the failed connection it
@@ -408,19 +441,43 @@ final class PageSteeredPrivateTarget extends SocketException {
 /// on every route, and the only range check the proxied fetchers without one of
 /// their own (favicons, page icon bytes) get under a proxy.
 class _PageSteeredLiteralGuard extends http.BaseClient {
-  _PageSteeredLiteralGuard(this._inner, {this.allowPrivateHost});
+  _PageSteeredLiteralGuard(this._inner,
+      {this.allowPrivateHost, this.resolvesLocally = false});
 
   final http.Client _inner;
   final String? allowPrivateHost;
 
+  /// Whether this wraps the DEFAULT direct client, where the destination is
+  /// resolved on the device (so a per-request local check is meaningful), rather
+  /// than a proxied client that resolves at the far end.
+  final bool resolvesLocally;
+
   @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) {
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final host = request.url.host;
     final allowed =
         allowPrivateHost != null && host.toLowerCase() == allowPrivateHost;
     if (!allowed && isPrivateOrLoopbackHost(host)) {
-      return Future.error(
-          PageSteeredPrivateTarget(Host(host), resolvedAddress: host));
+      throw PageSteeredPrivateTarget(Host(host), resolvedAddress: host);
+    }
+    // An onion host must never reach the device's resolver (LEAK-016): refuse it
+    // before the per-request resolve below could look it up. On a DEFAULT route
+    // the destination is resolved on the device, so this is where the leak would
+    // be; a proxied route resolves at the far end and never calls this.
+    if (resolvesLocally && Host(host).isOnion) {
+      throw OnionNeedsProxyFailure(Host(host));
+    }
+    // A DEFAULT page-steered request carried by an OS env proxy: dart:io pools
+    // plain-http connections by the proxy's host:port, so a second destination
+    // reuses the first's connection and the per-connection connectionFactory
+    // judge never runs for it (likewise a redirect hop over a kept-alive proxied
+    // connection). Resolve and judge the destination here, per request, so a
+    // pooled or reused connection cannot carry an unjudged private target (M1,
+    // BUG-012). A non-DEFAULT route resolves at the far end; a DIRECT env (no
+    // proxy) opens a judged connection per new host, so neither needs this.
+    if (resolvesLocally && _pageSteeredFindProxy(request.url) != 'DIRECT') {
+      await DefaultOutboundHttpFactory._judgedAddress(host,
+          allowPrivate: allowed);
     }
     return _inner.send(request);
   }
@@ -428,6 +485,22 @@ class _PageSteeredLiteralGuard extends http.BaseClient {
   @override
   void close() => _inner.close();
 }
+
+/// How a page-steered DEFAULT request discovers an OS env proxy. The direct
+/// client routes by it and the per-request guard reads it, so the two agree on
+/// whether a proxy carries the request. Defaults to the process environment; a
+/// test overrides it to simulate `http_proxy` without mutating the real
+/// environment (M1, BUG-012).
+String Function(Uri url) _pageSteeredFindProxy =
+    HttpClient.findProxyFromEnvironment;
+
+@visibleForTesting
+set pageSteeredFindProxy(String Function(Uri url) f) =>
+    _pageSteeredFindProxy = f;
+
+@visibleForTesting
+void resetPageSteeredFindProxy() =>
+    _pageSteeredFindProxy = HttpClient.findProxyFromEnvironment;
 
 /// A SOCKS5 connect cannot be aborted mid-handshake, so cancelling it only
 /// marks it, and a socket that arrives after the cancel is destroyed on

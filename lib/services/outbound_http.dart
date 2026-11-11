@@ -15,8 +15,19 @@ import 'package:webspace/services/outbound_http_web.dart'
     if (dart.library.io) 'package:webspace/services/outbound_http_io.dart';
 
 export 'package:webspace/services/outbound_http_types.dart';
+// Two names are hidden from the re-export (SEC-049):
+//   - buildPageSteeredClient, the sole producer of a page-steered client: only
+//     this library (via pageSteeredClient) may name it, so no caller reached
+//     through the re-export can build one.
+//   - DefaultOutboundHttpFactory, the pinning factory: hiding it stops
+//     `const DefaultOutboundHttpFactory().clientFor(...)` compiling outside the
+//     seam, so a page-chosen URL cannot reach an unguarded client by building
+//     the factory by hand. This library still imports the platform half above,
+//     so its own `_factory` default keeps working; a test that needs the real
+//     factory imports outbound_http_io.dart directly.
 export 'package:webspace/services/outbound_http_web.dart'
-    if (dart.library.io) 'package:webspace/services/outbound_http_io.dart';
+    if (dart.library.io) 'package:webspace/services/outbound_http_io.dart'
+    hide buildPageSteeredClient, DefaultOutboundHttpFactory;
 
 OutboundHttpFactory _factory = const DefaultOutboundHttpFactory();
 
@@ -40,45 +51,339 @@ class _DoNotTrackOutboundHttpFactory implements OutboundHttpFactory {
     }
     return result;
   }
+}
 
-  @override
-  OutboundClient pageSteeredClientFor(ProxyRoute route,
-      {String? allowPrivateHost}) {
-    final result =
-        inner.pageSteeredClientFor(route, allowPrivateHost: allowPrivateHost);
-    if (result is OutboundClientReady) {
-      return OutboundClientReady(DoNotTrackClient(result.client));
-    }
-    return result;
+/// Drape the always-on DNT/Sec-GPC headers over a built client, as the
+/// [_DoNotTrackOutboundHttpFactory] does for [clientFor]. The page-steered build
+/// does not go through that wrapper (it is not a factory method), so
+/// [pageSteeredClient] drapes it here.
+OutboundClient _withDoNotTrack(OutboundClient built) =>
+    built is OutboundClientReady
+        ? OutboundClientReady(DoNotTrackClient(built.client))
+        : built;
+
+/// A client for an outbound call a loaded page can steer, which judges the
+/// destination address as it connects (SEC-049). It is built only by
+/// `buildPageSteeredClient`, which the public re-export hides, and wrapped only
+/// by [pageSteeredClient] (the `._` constructor is private to this library), so
+/// no caller outside the seam can make or name a page-steered client. Its client
+/// is read only by [followPageSteered], the one function this library lets touch
+/// [_result]. The two together are a type: a page-steered client cannot be built
+/// outside the seam and cannot be driven except through the follower, which
+/// follows redirects per hop so a rebinding or redirecting private target is
+/// judged on every route, not just the first hop and not only under DEFAULT. That
+/// the fetchers route page-chosen URLs through the follower rather than the
+/// general [OutboundHttpFactory.clientFor] is the remaining
+/// `page_steered_outbound_reach` gate.
+class PageSteeredHttp {
+  const PageSteeredHttp._(this._result);
+
+  /// The sealed build result: [OutboundClientReady] carries the guarded client,
+  /// [OutboundClientBlocked] says why none could be made, exactly as
+  /// [OutboundHttpFactory.clientFor]'s result. Library-private: [followPageSteered]
+  /// is the only reader, so no caller holds the client to send through it.
+  final OutboundClient _result;
+
+  /// Close the guarded client if one was built, cutting any socket it holds.
+  /// The only thing a holder of a [PageSteeredHttp] may do besides hand it to
+  /// [followPageSteered]: so a caller that reuses one client across several
+  /// fetches (the favicon discovery) can release it when done, yet still cannot
+  /// reach the client to send through it.
+  void close() {
+    if (_result case OutboundClientReady(:final client)) client.close();
   }
 }
 
-/// A client for an outbound call a loaded page can steer, which judges the
-/// destination address as it connects (SEC-049). Only [pageSteeredClient]
-/// constructs one — the `._` constructor is private to this library — so a
-/// [PageSteeredHttp] in hand provably came from the guarded path. Which fetchers
-/// route through it, rather than the raw [OutboundHttpFactory.clientFor], is held
-/// by the `page_steered_outbound_reach` structural gate, not the compiler: a
-/// fetcher that reverted to `clientFor` would still compile, and the gate is what
-/// catches it. Lifting that to a type the four page-steerable fetchers (user
-/// scripts, media-session artwork, page-linked icons, favicons) take in their
-/// signatures is the LEAK-002 type-debt (`docs/security/policy_debt.tsv`).
-class PageSteeredHttp {
-  const PageSteeredHttp._(this.result);
+/// Build the [PageSteeredHttp] client for [route], the one producer of the type.
+/// [allowPrivateHost] is the single host whose own private address the guard
+/// permits (a page-linked resource's document host). Builds through the hidden
+/// `buildPageSteeredClient` and drapes the always-on DNT/Sec-GPC headers like
+/// every other outbound seam.
+PageSteeredHttp pageSteeredClient(ProxyRoute route, {String? allowPrivateHost}) =>
+    PageSteeredHttp._(_withDoNotTrack(buildPageSteeredClient(_factory,
+        route: route, allowPrivateHost: allowPrivateHost)));
 
-  /// The sealed build result: [OutboundClientReady] carries the guarded client
-  /// (the caller MUST close it), [OutboundClientBlocked] says why none could be
-  /// made, exactly as [OutboundHttpFactory.clientFor]'s result.
-  final OutboundClient result;
+/// What [followPageSteered] produced: the value its [PageSteeredFollow.read] made
+/// from the final response, or a refusal carrying [PageSteeredRefused.reason]
+/// (the client could not be built, a hop failed [PageSteeredFollow.permit], or
+/// the chain outran [PageSteeredFollow.maxRedirects]).
+sealed class PageSteeredOutcome<T> {
+  const PageSteeredOutcome();
 }
 
-/// Build the [PageSteeredHttp] client for [route], the one producer of the
-/// type. [allowPrivateHost] is the single host whose own private address the
-/// guard permits (a page-linked resource's document host). Drapes the always-on
-/// DNT/Sec-GPC headers like every other outbound seam.
-PageSteeredHttp pageSteeredClient(ProxyRoute route, {String? allowPrivateHost}) =>
-    PageSteeredHttp._(
-        outboundHttp.pageSteeredClientFor(route, allowPrivateHost: allowPrivateHost));
+/// The fetch reached a final response and [PageSteeredFollow.read] read it.
+final class PageSteeredValue<T> extends PageSteeredOutcome<T> {
+  const PageSteeredValue(this.value);
+  final T value;
+}
+
+/// Why a [PageSteeredRefused] carries no value, so a caller can tell a proxy it
+/// could not honour (worth a warning) from a page simply naming a target the
+/// guard declines (expected, usually silent).
+enum PageSteeredRefusal {
+  /// The guarded client could not be built: the proxy could not be honoured, so
+  /// no request was made (fail-closed).
+  clientUnavailable,
+
+  /// The initial URL failed [PageSteeredFollow.permit].
+  url,
+
+  /// A redirect target failed permit, stepped https down to http, or the chain
+  /// outran [PageSteeredFollow.maxRedirects].
+  redirect,
+}
+
+/// No value: the guarded client could not be built, a hop was refused, or the
+/// redirect chain was too long ([kind] says which). [reason] is a short
+/// technical detail a caller may log or localize; it is never a response body.
+final class PageSteeredRefused<T> extends PageSteeredOutcome<T> {
+  const PageSteeredRefused(this.reason, {required this.kind});
+  final PageSteeredRefusal kind;
+  final String reason;
+}
+
+/// The HTTP method [followPageSteered] issues each hop.
+enum PageSteeredMethod {
+  get,
+  head;
+
+  String get token => switch (this) {
+        PageSteeredMethod.get => 'GET',
+        PageSteeredMethod.head => 'HEAD',
+      };
+}
+
+/// Everything [followPageSteered] needs beyond the guarded client and the URL:
+/// how to judge each hop, how to read the final response, and the caps. Bundled
+/// so the follower takes the client, the URL and this, not a parameter list.
+class PageSteeredFollow<T> {
+  const PageSteeredFollow({
+    required this.permit,
+    required this.read,
+    this.method = PageSteeredMethod.get,
+    this.maxRedirects = 5,
+    this.forbidHttpsDowngrade = false,
+    this.timeout,
+    this.onRedirect,
+    this.userAgent,
+  });
+
+  /// Whether the fetch may reach [target] ([target] is the initial URL, then
+  /// each redirect destination). The guarded connect already judges every hop's
+  /// resolved address; this is the caller's own policy on top (scheme, site
+  /// blockers, the resolving range check) — defense in depth, run for the first
+  /// URL and again before each redirect is taken.
+  final Future<bool> Function(Uri target) permit;
+
+  /// Reads the final (non-redirect) response into the caller's value. The
+  /// follower has already judged and connected every hop; this only consumes the
+  /// body (as a string, capped bytes, or a status probe). The response's
+  /// `request.url` is the final hop's URL.
+  final Future<T> Function(http.StreamedResponse response) read;
+
+  final PageSteeredMethod method;
+
+  final int maxRedirects;
+
+  /// Refuse a redirect that steps an https hop down to http, so a page cannot
+  /// use a redirect to drop the fetch off TLS (artwork, page-linked icons).
+  final bool forbidHttpsDowngrade;
+
+  /// A deadline for the whole exchange, every hop and the body read, for a
+  /// [followPageSteered] call (which owns its client): when it fires the client
+  /// is closed, so the socket is cut rather than left draining in the background,
+  /// and a caller passes it here rather than wrapping the call in `.timeout`.
+  /// [followPageSteeredReusing] does NOT own its client, so it cannot close it:
+  /// a reusing caller bounds and cuts its fetches with [withPageSteeredClient]'s
+  /// own deadline instead, which closes the shared client.
+  final Duration? timeout;
+
+  /// Called for each accepted redirect with its destination, for a caller that
+  /// tracks the chain (the favicon finder's `/favicon.ico` origins).
+  final void Function(Uri to)? onRedirect;
+
+  /// The User-Agent each hop sends (the value, not a client wrapper, so caller
+  /// code never touches the guarded client). Resolved per hop and set only when
+  /// the request has no User-Agent of its own, matching [SiteUserAgentClient].
+  final Future<String?> Function()? userAgent;
+}
+
+bool _isPageSteeredRedirect(int status) =>
+    status == 301 ||
+    status == 302 ||
+    status == 303 ||
+    status == 307 ||
+    status == 308;
+
+/// Follow a page-steered fetch's redirects by hand — the ONLY place that does
+/// (SEC-049, BUG-012). Each hop, the initial [url] and every `Location`, is a
+/// fresh request through the guarded connect built from [route] (with the
+/// client's own redirect-following OFF), so under every route (not just DEFAULT,
+/// not just the first hop) each hop's address is judged before a byte is sent.
+/// This is the one consumer of a [PageSteeredHttp]: its client is read nowhere
+/// else (the field is library-private), so once a page-steered client is built
+/// it cannot be driven except through this per-hop judging. The initial [url] is
+/// judged by [PageSteeredFollow.permit] before any client is built, so a page
+/// naming an unreachable target opens no connection. [allowPrivateHost] is the
+/// one host whose own private address is allowed (a page-linked resource's
+/// document host). The client is closed when done — on a normal return, a
+/// refusal, or [PageSteeredFollow.timeout] firing — which cuts any body still
+/// arriving; [PageSteeredFollow.read] has consumed the final body by a normal
+/// return. A caller making several fetches that should share one connection pool
+/// uses [followPageSteeredReusing] instead.
+Future<PageSteeredOutcome<T>> followPageSteered<T>(
+  ProxyRoute route, {
+  required Uri url,
+  required PageSteeredFollow<T> follow,
+  String? allowPrivateHost,
+}) =>
+    _runFollow(() => pageSteeredClient(route, allowPrivateHost: allowPrivateHost),
+        url: url, follow: follow, close: true);
+
+/// Follow a page-steered fetch using [client], a [PageSteeredHttp] the caller
+/// built once (through [pageSteeredClient]) and closes itself, so several
+/// fetches in one operation (the favicon discovery) share a connection pool
+/// rather than paying a fresh handshake — most of the budget under Tor or SOCKS
+/// — per fetch. [client] is used but never closed here; it already carries its
+/// own `allowPrivateHost`. Every hop is judged and pinned exactly as in
+/// [followPageSteered]; this is the only other consumer of a [PageSteeredHttp],
+/// and it still cannot reach the client to send outside the per-hop loop.
+Future<PageSteeredOutcome<T>> followPageSteeredReusing<T>(
+  PageSteeredHttp client, {
+  required Uri url,
+  required PageSteeredFollow<T> follow,
+}) =>
+    _runFollow(() => client, url: url, follow: follow, close: false);
+
+/// Build one guarded client, run [body] with it, then close it however [body]
+/// returns — for a caller that makes several page-steered fetches for one
+/// operation (the favicon discovery: the page, then an icon per declared link)
+/// and wants them to share a connection pool rather than pay a handshake each.
+/// [body] drives the client only through [followPageSteeredReusing]; it cannot
+/// reach the client to send through it (the client field is library-private).
+/// This keeps [pageSteeredClient] internal to this seam, so a reusing fetcher
+/// names this helper, never the build. [timeout] bounds the whole operation:
+/// when it fires the shared client is closed, which cuts any socket still open
+/// (a reused client's fetches have no deadline of their own to do so), and
+/// [body]'s abandoned future absorbs the resulting late error. So a caller sets
+/// the deadline here, not by wrapping this call in `.timeout`, which would leave
+/// the socket draining.
+Future<T> withPageSteeredClient<T>(
+  ProxyRoute route, {
+  String? allowPrivateHost,
+  Duration? timeout,
+  required Future<T> Function(PageSteeredHttp client) body,
+}) async {
+  final client = pageSteeredClient(route, allowPrivateHost: allowPrivateHost);
+  try {
+    final run = body(client);
+    return timeout == null ? await run : await run.timeout(timeout);
+  } finally {
+    client.close();
+  }
+}
+
+/// The shared body of the two entry points: judge [url] FIRST, then take the
+/// client out of [build] (so a refused URL builds no client and opens no
+/// connection — the media/icon "dropped without a fetch" contract), follow every
+/// hop, and close the client when [close] (the building entry owns it; a reused
+/// one does not). [build] is a thunk, not a value, precisely so the build stays
+/// after the permit check rather than running as an eager argument.
+Future<PageSteeredOutcome<T>> _runFollow<T>(
+  PageSteeredHttp Function() build, {
+  required Uri url,
+  required PageSteeredFollow<T> follow,
+  required bool close,
+}) async {
+  if (!await follow.permit(url)) {
+    return const PageSteeredRefused('blocked URL',
+        kind: PageSteeredRefusal.url);
+  }
+  final http.Client client;
+  switch (build()._result) {
+    case OutboundClientBlocked(:final reason):
+      return PageSteeredRefused(reason,
+          kind: PageSteeredRefusal.clientUnavailable);
+    case OutboundClientReady(client: final ready):
+      client = ready;
+  }
+  try {
+    Future<PageSteeredOutcome<T>> run() async {
+      var target = url;
+      for (var hop = 0;; hop++) {
+        final request = http.Request(follow.method.token, target)
+          ..followRedirects = false;
+        final agent = follow.userAgent == null ? null : await follow.userAgent!();
+        if (agent != null) request.headers.putIfAbsent('User-Agent', () => agent);
+        final response = await client.send(request);
+        final location = response.headers['location'];
+        if (_isPageSteeredRedirect(response.statusCode) &&
+            location != null &&
+            location.isNotEmpty) {
+          // Let the forced close cut a 3xx body still arriving; draining it
+          // would surface the close as an uncaught ClientException.
+          unawaited(response.stream.listen(null).cancel());
+          final next = target.resolve(location);
+          final downgrades = follow.forbidHttpsDowngrade &&
+              target.scheme == 'https' &&
+              next.scheme == 'http';
+          if (hop >= follow.maxRedirects ||
+              downgrades ||
+              !await follow.permit(next)) {
+            return const PageSteeredRefused('blocked redirect',
+                kind: PageSteeredRefusal.redirect);
+          }
+          follow.onRedirect?.call(next);
+          target = next;
+          continue;
+        }
+        return PageSteeredValue(await follow.read(_plainStreamed(response)));
+      }
+    }
+
+    final timeout = follow.timeout;
+    return timeout == null ? await run() : await run().timeout(timeout);
+  } finally {
+    if (close) client.close();
+  }
+}
+
+/// Re-wrap [r] as a plain [http.StreamedResponse] before handing it to
+/// [PageSteeredFollow.read], so a read cannot downcast it to the transport's
+/// `IOStreamedResponse` and `detachSocket()` the live connection out from under
+/// the guard. `detachSocket` is not a method on the base type, so the common
+/// call does not compile; the cast-based escape fails at run time instead of
+/// handing back a raw socket (SEC-049). The body stream is the same object, so
+/// the wrap is transparent to every read.
+http.StreamedResponse _plainStreamed(http.StreamedResponse r) =>
+    http.StreamedResponse(
+      r.stream,
+      r.statusCode,
+      contentLength: r.contentLength,
+      request: r.request,
+      headers: r.headers,
+      isRedirect: r.isRedirect,
+      persistentConnection: r.persistentConnection,
+      reasonPhrase: r.reasonPhrase,
+    );
+
+/// A [PageSteeredFollow.read] that streams the body to at most [maxBytes],
+/// returning the bytes, or null when the answer is not a 200 or the body (by its
+/// declared length or as it arrives) is over the cap. Shared by the fetchers
+/// that take a byte budget (media-session artwork, page-linked icons).
+Future<Uint8List?> Function(http.StreamedResponse) pageSteeredCappedBytes(
+        int maxBytes) =>
+    (response) async {
+      if (response.statusCode != 200) return null;
+      final length = response.contentLength;
+      if (length != null && length > maxBytes) return null;
+      final bytes = BytesBuilder(copy: false);
+      await for (final chunk in response.stream) {
+        bytes.add(chunk);
+        if (bytes.length > maxBytes) return null;
+      }
+      return bytes.takeBytes();
+    };
 
 /// Global outbound HTTP factory. Use this from every Dart-side HTTP call
 /// that can carry user-identifying traffic.

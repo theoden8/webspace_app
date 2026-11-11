@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
@@ -133,5 +135,83 @@ void main() {
 
     expect(await FaviconFinder.getAll('https:///page', proxy: OutboundProxy.app), isEmpty);
     expect(site.queries, isEmpty);
+  });
+
+  test('a windows-1251 page still yields its icon (review M3)', () async {
+    // The page is labelled windows-1251 and carries bytes that are invalid
+    // UTF-8. Strict UTF-8 decoding (the regression) threw and lost the icon;
+    // charset-aware decoding falls back to latin1 so the ASCII icon link parses.
+    final bytes = <int>[
+      ...'<html><head><title>'.codeUnits,
+      0xC0, 0xC1, // lone high bytes: valid windows-1251/latin1, invalid UTF-8
+      ...'</title><link rel="icon" href="/icon.png"></head></html>'.codeUnits,
+    ];
+    final site = FakeOutbound(responder: (req) {
+      if (req.url.path == '/' || req.url.path.isEmpty) {
+        return http.Response.bytes(bytes, 200,
+            headers: {'content-type': 'text/html; charset=windows-1251'});
+      }
+      if (req.url.path == '/icon.png') {
+        return http.Response.bytes(_png, 200,
+            headers: {'content-type': 'image/png'});
+      }
+      return http.Response('', 404);
+    });
+    outboundHttp = site;
+
+    final favicons =
+        await FaviconFinder.getAll('https://example.com/', proxy: OutboundProxy.app);
+
+    expect(favicons, isNotNull);
+    expect(favicons!.map((f) => Uri.parse(f.url).path), contains('/icon.png'),
+        reason: 'a non-UTF-8 home page must still give up its icon');
+  });
+
+  test('a page with several icon links builds one shared client (review M3)',
+      () async {
+    // One guarded client serves the whole discovery (the page, each icon-link
+    // check, each /favicon.ico probe); per-fetch clients (the regression) built
+    // one each, losing connection reuse — most of the budget under Tor/SOCKS.
+    // queries records every clientFor call, so one shared client reads as 1.
+    final icon = http.Response.bytes(_png, 200,
+        headers: {'content-type': 'image/png'});
+    final site = FakeOutbound(responder: (req) {
+      if (req.url.path == '/' || req.url.path.isEmpty) {
+        return http.Response(
+            '<html><head>'
+            '<link rel="icon" href="/a.png">'
+            '<link rel="icon" href="/b.png">'
+            '<link rel="icon" href="/c.png">'
+            '</head></html>',
+            200,
+            headers: {'content-type': 'text/html'});
+      }
+      return icon;
+    });
+    outboundHttp = site;
+
+    await FaviconFinder.getAll('https://example.com/', proxy: OutboundProxy.app);
+
+    expect(site.queries.length, 1,
+        reason: 'the discovery builds one shared page-steered client for all its '
+            'fetches (page + icons + favicon.ico), not one per fetch');
+  });
+
+  test('the discovery deadline cuts a page that never finishes (L1)', () async {
+    // The fetches share one client, so no single fetch can close it; the bound
+    // lives on withPageSteeredClient (favicon.dart:106). A page whose response
+    // never completes otherwise keeps the discovery and its socket open
+    // unbounded. Drop the timeout there and getAll hangs here instead of
+    // raising, so this test is the deadline's only witness.
+    final site =
+        FakeOutbound(responder: (_) => Completer<http.Response>().future);
+    outboundHttp = site;
+    addTearDown(FaviconFinder.resetDiscoveryTimeout);
+    FaviconFinder.discoveryTimeout = const Duration(milliseconds: 300);
+
+    await expectLater(
+      FaviconFinder.getAll('https://example.com/', proxy: OutboundProxy.app),
+      throwsA(isA<TimeoutException>()),
+    );
   });
 }

@@ -206,6 +206,37 @@ client's own connect
 **And** under a proxy it never connects direct, and a private or loopback
 literal is refused on every route
 
+#### Scenario: Every hop of a page-steerable fetch is judged (SEC-049, BUG-012)
+
+**Given** a page-steerable fetch (user script, media artwork, page-linked icon,
+favicon, or an icon/SVG probe) that a server answers with a redirect
+**When** the page-steered follower — one loop reached through `followPageSteered`
+(which builds and closes its own client) and `followPageSteeredReusing` (which
+drives a client the caller built through `withPageSteeredClient` to share a
+connection pool) — takes each hop
+**Then** every hop — the initial URL and each `Location` — is a fresh request
+through the guarded connect with the client's own redirect-following off, so the
+private/loopback-literal guard (every route) and the resolve-and-pin (DEFAULT)
+judge the destination before a byte is sent, not just the first hop, and — under
+an OS env proxy that pools plain-http connections by its host:port — per request,
+so a reused or pooled connection cannot carry a second, unjudged destination (M1)
+**And** no fetcher follows a redirect itself: a page-steered client is built only
+by `buildPageSteeredClient`, which the public re-export hides, and its
+`PageSteeredHttp` client is library-private, read only by the follower, so
+building one outside the seam fails to compile and driving one outside the
+follower fails to compile — the final response a read receives is a plain
+`StreamedResponse` with no socket to detach, a deliberate downcast failing at run
+time instead. The pinning `DefaultOutboundHttpFactory` is hidden from the
+re-export too, so `const DefaultOutboundHttpFactory().clientFor` does not compile
+outside the seam either. The `page_steered_outbound_reach` gate keeps the guarded
+fetchers off the raw client seams (`clientFor` however it is reached, the build
+name) and refuses a direct import of a platform half (only `outbound_http.dart`
+may import one, so no other lib file sees the public names); folding the halves so
+neither need be public — making that import a compile error rather than a gate —
+is the remaining LEAK-002 debt. So a hop-2 redirect to a private target cannot be
+taken unjudged, even under an on-device forwarding proxy that would otherwise
+forward it to the LAN
+
 ---
 
 ### Requirement: LEAK-003 - SOCKS5 tunneling and fail-closed posture

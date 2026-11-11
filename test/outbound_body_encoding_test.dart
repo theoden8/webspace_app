@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/outbound_http_io.dart' show DefaultOutboundHttpFactory;
 
 typedef _Seen = ({int? length, List<int> bytes});
 

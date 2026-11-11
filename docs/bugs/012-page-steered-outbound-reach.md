@@ -119,32 +119,133 @@ than copy the range table.**
    request-level literal guard sees only hop 1; a hop-2 redirect to a private
    target is seen by no guard (see gaps).
 
+6. **2026-11-08 — one follower, every hop** (#951, SEC-049 follow-up).
+   `followPageSteered` is now the one function that follows a page-steered
+   redirect: each hop — the initial URL and every `Location` — is a fresh request
+   through the guarded connect with the client's own following OFF, so the
+   literal guard (every route) and the resolve-and-pin (DEFAULT) judge every hop,
+   not just the first. The four manual per-hop loops (user scripts, media
+   artwork, page-linked icons, the favicon document fetch) collapse into it, and
+   the auto-following fetchers (favicons, page-icon bytes, the icon/SVG probes)
+   route through it too, so under a proxy a hop-2 redirect to a private *literal*
+   is judged by the literal guard rather than forwarded. The SEC-049 claim — a
+   page-steered client is reachable only through the follower — is a type for all
+   code reached through `outbound_http.dart`: a page-steered client is built only
+   by `buildPageSteeredClient`, which the public re-export hides (naming it
+   elsewhere does not compile), and its `PageSteeredHttp` client field is
+   library-private, read only by the follower. The follower hands a read a plain
+   `http.StreamedResponse`, so a read cannot `detachSocket()` the live connection
+   (the method is not on the base type); a deliberate downcast fails at run time.
+   A non-default factory with no pin of its own is failed closed by
+   `buildPageSteeredClient` unless it opts into the test marker. The follower has
+   two thin entry points over one loop: `followPageSteered` builds and closes its
+   own client; `followPageSteeredReusing` drives one the caller built through
+   `withPageSteeredClient`, so the favicon discovery shares one connection pool
+   across its page and icon fetches rather than paying a handshake each. The review
+   of this PR also removed a double confirmation prompt (the script bridge ran the
+   whitelist check both before the follower and as its first-hop permit) and
+   restored charset-aware page decoding in the favicon finder (strict UTF-8 had
+   dropped icons on a non-UTF-8 home page). `buildPageSteeredClient` and the
+   pinning `DefaultOutboundHttpFactory` are both hidden from the public re-export,
+   so naming either outside the seam does not compile (`const
+   DefaultOutboundHttpFactory().clientFor` included); the platform half keeps both
+   public, so a direct import of `outbound_http_io.dart` would see them, which the
+   `page_steered_outbound_reach` gate refuses (only `outbound_http.dart` may import
+   a half). That, and that GUARDED fetchers route page-chosen URLs through the
+   follower rather than a raw client seam, are held by the gate (rung 5) as text,
+   not a type; folding the halves so neither name need be public would make the
+   import a compile error, the remaining LEAK-002 debt. The gate's probes fire on a
+   plant: the follower is the sole `pageSteeredClient` consumer (through
+   `withPageSteeredClient`), only `outbound_http.dart` imports a half, and no
+   GUARDED fetcher sets `followRedirects` / reads a `Location` header / names a raw
+   client seam. A proxy connection-count test fails on a `followRedirects = true`
+   mutation; a timeout test shows the deadline cuts the socket; a
+   refused-302-with-endless-body test fails if the 3xx body is drained rather than
+   cancelled.
+   Later review rounds fixed a connection-reuse hole, an onion-name leak it
+   introduced, and tightened the claims. **M1** — the shared client reused a
+   pooled connection behind an OS env proxy, so a second destination skipped the
+   per-connection judge; `_PageSteeredLiteralGuard.send` now resolves and judges
+   every request when an env proxy carries a DEFAULT route, closing the pooled and
+   the kept-alive-redirect variants. That per-request resolve briefly leaked an
+   onion name to the device resolver; an onion host is now refused before the
+   resolve (LEAK-016). **M2** — the import probe above refuses a direct import of a
+   platform half (only `outbound_http.dart` imports one), matching the quoted URI
+   on any line so a split directive cannot pass. **L1** — the reused client cannot
+   be closed per fetch, so the discovery-wide deadline moved onto
+   `withPageSteeredClient`, which closes the shared client and cuts the socket; the
+   outer `.timeout` is gone. **L3** — `raw_http_client`'s seam exemption is limited
+   to the seam's four libraries by the tail of their import URI, so a fake factory
+   in a fetcher (or a lookalike `outbound_http_raw.dart`) gets no raw-client pass
+   (a library whose path merely ends in one of the four, like
+   `widgets/services/outbound_http.dart`, is a known gap below). The four first-round
+   regression tests are red on `e62d0c8` and green at head (an off-whitelist URL
+   confirmed once, `__wsFetch` one lookup, a windows-1251 page still yielding its
+   icon, and one shared client *built* for a multi-icon discovery — it counts
+   `clientFor` builds, not TCP connections); M1's env-proxy and redirect tests, the
+   two onion tests and the deadline test are red against a plant, since the
+   injectable and the per-request guard postdate `e62d0c8`.
+   *Why:* attempt 5's pin judged every hop only under DEFAULT; under an on-device
+   forwarding proxy an auto-follow fetcher's hop-2 redirect to a LAN literal was
+   forwarded, seen by no guard.
+   *Why it is partial:* it closes the hop-2 *literal* via a forwarding proxy, but
+   a hop (any hop) onto a public *name* that resolves to loopback or the LAN is
+   still forwarded and resolved on the device under a proxy (see gaps); and
+   downloads and the TLS-trust prompt remain their own surfaces that do not use
+   the follower.
+
 ## Known open gaps
 
 - ~~**The TTL-flip race.**~~ Closed by attempt 5: the page-steered client resolves
   once and connects to the judged address, so there is no second resolution to
   flip.
 - ~~**No structural gate.**~~ Closed: `test/js/page_steered_outbound_reach.test.js`
-  fails CI when a Dart-side fetch of a page-chosen URL does not route through
-  `pageSteeredClient`, unless it is listed EXEMPT with a reason.
-- **Auto-follow redirect to a private target through a device-side proxy.** The
-  auto-follow fetchers (favicons, page icon bytes) use `client.get`, so the
-  request-level literal guard sees only the first hop. (The manual-loop fetchers
-  — user scripts, media artwork, page-linked icons — judge every hop and are
-  unaffected.) Under DEFAULT the pin judges every hop, and under a *remote* proxy
-  a hop-2 private target is the proxy's network, not the device's. But an
-  on-device *forwarding* proxy (Privoxy, a local proxy app) forwards a hop-2
-  `302 -> http://127.0.0.1/` or a LAN literal to the device's own network. The
-  egress relay closes the loopback half (every dial is bound to a non-loopback
-  interface via `SO_BINDTODEVICE`, loopback excluded from the interface list) but
-  a LAN literal on hop 2 still reaches the user's LAN through it. Closed by making
-  the literal guard judge every hop on every route (`followRedirects` off +
-  per-hop re-entry) for the auto-follow fetchers; not done here.
+  fails CI when a Dart-side fetch of a page-chosen URL does not route through the
+  follower (`followPageSteered` / `followPageSteeredReusing`), unless it is listed
+  EXEMPT with a reason.
+- ~~**Auto-follow redirect to a private *literal* through a device-side proxy.**~~
+  Closed by attempt 6 (the literal half): every page-steered fetch, the former
+  auto-following ones included, now follows redirects through `followPageSteered`
+  (`followRedirects` off + per-hop re-entry), so the literal guard judges hop 2 on
+  every route. An on-device *forwarding* proxy (Privoxy, a local proxy app) can no
+  longer forward a hop-2 `302 -> http://127.0.0.1/` or a LAN *literal* past the
+  guard. The *name* half of the same route stays open — see the next gap.
+- **A public name resolving to loopback or the LAN, under a forwarding proxy.**
+  Under a proxy the per-hop permit's resolving check returns `notResolvedHere`
+  (the name is the proxy's to resolve) and the literal guard sees no literal, so a
+  public host whose A record is `127.0.0.1` or a LAN address (`127.0.0.1.nip.io`,
+  an attacker-controlled record) is forwarded to an on-device *forwarding* proxy
+  and resolved on the device — on any hop, for every fetcher, not only a redirect.
+  This is not a regression (it predates the follower and the pin only judges local
+  resolution on DEFAULT), and it needs an attacker-chosen DNS record plus a
+  device-side forwarding proxy, but it is wider than the "remote-DNS proxies are
+  exempt" gap below, which assumed a *remote* resolver. Closing it means judging
+  the proxied name somewhere — the egress relay's bind, or refusing a name whose
+  only local answer is private even under a proxy.
 - **Remote-DNS proxies are exempt by design.** Under SOCKS5, Tor, or a remote
   HTTP proxy the destination name is resolved at the far end, so a local answer
   describes a network the request never traverses — and a Tor user may have no
   local resolver at all. The literal guard still refuses private literals on
   these routes; a name's far-end resolution is the proxy's to judge.
+- **A rebind between the per-request judge and an env proxy's own resolution.**
+  The M1 per-request guard refuses a name whose *local* answer is private, but an
+  OS env proxy resolves the name again at its end to connect. A record that flips
+  between the two, or an on-device forwarding proxy whose internal resolver
+  answers differently from the device's, reaches an address the guard did not
+  judge. Narrower than closing it at the egress, and it needs an attacker-chosen
+  short-TTL record plus an env proxy; recorded, not yet closed.
+- **The reach gate and the raw-client lint are text/suffix matches, not
+  resolved-URI rules.** Two deliberate evasions pass today, each needing someone
+  editing the seam, not a page. (1) The `page_steered_outbound_reach` M2 import
+  probe matches a quoted platform-half URI literal, so a split adjacent literal,
+  `import 'package:webspace/services/outbound_http_' 'io.dart'`, passes analyze and
+  the probe. (2) `raw_http_client`'s seam exemption matches the *tail* of the
+  library URI (`uri.endsWith`), so a raw-client factory at
+  `lib/widgets/services/outbound_http.dart` ends in a seam path and gets no
+  diagnostic. The real fix for each is a `webspace_lints` rule on the *resolved*
+  import URI (as `layer_import` already does), or comparing the package-relative
+  path `package:webspace/services/<name>.dart` exactly. Recorded; LEAK-002 in
+  `policy_debt.tsv`.
 - **Enumeration: downloads and the TLS-trust prompt remain.** Favicons and page
   icon bytes are now GUARDED (attempt 5). A download is a user-confirmed action
   that lands in a file, not back in the page, and the TLS-trust prompt is its own

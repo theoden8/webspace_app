@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/outbound_http_io.dart' show DefaultOutboundHttpFactory;
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';

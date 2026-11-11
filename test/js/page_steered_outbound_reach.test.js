@@ -1,19 +1,34 @@
 // Structural gate: a Dart-side fetch whose URL page script can choose connects
 // only to an address the guard judged (BUG-012, SEC-049).
 //
-// The guard was partial four times, each because a new path opted out silently
+// The guard was partial five times, each because a new path opted out silently
 // rather than because the check was wrong: a redirect the client followed past
 // it, a name the resolver expanded past it, a second call site that copied the
-// range table and not the rest, and a pre-flight check the client then
-// re-resolved past (the rebind). SEC-049 moved the decision to the connection:
-// `pageSteeredClient` resolves the host once and connects only to the judged
-// address, http and https alike, so a page-steerable fetch routes through it.
+// range table and not the rest, a pre-flight check the client then re-resolved
+// past (the rebind), and auto-following fetchers whose client saw only the first
+// hop under a proxy. SEC-049 moved the decision to the connection and BUG-012's
+// closer moved redirect following to one place: the page-steered follower is the
+// one loop that follows a page-steered redirect, reached through two thin entry
+// points (`followPageSteered`, which builds and closes its own client, and
+// `followPageSteeredReusing`, which drives a client the caller built through
+// `withPageSteeredClient` to share a connection pool across several fetches).
+// Each hop is a fresh request through the guarded connect with the client's own
+// following OFF, so every hop is judged on every route. Its client (a
+// `PageSteeredHttp`) is reachable nowhere else — the field is library-private —
+// so a page-steered fetch cannot sidestep it. A page-steered client is also
+// built in only one place, `buildPageSteeredClient`,
+// which the public re-export hides, along with the pinning `DefaultOutboundHttpFactory`,
+// so no caller reached through `outbound_http.dart` can name either (SEC-049). The
+// one path the compiler cannot close is a direct `import` of a platform half
+// (`outbound_http_io.dart` / `outbound_http_web.dart`), which would see both public
+// names; this gate polices it: only `outbound_http.dart` may import a half.
 //
 // So this gate does not test the guard. It tests that every outbound seam has
-// been classified: either it routes page-chosen URLs through `pageSteeredClient`,
+// been classified: either it routes page-chosen URLs through `followPageSteered`,
 // or it is listed here with the reason it does not need to. A new
-// `outboundHttp.clientFor`, `fetchViaAppProxy` or `pageSteeredClient` caller in
-// neither list fails, which puts the decision in front of whoever adds it.
+// `outboundHttp.clientFor`, `fetchViaAppProxy`, `pageSteeredClient`,
+// `buildPageSteeredClient` or `followPageSteered` caller in neither list fails,
+// which puts the decision in front of whoever adds it.
 //
 // Cross-links:
 //   docs/bugs/012-page-steered-outbound-reach.md
@@ -28,14 +43,45 @@ const SEAMS = [
   'outboundHttp.clientFor',
   'fetchViaAppProxy(',
   'pageSteeredClient(',
+  'buildPageSteeredClient(',
+  'followPageSteered(',
+  'followPageSteeredReusing(',
+  'withPageSteeredClient(',
 ];
-const GATE = 'pageSteeredClient(';
+const GATE = 'followPageSteered(';
 
-// Seams that take a URL a loaded page chose. Each MUST route through the
-// page-steered client, which judges the destination as it connects and connects
-// only to the judged address (SEC-049). The fetchers keep their own pre-flight
-// range checks as well (defense in depth); under a proxy, where the pin is not
-// built, those by-hand per-hop checks are the only redirect judge.
+// A fetcher routes through the guarded follower by calling either entry point:
+// followPageSteered (builds and closes its own client) or followPageSteeredReusing
+// (uses one the caller built through withPageSteeredClient to share a connection
+// pool across several fetches). Both judge and pin every hop identically.
+const FOLLOWERS = ['followPageSteered(', 'followPageSteeredReusing('];
+
+// The raw client-producing seams. A GUARDED fetcher may not name any of them:
+// each hands out a usable client that would sidestep the follower —
+// `buildPageSteeredClient` builds a page-steered client with a public `.client`
+// (reachable only by a direct platform import, since the re-export hides it),
+// `clientFor` an unguarded one. A fetcher gets its client only by handing a
+// route to `followPageSteered`.
+//
+// These match the bare method/function name, not `outboundHttp.clientFor`, so a
+// GUARDED fetcher cannot slip a raw client past the gate by indirecting the
+// factory (`const DefaultOutboundHttpFactory().clientFor`, `final f =
+// outboundHttp; f.clientFor`), splitting the call across lines, or tearing off
+// `buildPageSteeredClient` without the call paren. (Across the rest of lib, the
+// text gate still has the edges LEAK-002's fold-the-halves debt tracks; the
+// GUARDED files are the few that matter and carry neither name otherwise.)
+const RAW_SEAMS = [
+  '.clientFor',
+  'buildPageSteeredClient',
+  'fetchViaAppProxy(',
+];
+
+// Seams that take a URL a loaded page chose. Each MUST route through
+// `followPageSteered`, which judges every hop (the URL and each redirect) as it
+// connects and connects only to the judged address, on every route (SEC-049,
+// BUG-012). No fetcher follows a redirect itself (the `no fetcher follows a
+// page-steered redirect by hand` probe below), and none can reach the client to
+// try (the `only the follower consumes` probe).
 const GUARDED = [
   'lib/services/user_script_service.dart',
   'lib/services/media_session_service.dart',
@@ -74,9 +120,16 @@ const EXEMPT = {
     + 'loaded page chooses any of them.',
   'lib/services/outbound_http.dart':
     'The seam definitions themselves: fetchViaAppProxy for the downloads the '
-    + 'app configures, and pageSteeredClient, the page-steered producer every '
-    + 'GUARDED file above routes through. Each caller is classified here on its '
-    + 'own.',
+    + 'app configures, pageSteeredClient (wraps the hidden build, consumed only '
+    + 'by followPageSteered) and followPageSteered, the one follower every '
+    + 'GUARDED file routes through. Each caller is classified here on its own.',
+  'lib/services/outbound_http_io.dart':
+    'The dart:io seam: buildPageSteeredClient (hidden from the re-export), the '
+    + 'connection pin and the literal guard. Named only here and in '
+    + 'outbound_http.dart.',
+  'lib/services/outbound_http_web.dart':
+    'The web seam: buildPageSteeredClient defers to the browser, which enforces '
+    + 'private-network access itself.',
   'lib/services/proxy_test_service.dart':
     'The probe target is the site\'s own home URL (typed by the user, not '
     + 'chosen by a loaded page) or the fixed example.com fallback, and '
@@ -108,12 +161,98 @@ test('every classified seam still makes an outbound call', () => {
 for (const file of GUARDED) {
   test(`${file} routes page-chosen URLs through the page-steered client`, () => {
     const src = read(file);
-    assert.ok(src.includes(GATE),
+    assert.ok(FOLLOWERS.some((m) => src.includes(m)),
       `${file} takes a page-chosen URL, so it must connect through `
-      + `${GATE.slice(0, -1)}, which judges the destination as it connects. `
-      + `Dropping it reopens BUG-012 on this path.`);
+      + `${GATE.slice(0, -1)} (or followPageSteeredReusing), which judges the `
+      + `destination as it connects. Dropping it reopens BUG-012 on this path.`);
   });
 }
+
+// A PageSteeredHttp's client field is library-private, so the follower is the
+// only code that can read it: once a page-steered client is built, nothing but
+// followPageSteered can drive it. This holds the structure behind that — the
+// wrapper is built in exactly one file, the follower's own. Plant a
+// `pageSteeredClient(...)` in a fetcher and this fires.
+test('only the follower consumes the page-steered client', () => {
+  const callers = dartFiles('lib').filter((f) =>
+    read(f).includes('pageSteeredClient('));
+  assert.deepEqual(callers, ['lib/services/outbound_http.dart'],
+    'a PageSteeredHttp is consumed only by followPageSteered (its client field '
+    + 'is library-private). Route a new page-steered fetch through '
+    + 'followPageSteered, never pageSteeredClient directly.');
+});
+
+// The per-file "routes through" check above only sees that followPageSteered
+// appears somewhere in the file; a GUARDED fetcher could still reach a raw
+// client-producing seam beside it. So none may name one. Plant
+// `outboundHttp.clientFor(r).client.get(u)` (or a direct-imported
+// `buildPageSteeredClient(...)`) in a GUARDED file and this fires.
+test('no fetcher reaches a raw client-producing seam', () => {
+  for (const file of GUARDED) {
+    const src = read(file);
+    for (const seam of RAW_SEAMS) {
+      assert.ok(!src.includes(seam),
+        `${file} names ${seam}, a raw client seam that sidesteps the follower. `
+        + `A page-chosen URL gets its client only from followPageSteered(route, ...).`);
+    }
+  }
+});
+
+// buildPageSteeredClient builds a page-steered client with a public `.client`.
+// The public re-export hides it, so no caller reached through outbound_http.dart
+// can name it (a plant there does not compile); the one path the compiler cannot
+// close is a direct import of the platform half. Confine the name to the seam:
+// plant a direct `import '.../outbound_http_io.dart'` + `buildPageSteeredClient(r)`
+// anywhere else and this fires.
+test('only the seam library names the page-steered build', () => {
+  const callers = dartFiles('lib')
+    .filter((f) => read(f).includes('buildPageSteeredClient('))
+    .sort();
+  assert.deepEqual(callers, [
+    'lib/services/outbound_http.dart',
+    'lib/services/outbound_http_io.dart',
+    'lib/services/outbound_http_web.dart',
+  ], 'buildPageSteeredClient builds a page-steered client; name it only inside the '
+    + 'outbound_http seam, and consume the result only through followPageSteered.');
+});
+
+// Plant a `followRedirects` or a `headers['location']` loop in a GUARDED fetcher
+// and this fires: the one follower follows the redirect, each hop through the
+// guarded connect, so a fetcher that re-grows a loop reopens BUG-012.
+test('no fetcher follows a page-steered redirect by hand', () => {
+  for (const file of GUARDED) {
+    const src = read(file);
+    assert.ok(!src.includes('followRedirects'),
+      `${file} sets followRedirects, so it follows a redirect itself. The one `
+      + `follower (followPageSteered) does that, with the client's own following `
+      + `off on every hop (BUG-012).`);
+    assert.ok(!/headers\[['"]location['"]\]/.test(src),
+      `${file} reads the Location header, so it follows a redirect itself. Route `
+      + `it through followPageSteered instead (BUG-012).`);
+  }
+});
+
+// M2: only the seam entry may import a platform half. buildPageSteeredClient and
+// DefaultOutboundHttpFactory are public in outbound_http_io.dart / _web.dart (the
+// re-export hides them), so a lib file that imports a half directly could name
+// either and reach a raw, unguarded client — the compiler cannot stop that, this
+// does. Plant `import '.../outbound_http_io.dart'` in any other lib file (a
+// `const DefaultOutboundHttpFactory().clientFor`, an `io.buildPageSteeredClient`
+// tear-off, or a helper a GUARDED fetcher then calls) and this fires. Tests live
+// under test/, not lib, so a VM test that builds the real factory is unaffected.
+test('only the seam entry imports a platform half', () => {
+  // Match the quoted URI string itself, on any line, so a directive split across
+  // lines (`import` on one line, the URI on the next) cannot slip past — CI runs
+  // no dart format to normalise it.
+  const re = /['"][^'"]*outbound_http_(io|web)\.dart['"]/;
+  const importers = dartFiles('lib').filter((f) => re.test(read(f)));
+  assert.deepEqual(importers, ['lib/services/outbound_http.dart'],
+    'only lib/services/outbound_http.dart may import a platform half '
+    + '(outbound_http_io.dart / outbound_http_web.dart): it hides the raw '
+    + 'client-producing names (buildPageSteeredClient, DefaultOutboundHttpFactory) '
+    + 'from the re-export, so a direct import elsewhere would reopen the SEC-049 '
+    + 'edge. Reach the seam through outbound_http.dart.');
+});
 
 test('every exemption states a reason', () => {
   for (const [file, why] of Object.entries(EXEMPT)) {
