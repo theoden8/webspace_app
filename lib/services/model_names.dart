@@ -261,6 +261,10 @@ enum FlowField {
   /// The DNS levels a prune drops.
   drops('{}', range: r'SUBSET (1..5)'),
 
+  /// The listed sites an import's landing took off the list: the backup
+  /// does not carry them (BACKUP-003).
+  dropped('{}', range: r'SUBSET Sites'),
+
   /// A call of the restore on the shared jar was refused, so its target is
   /// not shown once the rest of the refill is written (ISO-014).
   unrestored('FALSE', range: r'BOOLEAN');
@@ -309,11 +313,17 @@ enum ModelConst {
   online(ConstKind.on, range: r'BOOLEAN'),
   archive(ConstKind.set, range: r'SUBSET Sites'),
   deletable(ConstKind.set, range: r'SUBSET Sites'),
+  importing(ConstKind.set, range: r'SUBSET Sites'),
+  imports(ConstKind.off, range: r'BOOLEAN', follows: {importing}),
   resettable(ConstKind.set, range: r'SUBSET Sites'),
   rebuilt(ConstKind.set, range: r'SUBSET Sites'),
   joining(ConstKind.set, range: r'SUBSET Sites'),
   clashing(ConstKind.set, range: r'SUBSET Sites'),
-  boxed(ConstKind.set, range: r'SUBSET Sites', follows: {archive, deletable}),
+  boxed(
+    ConstKind.set,
+    range: r'SUBSET Sites',
+    follows: {archive, deletable, importing},
+  ),
   incognito(ConstKind.set, range: r'SUBSET Sites', follows: {archive}),
   noNavState(ConstKind.set, range: r'SUBSET Sites', follows: {archive, incognito}),
   sites(ConstKind.fixed, range: r'SUBSET Nat'),

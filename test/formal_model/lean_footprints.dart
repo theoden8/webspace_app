@@ -161,8 +161,10 @@ String footprintsLean({
     '  intro v; cases v <;> decide',
     '',
     // Deciding it false, as formal/lean/check.sh's planted copy does,
-    // recurses deeper than the default 512 once there are ~100 worlds.
+    // recurses deeper than the default 512 once there are ~100 worlds, and
+    // takes more than the default 200000 heartbeats once there are ~130.
     'set_option maxRecDepth 4096 in',
+    'set_option maxHeartbeats 1000000 in',
     'theorem every_invariant_licensed : footprints.everyInvariantLicensed = true := by',
     '  decide',
     '',

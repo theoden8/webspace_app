@@ -28,6 +28,8 @@ enum Env {
   capTwo(op: ModelConst.maxLoaded, by: 'CapTwo'),
   archiveOne(op: ModelConst.archive, by: 'ArchiveOne'),
   deleteOne(op: ModelConst.deletable, by: 'DeleteOne'),
+  importOne(op: ModelConst.importing, by: 'ImportOne'),
+  importKeep(op: ModelConst.importing, by: 'ImportKeep'),
   resetOne(op: ModelConst.resettable, by: 'ResetOne'),
   rebuildOne(op: ModelConst.rebuilt, by: 'RebuildOne'),
   joinOne(op: ModelConst.joining, by: 'JoinOne'),
@@ -805,6 +807,50 @@ enum ActivationWorld {
         "shared jar, site 3 joining the list beside taps and the jar's "
         'turns, under an id site 1 or 2 holds: it joins as nothing, under '
         'a fresh id, and every session stays',
+  ),
+  imports(
+    cookies: Cookies.sharedJar,
+    coldStart: false,
+    inputs: 3,
+    env: {Env.importOne, Env.joinOne},
+    invariants: [..._core, ..._jar, Inv.retired],
+    holds:
+        "shared jar, a backup imported beside taps and the jar's turns: a "
+        'site it carries again keeps its session, and the site it drops '
+        'leaves the list and the loaded sites (BACKUP-003, ISO-015)',
+  ),
+  importsContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    inputs: 3,
+    env: {Env.importOne, Env.joinOne},
+    invariants: [..._core, Inv.retired],
+    holds:
+        'containers, a backup imported beside taps and frames: the site it '
+        'drops leaves the list, the loaded sites, the frame and the disk '
+        '(CONT-010)',
+  ),
+  importsArchive(
+    cookies: Cookies.sharedJar,
+    coldStart: false,
+    inputs: 3,
+    env: {Env.importKeep, Env.archiveOne},
+    invariants: [..._core, ..._jar, Inv.retired],
+    holds:
+        "shared jar, a backup imported beside an open archive's close: the "
+        "archive's site leaves with the one the backup drops, and the jar "
+        'keeps every carried session (ARCH-007, ISO-015)',
+  ),
+  importsArchiveContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    inputs: 3,
+    env: {Env.importKeep, Env.archiveOne},
+    invariants: [..._core, Inv.retired],
+    holds:
+        "containers, a backup imported beside an open archive's close: "
+        'every site either takes off the list leaves the disk (ARCH-014, '
+        'CONT-010)',
   );
 
   const ActivationWorld({
@@ -960,6 +1006,11 @@ enum Witness {
     world: ActivationWorld.deleteContainers,
     doc: 'a delete taking the site on screen off the list beside a tap in '
         'flight is reachable',
+  ),
+  importDuringClose(
+    world: ActivationWorld.importsArchiveContainers,
+    doc: "an import landing while an archive's close waits to delete its "
+        'containers is reachable',
   ),
   unrestored(
     world: ActivationWorld.jarRefuses,
@@ -1261,6 +1312,30 @@ enum Mutant {
     doc:
         'a delete deleting its container before the frame unmounts its '
         'webview leaves it on disk (CONT-010, caught)',
+  ),
+  importnocapture(
+    world: ActivationWorld.imports,
+    slice: (allowed: {'ImportSites'}),
+    by: Inv.noSessionLoss,
+    doc:
+        'an import that empties the jar without saving the share of a '
+        'loaded site it carries again loses that session (ISO-015, caught)',
+  ),
+  importkeepsbox(
+    world: ActivationWorld.importsContainers,
+    slice: (allowed: {'ImportSites', 'Tap'}),
+    by: Inv.retired,
+    doc:
+        'an import that leaves the containers of the sites it drops leaves '
+        'them on disk (CONT-010, caught)',
+  ),
+  importnoframe(
+    world: ActivationWorld.importsContainers,
+    slice: (allowed: {'ImportSites', 'Tap'}),
+    by: Inv.retired,
+    doc:
+        'an import deleting containers before the frame unmounts the '
+        'webviews that bind them leaves one on disk (CONT-010, caught)',
   ),
   deletekeepsopener(
     world: ActivationWorld.tabsChildDeleteContainers,

@@ -142,6 +142,7 @@ Each site gets a named profile. Lifecycle:
 | WebView created | Nothing to do: the WebView was built with `InAppWebViewSettings.containerId`, which the fork reads before any session-bound operation (CONT-005). |
 | User taps "Clear Site Data" | `ContainerIsolationEngine.clearForSite(siteId)` → fork's `clearContainerData` (Apple: `WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)`). Container stays in place; only its contents go. `disposeWebView` afterwards forces a fresh InAppWebView so the user sees a clean page. The app-side per-`siteId` residue the container never held, the saved nav state, is dropped alongside it in both engine modes ([tracking-protection](../tracking-protection/spec.md) ETP-022). |
 | Site deleted | `SiteDeletion` (CONT-010): the commit takes the site off the list and lets go of its webview, the next frame unmounts it, then `ContainerIsolationEngine.onSiteDeleted(siteId)`. |
+| Settings imported | `SiteImport` (CONT-010): the commit replaces the list and lets go of every replaced webview, the next frame unmounts them, then `onSiteDeleted` for each site the backup does not carry. A site it carries again keeps its container. |
 | Profile API not supported (iOS, macOS, legacy Android) | `_useContainers` is false; engine selection at the call site falls through to `CookieIsolationEngine`. No cross-engine state leaks. |
 
 The engine selection lives in
@@ -292,7 +293,21 @@ frame has unmounted the site's webview. A delete that deleted the container
 first, as one did, left the site on the list while it awaited: a frame or a
 tap built its webview again, on the container being deleted, which iOS and
 macOS then keep and Android recreates ([BUG-038](../../../docs/bugs/038-container-deleted-under-a-live-view.md)).
-An archive's close keeps the same order (ARCH-014).
+An archive's close keeps the same order (ARCH-014), and so does a settings
+import for each listed site the backup does not carry: the import's commit
+takes them off the list, and their containers wait for the frame
+([`SiteImport`](../../../lib/controllers/site_import.dart)); before it ran
+as a step table it left them on disk until the next startup's sweep.
+
+#### Scenario: An import deletes the containers of the sites it drops
+
+**Given** sites A and B are listed, and B is loaded
+**When** the user imports a backup that carries A and not B
+**Then** B leaves the list, the loaded set and the screen in the import's
+  commit, the next frame unmounts its webview, and then its container is
+  deleted
+**And** A keeps its container (`Inv_Retired` in the import worlds of
+  `formal/activation.tla`; `importkeepsbox` and `importnoframe` are caught)
 
 #### Scenario: A tap during a delete does not keep the container
 

@@ -16,6 +16,7 @@ import 'package:webspace/controllers/activation_place.dart';
 import 'package:webspace/controllers/activation_flow.dart';
 import 'package:webspace/controllers/activation_table.dart';
 import 'package:webspace/controllers/site_deletion.dart';
+import 'package:webspace/controllers/site_import.dart';
 import 'package:webspace/controllers/tab_vars.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
 import 'package:webspace/services/activation_step.dart';
@@ -49,6 +50,8 @@ typedef Tables = ({
   StepTable<DnsFlow, DnsPlace> dns,
   StepTable<CloseFlow, ClosePlace> archive,
   StepTable<DeleteFlow, DeletePlace> delete,
+  StepTable<ImportFlow, ImportPlace> import,
+  StepTable<ImportFlow, ImportPlace> importTurn,
   List<Def<Object?, Object?>> ops,
 });
 
@@ -102,6 +105,8 @@ final Tables tables = (
   dns: DnsTable.table,
   archive: ArchiveController.closeTable,
   delete: SiteDeletion.deleteTable,
+  import: SiteImport.importTable,
+  importTurn: SiteImport.turnTable,
   ops: definitions,
 );
 
@@ -118,6 +123,8 @@ enum ModelTable {
   dns,
   archive,
   delete,
+  import,
+  importTurn,
 }
 
 StepTable<Object?, Enum> _table(Tables t, {required ModelTable of}) =>
@@ -132,6 +139,8 @@ StepTable<Object?, Enum> _table(Tables t, {required ModelTable of}) =>
       ModelTable.dns => t.dns,
       ModelTable.archive => t.archive,
       ModelTable.delete => t.delete,
+      ModelTable.import => t.import,
+      ModelTable.importTurn => t.importTurn,
     };
 
 List<StepTable<Object?, Enum>> _all(Tables t) => [
@@ -534,18 +543,7 @@ String activationOps(Tables t) => [
 /// [FlowField]'s range: `TypeOK`, which every world checks, over the kinds
 /// a flow can be and the places of every table.
 List<String> _types(Tables t) {
-  final tables = <StepTable<Object?, Enum>>[
-    t.activation,
-    t.tabInputs,
-    t.tabFlow,
-    t.unload,
-    t.jar,
-    t.restore,
-    t.wake,
-    t.dns,
-    t.archive,
-    t.delete,
-  ];
+  final tables = _all(t);
   final places = {
     FlowField.pc.none,
     for (final table in tables)

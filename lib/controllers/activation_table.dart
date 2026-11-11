@@ -741,6 +741,7 @@ abstract final class ActivationTable {
         FlowKind.dns => throw StateError('a DNS download plans no residency'),
         FlowKind.close => throw StateError('an archive close plans no residency'),
         FlowKind.delete => throw StateError('a delete plans no residency'),
+        FlowKind.import => throw StateError('an import plans no residency'),
       });
   }
 

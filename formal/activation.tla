@@ -484,9 +484,9 @@ ResidentOne == 1
 \* between two of them stops showing one of these (WEBSPACE-013).
 AwaySpaces == {{}, {3}, {1, 2}}
 
-\* ARCH-007, ARCH-014: once a close or a delete has taken sites off the
-\* list, at rest none is loaded or on screen, none has a webview mounted,
-\* and none's container is on disk.
+\* ARCH-007, ARCH-014, CONT-010: once a close, a delete or an import has
+\* taken sites off the list, at rest none is loaded or on screen, none has a
+\* webview mounted, and none's container is on disk.
 Inv_Retired ==
     Idle => gone \cap (loaded \cup views \cup boxes \cup {current}) = {}
 
@@ -500,6 +500,12 @@ RebuildOne == {1}
 JoinOne == {3}
 \* And arriving under a listed site's id (SEC-044).
 ClashOne == {3}
+\* The import configs': the backup carries site 1, signed in on screen at
+\* the start, and brings site 3, off the list (JoinOne); site 2 leaves.
+ImportOne == {1, 3}
+\* Beside an open archive (ArchiveOne): it carries site 1 alone, so the
+\* archive's site leaves with site 2.
+ImportKeep == {1}
 
 \* R8, ARCH-016: no two listed sites share an id, so a lookup by id names
 \* one site.
@@ -575,6 +581,12 @@ Reach_CloseSupersedes ==
 \* the delete config is not vacuous.
 Reach_DeleteSupersedes ==
     ~(last.a = "DeleteDropReply" /\ \E f \in Flows : fl[f].kind = "tap" /\ fl[f].pc # "done")
+\* An import lands while an archive's close has taken its sites off the
+\* list and not yet deleted their containers: the import beside an archive
+\* is not vacuous.
+Reach_ImportDuringClose ==
+    ~(last.a \in {"ImportLandReply", "ImportLandTurnReply"} /\
+      \E f \in Flows : fl[f].kind = "close" /\ fl[f].pc \in {"cFrame", "cDelete"})
 \* A restore sets a loaded incognito site's session back once the jar is
 \* emptied: the incognito config is not vacuous (INC-001).
 Reach_IncognitoKept ==
