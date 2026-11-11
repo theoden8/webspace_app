@@ -1339,6 +1339,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           listIndex >= 0 &&
           listIndex < _sites.filteredIndices().length - 1,
       archived: site.isArchiveTier,
+      canArchive: site.archivable,
     );
     if (!_sites.models.holdsObject(site)) return;
     switch (action) {

@@ -116,6 +116,7 @@ class _LibraryHarnessState extends State<_LibraryHarness> {
               canMoveUp: false,
               canMoveDown: false,
               archived: false,
+              canArchive: true,
             );
           },
           onReorderSite: (from, {required to}) => siteMoves.add((from, to)),

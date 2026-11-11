@@ -14,9 +14,10 @@ enum SiteListAction {
 }
 
 /// The menu a long press on a site in the list opens at [position]. An
-/// app-tier site always offers "Move to archive", whether or not an archive is
-/// open: the move prompts for a passphrase and opens or creates the archive
-/// it names, so the row reveals nothing about which archives exist.
+/// app-tier site offers "Move to archive" when [canArchive], whether or not an
+/// archive is open: the move prompts for a passphrase and opens or creates the
+/// archive it names, so the row reveals nothing about which archives exist. A
+/// file import is not archivable (ARCH-006), so it omits the entry.
 ///
 /// Where a remote drives the device, an icon in a launcher grid offers the
 /// moves its grid makes ([LauncherCell.menuMoves]), and a move picked is
@@ -27,6 +28,7 @@ Future<SiteListAction?> showSiteListMenu(
   required bool canMoveUp,
   required bool canMoveDown,
   required bool archived,
+  required bool canArchive,
 }) async {
   final loc = AppLocalizations.of(context);
   final grid = LauncherCell.menuMoves(context);
@@ -40,7 +42,7 @@ Future<SiteListAction?> showSiteListMenu(
         (value: SiteListAction.moveUp, icon: Icons.arrow_upward, label: loc.homeMoveUp, destructive: false),
       if (grid == null ? canMoveDown : grid.later != null)
         (value: SiteListAction.moveDown, icon: Icons.arrow_downward, label: loc.homeMoveDown, destructive: false),
-      if (!archived)
+      if (!archived && canArchive)
         (value: SiteListAction.moveToArchive, icon: Icons.archive_outlined, label: loc.homeMoveToArchive, destructive: false),
       if (archived)
         (value: SiteListAction.moveOutOfArchive, icon: Icons.unarchive_outlined, label: loc.homeMoveOutOfArchive, destructive: false),
