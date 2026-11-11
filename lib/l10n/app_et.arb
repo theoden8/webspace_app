@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Kas lisada {name}?",
   "extensionsAsks": "See küsib õigusi: {permissions}",
   "extensionsAsksNothing": "See ei küsi ühtegi õigust.",
+  "extensionsNotGiven": "Siin ei anta: {permissions}. Mis neid vajab, ei tööta.",
   "extensionsReaches": "Lehed, millele see küsib ligipääsu: {hosts}",
   "extensionsReachesNothing": "See ei küsi ligipääsu ühelegi lehele.",
   "extensionsOnlyItsSite": "Igal saidil, kus selle sisse lülitad, pääseb see ligi ainult selle saidi lehtedele.",

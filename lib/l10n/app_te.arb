@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "{name} ను జోడించాలా?",
   "extensionsAsks": "ఇది అడిగేవి: {permissions}",
   "extensionsAsksNothing": "ఇది ఏ అనుమతులూ అడగదు.",
+  "extensionsNotGiven": "ఇక్కడ ఇవ్వబడవు: {permissions}. వీటి అవసరం ఉన్నది పనిచేయదు.",
   "extensionsReaches": "ఇది చేరుకోవాలని అడిగే పేజీలు: {hosts}",
   "extensionsReachesNothing": "ఇది ఏ పేజీలనూ చేరుకోవాలని అడగదు.",
   "extensionsOnlyItsSite": "మీరు దీన్ని ఆన్ చేసే ప్రతి సైట్‌లో, ఇది ఆ సైట్ పేజీలను మాత్రమే చేరుకుంటుంది.",

@@ -1,10 +1,63 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/services/content_blocker_service.dart';
+import 'package:webspace/services/file_store.dart';
+import 'package:webspace/services/outbound_http.dart';
+
+import 'helpers/fake_outbound.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('CB-002 a filter list download', () {
+    final service = ContentBlockerService.instance;
+
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+      service.reset();
+      service.store = MemoryFileStore();
+    });
+
+    tearDown(() {
+      resetOutboundHttp();
+      service.reset();
+    });
+
+    /// A list of megabytes comes over Tor in parts seconds apart. A limit
+    /// of 30 s on the whole download gave up on it however steadily it came.
+    test('that arrives slowly is read whole', () async {
+      Stream<List<int>> slowly() async* {
+        for (var i = 0; i < 5; i++) {
+          await Future<void>.delayed(const Duration(seconds: 20));
+          yield utf8.encode('||slow-ads$i.example^\n');
+        }
+      }
+
+      final store = MemoryFileStore();
+      service.store = store;
+      FilterListId? id;
+      fakeAsync((async) {
+        outboundHttp = FakeOutbound(
+          client: () => MockClient.streaming(
+              (request, _) async => http.StreamedResponse(slowly(), 200)),
+        );
+        unawaited(service
+            .addCustomList('Slow', url: 'https://lists.example/slow.txt')
+            .then((added) => service.downloadList(id = added)));
+        async.elapse(const Duration(minutes: 5));
+      });
+      expect(id, isNotNull);
+      expect(await store.readText('$id.txt'), contains('slow-ads4.example'));
+    });
+  });
+
   group('FilterList', () {
     test('a stored entry that names no list reads as none, and an odd field '
         'as absent', () {

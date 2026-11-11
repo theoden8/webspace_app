@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Lisätäänkö {name}?",
   "extensionsAsks": "Se pyytää: {permissions}",
   "extensionsAsksNothing": "Se ei pyydä käyttöoikeuksia.",
+  "extensionsNotGiven": "Ei myönnetä täällä: {permissions}. Mikä niitä tarvitsee, ei toimi.",
   "extensionsReaches": "Sivut, joille se pyytää pääsyä: {hosts}",
   "extensionsReachesNothing": "Se ei pyydä pääsyä millekään sivulle.",
   "extensionsOnlyItsSite": "Jokaisella sivustolla, jolla otat sen käyttöön, se ulottuu vain sen sivuston sivuihin.",

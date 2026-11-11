@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "{name} ಅನ್ನು ಸೇರಿಸಬೇಕೆ?",
   "extensionsAsks": "ಇದು ಕೇಳುವ ಅನುಮತಿಗಳು: {permissions}",
   "extensionsAsksNothing": "ಇದು ಯಾವುದೇ ಅನುಮತಿಗಳನ್ನು ಕೇಳುವುದಿಲ್ಲ.",
+  "extensionsNotGiven": "ಇಲ್ಲಿ ನೀಡಲಾಗುವುದಿಲ್ಲ: {permissions}. ಇವುಗಳ ಅಗತ್ಯವಿರುವುದು ಕೆಲಸ ಮಾಡುವುದಿಲ್ಲ.",
   "extensionsReaches": "ಇದು ತಲುಪಲು ಕೇಳುವ ಪುಟಗಳು: {hosts}",
   "extensionsReachesNothing": "ಇದು ಯಾವುದೇ ಪುಟವನ್ನು ತಲುಪಲು ಕೇಳುವುದಿಲ್ಲ.",
   "extensionsOnlyItsSite": "ನೀವು ಇದನ್ನು ಆನ್ ಮಾಡುವ ಪ್ರತಿ ಸೈಟ್‌ನಲ್ಲಿ, ಇದು ಆ ಸೈಟ್‌ನ ಪುಟಗಳನ್ನು ಮಾತ್ರ ತಲುಪುತ್ತದೆ.",

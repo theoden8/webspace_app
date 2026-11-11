@@ -239,6 +239,21 @@ void main() {
       test('only the permissions an extension may hold are granted', () {
         expect(_permissionsHold(planExtensionGrants), isTrue);
       });
+
+      test('what it asks for and is never given is named, hosts aside', () {
+        expect(
+          refusedPermissions({
+            'storage',
+            'webRequest',
+            'webRequestBlocking',
+            'privacy',
+            '<all_urls>',
+            '*://*.example.com/*',
+          }),
+          {'webRequestBlocking', 'privacy'},
+        );
+        expect(refusedPermissions(grantablePermissions), isEmpty);
+      });
     },
   );
 

@@ -29,6 +29,7 @@ import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/settings/web_extension.dart';
 import 'package:webspace/settings/web_extension_backup.dart';
 import 'package:webspace/settings/web_extension_source.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 /// Whether extensions are offered here now (WEBEXT-001): on a host that runs
 /// them, with developer mode and the Web extensions switch on. Every
@@ -254,11 +255,22 @@ class WebExtensionLibrary {
   static final WebExtensionLibrary instance = WebExtensionLibrary._();
 
   static const _prefsKey = 'webExtensionLibrary';
+
+  /// The extension WebKit is reading now, as `<id>@<version>`: one still
+  /// here at launch is one the app ended reading (WEBEXT-003).
+  static const _readingKey = 'webExtensionReading';
+
+  /// Each extension the app ended reading, at the version it ended on.
+  static const _endedKey = 'webExtensionEndedReading';
   static const _directory = 'web_extensions';
 
   ExtensionFolders? _folders;
   ExtensionEngine _engine = const NativeExtensionEngine();
   StreamSubscription<ExtensionProblem>? _problems;
+
+  /// One read at a time, so a read the app ended in names one extension.
+  SerialQueue _reading = SerialQueue('webExtensionReading');
+  Set<String> _ended = const {};
   ExtensionFetch _fetch = _fetchViaAppProxy;
   ReadPackage _read = readPackageApart;
   final ValueNotifier<List<InstalledExtension>> _installed = ValueNotifier(
@@ -301,6 +313,7 @@ class WebExtensionLibrary {
     final readWhole = saved == null
         ? !prefs.containsKey(_prefsKey)
         : entries.length == saved.length;
+    await _recallEnded(prefs, entries: entries);
     try {
       final found =
           folders ??
@@ -720,9 +733,61 @@ class WebExtensionLibrary {
     required ExtensionHome home,
   }) => _engine.openPage(page, extension: extension, home: home);
 
+  /// What [entries] WebKit ended the app reading: a read still marked from
+  /// the last run joins those, and an extension removed or at another
+  /// version since leaves them, so an update is read again.
+  Future<void> _recallEnded(
+    SharedPreferences prefs, {
+    required List<WebExtensionEntry> entries,
+  }) async {
+    final interrupted = readPrefAs<String>(prefs, key: _readingKey);
+    if (interrupted != null) {
+      LogTag.webExtension.warning(
+        '$interrupted: the app ended while WebKit read it; it is not read '
+        'again at this version',
+      );
+    }
+    final current = {for (final e in entries) _readingMark(e)};
+    final ended = {
+      ...?readPrefStrings(prefs, key: _endedKey),
+      ?interrupted,
+    }.intersection(current);
+    _ended = Set.unmodifiable(ended);
+    if (isDemoMode) return;
+    await prefs.remove(_readingKey);
+    await prefs.setStringList(_endedKey, ended.toList()..sort());
+  }
+
+  static String _readingMark(WebExtensionEntry entry) =>
+      '${entry.id}@${entry.version}';
+
+  /// What WebKit reports reading [entry] in [folder], the read marked while
+  /// it runs; one the app ended reading before is not read again and runs
+  /// nowhere (WEBEXT-003).
+  Future<ExtensionReport?> _inspectOne(
+    WebExtensionEntry entry, {
+    required String folder,
+  }) => _reading.run(() async {
+    final mark = _readingMark(entry);
+    if (_ended.contains(mark)) return _endedReading;
+    if (isDemoMode) return _engine.inspect(folder);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_readingKey, mark);
+    final report = await _engine.inspect(folder);
+    await prefs.remove(_readingKey);
+    return report;
+  });
+
+  static const ExtensionReport _endedReading = (
+    problems: [],
+    hasOptionsPage: false,
+    hasAction: false,
+    loadsHere: false,
+  );
+
   Future<void> _inspect(List<InstalledExtension> installed) async {
     for (final (:entry, :folder) in installed) {
-      final report = await _engine.inspect(folder);
+      final report = await _inspectOne(entry, folder: folder);
       if (report == null) continue;
       if (!_installed.value.any((i) => i.entry.id == entry.id)) continue;
       if (report.problems.isNotEmpty) {
@@ -765,6 +830,8 @@ class WebExtensionLibrary {
   @visibleForTesting
   void debugReset() {
     _folders = null;
+    _reading = SerialQueue('webExtensionReading');
+    _ended = const {};
     unawaited(_problems?.cancel());
     _problems = null;
     _engine = const NativeExtensionEngine();

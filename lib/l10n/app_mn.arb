@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "{name}-г нэмэх үү?",
   "extensionsAsks": "Хүсэж буй зөвшөөрөл: {permissions}",
   "extensionsAsksNothing": "Ямар ч зөвшөөрөл хүсэхгүй.",
+  "extensionsNotGiven": "Энд олгогдохгүй: {permissions}. Тэдгээрийг шаарддаг зүйл ажиллахгүй.",
   "extensionsReaches": "Хандахыг хүсэж буй хуудсууд: {hosts}",
   "extensionsReachesNothing": "Ямар ч хуудсанд хандахыг хүсэхгүй.",
   "extensionsOnlyItsSite": "Үүнийг асаасан сайт бүр дээр зөвхөн тухайн сайтын хуудсуудад хандана.",

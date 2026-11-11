@@ -6056,6 +6056,15 @@
   "@extensionsAsksNothing": {
     "description": "Line in the dialog before adding a browser extension whose manifest asks for no permissions."
   },
+  "extensionsNotGiven": "Not given here: {permissions}. What needs them will not work.",
+  "@extensionsNotGiven": {
+    "description": "Line on a browser extension's page and in the dialog before adding it: the permissions its manifest asks for that this app never gives an extension (such as webRequestBlocking or privacy), as the technical names extensions use, so the parts of it that need them will not work. {permissions} is a comma-separated list of those names; leave them as they are.",
+    "placeholders": {
+      "permissions": {
+        "type": "String"
+      }
+    }
+  },
   "extensionsReaches": "Pages it asks to reach: {hosts}",
   "@extensionsReaches": {
     "description": "Line in the dialog before adding a browser extension: the web addresses or patterns (such as *://*.example.com/*) it asks to read and change.",

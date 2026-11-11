@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Да се додаде {name}?",
   "extensionsAsks": "Бара: {permissions}",
   "extensionsAsksNothing": "Не бара никакви дозволи.",
+  "extensionsNotGiven": "Овде не се даваат: {permissions}. Она што ги бара нема да работи.",
   "extensionsReaches": "Страници до кои бара пристап: {hosts}",
   "extensionsReachesNothing": "Не бара пристап до ниедна страница.",
   "extensionsOnlyItsSite": "На секој сајт за кој ќе ја вклучите, пристапува само до страниците на тој сајт.",

@@ -11,6 +11,8 @@ import 'package:webspace/screens/extension_search.dart';
 import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/reentry_guard.dart';
+import 'package:webspace/services/web_extension_grants_engine.dart'
+    show refusedPermissions;
 import 'package:webspace/services/web_extension_library.dart';
 import 'package:webspace/services/web_extension_package_engine.dart';
 import 'package:webspace/services/web_extension_source_engine.dart';
@@ -249,6 +251,7 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
     final loc = AppLocalizations.of(context);
     final manifest = package.manifest;
     final permissions = manifest.permissions.toList()..sort();
+    final refused = refusedPermissions(manifest.permissions).toList()..sort();
     final hosts = manifest.hosts.toList()..sort();
     return confirm(
       context,
@@ -261,6 +264,7 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
         permissions.isEmpty
             ? loc.extensionsAsksNothing
             : loc.extensionsAsks(permissions.join(', ')),
+        if (refused.isNotEmpty) loc.extensionsNotGiven(refused.join(', ')),
         hosts.isEmpty
             ? loc.extensionsReachesNothing
             : loc.extensionsReaches(hosts.join(', ')),

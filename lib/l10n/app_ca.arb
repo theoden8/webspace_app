@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Voleu afegir {name}?",
   "extensionsAsks": "Demana: {permissions}",
   "extensionsAsksNothing": "No demana cap permís.",
+  "extensionsNotGiven": "No es concedeixen aquí: {permissions}. El que les necessiti no funcionarà.",
   "extensionsReaches": "Pàgines a què demana accedir: {hosts}",
   "extensionsReachesNothing": "No demana accedir a cap pàgina.",
   "extensionsOnlyItsSite": "A cada lloc on l'activeu, només arriba a les pàgines d'aquell lloc.",

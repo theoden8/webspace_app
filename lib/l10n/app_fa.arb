@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "{name} افزوده شود؟",
   "extensionsAsks": "این مجوزها را می‌خواهد: {permissions}",
   "extensionsAsksNothing": "هیچ مجوزی نمی‌خواهد.",
+  "extensionsNotGiven": "اینجا داده نمی‌شود: {permissions}. آنچه به آن‌ها نیاز دارد کار نخواهد کرد.",
   "extensionsReaches": "صفحه‌هایی که می‌خواهد به آن‌ها دسترسی داشته باشد: {hosts}",
   "extensionsReachesNothing": "به هیچ صفحه‌ای دسترسی نمی‌خواهد.",
   "extensionsOnlyItsSite": "در هر سایتی که آن را برایش روشن کنید، فقط به صفحه‌های همان سایت دسترسی دارد.",

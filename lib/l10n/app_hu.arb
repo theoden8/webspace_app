@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "{name} hozzáadása?",
   "extensionsAsks": "Ezt kéri: {permissions}",
   "extensionsAsksNothing": "Nem kér engedélyt.",
+  "extensionsNotGiven": "Itt nem kapja meg: {permissions}. Ami ezeket igényli, nem fog működni.",
   "extensionsReaches": "Oldalak, amelyekhez hozzáférést kér: {hosts}",
   "extensionsReachesNothing": "Egyetlen oldalhoz sem kér hozzáférést.",
   "extensionsOnlyItsSite": "Minden webhelyen, amelyen bekapcsolja, csak az adott webhely oldalait éri el.",

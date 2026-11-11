@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Të shtohet {name}?",
   "extensionsAsks": "Kërkon: {permissions}",
   "extensionsAsksNothing": "Nuk kërkon asnjë leje.",
+  "extensionsNotGiven": "Nuk jepen këtu: {permissions}. Ajo që ka nevojë për to nuk do të funksionojë.",
   "extensionsReaches": "Faqet që kërkon të arrijë: {hosts}",
   "extensionsReachesNothing": "Nuk kërkon të arrijë asnjë faqe.",
   "extensionsOnlyItsSite": "Në çdo sajt ku e aktivizon, arrin vetëm faqet e atij sajti.",

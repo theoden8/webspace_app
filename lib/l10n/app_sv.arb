@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Lägg till {name}?",
   "extensionsAsks": "Det begär: {permissions}",
   "extensionsAsksNothing": "Det begär inga behörigheter.",
+  "extensionsNotGiven": "Ges inte här: {permissions}. Det som behöver dem fungerar inte.",
   "extensionsReaches": "Sidor det vill nå: {hosts}",
   "extensionsReachesNothing": "Det vill inte nå några sidor.",
   "extensionsOnlyItsSite": "På varje webbplats du slår på det för når det bara den webbplatsens sidor.",

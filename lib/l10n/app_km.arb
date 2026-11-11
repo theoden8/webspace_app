@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "បន្ថែម {name}?",
   "extensionsAsks": "វាស្នើសុំ៖ {permissions}",
   "extensionsAsksNothing": "វាមិនស្នើសុំការអនុញ្ញាតណាមួយទេ។",
+  "extensionsNotGiven": "មិនផ្តល់ឱ្យនៅទីនេះ៖ {permissions}។ អ្វីដែលត្រូវការវានឹងមិនដំណើរការទេ។",
   "extensionsReaches": "ទំព័រដែលវាស្នើសុំចូលដល់៖ {hosts}",
   "extensionsReachesNothing": "វាមិនស្នើសុំចូលដល់ទំព័រណាមួយទេ។",
   "extensionsOnlyItsSite": "នៅលើគេហទំព័រនីមួយៗដែលអ្នកបើកវា វាចូលដល់តែទំព័ររបស់គេហទំព័រនោះប៉ុណ្ណោះ។",

@@ -54,6 +54,17 @@ ExtensionGrants planExtensionGrants(
   );
 }
 
+/// The API permissions among [asked] an extension is never given here, so
+/// what needs them does not work (WEBEXT-015). Host patterns are not API
+/// permissions and are left out.
+Set<String> refusedPermissions(Iterable<String> asked) => {
+  for (final permission in asked)
+    if (!grantablePermissions.contains(permission) &&
+        permission != '<all_urls>' &&
+        !permission.contains('://'))
+      permission,
+};
+
 /// The match patterns [claims] cover: an exact host is that host, a base
 /// domain is the domain and its subdomains. A wildcard claim covers the
 /// subdomains of a host, which a match pattern cannot say without the host

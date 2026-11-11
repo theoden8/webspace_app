@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Engadir {name}?",
   "extensionsAsks": "Pide: {permissions}",
   "extensionsAsksNothing": "Non pide ningún permiso.",
+  "extensionsNotGiven": "Non se conceden aquí: {permissions}. O que as precise non funcionará.",
   "extensionsReaches": "Páxinas ás que pide acceso: {hosts}",
   "extensionsReachesNothing": "Non pide acceso a ningunha páxina.",
   "extensionsOnlyItsSite": "En cada sitio no que a actives, só chega ás páxinas dese sitio.",

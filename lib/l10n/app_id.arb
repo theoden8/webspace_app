@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Tambahkan {name}?",
   "extensionsAsks": "Ekstensi ini meminta: {permissions}",
   "extensionsAsksNothing": "Ekstensi ini tidak meminta izin apa pun.",
+  "extensionsNotGiven": "Tidak diberikan di sini: {permissions}. Yang membutuhkannya tidak akan berfungsi.",
   "extensionsReaches": "Halaman yang ingin dijangkaunya: {hosts}",
   "extensionsReachesNothing": "Ekstensi ini tidak meminta akses ke halaman apa pun.",
   "extensionsOnlyItsSite": "Di setiap situs tempat Anda mengaktifkannya, ekstensi hanya menjangkau halaman situs itu.",

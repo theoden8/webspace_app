@@ -253,18 +253,20 @@ List<String> hageziMirrorUrls(String path) =>
 /// through the app-wide proxy; null where the proxy cannot be honoured or
 /// none does. A source that answers 200 with something else is skipped rather
 /// than folded into a working list; [tlds] where the list names top-level
-/// domains, which are fewer and have no dot. The DNS blocklist's levels and
-/// the popular sites' filter lists (SUGGEST-009) come here.
+/// domains, which are fewer and have no dot. A list of megabytes takes
+/// minutes over Tor, so by default a source is left only once nothing has
+/// come from it for [timeout] (DNS-001). The DNS blocklist's levels and the
+/// popular sites' filter lists (SUGGEST-009) come here.
 Future<String?> fetchDomainList(
   List<String> urls, {
   required LogTag tag,
-  Duration timeout = const Duration(seconds: 15),
+  FetchTimeout timeout = const IdleTimeout(Duration(seconds: 30)),
   bool tlds = false,
 }) async {
   for (final url in urls) {
     tag.debug('Trying mirror: $url');
     switch (await fetchViaAppProxy(Uri.parse(url),
-        tag: tag, timeout: TotalTimeout(timeout))) {
+        tag: tag, timeout: timeout)) {
       case FetchRefused():
         return null;
       case FetchFailed():

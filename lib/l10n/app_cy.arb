@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Ychwanegu {name}?",
   "extensionsAsks": "Mae'n gofyn am: {permissions}",
   "extensionsAsksNothing": "Nid yw'n gofyn am unrhyw ganiatâd.",
+  "extensionsNotGiven": "Ni roddir yma: {permissions}. Ni fydd yr hyn sydd eu hangen yn gweithio.",
   "extensionsReaches": "Tudalennau y mae'n gofyn am gael eu cyrraedd: {hosts}",
   "extensionsReachesNothing": "Nid yw'n gofyn am gyrraedd unrhyw dudalen.",
   "extensionsOnlyItsSite": "Ar bob gwefan rydych chi'n ei droi ymlaen ar ei chyfer, dim ond tudalennau'r wefan honno y mae'n eu cyrraedd.",

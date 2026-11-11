@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "{name} toevoegen?",
   "extensionsAsks": "Ze vraagt om: {permissions}",
   "extensionsAsksNothing": "Ze vraagt geen machtigingen.",
+  "extensionsNotGiven": "Hier niet toegekend: {permissions}. Wat ze nodig heeft, werkt niet.",
   "extensionsReaches": "Pagina's die ze wil bereiken: {hosts}",
   "extensionsReachesNothing": "Ze wil geen pagina's bereiken.",
   "extensionsOnlyItsSite": "Op elke site waarvoor je haar aanzet, bereikt ze alleen de pagina's van die site.",

@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Cuir {name} leis?",
   "extensionsAsks": "Iarrann sí na ceadanna seo: {permissions}",
   "extensionsAsksNothing": "Ní iarrann sí aon chead.",
+  "extensionsNotGiven": "Ní thugtar anseo: {permissions}. Ní oibreoidh an méid a bhfuil siad de dhíth air.",
   "extensionsReaches": "Leathanaigh ar mian léi rochtain orthu: {hosts}",
   "extensionsReachesNothing": "Ní iarrann sí rochtain ar aon leathanach.",
   "extensionsOnlyItsSite": "Ar gach suíomh a gcuireann tú ar siúl í dó, ní shroicheann sí ach leathanaigh an tsuímh sin.",

@@ -6,7 +6,7 @@
 library;
 
 import 'package:webspace/services/web_extension_grants_engine.dart'
-    show grantablePermissions;
+    show refusedPermissions;
 import 'package:webspace/settings/web_extension_source.dart';
 
 const _host = 'addons.mozilla.org';
@@ -52,8 +52,7 @@ enum WebKitFit {
 /// host patterns together; null when its listing names none.
 WebKitFit webKitFitOf({required Set<String>? permissions}) {
   if (permissions == null) return WebKitFit.unknown;
-  final api = permissions.where((p) => p != '<all_urls>' && !p.contains('://'));
-  return api.every(grantablePermissions.contains)
+  return refusedPermissions(permissions).isEmpty
       ? WebKitFit.works
       : WebKitFit.partly;
 }

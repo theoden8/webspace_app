@@ -59,7 +59,7 @@ App Settings > Extensions SHALL import an extension from a file the user picks: 
 
 ### Requirement: WEBEXT-003 - Chrome-format extensions run as far as WebKit supports their APIs
 
-An extension written for Chrome SHALL be loaded as is, with no rewriting, through WebKit's support for the `chrome.*` and `browser.*` namespaces. What WebKit reports it could not load or does not support SHALL be shown on the extension's library entry. An extension WebKit does not load on this device at all (on iPhone and iPad, one whose background page stays loaded) SHALL say so on its entry and as the reason its switches are off, and SHALL run on no site and offer none of its pages.
+An extension written for Chrome SHALL be loaded as is, with no rewriting, through WebKit's support for the `chrome.*` and `browser.*` namespaces. What WebKit reports it could not load or does not support SHALL be shown on the extension's library entry. An extension WebKit does not load on this device at all (on iPhone and iPad, one whose background page stays loaded) SHALL say so on its entry and as the reason its switches are off, and SHALL run on no site and offer none of its pages. An extension whose reading by WebKit ended the app SHALL be treated the same way and not read again at that version, so the app does not end at every launch; a new version of it is read again.
 
 #### Scenario: An extension using an API WebKit lacks
 
@@ -67,6 +67,13 @@ An extension written for Chrome SHALL be loaded as is, with no rewriting, throug
 - **WHEN** the user opens its library entry
 - **THEN** the entry lists what WebKit reported
 - **AND** the extension is still offered to sites
+
+#### Scenario: An extension whose reading ended the app
+
+- **GIVEN** an imported extension whose reading by WebKit ended the app
+- **WHEN** the app is launched again
+- **THEN** WebKit does not read it again, and it says it doesn't run on this device, running on no site
+- **AND** once it is updated to another version, it is read again
 
 #### Scenario: An extension WebKit does not load here
 
@@ -160,13 +167,20 @@ An extension's messages to an application, its native-messaging connections and 
 
 ### Requirement: WEBEXT-008 - An extension's own UI opens within its site
 
-Each enabled extension with an action SHALL appear in the site's menu; its popup and its options page SHALL open over the site. On the site's Extensions screen, Settings SHALL open its options page and Menu SHALL do what its toolbar button does in a browser. A request to open a tab SHALL open the extension's own page over the site, a URL of the site's domains as a nested screen of the site, and nothing for any other URL. A request to open a window SHALL be refused.
+Each enabled extension with an action SHALL appear in the site's menu; its popup and its options page SHALL open over the site. On the site's Extensions screen, Settings SHALL open its options page and Menu SHALL do what its toolbar button does in a browser. An action acts on the active tab, so the site's menu and its Extensions screen SHALL offer an extension's action only while a webview of the site runs that extension, and the action SHALL act on that webview; with no such webview open, the app SHALL NOT open the action. A request to open a tab SHALL open the extension's own page over the site, a URL of the site's domains as a nested screen of the site, and nothing for any other URL. A request to open a window SHALL be refused.
 
 #### Scenario: The action popup
 
 - **GIVEN** an extension with an action popup, switched on for the site on screen
 - **WHEN** the user picks it from the site's menu
 - **THEN** its popup opens over the site
+
+#### Scenario: No tab to act on
+
+- **GIVEN** an extension with an action popup, switched on for a site whose webview is not open, or was built before the extension was switched on
+- **WHEN** the user opens the site's Extensions screen
+- **THEN** it offers the extension's Settings but not its Menu
+- **AND** the site's menu lists no action for it
 
 #### Scenario: The extension's own page
 
@@ -329,13 +343,19 @@ On a site, an extension SHALL be granted the pages both a pattern it asked for a
 
 ### Requirement: WEBEXT-015 - An extension holds only the permissions the app allows
 
-An extension SHALL be granted only the API permissions it asked for that the app lets an extension hold (storage, tabs, scripting, alarms, context menus, cookies, declarative net request, web navigation, web request, clipboard write, active tab, unlimited storage), never `nativeMessaging` or any other.
+An extension SHALL be granted only the API permissions it asked for that the app lets an extension hold (storage, tabs, scripting, alarms, context menus, cookies, declarative net request, web navigation, web request, clipboard write, active tab, unlimited storage), never `nativeMessaging` or any other. The summary before adding an extension and its page SHALL name the permissions it asks for that it is never given, so it is clear why what needs them does not work.
 
 #### Scenario: Native messaging asked for
 
 - **GIVEN** an extension asking for `storage`, `tabs`, `scripting`, `nativeMessaging`, `debugger` and `downloads`
 - **WHEN** its grants are planned
 - **THEN** it is granted `storage`, `tabs` and `scripting`
+
+#### Scenario: What it is never given is named
+
+- **GIVEN** an extension asking for `storage`, `webRequestBlocking` and `privacy`
+- **WHEN** the user opens its page, or is asked whether to add it
+- **THEN** it says `privacy` and `webRequestBlocking` are not given here, and that what needs them will not work
 
 ### Requirement: WEBEXT-016 - A site's webviews attach what the site switched on, where it may
 

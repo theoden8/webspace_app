@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Tilføj {name}?",
   "extensionsAsks": "Den beder om: {permissions}",
   "extensionsAsksNothing": "Den beder ikke om nogen tilladelser.",
+  "extensionsNotGiven": "Gives ikke her: {permissions}. Det, der kræver dem, virker ikke.",
   "extensionsReaches": "Sider, den beder om adgang til: {hosts}",
   "extensionsReachesNothing": "Den beder ikke om adgang til nogen sider.",
   "extensionsOnlyItsSite": "På hvert websted, du slår den til for, når den kun det websteds sider.",

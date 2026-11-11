@@ -44,7 +44,8 @@ int siteExtensionsOn(ExtensionAttach plan) => switch (plan) {
 /// A site's Settings > Extensions (WEBEXT-004): a switch per imported
 /// extension that follows the extension's default until the site sets its
 /// own, each switched on only after the user has seen what it gets on this
-/// site, and the pages of those it runs (WEBEXT-008).
+/// site, and the pages of those it runs (WEBEXT-008): an action's only while
+/// the site's webview runs it, the tab the action acts on.
 class SiteExtensionsScreen extends StatefulWidget {
   const SiteExtensionsScreen({
     super.key,
@@ -91,6 +92,11 @@ class _SiteExtensionsScreenState extends State<SiteExtensionsScreen> {
         };
       });
       widget.onChanged();
+      // The page builds the site's webview again in the frame onChanged
+      // asks for, and only then is it known what that webview runs.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
     });
   }
 
@@ -147,12 +153,16 @@ class _SiteExtensionsScreenState extends State<SiteExtensionsScreen> {
           final installed = library.installed.value;
           final lock = siteExtensionsLock(widget.site.extensionPlan);
           final home = widget.site.extensionHome(widget.isolation);
-          Set<WebExtensionId> offering(ExtensionPage page) => {
+          final live = widget.site.liveExtensions;
+          Set<WebExtensionId> offering(
+            ExtensionPage page, {
+            required ExtensionHome? home,
+          }) => {
             if (home != null)
               for (final entry in library.offering(page, home: home)) entry.id,
           };
-          final options = offering(ExtensionPage.options);
-          final actions = offering(ExtensionPage.action);
+          final options = offering(ExtensionPage.options, home: home);
+          final actions = offering(ExtensionPage.action, home: live);
           final locks = {
             for (final (:entry, folder: _) in installed)
               entry.id:
@@ -181,8 +191,7 @@ class _SiteExtensionsScreenState extends State<SiteExtensionsScreen> {
                   ),
                   lock: locks[entry.id],
                 ),
-                if (home != null &&
-                    (options.contains(entry.id) || actions.contains(entry.id)))
+                if (options.contains(entry.id) || actions.contains(entry.id))
                   Padding(
                     padding: const EdgeInsetsDirectional.only(
                       start: Spacing.xl,
@@ -192,7 +201,8 @@ class _SiteExtensionsScreenState extends State<SiteExtensionsScreen> {
                       alignment: MainAxisAlignment.start,
                       spacing: Spacing.sm,
                       children: [
-                        if (options.contains(entry.id))
+                        if (home case final home?
+                            when options.contains(entry.id))
                           TextButton.icon(
                             icon: const Icon(Icons.settings_outlined),
                             label: Text(loc.siteExtensionsSettings),
@@ -202,14 +212,15 @@ class _SiteExtensionsScreenState extends State<SiteExtensionsScreen> {
                               home: home,
                             )),
                           ),
-                        if (actions.contains(entry.id))
+                        if (live case final live?
+                            when actions.contains(entry.id))
                           TextButton.icon(
                             icon: const Icon(Icons.menu_open),
                             label: Text(loc.siteExtensionsMenu),
                             onPressed: () => unawaited(_open(
                               ExtensionPage.action,
                               entry: entry,
-                              home: home,
+                              home: live,
                             )),
                           ),
                       ],

@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "{name} එක් කරන්නද?",
   "extensionsAsks": "එය ඉල්ලන්නේ: {permissions}",
   "extensionsAsksNothing": "එය කිසිදු අවසරයක් ඉල්ලන්නේ නැත.",
+  "extensionsNotGiven": "මෙහි ලබා නොදේ: {permissions}. ඒවා අවශ්‍ය දේ ක්‍රියා නොකරයි.",
   "extensionsReaches": "එය ළඟා වීමට ඉල්ලන පිටු: {hosts}",
   "extensionsReachesNothing": "එය කිසිදු පිටුවකට ළඟා වීමට ඉල්ලන්නේ නැත.",
   "extensionsOnlyItsSite": "ඔබ එය සක්‍රිය කරන සෑම අඩවියකම, එය ළඟා වන්නේ එම අඩවියේ පිටුවලට පමණි.",

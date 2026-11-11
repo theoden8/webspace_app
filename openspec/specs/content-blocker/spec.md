@@ -102,7 +102,7 @@ Test: `test/page_phase_test.dart`.
 
 ### Requirement: CB-002 - Filter List Management
 
-Users SHALL be able to manage multiple filter lists with download, enable/disable, custom list support, and per-list persistence.
+Users SHALL be able to manage multiple filter lists with download, enable/disable, custom list support, and per-list persistence. A download SHALL be given up only once nothing has come for 30 s, never for how long the list takes, so a list of megabytes over a slow route (Tor) is read whole.
 
 #### Scenario: Default filter lists
 
@@ -126,6 +126,12 @@ Users SHALL be able to manage multiple filter lists with download, enable/disabl
 **Then** the list text is saved to `<cache>/content_blocker_cache/<id>.txt`, in the platform cache directory (PLATFORM-010)
 **And** the engine is rebuilt with the new list included
 **And** a coarse line-count proxy is stored as `ruleCount` for the settings UI
+
+#### Scenario: A download over a slow route
+
+**Given** the app-wide proxy is Tor, and a list comes in parts 20 s apart for 100 s
+**When** the user downloads it
+**Then** the whole list is saved
 
 #### Scenario: Update all lists
 

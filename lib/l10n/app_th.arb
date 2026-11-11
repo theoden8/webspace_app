@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "เพิ่ม {name} ไหม",
   "extensionsAsks": "ขอสิทธิ์: {permissions}",
   "extensionsAsksNothing": "ไม่ได้ขอสิทธิ์ใดๆ",
+  "extensionsNotGiven": "ไม่ได้รับที่นี่: {permissions} ส่วนที่ต้องใช้สิ่งเหล่านี้จะไม่ทำงาน",
   "extensionsReaches": "หน้าที่ขอเข้าถึง: {hosts}",
   "extensionsReachesNothing": "ไม่ได้ขอเข้าถึงหน้าใดๆ",
   "extensionsOnlyItsSite": "ในแต่ละเว็บไซต์ที่คุณเปิดใช้ ส่วนขยายจะเข้าถึงได้เฉพาะหน้าของเว็บไซต์นั้น",

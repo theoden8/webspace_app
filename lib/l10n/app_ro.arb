@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Adaugi {name}?",
   "extensionsAsks": "Cere: {permissions}",
   "extensionsAsksNothing": "Nu cere nicio permisiune.",
+  "extensionsNotGiven": "Nu se acordă aici: {permissions}. Ce are nevoie de ele nu va funcționa.",
   "extensionsReaches": "Pagini la care cere acces: {hosts}",
   "extensionsReachesNothing": "Nu cere acces la nicio pagină.",
   "extensionsOnlyItsSite": "Pe fiecare site pentru care o activezi, ajunge doar la paginile acelui site.",

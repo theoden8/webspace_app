@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Přidat {name}?",
   "extensionsAsks": "Žádá o: {permissions}",
   "extensionsAsksNothing": "Nežádá o žádná oprávnění.",
+  "extensionsNotGiven": "Zde se neudělují: {permissions}. Co je potřebuje, nebude fungovat.",
   "extensionsReaches": "Stránky, ke kterým žádá přístup: {hosts}",
   "extensionsReachesNothing": "Nežádá o přístup k žádným stránkám.",
   "extensionsOnlyItsSite": "Na každém webu, pro který ho zapnete, dosáhne jen na stránky tohoto webu.",

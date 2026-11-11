@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Ongeza {name}?",
   "extensionsAsks": "Kinaomba: {permissions}",
   "extensionsAsksNothing": "Hakiombi ruhusa yoyote.",
+  "extensionsNotGiven": "Hazitolewi hapa: {permissions}. Kinachozihitaji hakitafanya kazi.",
   "extensionsReaches": "Kurasa kinazoomba kufikia: {hosts}",
   "extensionsReachesNothing": "Hakiombi kufikia ukurasa wowote.",
   "extensionsOnlyItsSite": "Kwenye kila tovuti unayokiwashia, kinafikia kurasa za tovuti hiyo pekee.",

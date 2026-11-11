@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "{name} ਜੋੜੀਏ?",
   "extensionsAsks": "ਇਹ ਮੰਗਦੀ ਹੈ: {permissions}",
   "extensionsAsksNothing": "ਇਹ ਕੋਈ ਅਧਿਕਾਰ ਨਹੀਂ ਮੰਗਦੀ।",
+  "extensionsNotGiven": "ਇੱਥੇ ਨਹੀਂ ਦਿੱਤੀਆਂ ਜਾਂਦੀਆਂ: {permissions}। ਜਿਸ ਨੂੰ ਇਹਨਾਂ ਦੀ ਲੋੜ ਹੈ ਉਹ ਕੰਮ ਨਹੀਂ ਕਰੇਗਾ।",
   "extensionsReaches": "ਪੰਨੇ ਜਿਨ੍ਹਾਂ ਤੱਕ ਇਹ ਪਹੁੰਚ ਮੰਗਦੀ ਹੈ: {hosts}",
   "extensionsReachesNothing": "ਇਹ ਕਿਸੇ ਪੰਨੇ ਤੱਕ ਪਹੁੰਚ ਨਹੀਂ ਮੰਗਦੀ।",
   "extensionsOnlyItsSite": "ਤੁਸੀਂ ਜਿਸ ਵੀ ਸਾਈਟ ਲਈ ਇਸਨੂੰ ਚਾਲੂ ਕਰੋ, ਉੱਥੇ ਇਹ ਸਿਰਫ਼ ਉਸੇ ਸਾਈਟ ਦੇ ਪੰਨਿਆਂ ਤੱਕ ਪਹੁੰਚਦੀ ਹੈ।",

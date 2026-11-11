@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "{name} eklensin mi?",
   "extensionsAsks": "İstediği izinler: {permissions}",
   "extensionsAsksNothing": "Hiçbir izin istemiyor.",
+  "extensionsNotGiven": "Burada verilmez: {permissions}. Bunlara ihtiyaç duyan kısımlar çalışmaz.",
   "extensionsReaches": "Erişmek istediği sayfalar: {hosts}",
   "extensionsReachesNothing": "Hiçbir sayfaya erişmek istemiyor.",
   "extensionsOnlyItsSite": "Açtığınız her sitede yalnızca o sitenin sayfalarına erişir.",

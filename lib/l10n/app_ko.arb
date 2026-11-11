@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "{name}을(를) 추가할까요?",
   "extensionsAsks": "요청하는 권한: {permissions}",
   "extensionsAsksNothing": "권한을 요청하지 않습니다.",
+  "extensionsNotGiven": "여기서는 부여되지 않음: {permissions}. 이를 필요로 하는 기능은 작동하지 않습니다.",
   "extensionsReaches": "접근을 요청하는 페이지: {hosts}",
   "extensionsReachesNothing": "페이지 접근을 요청하지 않습니다.",
   "extensionsOnlyItsSite": "켠 각 사이트에서는 해당 사이트의 페이지에만 접근합니다.",

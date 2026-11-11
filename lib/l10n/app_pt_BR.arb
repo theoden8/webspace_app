@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Adicionar {name}?",
   "extensionsAsks": "Ela pede: {permissions}",
   "extensionsAsksNothing": "Ela não pede nenhuma permissão.",
+  "extensionsNotGiven": "Não concedidas aqui: {permissions}. O que precisar delas não vai funcionar.",
   "extensionsReaches": "Páginas que ela pede para acessar: {hosts}",
   "extensionsReachesNothing": "Ela não pede acesso a nenhuma página.",
   "extensionsOnlyItsSite": "Em cada site em que você ativá-la, ela só acessa as páginas desse site.",

@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "Voeg {name} by?",
   "extensionsAsks": "Dit vra vir: {permissions}",
   "extensionsAsksNothing": "Dit vra vir geen toestemmings nie.",
+  "extensionsNotGiven": "Hier nie gegee nie: {permissions}. Wat dit nodig het, sal nie werk nie.",
   "extensionsReaches": "Bladsye wat dit wil bereik: {hosts}",
   "extensionsReachesNothing": "Dit wil geen bladsye bereik nie.",
   "extensionsOnlyItsSite": "Op elke werf waarvoor jy dit aanskakel, bereik dit slegs daardie werf se bladsye.",

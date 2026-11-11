@@ -1248,6 +1248,7 @@
   "extensionsAddTitle": "להוסיף את {name}?",
   "extensionsAsks": "הוא מבקש: {permissions}",
   "extensionsAsksNothing": "הוא לא מבקש הרשאות.",
+  "extensionsNotGiven": "לא ניתנות כאן: {permissions}. מה שזקוק להן לא יעבוד.",
   "extensionsReaches": "דפים שהוא מבקש לגשת אליהם: {hosts}",
   "extensionsReachesNothing": "הוא לא מבקש לגשת לאף דף.",
   "extensionsOnlyItsSite": "בכל אתר שמפעילים אותו בו, הוא מגיע רק לדפים של אותו אתר.",

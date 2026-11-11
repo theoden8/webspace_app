@@ -780,12 +780,15 @@ class ContentBlockerService {
   }
 
   /// A filter list or one it includes. Lists name their own URLs, so one
-  /// that does not parse is a failed fetch rather than a throw.
+  /// that does not parse is a failed fetch rather than a throw. A list of
+  /// megabytes takes minutes over Tor, so it is left only once nothing has
+  /// come for half a minute (CB-002).
   static Future<AppProxyFetch> _fetch(String url) {
     final uri = Uri.tryParse(url);
     if (uri == null) return Future.value(const FetchFailed('not a URL'));
     return fetchViaAppProxy(uri,
-        tag: LogTag.contentBlocker, timeout: const TotalTimeout(Duration(seconds: 30)));
+        tag: LogTag.contentBlocker,
+        timeout: const IdleTimeout(Duration(seconds: 30)));
   }
 
   /// Download all enabled lists. Returns number of successful downloads.

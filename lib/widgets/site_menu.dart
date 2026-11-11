@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/developer_mode_service.dart';
-import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/keyboard_shortcuts.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/web_extension_library.dart';
@@ -44,12 +43,9 @@ typedef SiteMenuState = ({
 /// (WEBEXT-008).
 typedef SiteMenuExtension = ({String name, VoidCallback open});
 
-/// The actions of the extensions [site] runs, each opening over it.
-List<SiteMenuExtension> siteMenuExtensions(
-  WebViewModel? site, {
-  required Isolation isolation,
-}) {
-  final home = site?.extensionHome(isolation);
+/// The actions of the extensions [site]'s webview runs, each acting on it.
+List<SiteMenuExtension> siteMenuExtensions(WebViewModel? site) {
+  final home = site?.liveExtensions;
   if (home == null) return const [];
   final library = WebExtensionLibrary.instance;
   return [
