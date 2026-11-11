@@ -127,7 +127,7 @@ TLC model it backs (same definitions — no re-modeling).
   obligation's context, which cost tlapm about 12 s an obligation, the trivial ones too (the
   held family's steps module, 3,042 s; restated, 507 s). tlapm takes an extended module's
   lemmas as given too, so the restatement is no weaker as long as each is the lemma proved:
-  [omitted.py](omitted.py), which `check_proofs.sh` runs first, fails on an omitted lemma that
+  [integrity.py](integrity.py), which `check_proofs.sh` runs first, fails on an omitted lemma that
   no module of the run proves in the same words (`test/js/formal_omitted.test.js`).
   `ConstantsType` is still assumed; TLC does not yet check it in each world.
   **All proved. `check_proofs.sh` pins `activation_types_proof`, its facts' modules and the
@@ -154,6 +154,32 @@ The finish merges the shards' reports and fails unless each module was proved
 by exactly one, with a count, and the tables' step modules sum to their pin;
 a run with one shard merges its own report the same way. A shard proves no
 more modules side by side than its memory holds at `TLAPM_MODULE_MB` each.
+Each shard holds every module to [integrity.py](integrity.py)'s rules on the
+text, and reads the holes of the runs it made itself (`--proved`).
+
+## What the proofs rest on
+
+tlapm proves an obligation from what its module gives it, and counting
+obligations cannot tell a proof from a given. [integrity.py](integrity.py) reads
+every proof module, the printed ones and each module they extend, and fails on:
+
+| Rule | Fails on | Source |
+|---|---|---|
+| `assume` | a top-level ASSUME, ASSUMPTION or AXIOM not in [assumptions.tsv](assumptions.tsv), or a row no module still states | the modules' text; a digest of each statement, so a changed one is new |
+| `unproved` | a theorem with PROOF OMITTED or no proof that no other module of the run proves under its name in its words | the modules' text |
+| `holes` | a step left with no proof (a bare QED); an omitted proof the previous rule does not admit; a tlapm that reports no omitted proof where a module states one | the proving run's own `Missing proof at` and `Omitted proof at` lines (tlapm #271), so no second tlapm run |
+| `reach` | a theorem of a module a proof extends that the run does not prove itself, which tlapm takes as given | the EXTENDS and INSTANCE graph |
+
+`assumptions.tsv` only shrinks. `check_proofs.sh` runs `integrity.py --plant`
+first, which makes each mistake in a module of its own, in tlapm's own output
+format, and fails unless its rule names it; then the rules that read the
+modules alone, and every rule once each module's proving run has ended.
+The rules follow TLAPS-Bench's soundness checks (specula-org/TLAPS-Bench).
+
+Before proving a new invariant, try it with TLC: [../indcheck.sh](../indcheck.sh)
+runs `Init => IndInv`, `IndInv /\ Next => IndInv'` and `IndInv => Inv` on a small
+world, on demand: it is no CI stage. A pass is evidence only; the procedure is the
+`inductive-invariant-check` skill (`.claude/skills/`).
 
 ## Check
 
