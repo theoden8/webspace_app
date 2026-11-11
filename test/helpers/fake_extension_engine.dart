@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:webspace/services/container_names.dart';
 import 'package:webspace/services/web_extension_attach_engine.dart';
 import 'package:webspace/services/web_extension_native.dart';
 import 'package:webspace/settings/web_extension.dart';
@@ -63,4 +64,24 @@ class FakeExtensionEngine implements ExtensionEngine {
       ids.remove(extension);
     }
   }
+
+  /// Who answers a tab request, as the app set it.
+  Future<bool> Function(ExtensionTabRequest request)? tabHandler;
+
+  @override
+  void answerTabRequests(
+    Future<bool> Function(ExtensionTabRequest request)? handler,
+  ) {
+    tabHandler = handler;
+  }
+
+  /// An extension asking for a tab at [url] from [container], as WebKit
+  /// sends it; refused when the app set no one to answer.
+  Future<bool> askForTab(
+    WebExtensionId extension, {
+    required ContainerName container,
+    required Uri url,
+  }) =>
+      tabHandler?.call((extension: extension, container: container, url: url)) ??
+      Future.value(false);
 }

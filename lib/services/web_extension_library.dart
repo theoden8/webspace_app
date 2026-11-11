@@ -725,6 +725,12 @@ class WebExtensionLibrary {
     );
   }
 
+  /// Who answers an extension's request for a tab at a web page
+  /// (WEBEXT-008); null refuses every one.
+  void answerTabRequests(
+    Future<bool> Function(ExtensionTabRequest request)? handler,
+  ) => _engine.answerTabRequests(handler);
+
   /// Shows [page] of [extension] over the site [home] belongs to; false
   /// when it was not shown.
   Future<bool> open(

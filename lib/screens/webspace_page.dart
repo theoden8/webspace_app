@@ -53,6 +53,8 @@ import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
+import 'package:webspace/services/web_extension_attach_engine.dart';
+import 'package:webspace/services/web_extension_library.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/widgets/site_drawer.dart';
 import 'package:webspace/widgets/site_editing_prompts.dart';
@@ -320,6 +322,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     _network.start();
     _fullscreen.start();
     _keys.start();
+    WebExtensionLibrary.instance.answerTabRequests(_openExtensionTab);
   }
 
   void _rebuild() {
@@ -418,6 +421,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     AppPref.anyChange.removeListener(_onAppPrefChanged);
     _fullscreen.dispose();
     _keys.dispose();
+    WebExtensionLibrary.instance.answerTabRequests(null);
     surfaceRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -498,6 +502,29 @@ class _WebSpacePageState extends State<WebSpacePage>
       case ManualRepaint.recreate:
         _resets.resetShown();
     }
+  }
+
+  /// An extension's request for a tab at a web page (WEBEXT-008): a page
+  /// of the site on screen opens as a nested screen of it, as a link of the
+  /// site's would; anything else is refused.
+  Future<bool> _openExtensionTab(ExtensionTabRequest request) async {
+    final site = _sites.shown;
+    final url = request.url.toString();
+    final refusal = refuseTab(
+      request,
+      live: site?.liveExtensions,
+      claimsPage: site?.matchesSiteClaim(url) ?? false,
+    );
+    if (site == null || refusal != null) {
+      LogTag.webExtension.info(
+          '${request.extension} asked for a tab, refused: ${refusal?.name}');
+      return false;
+    }
+    await _executeOpenNested(
+      DispatchOpenNested(siteId: site.siteId, url: url, sourceIsParent: true),
+      source: site,
+    );
+    return true;
   }
 
   /// LIR-011: open as a nested webview using the chosen site's settings.

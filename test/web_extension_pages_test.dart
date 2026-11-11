@@ -275,6 +275,70 @@ void main() {
     });
   });
 
+  group('WEBEXT-008 an extension\'s tab at a web page opens only as a page '
+      'of the site on screen', () {
+    test('a page the site claims opens; another site\'s, an extension the '
+        'webview does not run, and a site not on screen are refused', () async {
+      final entry = await _library.add(_package(name: 'Sample'));
+      final other = await _library.add(_package(name: 'Other'));
+      final mail = site('https://mail.example.com/', on: {entry.id});
+      final live = mail.extensionHome(fakeContainers())!;
+      final news = site('https://news.example.org/', on: {entry.id})
+          .extensionHome(fakeContainers())!;
+      TabRefusal? ask(
+        WebExtensionId extension, {
+        required String url,
+        required ExtensionHome? shown,
+        ExtensionHome? from,
+      }) =>
+          refuseTab(
+            (
+              extension: extension,
+              container: (from ?? live).container,
+              url: Uri.parse(url),
+            ),
+            live: shown,
+            claimsPage: mail.matchesSiteClaim(url),
+          );
+
+      expect(ask(entry.id, url: 'https://mail.example.com/help', shown: live),
+          isNull);
+      expect(ask(entry.id, url: 'https://other.example/', shown: live),
+          TabRefusal.notTheSitesPage);
+      expect(ask(other.id, url: 'https://mail.example.com/help', shown: live),
+          TabRefusal.notRunning);
+      expect(
+          ask(entry.id,
+              url: 'https://mail.example.com/help', shown: live, from: news),
+          TabRefusal.otherSite);
+      expect(ask(entry.id, url: 'https://mail.example.com/help', shown: null),
+          TabRefusal.otherSite);
+    });
+
+    test('the app answers through the library, and with no one to answer '
+        'every request is refused', () async {
+      final entry = await _library.add(_package(name: 'Sample'));
+      final home =
+          site('https://mail.example.com/', on: {entry.id})
+              .extensionHome(fakeContainers())!;
+      final url = Uri.parse('https://mail.example.com/help');
+      Future<bool> ask() =>
+          engine.askForTab(entry.id, container: home.container, url: url);
+
+      expect(await ask(), isFalse);
+      final asked = <ExtensionTabRequest>[];
+      _library.answerTabRequests((request) async {
+        asked.add(request);
+        return true;
+      });
+      expect(await ask(), isTrue);
+      expect(asked.single,
+          (extension: entry.id, container: home.container, url: url));
+      _library.answerTabRequests(null);
+      expect(await ask(), isFalse);
+    });
+  });
+
   group('WEBEXT-002 removing an extension deletes it everywhere', () {
     test('its files and its data on both sites go, and it runs on neither',
         () async {
