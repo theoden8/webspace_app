@@ -902,8 +902,8 @@ abstract final class ActivationTable {
         ),
         of: (
           site: _site.value,
-          built: (s) => s.tabBinding.built,
-          hosts: (s) => s.tabHosts,
+          built: (_, {required site}) => site.tabBinding.built,
+          hosts: (_, {required site}) => site.tabHosts,
           begin: (c) => ActivationFlow.page.from(c).beginNavCapture(_site.of(c)),
           marks: null,
           keeps: null,

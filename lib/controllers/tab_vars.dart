@@ -32,7 +32,7 @@ final class TabVars {
   /// `host[s]`: the site each tab runs as, the site itself for one the list
   /// does not hold.
   static Indexed<WebViewModel, Map<TabId, WebViewModel>, W> host<W>() =>
-      hostReported<WebViewModel, W>(read: (s) => s.tabHosts);
+      hostReported<WebViewModel, W>(read: (_, {required site}) => site.tabHosts);
 
   /// `host` whole, for the writes a reroute, a duplicate and a close print;
   /// the code's are a tab's own ([SiteTab.hostCell]) or the list's.
@@ -120,7 +120,9 @@ final class TabVars {
   }
 
   static Indexed<WebViewModel, TabId?, W> built<W>() =>
-      builtReported<WebViewModel, W>(read: (s) => s.tabBinding.built);
+      builtReported<WebViewModel, W>(
+        read: (_, {required site}) => site.tabBinding.built,
+      );
 
   /// `built` whole, for the writes the frame does.
   static Mutable<Map<WebViewModel, TabId?>, W> builtFn<W>() =>

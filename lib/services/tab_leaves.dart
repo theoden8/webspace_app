@@ -22,8 +22,11 @@ Mutable<Map<S, TabId?>, W> builtOf<S, W>() => Mutable.remote(ModelVar.built);
 /// `built[s]` as the code reads it off a site's binding ([read]); the
 /// frame alone writes it.
 Indexed<S, TabId?, W> builtReported<S, W>({
-  required TabId? Function(S site) read,
-}) => Indexed.reported(ModelVar.built, read: (_, {required at}) => read(at));
+  required TabId? Function(W world, {required S site}) read,
+}) => Indexed.reported(
+  ModelVar.built,
+  read: (w, {required at}) => read(w, site: at),
+);
 Mutable<Map<S, TabId?>, W> histOf<S, W>() => Mutable.remote(ModelVar.hist);
 Mutable<Map<S, QueuedStack>, W> queuedOf<S, W>() => Mutable.remote(ModelVar.queued);
 Mutable<Map<S, Map<TabId, Map<S, TabId?>>>, W> fileOf<S, W>() =>
@@ -32,8 +35,11 @@ Mutable<Map<S, Map<TabId, Map<S, TabId?>>>, W> fileOf<S, W>() =>
 /// `host[s]`: the site each of a site's tabs runs as ([read], the tab's
 /// host or the site itself); a file's key names it (`webViewStateKey`).
 Indexed<S, Map<TabId, S>, W> hostReported<S, W>({
-  required Map<TabId, S> Function(S site) read,
-}) => Indexed.reported(ModelVar.host, read: (_, {required at}) => read(at));
+  required Map<TabId, S> Function(W world, {required S site}) read,
+}) => Indexed.reported(
+  ModelVar.host,
+  read: (w, {required at}) => read(w, site: at),
+);
 
 /// No tab: `0`.
 Expr<TabId?, W> noTab<W>() => Expr.constant(null, tla: '0');
@@ -76,8 +82,8 @@ List<Write<W>> webViewsGone<S, W>(Expr<Iterable<S>, W> sites) => [
 /// land between.
 List<Assign<W>> captureStart<S, W>(
   Expr<S, W> site, {
-  required TabId? Function(S site) built,
-  required Map<TabId, S> Function(S site) hosts,
+  required TabId? Function(W world, {required S site}) built,
+  required Map<TabId, S> Function(W world, {required S site}) hosts,
 }) {
   final tab = builtReported<S, W>(read: built).at(site);
   return [

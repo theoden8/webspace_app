@@ -681,8 +681,8 @@ class SiteUnloadEngine {
     ),
     of: (
       site: _victim.value,
-      built: (s) => s.tabBinding.built,
-      hosts: (s) => s.tabHosts,
+      built: (_, {required site}) => site.tabBinding.built,
+      hosts: (_, {required site}) => site.tabHosts,
       begin: (c) {
         final site = _victim.of(c);
         final plan = _plan.from(c);
