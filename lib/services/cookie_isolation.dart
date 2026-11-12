@@ -3,13 +3,12 @@ import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
+import 'package:webspace/services/engine_site.dart';
 import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/tab_leaves.dart';
 import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/utils/concurrency.dart';
-// ignore: webspace_lints/layer_import
-import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/cookie_manager.dart';
 
 /// Whether [cookie] is on [baseDomain]: the model's `Base[x] = Base[s]`.
@@ -40,9 +39,9 @@ enum UnloadPlace {
 /// The model's `tier[s]`: a site's lifecycle state, which every table that
 /// moves a site between the tiers reads and writes through this.
 Indexed<SiteId, SiteLifecycleState, W> tierOf<W extends SitesById>() =>
-    Indexed<WebViewModel, SiteLifecycleState, W>.over(
+    Indexed<EngineSite, SiteLifecycleState, W>.over(
       ModelVar.tier,
-      cell: WebViewModel.tierCell,
+      cell: tierCell,
     ).keyedBy<SiteId>((w, {required key}) => w.siteOf(key));
 
 /// The model's `Base[x]`: the base domain of a site, or of a cookie
@@ -252,7 +251,7 @@ class CookieIsolationEngine {
   /// every URL of [of] where it is read per URL ([_candidateUrlsFor]).
   Future<List<Cookie>> _snapshot(
     JarTurn turn, {
-    required Iterable<WebViewModel> of,
+    required Iterable<EngineSite> of,
   }) {
     assert(!_emptied, 'a capture read the jar a restore emptied (BUG-032)');
     return _cookies.getAllCookies(candidateUrls: _candidateUrlsFor(of));
@@ -277,7 +276,7 @@ class CookieIsolationEngine {
   /// saved as one's would hand that site another's session or a deleted
   /// one's (ISO-003). Emptied with a site loaded, the jar would lose that
   /// site's session, so then it keeps the jar as it is.
-  Future<void> clearUnloaded({required Iterable<WebViewModel> loaded}) =>
+  Future<void> clearUnloaded({required Iterable<EngineSite> loaded}) =>
       _turn((turn) async {
         if (loaded.isNotEmpty) return;
         await _empty(turn);
@@ -419,7 +418,7 @@ class CookieIsolationEngine {
   /// kept in memory.
   static Port<SitesById, W> _sitesPort<W extends JarWorld>() =>
       Port('sites', reads: const {}, changes: const {}, of: (w) => w.sites);
-  static WebViewModel _siteIn<W extends JarWorld>(
+  static EngineSite _siteIn<W extends JarWorld>(
     StepView<W> c, {
     required SiteId id,
   }) => _sitesPort<W>().from(c).siteOf(id);
@@ -1037,16 +1036,16 @@ class CookieIsolationEngine {
   /// fails is left as it is, with nothing deleted past the failure: the next
   /// activation empties it before any site shows (ISO-012, ISO-014).
   Future<void> preDeleteCookieCleanup({
-    required WebViewModel deletedModel,
-    required Iterable<WebViewModel> loaded,
+    required EngineSite deletedModel,
+    required Iterable<EngineSite> loaded,
   }) => _turn(
     (turn) => _preDelete(turn, deletedModel: deletedModel, loaded: loaded),
   );
 
   Future<void> _preDelete(
     JarTurn turn, {
-    required WebViewModel deletedModel,
-    required Iterable<WebViewModel> loaded,
+    required EngineSite deletedModel,
+    required Iterable<EngineSite> loaded,
   }) async {
     await _saveStored(turn, site: deletedModel.siteId, cookies: []);
     try {
@@ -1065,8 +1064,8 @@ class CookieIsolationEngine {
 
   Future<void> _clearDeletedFromJar(
     JarTurn turn, {
-    required WebViewModel deletedModel,
-    required Iterable<WebViewModel> loaded,
+    required EngineSite deletedModel,
+    required Iterable<EngineSite> loaded,
   }) async {
     final deletedBase = getBaseDomain(deletedModel.initUrl);
 
@@ -1107,7 +1106,7 @@ class CookieIsolationEngine {
   /// include each model's `initUrl`, `currentUrl` (if different), and a
   /// bare `https://<baseDomain>/` to pick up parent-domain cookies like
   /// `Domain=.example.com`. On iOS this list is ignored.
-  static List<Uri> _candidateUrlsFor(Iterable<WebViewModel> models) {
+  static List<Uri> _candidateUrlsFor(Iterable<EngineSite> models) {
     final urls = <String>{};
     for (final m in models) {
       if (m.initUrl.isNotEmpty) urls.add(m.initUrl);
@@ -1124,7 +1123,7 @@ class CookieIsolationEngine {
   /// [_writeAll].
   Future<CookieJarFailure?> _setCookies(
     JarTurn turn, {
-    required WebViewModel site,
+    required EngineSite site,
     required List<Cookie> cookies,
   }) => _writeAll(
     turn,
@@ -1249,7 +1248,7 @@ abstract base class JarWorld implements SitesById {
   late final JarTurn turn;
 
   @override
-  WebViewModel siteOf(SiteId id) => sites.siteOf(id);
+  EngineSite siteOf(SiteId id) => sites.siteOf(id);
 }
 
 /// What the jar's unload steps run against: the unload engine's flow seen

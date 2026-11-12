@@ -63,8 +63,8 @@ Def<Object?, Object?> definition(ModelDef d) => switch (d) {
   ModelDef.evictable => RuntimeVars.evictable<Object>(),
   ModelDef.pages => RuntimeVars.pagesOf<Object>(),
   ModelDef.running => RuntimeVars.runningSites<Object>(),
-  ModelDef.runsAs => TabVars.runsAs<SiteId, SitesById>(
-    keys: TabVars.ids<SitesById>(),
+  ModelDef.runsAs => TabVars.runsAs<SiteId, SiteModels>(
+    keys: TabVars.ids<SiteModels>(),
   ),
   ModelDef.midActivation => ActivationTable.midActivation,
   ModelDef.pressureResident => ActivationTable.pressureResident,
@@ -79,21 +79,21 @@ Def<Object?, Object?> definition(ModelDef d) => switch (d) {
   ModelDef.picked => SiteUnloadEngine.picked,
   ModelDef.spare => SiteUnloadEngine.spare,
   ModelDef.gone => SiteUnloadEngine.gone,
-  ModelDef.share => CookieIsolationEngine.share<SitesById>(),
+  ModelDef.share => CookieIsolationEngine.share<SiteModels>(),
   ModelDef.tabBusy => TabTable.tabBusy,
   ModelDef.reopens => TabTable.reopens,
   ModelDef.movesRule => TabTable.movesRule,
   ModelDef.misplaced => TabTable.misplaced,
-  ModelDef.capture => TabVars.capture<SiteId, SitesById>(),
-  ModelDef.bound => TabVars.bound<SiteId, SitesById>(
-    keys: TabVars.ids<SitesById>(),
+  ModelDef.capture => TabVars.capture<SiteId, SiteModels>(),
+  ModelDef.bound => TabVars.bound<SiteId, SiteModels>(
+    keys: TabVars.ids<SiteModels>(),
   ),
   ModelDef.takes => takesOf<Object?>(),
-  ModelDef.shown => TabVars.shown<SiteId, SitesById>(
-    keys: TabVars.ids<SitesById>(),
+  ModelDef.shown => TabVars.shown<SiteId, SiteModels>(
+    keys: TabVars.ids<SiteModels>(),
   ),
-  ModelDef.taken => TabVars.taken<SiteId, SitesById>(),
-  ModelDef.staged => TabVars.staged<SiteId, SitesById>(),
+  ModelDef.taken => TabVars.taken<SiteId, SiteModels>(),
+  ModelDef.staged => TabVars.staged<SiteId, SiteModels>(),
   ModelDef.resolveLevel => resolveLevelDef<Object?>(),
 };
 

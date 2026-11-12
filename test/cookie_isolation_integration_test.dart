@@ -56,13 +56,13 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
   final List<WebViewModel> navStateCaptured = [];
 
   @override
-  NavCapture? beginNavCapture(WebViewModel model) {
-    navStateCaptured.add(model);
+  NavCapture? beginNavCapture(SiteId site) {
+    navStateCaptured.add(siteOf(site));
     return FakeNavCapture();
   }
 
   @override
-  void noteUnloaded(WebViewModel model, {required UnloadReason reason}) {}
+  void noteUnloaded(SiteId site, {required UnloadReason reason}) {}
 
   @override
   SlotIdentities identities() => SlotIdentities.of(sites);

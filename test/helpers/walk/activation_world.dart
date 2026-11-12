@@ -954,7 +954,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   /// Whether [m] shares the router's default session: by its first
   /// position, whatever row it moved to.
-  bool _inDefaultSession(WebViewModel m) =>
+  bool _inDefaultSession(EngineSite m) =>
       proxies?.defaultSession.contains(_siteNumber(m) - 1) ?? false;
   final WalkLaunch? launch;
   final bool tabbed;
@@ -1394,7 +1394,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   /// A site as `formal/activation.tla` numbers it: by its place in the
   /// page's first list, from 1.
-  static int _siteNumber(WebViewModel site) => _siteNumberOf(site.siteId);
+  static int _siteNumber(EngineSite site) => _siteNumberOf(site.siteId);
 
   /// A mark's site as the model numbers it: the site, or its tab [tab].
   int _markNumber(SiteId id, {required TabId? tab}) => switch (tab) {
@@ -2219,11 +2219,16 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     if (model.effectiveIncognito) _signedIn[model.siteId]?.clear();
   }
 
-  void _noteUnloaded(WebViewModel model, {required UnloadReason reason}) {
+  void _noteUnloaded(SiteId site, {required UnloadReason reason}) {
+    final model = sites.find(site);
+    if (model == null) {
+      unloads.add('$site:${reason.name}');
+      return;
+    }
     _recordUnload(model, why: reason.name);
     if (_newest case (:final target?, :final version, id: _)
         when identical(model, target) && version == sites.activationVersion) {
-      _violations.add('${reason.label} unloaded ${model.siteId} while its '
+      _violations.add('${reason.label} unloaded $site while its '
           'activation ran (PAUSE-006)');
     }
   }
@@ -3322,12 +3327,14 @@ final class _WalkResidency implements ResidencyHost {
   Isolation get isolation => world.sites.isolation;
 
   @override
-  NavCapture? beginNavCapture(WebViewModel model) =>
-      world.activation.beginNavCapture(model);
+  NavCapture? beginNavCapture(SiteId site) => switch (world.sites.find(site)) {
+    final model? => world.activation.beginNavCapture(model),
+    null => null,
+  };
 
   @override
-  void noteUnloaded(WebViewModel model, {required UnloadReason reason}) =>
-      world._noteUnloaded(model, reason: reason);
+  void noteUnloaded(SiteId site, {required UnloadReason reason}) =>
+      world._noteUnloaded(site, reason: reason);
 
   @override
   SlotIdentities identities() => world.sites.slotIdentities();

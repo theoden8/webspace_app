@@ -20,7 +20,7 @@ abstract final class TabTable {
   /// The site the flow's `site` field names, for the code that acts on it:
   /// what the model does not hold of a site.
   static WebViewModel _siteIn(StepView<TabFlow> c) =>
-      Port<SitesById, TabFlow>(
+      Port<SiteModels, TabFlow>(
         'sites',
         reads: const {},
         changes: const {},

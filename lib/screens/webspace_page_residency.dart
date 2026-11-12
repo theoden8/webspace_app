@@ -22,12 +22,17 @@ class _ResidencyHost implements ResidencyHost {
   Isolation get isolation => state._sites.isolation;
 
   @override
-  NavCapture? beginNavCapture(WebViewModel model) =>
-      state._activation.beginNavCapture(model);
+  NavCapture? beginNavCapture(SiteId site) => switch (state._sites.find(site)) {
+    final model? => state._activation.beginNavCapture(model),
+    null => null,
+  };
 
   @override
-  void noteUnloaded(WebViewModel model, {required UnloadReason reason}) =>
+  void noteUnloaded(SiteId site, {required UnloadReason reason}) {
+    if (state._sites.find(site) case final model?) {
       state._background.noteUnloaded(model, reason: reason.label);
+    }
+  }
 
   @override
   SlotIdentities identities() => state._sites.slotIdentities();

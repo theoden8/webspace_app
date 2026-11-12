@@ -54,7 +54,7 @@ final _processGlobal = ProxyTopology.of(
   binding: ProxyBinding.processWide,
   sharesDefaultSession: (_) => false,
 );
-ProxyTopology _routed(bool Function(WebViewModel model) sharesDefaultSession) =>
+ProxyTopology _routed(bool Function(EngineSite model) sharesDefaultSession) =>
     ProxyTopology.of(
       binding: ProxyBinding.routed,
       sharesDefaultSession: sharesDefaultSession,
@@ -146,14 +146,14 @@ class _ContainerPage implements ResidencyHost {
   void Function()? duringCapture;
 
   @override
-  NavCapture? beginNavCapture(WebViewModel model) {
-    captured.add(model);
+  NavCapture? beginNavCapture(SiteId site) {
+    captured.add(siteOf(site));
     return FakeNavCapture(onRead: duringCapture);
   }
 
   @override
-  void noteUnloaded(WebViewModel model, {required UnloadReason reason}) =>
-      noted.add((model, reason));
+  void noteUnloaded(SiteId site, {required UnloadReason reason}) =>
+      noted.add((siteOf(site), reason));
 }
 
 void main() {
@@ -356,7 +356,7 @@ void main() {
     List<WebViewModel> sites(int n) => [
       for (var i = 0; i < n; i++) _site('https://s$i.example.com'),
     ];
-    List<(WebViewModel, UnloadReason)> unloads(ResidencyPlan plan) => [
+    List<(EngineSite, UnloadReason)> unloads(ResidencyPlan plan) => [
       for (final u in plan.unloads) (u.site, u.reason),
     ];
     CookieIsolationEngine jar() => CookieIsolationEngine(
