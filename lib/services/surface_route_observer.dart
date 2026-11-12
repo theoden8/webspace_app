@@ -14,3 +14,9 @@ import 'package:flutter/widgets.dart';
 /// underneath — cannot trigger a repaint.
 final RouteObserver<PageRoute<dynamic>> surfaceRouteObserver =
     RouteObserver<PageRoute<dynamic>>();
+
+/// Tells the page every route pushed over it, a sheet's or a dialog's
+/// included, which [surfaceRouteObserver] leaves out: anything over the page
+/// takes the keyboard the page raised (NAV-021).
+final RouteObserver<ModalRoute<dynamic>> coverRouteObserver =
+    RouteObserver<ModalRoute<dynamic>>();

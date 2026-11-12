@@ -222,8 +222,13 @@ void main() {
         expect(body(signature, src: links), contains('await _loadInActiveTab('),
             reason: '$signature loads through the one gated funnel');
       }
-      expect(body('Future<void> _dismissKeyboard('), contains('.timeout('),
-          reason: 'a stuck page must not keep the list from opening');
+      expect(
+          RegExp(r'await (\w+)')
+              .allMatches(body('Future<void> _showTabsSheet('))
+              .map((m) => m[1]),
+          ['_presentTabsSheet'],
+          reason: 'nothing, a stuck page least, keeps the list from opening; '
+              'the sheet takes the keyboard as any route does (NAV-021)');
       expect(body('Future<void> _showTabsSheet('), contains('_isShowingTabsSheet'));
     });
 

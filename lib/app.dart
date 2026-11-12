@@ -46,8 +46,10 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
     return MaterialApp(
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       // Lets every webview-hosting screen learn when an opaque route above it
-      // pops, which re-attaches its platform view blank (PAUSE-024/BUG-001).
-      navigatorObservers: [surfaceRouteObserver],
+      // pops, which re-attaches its platform view blank (PAUSE-024/BUG-001),
+      // and the page when anything covers it, which takes its keyboard
+      // (NAV-021).
+      navigatorObservers: [surfaceRouteObserver, coverRouteObserver],
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       locale: locale,
