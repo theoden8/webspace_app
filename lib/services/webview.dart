@@ -1887,7 +1887,8 @@ class WebViewFactory {
       child: webViewWidget,
     );
     return RouteCover.over(_applyLetterbox(config,
-        webView: _applyRefreshGate(config, webView: pageFocus?.wrap(scoped) ?? scoped)));
+        webView: _applyRefreshGate(config,
+            webView: pageFocus?.wrap(scoped) ?? OwnFocusOutline(child: scoped))));
   }
 
   /// Feeds the raw pointer stream to [WebViewConfig.pullToRefreshGate].

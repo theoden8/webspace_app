@@ -808,7 +808,7 @@ the arrow pressed, so a frame that reports an arrow nobody pressed moves nothing
 
 On an Android device no remote drives, the page takes a keyboard's keys instead (NAV-019),
 with no page script. On every other platform the page's webview SHALL be built exactly as
-before: no wrapper, no page script. Popups opened by a page are not covered.
+before: no wrapper that takes keys, no page script. Popups opened by a page are not covered.
 
 #### Scenario: Scrolling and following links with the D-pad
 
@@ -853,6 +853,44 @@ Test: [test/page_focus_test.dart](../../../test/page_focus_test.dart),
 [test/remote_tabs_test.dart](../../../test/remote_tabs_test.dart),
 [integration_test/remote_tv_test.dart](../../../integration_test/remote_tv_test.dart)
 (the Android TV emulator, INTEG-017)
+
+---
+
+### Requirement: NAV-021 - Keys Move Through The App On A Desktop
+
+On macOS, Linux and Windows, the app's own screens SHALL be driven by the keyboard as NAV-016
+drives them by a remote, everywhere outside a site's page: App Settings and every screen it
+opens, a site's settings, the library, dialogs, sheets and menus.
+
+- The arrows SHALL move focus between controls, and Tab and Shift-Tab along them; Enter or
+  Space SHALL press the control that has focus, and Escape SHALL close a dialog, a sheet or a
+  menu, as Flutter does on a desktop.
+- Up and Down SHALL leave a one-line text field; Left and Right stay with its caret, and a
+  field of several lines keeps all four.
+- Up and Down SHALL leave a slider; Left and Right change its value.
+- A disabled control SHALL take focus, so the keys can rest on a locked row and its reason.
+- An outline SHALL mark whatever has focus once a key moved it, drawn inside the control,
+  and none while the mouse drives the app. A site's page and what outlines itself (a
+  launcher icon, a tab strip chip) get no second outline.
+- The on-screen keyboard is not held back and Enter in a field is the field's: a desktop
+  types with its own keys.
+
+A site's page keeps its keys as before (NAV-014): this requirement does not reach into it.
+
+#### Scenario: Through App Settings by keys
+
+- **GIVEN** App Settings open on Linux
+- **WHEN** the user presses Down
+- **THEN** the next row has focus, outlined
+- **AND** Enter opens it
+
+#### Scenario: Out of the library's search
+
+- **GIVEN** the cursor in the library's search field on macOS
+- **WHEN** the user presses Down
+- **THEN** the first icon below it has focus
+
+Test: [test/remote_controls_test.dart](../../../test/remote_controls_test.dart)
 
 ---
 

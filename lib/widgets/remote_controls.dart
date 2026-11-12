@@ -3,26 +3,71 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/page_focus.dart';
+import 'package:webspace/services/remote_input.dart';
 import 'package:webspace/theme/design_tokens.dart';
 
-/// The app's chrome where a TV remote drives the device (NAV-016), around
-/// the navigator so dialogs, sheets and menus have it too: Up and Down leave
-/// a one-line text field, whose caret would otherwise keep every arrow; the
-/// on-screen keyboard waits for OK in a field ([_Keyboard]); and an outline
-/// marks whatever has focus. It runs in Flutter's directional navigation,
-/// which Flutter never picks itself: a slider then leaves Up and Down to
-/// moving focus instead of taking them as a change of its value, and a
-/// disabled control still takes focus, so the D-pad can rest on it. Built
+/// The keys around the app's navigator, so dialogs, sheets and menus have
+/// them too: a remote's where one drives the device ([RemoteControls]), a
+/// keyboard's on a desktop ([KeyNavigation], NAV-021), and none elsewhere,
+/// where a finger drives the chrome.
+Widget chromeKeys(Widget app) {
+  if (RemoteInput.driven) return RemoteControls(child: app);
+  if (hostIsDesktop) return KeyNavigation(child: app);
+  return app;
+}
+
+/// The app's chrome driven by keys, outside a site's page (NAV-021): Up and
+/// Down leave a one-line text field, whose caret would otherwise keep every
+/// arrow, and an outline marks whatever has focus once a key moved it. It
+/// runs in Flutter's directional navigation, which Flutter never picks
+/// itself: a slider then leaves Up and Down to moving focus instead of
+/// taking them as a change of its value, and a disabled control still takes
+/// focus, so the keys can rest on it and its row's reason can be read.
+class KeyNavigation extends StatelessWidget {
+  const KeyNavigation({super.key, required this.child});
+
+  final Widget child;
+
+  @visibleForTesting
+  static const ringKey = ValueKey('key-focus-ring');
+
+  @override
+  Widget build(BuildContext context) => MediaQuery(
+    data: MediaQuery.of(context).copyWith(
+      navigationMode: NavigationMode.directional,
+    ),
+    child: Shortcuts(
+      shortcuts: const {
+        SingleActivator(LogicalKeyboardKey.arrowUp): _LeaveField(
+          TraversalDirection.up,
+        ),
+        SingleActivator(LogicalKeyboardKey.arrowDown): _LeaveField(
+          TraversalDirection.down,
+        ),
+      },
+      child: Actions(
+        actions: {_LeaveField: _LeaveFieldAction()},
+        child: Stack(
+          fit: StackFit.passthrough,
+          alignment: Alignment.topLeft,
+          children: [child, const _FocusRing()],
+        ),
+      ),
+    ),
+  );
+}
+
+/// The app's chrome where a TV remote drives the device (NAV-016): the
+/// keyboard's ([KeyNavigation]), and the on-screen keyboard waits for OK in
+/// a field ([_Keyboard]), since a remote has no keys to type with. Built
 /// only where a remote drives it.
 class RemoteControls extends StatefulWidget {
   const RemoteControls({super.key, required this.child});
 
   final Widget child;
-
-  @visibleForTesting
-  static const ringKey = ValueKey('remote-focus-ring');
 
   @override
   State<RemoteControls> createState() => _RemoteControlsState();
@@ -44,33 +89,15 @@ class _RemoteControlsState extends State<RemoteControls> {
   }
 
   @override
-  Widget build(BuildContext context) => MediaQuery(
-    data: MediaQuery.of(context).copyWith(
-      navigationMode: NavigationMode.directional,
-    ),
-    child: Shortcuts(
-      shortcuts: const {
-        SingleActivator(LogicalKeyboardKey.arrowUp): _LeaveField(
-          TraversalDirection.up,
-        ),
-        SingleActivator(LogicalKeyboardKey.arrowDown): _LeaveField(
-          TraversalDirection.down,
-        ),
-        SingleActivator(LogicalKeyboardKey.select): _Type(),
-        SingleActivator(LogicalKeyboardKey.enter): _Type(),
-        SingleActivator(LogicalKeyboardKey.numpadEnter): _Type(),
-      },
-      child: Actions(
-        actions: {
-          _LeaveField: _LeaveFieldAction(),
-          _Type: _TypeAction(_keyboard),
-        },
-        child: Stack(
-          fit: StackFit.passthrough,
-          alignment: Alignment.topLeft,
-          children: [widget.child, const _FocusRing()],
-        ),
-      ),
+  Widget build(BuildContext context) => Shortcuts(
+    shortcuts: const {
+      SingleActivator(LogicalKeyboardKey.select): _Type(),
+      SingleActivator(LogicalKeyboardKey.enter): _Type(),
+      SingleActivator(LogicalKeyboardKey.numpadEnter): _Type(),
+    },
+    child: Actions(
+      actions: {_Type: _TypeAction(_keyboard)},
+      child: KeyNavigation(child: widget.child),
     ),
   );
 }
@@ -262,7 +289,7 @@ class _FocusRingState extends State<_FocusRing> {
       rect: rect,
       child: IgnorePointer(
         child: DecoratedBox(
-          key: RemoteControls.ringKey,
+          key: KeyNavigation.ringKey,
           decoration: BoxDecoration(
             border: Border.all(
               color: scheme.primary,
