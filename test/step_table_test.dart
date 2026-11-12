@@ -240,7 +240,7 @@ void main() {
         _Place.wait || _Place.done => const Leaves(),
       },
     );
-    final [(:step, :reads, :writes, :arms, place: _, input: _, needs: _, guard: _)] = table
+    final [(:step, :reads, :writes, :arms, place: _, input: _, turn: _, needs: _, guard: _)] = table
         .footprints();
     expect(step, ActivationStep.plan);
     expect(reads.vars, {ModelVar.loaded, ModelVar.queue},
@@ -891,6 +891,7 @@ void _definitions() {
           step: _,
           place: _,
           input: _,
+          turn: _,
           needs: _,
           guard: _,
         ),

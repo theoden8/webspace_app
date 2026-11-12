@@ -447,6 +447,22 @@ typedef SpawnRow = ({
   Set<Need> needs,
 });
 
+/// When a step's action may be taken against the other flows' steps.
+enum StepTurn {
+  /// An input (`Input`): it lands only where activation_base lets one.
+  input,
+
+  /// A lock's turn handed to it (`granted`): it runs once the turn is its.
+  granted,
+
+  /// Code between two awaits (`Internal`): it runs before any event lands.
+  between,
+
+  /// A reply (`Calm`): it lands only while no flow is between two awaits,
+  /// the model's statement of Dart's run-to-completion.
+  reply,
+}
+
 /// One step's action as the composition reads it: the place it waits at,
 /// what it reads and writes of the shared state, what the model's
 /// constants must be for it to be taken at all ([needs]: its input's
@@ -455,6 +471,7 @@ typedef Footprint = ({
   ActivationStep step,
   String place,
   bool input,
+  StepTurn turn,
   Reads reads,
   Set<ModelVar> writes,
   Set<Need> needs,

@@ -72,6 +72,26 @@ void main() {
     }
   });
 
+  test('the replies the TSV judges are the actions printed with Calm', () {
+    final calm = {
+      for (final m in RegExp(r'^(\w+)\(f\) ==\n(?:    /\\ [^\n]*\n)*?    /\\ Calm\n',
+              multiLine: true)
+          .allMatches(printed['activation_tables.tla']!))
+        m[1]!,
+    };
+    final rows = {
+      for (final line in printed['activation_calm.tsv']!.split('\n'))
+        if (line.isNotEmpty && !line.startsWith('#'))
+          line.split('\t')[0]: line.split('\t')[1],
+    };
+    expect(rows.keys.toSet(), calm);
+    // The delete table's ablation pilot: TLC caught DeleteDropReply without
+    // Calm, and the other two held in all 21 worlds that take them.
+    expect(rows['DeleteDropReply'], 'yes');
+    expect(rows['DeleteFrameReply'], 'no');
+    expect(rows['DeleteRetireReply'], 'no');
+  });
+
   test('every step prints with its outcomes', () {
     for (final s in ActivationStep.values) {
       expect(

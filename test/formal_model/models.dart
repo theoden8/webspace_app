@@ -240,6 +240,7 @@ List<PrintedFile> printedModels({required List<String> handWritten}) => [
     ]),
   ),
   (path: 'activation_footprints.tsv', text: activationFootprints(tables)),
+  (path: 'activation_calm.tsv', text: activationCalm(tables)),
   (path: 'activation_base_ops.tsv', text: activationBaseOps()),
   (
     path: 'lean/Footprints.lean',
@@ -701,6 +702,56 @@ String activationBaseOps() => [
 /// What reaching each place takes, for each kind of flow whose row can
 /// hold there: the model's constants every way there needs, in common
 /// ([waysAt]'s ways, intersected).
+/// Each reply (`StepTurn.reply`, guarded by `Calm`) and the steps between
+/// two awaits it does not commute with: one that writes what the other
+/// reads or writes, a flow's own row and the trace's `last` aside. A reply
+/// that meets none would reach the same states without `Calm`, so only the
+/// replies that meet one rest on Dart's run-to-completion.
+String activationCalm(Tables t) {
+  final all = _footprintsOf(t);
+  final internal = {
+    for (final table in _all(t))
+      for (final p in table.internalPlaces) p.name,
+  };
+  final kinds = {
+    for (final MapEntry(:key, :value) in flowsAt(all).entries)
+      key: value.keys.toSet(),
+  };
+  const own = {ModelVar.fl, ModelVar.last};
+  Set<ModelVar> read(Footprint f) => _resolved(f.reads, seen: const {}).vars;
+  bool writesRow(Footprint f, {required RowRead row}) =>
+      (kinds[f.place] ?? const {}).contains(row.kind) &&
+      f.arms.any((a) => a.ends || a.fields.contains(row.field));
+  bool readsRowOf(Footprint a, {required Footprint of}) {
+    final r = _resolved(a.reads, seen: const {});
+    return {...r.rows, for (final o in r.base) ...o.rows}.any(
+      (row) => writesRow(of, row: row),
+    );
+  }
+  bool meets(Footprint a, {required Footprint b}) {
+    final wa = a.writes.difference(own), wb = b.writes.difference(own);
+    return wa.any({...read(b), ...wb}.contains) ||
+        read(a).any(wb.contains) ||
+        readsRowOf(a, of: b) ||
+        readsRowOf(b, of: a);
+  }
+
+  final between = [for (final f in all) if (internal.contains(f.place)) f];
+  return [
+    '# reply\trests on run-to-completion\tsteps between two awaits it meets',
+    for (final f in all)
+      if (f.turn == StepTurn.reply)
+        if ({for (final b in between) if (meets(f, b: b)) b.step.action}
+            case final met)
+          [
+            f.step.action,
+            met.isEmpty ? 'no' : 'yes',
+            (met.toList()..sort()).join(' '),
+          ].join('\t'),
+    '',
+  ].join('\n');
+}
+
 Map<String, Map<FlowKind, Set<Need>>> flowsAt(List<Footprint> all) => {
   for (final MapEntry(key: place, value: byKind) in waysAt(all).entries)
     place: {
@@ -745,6 +796,7 @@ Map<String, Map<FlowKind, List<FlowWay>>> waysAt(List<Footprint> all) {
           :arms,
           :needs,
           step: _,
+          turn: _,
           reads: _,
           writes: _,
           guard: _,
