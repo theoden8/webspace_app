@@ -84,6 +84,7 @@ class FaviconFinder {
     String url, {
     List<String>? suffixes,
     required OutboundProxy proxy,
+    Future<void>? abandoned,
   }) async {
     var favicons = <Favicon>[];
     var iconUrls = <String>[];
@@ -105,6 +106,7 @@ class FaviconFinder {
       effectiveProxy,
       allowPrivateHost: siteHost,
       timeout: _discoveryTimeout,
+      abandoned: abandoned,
       body: (client) async {
         final ({Uri url, String body, bool ok, List<Uri> faviconOrigins}) page;
         switch (await _fetchPage(Uri.parse(url), client: client)) {

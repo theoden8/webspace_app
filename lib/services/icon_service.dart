@@ -603,34 +603,56 @@ int _compareFavicons(Favicon a,
 /// [IconUpdate], or nothing when none is found. Every request goes to a host
 /// the page names, through [proxy]; no third-party icon service is asked
 /// (ICON-014).
-Stream<IconUpdate> getFaviconUrlStream(String url, {required OutboundProxy proxy}) async* {
-  final uri = Uri.tryParse(url);
-  if (uri == null || uri.host.isEmpty) {
-    return;
-  }
+Stream<IconUpdate> getFaviconUrlStream(String url,
+    {required OutboundProxy proxy}) {
+  // A StreamController, not async*, so a subscriber that cancels (the icon
+  // widget on dispose) reaches the in-flight discovery: onCancel fires
+  // [abandoned], which closes the page-steered client and cancels its deadline
+  // timer (ICON-002). An async* generator cannot — its cancellation only lands
+  // at the next yield, never during the await on _tryFaviconPackage.
+  final controller = StreamController<IconUpdate>();
+  final abandoned = Completer<void>();
+  controller.onCancel = () {
+    if (!abandoned.isCompleted) abandoned.complete();
+  };
+  controller.onListen = () async {
+    try {
+      final uri = Uri.tryParse(url);
+      if (uri == null || uri.host.isEmpty) return;
 
-  switch (_searches[url]) {
-    case _Found(:final iconUrl, :final quality):
-      LogTag.icon.debug(
-          'Stream: Using cached icon for $url (quality: $quality)',
+      switch (_searches[url]) {
+        case _Found(:final iconUrl, :final quality):
+          LogTag.icon.debug(
+              'Stream: Using cached icon for $url (quality: $quality)',
+              sensitive: true);
+          controller.add(IconUpdate(iconUrl, quality: quality, isFinal: true));
+          return;
+        case _NoIcon():
+          return;
+        case _Unreached() || null:
+          break;
+      }
+
+      final search =
+          await _tryFaviconPackage(url, site: proxy, abandoned: abandoned.future);
+      final answer = _settle(url, search: search);
+      if (answer is _Found) {
+        if (identical(answer, search)) _foundController.add(url);
+        if (!controller.isClosed) {
+          controller
+              .add(IconUpdate(answer.iconUrl, quality: answer.quality, isFinal: true));
+        }
+      }
+
+      LogTag.icon.debug('Stream: Completed for $url: ${search.runtimeType}',
           sensitive: true);
-      yield IconUpdate(iconUrl, quality: quality, isFinal: true);
-      return;
-    case _NoIcon():
-      return;
-    case _Unreached() || null:
-      break;
-  }
-
-  final search = await _tryFaviconPackage(url, site: proxy);
-  final answer = _settle(url, search: search);
-  if (answer is _Found) {
-    if (identical(answer, search)) _foundController.add(url);
-    yield IconUpdate(answer.iconUrl, quality: answer.quality, isFinal: true);
-  }
-
-  LogTag.icon.debug('Stream: Completed for $url: ${search.runtimeType}',
-      sensitive: true);
+    } on PageSteeredAbandoned {
+      // The subscriber went away mid-discovery; nothing to report.
+    } finally {
+      if (!controller.isClosed) await controller.close();
+    }
+  };
+  return controller.stream;
 }
 
 /// What this session holds of [siteUrl]'s icon once [search] ends. A search
@@ -647,7 +669,7 @@ _Search _settle(String siteUrl, {required _Search search}) {
 }
 
 Future<_Search> _tryFaviconPackage(String url,
-    {required OutboundProxy site}) async {
+    {required OutboundProxy site, Future<void>? abandoned}) async {
   final proxy = site.resolved;
   // Internal schemes (chrome://, about:, file:, data:, blob:) have no
   // favicon reachable over the network — sending them through any proxy
@@ -667,7 +689,8 @@ Future<_Search> _tryFaviconPackage(String url,
     // Wrapping it here would abandon the await without closing the socket, so a
     // hung fetch would drain in the background (it still throws TimeoutException,
     // caught below).
-    final favicons = await FaviconFinder.getAll(url, proxy: site);
+    final favicons =
+        await FaviconFinder.getAll(url, proxy: site, abandoned: abandoned);
     if (favicons == null) return _Unreached();
     if (favicons.isEmpty) return _NoIcon();
 

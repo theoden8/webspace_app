@@ -21,6 +21,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -631,6 +632,45 @@ void main() {
       expect(received, lessThan(atTimeout + 1024),
           reason: 'the deadline closed the shared client, so little or no more '
               'body arrived after it fired');
+    });
+
+    test('abandoning a discovery cancels its deadline timer (no timer leaks)',
+        () {
+      // A favicon stream whose widget is disposed completes [abandoned]; the
+      // discovery must stop and the deadline timer must be cancelled. A quick
+      // widget test that renders an icon otherwise ends with the 15s timer
+      // still pending ("A Timer is still pending even after the widget tree was
+      // disposed"), since the fetch has not settled by the time the test ends.
+      // Keeping the param but awaiting the hung fetch anyway (the pre-fix
+      // Future.timeout shape) leaves pendingTimers non-empty here.
+      fakeAsync((async) {
+        final abandon = Completer<void>();
+        var abandoned = false;
+        unawaited(() async {
+          try {
+            await withPageSteeredClient<int>(
+              OutboundProxy.app.resolved,
+              allowPrivateHost: 'sink.test',
+              timeout: const Duration(seconds: 15),
+              abandoned: abandon.future,
+              body: (_) => Completer<int>().future, // never completes
+            );
+          } on PageSteeredAbandoned {
+            abandoned = true;
+          }
+        }());
+        async.flushMicrotasks();
+        expect(async.pendingTimers, isNotEmpty,
+            reason: 'the deadline timer is armed while the fetch runs');
+
+        abandon.complete();
+        async.flushMicrotasks();
+        expect(abandoned, isTrue,
+            reason: 'an abandoned fetch surfaces PageSteeredAbandoned at once, '
+                'not after the 15s deadline');
+        expect(async.pendingTimers, isEmpty,
+            reason: 'abandoning the fetch cancels the deadline timer');
+      });
     });
   });
 }
