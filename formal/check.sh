@@ -489,11 +489,13 @@ expect relay_routes_reach_waited.cfg relay_routes.tla "Reach_Waited is violated"
 
 section "RETENTION" "memory-pressure cascade + notification retention (PAUSE-006)"
 expect retention.cfg retention.tla "No error has been found" \
-  "current is never evicted and notification sites are evicted last"
+  "current is never evicted, warm tabs go first and notification sites last (TAB-024)"
 expect retention_starve.cfg retention.tla "Inv_NotifLast is violated" \
   "evicting a notification site before a normal one is caught"
 expect retention_reach.cfg retention.tla "Reach_NormalEvicted is violated" \
   "a normal site is actually evicted (retention order not vacuous)"
+expect retention_activefirst.cfg retention.tla "Inv_WarmFirst is violated" \
+  "evicting an active view while a warm tab is loaded is caught (TAB-024)"
 
 section "CONTAINERS" "per-site keyspace disjointness (no shared storage)"
 expect containers.cfg containers.tla "No error has been found" \
