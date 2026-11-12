@@ -19,6 +19,10 @@ function runner(t) {
       fs.copyFileSync(path.join(root, 'formal', name), path.join(formal, name));
     }
   }
+  // The split's rule is the proofs' own; the fixture's worlds have no recorded times.
+  fs.mkdirSync(path.join(formal, 'proofs'));
+  fs.copyFileSync(path.join(root, 'formal/proofs/proof_shards.py'), path.join(formal, 'proofs/proof_shards.py'));
+  fs.writeFileSync(path.join(formal, 'tlc_times.tsv'), '# none\n');
   fs.writeFileSync(path.join(model, 'activation_tables.tla'), '');
   fs.writeFileSync(path.join(model, 'checks.tsv'), '');
   fs.writeFileSync(path.join(dir, 'tla2tools.jar'), 'stub');
@@ -52,6 +56,8 @@ function runner(t) {
   return {
     events: () => fs.existsSync(calls)
       ? fs.readFileSync(calls, 'utf8').trim().split('\n').map((s) => JSON.parse(s)) : [],
+    recorded: (rows) => fs.writeFileSync(path.join(formal, 'tlc_times.tsv'),
+      rows.map(([name, seconds]) => `${name}\t${seconds}\n`).join('')),
     memo: path.join(dir, 'cache', 'memo'),
     times: path.join(dir, 'cache', 'times'),
     run({ section = 'GOOD', delay = 0, failure = false, shard = '0/1', rerun = false, deadline = 0, budget = 0 } = {}) {
@@ -212,4 +218,26 @@ test('a run budget gives a run at least the workers its last time needs to end w
         ? 'sixty core-seconds in twenty seconds take three workers, the cap beside other runs'
         : 'an even split of four cores');
   }
+});
+
+test('a cold cache takes the recorded times, so the deadline still defers', (t) => {
+  const check = runner(t);
+  check.recorded([['kernel_conflict_repaint', 9000], ['kernel_conflict_evict', 5],
+    ['kernel_conflict_contaminate', 5]]);
+  const cut = check.run({ section: 'NEGATIVE', delay: 200, deadline: 100 });
+  assert.equal(cut.status, 3, cut.stdout + cut.stderr);
+  assert.match(cut.stdout, /DEFER +kernel_conflict_repaint\.cfg/);
+});
+
+test('model shards split the worlds by recorded time, not by their order', (t) => {
+  const check = runner(t);
+  check.recorded([['kernel_conflict_repaint', 9000], ['kernel_conflict_evict', 5000],
+    ['kernel_conflict_contaminate', 4000]]);
+  const ran = (shard) => {
+    const result = check.run({ section: 'NEGATIVE', shard });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    return [...result.stdout.matchAll(/^RESULT\t\d+\t(\S+)\t/gm)].map((m) => m[1]).sort();
+  };
+  assert.deepEqual(ran('0/2'), ['kernel_conflict_repaint']);
+  assert.deepEqual(ran('1/2'), ['kernel_conflict_contaminate', 'kernel_conflict_evict']);
 });

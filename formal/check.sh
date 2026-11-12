@@ -89,6 +89,12 @@ PROGRESS="${FORMAL_PROGRESS_SECONDS:-60}"
 CACHE="${FORMAL_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/webspace-formal}"
 TIMES="$CACHE/times" MEMO="$CACHE/memo"
 mkdir -p "$TIMES" "$MEMO"
+# A world with no time of its own takes its recorded one (tlc_times.tsv), so
+# a cold cache still plans the longest first and FORMAL_DEADLINE still holds.
+while IFS=$'\t' read -r name secs; do
+  case "$name" in ''|'#'*) continue ;; esac
+  [ -f "$TIMES/$name" ] || printf '%s 1\n' "$secs" >"$TIMES/$name"
+done <tlc_times.tsv
 # A kept run no check has asked for in a fortnight is dropped.
 find "$MEMO" -type f -mtime +14 -delete
 # Everything a run writes, under states/ (beside the repo's files, not in a
@@ -285,6 +291,10 @@ section() {
 # a planted mistake caught, or a witness reached. verify.sh holds the totals
 # to formal/levels.tsv.
 HOLDS=0 CAUGHT=0 REACHED=0 FAILED="" DEFERRED=""
+# owned <name>: whether this shard runs the check. The worlds are split by
+# their recorded times with the proofs' rule (proofs/proof_shards.py), from
+# the one file every shard reads, so the shards compute the same split.
+owned() { [ "$SHARD_COUNT" -eq 1 ] || grep -xF "$1" "$RUNS/mine" >/dev/null; }
 expect() {
   selected || return 0
   local name kind ordinal="$ORDINAL"
@@ -295,11 +305,12 @@ expect() {
     Reach_*) kind=reached ;;
     *) kind=caught ;;
   esac
+  if [ "$PASS" = list ]; then echo "$name" >>"$RUNS/all"; return 0; fi
   if [ "$PASS" = collect ]; then
     printf 'CHECK\t%s\t%s\t%s\n' "$ordinal" "$name" "$kind" >>"$MANIFEST"
     [ "$MODE" != --plan ] || return 0
   fi
-  [ "$((ordinal % SHARD_COUNT))" -eq "$SHARD_AT" ] || return 0
+  owned "$name" || return 0
   if [ "$PASS" = collect ]; then
     local covered=-; [ -z "${COVERAGE:-}" ] || covered=on
     local k; k="$(key "$1" "$2" "${5:-}" "$3" "$covered")"
@@ -646,6 +657,13 @@ if [ "$MODE" = --gates ]; then
   exit 0
 fi
 
+if [ "$SHARD_COUNT" -gt 1 ] && [ "$MODE" != --plan ]; then
+  PASS=list
+  checks
+  python3 -I proofs/proof_shards.py assign --shard "$SHARD" --times tlc_times.tsv \
+    $(cat "$RUNS/all") >"$RUNS/mine"
+  PASS=collect
+fi
 checks
 printf 'PLANNED\t%s\n' "$ORDINAL" >>"$MANIFEST"
 [ "$MODE" != --plan ] || exit 0
