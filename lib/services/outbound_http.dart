@@ -272,15 +272,50 @@ Future<T> withPageSteeredClient<T>(
   ProxyRoute route, {
   String? allowPrivateHost,
   Duration? timeout,
+  Future<void>? abandoned,
   required Future<T> Function(PageSteeredHttp client) body,
 }) async {
   final client = pageSteeredClient(route, allowPrivateHost: allowPrivateHost);
+  // The deadline is an explicit timer, not Future.timeout's hidden one, so it is
+  // cancelled on every exit: a normal return, the deadline firing, and — via
+  // [abandoned] — the caller going away. A favicon stream whose widget is
+  // disposed cancels its subscription, which fires [abandoned], so the discovery
+  // stops at once and leaves no timer pending (a quick widget test would
+  // otherwise trip "A Timer is still pending even after the widget tree was
+  // disposed", since the fetch has not settled by the time the test ends).
+  final onDeadline = Completer<T>();
+  final deadline = timeout == null
+      ? null
+      : Timer(timeout, () {
+          if (!onDeadline.isCompleted) {
+            onDeadline.completeError(
+                TimeoutException('page-steered discovery deadline', timeout));
+          }
+        });
+  final racers = <Future<T>>[
+    body(client),
+    if (deadline != null) onDeadline.future,
+    if (abandoned != null)
+      abandoned.then<T>((_) => throw const PageSteeredAbandoned()),
+  ];
   try {
-    final run = body(client);
-    return timeout == null ? await run : await run.timeout(timeout);
+    return await Future.any(racers);
   } finally {
+    deadline?.cancel();
     client.close();
   }
+}
+
+/// Thrown by [withPageSteeredClient] when its [abandoned] signal fires before the
+/// fetch finished: the caller — a favicon stream whose widget was disposed — went
+/// away, so the shared client is closed and the discovery's deadline timer is
+/// cancelled rather than left pending. The caller that originates the signal (the
+/// favicon stream) swallows it; no production fetch reports it upward, since only
+/// a live subscriber starts one.
+class PageSteeredAbandoned implements Exception {
+  const PageSteeredAbandoned();
+  @override
+  String toString() => 'PageSteeredAbandoned';
 }
 
 /// The shared body of the two entry points: judge [url] FIRST, then take the
