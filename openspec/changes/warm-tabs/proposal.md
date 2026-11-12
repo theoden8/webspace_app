@@ -24,8 +24,9 @@ keep more than one tab live without raising the bound.
 - **The caps count webviews.** `kMaxLoadedSites` (20) and `kMaxResidentSites`
   (10) bound live webviews, not sites. The worst-case memory is unchanged.
 - **A tab can be warm**: inactive, not shown, with its webview kept live and
-  paused. Switching to a warm tab shows it, with no capture, dispose or
-  reload. A tab with no webview is parked, as today.
+  paused. Switching to a warm tab shows it, with no build or reload. A tab is
+  captured as it stops being active, so a warm view is later disposed without
+  one. A tab with no webview is parked, as today.
 - **Warm tabs per running site: `3 + min(hosted, 2)`.** At most 3 in the
   site's own tab list, at most 5 in all, where `hosted` counts the site's warm
   tabs listed under other sites. Over the limit, the site's least recently
@@ -40,7 +41,7 @@ keep more than one tab live without raising the bound.
 - **A hosted tab can stay warm.** It counts toward, and is judged as, the site
   it runs as (LIR-018): an unload of that site for a domain conflict, proxy
   mismatch or Tor exit mismatch takes it, wherever it is listed. It mounts in
-  its owner's slot, which may hold warm webviews while its own is unloaded.
+  its owner's slot and goes when that slot is unloaded.
 - **Both isolation engines.** Tabs of a site share its cookies under the
   legacy shared jar too; an unload of a site takes every webview running as
   it, and the jar is captured once per site, as today.

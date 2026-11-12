@@ -23,7 +23,9 @@ What holds the one-webview rule today:
 
 **Goals:**
 
-- A switch to a warm tab does no await: it shows the webview it already has.
+- A switch to a warm tab shows the webview it already has: no read of its
+  bytes, no build, no reload. It still waits for the capture of the tab it
+  leaves, as every switch does today.
 - The caps bound live webviews with the same numbers as today.
 - One owner for "which webviews stay": the residency plan, with warm tabs as
   more candidates in it, never a second eviction path for tabs.
@@ -64,24 +66,31 @@ needs no other change:
 Enum order is eviction order (TAB-024), and within a tier `evictionOrder`
 keeps the LRU order it is given.
 
-### D3. The warm limit is a plan rule, read per running site
+### D3. The warm limit is applied in the switch's turn
 
-`3 + min(hosted, 2)` (TAB-023) is a rule of the residency plan, applied on the
-event a tab goes warm on (`TabLeft`, a new `ResidencyEvent`), before the cap
-rule. It groups `LiveView`s by running identity (`SlotIdentities`, LIR-024,
-extended from slots to views) and picks overflow hosted-first, then LRU. The
-cap rule then sees the loaded set the limit leaves, as each rule sees what
-the rules before it leave today.
+`3 + min(hosted, 2)` (TAB-023) is decided by a pure function over the
+`LiveView`s grouped by running identity (`SlotIdentities`, LIR-024, extended
+from slots to views), which picks overflow hosted-first, then LRU. The switch
+applies it in its one turn (D4), so a view over the limit never exists
+between two awaits. The loaded-site cap then counts what the limit leaves,
+as each residency rule sees what the rules before it leave today.
 
 ### D4. A switch
 
-- **Warm target:** one turn, no await: the active tab goes warm (pause, end
-  its capture), the target becomes active and is shown. No bytes move.
-- **Parked target:** read its bytes (the await that exists today), then one
-  turn: the active tab goes warm, the target becomes active, its bytes are
-  queued tagged with its tab, a webview is built for it. Then the plan runs
-  for `TabLeft`; if it takes the tab just left, that tab is captured and
-  disposed by the unload flow, as D3 of `inactive-tabs` did inline.
+Every switch captures the tab it leaves first, as today (TAB-028), so a
+warm tab's file is current from the moment it goes warm and disposing a warm
+view never awaits a capture.
+
+- **Warm target:** after the capture, one turn: the active tab goes warm
+  (pause, end its capture), the target becomes active and is shown. No bytes
+  are read or queued.
+- **Parked target:** after the capture, read its bytes (the await that exists
+  today), then one turn: the active tab goes warm, the target becomes active,
+  its bytes are queued tagged with its tab, a webview is built for it.
+
+The same turn applies the warm limit (TAB-023): a warm view over it is
+disposed, with nothing to await. A closed tab's view is disposed in the
+close's turn, never left warm.
 
 `WebViewTabBinding` becomes per tab: `built` is the set of tabs with a live
 webview; the queued bytes keep their tab tag (TAB-003, BUG-036 unchanged).
@@ -103,10 +112,13 @@ what `built` and `active` say). Both rejected.
 - The caps read a view count, an operator over `loaded` and `built` printed
   from the engine as a `Def` (`activation_ops`), in place of
   `Cardinality(loaded)` where the plan counts.
-- The warm eviction is the unload flow over a `LiveView`, nested as today,
-  its capture the existing `captureSteps` unchanged, never a second copy or a
-  step with two awaits. It shares `hist`, `file` and `built` with the tab
-  flow, so the two are checked together (footprints).
+- `hist[s]` becomes a function of the tab: the history the view built for
+  that tab shows.
+- A warm view's eviction is a dispose in one step, with no capture (D4), so
+  it adds no await. It shares `hist` and `built` with the tab flow, so the
+  two are checked together (footprints).
+- An unload of a site empties `built[s]`: its slot's warm views go with it
+  (TAB-026), which keeps the link invariant below.
 
 Worlds:
 
@@ -136,8 +148,8 @@ around it.
 ### D7. The slot
 
 The site's slot keeps its `ValueKey(siteId)` (WEBSPACE-011) and holds one
-`KeyedSubtree` per live tab, keyed by `TabId`, the shown one on top. A slot
-with no active webview and a warm hosted tab still mounts (TAB-026).
+`KeyedSubtree` per live tab, keyed by `TabId`, the shown one on top. An
+unloaded slot holds none (TAB-026).
 
 ### D8. Unloads by running site
 
@@ -150,9 +162,9 @@ write it.
 
 ### D9. Persistence
 
-Warm is runtime state: nothing persisted changes. The paths that capture the
-active tab on going home and on app background (PAUSE-009) iterate the site's
-live views (TAB-028).
+Warm is runtime state: nothing persisted changes. A warm tab's file was
+written as it went warm (TAB-028), so going home and the app going to the
+background (PAUSE-009) capture the active tab only, as today.
 
 ## Risks / Trade-offs
 

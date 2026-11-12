@@ -8,7 +8,7 @@ PAUSE-012, CONT-003. Design: `design.md`.
 
 - [ ] 1.1 `formal/retention.tla`: the four warm tiers below `loaded` (design D2); a demonstrator that evicts a site's active webview while a warm tab of another site is loaded, which TLC MUST reject (TAB-024); `./formal/check.sh` green.
 - [ ] 1.2 Record the `Finished in` of `activation_gen_jar_cold_tabs_reset_one` (the costliest tab world) and of `activation.cfg` before any change, to name in the PR with the after figures.
-- [ ] 1.3 `formal/activation.tla` through the tables and the printer, not by hand (design D5): `loaded` stays a set of sites; `built[s]` a subset of `tabs[s]`; warm a definition; the caps' view count a printed `Def`; `Inv_TabBound`, `Inv_TabShown` restated and the `built`-implies-`loaded` link added; the warm eviction the unload flow over a `LiveView` with `captureSteps` as is. `MaxWarm` 1 in the printed tab worlds, plus one written world at 2 and one link world at 1. Planted mistakes, each its own `Mutant`: a switch to a warm tab that reloads it; a warm view kept after its tab closed; a hosted warm tab judged as its owner (TAB-026); an eviction of the wrong one of two warm tabs (TAB-024, the `MaxWarm = 2` world). Verify: `./formal/verify.sh` passes and every new mutant is caught.
+- [ ] 1.3 `formal/activation.tla` through the tables and the printer, not by hand (design D5): `loaded` stays a set of sites; `built[s]` a subset of `tabs[s]`; warm a definition; the caps' view count a printed `Def`; `Inv_TabBound`, `Inv_TabShown` restated and the `built`-implies-`loaded` link added; `hist[s]` per tab; a warm view's eviction a dispose in one step with no capture; an unload of a site empties `built[s]`. `MaxWarm` 1 in the printed tab worlds, plus one written world at 2 and one link world at 1. Planted mistakes, each its own `Mutant`: a switch to a warm tab that reloads it; a warm view kept after its tab closed; a hosted warm tab judged as its owner (TAB-026); an eviction of the wrong one of two warm tabs (TAB-024, the `MaxWarm = 2` world). Verify: `./formal/verify.sh` passes and every new mutant is caught.
 
 ## 2. Webviews as the residency unit
 
@@ -36,12 +36,12 @@ PAUSE-012, CONT-003. Design: `design.md`.
 
 ## 6. The slot and the tab list
 
-- [ ] 6.1 The slot under `ValueKey(siteId)` holds a `KeyedSubtree` per live tab, the shown one on top, and mounts with only a warm hosted tab (TAB-026, design D7). Verify: a widget test that a switch to a warm tab keeps the same element (no remount).
+- [ ] 6.1 The slot under `ValueKey(siteId)` holds a `KeyedSubtree` per live tab, the shown one on top, and none once unloaded (TAB-026, design D7). Verify: a widget test that a switch to a warm tab keeps the same element (no remount).
 - [ ] 6.2 The tab list draws a warm tab at full strength without the selected highlight, and tells a screen reader its state (TAB-011). Verify: a widget test named for TAB-011.
 
 ## 7. Persistence
 
-- [ ] 7.1 Going home and the app going to the background capture every live view of a site, warm ones included (TAB-028, PAUSE-009). Verify: a test named for TAB-028 that a warm tab's bytes are saved under its own key.
+- [ ] 7.1 A switch captures the tab it leaves before its turn whether the tab goes warm or is parked, and a warm view is disposed with no capture (TAB-028). Verify: a test named for TAB-028 that a tab gone warm has its bytes saved under its own key and that evicting it writes nothing.
 
 ## 8. Measure and document
 

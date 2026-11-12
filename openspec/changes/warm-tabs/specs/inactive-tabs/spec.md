@@ -31,9 +31,10 @@ TAB-024).
 
 ### Requirement: TAB-003 - A tab switch is capture, dispose, rebuild, restore
 
-Activating another tab of a site SHALL make it the tab the site's slot shows
-and SHALL make the tab that was active warm (TAB-023). A warm target SHALL be
-shown as it is, with no capture, dispose or reload. A parked target SHALL have
+Activating another tab of a site SHALL capture the active tab's navigation
+state (TAB-028), make the target the tab the site's slot shows, and make the
+tab that was active warm (TAB-023). A warm target SHALL be shown as it is,
+with no read of its bytes, dispose or reload. A parked target SHALL have
 its saved bytes read, then in one turn, with no await between, become active
 with its bytes queued for `onControllerCreated` when they exist, and get a
 webview built for it. When the tab that was active cannot stay warm (the
@@ -60,7 +61,7 @@ duplicate are step tables (`TabTable.tabInputs`, `tabFlow`) printed into
 
 - **GIVEN** GitHub's active tab T1 with history and parked tab T2 with saved state
 - **WHEN** the user picks T2 in the Tabs sheet
-- **THEN** T1 becomes warm with its webview paused, not captured or disposed
+- **THEN** T1 is captured under `gh.T1` and becomes warm with its webview paused, not disposed
 - **AND** a webview is built for T2 with T2's bytes queued, and restores T2's back stack
 - **AND** the number of live webviews grows by one
 
@@ -171,14 +172,14 @@ A running site SHALL keep at most `3 + min(hosted, 2)` warm tabs, where
 `hosted` is the number of its warm tabs listed under other sites: at most 3
 in its own tab list, at most 5 in all. A tab SHALL count toward the site it
 runs as (LIR-018). When a tab going warm would exceed the limit, the site's
-least recently used warm hosted tab SHALL be captured and disposed; an own
-tab only when none of its warm tabs is hosted.
+least recently used warm hosted tab SHALL be disposed; an own tab only when
+none of its warm tabs is hosted.
 
 #### Scenario: A fourth own tab goes warm
 
 - **GIVEN** GitHub has three warm tabs in its own list and none elsewhere
 - **WHEN** the user switches from GitHub's active tab to a parked one
-- **THEN** the tab left goes warm and GitHub's least recently used warm tab is captured and parked
+- **THEN** the tab left goes warm and GitHub's least recently used warm tab is disposed and parked
 - **AND** GitHub has three warm tabs
 
 #### Scenario: Hosted tabs raise the limit
@@ -191,7 +192,7 @@ tab only when none of its warm tabs is hosted.
 
 - **GIVEN** GitHub has three warm own tabs and two warm tabs listed under Mastodon
 - **WHEN** a third GitHub tab listed under Mastodon goes warm
-- **THEN** the least recently used of the two earlier hosted tabs is captured and parked
+- **THEN** the least recently used of the two earlier hosted tabs is disposed and parked
 - **AND** GitHub's three own warm tabs stay warm
 
 ---
@@ -210,7 +211,7 @@ be taken.
 
 - **GIVEN** twenty live webviews: eighteen sites' active webviews and two warm tabs of Mastodon, which is not on screen
 - **WHEN** the user opens a twenty-first site
-- **THEN** Mastodon's least recently used warm tab is captured and disposed
+- **THEN** Mastodon's least recently used warm tab is disposed
 - **AND** every site's active webview stays live
 
 #### Scenario: The site on screen keeps its warm tabs longest
@@ -248,20 +249,20 @@ notifications.
 A hosted tab SHALL be able to stay warm. It SHALL count toward the warm limit
 of the site it runs as (TAB-023), and every rule that unloads by a site's
 identity (a domain conflict, a proxy mismatch, a Tor exit mismatch) SHALL
-judge it as that site. Its webview SHALL mount in its owner's slot, which
-SHALL hold warm webviews while the owner's own webview is unloaded.
+judge it as that site. Its webview SHALL mount in its owner's slot, and an
+unload of the owner's slot SHALL take it with the owner's other webviews.
 
-#### Scenario: A hosted tab outlives its owner's webview
+#### Scenario: A hosted tab goes with its owner's slot
 
 - **GIVEN** Mastodon's list holds a warm tab running as GitHub
-- **WHEN** the cap takes Mastodon's active webview
-- **THEN** the GitHub tab stays warm in Mastodon's slot
+- **WHEN** Mastodon is deleted
+- **THEN** the warm GitHub tab's webview is disposed with Mastodon's
 
 #### Scenario: A proxy mismatch takes a warm hosted tab
 
 - **GIVEN** Android without router mode, GitHub on proxy P2, and Mastodon's list holds a warm tab running as GitHub
 - **WHEN** the user opens a site on proxy P1
-- **THEN** the warm GitHub tab in Mastodon's list is captured and disposed with every other webview running on P2
+- **THEN** the warm GitHub tab in Mastodon's list is disposed with every other webview running on P2
 
 ---
 
@@ -285,13 +286,14 @@ could be warm (ISO-002).
 
 ### Requirement: TAB-028 - A warm tab's history survives as a parked tab's does
 
-A warm tab's navigation state SHALL be captured to `<siteId>.<tabId>`, when
-`persistsNavState` is true, wherever the active tab's is (PAUSE-009: going
-home, the app going to the background), and before its webview is disposed,
-so a process the OS ends while tabs are warm loses no tab's back stack.
+A tab's navigation state SHALL be captured to `<siteId>.<tabId>`, when
+`persistsNavState` is true, as it stops being active, before the switch's
+turn, whether it goes warm or is parked. Its warm webview SHALL then be
+disposed without a capture, so a process the OS ends while tabs are warm
+loses no tab's back stack, and evicting a warm tab waits for nothing.
 
 #### Scenario: The app is killed with warm tabs
 
-- **GIVEN** GitHub has a warm tab T2 several pages deep
+- **GIVEN** GitHub's tab T2 is several pages deep, and the user switches to T1, so T2 goes warm
 - **WHEN** the app goes to the background and the OS ends its process
 - **THEN** on the next launch, opening T2 restores its back stack from `gh.T2`

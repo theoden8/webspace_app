@@ -2,7 +2,7 @@
 
 ### Requirement: PAUSE-006 — Cascading Memory-Pressure Lifecycle
 
-When the OS signals memory pressure via `WidgetsBindingObserver.didHaveMemoryPressure` while the app is resumed (PAUSE-034), the system SHALL promote one live webview by one tier per event, cascading through three states from least to most aggressive: `resident` → `cacheCleared` → `savedForRestore`. A webview is a site's active webview or a warm tab's (TAB-002); a warm tab's webview reaching `savedForRestore` parks the tab, its state captured under its tab (TAB-028).
+When the OS signals memory pressure via `WidgetsBindingObserver.didHaveMemoryPressure` while the app is resumed (PAUSE-034), the system SHALL promote one live webview by one tier per event, cascading through three states from least to most aggressive: `resident` → `cacheCleared` → `savedForRestore`. A webview is a site's active webview or a warm tab's (TAB-002); a warm tab's webview reaching `savedForRestore` is disposed and parks the tab, its state already captured as it went warm (TAB-028).
 
 The cascade is owned by [`SiteLifecyclePromotionEngine`](../../../lib/services/site_lifecycle_promotion_engine.dart), a pure-Dart picker that:
 
