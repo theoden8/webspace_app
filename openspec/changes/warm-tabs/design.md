@@ -44,8 +44,8 @@ What holds the one-webview rule today:
 A live webview is named by `LiveView = ({SiteId owner, TabId tab})`: the slot
 it mounts in and the tab it was built for. The LRU order, the lifecycle tiers,
 the eviction candidates and the caps' count are over `LiveView`s. `loaded`
-stays a set of sites, and a site's live views are its `built` tabs (D5), so
-no second owner says which views exist.
+stays a set of sites, and a site's live views are its shown view and its warm
+ones, read through one operator (`Live`, D5).
 
 Alternative: keep the site as the unit and let warm tabs ride outside the
 caps. Rejected: the bound stops being a bound, and two pickers (sites, then
@@ -92,48 +92,58 @@ The same turn applies the warm limit (TAB-023): a warm view over it is
 disposed, with nothing to await. A closed tab's view is disposed in the
 close's turn, never left warm.
 
-`WebViewTabBinding` becomes per tab: `built` is the set of tabs with a live
-webview; the queued bytes keep their tab tag (TAB-003, BUG-036 unchanged).
+`WebViewTabBinding` keeps `built` (the shown view's tab) and gains the warm
+views by tab; the queued bytes keep their tab tag (TAB-003, BUG-036
+unchanged).
 
 ### D5. The model
 
-`loaded` stays a set of sites; `built[s]` becomes a subset of `tabs[s]`, and
-warm is a definition, `built[s] \ {active[s]}`, not a variable. Alternatives:
-retyping `loaded` to views (37 actions read it, plus every invariant over it,
-`Evictable`, `Running`, `Pages`, the TLAPS cases, and it would bring tabs into
-the base world, which follows none), or a `warm` variable (a second owner of
-what `built` and `active` say). Both rejected.
+`loaded` stays a set of sites, and `built[s]` and `hist[s]` keep meaning the
+shown view exactly as today, so every existing write, invariant and proof case
+prints as it does. One variable joins them: `warm[s] \in [TabIds -> TabIds
+\cup {0}]`, the history label a live view of tab `t` shows while it is not
+shown, 0 when `t` has none. It is no second owner: `built` says which tab the
+shown view is for, `warm` which other views live. Alternatives: `built[s]` as
+a set with `hist[s]` per tab (every printed write, invariant and TLAPS type
+case changes), or retyping `loaded` to views (37 readers). Both rejected.
 
-- `Inv_TabBound`: `built[s] \subseteq tabs[s]`, and under `Idle`
-  `active[s] \in built[s]` once its build has landed; a load in flight has
-  `s \in loaded` and an empty `built[s]`, as `built[s] = 0` does today.
-- `Inv_TabShown`: each built tab's webview shows its own tab's history.
-- New link: `Idle => \A s \in Tabbed : built[s] # {} => s \in loaded`.
-- The caps read a view count, an operator over `loaded` and `built` printed
-  from the engine as a `Def` (`activation_ops`), in place of
-  `Cardinality(loaded)` where the plan counts.
-- `hist[s]` becomes a function of the tab: the history the view built for
-  that tab shows.
-- A warm view's eviction is a dispose in one step, with no capture (D4), so
-  it adds no await. It shares `hist` and `built` with the tab flow, so the
-  two are checked together (footprints).
-- An unload of a site empties `built[s]`: its slot's warm views go with it
-  (TAB-026), which keeps the link invariant below.
+- **Writes.** The switch's one turn moves `hist[s]` into `warm[s][built[s]]`
+  and, for a warm target, takes `hist[s]` from `warm[s][target]`; the same
+  turn zeroes an entry over the limit. A close zeroes the closed tab's entry;
+  an unload, delete, archive close or `LetGo` zeroes the row. Every action
+  that writes `warm` already writes `built` or `hist`, so no pair of flows
+  shares a variable it did not share before: `activation_footprints.tsv`'s
+  sharing pairs must not grow, and `printWorlds` prints no new world.
+- **Only over `Tabbed`**, as `built`: 0 for a site the model does not follow,
+  never written there. The base `activation.cfg` (`Tabbed = {}`) reports the
+  same number of distinct states before and after.
+- **Named once**, as a `ModelVar`, its leaf the code's live views per tab
+  (`WebViewTabBinding`, through `TabVars`), so the printer writes it into
+  every frame, the facts proofs and the replay. The hand-written environment
+  actions take it by hand.
+- **One operator for the live views**, `Live(s) == ({built[s]} \cup {t \in
+  TabIds : warm[s][t] # 0}) \ {0}`, a printed `Def`. The cap's count and
+  TAB-023's limit read it, never `built` and `warm` apart.
+- **Invariants**, each with its own planted mistake:
+
+| Invariant | Mutant | World |
+|---|---|---|
+| `Inv_WarmShown`: `warm[s][t] \in {0, t}` | the switch stores `built[s]` instead of `hist[s]` | a build in flight at a switch |
+| `Inv_WarmListed`: `warm[s][t] # 0 => t \in tabs[s] /\ t # active[s]` | a close leaves the closed tab's entry | a close of a warm tab |
+| `Inv_WarmLoaded`: `warm[s][t] # 0 => s \in loaded` | an unload or delete leaves the row | pressure or a delete with a warm tab |
 
 Worlds:
 
 | World | Warm | Checks |
 |---|---|---|
-| the printed tab worlds (`Tabbed = {1}`, `MaxTabs = 3`) | `MaxWarm = 1` | the active tab against a warm one: an eviction capture landing after a switch, a close of the tab being captured, the queued bytes' tag (TAB-003, BUG-036) |
-| one written world, `Tabbed = {1}`, `MaxTabs = 3` | `MaxWarm = 2` | two tabs both not active: the eviction choice between them (TAB-024), a file taken back to the wrong one |
+| the printed tab worlds (`Tabbed = {1}`, `MaxTabs = 3`) | `MaxWarm = 1` | the active tab against a warm one: a switch landing after a capture, a close of the tab being captured, the queued bytes' tag (TAB-003, BUG-036) |
+| one written world, `Tabbed = {1}`, `MaxTabs = 3` | `MaxWarm = 2` | two warm tabs: the limit's choice between them (TAB-023) |
 | one link world (as `tabs_link_any`) | `MaxWarm = 1` | an unload of a site takes the warm view running as it (TAB-026, TAB-027) |
-| the base world (`Tabbed = {}`) | none | the warm actions are disabled there |
+| the base world (`Tabbed = {}`) | none | unchanged: the same distinct states |
 
-The pair to watch is memory pressure's plan against the tab flow: printed as
-"any choice of evictable views of the size the caps leave", it ranges over
-subsets of views. The model knows the warm tiers sit below `loaded` (D2), so
-the plan takes warm views first and only the choice within the warm tier
-stays open: at `MaxWarm = 1` there is nothing to choose.
+The cost to watch is the costliest tab world,
+`activation_gen_jar_cold_tabs_reset_one` (15,094 worker-seconds on master):
+a switch to a warm tab is a new one-turn arm against the capture's two awaits.
 
 ### D6. A warm tab acts as nothing
 
@@ -168,11 +178,11 @@ background (PAUSE-009) capture the active tab only, as today.
 
 ## Risks / Trade-offs
 
-- [Interleavings: memory pressure's plan against the tab flow ranges over
-  subsets of views] → warm views taken first, `MaxWarm` 1 in the printed tab
-  worlds and 2 in one written world; name the `Finished in` of
+- [Interleavings: a switch to a warm tab is a new one-turn arm against the
+  capture's two awaits] → `MaxWarm` 1 in the printed tab worlds and 2 in one
+  written world; name the `Finished in` of
   `activation_gen_jar_cold_tabs_reset_one`, the costliest tab world (15,094 s
-  on master), before and after, and look at that pair first if it grows past
+  on master), before and after, and look at that arm first if it grows past
   about 10%.
 - [Android: JS timers of a paused view keep running, since `onPause` is per
   view and `pauseTimers` is process-wide] → the same as a background site

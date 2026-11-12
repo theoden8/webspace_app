@@ -69,14 +69,14 @@ None.
   `SiteLifecyclePromotionEngine` (tiers per webview), `SiteRetentionPriority`
   (two warm tiers), the tab tables (`TabTable.tabInputs`, `tabFlow`: a switch
   to a warm tab, a warm tab's eviction).
-- **Runtime state:** `WebViewTabBinding.built` becomes the set of tabs with a
-  live webview, one of them shown; `RuntimeVars.loaded` stays a set of sites,
-  and the caps read a view count over it and `built`. Both are joins in the
-  CLAUDE.md map, flagged for review.
-- **Model:** `formal/activation.tla` gets `built[s]` as a set, warm as a
-  definition over it, and a warm-tab eviction flow sharing `hist`, `file` and
-  `built` with the tab flow; `Inv_TabBound` and `Inv_TabShown` restated;
-  `formal/retention.tla` gets the warm tiers.
+- **Runtime state:** `WebViewTabBinding` keeps `built` (the shown view's tab)
+  and gains the warm views by tab; `RuntimeVars.loaded` stays a set of sites,
+  and the caps read a count of live views. Both are joins in the CLAUDE.md
+  map, flagged for review.
+- **Model:** `formal/activation.tla` keeps `built` and `hist` as the shown
+  view and gains a `warm` variable, the history each warm view shows, written
+  only by actions that already write `built` or `hist`; three new invariants,
+  each with a planted mistake; `formal/retention.tla` gets the warm tiers.
 - **UI:** the site's slot under `ValueKey(siteId)` holds one subtree per live
   tab; the Tabs sheet shows a warm tab at full strength (TAB-011).
 - **Unmeasured:** Android, where every webview shares one renderer process,
