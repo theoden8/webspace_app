@@ -449,7 +449,11 @@ expose as own, enumerable, configurable accessors of the window (not on
 * `navigator.deviceMemory` ∈ {4, 8} derived from the seed
 * `navigator.maxTouchPoints` = 0, so the digitizer count agrees with the
   pinned desktop screen size. The `desktop-mode` shim already covers
-  desktop UAs; this is the mobile-UA case, which it does not reach.
+  desktop UAs; this is the mobile-UA case, which it does not reach. The
+  `matchMedia` wrapper (below) answers `pointer` / `any-pointer` as `fine`
+  and `hover` / `any-hover` as `hover` to match, so a CSS input probe
+  (`(pointer: coarse)`, `(hover: none)`) cannot reveal the real touch device
+  or contradict `maxTouchPoints`.
 * `navigator.plugins` and `navigator.mimeTypes` are empty
   PluginArray-shaped objects (with `length`, `item`, `namedItem`, and
   for plugins `refresh`).
@@ -538,6 +542,17 @@ accessor whose getter stringifies as `[native code]`, not an own data property
 **And** `matchMedia('(max-resolution: 1dppx)').matches` is `true`
 **And** a bare `(min-device-pixel-ratio: 2)` query (no `-webkit-` prefix) is
 delegated to the real `matchMedia`
+
+#### Scenario: pointer/hover media queries match the no-touch desktop posture
+
+**Given** the shim is loaded on an engine emulating a touch device
+(`pointer: coarse`, `hover: none`)
+**Then** `matchMedia('(pointer: fine)').matches` is `true`
+**And** `matchMedia('(pointer: coarse)').matches` is `false`
+**And** `matchMedia('(hover: hover)').matches` is `true`
+**And** `matchMedia('(hover: none)').matches` is `false`
+**And** `matchMedia('(any-pointer: fine)').matches` is `true`
+**And** the boolean forms `(pointer)` and `(hover)` match
 
 #### Scenario: Overrides do NOT leak as own-properties
 
