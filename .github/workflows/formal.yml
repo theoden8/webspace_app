@@ -55,9 +55,10 @@ jobs:
       matrix:
         # Warm or cold alike: a change to the model misses the memo for every
         # world that reads it, and one runner then checks them all in turn
-        # (four hours for one invariant). A shard with nothing to run is done
-        # in its start-up.
-        shard: [0, 1, 2, 3]
+        # (four hours for one invariant). check.sh splits the worlds by their
+        # recorded times (formal/tlc_times.tsv): about three hours each cold.
+        # A shard with nothing to run is done in its start-up.
+        shard: [0, 1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-formal
@@ -100,6 +101,9 @@ jobs:
         env:
           FORMAL_SHARD: ${{ strategy.job-index }}/${{ strategy.job-total }}
           FORMAL_RERUN: ${{ inputs.cold && '1' || '' }}
+          # A run that would end past this is deferred, not started and cut
+          # off: the shard exits 3 and the next run checks only what is left.
+          FORMAL_DEADLINE: '16200'
       # What this shard added to the memo and the entries it used, which the
       # memo job keeps, so a shard that failed or timed out keeps what it ran.
       - name: Collect what the checks added to the memo

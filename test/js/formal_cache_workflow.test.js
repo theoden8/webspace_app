@@ -333,3 +333,11 @@ test('a scheduled and manual run proves everything cold, off the PR path', () =>
     assert.equal(reads, name === 'proofs', `${name} ${name === 'proofs' ? 'reads' : 'ignores'} cold_proofs`);
   }
 });
+
+test('a TLC shard defers a run it cannot end before its step is cut off', () => {
+  const step = jobs.models.steps.find((s) => s.id === 'formal-verify');
+  const deadline = Number(step.env.FORMAL_DEADLINE);
+  assert.ok(deadline > 0, 'the models step sets FORMAL_DEADLINE');
+  assert.ok(deadline + 15 * 60 <= step['timeout-minutes'] * 60,
+    'at least a quarter hour between the last run ending and the step timing out');
+});

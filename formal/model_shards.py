@@ -49,9 +49,14 @@ def merge(root, *, registry, output, coverage):
                             text, re.M)
         if len(re.findall(r"^RESULT\b.*$", text, re.M)) != len(actual):
             raise ValueError(f"{path}: malformed result")
-        want = [tuple(r[1:]) for i, r in enumerate(records) if i % count == index]
-        if actual != want:
-            raise ValueError(f"{path}: missing, repeated or misplaced check results")
+        # Which shard runs a check is check.sh's split by recorded times; here
+        # each result must be its declared check, in declared order, and the
+        # union below must cover every declared check exactly once.
+        ordinals = [int(o) for o, _, _ in actual]
+        if (ordinals != sorted(set(ordinals))
+                or any(int(o) >= len(records) or (n, k) != tuple(records[int(o)][2:])
+                       for o, n, k in actual)):
+            raise ValueError(f"{path}: repeated or misplaced check results")
         totals = Counter(r[2] for r in actual)
         tallies = re.findall(r"^TALLY holds=(\d+) caught=(\d+) reached=(\d+)$",
                              text, re.M)
