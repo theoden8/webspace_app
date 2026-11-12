@@ -1,6 +1,6 @@
 // A lemma restated with PROOF OMITTED is taken as given, so the gate that
 // holds it to a proved twin is what keeps it sound; tlapm checks nothing
-// across modules.
+// across modules. The gate is integrity.py's unproved rule.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -24,8 +24,10 @@ function gate(t, modules) {
     fs.writeFileSync(file, [`---- MODULE ${name} ----`, ...lines, '===='].join('\n'));
     return file;
   });
-  const result = spawnSync('python3', [path.resolve(__dirname, '../../formal/proofs/omitted.py'), ...paths],
-    { encoding: 'utf8' });
+  const allow = path.join(dir, 'assumptions.tsv');
+  fs.writeFileSync(allow, '');
+  const result = spawnSync('python3', ['-I', path.resolve(__dirname, '../../formal/proofs/integrity.py'),
+    '--allow', allow, ...paths], { encoding: 'utf8' });
   assert.ifError(result.error);
   return result;
 }
@@ -33,7 +35,7 @@ function gate(t, modules) {
 test('an omitted lemma proved word for word elsewhere passes', (t) => {
   const result = gate(t, { table: proved, steps: restated(proved.slice(0, 3)) });
   assert.equal(result.status, 0, result.stdout);
-  assert.match(result.stdout, /OK: 1 omitted lemmas/);
+  assert.match(result.stdout, /1 omitted and each of those proved word for word/);
 });
 
 test('an omitted lemma stated otherwise than where it is proved fails', (t) => {
@@ -55,7 +57,7 @@ const oneLine = ['LEMMA Places_tap == "tap" \\in Places', '  BY Zenon DEF Places
 test('an omitted lemma stated on its header line and proved word for word elsewhere passes', (t) => {
   const result = gate(t, { members: oneLine, types: restated(oneLine.slice(0, 1)) });
   assert.equal(result.status, 0, result.stdout);
-  assert.match(result.stdout, /OK: 1 omitted lemmas/);
+  assert.match(result.stdout, /1 omitted and each of those proved word for word/);
 });
 
 test('an omitted lemma stated on its header line that no module proves fails', (t) => {

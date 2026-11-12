@@ -43,6 +43,10 @@ function proofRun(t, {
     '  echo "All $PROOF_OBLIGATIONS obligations proved."',
     'fi',
   ].join('\n'), { mode: 0o755 });
+  // The stub modules print nothing, so the printed assumptions are no row of theirs.
+  const assumptions = path.join(dir, 'assumptions.tsv');
+  fs.writeFileSync(assumptions, fs.readFileSync(path.join(root, 'formal/proofs/assumptions.tsv'), 'utf8')
+    .split('\n').filter((line) => !line.startsWith('activation_')).join('\n'));
   const calls = path.join(dir, 'calls');
   fs.writeFileSync(calls, '');
   return {
@@ -64,6 +68,7 @@ function proofRun(t, {
         FORMAL_RERUN: rerun ? '1' : '',
         FORMAL_PROOF_SHARD: shard,
         PROOF_CALLS: calls,
+        FORMAL_ASSUMPTIONS: assumptions,
         PROOF_OBLIGATIONS: outcome === 'failure' ? '0' : '1000',
         PROOF_SHORT_MODULE: shortModule,
         PROOF_SOLVERS: solvers,
@@ -257,7 +262,7 @@ function plantedScript(t, { from, to }) {
 
 const planted = [
   ['a key that leaves out the inputs', 'a change to a module the proofs can read proves them again',
-    'printf \'%s\\n\' "$INPUTS" "module $1 --safefp"', 'printf \'%s\\n\' "module $1 --safefp"'],
+    'printf \'%s\\n\' "$INPUTS" "module $1 --safefp --strict"', 'printf \'%s\\n\' "module $1 --safefp --strict"'],
   ['a key that names the path', 'a module proved before under the same inputs is remembered, not proved again',
     'memo="$MEMO/$(key "model/$name")"', 'memo="$MEMO/$(key "$f")"'],
   ['a kept failure', 'a module that falls short is not remembered',

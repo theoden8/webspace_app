@@ -467,8 +467,12 @@ missing-transition classes, and cross-spec interference — bugs in the gaps *be
   observable projection (the model↔code bridge).
 - `formal/proofs/` holds **unbounded TLAPS proofs** (machine-checked by `tlapm`): every
   kernel safety invariant *and* the surface-repaint liveness `RepaintLiveness` for all N,
-  not just TLC's N = 3. Run via `proofs/check_proofs.sh`; CI splits it over four shards by
-  each module's cold time (`proofs/proof_shards.py`, `proofs/proof_times.tsv`).
+  not just TLC's N = 3. Run via `proofs/check_proofs.sh`, which first holds what they rest
+  on (`proofs/integrity.py`: every assumption listed in `assumptions.tsv`, no statement
+  unproved, no bare step, no lemma taken from a module the run does not prove); CI splits
+  it over four shards by each module's cold time (`proofs/proof_shards.py`,
+  `proofs/proof_times.tsv`). A new invariant is tried with TLC first (`formal/indcheck.sh`,
+  the `inductive-invariant-check` skill); a pass is evidence only.
 - `formal/lean/` (Lean 4, no Mathlib) proves when a check may be split, over any action well
   formed over its footprint: `commute`, `frame_preserves`, `cone` (an invariant holds iff it
   holds where only its cone runs) and `pairwise_unsound` (the footprint gate's pairs are
