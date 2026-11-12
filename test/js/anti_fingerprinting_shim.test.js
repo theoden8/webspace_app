@@ -573,6 +573,25 @@ test('-webkit-device-pixel-ratio queries agree with the pin; bare form delegates
   assert.ok(delegated.length >= 1, 'bare device-pixel-ratio was not delegated');
 });
 
+test('pointer/hover media queries answer for the no-touch desktop posture', () => {
+  // maxTouchPoints is pinned to 0; the input media queries must agree, or a
+  // (pointer: coarse) / (hover: none) probe reveals the real touch device and
+  // contradicts it.
+  const mm = loadShim(ALPHA).window.matchMedia;
+  assert.equal(mm('(pointer: fine)').matches, true);
+  assert.equal(mm('(pointer: coarse)').matches, false);
+  assert.equal(mm('(pointer: none)').matches, false);
+  assert.equal(mm('(any-pointer: fine)').matches, true);
+  assert.equal(mm('(any-pointer: coarse)').matches, false);
+  assert.equal(mm('(hover: hover)').matches, true);
+  assert.equal(mm('(hover: none)').matches, false);
+  assert.equal(mm('(any-hover: hover)').matches, true);
+  assert.equal(mm('(any-hover: none)').matches, false);
+  // Boolean (valueless) form: a fine pointer exists and hover is possible.
+  assert.equal(mm('(pointer)').matches, true);
+  assert.equal(mm('(hover)').matches, true);
+});
+
 test('patched matchMedia stringifies as [native code]', () => {
   const dom = loadShim(ALPHA);
   const s = dom.window.Function.prototype.toString.call(dom.window.matchMedia);
