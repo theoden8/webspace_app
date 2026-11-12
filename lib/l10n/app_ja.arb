@@ -1171,8 +1171,6 @@
   "networkInterfaceHttpsLock": "HTTPS プロキシはまだ使用できません",
   "appSettingsExperimentalNetworkInterface": "サイトごとのネットワークインターフェース",
   "appSettingsExperimentalNetworkInterfaceHint": "各サイトが「ネットワーク」画面で、通信が出ていくネットワークインターフェース（複数ある VPN のうち 1 つのトンネルなど）を選べるようにします。インターフェースが停止しているサイトは、別の接続を使わずに何も読み込みません。",
-  "appSettingsExperimentalServiceWorkers": "ブロッカー経由の Service Worker",
-  "appSettingsExperimentalServiceWorkersHint": "サイトごとに専用のコンテナがある場合、サイトの Service Worker（オフラインページ、キャッシュ、更新のために一部のサイトが使うバックグラウンドのスクリプト）は、そのサイトの DNS ブロックリスト、フィルターリスト、LocalCDN を通して読み込まれ、ネットワークにアクセスできます。次回アプリを起動したときに有効になります。",
   "appSettingsExperimentalWebKitBlockReports": "WebKit のブロック件数",
   "appSettingsExperimentalWebKitBlockReportsHint": "WebKit のフィルタリストがブロックした各リクエストを WebKit の報告どおりに数えます。スタイルシートの画像やビーコンなど、ページからは見えないものも含みます。Apple が公開していない WebKit のインターフェースを使うため、App Store 以外でのみ提供されます。次回アプリを起動したときに有効になります。",
   "appSettingsExtensions": "拡張機能",

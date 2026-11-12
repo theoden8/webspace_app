@@ -247,7 +247,6 @@
     "webExtensionsCheckUpdates": true,
     "webExtensionsAutoUpdate": true,
     "experimentalNetworkInterface": true,
-    "experimentalServiceWorkers": true,
     "experimentalWebKitBlockReports": true,
     "experimentalSiteTabs": true,
     "experimentalProxyLibrary": true,

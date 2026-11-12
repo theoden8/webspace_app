@@ -25,11 +25,6 @@ enum ExperimentalFeature {
   /// default.
   networkInterface(AppPref.experimentalNetworkInterface),
 
-  /// A site's service workers through its own blockers on Android, where
-  /// each site has a container (CB-022). Read once at launch. New, so off by
-  /// default.
-  serviceWorkers(AppPref.experimentalServiceWorkers),
-
   /// WebKit's own report of each request its content rule lists block, in a
   /// build from outside the App Store (CB-023). Read once at launch. New, so
   /// off by default.

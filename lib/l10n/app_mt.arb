@@ -1171,8 +1171,6 @@
   "networkInterfaceHttpsLock": "Proxy HTTPS għadu ma jistax juża waħda",
   "appSettingsExperimentalNetworkInterface": "Interfaċċja tan-netwerk għal kull sit",
   "appSettingsExperimentalNetworkInterfaceHint": "Tħalli lil kull sit jagħżel fuq l-iskrin tan-Netwerk tiegħu l-interfaċċja tan-netwerk li minnha joħroġ it-traffiku tiegħu, bħall-mina ta' VPN wieħed minn diversi. Sit li l-interfaċċja tiegħu tkun mitfija ma jtella' xejn minflok juża konnessjoni oħra.",
-  "appSettingsExperimentalServiceWorkers": "Service workers permezz tal-imblokkaturi",
-  "appSettingsExperimentalServiceWorkersHint": "Fejn kull sit għandu l-container tiegħu, is-service workers ta' sit (l-iskripts fl-isfond li xi siti jużaw għal paġni offline, caching u aġġornamenti) jitgħabbew permezz tal-Lista mblukkata DNS, il-listi ta' filtri u l-LocalCDN ta' dak is-sit, u jistgħu jilħqu n-netwerk. Jidħol fis-seħħ id-darba li jmiss li tinfetaħ l-app.",
   "appSettingsExperimentalWebKitBlockReports": "L-għadd tal-imblukkar ta' WebKit",
   "appSettingsExperimentalWebKitBlockReportsHint": "Jgħodd kull talba li l-listi tal-filtri ta' WebKit jimblukkaw kif jirrapportaha WebKit, inklużi dawk li l-paġna qatt ma tara, bħal stampi mill-iskedi tal-istil u beacons. Juża interfaċċja ta' WebKit li Apple ma tippubblikax, għalhekk jiġi offrut biss barra mill-App Store. Jidħol fis-seħħ id-darba li jmiss li tinfetaħ l-app.",
   "appSettingsExtensions": "Estensjonijiet",

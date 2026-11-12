@@ -1171,8 +1171,6 @@
   "networkInterfaceHttpsLock": "HTTPS tarpinis serveris dar negali jos naudoti",
   "appSettingsExperimentalNetworkInterface": "Tinklo sąsaja kiekvienai svetainei",
   "appSettingsExperimentalNetworkInterfaceHint": "Leidžia kiekvienai svetainei savo ekrane Tinklas pasirinkti tinklo sąsają, per kurią išeina jos srautas, pavyzdžiui, vieno iš kelių VPN tunelį. Svetainė, kurios sąsaja neveikia, nieko neįkelia, užuot naudojusi kitą ryšį.",
-  "appSettingsExperimentalServiceWorkers": "Service worker per blokatorius",
-  "appSettingsExperimentalServiceWorkersHint": "Kai kiekviena svetainė turi savo konteinerį, svetainės service worker (foniniai scenarijai, kuriuos kai kurios svetainės naudoja neprisijungus rodomiems puslapiams, talpyklai ir atnaujinimams) įkeliami per tos svetainės DNS blokavimo sąrašą, filtrų sąrašus ir LocalCDN ir gali pasiekti tinklą. Įsigalioja kitą kartą paleidus programą.",
   "appSettingsExperimentalWebKitBlockReports": "WebKit blokavimų skaičiai",
   "appSettingsExperimentalWebKitBlockReportsHint": "Skaičiuoja kiekvieną užklausą, kurią WebKit filtrų sąrašai užblokuoja, taip, kaip WebKit apie ją praneša, įskaitant tas, kurių puslapis niekada nemato, pavyzdžiui, stilių lapų paveikslėlius ir švyturius. Naudoja WebKit sąsają, kurios Apple neskelbia, todėl siūloma tik ne App Store versijoje. Įsigalioja kitą kartą paleidus programą.",
   "appSettingsExtensions": "Plėtiniai",

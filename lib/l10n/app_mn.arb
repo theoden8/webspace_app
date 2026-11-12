@@ -1171,8 +1171,6 @@
   "networkInterfaceHttpsLock": "HTTPS прокси үүнийг одоохондоо ашиглаж чадахгүй",
   "appSettingsExperimentalNetworkInterface": "Сайт бүрийн сүлжээний интерфейс",
   "appSettingsExperimentalNetworkInterfaceHint": "Сайт бүрд Сүлжээ дэлгэц дээрээ урсгал нь гарах сүлжээний интерфейсийг, жишээ нь хэд хэдэн VPN-ийн нэгнийх нь хонгилыг сонгох боломж олгоно. Интерфейс нь унтарсан сайт өөр холболт ашиглахын оронд юу ч ачаалахгүй.",
-  "appSettingsExperimentalServiceWorkers": "Хориглогчоор дамжих service worker",
-  "appSettingsExperimentalServiceWorkersHint": "Сайт бүр өөрийн контейнертэй үед сайтын service worker-ууд (зарим сайтын офлайн хуудас, кэш, шинэчлэлтэд ашигладаг арын скриптүүд) тухайн сайтын DNS хориглох жагсаалт, шүүлтүүрийн жагсаалтууд болон LocalCDN-ээр дамжин ачаалагдаж, сүлжээнд хүрч болно. Аппыг дараагийн удаа эхлүүлэхэд хүчин төгөлдөр болно.",
   "appSettingsExperimentalWebKitBlockReports": "WebKit-ийн хаалтын тоо",
   "appSettingsExperimentalWebKitBlockReportsHint": "WebKit-ийн шүүлтүүрийн жагсаалтын хаасан хүсэлт бүрийг WebKit-ийн мэдээлснээр тоолно, хуудас огт хардаггүй, жишээ нь загварын хуудасны зураг, дохиоллын хүсэлтийг ч оруулна. Apple-ийн нийтэлдэггүй WebKit-ийн интерфейс ашигладаг тул зөвхөн App Store-оос гадуур санал болгоно. Аппыг дараагийн удаа эхлүүлэхэд хүчин төгөлдөр болно.",
   "appSettingsExtensions": "Өргөтгөлүүд",

@@ -1,5 +1,4 @@
-// JVM unit tests for a site's service workers under the Service workers
-// experiment (CB-022): their requests reach the profile's client and never
+// JVM unit tests for a site's service workers (CB-022): their requests reach the profile's client and never
 // the webview's, so that client has to be the site's own interceptor.
 package org.codeberg.theoden8.webspace
 
@@ -9,7 +8,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -56,8 +54,7 @@ class ServiceWorkerBlockersTest {
     private fun clientOf(workers: FakeWorkers) = workers.lastClient as SiteServiceWorkerClient
 
     @Test
-    fun cb022_experimentOn_workersMeetTheSiteBlockers() {
-        blockers.enabled = true
+    fun cb022_workersMeetTheSiteBlockers() {
         val workers = FakeWorkers(blocked = true)
         blockers.attach(workers, interceptor, siteId = "site")
 
@@ -76,7 +73,6 @@ class ServiceWorkerBlockersTest {
 
     @Test
     fun cb022_aSettingsEditReachesTheWorkers() {
-        blockers.enabled = true
         val workers = FakeWorkers(blocked = false)
         blockers.attach(workers, interceptor, siteId = "site")
 
@@ -86,7 +82,6 @@ class ServiceWorkerBlockersTest {
 
     @Test
     fun cb022_reattach_handsTheWorkersToTheNewView() {
-        blockers.enabled = true
         val workers = FakeWorkers(blocked = true)
         blockers.attach(workers, interceptor, siteId = "site")
         val next = FastSubresourceInterceptor(
@@ -102,21 +97,7 @@ class ServiceWorkerBlockersTest {
     }
 
     @Test
-    fun cb022_experimentOff_leavesTheProfileAsItWas() {
-        for (blocked in listOf(true, false)) {
-            logs.clear()
-            val workers = FakeWorkers(blocked = blocked)
-            blockers.attach(workers, interceptor, siteId = "site")
-
-            assertSame(null, workers.lastClient)
-            assertEquals(emptyList<String>(), workers.writes)
-            assertTrue(logs.single(), logs.single().contains("network blocked=$blocked (experiment off)"))
-        }
-    }
-
-    @Test
     fun cb022_theDefaultProfile_isLeftToTheAppWideBlock() {
-        blockers.enabled = true
         blockers.attach(null, interceptor, siteId = "site")
         assertEquals(emptyList<String>(), logs)
     }
