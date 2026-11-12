@@ -916,6 +916,49 @@ no Ctrl-Q, the keys written), [test/window_caption_test.dart](../../../test/wind
 (the Android desktop emulator, INTEG-018: the header laid out once, the keys through
 the real key path).
 
+---
+
+### Requirement: NAV-021 - The Keyboard Leaves With The Page That Raised It
+
+A keyboard raised for the page, by its URL bar or by a field in a site's page, SHALL go
+once the user stops facing what raised it:
+
+- another site on screen, another tab of the site, or the webspaces;
+- the drawer opened over the page;
+- any screen pushed over the page: App Settings, a site's settings, a sheet, a dialog, a
+  nested site.
+
+Covered, the page is still on screen, so the field focused in its site's page SHALL lose
+focus as well; a page that leaves the screen loses its native focus with it. A screen
+pushed over the page that focuses a field of its own SHALL keep its keyboard, and nothing
+that happens to the page behind it SHALL hide that keyboard. An edit of the URL bar SHALL
+end with the page it began on, so its typed text never reaches another site (BUG-015).
+
+#### Scenario: Switching sites while typing in the URL bar
+
+- **GIVEN** the user is typing in the URL bar of site A, keyboard up
+- **WHEN** they tap site B in the tab strip
+- **THEN** the keyboard goes
+- **AND** the URL bar shows site B's URL, not the text typed for site A
+
+#### Scenario: Opening settings while typing in a page
+
+- **GIVEN** a field in a site's page has focus, keyboard up
+- **WHEN** the user opens App Settings, or opens the drawer
+- **THEN** the keyboard goes, and the page's field has lost focus
+
+#### Scenario: A screen with a field of its own
+
+- **GIVEN** the keyboard is up for the page
+- **WHEN** a screen that focuses its own field is pushed over the page
+- **THEN** that field has focus and the keyboard is up for it
+- **AND** a site switch behind the screen leaves it up
+
+Test: [test/keyboard_engine_test.dart](../../../test/keyboard_engine_test.dart) (the
+decision), [test/page_keyboard_test.dart](../../../test/page_keyboard_test.dart) (the page's
+drawer, routes and switches), [test/url_bar_sync_test.dart](../../../test/url_bar_sync_test.dart)
+(the URL bar's edit).
+
 ## Race Condition Guards
 
 ### Guard: RACE-002 - _backGuard

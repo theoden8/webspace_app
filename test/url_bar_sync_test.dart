@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/keyboard_engine.dart';
+import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'helpers/localized.dart';
 
@@ -74,6 +77,31 @@ void main() {
       await tester.pump();
 
       expect(_shown(tester), 'half-typ');
+    });
+  });
+
+  group('NAV-021 URL bar when the page under it changes', () {
+    testWidgets('an edit ends with the page it began on (BUG-015)',
+        (tester) async {
+      PageFace page = (site: SiteId('site-a'), tab: TabId('t1'));
+      var current = 'https://site-a.example/';
+      late StateSetter rebuild;
+      await tester.pumpWidget(_host(StatefulBuilder(builder: (context, set) {
+        rebuild = set;
+        return UrlBar(page: page, currentUrl: current, onUrlSubmitted: (_) {});
+      })));
+
+      await tester.tap(find.byType(TextField));
+      await tester.pump();
+      await tester.enterText(find.byType(TextField), 'half-typ');
+      rebuild(() {
+        page = (site: SiteId('site-b'), tab: TabId('t1'));
+        current = 'https://site-b.example/';
+      });
+      await tester.pump();
+
+      expect(_shown(tester), 'https://site-b.example/');
+      expect(tester.testTextInput.isVisible, isFalse);
     });
   });
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:webspace/services/keyboard_engine.dart';
 import 'package:webspace/settings/site_ids.dart';
 
 import 'package:flutter/material.dart';
@@ -36,6 +37,11 @@ class UrlBar extends StatefulWidget {
   final FutureOr<void> Function(String query, {required SiteId? siteId})?
       onSearch;
 
+  /// The site and tab the bar edits for. An edit begun on one page ends as
+  /// the bar moves to another (NAV-021, BUG-015): its text and its keyboard
+  /// were the page's that is gone.
+  final PageFace? page;
+
   const UrlBar({
     super.key,
     required this.currentUrl,
@@ -44,6 +50,7 @@ class UrlBar extends StatefulWidget {
     this.searchSites = const [],
     this.defaultSearchSiteId,
     this.onSearch,
+    this.page,
   });
 
   @override
@@ -83,6 +90,7 @@ class UrlBarState extends State<UrlBar> {
   @override
   void didUpdateWidget(UrlBar oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (_isEditing && widget.page != oldWidget.page) _focusNode.unfocus();
     if (!_isEditing && widget.currentUrl != oldWidget.currentUrl) {
       _urlController.text = widget.currentUrl;
     }

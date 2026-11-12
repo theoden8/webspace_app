@@ -50,10 +50,21 @@ the webview last reported.** Normative rule:
    either way. Test: [test/url_bar_sync_test.dart](../../test/url_bar_sync_test.dart).
    *Why partial*: covers the submit path only; the gaps below remain.
 
+3. **2026-11-12 — this change.** `UrlBar` takes the site and tab it edits
+   for (`page`) and ends an edit when they change. The bar is one widget
+   for every site, kept under one key, so a switch from the tab strip, a
+   shortcut or a notification kept its focus, its keyboard and the typed
+   text, and Enter then opened the text typed for one site in another.
+   Found beside the keyboard staying up across switches (NAV-021). Test:
+   [test/url_bar_sync_test.dart](../../test/url_bar_sync_test.dart).
+   *Why partial*: covers an edit cut off by a page change; an edit whose
+   page stays (the Android back button below) still never ends.
+
 ## Known open gaps
 
 - **An edit that never ends.** `didUpdateWidget` skips updates while
-  `_isEditing`, which clears only when the field loses focus. On Android
+  `_isEditing`, which clears only when the field loses focus or the page
+  under the bar changes (attempt 3). On Android
   the back button hides the keyboard without taking focus from the field,
   so a later back navigates the page while the bar holds the old text.
   Not reproduced here.

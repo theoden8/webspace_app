@@ -16,6 +16,7 @@ import 'package:webspace/controllers/back_gesture_controller.dart';
 import 'package:webspace/controllers/background_sites_controller.dart';
 import 'package:webspace/controllers/startup_controller.dart';
 import 'package:webspace/controllers/nested_open_binding.dart';
+import 'package:webspace/controllers/page_keyboard.dart';
 import 'package:webspace/controllers/page_orphan_sweep.dart';
 import 'package:webspace/controllers/site_deletion.dart';
 import 'package:webspace/controllers/site_set_commit.dart';
@@ -302,6 +303,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   // swipe-kill) and for background sites navigating while another site
   // is current.
   final ScreenCaptureGuard _screenCaptureGuard = ScreenCaptureGuard();
+  late final PageKeyboard _keyboard =
+      PageKeyboard(pageOf: (site) => _sites.byId(site)?.controller);
 
   // KIOSK-002: set when the current session entered via a home-shortcut tap
   // targeting a kiosk-mode site. While true the app shell hides all navigation
@@ -396,6 +399,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     super.didChangeDependencies();
     final route = ModalRoute.of(context);
     if (route is PageRoute) surfaceRouteObserver.subscribe(this, route);
+    if (route != null) _keyboard.watch(route, scope: FocusScope.of(context));
   }
 
   /// An opaque route pushed over this page has popped and the webview is
@@ -423,6 +427,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     _keys.dispose();
     WebExtensionLibrary.instance.answerTabRequests(null);
     surfaceRouteObserver.unsubscribe(this);
+    _keyboard.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -827,27 +832,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (isolation is SharedJar) await _resets.refreshShown();
   }
 
-  /// A sheet opened while the keyboard is up sits behind it, and the
-  /// keyboard stays up while the URL bar or an input in the page has focus.
-  Future<void> _dismissKeyboard() async {
-    FocusManager.instance.primaryFocus?.unfocus();
-    // A page that is stuck must not keep the list from opening.
-    await getController()
-        ?.evaluateJavascript(
-            'document.activeElement && document.activeElement.blur && '
-            'document.activeElement.blur();')
-        .timeout(const Duration(milliseconds: 300), onTimeout: () {});
-    await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
-  }
-
   Future<void> _showTabsSheet() async {
     if (_kioskLocked || !_tabs.enabledFor(_sites.shown) || _isShowingTabsSheet) {
       return;
     }
     _isShowingTabsSheet = true;
     try {
-      await _dismissKeyboard();
-      if (!mounted || !_tabs.enabledFor(_sites.shown)) return;
       await _presentTabsSheet();
     } finally {
       _isShowingTabsSheet = false;
@@ -1238,6 +1228,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         if (hasUrlBar)
           UrlBar(
             key: _urlBar,
+            page: (site: model.siteId, tab: model.activeTabId),
             currentUrl: model.currentUrl,
             searchSites: urlBarSearch?.sites ?? const [],
             defaultSearchSiteId: urlBarSearch?.defaultId,
@@ -1591,6 +1582,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       appWide: AppPref.blockScreenshots.value,
       siteOnScreen: _sites.shown?.blockScreenshots,
     )));
+    _keyboard.follow((site: _sites.shown?.siteId, tab: _sites.shown?.activeTabId));
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -1640,6 +1632,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       // opened by any other affordance therefore starts with the flag down.
       onDrawerChanged: (isOpen) {
         _back.drawerChanged(open: isOpen);
+        if (isOpen) _keyboard.covered();
       },
       // Disable the drawer edge-swipe whenever a webview is active so the back
       // gesture never opens the drawer. The drawer is reached via the AppBar
