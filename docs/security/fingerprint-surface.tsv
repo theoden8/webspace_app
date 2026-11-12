@@ -1,0 +1,74 @@
+#	The fingerprinting surface the anti-fingerprinting shim (lib/js/anti_fingerprinting.js) answers for, and the known gaps it does not.
+#	One row per surface. `token` is the property/method name as the shim patches it (the join key the completeness gate uses);
+#	a media-query feature has no property token, so it carries an `@mq:<feature>` token the extractor never matches.
+#	Columns: token  group  api  status  mode  worker  spec  notes
+#	status: covered = the shim patches it; open = a known surface the shim does not touch yet; the gate holds `covered` == what the shim patches.
+#	mode: normalize (one value for every site), randomize (seeded per siteId), empty (removed), passthrough (left as the engine's), suppress (event dropped).
+#	worker: yes = also patched in worker scope (worker_shim); no = window-only; - = n/a.
+#	Gate: test/js/fingerprint_surface_catalog.test.js (rung 5: source text; no type says a JS patch is catalogued).
+token	group	api	status	mode	worker	spec	notes
+getContext	Canvas2D	HTMLCanvasElement/OffscreenCanvas.getContext	covered	passthrough	no	ETP-007	entry wrapper that installs the 2d/webgl context patches
+getImageData	Canvas2D	CanvasRenderingContext2D.getImageData	covered	randomize	no	ETP-007	per-pixel seeded noise
+putImageData	Canvas2D	CanvasRenderingContext2D.putImageData	covered	passthrough	no	ETP-007	tracks written regions so a read-back reproduces the same noise
+toDataURL	Canvas2D	HTMLCanvasElement.toDataURL	covered	randomize	no	ETP-007	noised read
+toBlob	Canvas2D	HTMLCanvasElement.toBlob	covered	randomize	no	ETP-007	noised read
+convertToBlob	Canvas2D	OffscreenCanvas.convertToBlob	covered	randomize	no	ETP-007	noised read
+measureText	TextMetrics	CanvasRenderingContext2D.measureText	covered	randomize	no	ETP-008	sub-visible width jitter; returns the engine TextMetrics
+getParameter	WebGL	WebGL(2)RenderingContext.getParameter	covered	normalize	no	ETP-009	vendor/renderer masked
+getSupportedExtensions	WebGL	WebGL(2)RenderingContext.getSupportedExtensions	covered	normalize	no	ETP-009	stable list
+readPixels	WebGL	WebGL(2)RenderingContext.readPixels	covered	randomize	no	ETP-009	seeded noise
+getChannelData	Audio	AudioBuffer.getChannelData	covered	randomize	yes	ETP-013	sub-audible float noise
+copyFromChannel	Audio	AudioBuffer.copyFromChannel	covered	randomize	yes	ETP-013	sub-audible float noise
+getFloatFrequencyData	Audio	AnalyserNode.getFloatFrequencyData	covered	randomize	yes	ETP-013	dB-scale noise
+getFloatTimeDomainData	Audio	AnalyserNode.getFloatTimeDomainData	covered	randomize	yes	ETP-013	waveform noise
+check	Fonts	document.fonts.check	covered	normalize	no	ETP-008	restricted to a common-fonts allowlist
+width	Screen	Screen.width	covered	normalize	no	ETP-010	1920 (live inner* in letterbox)
+height	Screen	Screen.height	covered	normalize	no	ETP-010	1080 (live inner* in letterbox)
+availWidth	Screen	Screen.availWidth	covered	normalize	no	ETP-010	matches width
+availHeight	Screen	Screen.availHeight	covered	normalize	no	ETP-010	matches height
+availLeft	Screen	Screen.availLeft	covered	normalize	no	ETP-010	0
+availTop	Screen	Screen.availTop	covered	normalize	no	ETP-010	0
+colorDepth	Screen	Screen.colorDepth	covered	normalize	no	ETP-010	24
+pixelDepth	Screen	Screen.pixelDepth	covered	normalize	no	ETP-010	24
+screenX	Window	window.screenX	covered	normalize	no	ETP-010	0 (own accessor, native-masked)
+screenY	Window	window.screenY	covered	normalize	no	ETP-010	0
+screenLeft	Window	window.screenLeft	covered	normalize	no	ETP-010	0
+screenTop	Window	window.screenTop	covered	normalize	no	ETP-010	0
+outerWidth	Window	window.outerWidth	covered	normalize	no	ETP-010	mirrors innerWidth
+outerHeight	Window	window.outerHeight	covered	normalize	no	ETP-010	mirrors innerHeight
+devicePixelRatio	Window	window.devicePixelRatio	covered	normalize	no	ETP-010	1 (#983); resolution media queries agree
+hardwareConcurrency	Hardware	navigator.hardwareConcurrency	covered	randomize	yes	ETP-010	seeded in [4,8]
+deviceMemory	Hardware	navigator.deviceMemory	covered	randomize	yes	ETP-010	seeded {4,8}; Chromium-only, only where present
+maxTouchPoints	Hardware	navigator.maxTouchPoints	covered	normalize	yes	ETP-010	0; pointer/hover media queries agree (#989)
+effectiveType	Network	navigator.connection.effectiveType	covered	normalize	yes	ETP-010	4g
+type	Network	navigator.connection.type	covered	normalize	yes	ETP-010	wifi; only where present
+rtt	Network	navigator.connection.rtt	covered	normalize	yes	ETP-010	50
+downlink	Network	navigator.connection.downlink	covered	normalize	yes	ETP-010	10
+downlinkMax	Network	navigator.connection.downlinkMax	covered	normalize	yes	ETP-010	Infinity
+saveData	Network	navigator.connection.saveData	covered	normalize	yes	ETP-010	false
+addEventListener	Network	NetworkInformation.addEventListener	covered	suppress	yes	ETP-010	drops the 'change' event (static values never change)
+onchange	Network	NetworkInformation.onchange	covered	suppress	yes	ETP-010	round-trips off-engine, never fires
+plugins	Plugins	navigator.plugins	covered	empty	no	ETP-010	empty PluginArray-shaped object
+mimeTypes	Plugins	navigator.mimeTypes	covered	empty	no	ETP-010	empty MimeTypeArray-shaped object
+item	Plugins	PluginArray/MimeTypeArray.item	covered	empty	no	ETP-010	array shape
+namedItem	Plugins	PluginArray/MimeTypeArray.namedItem	covered	empty	no	ETP-010	array shape
+length	Plugins	PluginArray/MimeTypeArray.length	covered	empty	no	ETP-010	0 (also the rebuilt DOMRectList length)
+refresh	Plugins	PluginArray.refresh	covered	empty	no	ETP-010	no-op
+getBattery	Battery	navigator.getBattery	covered	normalize	no	ETP-011	fixed values; Chromium-only, only where present
+getVoices	Speech	speechSynthesis.getVoices	covered	empty	no	ETP-010	empty list
+now	Timing	performance.now / Date.now	covered	normalize	yes	ETP-012	5ms step, seeded rounding point
+timeOrigin	Timing	performance.timeOrigin	covered	normalize	yes	ETP-012	same stepped clock
+timeStamp	Timing	Event.timeStamp	covered	normalize	no	ETP-012	same stepped clock
+requestAnimationFrame	Timing	window.requestAnimationFrame	covered	normalize	no	ETP-012	frame timestamp stepped
+getBoundingClientRect	Layout	Element/Range.getBoundingClientRect	covered	randomize	no	ETP-014	sub-pixel jitter
+getClientRects	Layout	Element/Range.getClientRects	covered	randomize	no	ETP-014	jittered, stays a DOMRectList
+matchMedia	MediaQuery	window.matchMedia	covered	normalize	no	ETP-010	device-width/height/aspect-ratio, resolution, device-pixel-ratio, pointer/hover answer the pinned posture
+@mq:color-gamut	MediaQuery	matchMedia('(color-gamut: ...)')	open	-	-	-	display gamut (srgb/p3/rec2020) leaks wide-gamut panels; not yet normalized
+@mq:monochrome	MediaQuery	matchMedia('(monochrome)')	open	-	-	-	monochrome bit depth
+@mq:update	MediaQuery	matchMedia('(update: ...)')	open	-	-	-	refresh capability class
+sampleRate	Audio	BaseAudioContext.sampleRate	open	-	-	-	hardware audio rate (44100/48000); FUNCTIONALLY RISKY to pin (pages do sample-accurate math); Tor does not spoof, Brave farbles the buffer (already covered). Needs its own analysis
+baseLatency	Audio	AudioContext.baseLatency	open	-	-	-	output latency, a device/driver signal
+getShaderPrecisionFormat	WebGL	WebGL(2)RenderingContext.getShaderPrecisionFormat	open	-	-	-	GPU precision ranges, a strong GPU signal left unnormalized
+memory	Hardware	performance.memory	open	-	-	-	Chromium heap-size buckets, a device-class signal
+estimate	Storage	navigator.storage.estimate	open	-	-	-	quota reflects device storage class
+orientation	Screen	screen.orientation.type/angle	open	-	-	-	orientation type/angle; a mobile-vs-desktop and rotation signal
