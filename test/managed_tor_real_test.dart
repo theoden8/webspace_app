@@ -81,13 +81,15 @@ final class _Bridge {
   }) async {
     final data = await Directory.systemTemp.createTemp('wsbridge');
     final torrc = File('${data.path}/torrc')..writeAsStringSync('');
-    final obfs4 = await _deadPort();
+    // Each named, never `auto`: tor took a port the test had released for
+    // obfs4 as its own ExtORPort, and tor refuses port 0 for a transport.
+    final [orPort, extOrPort, obfs4] = await _freePorts(count: 3);
     final process = await Process.start(tor, [
       '-f', torrc.path, '--defaults-torrc', torrc.path,
       '--DataDirectory', '${data.path}/tor',
       '--SocksPort', '0',
-      '--ORPort', '127.0.0.1:auto',
-      '--ExtORPort', 'auto',
+      '--ORPort', '127.0.0.1:$orPort',
+      '--ExtORPort', '127.0.0.1:$extOrPort',
       '--BridgeRelay', '1',
       '--PublishServerDescriptor', '0',
       '--AssumeReachable', '1',
@@ -139,6 +141,20 @@ Future<int> _deadPort() async {
   final port = server.port;
   await server.close();
   return port;
+}
+
+/// [count] loopback ports, all bound at once before any is released, so no
+/// two are the same.
+Future<List<int>> _freePorts({required int count}) async {
+  final held = [
+    for (var i = 0; i < count; i++)
+      await ServerSocket.bind(InternetAddress.loopbackIPv4, 0),
+  ];
+  final ports = [for (final socket in held) socket.port];
+  for (final socket in held) {
+    await socket.close();
+  }
+  return ports;
 }
 
 /// The first status [runtime] publishes that [matches], or a failure
