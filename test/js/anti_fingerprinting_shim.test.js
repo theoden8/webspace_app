@@ -378,6 +378,53 @@ test('screen overrides land on Screen.prototype, not the instance', () => {
   }
 });
 
+// --- window position and outer size ---
+
+test('screen available-area origin availLeft/availTop pinned to 0', () => {
+  const dom = loadShim(ALPHA);
+  assert.equal(dom.window.screen.availLeft, 0);
+  assert.equal(dom.window.screen.availTop, 0);
+});
+
+// These are own accessor properties of the window global in Chromium and
+// WebKit (own data properties in jsdom), not on Window.prototype, so the shim
+// redefines them in place on globalThis — a bare read reflects it.
+test('window position screenX/Y/Left/Top pinned to 0', () => {
+  const w = loadShim(ALPHA).window;
+  assert.equal(w.screenX, 0);
+  assert.equal(w.screenY, 0);
+  assert.equal(w.screenLeft, 0);
+  assert.equal(w.screenTop, 0);
+});
+
+test('outerWidth/outerHeight mirror the inner viewport', () => {
+  const w = loadShim(ALPHA).window;
+  assert.equal(w.outerWidth, w.innerWidth);
+  assert.equal(w.outerHeight, w.innerHeight);
+});
+
+test('outerWidth/outerHeight mirror, not snapshot, a changed viewport', () => {
+  const w = loadShim(ALPHA).window;
+  Object.defineProperty(w, 'innerWidth', { configurable: true, value: 640 });
+  Object.defineProperty(w, 'innerHeight', { configurable: true, value: 480 });
+  assert.equal(w.outerWidth, 640);
+  assert.equal(w.outerHeight, 480);
+});
+
+test('window position/outer overrides keep the native descriptor shape', () => {
+  // Chromium/WebKit expose these as own, enumerable, configurable accessors on
+  // the window; the shim must match so neither getOwnPropertyDescriptor nor a
+  // getter.toString() probe can tell it apart.
+  const w = loadShim(ALPHA).window;
+  for (const p of ['screenX', 'outerWidth']) {
+    const d = Object.getOwnPropertyDescriptor(w, p);
+    assert.equal(typeof (d && d.get), 'function', `${p} not an own accessor`);
+    assert.equal(d.enumerable, true);
+    assert.equal(d.configurable, true);
+    assert.match(d.get.toString(), /\[native code\]/, `${p} getter not masked`);
+  }
+});
+
 // --- letterbox mode (ETP-020) ---
 
 test('letterbox mode mirrors screen.* to the real window.inner*', () => {

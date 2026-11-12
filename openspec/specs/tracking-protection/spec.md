@@ -423,12 +423,24 @@ families SHALL read as not-installed even if they actually are.
 
 ### Requirement: ETP-010 - Screen / hardware overrides
 
-The shim SHALL define getters on `Screen.prototype` and
-`Navigator.prototype` (NOT on the instance — own-property leak would
-self-incriminate) so:
+The shim SHALL define each getter where the engine itself exposes the
+property, so the override keeps the engine's own descriptor shape and no
+own-property leak self-incriminates: on `Screen.prototype` and
+`Navigator.prototype` for `screen.*` and `navigator.*`, and on the window
+object itself for the window-placement globals, which Chromium and WebKit
+expose as own, enumerable, configurable accessors of the window (not on
+`Window.prototype`). So:
 
 * `screen.width = 1920`, `screen.height = 1080`
 * `screen.availWidth = 1920`, `screen.availHeight = 1040`
+* `screen.availLeft = 0`, `screen.availTop = 0`, so the available area sits at
+  the origin and implies no second monitor to the left of or above this one
+* `window.screenX = 0`, `window.screenY = 0`, and the `screenLeft` / `screenTop`
+  aliases = 0, so window placement — and the monitor layout it would imply —
+  leaks nothing
+* `window.outerWidth` / `window.outerHeight` mirror `window.innerWidth` /
+  `window.innerHeight`, so the chrome around the content (toolbar height, a
+  docked devtools pane) is not reported
 * `screen.colorDepth = 24`, `screen.pixelDepth = 24`
 * `navigator.hardwareConcurrency` ∈ [4, 8] derived from the seed
 * `navigator.deviceMemory` ∈ {4, 8} derived from the seed

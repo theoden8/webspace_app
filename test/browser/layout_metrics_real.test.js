@@ -128,3 +128,49 @@ test('getClientRects stays a DOMRectList and is jittered like the bounding rect'
       assert.ok(Math.abs(r.x - raw) < 0.001);
     });
   });
+
+test('window placement and outer size are normalized on a real engine',
+  async (t) => {
+    // jsdom keeps screenX/outerWidth as own instance properties, so Tier 1 can
+    // only call the installed Window.prototype getter by hand. Here the real
+    // engine resolves them the production way — through Window.prototype, where
+    // the shim pinned them — so this is where "the override actually takes" is
+    // proven. Placement collapses to the origin and the outer box matches the
+    // inner viewport, so neither monitor layout nor browser chrome leaks.
+    await withShim(t, ALPHA, async (page) => {
+      const r = await page.evaluate(() => ({
+        screenX: window.screenX,
+        screenY: window.screenY,
+        screenLeft: window.screenLeft,
+        screenTop: window.screenTop,
+        availLeft: screen.availLeft,
+        availTop: screen.availTop,
+        outerWidth: window.outerWidth,
+        outerHeight: window.outerHeight,
+        innerWidth: window.innerWidth,
+        innerHeight: window.innerHeight,
+        // These are own accessor properties of the window global (not on
+        // Window.prototype), so the shim overrides them in place with a getter
+        // of the same shape the engine uses, masked as native code.
+        outerIsOwnAccessor: (() => {
+          const d = Object.getOwnPropertyDescriptor(window, 'outerWidth');
+          return !!(d && typeof d.get === 'function' && d.enumerable && d.configurable);
+        })(),
+        outerGetterMasked: Object.getOwnPropertyDescriptor(window, 'outerWidth')
+          .get.toString().includes('[native code]'),
+        outerNotOnProto:
+          Object.getOwnPropertyDescriptor(Window.prototype, 'outerWidth') === undefined,
+      }));
+      assert.equal(r.screenX, 0);
+      assert.equal(r.screenY, 0);
+      assert.equal(r.screenLeft, 0);
+      assert.equal(r.screenTop, 0);
+      assert.equal(r.availLeft, 0);
+      assert.equal(r.availTop, 0);
+      assert.equal(r.outerWidth, r.innerWidth);
+      assert.equal(r.outerHeight, r.innerHeight);
+      assert.equal(r.outerIsOwnAccessor, true);
+      assert.equal(r.outerGetterMasked, true);
+      assert.equal(r.outerNotOnProto, true);
+    });
+  });
