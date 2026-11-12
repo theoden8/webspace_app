@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 
-import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/services/launch_context.dart';
 import 'package:webspace/services/launch_timeline.dart';
 import 'package:webspace/services/surface_route_observer.dart';
@@ -61,14 +60,8 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
         final app = CaptionTint(child: child ?? const SizedBox.shrink());
         return RemoteInput.driven ? RemoteControls(child: app) : app;
       },
-      theme: ThemeData(
-        colorScheme: buildAccentColorScheme(accentColor, brightness: Brightness.light),
-        scaffoldBackgroundColor: Color(0xFFFFFFFF),
-      ),
-      darkTheme: ThemeData(
-        colorScheme: buildAccentColorScheme(accentColor, brightness: Brightness.dark),
-        scaffoldBackgroundColor: Color(0xFF000000),
-      ),
+      theme: buildAppTheme(accentColor, brightness: Brightness.light),
+      darkTheme: buildAppTheme(accentColor, brightness: Brightness.dark),
       themeMode: _themeSettings.themeMode,
       home: WebSpacePage(
         onThemeSettingsChanged: _setThemeSettings,

@@ -434,7 +434,6 @@ class GalleryApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = buildAccentColorScheme(accent, brightness: brightness);
     final card = this.card;
 
     return MaterialApp(
@@ -442,11 +441,7 @@ class GalleryApp extends StatelessWidget {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       locale: localeCode == null ? null : Locale(localeCode!),
-      theme: ThemeData(
-        colorScheme: scheme,
-        scaffoldBackgroundColor:
-            brightness == Brightness.light ? const Color(0xFFFFFFFF) : const Color(0xFF000000),
-      ),
+      theme: buildAppTheme(accent, brightness: brightness),
       home: card == null
           ? const _GalleryIndex()
           : card.fullBleed
