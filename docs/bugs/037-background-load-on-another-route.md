@@ -469,6 +469,20 @@ the override under the sites already loaded.
   widget tree kept, a dispose that never loads `about:blank`) moves the
   rule anyway, with a warning in the log; `process_route.tla` has no clock
   and does not hold that case.
+- It recurred again on 2026-11-12 (Build and Test run 43252034814, job
+  131313073010, on #987's head, whose diff changes only the types the
+  residency and jar engines take a site as), and the timeline the test now
+  prints settles the window the 2026-11-07 run left open: A's dispose at
+  33.456, A quiet and waiting for its destroy at 33.477, A's destroy seen
+  and the rule moved at 33.679, B's override applied at 33.680, then
+  upstream B received `GET http://a.example.test/favicon.ico` at 33.716,
+  before B's first navigation at 33.754. A's request reached the network
+  after A's destroy and after the rule moved, so waiting for the destroy
+  does not close the gap: either the destroy does not cancel an image
+  download already under way, or Chromium resends a request in flight on
+  the proxy it now reads. Either way ordering Dart's calls around the
+  destroy does not close it; the per-webview proxy (PROXY-013) is the case
+  that does not depend on it, as the first gap above says.
 - Not determined which load started the old site's favicon download in the
   CI run; Chromium's `IconHelper` downloads it through
   `WebContents::DownloadImage`, and whether `WebContents::Stop` cancels an
