@@ -25,6 +25,13 @@ of re-auditing the whole surface.
   data, so an unrelated PR is never reddened by a newly published advisory.
 - `lab.md`: the design of an adversarial evaluation lab that tests the policy with
   fresh canaries and an independent collector.
+- `fingerprint-surface.tsv`: the catalog of fingerprinting surfaces the
+  anti-fingerprinting shim (`lib/js/anti_fingerprinting.js`) answers for, and the
+  known gaps it does not. One row per surface (covered or open) with its mode and
+  spec. `test/js/fingerprint_surface_catalog.test.js` holds it to the shim: the
+  tokens the shim patches MUST equal the rows marked `covered`, so coverage cannot
+  be gained or lost without the catalog being updated (the completeness gate). Open
+  rows are the audit's backlog; a new fix flips a row from open to covered.
 - Findings are closed by editing the run file's status column, not by deleting the
   row. Cite the fixing commit or PR. A finding that resurfaces through a new code
   path is a recurring bug: open a `docs/bugs/NNN-*.md` file and link it from here.
