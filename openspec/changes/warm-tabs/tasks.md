@@ -7,21 +7,21 @@ PAUSE-012, CONT-003. Design: `design.md`.
 ## 1. The model first
 
 - [ ] 1.1 `formal/retention.tla`: the four warm tiers below `loaded` (design D2); a demonstrator that evicts a site's active webview while a warm tab of another site is loaded, which TLC MUST reject (TAB-024); `./formal/check.sh` green.
-- [ ] 1.2 Record the base config's `Finished in` for `activation.cfg` and `activation_tabs.cfg` before any change, to name in the PR with the after figures.
-- [ ] 1.3 `formal/activation.tla` through the tables and the printer, not by hand: `built[s]` a subset of `tabs[s]`, constant `MaxWarm` (1 in the base worlds, 2 in one world for TAB-023's hosted rule), `Inv_TabBound` and `Inv_TabShown` restated (design D5), a warm-tab eviction as the unload flow over a `LiveView`. Planted mistakes, each its own `Mutant`: a switch to a warm tab that reloads it; a warm view kept after its tab closed; a hosted warm tab judged as its owner (TAB-026). Verify: `./formal/verify.sh` passes and every new mutant is caught.
+- [ ] 1.2 Record the `Finished in` of `activation_gen_jar_cold_tabs_reset_one` (the costliest tab world) and of `activation.cfg` before any change, to name in the PR with the after figures.
+- [ ] 1.3 `formal/activation.tla` through the tables and the printer, not by hand (design D5): `loaded` stays a set of sites; `built[s]` a subset of `tabs[s]`; warm a definition; the caps' view count a printed `Def`; `Inv_TabBound`, `Inv_TabShown` restated and the `built`-implies-`loaded` link added; the warm eviction the unload flow over a `LiveView` with `captureSteps` as is. `MaxWarm` 1 in the printed tab worlds, plus one written world at 2 and one link world at 1. Planted mistakes, each its own `Mutant`: a switch to a warm tab that reloads it; a warm view kept after its tab closed; a hosted warm tab judged as its owner (TAB-026); an eviction of the wrong one of two warm tabs (TAB-024, the `MaxWarm = 2` world). Verify: `./formal/verify.sh` passes and every new mutant is caught.
 
 ## 2. Webviews as the residency unit
 
 - [ ] 2.1 `LiveView` (`({SiteId owner, TabId tab})`) and the warm tiers in `SiteRetentionPriority`; `evictionOrder` over `LiveView`s. Verify: `test/site_retention_priority_test.dart` cases named for TAB-024 (the order of the four tiers, LRU within each).
 - [ ] 2.2 `SiteUnloadEngine.plan` over `LiveView`s: the LRU cap counts views (CONT-003), a `TabLeft` event applies the warm limit before the cap (TAB-023). Verify: boundary tests named for TAB-023 (fourth own tab, hosted raises the limit, hosted before own) and CONT-003 (twenty views, warm tab taken first).
 - [ ] 2.3 `SiteLifecyclePromotionEngine` tiers per view, proactive pass and pressure plan counting views. Verify: tests named for PAUSE-006 ("pressure takes a warm tab before a background site") and PAUSE-012 ("warm tabs count toward the threshold").
-- [ ] 2.4 `RuntimeVars.loaded` holds `LiveView`s; `isEvictable` and every reader updated; `./formal/trace/check_steps.sh` replays green.
+- [ ] 2.4 `RuntimeVars.loaded` stays a set of sites; the plan's count reads the printed view-count `Def` over `loaded` and `built`. Verify: `./formal/trace/check_steps.sh` replays green.
 
 ## 3. The switch
 
 - [ ] 3.1 `WebViewTabBinding` per tab: `built` a set, bytes still tagged with their tab (TAB-003, BUG-036). Verify: its unit tests and the tab schedules in `test/activation_schedules_test.dart`.
 - [ ] 3.2 `TabTable` switch: a warm target in one turn with no await; a parked target reads its bytes, then in one turn leaves the active tab warm, builds the target, then plans `TabLeft` (design D4). Verify: schedules named for TAB-003 ("switching to a warm tab", "the tab left cannot stay warm"); `check_steps.sh` green.
-- [ ] 3.3 Name `Finished in` after, beside 1.2's figures, in the PR.
+- [ ] 3.3 Name `Finished in` after, beside 1.2's figures, in the PR; past about 10% growth in the costliest tab world, look first at memory pressure's plan against the tab flow.
 
 ## 4. A warm tab acts as nothing
 
