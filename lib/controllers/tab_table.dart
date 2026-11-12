@@ -33,7 +33,7 @@ abstract final class TabTable {
   static final _page = Port<TabCalls, TabFlow>(
     'page',
     reads: const {},
-    changes: {ModelVar.built, ModelVar.hist, ModelVar.queued},
+    changes: {ModelVar.built, ModelVar.hist, ModelVar.warm, ModelVar.queued},
     of: (w) => TabCalls(w._c, sites: w),
   );
 
@@ -345,9 +345,11 @@ abstract final class TabTable {
       _loaded.becomes(_loaded.value.less(_site.value.asSet)),
       ...TabVars.rebound(
         _site.value,
+        keys: TabVars.ids(),
         tab: _tab.value,
         label: _labelTla,
         loaded: _loaded.value.less(_site.value.asSet),
+        warmth: const DropsWarm(),
       ),
     ], then: (c) => _page.from(c).rebindAs(c)),
     Spawn(
@@ -358,7 +360,54 @@ abstract final class TabTable {
     ),
   ];
 
-  /// List, pointer and webview moved in one turn.
+  /// The tabs whose views are warm once the switch shows its target,
+  /// before the limit (TAB-023).
+  static final warmAfterNow = TabVars.warmAfter<SiteId, TabFlow>(keys: TabVars.ids<TabFlow>()).call([
+    _site.value,
+    _tab.value,
+    _targetIn,
+  ]);
+
+  /// A tap or a preload is about to add a site the views it counted did
+  /// not hold a warm view for (TAB-024).
+  static final _sitesJoin =
+      Expr.inFlight<TabFlow>(
+        FlowKind.tap,
+        run: (c) => _page.from(c).flowInFlight(FlowKind.tap),
+      ) |
+      Expr.inFlight<TabFlow>(
+        FlowKind.preload,
+        run: (c) => _page.from(c).flowInFlight(FlowKind.preload),
+      );
+
+  /// The warm view a switch's limit lets go of, or none (TAB-023).
+  static final warmVictim = TabVars.warmVictim<SiteId, TabFlow>(
+    _site.value,
+    keys: TabVars.ids<TabFlow>(),
+    tab: _tab.value,
+    kept: _targetIn,
+    joining: _sitesJoin,
+    limits: (
+      own: Constant<int, TabFlow>(
+        ModelConst.warmOwn,
+        read: (w) => w._c.residency.warmLimits.own,
+      ).value,
+      hosted: Constant<int, TabFlow>(
+        ModelConst.warmHosted,
+        read: (w) => w._c.residency.warmLimits.hosted,
+      ).value,
+    ),
+    loaded: _loaded.value,
+    maxLoaded: Constant<int, TabFlow>(
+      ModelConst.maxLoaded,
+      read: (w) => w._c.residency.caps.loaded,
+    ).value,
+    tabsOf: (c) => _flow.from(c).site.tabs,
+    shownOf: (c) => _flow.from(c).site.tabBinding.built,
+  );
+
+  /// List, pointer and webview moved in one turn; the view shown before
+  /// stays warm as the limit lets it (TAB-023).
   static final List<Effect<TabFlow>> _rebinds = [
     Act.of([
       _active.except(_site.value, to: _tab.value),
@@ -367,9 +416,11 @@ abstract final class TabTable {
       _tier.except(_site.value, to: _residentIfLoaded),
       ...TabVars.rebound(
         _site.value,
+        keys: TabVars.ids(),
         tab: _tab.value,
         label: _labelTla,
         loaded: _loaded.value,
+        warmth: KeepsWarm(kept: _targetIn, victim: warmVictim.it),
       ),
     ], then: (c) => _page.from(c).rebind(c)),
   ];
@@ -1144,12 +1195,14 @@ abstract final class TabTable {
           Branch(
             StepOutcome.none,
             when: _closes,
+            pick: warmVictim,
             then: _rebinds,
             next: to(TabPlace.tRemove),
           ),
         ],
         otherwise: Otherwise(
           StepOutcome.none,
+          pick: warmVictim,
           then: _rebinds,
           next: to(TabPlace.done),
         ),
@@ -1197,6 +1250,11 @@ abstract final class TabTable {
                 _site.value,
                 kept: _restIds,
                 keys: TabVars.ids(),
+              ),
+              TabVars.warmGone(
+                _site.value,
+                keys: TabVars.ids(),
+                tabs: _closing.value,
               ),
               _active.except(
                 _site.value,
@@ -1429,9 +1487,11 @@ abstract final class TabTable {
                 _loaded.becomes(_loaded.value.less(_site.value.asSet)),
                 ...TabVars.rebound(
                   _site.value,
+                  keys: TabVars.ids(),
                   tab: _active.at(_site.value),
                   label: noTab<TabFlow>(),
                   loaded: _loaded.value.less(_site.value.asSet),
+                  warmth: const DropsWarm(),
                 ),
               ], then: (c) => _page.from(c).reroute(c)),
               Spawn(
@@ -1452,9 +1512,11 @@ abstract final class TabTable {
                 _flip(_site.value),
                 ...TabVars.rebound(
                   _site.value,
+                  keys: TabVars.ids(),
                   tab: _active.at(_site.value),
                   label: noTab<TabFlow>(),
                   loaded: _loaded.value,
+                  warmth: const DropsWarm(),
                 ),
               ], then: (c) => _page.from(c).reroute(c)),
             ],
@@ -1465,7 +1527,14 @@ abstract final class TabTable {
           StepOutcome.none,
           then: [
             _beforeReroute,
-            Act.of([_flip(_site.value)], then: (c) => _page.from(c).reroute(c)),
+            Act.of([
+              _flip(_site.value),
+              TabVars.warmGone(
+                _site.value,
+                keys: TabVars.ids(),
+                tabs: _misplaced(_site.value, routed: _routed.value),
+              ),
+            ], then: (c) => _page.from(c).reroute(c)),
           ],
           next: to(TabPlace.rRemove),
         ),

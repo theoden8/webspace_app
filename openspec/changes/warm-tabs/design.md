@@ -39,41 +39,38 @@ What holds the one-webview rule today:
 
 ## Decisions
 
-### D1. The unit is the live webview
+### D1. The unit is the live webview, counted beside the sites
 
-A live webview is named by `LiveView = ({SiteId owner, TabId tab})`: the slot
-it mounts in and the tab it was built for. The LRU order, the lifecycle tiers,
-the eviction candidates and the caps' count are over `LiveView`s. `loaded`
-stays a set of sites, and a site's live views are its shown view and its warm
-ones, read through one operator (`Live`, D5).
+A site's views are its shown one and its warm ones, owned by one class,
+`SiteViews` (`lib/web_view_model_site_views.dart`): only its methods move a view between
+shown and warm, so no view is both. A warm view is named by a `WarmUnit`,
+its site and its tab. `loaded` stays a set of sites; the loaded-site cap
+counts `Cardinality(loaded) + Cardinality(WarmUnits(loaded))` (D5).
 
-Alternative: keep the site as the unit and let warm tabs ride outside the
-caps. Rejected: the bound stops being a bound, and two pickers (sites, then
-tabs) would decide one question.
+Alternative: retype `loaded` to views. Rejected: 37 readers, and the base
+world, which follows no tabs, would carry them.
 
-### D2. Retention tiers below `loaded`
+### D2. The order is a function over warm views, not new retention tiers
 
-`SiteRetentionPriority` gains four values below `loaded`, so `evictionOrder`
-needs no other change:
+`SiteRetentionPriority` stays a ranking of sites. Warm views are not sites,
+so TAB-024's order is `SiteUnloadEngine.inDropOrder`: warm views of sites
+not on screen first, then the on-screen site's, hosted before own, least
+recently used first. The cap and memory pressure take warm views through it
+before any site, and only then pick sites by retention priority as today.
+The model takes any warm view where the code takes the first in this order
+(`Expr.chosen` / `choices`), and `formal/retention.tla` checks the order
+itself.
 
-| Tier | Webview |
-|---|---|
-| `warmOnScreen` | a warm own tab listed under the site on screen |
-| `warmOnScreenHosted` | a warm hosted tab listed under the site on screen |
-| `warmOwn` | a warm tab of another site, in its own list |
-| `warmHosted` | a warm tab of another site, hosted (runs as another site) |
+### D3. The limit, the cap and a joining site, in the switch's turn
 
-Enum order is eviction order (TAB-024), and within a tier `evictionOrder`
-keeps the LRU order it is given.
-
-### D3. The warm limit is applied in the switch's turn
-
-`3 + min(hosted, 2)` (TAB-023) is decided by a pure function over the
-`LiveView`s grouped by running identity (`SlotIdentities`, LIR-024, extended
-from slots to views), which picks overflow hosted-first, then LRU. The switch
-applies it in its one turn (D4), so a view over the limit never exists
-between two awaits. The loaded-site cap then counts what the limit leaves,
-as each residency rule sees what the rules before it leave today.
+`3 + min(hosted, 2)` (TAB-023) is per slot, and a slot keeps warm only views
+running as the site its shown tab runs as, so a slot's views share one route
+and one Tor exit and the proxy rules need no change. The switch lets the
+slot's least recently used warm view go (hosted first) when keeping it would
+pass the limit, the loaded-site cap, or while a tap or a preload is about to
+add a site its plan counted without that view (`WarmOver`). The activation's
+plan drops the warm views its cap needs in its own turn, as a pair with the
+sites it picks (`cross` of two `choices`).
 
 ### D4. A switch
 

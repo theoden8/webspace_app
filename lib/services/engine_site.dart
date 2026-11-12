@@ -38,6 +38,12 @@ abstract interface class EngineSite implements SiteKeyed {
   /// Which tab's history the site's webview shows (TAB-003).
   WebViewTabBinding get tabBinding;
 
+  /// The site's tabs, and those of them a warm view is kept for (TAB-023).
+  @Modeled(ModelVar.tabs)
+  List<SiteTab> get tabs;
+  @Modeled(ModelVar.warm)
+  Map<TabId, Object> get warmViews;
+
   /// Lets go of the site's webview, in [commit].
   void disposeWebView({required Commit commit});
   Future<void> clearWebViewCache();

@@ -10,6 +10,12 @@ class _ResidencyHost implements ResidencyHost {
   ResidencyCaps get caps => kResidencyCaps;
 
   @override
+  bool flowInFlight(FlowKind kind) => state._activation.inFlight(kind);
+
+  @override
+  WarmLimits get warmLimits => kWarmLimits;
+
+  @override
   List<WebViewModel> get models => state._sites.models;
 
   @override

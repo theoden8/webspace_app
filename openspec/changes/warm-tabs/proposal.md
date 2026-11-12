@@ -21,8 +21,10 @@ keep more than one tab live without raising the bound.
 
 ## What Changes
 
-- **The caps count webviews.** `kMaxLoadedSites` (20) and `kMaxResidentSites`
-  (10) bound live webviews, not sites. The worst-case memory is unchanged.
+- **The loaded-site cap counts webviews.** `kMaxLoadedSites` (20) bounds live
+  webviews, not sites. The worst-case memory is unchanged. The proactive
+  cache clear (`kMaxResidentSites`) still counts sites: a warm view is
+  paused and has no tier of its own.
 - **A tab can be warm**: inactive, not shown, with its webview kept live and
   paused. Switching to a warm tab shows it, with no build or reload. A tab is
   captured as it stops being active, so a warm view is later disposed without
@@ -59,8 +61,8 @@ None.
 - `inactive-tabs` (in flight in `inactive-tabs`): TAB-002 and TAB-011
   rewritten for warm tabs; new requirements for the warm limit, the eviction
   order, what a warm tab may do, hosted warm tabs, and unloads by running site.
-- `webview-pause-lifecycle`: PAUSE-006 (memory-pressure cascade) and PAUSE-012
-  (proactive cache clear) count and pick webviews, warm tabs first.
+- `webview-pause-lifecycle`: PAUSE-006 (memory-pressure cascade) takes a warm
+  view before any site.
 - `per-site-containers`: CONT-003's LRU backstop bounds webviews.
 
 ## Impact

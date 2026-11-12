@@ -67,6 +67,12 @@ class _ContainerPage implements ResidencyHost {
   @override
   ResidencyCaps get caps => kResidencyCaps;
 
+  @override
+  bool flowInFlight(FlowKind kind) => false;
+
+  @override
+  WarmLimits get warmLimits => kWarmLimits;
+
   _ContainerPage(this.models) : loadedSet = {...models};
 
   @override

@@ -288,6 +288,25 @@ abstract final class ActivationTable {
   );
   static final _eachCleared = Pick(pressureCleared.value, first: _firstToEvict);
 
+  /// The warm views memory pressure takes first, one an event (TAB-024):
+  /// any, in the model; the code's next in TAB-024's order.
+  static final _pressureWarm = TabVars.warmUnits<SiteId, ActivationFlow>(keys: TabVars.ids<ActivationFlow>()).call([
+    _loaded.value,
+  ]);
+  static final _eachWarm = Pick<(SiteId, TabId), ActivationFlow>(
+    _pressureWarm,
+    name: 'w',
+    first: (c, {required among}) {
+      final sites = ActivationFlow.sites.from(c);
+      final shown = _current.value.run(c);
+      final (site, tab) = SiteUnloadEngine.inDropOrder(
+        [for (final (id, tab) in among) (sites.siteOf(id), tab)],
+        onScreen: shown == null ? null : sites.siteOf(shown),
+      ).first;
+      return (site.siteId, tab);
+    },
+  );
+
   /// A preload's conditions: in the launch, with no activation or other
   /// preload in flight (the preloads' own queue), a site not loaded whose
   /// base domain no loaded site holds on the shared jar. The launch is the
@@ -694,25 +713,49 @@ abstract final class ActivationTable {
   static final _capCandidates = _kept
       .without(_site.value)
       .where(_u, holds: _evictable(_u.it));
-  static final _capPick = Pick<List<SiteId>, ActivationFlow>(
-    _capCandidates.choices(
-      size: _kept
-          .union(_site.value.asSet)
-          .size
-          .over(_maxLoaded)
-          .atMost(_capCandidates.size),
-      taken: (c) => [
-        for (final u in _planOf(c).unloads)
-          if (u.reason == UnloadReason.loadedSiteCap) u.site.siteId,
-      ],
-    ),
-    name: 'cap',
+  static final _capSites = _capCandidates.choices(
+    size: _kept
+        .union(_site.value.asSet)
+        .size
+        .over(_maxLoaded)
+        .atMost(_capCandidates.size),
+    taken: (c) => [
+      for (final u in _planOf(c).unloads)
+        if (u.reason == UnloadReason.loadedSiteCap) u.site.siteId,
+    ],
   );
+
+  /// The warm views the cap counts beside the sites and lets go of first,
+  /// as many as the views exceed it (TAB-024): any, in the model; the
+  /// code's, least recently used in TAB-024's order, asserted to be them.
+  static final _warmUnits = TabVars.warmUnits<SiteId, ActivationFlow>(keys: TabVars.ids<ActivationFlow>()).call([
+    _kept.union(_site.value.asSet),
+  ]);
+  static final _warmChoices = _warmUnits.choices(
+    size: _kept
+        .union(_site.value.asSet)
+        .size
+        .add(_warmUnits.size)
+        .over(_maxLoaded)
+        .atMost(_warmUnits.size),
+    taken: (c) => [
+      for (final (site, tab) in _planOf(c).warmDrops) (site.siteId, tab),
+    ],
+  );
+
+  /// The cap's picks: the warm views and the sites it lets go of.
+  static final _capPick =
+      Pick<(List<(SiteId, TabId)>, List<SiteId>), ActivationFlow>(
+        _warmChoices.cross(_capSites),
+        name: 'cap',
+      );
+  static final _capWarm = _capPick.it.first;
+  static final _capPicked = _capPick.it.second;
 
   /// The proactive cache clear's picks (`MaxResident`): as many as the
   /// resident sites the plan leaves exceed it, among the evictable ones.
   static final _residentsLeft = _kept
-      .less(_capPick.it)
+      .less(_capPicked)
       .where(
         _u,
         holds: _tier
@@ -744,7 +787,7 @@ abstract final class ActivationTable {
   /// The sites a tap's residency unloads: what the rules name and the
   /// cap's picks; the code's plan is asserted to be exactly these.
   static final _planVictims = Expr.checked(
-    rule: _ruled(_site.value).union(_capPick.it),
+    rule: _ruled(_site.value).union(_capPicked),
     run: (c) => [for (final u in _planOf(c).unloads) u.site.siteId],
     key: (s) => s,
     why: 'the plan unloads what its printed rules and picks name',
@@ -756,7 +799,7 @@ abstract final class ActivationTable {
 
   /// The plan's priority picks: the loaded-site cap's.
   static final _planPicked = Expr.chosen(
-    among: _capPick.it,
+    among: _capPicked,
     run: (c) => SiteUnloadEngine.pickedOf(_planOf(c)),
   );
 
@@ -1037,6 +1080,26 @@ abstract final class ActivationTable {
         ActivationStep.pressurePlan,
         holds: null,
         branches: [
+          // A warm view goes before any site's cache or webview (TAB-024),
+          // with nothing to await: its history was saved as it went warm.
+          Branch(
+            StepOutcome.disposed,
+            when: _pressureWarm.isNotEmpty,
+            pick: _eachWarm,
+            then: [
+              Act.of(
+                [TabVars.warmDropped(_eachWarm.it.asSet)],
+                then: (c) {
+                  final (id, tab) = _eachWarm.it.run(c);
+                  ActivationFlow.sites
+                      .from(c)
+                      .siteOf(id)
+                      .dropWarm(tab: tab, commit: c.commit);
+                },
+              ),
+            ],
+            next: to(ActivationPlace.done),
+          ),
           Branch(
             StepOutcome.empty,
             when:
@@ -1174,6 +1237,17 @@ abstract final class ActivationTable {
             _victims.becomes(_planVictims),
             _clears.becomes(_planClears),
             _picked.becomes(_planPicked),
+            // The warm views the cap lets go of, in the plan's own turn: a
+            // warm view's history was saved as it went warm (TAB-028).
+            Act.of(
+              [TabVars.warmDropped(_capWarm)],
+              then: (c) {
+                final sites = ActivationFlow.sites.from(c);
+                for (final (id, tab) in _capWarm.run(c)) {
+                  sites.siteOf(id).dropWarm(tab: tab, commit: c.commit);
+                }
+              },
+            ),
           ],
           next: _afterUnloads(victims: _planVictims, clears: _planClears),
         ),

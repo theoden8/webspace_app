@@ -55,7 +55,8 @@ class TabsSheetSite {
 
   /// Whether the site holds a webview right now. The site load policy decides
   /// that (lazy loading, the LRU cap, memory pressure), not the tab list; when
-  /// it does, the webview is its active tab's and every other tab is stored.
+  /// it does, the shown webview is its active tab's, a warm one's is loaded
+  /// too, and every other tab is stored (TAB-011).
   final bool isLoaded;
 
   /// Whether the current webspace shows this site. One it does not show gets
@@ -764,8 +765,10 @@ class _TabsSheetState extends State<TabsSheet> {
             ? '$runsAs · ${loc.tabsWhereYouWere}'
             : runsAs;
     final isActive = tab.id == site.model.activeTabId;
-    final isLoaded = isActive && site.isLoaded;
-    final isOnScreen = isLoaded && site.isCurrent;
+    // Loaded: the site's shown tab, or a warm one (TAB-011, TAB-023).
+    final isLoaded = site.isLoaded &&
+        (isActive || site.model.warmViews.containsKey(tab.id));
+    final isOnScreen = isActive && isLoaded && site.isCurrent;
     final collapseKey = _keyOf(site, tabId: tab.id);
     final collapsed = _collapsed.contains(collapseKey);
     final corners = BorderRadius.circular(Radii.lg);

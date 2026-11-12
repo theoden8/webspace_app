@@ -14,7 +14,6 @@ import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/log_service.dart';
-import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/screen_share.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/outbound_preference.dart';
@@ -71,6 +70,8 @@ import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/web_view_model_json.dart';
 import 'package:webspace/web_view_model_domains.dart';
 import 'package:webspace/web_view_model_extensions.dart';
+import 'package:webspace/web_view_model_site_views.dart';
+import 'package:webspace/web_view_model_views.dart';
 import 'package:webspace/web_view_model_hosts.dart';
 import 'package:webspace/web_view_model_zone.dart';
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
@@ -89,6 +90,8 @@ export 'package:webspace/services/url_host.dart'
 export 'package:webspace/settings/blocked_cookie.dart';
 export 'package:webspace/settings/location.dart'
     show LocationMode, LocationGranularity, WebRtcPolicy;
+export 'package:webspace/web_view_model_site_views.dart';
+export 'package:webspace/web_view_model_views.dart';
 
 /// [SitesById] where the code above the services holds the site whole.
 abstract interface class SiteModels implements SitesById {
@@ -107,6 +110,7 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
   /// single webview; the rest are parked and hold no renderer. See
   /// [lib/services/site_tab.dart] and TAB-001/TAB-002. The model's `tabs`,
   /// written only through [tabsCell].
+  @override
   @Modeled(ModelVar.tabs)
   List<SiteTab> get tabs => _tabs;
   late List<SiteTab> _tabs;
@@ -216,20 +220,22 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
   String name;
   List<Cookie> cookies;
 
-  /// The site's webview, built by [getWebView] and let go of only through
-  /// [_letGoOfWebView], so what it holds goes with it; a test sets one.
-  Widget? get webview => _webview;
+  /// The site's webviews, the shown one and the warm ones (TAB-023), moved
+  /// between only by [SiteViews]' own methods.
+  final SiteViews views = SiteViews();
+
+  /// The shown webview, built by [getWebView] and let go of only through
+  /// [letGoOfViews], so what it holds goes with it; a test sets one.
+  Widget? get webview => views.webview;
   @visibleForTesting
-  set webview(Widget? built) => _webview = built;
-  Widget? _webview;
+  set webview(Widget? built) => views.webview = built;
 
   /// Where the extensions [webview] was built with open their pages over
   /// it (WEBEXT-008); null with no webview, or one that runs none. An
   /// extension's action acts on the site's tab, which only that webview is.
-  ExtensionHome? get liveExtensions => _liveExtensions;
+  ExtensionHome? get liveExtensions => views.liveExtensions;
   @visibleForTesting
-  set liveExtensions(ExtensionHome? built) => _liveExtensions = built;
-  ExtensionHome? _liveExtensions;
+  set liveExtensions(ExtensionHome? built) => views.liveExtensions = built;
 
   /// The last main-frame navigation this site's webview refused to make
   /// because the app could not establish that it would go through the site's
@@ -240,10 +246,26 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
 
   /// The controller of [webview], set as it is created and dropped with it;
   /// a test sets a fake.
-  WebViewController? get controller => _controller;
+  WebViewController? get controller => views.controller;
   @visibleForTesting
-  set controller(WebViewController? created) => _controller = created;
-  WebViewController? _controller;
+  set controller(WebViewController? created) => views.controller = created;
+
+  /// The tabs whose webviews stay live and paused while another of the
+  /// site's tabs is shown (`warm[s]`, TAB-023), by tab. They go with the
+  /// site's webview.
+  @override
+  @Modeled(ModelVar.warm)
+  Map<TabId, WarmView> get warmViews => views.warm;
+
+  /// Lets go of the webviews, in [commit]: an unload's, the commit that
+  /// takes the site off the list, or a named rebuild.
+  @override
+  void disposeWebView({required Commit commit}) {
+    LogTag.webView.debug(
+        'disposeWebView called for "$name" (siteId: $siteId)\n${StackTrace.current}',
+        sensitive: true);
+    letGoOfViews(view: controller, commit: commit);
+  }
 
   UserProxySettings proxySettings;
   bool javascriptEnabled;
@@ -1300,18 +1322,28 @@ bool dispatch(NavigationDecision decision,
       );
       _initialLoadDeferredForProxy = deferForProxy && !deferRestoreLoad;
       final iconSiteUrl = id.initUrl;
-      _liveExtensions = extensionHomeOf(
+      views.liveExtensions = extensionHomeOf(
         posture.page.extensions,
         container: posture.container.containerId,
       );
-      _webview = WebViewFactory.createWebView(
+      // A warm view's page still reports, paused or not: only the view
+      // shown speaks for the site's state (TAB-025).
+      WebViewController? own;
+      bool shownNow() => own == null || identical(views.controller, own);
+      // Globally keyed, so the view keeps its platform view as it moves
+      // between shown and warm in its slot (TAB-023).
+      views.webview = KeyedSubtree(
+        key: GlobalKey(debugLabel: '$siteId.$builtTab'),
+        child: WebViewFactory.createWebView(
         config: WebViewConfig(
+          speaksForSite: shownNow,
           key: UniqueKey(), // Force new widget state when recreating
           posture: posture,
           hooks: hooks.host,
           initialUrl: currentUrl,
           navigationBoundary: navigationBoundary,
           onFirstPageLoaded: (url) {
+            if (!shownNow()) return;
             if (activeTabId == builtTab && !runsForeignTab && currentUrl == url) {
               unawaited(hooks.firstPageLoaded(this, url: url));
             }
@@ -1338,6 +1370,7 @@ bool dispatch(NavigationDecision decision,
                 ),
           pullToRefreshGate: pullToRefreshGate,
           onUnproxiedNavigationBlocked: (blocked) {
+            if (!shownNow()) return;
             blockedNavigation = blocked;
             hooks.host.rebuild();
           },
@@ -1371,9 +1404,10 @@ bool dispatch(NavigationDecision decision,
                         ? OpenerLanding.signIn
                         : OpenerLanding.stays);
           },
-          onReloadIssued: () => onReloadIssued?.call(),
-          onMainFrameLoad: resumeReload.noteLoad,
+          onReloadIssued: () => shownNow() ? onReloadIssued?.call() : null,
+          onMainFrameLoad: (s) => shownNow() ? resumeReload.noteLoad(s) : null,
           onLoadingChanged: ({required loading}) {
+            if (!shownNow()) return;
             if (isLoading == loading) return;
             isLoading = loading;
             // Reset on start so the bar doesn't flash the previous
@@ -1393,12 +1427,14 @@ bool dispatch(NavigationDecision decision,
             stateSetterF?.call();
           },
           onProgressChanged: (progress) {
+            if (!shownNow()) return;
             if (loadingProgress == progress) return;
             loadingProgress = progress;
             // Transient runtime state, same contract as onLoadingChanged.
             stateSetterF?.call();
           },
           onUrlChanged: (url) async {
+            if (!shownNow()) return;
             // A server-side redirect (DuckDuckGo's /l/?uddg=, Google's
             // /url?q=) arrives here without passing shouldOverrideUrlLoading.
             final now = DateTime.now();
@@ -1494,6 +1530,7 @@ bool dispatch(NavigationDecision decision,
             await hooks.host.save();
           },
           onFindResult: (activeMatch, {required totalMatches}) {
+            if (!shownNow()) return;
             findMatches.activeMatchOrdinal = activeMatch;
             findMatches.numberOfMatches = totalMatches;
             if (stateSetterF != null) {
@@ -1503,7 +1540,7 @@ bool dispatch(NavigationDecision decision,
           cacheFirst: cacheFirst,
           initialHtml: initialHtml,
           onRendererGone: handleRendererGone,
-          onPageCommitVisible: () => onPageCommitVisible?.call(),
+          onPageCommitVisible: () => shownNow() ? onPageCommitVisible?.call() : null,
           passkeys: PasskeyAccess.forHost(
             enabled: posture.container.passkeys,
             isOnScreen: isActive,
@@ -1539,10 +1576,11 @@ bool dispatch(NavigationDecision decision,
           },
         ),
         onControllerCreated: (ctrl) {
+          own = ctrl;
           LogTag.webView.debug(
               'onControllerCreated for "$name" (siteId: $siteId)',
               sensitive: true);
-          _controller = ctrl;
+          views.controller = ctrl;
           unawaited(setController());
           unawaited(pendingArchiveCookies.pushInto(ctrl));
           // Apply any state queued by the activation flow when this
@@ -1602,6 +1640,7 @@ bool dispatch(NavigationDecision decision,
           // does not reach because they don't go through it.
           onControllerReady?.call();
         },
+        ),
       );
     }
     return webview;
@@ -1640,41 +1679,11 @@ bool dispatch(NavigationDecision decision,
     LogTag.webView.debug(
         'Renderer gone for "$name" (siteId: $siteId, didCrash: $didCrash) — recreating');
     // A dead renderer loads nothing more, so nothing is left to quiet.
-    _letGoOfWebView(
+    letGoOfViews(
       view: null,
       commit: const Commit.environment(Environment.letGo),
     );
     stateSetterF?.call();
-  }
-
-  /// Lets go of the webview, in [commit]: an unload's, the commit that takes
-  /// the site off the list, or a named rebuild.
-  void disposeWebView({required Commit commit}) {
-    LogTag.webView.debug(
-        'disposeWebView called for "$name" (siteId: $siteId)\n${StackTrace.current}',
-        sensitive: true);
-    _letGoOfWebView(view: controller, commit: commit);
-  }
-
-  /// The webview and its controller go, and with them what they held: the
-  /// route, once [view] is quiet and destroyed (at once with no view to
-  /// wait for), the tab the webview was built for, the resume reload, the
-  /// site's media session and its screen share.
-  void _letGoOfWebView({
-    required LeavingView? view,
-    required Commit commit,
-  }) {
-    _webview = null;
-    _liveExtensions = null;
-    _controller = null;
-    unawaited(ProcessRoute.instance.leave(routeClaim.occupant, view: view));
-    tabBinding.unbind(commit: commit);
-    resumeReload.reset();
-    // The player this site's media session was speaking for is gone with the
-    // webview. Without this the OS transport controls outlive it and their
-    // buttons reach nothing — a no-op unless this site owns them.
-    unawaited(MediaSessionService.instance.stopForSite(siteId));
-    unawaited(ScreenShare.instance.endSite(siteId));
   }
 
   /// Drop the in-memory cache (decoded image cache + HTTP response cache)

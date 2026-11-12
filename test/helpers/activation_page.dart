@@ -1,3 +1,4 @@
+import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/controllers/activation_host.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
@@ -74,6 +75,15 @@ final class FakeResidency implements ResidencyHost {
   FakeResidency(this.sites);
 
   final SiteRuntime sites;
+
+  /// A test that needs a flow in flight sets [kindsInFlight].
+  Set<FlowKind> kindsInFlight = {};
+
+  @override
+  bool flowInFlight(FlowKind kind) => kindsInFlight.contains(kind);
+
+  @override
+  WarmLimits get warmLimits => kWarmLimits;
 
   @override
   ResidencyCaps get caps => kResidencyCaps;

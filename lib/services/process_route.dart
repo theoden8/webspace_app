@@ -20,6 +20,24 @@ abstract interface class LeavingView {
   Future<void> destroyed();
 }
 
+/// Several webviews of one occupant leaving together: quiet, and destroyed,
+/// once each of them is.
+final class LeavingViews implements LeavingView {
+  LeavingViews(Iterable<LeavingView> views) : _views = [...views];
+
+  final List<LeavingView> _views;
+
+  @override
+  Future<void> quiet() async {
+    await Future.wait([for (final v in _views) v.quiet()]);
+  }
+
+  @override
+  Future<void> destroyed() async {
+    await Future.wait([for (final v in _views) v.destroyed()]);
+  }
+}
+
 /// The process-wide proxy rule where one carries a site's own proxy (Android
 /// without per-site profiles, `ProxyBinding.processWide`): the route in
 /// force and what runs on it (PROXY-008).

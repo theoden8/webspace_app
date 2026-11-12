@@ -28,6 +28,24 @@ Indexed<S, TabId?, W> builtReported<S, W>({
   read: (w, {required at}) => read(w, site: at),
 );
 Mutable<Map<S, TabId?>, W> histOf<S, W>() => Mutable.remote(ModelVar.hist);
+
+/// `warm[s][t]`: the history label tab t's warm webview shows, 0 where t
+/// has none (TAB-023). The code holds the views, so a write of it prints and
+/// the binding does it.
+Mutable<Map<S, Map<TabId, TabId?>>, W> warmOf<S, W>() => Mutable.remote(ModelVar.warm);
+
+/// `warm[s]` as the code reads it ([read]): each warm view under its own
+/// tab, the history it shows being that tab's (`Inv_WarmShown`).
+Indexed<S, Map<TabId, TabId?>, W> warmReported<S, W>({
+  required Iterable<TabId> Function(W world, {required S site}) read,
+}) => Indexed.reported(
+  ModelVar.warm,
+  read: (w, {required at}) => {for (final t in read(w, site: at)) t: t},
+);
+
+/// A site's row of [warmOf] with no warm view: `[t \in TabIds |-> 0]`.
+Expr<Map<TabId, TabId?>, W> noWarm<W>() =>
+    Expr.constant(const {}, tla: r'[t \in TabIds |-> 0]');
 Mutable<Map<S, QueuedStack>, W> queuedOf<S, W>() => Mutable.remote(ModelVar.queued);
 Mutable<Map<S, Map<TabId, Map<S, TabId?>>>, W> fileOf<S, W>() =>
     Mutable.remote(ModelVar.file);
@@ -63,16 +81,36 @@ Def<bool, W> takesOf<W>() {
 Members<S, W> tabbedOf<S, W>() =>
     Members(ModelConst.tabbed, test: (_, {required member}) => true);
 
-/// The webview went: nothing is built or shown for the site.
+/// [s]'s warm row once its webview went: none left (TAB-026).
+Def<Map<TabId, TabId?>, W> unwarmedOf<S, W>() {
+  final s = Bound<S, W>('s');
+  final t = Bound<TabId, W>('t');
+  return Def(
+    ModelDef.unwarmed,
+    params: [s],
+    body: warmOf<S, W>().value.at(s.it).exceptEach(
+      Expr.constant(const [], tla: 'TabIds'),
+      x: t,
+      to: noTab(),
+    ),
+  );
+}
+
+/// The webview went, its warm ones with it (TAB-026): nothing is built or
+/// shown for the site.
 List<Write<W>> webViewGone<S, W>(Expr<S, W> site) => [
   builtOf<S, W>().becomes(builtOf<S, W>().value.except(site, to: noTab())),
   histOf<S, W>().becomes(histOf<S, W>().value.except(site, to: noTab())),
+  warmOf<S, W>().becomes(
+    warmOf<S, W>().value.except(site, to: unwarmedOf<S, W>().call([site])),
+  ),
 ];
 
 /// [webViewGone] for every site of [sites] at once.
 List<Write<W>> webViewsGone<S, W>(Expr<Iterable<S>, W> sites) => [
   builtOf<S, W>().becomes(builtOf<S, W>().value.exceptAll(sites, to: noTab())),
   histOf<S, W>().becomes(histOf<S, W>().value.exceptAll(sites, to: noTab())),
+  warmOf<S, W>().becomes(warmOf<S, W>().value.exceptAll(sites, to: noWarm())),
 ];
 
 /// What a capture of [site] reads as it starts: the tab its webview was

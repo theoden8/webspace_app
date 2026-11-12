@@ -210,6 +210,13 @@ extension IntExpr<W> on Expr<int, W> {
   Expr<int, W> plus(int n) =>
       Expr._(run: (c) => run(c) + n, tla: '${tlaOperand(tla)} + $n', reads: reads);
 
+  /// `a + b`.
+  Expr<int, W> add(Expr<int, W> other) => Expr._(
+    run: (c) => run(c) + other.run(c),
+    tla: '${tlaOperand(tla)} + ${tlaOperand(other.tla)}',
+    reads: reads + other.reads,
+  );
+
   /// `a <= b`.
   Expr<bool, W> isAtMost(Expr<int, W> other) => Expr._(
     run: (c) => run(c) <= other.run(c),
@@ -487,4 +494,71 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
     tla: tla,
     reads: reads,
   );
+}
+
+/// Sets the model builds from other sets.
+extension SetBuildExpr<E, W> on Expr<Iterable<E>, W> {
+  /// `{to : x \in S}`: S's image under [to].
+  Expr<List<R>, W> image<R>(Bound<E, W> x, {required Expr<R, W> to}) => Expr._(
+    run: (c) => [
+      for (final e in run(c)) x._with(c, value: e, body: () => to.run(c)),
+    ],
+    tla: '{${to.tla} : ${x.name} \\in ${tlaOperand(tla)}}',
+    reads: reads + to.reads,
+  );
+
+  /// `UNION {to : x \in S}`: the sets [to] gives each member of S, joined.
+  Expr<List<R>, W> unionOver<R>(
+    Bound<E, W> x, {
+    required Expr<Iterable<R>, W> to,
+  }) => Expr._(
+    run: (c) => [
+      for (final e in run(c)) ...x._with(c, value: e, body: () => to.run(c)),
+    ],
+    tla: 'UNION {${to.tla} : ${x.name} \\in ${tlaOperand(tla)}}',
+    reads: reads + to.reads,
+  );
+
+  /// `S \X T`: every pair of a member of S and one of [other].
+  Expr<List<(E, F)>, W> cross<F>(Expr<Iterable<F>, W> other) => Expr._(
+    run: (c) {
+      final right = other.run(c).toList();
+      return [
+        for (final a in run(c))
+          for (final b in right) (a, b),
+      ];
+    },
+    tla: '${tlaOperand(tla)} \\X ${tlaOperand(other.tla)}',
+    reads: reads + other.reads,
+  );
+}
+
+/// `<<a, b>>`.
+Expr<(A, B), W> pairOf<A, B, W>(Expr<A, W> a, {required Expr<B, W> and}) =>
+    Expr._(
+      run: (c) => (a.run(c), and.run(c)),
+      tla: '<<${a.tla}, ${and.tla}>>',
+      reads: a.reads + and.reads,
+    );
+
+/// A pair's members, `p[1]` and `p[2]`.
+extension PairExpr<A, B, W> on Expr<(A, B), W> {
+  Expr<A, W> get first =>
+      Expr._(run: (c) => run(c).$1, tla: '${tlaOperand(tla)}[1]', reads: reads);
+  Expr<B, W> get second =>
+      Expr._(run: (c) => run(c).$2, tla: '${tlaOperand(tla)}[2]', reads: reads);
+}
+
+/// The keys of a function of the model where [holds] does.
+extension DomainExpr<K, V, W> on Expr<Map<K, V>, W> {
+  /// `{k \in DOMAIN F : holds}`.
+  Expr<List<K>, W> keysWhere(Bound<K, W> k, {required Expr<bool, W> holds}) =>
+      Expr._(
+        run: (c) => [
+          for (final key in run(c).keys)
+            if (k._with(c, value: key, body: () => holds.run(c))) key,
+        ],
+        tla: '{${k.name} \\in DOMAIN ${tlaOperand(tla)} : ${holds.tla}}',
+        reads: reads + holds.reads,
+      );
 }

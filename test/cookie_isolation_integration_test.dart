@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/isolation.dart';
@@ -23,6 +24,12 @@ import 'package:webspace/services/cookie_manager.dart';
 class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
   @override
   ResidencyCaps get caps => kResidencyCaps;
+
+  @override
+  bool flowInFlight(FlowKind kind) => false;
+
+  @override
+  WarmLimits get warmLimits => kWarmLimits;
 
   final MockCookieManager cookieManager;
   final MockCookieSecureStorage storage = MockCookieSecureStorage();

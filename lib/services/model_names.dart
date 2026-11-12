@@ -114,6 +114,10 @@ enum ModelVar {
     "hist[s]: the tab whose history the webview shows, 0 for none (the bytes' label)",
     type: r'hist \in [Sites -> TabIds \cup {0}]',
   ),
+  warm(
+    "warm[s][t]: the tab whose history t's warm webview shows, 0 for none (WebViewTabBinding.warm, TAB-023)",
+    type: r'warm \in [Sites -> [TabIds -> TabIds \cup {0}]]',
+  ),
   queued(
     'queued[s]: the back stack queued for the next build: the tab it was read for and the tab whose history it is (WebViewTabBinding.queued)',
     type: r'queued \in [Sites -> [t : TabIds \cup {0}, h : TabIds \cup {0}]]',
@@ -302,6 +306,8 @@ enum ModelConst {
   torRuntime(ConstKind.off, range: r'BOOLEAN'),
   maxLoaded(ConstKind.bound, range: r'Nat'),
   maxResident(ConstKind.bound, range: r'Nat'),
+  warmOwn(ConstKind.bound, range: r'Nat'),
+  warmHosted(ConstKind.bound, range: r'Nat'),
   linked(ConstKind.set, range: r'SUBSET Sites'),
   proxyRefused(ConstKind.off, range: r'BOOLEAN'),
   jarRefuses(ConstKind.off, range: r'BOOLEAN'),
@@ -381,6 +387,13 @@ enum ModelDef {
   takes,
   shown,
   taken,
+  warmTabs,
+  warmUnits,
+  warmAfter,
+  warmOver,
+  warmed,
+  warmGone,
+  unwarmed,
   staged,
   resolveLevel;
 

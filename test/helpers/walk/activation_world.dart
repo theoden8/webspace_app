@@ -8,6 +8,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/services/warm_tabs.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/activation_host.dart';
@@ -559,6 +560,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     this.tabbed = false,
     this.proxies,
     this.caps = kResidencyCaps,
+    this.warmLimits = kWarmLimits,
     this.nestedOpens = false,
     this.wakes = false,
     this.dns,
@@ -689,6 +691,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// How many sites may stay loaded and resident; a sweep runs ones its
   /// three sites reach.
   final ResidencyCaps caps;
+
+  /// How many warm tabs a slot keeps; a world runs smaller ones so its
+  /// three tabs reach the limit (TAB-023).
+  final WarmLimits warmLimits;
 
   /// Links may open any site nested (`Linked`).
   final bool nestedOpens;
@@ -1319,6 +1325,12 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           _ => null,
         },
       ),
+      ModelVar.warm => each(
+        (m) => FrameValues([
+          for (final tab in m.warmViews.keys.toList()..sort())
+            (tab, _labelOf((m.warmViews[tab]!.controller as FakeWebViewController).history)),
+        ]),
+      ),
       ModelVar.queued => each(
         (m) => switch (m.tabBinding.queued) {
           (:final tab, :final bytes) => (tab, _labelOf(bytes)),
@@ -1523,6 +1535,20 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
                   null => 0,
                 },
             ],
+        ],
+    ];
+    out['warm'] = [
+      for (final m in bySite)
+        [
+          for (final n in numbers)
+            switch (m.warmViews[_tabWithNumber(m.siteId, n: n)]) {
+              (:final controller, webview: _) => _labelNumber(
+                '${m.siteId}.${_tabWithNumber(m.siteId, n: n)}',
+                owner: m.siteId,
+                label: _labelOf((controller as FakeWebViewController).history),
+              ),
+              null => 0,
+            },
         ],
     ];
     out['host'] = [
@@ -1810,6 +1836,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       ModelConst.torRuntime => '$_torRuntime'.toUpperCase(),
       ModelConst.maxLoaded => '${caps.loaded}',
       ModelConst.maxResident => '${caps.resident}',
+      ModelConst.warmOwn => '${warmLimits.own}',
+      ModelConst.warmHosted => '${warmLimits.hosted}',
       ModelConst.linked => set(nestedOpens ? every : const <int>[]),
       ModelConst.proxyRefused => _faults.contains(Fault.proxy) ? 'TRUE' : null,
       ModelConst.jarRefuses => _jarFails ? 'TRUE' : null,
@@ -2812,6 +2840,45 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         reason: '${m.siteId}\'s webview shows another tab\'s history',
       );
     }
+    // TAB-023, TAB-026: a warm view shows its own tab's history, is of a
+    // listed tab the slot does not show, lives only in a loaded slot, runs
+    // as the site the slot runs as, and the slot keeps no more than the
+    // limit.
+    for (final m in sites.models) {
+      final warm = m.warmViews;
+      if (warm.isEmpty) continue;
+      expect(sites.loaded.hasKey(m), isTrue,
+          reason: '${m.siteId} keeps warm views while not loaded');
+      final listed = {for (final t in m.tabs) t.id};
+      var hosted = 0;
+      for (final MapEntry(key: tab, value: view) in warm.entries) {
+        expect(listed, contains(tab),
+            reason: '${m.siteId} keeps a warm view of a tab it closed');
+        expect(tab, isNot(m.tabBinding.built),
+            reason: '${m.siteId} keeps its shown tab warm too');
+        expect(
+          _own('${m.siteId}.$tab',
+              label: _labelOf((view.controller as FakeWebViewController).history)),
+          '$tab',
+          reason: '${m.siteId}\'s warm view of $tab shows another tab\'s history',
+        );
+        final runsAs = m.hostOf(m.tabs.firstWhere((t) => t.id == tab)) ?? m;
+        expect(runsAs.siteId, m.runningIdentity.siteId,
+            reason: '${m.siteId} keeps warm a view running as another site');
+        if (!identical(runsAs, m)) hosted++;
+      }
+      final limit = warmLimits.own + min(hosted, warmLimits.hosted);
+      expect(warm.length, lessThanOrEqualTo(limit),
+          reason: '${m.siteId} keeps more warm views than the limit');
+    }
+    // TAB-024: warm views never take the views past the loaded-site cap.
+    final warmCount = [
+      for (final m in sites.loaded) m.warmViews.length,
+    ].fold(0, (a, b) => a + b);
+    if (warmCount > 0) {
+      expect(sites.loaded.length + warmCount, lessThanOrEqualTo(caps.loaded),
+          reason: 'warm views take the loaded views past the cap');
+    }
     navStates.files.forEach((key, bytes) {
       expect(_own(key, label: _labelOf(bytes)),
           key.substring(key.indexOf('.') + 1),
@@ -3309,6 +3376,12 @@ final class _WalkWake implements BackgroundWakeHost<SiteId> {
 final class _WalkResidency implements ResidencyHost {
   @override
   ResidencyCaps get caps => world.caps;
+
+  @override
+  bool flowInFlight(FlowKind kind) => world.activation.inFlight(kind);
+
+  @override
+  WarmLimits get warmLimits => world.warmLimits;
 
   _WalkResidency(this.world);
 

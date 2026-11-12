@@ -145,6 +145,7 @@ Init ==
     /\ active = [s \in Sites |-> 1]
     /\ built = [s \in Sites |-> IF s \in Tabbed /\ s \in loaded THEN 1 ELSE 0]
     /\ hist = built
+    /\ warm = [s \in Sites |-> [t \in TabIds |-> 0]]
     /\ queued = [s \in Sites |-> NoQueued]
     /\ file = [s \in Sites |-> [t \in TabIds |-> [h \in Sites |-> 0]]]
     /\ minted = [s \in Sites |-> IF s \in Tabbed THEN 2 ELSE 1]
@@ -300,6 +301,7 @@ LetGo(s) ==
     /\ built[s] # 0
     /\ built' = [built EXCEPT ![s] = 0]
     /\ hist' = [hist EXCEPT ![s] = 0]
+    /\ warm' = [warm EXCEPT ![s] = [t \in TabIds |-> 0]]
     /\ Did("LetGo", 0, "", s)
     /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabs, active,
                     queued, file, minted, host, link, opener, blocking,
@@ -319,7 +321,7 @@ Reframe(s) ==
     /\ queued' = Taken(s, loaded)
     /\ Did("Reframe", 0, "", s)
     /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabs, active,
-                    file, minted, host, link, opener, blocking, archived >>
+                    warm, file, minted, host, link, opener, blocking, archived >>
 
 -----------------------------------------------------------------------------
 
@@ -488,6 +490,7 @@ DnsAsk == <<-1, 2, 0>>
 DnsTwo == {1, 2}
 \* The cap config's: two sites loaded, one of them resident.
 CapTwo == 2
+WarmOne == 1
 ResidentOne == 1
 \* The webspace configs': `All`, sites 1 and 2, and site 3; a switch
 \* between two of them stops showing one of these (WEBSPACE-013).
@@ -543,6 +546,27 @@ Inv_TabFilesHosted == Idle => \A s \in Tabbed : \A t \in tabs[s] : \A h \in Site
 Inv_TabFilesListed == Idle => \A s \in Tabbed : \A t \in TabIds \ tabs[s] :
     \A h \in Sites : file[s][t][h] = 0
 Inv_TabBound == \A s \in Tabbed : built[s] \in {0, active[s]}
+\* TAB-023: a warm view shows its own tab's history, is of a tab the list
+\* holds and the slot does not show, lives only in a loaded slot (TAB-026),
+\* runs as the site the slot runs as, and the slot keeps no more of them
+\* than the limit. Stated over warm itself, apart from the engine's
+\* WarmTabs and WarmUnits.
+WarmOf(s) == {t \in TabIds : warm[s][t] # 0}
+Inv_WarmShown == \A s \in Tabbed : \A t \in TabIds : warm[s][t] \in {0, t}
+Inv_WarmListed == \A s \in Tabbed : \A t \in WarmOf(s) :
+    t \in tabs[s] /\ t # built[s]
+Inv_WarmLoaded == \A s \in Tabbed : WarmOf(s) # {} => s \in loaded
+Inv_WarmOneSite == \A s \in Tabbed : \A t \in WarmOf(s) :
+    host[s][t] = host[s][active[s]]
+\* TAB-024: warm views never take the views past the loaded-site cap.
+Inv_ViewsCapped ==
+    LET units == {u \in loaded \X TabIds : warm[u[1]][u[2]] # 0}
+    IN  units # {} => Cardinality(loaded) + Cardinality(units) <= MaxLoaded
+Inv_WarmLimit == \A s \in Tabbed :
+    LET hosted == {t \in WarmOf(s) : host[s][t] # s}
+    IN  Cardinality(WarmOf(s)) <=
+            WarmOwn + IF Cardinality(hosted) > WarmHosted
+                      THEN WarmHosted ELSE Cardinality(hosted)
 \* LIR-034: a tab follows a listed opener or none, so a site that leaves
 \* the list stops being one in the step that takes it.
 Inv_OpenerListed == \A s \in Tabbed : \A t \in tabs[s] : opener[s][t] \in Listed \cup {0}
@@ -558,6 +582,8 @@ Inv_TabActive == Idle => \A s \in Tabbed :
 \* Witnesses (expect violated): the interleavings the invariants constrain
 \* are reachable.
 Reach_BailAfterUnload == "bailAfterUnload" \notin seen
+\* TAB-023: a switch leaves the tab it left warm.
+Reach_WarmView == \A s \in Tabbed : WarmOf(s) = {}
 Reach_TurnQueued == "queued" \notin seen
 Reach_BackOff == "backoff" \notin seen
 Reach_EvictMidActivation == "evictMidActivation" \notin seen

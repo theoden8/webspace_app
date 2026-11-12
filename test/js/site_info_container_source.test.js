@@ -40,7 +40,7 @@ test('the model reads the binding from the posture of the site webview config', 
     /SitePosture forNested\(\) => SitePosture\(\s*siteId: siteId,\s*origins: origins,\s*container: container,/,
     'the nested form keeps the container the binding reads');
   assert.match(callArgs(model, model.indexOf('WebViewFactory.storeBinding(')), /^posture$/);
-  const config = callArgs(model, model.indexOf('webview = WebViewFactory.createWebView('));
+  const config = callArgs(model, model.indexOf('WebViewFactory.createWebView('));
   assert.match(config, /posture: posture,/);
 });
 

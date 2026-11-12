@@ -26,6 +26,7 @@ enum Env {
   dnsTwo(op: ModelConst.dnsLevels, by: 'DnsTwo'),
   residentOne(op: ModelConst.maxResident, by: 'ResidentOne'),
   capTwo(op: ModelConst.maxLoaded, by: 'CapTwo'),
+  warmOne(op: ModelConst.warmOwn, by: 'WarmOne'),
   archiveOne(op: ModelConst.archive, by: 'ArchiveOne'),
   deleteOne(op: ModelConst.deletable, by: 'DeleteOne'),
   importOne(op: ModelConst.importing, by: 'ImportOne'),
@@ -113,6 +114,12 @@ enum Inv {
     atRest: true,
     reads: {ModelVar.active, ModelVar.built, ModelVar.hist, ModelVar.loaded, ModelVar.tabs},
   ),
+  warmShown(reads: {ModelVar.warm}),
+  warmListed(reads: {ModelVar.built, ModelVar.tabs, ModelVar.warm}),
+  warmLoaded(reads: {ModelVar.loaded, ModelVar.warm}),
+  warmOneSite(reads: {ModelVar.active, ModelVar.host, ModelVar.warm}),
+  warmLimit(reads: {ModelVar.host, ModelVar.warm}),
+  viewsCapped(reads: {ModelVar.loaded, ModelVar.warm}),
 
   /// One tab handler at a time (`TabHandlingGate`): an input that would
   /// start a tab flow while one is in flight ends at once, so a switch's
@@ -187,6 +194,12 @@ const _tabs = [
   Inv.tabFilesListed,
   Inv.tabBound,
   Inv.tabActive,
+  Inv.warmShown,
+  Inv.warmListed,
+  Inv.warmLoaded,
+  Inv.warmOneSite,
+  Inv.warmLimit,
+  Inv.viewsCapped,
 ];
 
 /// A world `activation.tla` is checked in: its constants, and what holds
@@ -236,6 +249,30 @@ enum ActivationWorld {
     maxTabs: 3,
     invariants: [..._core, ..._jar, ..._tabs],
     holds: "site 1's tabs under containers: TAB-003 holds",
+  ),
+  tabsWarmOne(
+    cookies: Cookies.containers,
+    coldStart: false,
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {Env.warmOne},
+    invariants: [..._core, ..._tabs],
+    holds:
+        "site 1's tabs under a limit of one warm view: a switch lets the "
+        'one over it go (TAB-023)',
+  ),
+  tabsCapTwo(
+    cookies: Cookies.containers,
+    coldStart: false,
+    inputs: 3,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {Env.residentOne, Env.capTwo},
+    invariants: [..._core, ..._tabs],
+    holds:
+        "site 1's tabs under a cap of two views: a warm view goes before any "
+        'site (TAB-024)',
   ),
   tabsCold(
     cookies: Cookies.sharedJar,
@@ -958,6 +995,10 @@ enum Witness {
     world: ActivationWorld.base,
     doc: 'a switch superseded after its residency unloaded a site is reachable',
   ),
+  warmView(
+    world: ActivationWorld.tabs,
+    doc: 'a switch leaving the tab it left warm is reachable (TAB-023)',
+  ),
   turnQueued(
     world: ActivationWorld.base,
     doc: "a jar operation waiting for another's turn is reachable",
@@ -1173,6 +1214,29 @@ enum Mutant {
     slice: (allowed: {'Tap', 'CloseTab'}),
     by: Inv.tabShown,
     doc: 'a build taking bytes queued for another tab (caught)',
+  ),
+  warmnolimit(
+    world: ActivationWorld.tabsWarmOne,
+    by: Inv.warmLimit,
+    doc: 'a switch keeping every view warm past the limit (TAB-023, caught)',
+  ),
+  capignoreswarm(
+    world: ActivationWorld.tabsCapTwo,
+    slice: (allowed: {'OpenTab', 'Tap'}),
+    by: Inv.viewsCapped,
+    doc: 'a cap that counts no warm views (TAB-024, caught)',
+  ),
+  warmanysite(
+    world: ActivationWorld.tabsOwnerRunContainers,
+    by: Inv.warmOneSite,
+    doc:
+        'a switch keeping warm a view that runs as another site than the '
+        'slot (TAB-026, caught)',
+  ),
+  closekeepswarm(
+    world: ActivationWorld.tabs,
+    by: Inv.warmListed,
+    doc: "a close leaving a closed tab's warm view (TAB-023, caught)",
   ),
   captureatreply(
     world: ActivationWorld.tabs,

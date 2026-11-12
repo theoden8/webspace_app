@@ -516,6 +516,7 @@ abstract final class PageHandlers {
         callback: (inapp.JavaScriptHandlerFunctionData call) async {
           final args = call.args;
           if (args.isEmpty || args[0] is! Map) return null;
+          if (!config.speaksForSite()) return null;
           final from = await requesterOf(controller, config: config, frame: call);
           if (!await _mayNotify(from, grants: grants)) return null;
           final data = Map<String, dynamic>.from(args[0] as Map);

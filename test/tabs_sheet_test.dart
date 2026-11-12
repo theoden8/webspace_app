@@ -13,6 +13,8 @@ import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
+import 'package:webspace/services/step_table.dart';
+import 'helpers/fake_webview_controller.dart';
 import 'helpers/localized.dart';
 import 'helpers/model_fixture.dart';
 
@@ -652,6 +654,30 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       first.complete();
       await tester.pumpAndSettle();
       expect(find.byType(TabsSheet), findsOneWidget);
+    });
+
+    testWidgets('a warm tab is drawn loaded, not selected (TAB-011, TAB-023)',
+        (tester) async {
+      final site = siteWithChain('GitHub', urls: [
+        'https://github.com/',
+        'https://github.com/pulls',
+        'https://github.com/pull/601',
+      ]);
+      // The pulls tab keeps a live webview, paused, while the first is shown.
+      site.controller = FakeWebViewController();
+      site.views.keepShown(
+        tab: TabId('tab1'),
+        commit: const Commit.environment(Environment.frame),
+      );
+      site.controller = FakeWebViewController();
+      await pumpSheet(tester, sites: [
+        TabsSheetSite(model: site, isCurrent: true, isLoaded: true),
+      ]);
+      expect(strengthOf(tester, text: 'https://github.com/'), 1);
+      expect(isHighlighted('https://github.com/'), isTrue);
+      expect(strengthOf(tester, text: 'https://github.com/pulls'), 1);
+      expect(isHighlighted('https://github.com/pulls'), isFalse);
+      expect(strengthOf(tester, text: 'https://github.com/pull/601'), lessThan(1));
     });
 
     testWidgets('the all-sites scope appears only with more than one site',

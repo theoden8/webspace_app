@@ -5,7 +5,7 @@
 # here. The digest is of what it states, so a changed one is a new one.
 # module	name	digest	what it assumes and why it stays
 proxy	ProxyTyping	d4c6b0e4a5352ab0	the typing of a constant function TLC substitutes; the proofs take it, no step derives it
-retention	RetentionTyping	e639cbe9ebfde19f	the typing of the constants and that the visible site is no notification site, a world's choice
+retention	RetentionTyping	43eeea864534d1bc	the typing of the constants, and that the visible site and every notification site are active webviews, not warm tabs, and the visible site no notification site: a world's choice
 archive_identity	NoLeak	054e034802518599	the leak demonstrator's switch is off: the proof is of the design, not of the planted leak
 archive_identity	Bounds	69f779668dcfbf3e	the step and archive bounds are naturals
 containers_disjoint	NAssumption	72662b7de2d63aa0	N is a natural
@@ -15,4 +15,4 @@ no_lost_update	NAssumption	a6e71159cbd34811	N is a positive natural
 proxy_coherent	NAssumption	a6e71159cbd34811	N is a positive natural
 proxy_coherent	RouterTyping	12155a21536dbc9b	the router constant is off or on
 repaint_liveness	NAssumption	a6e71159cbd34811	N is a positive natural
-activation_types_proof	ConstantsType	72e1ebfcc4f269c5	printed: the domain each model constant may take in a world, every conjunct a ModelConst's; it changes whenever a constant does, and each change is a row to review
+activation_types_proof	ConstantsType	955cc86ac81ab4c3	printed: the domain each model constant may take in a world, every conjunct a ModelConst's; it changes whenever a constant does, and each change is a row to review

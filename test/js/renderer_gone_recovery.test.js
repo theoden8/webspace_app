@@ -31,12 +31,19 @@ test('onRendererGone is wired to the destroy-and-rebuild recovery', () => {
   // handleRendererGone must DISPOSE the dead instance (the fix), not just
   // log, through the one teardown disposeWebView takes too, so what a
   // webview holds goes with it on either path (BGAUDIO-010's controls).
-  const file = 'lib/web_view_model.dart';
-  for (const path of ['handleRendererGone', 'disposeWebView']) {
-    assert.match(methodBody(path, { file }), /\b_letGoOfWebView\(/,
-      `${path} must let go of the webview through _letGoOfWebView`);
+  // The site's views go together, the warm ones too (TAB-026).
+  for (const [path, file] of [
+    ['handleRendererGone', 'lib/web_view_model.dart'],
+    ['disposeWebView', 'lib/web_view_model.dart'],
+  ]) {
+    assert.match(methodBody(path, { file }), /\bletGoOfViews\(/,
+      `${path} must let go of the webviews through letGoOfViews`);
   }
-  const teardown = methodBody('_letGoOfWebView', { file });
+  assert.match(methodBody('letGoOfViews', { file: 'lib/web_view_model_views.dart' }),
+    /\bviews\.letGoOfAll\(/, 'letGoOfViews must let go of every view');
+  assert.match(methodBody('letGoOfAll', { file: 'lib/web_view_model_site_views.dart' }),
+    /\b_clearShown\(\)/, 'letGoOfAll must drop the shown view');
+  const teardown = methodBody('_clearShown', { file: 'lib/web_view_model_site_views.dart' });
   assert.match(teardown, /webview\s*=\s*null/, 'must drop the dead cached widget');
   assert.match(teardown, /controller\s*=\s*null/, 'must drop the dead controller');
 });

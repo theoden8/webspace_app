@@ -19,7 +19,7 @@ CONT-003. Design: `design.md`.
 
 ## 3. The switch
 
-- [x] 3.1 `SiteViews` (`lib/site_views.dart`) owns the shown view and the warm ones; `WebViewTabBinding.built` stays the shown view's tab, bytes tagged as before (TAB-003, BUG-036). Verify: `test/warm_tabs_test.dart`; the tab schedules.
+- [x] 3.1 `SiteViews` (`lib/web_view_model_site_views.dart`) owns the shown view and the warm ones; `WebViewTabBinding.built` stays the shown view's tab, bytes tagged as before (TAB-003, BUG-036). Verify: `test/warm_tabs_test.dart`; the tab schedules.
 - [x] 3.2 `TabTable`'s `tRebind`: the tab left goes warm unless the limit, the cap or a joining site's plan needs its room (`WarmOver`, `KeepsWarm` with the pick on its arm); a warm target shown as it is. Verify: the tab schedules, `check_steps.sh`.
 - [ ] 3.3 The costliest tab world after: 10,419 s wall on two local workers; the CI figure goes in the PR beside 1.2's.
 

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/activation_step.dart' show FlowKind;
 import 'package:webspace/services/nav_capture.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/settings/site_ids.dart';
@@ -46,6 +47,15 @@ class _ProcessGlobal extends Fake implements ResidencyHost {
     binding: ProxyBinding.processWide,
     sharesDefaultSession: (_) => false,
   );
+
+  @override
+  ResidencyCaps get caps => kResidencyCaps;
+
+  @override
+  WarmLimits get warmLimits => kWarmLimits;
+
+  @override
+  bool flowInFlight(FlowKind kind) => false;
 }
 
 class _NavStates extends Fake implements WebViewStateStorage {
