@@ -6,6 +6,10 @@ on:
         type: boolean
         default: false
         description: Run every TLC check and proof without restoring verification caches.
+      cold_proofs:
+        type: boolean
+        default: false
+        description: Prove every obligation without the proof cache; TLC and the replay keep their memo, a function of what they read.
 jobs:
   prepare:
     name: Print models and check Lean
@@ -261,41 +265,41 @@ jobs:
       # first, for the runs before any slice was saved.
       - id: tlapm-cache
         uses: actions/cache/restore@v4
-        if: ${{ !inputs.cold }}
+        if: ${{ !(inputs.cold || inputs.cold_proofs) }}
         with:
           path: formal/proofs/.tlacache
           key: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-unsharded
           restore-keys: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-
       - id: tlapm-cache-0
         uses: actions/cache/restore@v4
-        if: ${{ !inputs.cold }}
+        if: ${{ !(inputs.cold || inputs.cold_proofs) }}
         with:
           path: formal/proofs/.tlacache
           key: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-s0
           restore-keys: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-s0-
       - id: tlapm-cache-1
         uses: actions/cache/restore@v4
-        if: ${{ !inputs.cold }}
+        if: ${{ !(inputs.cold || inputs.cold_proofs) }}
         with:
           path: formal/proofs/.tlacache
           key: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-s1
           restore-keys: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-s1-
       - id: tlapm-cache-2
         uses: actions/cache/restore@v4
-        if: ${{ !inputs.cold }}
+        if: ${{ !(inputs.cold || inputs.cold_proofs) }}
         with:
           path: formal/proofs/.tlacache
           key: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-s2
           restore-keys: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-s2-
       - id: tlapm-cache-3
         uses: actions/cache/restore@v4
-        if: ${{ !inputs.cold }}
+        if: ${{ !(inputs.cold || inputs.cold_proofs) }}
         with:
           path: formal/proofs/.tlacache
           key: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-s3
           restore-keys: tlapm-${{ runner.os }}-${{ steps.tools.outputs.tlapm-pin }}-s3-
       - name: Restore from master's newest artifacts when the cache is gone
-        if: ${{ !inputs.cold && steps.tlapm-cache.outputs.cache-matched-key == '' && steps.tlapm-cache-0.outputs.cache-matched-key == '' && steps.tlapm-cache-1.outputs.cache-matched-key == '' && steps.tlapm-cache-2.outputs.cache-matched-key == '' && steps.tlapm-cache-3.outputs.cache-matched-key == '' }}
+        if: ${{ !(inputs.cold || inputs.cold_proofs) && steps.tlapm-cache.outputs.cache-matched-key == '' && steps.tlapm-cache-0.outputs.cache-matched-key == '' && steps.tlapm-cache-1.outputs.cache-matched-key == '' && steps.tlapm-cache-2.outputs.cache-matched-key == '' && steps.tlapm-cache-3.outputs.cache-matched-key == '' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -305,7 +309,7 @@ jobs:
           done
       - id: formal-verify
         run: |
-          if [ "${{ inputs.cold }}" = true ]; then rm -rf formal/proofs/.tlacache; fi
+          if [ "${{ inputs.cold || inputs.cold_proofs }}" = true ]; then rm -rf formal/proofs/.tlacache; fi
           ./formal/verify.sh --stage proofs
         timeout-minutes: 300
         env:
