@@ -298,7 +298,14 @@ class.
 ```bash
 ./formal/verify.sh          # everything: needs Flutter, Java, Python 3, tlapm
 ./formal/verify.sh --fast   # the printed modules and activation.tla only
+./formal/verify.sh --resume # everything, keeping what a stopped run finished
 ```
+
+`--resume` keeps `build/formal`: the printed model and each schedule shard are
+reused while [`input_key.py`](input_key.py)'s key over every committable file
+is the one they were made under, and TLC, the replay and TLAPS answer from
+their memos. On a machine that may be replaced mid-run, point `FORMAL_CACHE`
+and `TLAPM_CACHE_DIR` at a path that outlives it.
 
 A complete run without verification caches:
 
