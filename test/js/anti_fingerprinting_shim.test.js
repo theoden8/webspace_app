@@ -411,12 +411,19 @@ test('outerWidth/outerHeight mirror, not snapshot, a changed viewport', () => {
   assert.equal(w.outerHeight, 480);
 });
 
-test('window position/outer overrides keep the native descriptor shape', () => {
+test('devicePixelRatio is pinned to the normalized value', () => {
+  // Pixel density is a strong bit; the shim pins window.devicePixelRatio so
+  // neither a direct read nor the resolution media queries below can recover it.
+  const w = loadShim(ALPHA).window;
+  assert.equal(w.devicePixelRatio, 1);
+});
+
+test('window position/outer/dpr overrides keep the native descriptor shape', () => {
   // Chromium/WebKit expose these as own, enumerable, configurable accessors on
   // the window; the shim must match so neither getOwnPropertyDescriptor nor a
   // getter.toString() probe can tell it apart.
   const w = loadShim(ALPHA).window;
-  for (const p of ['screenX', 'outerWidth']) {
+  for (const p of ['screenX', 'outerWidth', 'devicePixelRatio']) {
     const d = Object.getOwnPropertyDescriptor(w, p);
     assert.equal(typeof (d && d.get), 'function', `${p} not an own accessor`);
     assert.equal(d.enumerable, true);
@@ -529,6 +536,41 @@ test('compound, range and ratio device queries are rewritten, never delegated ra
     assert.doesNotMatch(s, /device-(width|height|aspect-ratio)/i,
       `a raw device query reached the engine: ${s}`);
   }
+});
+
+test('resolution media queries resolve against the pinned devicePixelRatio=1', () => {
+  // A (min-resolution:) binary search must agree with window.devicePixelRatio,
+  // or it recovers the real pixel density the property hid (a CreepJS CSS leak).
+  const mm = loadShim(ALPHA).window.matchMedia;
+  assert.equal(mm('(resolution: 1dppx)').matches, true);
+  assert.equal(mm('(min-resolution: 1dppx)').matches, true);
+  assert.equal(mm('(min-resolution: 2dppx)').matches, false);
+  assert.equal(mm('(max-resolution: 1dppx)').matches, true);
+  assert.equal(mm('(max-resolution: 0.9dppx)').matches, false);
+  assert.equal(mm('(min-resolution: 1x)').matches, true);
+  // Unit conversion: 96dpi == 1dppx, 192dpi == 2dppx.
+  assert.equal(mm('(min-resolution: 96dpi)').matches, true);
+  assert.equal(mm('(min-resolution: 192dpi)').matches, false);
+  // Range syntax, single feature.
+  assert.equal(mm('(0.5dppx <= resolution <= 2dppx)').matches, true);
+  assert.equal(mm('(resolution >= 2dppx)').matches, false);
+});
+
+test('-webkit-device-pixel-ratio queries agree with the pin; bare form delegates', () => {
+  const mm = loadShim(ALPHA).window.matchMedia;
+  assert.equal(mm('(-webkit-min-device-pixel-ratio: 1)').matches, true);
+  assert.equal(mm('(-webkit-min-device-pixel-ratio: 2)').matches, false);
+  assert.equal(mm('(-webkit-max-device-pixel-ratio: 2)').matches, true);
+  assert.equal(mm('(-webkit-device-pixel-ratio: 1)').matches, true);
+  // Bare device-pixel-ratio (no -webkit-) is not a real feature in any engine;
+  // the shim declines it so it delegates to the real impl rather than inventing
+  // a value the engine would never report.
+  const dom = loadShim(ALPHA);
+  dom.window.__calls.length = 0;
+  const r = dom.window.matchMedia('(min-device-pixel-ratio: 2)');
+  assert.equal(r.matches, false);
+  const delegated = dom.window.__calls.filter(c => c.name === 'matchMedia');
+  assert.ok(delegated.length >= 1, 'bare device-pixel-ratio was not delegated');
 });
 
 test('patched matchMedia stringifies as [native code]', () => {

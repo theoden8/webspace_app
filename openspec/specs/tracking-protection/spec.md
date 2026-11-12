@@ -441,6 +441,9 @@ expose as own, enumerable, configurable accessors of the window (not on
 * `window.outerWidth` / `window.outerHeight` mirror `window.innerWidth` /
   `window.innerHeight`, so the chrome around the content (toolbar height, a
   docked devtools pane) is not reported
+* `window.devicePixelRatio = 1`, so the display's pixel density — a strong bit
+  that separates a 1x laptop from a 2x / 2.625x / 3x phone or HiDPI monitor —
+  reports the same normalized value for every site
 * `screen.colorDepth = 24`, `screen.pixelDepth = 24`
 * `navigator.hardwareConcurrency` ∈ [4, 8] derived from the seed
 * `navigator.deviceMemory` ∈ {4, 8} derived from the seed
@@ -480,9 +483,20 @@ query's boolean structure stays the engine's to evaluate. Without this, a
 fingerprinter binary-searching `(max-device-width: Npx)`, or
 `(max-device-width: Npx) and (min-width: 0px)` once the single-feature
 form is covered, recovers the real screen size and contradicts
-`screen.width` (CreepJS's "CSS Media Queries" leak). Non-device queries
-fall through to the real implementation, and the wrapper stringifies as
-`[native code]`.
+`screen.width` (CreepJS's "CSS Media Queries" leak).
+
+The SAME wrapper SHALL resolve every pixel-density feature against the pinned
+`window.devicePixelRatio` so the density cannot be recovered through CSS after
+the property is pinned: the standard `resolution` feature (`min-`/`max-`/plain
+and the range syntax, in `dppx`/`x`, `dpi` = density × 96, or `dpcm`) and the
+`-webkit-[min-|max-]device-pixel-ratio` feature. The bare `device-pixel-ratio`
+feature without the `-webkit-` prefix is not a real media feature in any engine
+and SHALL be declined (so it delegates) rather than answered with an invented
+value. Without this, a `(min-resolution: Ndppx)` or
+`(-webkit-min-device-pixel-ratio: N)` binary search recovers the real density
+and contradicts the pinned `devicePixelRatio` (the same CSS-media-query leak
+class). Non-device queries fall through to the real implementation, and the
+wrapper stringifies as `[native code]`.
 
 Residual: a stylesheet `@media (max-device-width: Npx)` block is evaluated
 by the engine's CSS cascade, which the shim does not reach, so a page that
@@ -511,6 +525,19 @@ environment, not a JS wrapper.
 **And** the string the engine receives names no `device-` feature
 **And** a non-device query such as `(min-width: 100px)` is delegated to the
 real `matchMedia`
+
+#### Scenario: devicePixelRatio pinned and its media queries agree
+
+**Given** the shim is loaded on an engine whose real `devicePixelRatio` is 2
+**Then** `window.devicePixelRatio === 1`
+**And** its descriptor on the window is an own, enumerable, configurable
+accessor whose getter stringifies as `[native code]`, not an own data property
+**And** `matchMedia('(min-resolution: 2dppx)').matches` is `false`
+**And** `matchMedia('(min-resolution: 192dpi)').matches` is `false`
+**And** `matchMedia('(-webkit-min-device-pixel-ratio: 2)').matches` is `false`
+**And** `matchMedia('(max-resolution: 1dppx)').matches` is `true`
+**And** a bare `(min-device-pixel-ratio: 2)` query (no `-webkit-` prefix) is
+delegated to the real `matchMedia`
 
 #### Scenario: Overrides do NOT leak as own-properties
 

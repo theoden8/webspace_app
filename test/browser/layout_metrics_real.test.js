@@ -174,3 +174,59 @@ test('window placement and outer size are normalized on a real engine',
       assert.equal(r.outerNotOnProto, true);
     });
   });
+
+test('devicePixelRatio is pinned to 1 against a real 2x density, media queries agree',
+  async (t) => {
+    // The engine is driven at deviceScaleFactor 2, so the UNSHIMMED density is
+    // 2 and (min-resolution: 2dppx) really matches — this is the density the
+    // shim has to hide. devicePixelRatio is an own accessor of the window
+    // global (not Window.prototype), so the shim redefines it in place, masked
+    // as native. The real engine proves the property override takes AND that a
+    // (min-resolution:) / (-webkit-...-device-pixel-ratio:) probe, which the
+    // engine evaluates against the true 2x, is rewritten to agree with the pin.
+    if (!requireBrowser(browser, t)) return;
+    const page = await browser.browser.newPage();
+    try {
+      await page.setViewport({ width: 1024, height: 768, deviceScaleFactor: 2 });
+      await page.setContent(PAGE, { waitUntil: 'load' });
+
+      // Baseline: without the shim the engine reports the real 2x density.
+      const raw = await page.evaluate(() => ({
+        dpr: window.devicePixelRatio,
+        resMin2: matchMedia('(min-resolution: 2dppx)').matches,
+        webkitMin2: matchMedia('(-webkit-min-device-pixel-ratio: 2)').matches,
+      }));
+      assert.equal(raw.dpr, 2, 'engine must be driven at 2x for this to prove anything');
+      assert.equal(raw.resMin2, true, 'unshimmed, the 2x density is visible via media query');
+      assert.equal(raw.webkitMin2, true);
+
+      await page.evaluate(ALPHA);
+      const r = await page.evaluate(() => ({
+        dpr: window.devicePixelRatio,
+        isOwnAccessor: (() => {
+          const d = Object.getOwnPropertyDescriptor(window, 'devicePixelRatio');
+          return !!(d && typeof d.get === 'function' && d.enumerable && d.configurable);
+        })(),
+        getterMasked: Object.getOwnPropertyDescriptor(window, 'devicePixelRatio')
+          .get.toString().includes('[native code]'),
+        notOnProto:
+          Object.getOwnPropertyDescriptor(Window.prototype, 'devicePixelRatio') === undefined,
+        res1: matchMedia('(resolution: 1dppx)').matches,
+        resMin2: matchMedia('(min-resolution: 2dppx)').matches,
+        resMax1: matchMedia('(max-resolution: 1dppx)').matches,
+        webkitMin2: matchMedia('(-webkit-min-device-pixel-ratio: 2)').matches,
+        webkitMax2: matchMedia('(-webkit-max-device-pixel-ratio: 2)').matches,
+      }));
+      assert.equal(r.dpr, 1, 'the real 2x density must be pinned to 1');
+      assert.equal(r.isOwnAccessor, true);
+      assert.equal(r.getterMasked, true);
+      assert.equal(r.notOnProto, true);
+      assert.equal(r.res1, true, '(resolution: 1dppx) must match the pin');
+      assert.equal(r.resMin2, false, '(min-resolution: 2dppx) must no longer match');
+      assert.equal(r.resMax1, true, '(max-resolution: 1dppx) must match');
+      assert.equal(r.webkitMin2, false, '(-webkit-min-device-pixel-ratio: 2) must no longer match');
+      assert.equal(r.webkitMax2, true, '(-webkit-max-device-pixel-ratio: 2) must match');
+    } finally {
+      await page.close();
+    }
+  });
