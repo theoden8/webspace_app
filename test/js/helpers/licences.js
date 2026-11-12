@@ -110,7 +110,10 @@ function pinsOf({ files = buildFiles().map(([rel]) => rel), packages = null } = 
       if (/\$\{\w+\}/.test(url)) {
         out.set(source, url.replace(/\$\{(\w+)\}/g, (all, v) => vars.get(v) ?? all));
       } else if (url.endsWith('.git')) {
-        const after = text.slice(text.indexOf(url)).split('\n').slice(0, 20).join('\n');
+        // Its pin follows it within its own source, before the file names another.
+        const rest = text.slice(text.indexOf(url));
+        const next = [...rest.matchAll(/https?:\/\/[^\s"'`)\\]+/g)].find((m) => m.index > 0 && m[0] !== url);
+        const after = rest.slice(0, next?.index ?? rest.length).split('\n').slice(0, 20).join('\n');
         const pin = after.match(/\b[0-9a-f]{40}\b/)?.[0] ?? after.match(/^\w*_TAG=(?:\$\{\w+:-)?([^\s}]+)/m)?.[1];
         if (pin) out.set(source, pin);
       }

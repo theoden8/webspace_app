@@ -6,11 +6,9 @@
 # webspace://open link hands it over and exits (PLATFORM-011); the first
 # opens the site, whose page is requested, with WebKit's web and network
 # processes started from the snap's copies through the layout. First, from
-# the installed snap's files: WebKit and libwpe are shared libraries of their
-# own that the app loads at run time, so a user can replace them (LICENSE-004),
-# and the PDF.js fonts it carries are the OFL release linux/pdfjs_fonts.sh put
-# there, not WebKit's GPL-2.0 ones (LICENSE-001; WebKit stores a .ttf
-# uncompressed).
+# the installed snap's files, scripts/verify_webkit_shipped.sh: WebKit and
+# libwpe are libraries a user can replace (LICENSE-004), WebKit with PDF.js's
+# OFL fonts (LICENSE-001).
 #
 #   scripts/check_snap.sh
 #
@@ -33,31 +31,7 @@ snap_name="$(sed -n 's/^name: \([a-z0-9-]*\)$/\1/p' "$root/snap/snapcraft.yaml")
 [ -n "$snap_name" ] || { echo "::error::no name in snap/snapcraft.yaml" >&2; exit 1; }
 
 mount="/snap/$snap_name/current"
-webkit="$(compgen -G "$mount/usr/lib/*/libWPEWebKit-2.0.so.*" | head -1)" \
-  || { echo "::error::the snap carries no libWPEWebKit-2.0.so of its own" >&2; exit 1; }
-LC_ALL=C grep -a -q 'Licensed under the SIL Open Font License' "$webkit" \
-  || { echo "::error::$webkit carries no PDF.js font of the OFL release" >&2; exit 1; }
-if LC_ALL=C grep -a -q 'Liberation Fonts license' "$webkit"; then
-  echo "::error::$webkit carries Liberation 1.x, under GPL-2.0" >&2
-  exit 1
-fi
-loads=()
-for f in "$mount"/opt/webspace/webspace_app "$mount"/opt/webspace/lib/*.so; do
-  needed="$(readelf -d "$f")"
-  grep -q '(NEEDED).*\[libWPEWebKit-2\.0\.so' <<<"$needed" && loads+=("${f#"$mount"/}")
-done
-[ "${#loads[@]}" -gt 0 ] \
-  || { echo "::error::nothing in the snap loads WebKit as a shared library" >&2; exit 1; }
-echo "WebKit is a shared library of its own, loaded by ${loads[*]}"
-libwpe="$(compgen -G "$mount/usr/lib/*/libwpe-1.0.so.*" | head -1)" \
-  || { echo "::error::the snap carries no libwpe-1.0.so of its own" >&2; exit 1; }
-wpe_loads=()
-for f in "$webkit" "$mount"/opt/webspace/webspace_app "$mount"/opt/webspace/lib/*.so; do
-  grep -q '(NEEDED).*\[libwpe-1\.0\.so' <<<"$(readelf -d "$f")" && wpe_loads+=("${f#"$mount"/}")
-done
-[ "${#wpe_loads[@]}" -gt 0 ] \
-  || { echo "::error::nothing in the snap loads $libwpe as a shared library" >&2; exit 1; }
-echo "libwpe is a shared library of its own, loaded by ${wpe_loads[*]}"
+bash "$root/scripts/verify_webkit_shipped.sh" "$mount" opt/webspace
 
 work="$(mktemp -d)"
 pids=()

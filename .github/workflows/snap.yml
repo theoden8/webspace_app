@@ -26,6 +26,7 @@ on:
       - openspec/specs/legal/**
       - snap/**
       - scripts/check_snap.sh
+      - scripts/verify_webkit_shipped.sh
       - tool/check_source_offer.js
       - linux/**
       - pubspec.lock
@@ -40,6 +41,7 @@ on:
       - openspec/specs/legal/**
       - snap/**
       - scripts/check_snap.sh
+      - scripts/verify_webkit_shipped.sh
       - tool/check_source_offer.js
       - linux/**
       - pubspec.lock

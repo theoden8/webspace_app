@@ -9,21 +9,29 @@
 # changed, for the copyright file linux/install_notices.sh writes.
 #
 #   pdfjs_fonts.sh --src WEBKIT_TREE --fonts DIR_OF_LiberationSans-*.ttf \
-#     --copyright THEIR_DEP5_COPYRIGHT_FILE
+#     (--copyright THEIR_DEP5_COPYRIGHT_FILE | --licence THEIR_LICENCE_FILE)
+#
+# --copyright reads the fonts' copyright lines and licence from a Debian
+# copyright file; --licence takes a file that holds both as it is, as the
+# freedesktop SDK installs the fonts' LICENSE.
 set -euo pipefail
 
-src='' fonts='' copyright=''
+src='' fonts='' copyright='' licence=''
 while [ $# -gt 0 ]; do
   case "$1" in
     --src) src=$2; shift 2 ;;
     --fonts) fonts=$2; shift 2 ;;
     --copyright) copyright=$2; shift 2 ;;
+    --licence) licence=$2; shift 2 ;;
     *) echo "pdfjs_fonts.sh: unknown argument $1" >&2; exit 2 ;;
   esac
 done
-for pair in "src:$src" "fonts:$fonts" "copyright:$copyright"; do
+for pair in "src:$src" "fonts:$fonts"; do
   [ -n "${pair#*:}" ] || { echo "pdfjs_fonts.sh: --${pair%%:*} is required" >&2; exit 2; }
 done
+if { [ -n "$copyright" ] && [ -n "$licence" ]; } || { [ -z "$copyright" ] && [ -z "$licence" ]; }; then
+  echo "pdfjs_fonts.sh: give one of --copyright and --licence" >&2; exit 2
+fi
 
 fail() { echo "pdfjs_fonts.sh: $1" >&2; exit 1; }
 
@@ -48,8 +56,11 @@ for style in Regular Bold Italic BoldItalic; do
   version="${v#Version }"
 done
 
-# The fonts' copyright lines and licence, from the DEP-5 stanza that names
-# the OFL for them.
+# The fonts' copyright lines and licence: from the DEP-5 stanza that names
+# the OFL for them, or the licence file as it is.
+if [ -n "$licence" ]; then
+  install -m 644 "$licence" "$dir/LICENSE_LIBERATION"
+else
 awk '
   /^Files:/ { files = 1; holders = ""; next }
   files && /^Copyright:/ { sub(/^Copyright:[ \t]*/, ""); if ($0 != "") holders = $0 "\n"; grab = 1; next }
@@ -59,8 +70,9 @@ awk '
   text && /^ / { sub(/^ /, ""); if ($0 == ".") $0 = ""; print; next }
   text { exit }
 ' "$copyright" > "$dir/LICENSE_LIBERATION"
+fi
 grep -q 'SIL OPEN FONT LICENSE Version 1.1' "$dir/LICENSE_LIBERATION" \
-  || fail "$copyright gave no SIL Open Font License text for the fonts"
+  || fail "${copyright:-$licence} gave no SIL Open Font License text for the fonts"
 
 if left="$(grep -rIl -i 'general public license' "$pdfjs")"; then
   fail "a GNU licence is still under PDF.js: $left"

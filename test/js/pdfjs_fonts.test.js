@@ -48,9 +48,21 @@ function tree(t, { font = (s) => `Version 2.1.5\0Licensed under the SIL Open Fon
   return { root };
 }
 
-function run(root) {
+// The fonts' LICENSE as the freedesktop SDK installs it, for the flatpak.
+const LICENCE = [
+  'Copyright (c) 2012 Red Hat, Inc.',
+  '\twith Reserved Font Name Liberation.',
+  '',
+  'This Font Software is licensed under the SIL Open Font License,',
+  'Version 1.1.',
+  '',
+  'SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007',
+  '',
+].join('\n');
+
+function run(root, notice = ['--copyright', path.join(root, 'copyright')]) {
   return spawnSync('bash', [path.join(REPO, 'linux/pdfjs_fonts.sh'), '--src', path.join(root, 'src'),
-    '--fonts', path.join(root, 'fonts'), '--copyright', path.join(root, 'copyright')], { encoding: 'utf8' });
+    '--fonts', path.join(root, 'fonts'), ...notice], { encoding: 'utf8' });
 }
 
 test('LICENSE-001 PDF.js ships Liberation Sans 2.x under the OFL, with its licence and holders', (t) => {
@@ -86,4 +98,18 @@ test('LICENSE-001 the swap refuses a font it cannot vouch for, and GNU text left
     'a style missing'), /no .*LiberationSans-Italic\.ttf/);
   assert.match(refused({ extra: { 'Source/ThirdParty/pdfjs/web/NOTES': 'GNU General Public License' } }, 'GNU text elsewhere'),
     /a GNU licence is still under PDF\.js: .*web\/NOTES/);
+});
+
+test('LICENSE-001 the fonts\' licence file is taken as it is where no Debian copyright file names it', (t) => {
+  const { root } = tree(t);
+  fs.writeFileSync(path.join(root, 'LICENSE'), LICENCE);
+  const r = run(root, ['--licence', path.join(root, 'LICENSE')]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(fs.readFileSync(path.join(root, 'src/Source/ThirdParty/pdfjs/web/standard_fonts/LICENSE_LIBERATION'), 'utf8'),
+    LICENCE);
+  fs.writeFileSync(path.join(root, 'GPL'), 'GNU GENERAL PUBLIC LICENSE Version 2');
+  assert.equal(run(tree(t).root, ['--licence', path.join(root, 'GPL')]).status, 1, 'a licence file that is not the OFL');
+  assert.equal(run(root, []).status, 2, 'neither --copyright nor --licence');
+  assert.equal(run(root, ['--copyright', path.join(root, 'copyright'), '--licence', path.join(root, 'LICENSE')]).status, 2,
+    'both');
 });
