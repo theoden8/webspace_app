@@ -108,6 +108,14 @@ void main() {
             '(DEVTOOLS-011)');
   });
 
+  test("A site's service workers graduated: they have no switch (CB-022)", () {
+    expect(
+        ExperimentalFeature.values.map((f) => f.pref.key),
+        isNot(contains('experimentalServiceWorkers')),
+        reason: "each site's container hands its service workers to the "
+            "site's own blockers on every Android launch (DEVTOOLS-011)");
+  });
+
   test('Proxy router graduated: its switch is not an experiment (PROXY-013)',
       () {
     expect(

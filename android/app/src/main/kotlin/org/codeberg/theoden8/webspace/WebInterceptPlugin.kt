@@ -151,10 +151,6 @@ class WebInterceptPlugin(
                     }
                 }
                 "attachToWebViews" -> result.success(refreshAttached())
-                "setServiceWorkersThroughBlockers" -> {
-                    serviceWorkers.enabled = call.argument<Boolean>("on") == true
-                    result.success(null)
-                }
                 "attachToView" -> {
                     // Dart holds the view's first load until this replies, so
                     // its first document's sub-resources meet the site's

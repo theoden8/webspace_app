@@ -50,10 +50,6 @@ List<(ExperimentalFeature, IconData, Localized title, Localized hint)>
         (ExperimentalFeature.networkInterface, Icons.alt_route,
             loc.appSettingsExperimentalNetworkInterface,
             loc.appSettingsExperimentalNetworkInterfaceHint),
-      if (hostIsAndroid)
-        (ExperimentalFeature.serviceWorkers, Icons.sync_alt,
-            loc.appSettingsExperimentalServiceWorkers,
-            loc.appSettingsExperimentalServiceWorkersHint),
       if (WebKitBlockReports.offered)
         (ExperimentalFeature.webKitBlockReports, Icons.fact_check_outlined,
             loc.appSettingsExperimentalWebKitBlockReports,

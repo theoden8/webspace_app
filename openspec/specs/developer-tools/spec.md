@@ -564,7 +564,6 @@ The features are:
 |---|---|---|---|
 | Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
 | Linux: a site's traffic bound to a network interface it names (`network-interface` NETIF-013) | Network interface per site | off | `EgressRelay.state`, read each time a site's route resolves and when a Network screen is built |
-| A site's service workers through its own blockers (`content-blocker` CB-022) | Service workers through blockers | off | `NativeIntercept.routeServiceWorkers`, read once at launch; Android only |
 | WebKit's own report of each request the content rule lists block (`content-blocker` CB-023) | WebKit's block counts | off | `WebKitBlockReports.start`, read once at launch; iOS and macOS built with `--flavor direct` only |
 
 Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the group with a switch that defaulted off; it graduated with the site info sheet (`site-info-sheet`, NAV-011), which shows the site and container a routed page runs as. Page icons fetched from the links a page declares on iOS, macOS and Linux (`icon-fetching` ICON-013) were in the group with a switch that defaulted off; they graduated to the default there, and the group's Site icons only switch took the slot.
@@ -591,6 +590,8 @@ The tray icon while a close only hides the window (`web-push-notifications` NOTI
 
 The built-in Tor on Linux (`tor-proxy` TOR-027), a tor the app starts, was in the group under its own Built-in Tor switch, which defaulted off; it graduated as Apple's had, and is offered on every Linux build with developer mode on or off. The switch's pref (`experimentalLinuxTor`) is no longer read.
 
+A site's service workers through its own blockers on Android (`content-blocker` CB-022) were in the group under the Service workers through blockers switch, which defaulted off; they graduated, and each site's container hands its service workers to the site's blockers with developer mode on or off. The switch's pref (`experimentalServiceWorkers`) is no longer read.
+
 #### Scenario: The group appears with developer mode
 
 - **GIVEN** an iOS 18.4 build with developer mode off
@@ -603,7 +604,7 @@ The built-in Tor on Linux (`tor-proxy` TOR-027), a tor the app starts, was in th
 
 - **GIVEN** an Android build whose WebView reports `MULTI_PROFILE`, with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists Texture page rendering and Service workers through blockers, off
+- **THEN** the Experimental group lists Texture page rendering, off
 
 #### Scenario: A platform without the router
 

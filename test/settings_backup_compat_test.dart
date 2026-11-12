@@ -171,6 +171,9 @@ const Map<String, String> _retiredKeys = {
       'its default',
   'experimentalLinuxTor': 'TOR-027: the built-in Tor on Linux graduated out '
       'of the Experimental group; there is no switch to restore',
+  'experimentalServiceWorkers': "CB-022: a site's service workers through "
+      'its blockers graduated out of the Experimental group; there is no '
+      'switch to restore',
 };
 
 /// A pref whose default HEAD changed, and why. A release's minimal backup

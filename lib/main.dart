@@ -202,12 +202,6 @@ void main([List<String> args = const []]) async {
   // from the next launch (PAUSE-032).
   WebViewFactory.hybridComposition = !ExperimentalFeaturesService.instance
       .isEnabled(ExperimentalFeature.textureRendering);
-  // Before the first webview attaches: what a site's container gives its
-  // service workers lasts the process, so this switch too applies from the
-  // next launch (CB-022).
-  await native.routeServiceWorkers(
-      throughBlockers: ExperimentalFeaturesService.instance
-          .isEnabled(ExperimentalFeature.serviceWorkers));
   // Before the first webview: every page of the run counts WebKit's blocks
   // one way, so the switch applies from the next launch (CB-023).
   await WebKitBlockReports.start(
