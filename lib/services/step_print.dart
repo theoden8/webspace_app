@@ -83,6 +83,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
       _footprint(
         step,
         place: place,
+        awaited: awaited.contains(place),
         places: places,
         ending: ending,
         entered: entered ?? readsByPlace,
@@ -97,9 +98,20 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
       if (step.allArms.any((a) => a.then.any((e) => e is Spawn<W>))) place,
   ];
 
+  /// The one rule for [StepTurn]: the printed guard and the footprint read it.
+  static StepTurn _turnOf(Step<Object?, Enum> s, {required bool awaited}) =>
+      s.input
+          ? StepTurn.input
+          : s.granted != null
+          ? StepTurn.granted
+          : s.internal && !awaited
+          ? StepTurn.between
+          : StepTurn.reply;
+
   static Footprint _footprint<W, P extends Enum>(
     Step<W, P> s, {
     required P place,
+    required bool awaited,
     required Iterable<P> places,
     required Set<P> ending,
     required Map<String, List<Assign<Object?>>> entered,
@@ -230,6 +242,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
       step: s.name,
       place: place.name,
       input: s.input,
+      turn: _turnOf(s, awaited: awaited),
       reads: reads,
       writes: writes,
       needs: {...?s.enabled?.needs, ...?s.pick?.from.needs},
@@ -301,7 +314,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
         'Input',
         'f = inputs + 1',
       ] else ...[
-        if ((!s.internal || awaited) && s.granted == null) 'Calm',
+        if (_turnOf(s, awaited: awaited) == StepTurn.reply) 'Calm',
         'fl[f].pc = "${place.name}"',
         if (s.granted case final lock?) lock.granted,
       ],

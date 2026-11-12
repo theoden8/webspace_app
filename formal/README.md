@@ -491,6 +491,13 @@ world's actions and only a world that allows every input licenses an invariant. 
 world needs a lemma over the scheduler first: that dropping the flows of a kind only makes
 `Calm` and `Idle` truer and leaves the input budget and flow numbers in step.
 
+`activation_calm.tsv` names each reply (a step the printer guards with `Calm`) and the
+steps between two awaits whose footprints it meets: one writes what the other reads or
+writes. A reply that meets none reaches the same states without `Calm` (`commute`'s
+premise), so the replies marked `yes` are the ones whose correctness rests on Dart's
+run-to-completion. TLC agrees on the delete table: dropping `Calm` from `DeleteDropReply`
+breaks `Inv_Retired`, and the other two replies hold without it in all 21 worlds.
+
 ## Verification only grows
 
 `levels.tsv` is the floor of what `verify.sh` checks: TLC configs that hold, planted
