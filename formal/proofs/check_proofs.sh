@@ -74,7 +74,7 @@ INPUTS="$(
   (cd "$KERNEL_DIR" && digest *.tla) | sed 's|  |  kernel/|'
   (cd "$FORMAL_MODEL" && digest *.tla) | sed 's|  |  model/|'
 )"
-key() { printf '%s\n' "$INPUTS" "module $1 --safefp" | digest | cut -d' ' -f1; }
+key() { printf '%s\n' "$INPUTS" "module $1 --safefp --strict" | digest | cut -d' ' -f1; }
 # The modules share nothing and tlapm gains little from threads within one
 # (activation_turns: 309 s on one, 274 s on four): it prepares each
 # obligation on one thread, and that, not the backends, is most of a run.
@@ -100,7 +100,7 @@ prove() {
   local group
   python3 -c 'import os, sys; os.setpgid(0, 0); os.execvp(sys.argv[1], sys.argv[1:])' \
     tlapm -I "$KERNEL_DIR" ${FORMAL_MODEL:+-I "$FORMAL_MODEL"} --threads "$THREADS" \
-    --cache-dir "$CACHE" --safefp --stretch "$STRETCH" "$@" 2>&1 &
+    --cache-dir "$CACHE" --safefp --strict --stretch "$STRETCH" "$@" 2>&1 &
   group=$!
   touch "$work/groups/$group"
   wait "$group" || true

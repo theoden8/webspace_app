@@ -13,11 +13,11 @@ these, so this reads the modules and fails on each.
   under the same name in the same words. A printed steps module restates
   the lemmas it cites so instead of extending the modules that prove them.
 - holes: inside a proof, a step left with no proof (a bare QED), as the
-  proving run's own output reports it (tlapm #271: `Missing proof at` and
-  `Omitted proof at` each locus); an omitted proof there is one the
-  previous rule admits, and no other. A tlapm that reports no omitted proof
-  for a module stating some is refused, so the rule cannot pass for want of
-  the report.
+  proving run's own output reports it (tlapm #271: under `--strict`,
+  `Missing proof at` and `Omitted proof at` each locus); an omitted proof
+  there is one the previous rule admits, and no other. A run that reports
+  no omitted proof for a module stating some (one without `--strict`) is
+  refused, so the rule cannot pass for want of the report.
 - reach: a theorem of a module a proof EXTENDS or INSTANCEs that the run
   does not prove itself is taken as given by tlapm, so it fails unless a
   module of the run proves it word for word.
@@ -50,8 +50,7 @@ EXTENDS = re.compile(r"^\s*(?:LOCAL\s+)?EXTENDS\b(.*)$")
 INSTANCE = re.compile(r"\bINSTANCE\s+(\w+)")
 # What a proving run prints for each step it was given no proof of
 # (src/tlapm_lib.ml), and the lines that say the module was read at all.
-HOLE = re.compile(
-    r'\[ERROR\]: (Missing|Omitted) proof at File "[^"]*", line (\d+)')
+HOLE = re.compile(r'(Missing|Omitted) proof at File "[^"]*", line (\d+)')
 READ = re.compile(r"obligations? proved|Proof incomplete in module")
 
 
@@ -246,8 +245,8 @@ def check(run, *, allow, search, outputs, ran=None):
             stated = sum(t["proof"] == "omitted" for t in m.theorems)
             if stated and not any(k == "Omitted" for k, _ in holes):
                 fails.append(f"holes: {m.path} states {stated} omitted proofs "
-                             "and its run reports none: this tlapm does not "
-                             "report its holes (tlapm #271)")
+                             "and its run reports none: tlapm reports holes "
+                             "only under --strict (tlapm #271)")
     return fails
 
 
@@ -307,9 +306,10 @@ ALLOW = {("Spec", "NType",
 
 
 def proving_output(d, name):
-    """What a proving run of [name] in [d] prints, as tlapm's source writes
-    it (src/tlapm_lib.ml): a missing proof for a bare QED, an omitted one
-    for PROOF OMITTED, then the module's line."""
+    """What `tlapm --strict` prints proving [name] in [d], as 1.6.0-pre
+    does: a line for each missing proof (a bare QED) or omitted one (PROOF
+    OMITTED), the module's incomplete line, then its count, which it prints
+    whether or not the proof is complete."""
     lines = open(os.path.join(d, f"{name}.tla"), encoding="utf-8").read().splitlines()
     path = os.path.join(d, f"{name}.tla")
     out, holes = [], 0
@@ -318,20 +318,19 @@ def proving_output(d, name):
             i + 1 < len(lines) and lines[i + 1].startswith("  BY"))
         if bare or OMITTED.match(line):
             kind = "Missing" if bare else "Omitted"
-            out.append(f'[ERROR]: {kind} proof at File "{path}", line {i + 1}, '
+            out.append(f'{kind} proof at File "{path}", line {i + 1}, '
                        f'characters 1-{len(line)}')
             holes += 1
         elif STATEMENT.match(line) and not any(
                 PROOF.match(n) for n in lines[i + 1:i + 2]) and (
                 i + 1 == len(lines) or lines[i + 1][:1].strip()):
-            out.append(f'[ERROR]: Missing proof at File "{path}", line {i + 1}, '
+            out.append(f'Missing proof at File "{path}", line {i + 1}, '
                        f'characters 1-{len(line)}')
             holes += 1
     if holes:
         out.append(f'[ERROR]: Proof incomplete in module "{name}": {holes} '
                    "missing or omitted proof step(s).")
-    else:
-        out.append("[INFO]: All 2 obligations proved.")
+    out.append("[INFO]: All 2 obligations proved.")
     return "\n".join(out) + "\n"
 
 

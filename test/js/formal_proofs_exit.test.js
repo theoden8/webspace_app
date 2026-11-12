@@ -262,7 +262,7 @@ function plantedScript(t, { from, to }) {
 
 const planted = [
   ['a key that leaves out the inputs', 'a change to a module the proofs can read proves them again',
-    'printf \'%s\\n\' "$INPUTS" "module $1 --safefp"', 'printf \'%s\\n\' "module $1 --safefp"'],
+    'printf \'%s\\n\' "$INPUTS" "module $1 --safefp --strict"', 'printf \'%s\\n\' "module $1 --safefp --strict"'],
   ['a key that names the path', 'a module proved before under the same inputs is remembered, not proved again',
     'memo="$MEMO/$(key "model/$name")"', 'memo="$MEMO/$(key "$f")"'],
   ['a kept failure', 'a module that falls short is not remembered',
