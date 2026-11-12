@@ -356,6 +356,17 @@ nothing reaches `NotificationService`
 **Then** the controls for the fields in the override matrix are absent or disabled
 **And** the subtitle for each absent control explains briefly ("not available for archived webspaces")
 
+#### Scenario: A file-import site cannot be moved into an archive
+
+**Given** an app-tier site whose `initUrl` is a file import (`file://`), whose
+only HTML copy lives in app-tier `HtmlImportStorage`
+**When** the user opens its list menu, and when a move is requested for it
+**Then** the "Move to archive" entry is absent from the menu
+**And** the move is refused before any passphrase prompt, so no archive is
+opened or created and the site stays app-tier
+**And** no app-tier HTML blob is orphaned by an archive that neither seals nor
+erases it
+
 ### Requirement: ARCH-007 — Container lifecycle for archive-tier sites
 
 For archive-tier sites on container-capable platforms, per-site containers SHALL use opaque, key-derived identifiers and SHALL be torn down on archive close. The archive feature is unavailable on platforms without container support.

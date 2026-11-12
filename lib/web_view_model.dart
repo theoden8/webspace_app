@@ -569,6 +569,10 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
   /// in-memory and die with the session.
   bool get contributesBlockStats => !isArchiveTier;
 
+  /// Whether this site may be moved into an archive; a file import is not
+  /// (ARCH-006, its only HTML copy being app-tier). Owner read by gate and menu.
+  bool get archivable => !isFileImportUrl(initUrl);
+
   /// Whether this site may persist/restore webview navigation state
   /// (`controller.saveState()` bytes) to the device-key on-disk store.
   /// Single source of truth for the capture, debounce, and cold-start

@@ -69,6 +69,29 @@ void main() {
     }
   });
 
+  test('a file-import site cannot be moved into an archive (ARCH-006)',
+      () async {
+    final h = ArchiveHarness();
+    final imported =
+        WebViewModel(siteId: SiteId('imported'), initUrl: 'file:///notes.html');
+    final plain = _away(SiteId('plain'));
+    h.load([imported, plain]);
+
+    // A file import's HTML lives only in app-tier HtmlImportStorage, which the
+    // archive neither seals nor erases; moving one in would orphan it on
+    // app-tier disk (ARCH-001) and lose it to the next orphan sweep. The move
+    // is refused before the passphrase prompt, so no archive is touched.
+    await h.archives.moveIn(imported);
+    expect(imported.isArchiveTier, isFalse);
+    expect(h.archives.archiveOf(imported), isNull);
+    expect(h.archives.anyOpen, isFalse,
+        reason: 'the refused move prompts for no passphrase and opens nothing');
+
+    // The gate is specific to file imports: a plain site still moves in.
+    await h.archives.moveIn(plain);
+    expect(plain.isArchiveTier, isTrue);
+  });
+
   test('an archive with no room left stays open and unchanged', () async {
     final h = ArchiveHarness();
     final site = _tree(SiteId('big'), active: TabId('c'));

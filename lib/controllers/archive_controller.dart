@@ -306,6 +306,10 @@ class ArchiveController {
   /// its tier flips and its webview rebuilds against the opaque container.
   Future<void> moveIn(WebViewModel model) async {
     if (model.isArchiveTier) return;
+    // A file import's HTML lives only in app-tier HtmlImportStorage, which the
+    // archive neither carries nor erases (ARCH-006). The menu hides this for
+    // such a site; the guard is the gate no later entry point can skip.
+    if (!model.archivable) return;
     final passphrase = await _prompts.passphrase(PassphrasePurpose.moveSite);
     if (passphrase == null || passphrase.isEmpty || !_host.mounted) return;
 
