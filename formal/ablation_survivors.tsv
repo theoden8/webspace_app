@@ -1,0 +1,11 @@
+# Each mutant formal/ablate.py runs that no invariant catches in any world
+# that takes its action, labelled by hand. A label is one of: redundant-kept
+# (the code keeps a check the invariants do not need, with why), liveness
+# (a property no safety invariant can state, named), missing-invariant (the
+# invariant that will catch it). A row leaves when its mutant is caught.
+# mutant	action	operator	worlds	label	reason
+DeleteSite.Listed	DeleteSite	bound Listed \cap Deletable -> Deletable	21	redundant-kept	a cheap precondition a reader expects; a second delete of a gone site keeps version (DeleteDropReply)
+Foreground.drop	Foreground	drop (Waking /\ ~(fore))	29	redundant-kept	outside a wake headless is already {}, and fore' = TRUE is the app returning, which may happen at any time
+WakeOpenReply.true	WakeOpenReply	force TRUE	11	liveness	a wake checks every notification site (NOTIF-016): skipping each check breaks no safety invariant
+WakeOpenReply.false	WakeOpenReply	force FALSE	11	redundant-kept	Foreground empties headless itself, so the skip arm's removal never shows in Inv_ChecksOffScreen
+WakeCloseReply.true	WakeCloseReply	force TRUE	29	missing-invariant	Inv_HeadlessOwned: a headless check runs only while a wake is in flight; caught in the containers wake worlds
