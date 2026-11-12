@@ -65,8 +65,16 @@ key() { printf '%s\n' "$INPUTS" "module $1 --safefp" | digest | cut -d' ' -f1; }
 # (activation_turns: 309 s on one, 274 s on four): it prepares each
 # obligation on one thread, and that, not the backends, is most of a run.
 # So TLAPM_JOBS of them, one a core by default, prove side by side.
-JOBS="${TLAPM_JOBS:-$(getconf _NPROCESSORS_ONLN)}"
-THREADS=$(( $(getconf _NPROCESSORS_ONLN) / JOBS ))
+# Each holds every obligation it proves afresh until it ends, so a cold
+# module takes gigabytes: no more of them side by side than the memory
+# holds at TLAPM_MODULE_MB each (a runner's kernel killed two at four).
+cores="$(getconf _NPROCESSORS_ONLN)"
+mem_mb="$(awk '/^MemAvailable:/ { print int($2 / 1024) }' /proc/meminfo 2>/dev/null || true)"
+by_memory=$(( ${mem_mb:-0} / ${TLAPM_MODULE_MB:-4096} ))
+[ -n "$mem_mb" ] || by_memory="$cores"
+[ "$by_memory" -ge 1 ] || by_memory=1
+JOBS="${TLAPM_JOBS:-$(( cores < by_memory ? cores : by_memory ))}"
+THREADS=$(( cores / JOBS ))
 [ "$THREADS" -ge 1 ] || THREADS=1
 printf 'TLAPS: jobs=%s threads=%s timeout stretch=%s\n' "$JOBS" "$THREADS" "$STRETCH"
 # A backend that times out has its shell killed, not the solver that shell
@@ -125,10 +133,14 @@ min_obligations() {
   esac
 }
 
-# The tables' step modules (activation_tables_<n>_proof) take eight steps each
-# in the tables' order, so a step added before others moves them to the next
-# module: their sum is pinned, which a new step only raises.
-TABLE_PARTS=1573
+# The modules this shard proves (FORMAL_PROOF_SHARD=i/n, all of them by
+# default), longest first by their cold times: proof_shards.py splits them
+# the same way in every shard, and its merge requires each proved by one.
+SHARD="${FORMAL_PROOF_SHARD:-0/1}"
+[[ "$SHARD" =~ ^([0-9]+)/([1-9][0-9]*)$ ]] || { echo "invalid FORMAL_PROOF_SHARD: $SHARD" >&2; exit 2; }
+MINE=()
+while IFS= read -r f; do MINE+=("$f"); done < <(python3 -I proof_shards.py assign \
+  --shard "$SHARD" --times proof_times.tsv "$FORMAL_MODEL"/*_proof.tla *.tla)
 
 # tlapm takes a lemma of an extended module as given, so the printed proofs
 # (activation_tables_proof, the tables' cases of activation_turns) are checked here
@@ -202,8 +214,8 @@ check() {
 # A printed steps module restates the lemmas it cites, omitted, instead of
 # extending the modules that prove them: each is held to one proved here.
 python3 omitted.py "$FORMAL_MODEL"/*_proof.tla *.tla
-# The printed proofs, the longest, start first.
-for f in "$FORMAL_MODEL"/*_proof.tla *.tla; do
+# The longest start first.
+for f in "${MINE[@]}"; do
   while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do sleep 1; done
   check "$f" &
 done
@@ -212,28 +224,19 @@ if [ -e "$work/again" ]; then
   while read -r f; do check "$f" again </dev/null; done <"$work/again"
 fi
 ok=1
-parts=0
-for f in "$FORMAL_MODEL"/activation_tables_[0-9]*_proof.tla; do
-  n="$(sed -nE 's/^  OK: ([0-9]+) obligations.*/\1/p' "$work/$(basename "$f").out")"
-  parts=$((parts + ${n:-0}))
-done
-for f in *.tla "$FORMAL_MODEL"/*_proof.tla; do
-  name="$(basename "$f")"
-  echo "── $name ──"
-  cat "$work/$name.out"
-  if [ -e "$work/$name.failed" ]; then
-    grep '  FAIL: ' "$work/$name.out" >&2
-    ok=0
-  fi
-done
-echo "── the tables' step modules ──"
-if [ "$parts" -ge "$TABLE_PARTS" ]; then
-  echo "  OK: $parts obligations in all (>= $TABLE_PARTS)"
+{
+  echo "PROOF SHARD $SHARD"
+  for f in "${MINE[@]}"; do
+    name="$(basename "$f")"
+    echo "── $name ──"
+    cat "$work/$name.out"
+    [ ! -e "$work/$name.failed" ] || grep '  FAIL: ' "$work/$name.out" >&2
+  done
+} | tee "$work/report"
+! grep -q '  FAIL: ' "$work/report" || ok=0
+if [ "$SHARD" = 0/1 ]; then
+  python3 -I proof_shards.py merge --model "$FORMAL_MODEL" --proofs . "$work/report" || ok=0
 else
-  short="  FAIL: the tables' step modules proved only $parts obligations, expected >= $TABLE_PARTS"
-  echo "$short"
-  echo "$short" >&2
-  ok=0
+  echo "Proof shard $SHARD: its modules checked; the finish merges every shard."
 fi
 [ "$ok" = 1 ] || exit 1
-echo "All TLAPS proofs checked."

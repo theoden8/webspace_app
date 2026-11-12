@@ -146,6 +146,14 @@ finish() {
     --registry "$OUT/model/checks_registry.tsv" \
     --out "$OUT/models.log" --coverage "$OUT/model/coverage"
   FORMAL_MODEL="$OUT/model" "$ROOT/formal/check.sh" --gates | tee -a "$OUT/models.log"
+  # The proof job's shards each kept their own report: every module proved
+  # by exactly one of them, the tables' sum over all (proof_shards.py).
+  if [ -d "$OUT/proof-shards" ]; then
+    echo "══ PROOFS: every shard's report, each module once ══"
+    cat "$OUT"/proof-shards/*/proofs.log >"$OUT/proofs.log"
+    python3 -I "$ROOT/formal/proofs/proof_shards.py" merge --model "$OUT/model" \
+      --proofs "$ROOT/formal/proofs" "$OUT"/proof-shards/*/proofs.log | tee -a "$OUT/proofs.log"
+  fi
   echo "══ LEVELS: verification only grows (formal/levels.tsv) ══"
   logs=(--models "$OUT/models.log" --steps "$OUT/steps.log" --proofs "$OUT/proofs.log")
   python3 -I "$ROOT/formal/levels.py" "$ROOT/formal/levels.tsv" "${logs[@]}" --out "$OUT/levels.tsv"
