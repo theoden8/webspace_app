@@ -1171,8 +1171,6 @@
   "networkInterfaceHttpsLock": "HTTPS proxy ga još ne može koristiti",
   "appSettingsExperimentalNetworkInterface": "Mrežni interfejs po stranici",
   "appSettingsExperimentalNetworkInterfaceHint": "Omogućava svakoj stranici da na svom ekranu Mreža izabere mrežni interfejs kroz koji njen promet izlazi, poput tunela jednog od nekoliko VPN-ova. Stranica čiji je interfejs isključen ne učitava ništa umjesto da koristi drugu vezu.",
-  "appSettingsExperimentalServiceWorkers": "Service workeri kroz blokatore",
-  "appSettingsExperimentalServiceWorkersHint": "Gdje svaka stranica ima vlastiti kontejner, service workeri stranice (pozadinske skripte koje neke stranice koriste za stranice van mreže, keširanje i ažuriranja) učitavaju se kroz DNS listu blokiranja, liste filtera i LocalCDN te stranice i mogu pristupiti mreži. Stupa na snagu pri sljedećem pokretanju aplikacije.",
   "appSettingsExperimentalWebKitBlockReports": "WebKitovo brojanje blokiranja",
   "appSettingsExperimentalWebKitBlockReportsHint": "Broji svaki zahtjev koji WebKitove liste filtera blokiraju, onako kako ga WebKit prijavi, uključujući one koje stranica nikad ne vidi, poput slika iz stilova i beacona. Koristi WebKitov interfejs koji Apple ne objavljuje, pa se nudi samo izvan App Storea. Stupa na snagu pri sljedećem pokretanju aplikacije.",
   "appSettingsExtensions": "Proširenja",

@@ -1171,8 +1171,6 @@
   "networkInterfaceHttpsLock": "פרוקסי HTTPS עדיין לא יכול להשתמש בממשק",
   "appSettingsExperimentalNetworkInterface": "ממשק רשת לכל אתר",
   "appSettingsExperimentalNetworkInterfaceHint": "מאפשר לכל אתר לבחור במסך הרשת שלו את ממשק הרשת שדרכו התעבורה שלו יוצאת, כמו המנהרה של VPN אחד מתוך כמה. אתר שהממשק שלו מושבת לא טוען דבר במקום להשתמש בחיבור אחר.",
-  "appSettingsExperimentalServiceWorkers": "Service workers דרך החוסמים",
-  "appSettingsExperimentalServiceWorkersHint": "כאשר לכל אתר יש מכל משלו, ה-service workers של אתר (הסקריפטים ברקע שאתרים מסוימים משתמשים בהם לדפים לא מקוונים, לשמירה במטמון ולעדכונים) נטענים דרך רשימת החסימה של DNS, רשימות הסינון ו-LocalCDN של אותו אתר, ויכולים להגיע לרשת. נכנס לתוקף בהפעלה הבאה של האפליקציה.",
   "appSettingsExperimentalWebKitBlockReports": "ספירת החסימות של WebKit",
   "appSettingsExperimentalWebKitBlockReportsHint": "סופר כל בקשה שרשימות הסינון של WebKit חוסמות, כפי ש-WebKit מדווח עליה, כולל בקשות שהדף לעולם אינו רואה, כמו תמונות מגיליונות סגנון ומשואות. משתמש בממשק של WebKit ש-Apple אינה מפרסמת, ולכן מוצע רק מחוץ ל-App Store. נכנס לתוקף בהפעלה הבאה של האפליקציה.",
   "appSettingsExtensions": "תוספים",

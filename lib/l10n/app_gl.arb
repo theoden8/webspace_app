@@ -1171,8 +1171,6 @@
   "networkInterfaceHttpsLock": "Un proxy HTTPS aínda non pode usar unha",
   "appSettingsExperimentalNetworkInterface": "Interface de rede por sitio",
   "appSettingsExperimentalNetworkInterfaceHint": "Permite que cada sitio escolla na súa pantalla Rede a interface de rede pola que sae o seu tráfico, como o túnel dunha VPN entre varias. Un sitio coa interface caída non carga nada en vez de usar outra conexión.",
-  "appSettingsExperimentalServiceWorkers": "Service workers a través dos bloqueadores",
-  "appSettingsExperimentalServiceWorkersHint": "Onde cada sitio ten o seu propio contedor, os service workers dun sitio (os scripts en segundo plano que algúns sitios usan para páxinas sen conexión, caché e actualizacións) cárganse a través da lista de bloqueo DNS, as listas de filtros e o LocalCDN dese sitio, e poden acceder á rede. Aplícase a próxima vez que se inicie a aplicación.",
   "appSettingsExperimentalWebKitBlockReports": "Reconto de bloqueos de WebKit",
   "appSettingsExperimentalWebKitBlockReportsHint": "Conta cada solicitude que bloquean as listas de filtros de WebKit tal como WebKit a informa, incluídas as que a páxina nunca ve, como imaxes de follas de estilo e balizas. Usa unha interface de WebKit que Apple non publica, polo que só se ofrece fóra da App Store. Aplícase a próxima vez que se inicie a aplicación.",
   "appSettingsExtensions": "Extensións",

@@ -1171,8 +1171,6 @@
   "networkInterfaceHttpsLock": "Një proxy HTTPS nuk mund ta përdorë ende",
   "appSettingsExperimentalNetworkInterface": "Ndërfaqe rrjeti për çdo sit",
   "appSettingsExperimentalNetworkInterfaceHint": "I lejon çdo siti të zgjedhë në ekranin e vet Rrjeti ndërfaqen e rrjetit përmes së cilës del trafiku i tij, si tunelin e një prej disa VPN-ve. Një sit me ndërfaqe të fikur nuk ngarkon asgjë në vend që të përdorë një lidhje tjetër.",
-  "appSettingsExperimentalServiceWorkers": "Service workers përmes bllokuesve",
-  "appSettingsExperimentalServiceWorkersHint": "Kur çdo sajt ka kontejnerin e vet, service workers e një sajti (skriptet në sfond që disa sajte përdorin për faqe jashtë linje, ruajtje në memorie dhe përditësime) ngarkohen përmes listës së bllokimit DNS, listave të filtrave dhe LocalCDN të atij sajti, dhe mund të arrijnë rrjetin. Hyn në fuqi herën tjetër që niset aplikacioni.",
   "appSettingsExperimentalWebKitBlockReports": "Numërimi i bllokimeve të WebKit",
   "appSettingsExperimentalWebKitBlockReportsHint": "Numëron çdo kërkesë që listat e filtrave të WebKit bllokojnë ashtu siç e raporton WebKit, përfshirë ato që faqja nuk i sheh kurrë, si imazhet nga fletët e stilit dhe sinjalizuesit. Përdor një ndërfaqe të WebKit që Apple nuk e publikon, ndaj ofrohet vetëm jashtë App Store. Hyn në fuqi herën tjetër që niset aplikacioni.",
   "appSettingsExtensions": "Shtesat",
