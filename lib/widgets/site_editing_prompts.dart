@@ -14,11 +14,28 @@ import 'package:webspace/services/suggested_sites_service.dart'
     as suggested_sites;
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/site_field.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/edit_site_dialog.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/webspace_chips.dart';
+
+/// The review's label for each protection toggle it names (QR-008). The keys
+/// are exactly the [SiteField]s carrying a [QrReview]; `qr_review_prompt_test`
+/// asserts that correspondence, so a marked field without a label fails there.
+Map<SiteField, String> qrReviewLabels(AppLocalizations loc) => {
+      SiteField.trackingProtectionEnabled: loc.siteSettingsTrackingProtection,
+      SiteField.clearUrlEnabled: loc.siteSettingsClearUrls,
+      SiteField.dnsBlockEnabled: loc.siteSettingsDnsBlocklist,
+      SiteField.contentBlockEnabled: loc.siteSettingsContentBlocker,
+      SiteField.localCdnEnabled: loc.siteSettingsLocalCdn,
+      SiteField.httpsUpgradeEnabled: loc.siteSettingsHttpsUpgrade,
+      SiteField.lockdownModeEnabled: loc.siteSettingsLockdownMode,
+      SiteField.thirdPartyCookiesEnabled: loc.siteSettingsThirdPartyCookies,
+      SiteField.notificationsEnabled: loc.siteSettingsNotifications,
+      SiteField.backgroundAudioEnabled: loc.siteSettingsBackgroundAudio,
+    };
 
 /// [SiteEditingPrompts] as the add-site screen and dialogs over the page that
 /// owns [context]. The add-site screen also edits the suggested sites, which
@@ -95,13 +112,15 @@ class DialogSiteEditingPrompts implements SiteEditingPrompts {
         : proxy.type.name;
     bool turnsOff(String key) => qr[key] == false;
     bool turnsOn(String key) => qr[key] == true;
+    // Every simple boolean protection toggle the review names is enumerated by
+    // its SiteField.review, so a newly carried one cannot disable a protection
+    // the dialog leaves unnamed (QR-008). A label missing falls back to the
+    // field key: the review errs toward disclosure, never silence.
+    final labels = qrReviewLabels(loc);
     final weakened = <String>[
-      if (turnsOff('trackingProtectionEnabled'))
-        loc.siteSettingsTrackingProtection,
-      if (turnsOff('clearUrlEnabled')) loc.siteSettingsClearUrls,
-      if (turnsOff('dnsBlockEnabled')) loc.siteSettingsDnsBlocklist,
-      if (turnsOff('contentBlockEnabled')) loc.siteSettingsContentBlocker,
-      if (turnsOff('localCdnEnabled')) loc.siteSettingsLocalCdn,
+      for (final f in SiteField.values)
+        if (f.review == QrReview.weakenedWhenOff && turnsOff(f.key))
+          labels[f] ?? f.key,
       // A level below the app-wide one, or a filter list switched off, weakens
       // the blockers without turning either toggle off. Unnamed, a QR could
       // relax protection while the review reported nothing.
@@ -113,10 +132,9 @@ class DialogSiteEditingPrompts implements SiteEditingPrompts {
         loc.siteSettingsContentBlockerLists,
     ];
     final granted = <String>[
-      if (turnsOn('thirdPartyCookiesEnabled'))
-        loc.siteSettingsThirdPartyCookies,
-      if (turnsOn('notificationsEnabled')) loc.siteSettingsNotifications,
-      if (turnsOn('backgroundAudioEnabled')) loc.siteSettingsBackgroundAudio,
+      for (final f in SiteField.values)
+        if (f.review == QrReview.grantedWhenOn && turnsOn(f.key))
+          labels[f] ?? f.key,
       if (resolveKiosk(
           stored: turnsOn('kioskMode'),
           shortcutsOffered: ShortcutService.offered))

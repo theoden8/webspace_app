@@ -326,10 +326,13 @@ entry points cross it: the in-app scanner / paste dialog
 `webspace://qr/` deep link handled by `_handleShareIntent`. The dialog
 SHALL show the payload's `initUrl`, its `name`, its proxy address when the
 payload sets a non-DEFAULT proxy, the protections the payload switches off
-(Tracking Protection, ClearURLs, DNS Blocklist, Content Blocker, LocalCDN)
-and the permissions or modes it switches on
+(Tracking Protection, ClearURLs, DNS Blocklist, Content Blocker, LocalCDN,
+HTTPS upgrade, Lockdown Mode) and the permissions or modes it switches on
 (third-party cookies, Notifications, Background audio, Kiosk mode,
-Geolocation), and SHALL require an explicit accept. A payload's
+Geolocation), and SHALL require an explicit accept. The switched-off and
+switched-on lists SHALL be derived from the `SiteField.review` enumeration,
+not a hand-kept list, so that a newly QR-carried protection toggle cannot
+disable a protection the dialog leaves unnamed. A payload's
 `blockAutoRedirects`, written by builds that had the switch, is ignored:
 every site blocks gesture-less cross-domain navigations (NESTED-004), so it
 turns nothing off.
@@ -364,6 +367,16 @@ payload sets `trackingProtectionEnabled: false` and a SOCKS5 proxy
 **Then** a review dialog is shown naming the URL, the name, the proxy
 address, and "Tracking Protection" as a protection being turned off
 **And** no `WebViewModel` exists until the user accepts
+
+#### Scenario: A payload disabling HTTPS upgrade or Lockdown Mode is named
+
+**Given** a payload that sets `trackingProtectionEnabled: false`,
+`httpsUpgradeEnabled: false` and `lockdownModeEnabled: false`
+**When** the review dialog is shown
+**Then** it names "HTTPS upgrade" and "Lockdown Mode" among the protections
+the payload turns off, not only "Tracking Protection"
+**And** neither is left for the user to discover only after the cleartext
+navigation or the dropped WebKit hardening
 
 #### Scenario: A payload that only weakens the blockers is still named
 
