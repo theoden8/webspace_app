@@ -53,6 +53,10 @@ class _Host implements BackgroundWakeHost<SiteId> {
   final Map<String, WakeSkip> blocked = {};
   final Map<String, _Route> routes = {};
   final Map<String, WakeSkip> refuseOpen = {};
+
+  /// The sites whose check the platform refuses to dispose: the check is
+  /// gone from the host all the same, as `ProcessRoute.vacate` leaves it.
+  final Set<String> refuseClose = {};
   bool routeApplies = true;
   bool titleThrows = false;
   DateTime _now = DateTime(2026, 9, 26, 12);
@@ -146,6 +150,9 @@ class _Host implements BackgroundWakeHost<SiteId> {
   Future<void> closeHeadless(String siteId) async {
     events.add('close $siteId');
     headless.remove(siteId);
+    if (refuseClose.contains(siteId)) {
+      throw HeadlessCloseFailure('$siteId refused');
+    }
   }
 
   bool _reachable(String siteId) =>
@@ -575,6 +582,22 @@ void main() {
       await expectLater(BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker).wake(host), throwsStateError);
       expect(host.headless, isEmpty);
       expect(host.events, containsAll(['close a', 'close b']));
+    });
+
+    test('two refused disposes in a row leave no check running and the '
+        'route given back (NOTIF-021)', () async {
+      final host = _Host({
+        'a': _Page(titleBefore: null, titleAfter: null),
+        'b': _Page(titleBefore: null, titleAfter: null),
+        'c': _Page(titleBefore: null, titleAfter: null),
+      }, live: {})
+        ..refuseClose.addAll({'a', 'b'});
+      await BackgroundWakeEngine<SiteId>(task: WakeTask.androidWorker).wake(host);
+      expect(host.headless, isEmpty);
+      expect(host.vars.headless.value, isEmpty);
+      expect(host.events, containsAll(['close a', 'close b', 'close c']));
+      expect(host.events.last, 'release route',
+          reason: 'the loaded sites get their route back after the last close');
     });
 
     test('back on screen mid-wake: the checks close and no other opens',

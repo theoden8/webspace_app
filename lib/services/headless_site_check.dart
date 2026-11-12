@@ -276,8 +276,21 @@ class HeadlessSiteCheck {
       }
     }
     final viewId = _controller?.getViewId();
-    await _webview.dispose();
+    // A dispose the platform refuses still ends the check, and the rule
+    // waits out the view as for any: the wake's close takes the refusal
+    // as its arm and goes on to the rest (NOTIF-021).
+    HeadlessCloseFailure? refused;
+    try {
+      await _webview.dispose();
+    } on PlatformException catch (e) {
+      // The native view may outlive a refused dispose; the rule moves after
+      // untilDestroyed's wait all the same (NOTIF-021's known limit).
+      LogTag.backgroundTask
+          .warning('a check was not disposed: $e', sensitive: true);
+      refused = HeadlessCloseFailure('$e');
+    }
     await ProcessRoute.untilDestroyed(webViewDestroyed(viewId),
         what: 'a background check');
+    if (refused != null) throw refused;
   }
 }

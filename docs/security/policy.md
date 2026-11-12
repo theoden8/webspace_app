@@ -68,7 +68,7 @@ reader of it.
 | R6 surfaces | a share, a capture or a prompt ends when its document, view or site leaves the screen | `lib/services/screen_share.dart`, `lib/services/media_grant_engine.dart` | SHARE-017, SHARE-018, CAM-011 |
 | R7 import | an imported file creates no authority: no `real` grant, no enabled script, no live location, no notification permission without a fresh local consent | `lib/settings_import_engine.dart`, `lib/controllers/archive_controller.dart` | BACKUP-010, BACKUP-011, BACKUP-013, BACKUP-016, ARCH-015 |
 | R8 identity uniqueness | two site records never share a container or an id, and a removed site leaves no container behind | `lib/settings/site_ids.dart`, `lib/settings_import_engine.dart`, `lib/controllers/archive_controller.dart`, `lib/services/archive_ids.dart` | ARCH-007, ARCH-016, CONT-010, CONT-012 |
-| R9 routes | a site behind a proxy or Tor never loads direct, nor on another site's route | `lib/services/process_route.dart`, `lib/services/outbound_http_types.dart` | PROXY-008, LEAK-002, LEAK-003 |
+| R9 routes | a site behind a proxy or Tor never loads direct, nor on another site's route | `lib/services/process_route.dart`, `lib/services/outbound_http_types.dart` | PROXY-008, LEAK-002, LEAK-003, NOTIF-021 |
 | R10 navigation | a frame cannot steer the top document; a gesture-less cross-domain hop is refused; a popup kind is decided by the app, not the page | `lib/services/navigation_decision_engine.dart`, `lib/services/popup_webview.dart` | NESTED-013, CAPTCHA-007 |
 
 The asynchronous cases follow from R2 and R5:

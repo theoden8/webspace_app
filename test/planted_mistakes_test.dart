@@ -298,6 +298,12 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [Background(), Wake()],
     breaks: 'the process-wide proxy moved under headless',
   ),
+  Mutant.wakeendsearly => _By(
+    world: (d) => _wakeWorld(declared: d, nestedOpens: false),
+    setup: const [],
+    script: const [Background(), Wake()],
+    breaks: 'NOTIF-021: a wake leaves no headless check running',
+  ),
   Mutant.wakebesidetap => _By(
     world: (d) => _wakeWorld(declared: d, nestedOpens: false),
     setup: const [],

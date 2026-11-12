@@ -352,11 +352,15 @@ enum ActivationStep {
     severalAwaits: _wakeMiddle,
   ),
 
-  /// One check disposed and gone from the rule; the last ends the wake.
+  /// One check disposed, or its dispose refused, and gone from the rule
+  /// either way (NOTIF-021).
   wakeCloseReply(
-    outcomes: {StepOutcome.end, StepOutcome.more},
+    outcomes: {StepOutcome.go, StepOutcome.refused},
     calls: {PlatformCall.headlessClose},
   ),
+
+  /// The next check to close, or the wake's end once none is left.
+  wakeCloseNext(outcomes: {StepOutcome.end, StepOutcome.more}),
 
   /// A DNS level's list asked for (DnsBlockService, DNS-019, DNS-021): as
   /// the app-wide level, or as one more a site may run at. Each change of

@@ -432,6 +432,10 @@ Inv_OneRoute ==
 \* site the user opens next never moves the rule under one still loading.
 Inv_ChecksOffScreen == fore => headless = {}
 
+\* NOTIF-016: a headless check runs only while the wake that opened it is
+\* in flight, so no site is left running unattended once the wake ends.
+Inv_HeadlessOwned == headless # {} => \E g \in Flows : fl[g].kind = "wake"
+
 \* Every live webview's interceptor runs the level its site resolves to
 \* under the lists in force, whatever landed since it was built (DNS-022):
 \* a fold tells each view as the partition and the app-wide level move
@@ -466,6 +470,11 @@ WakesUp == TRUE
 \* The refusing jar's config: any read, nuke or write of the shared jar may
 \* be refused (ISO-014).
 JarCanRefuse == TRUE
+\* The refusing close's config: the platform may refuse to dispose any
+\* headless check (NOTIF-021).
+HeadlessCloseCanRefuse == TRUE
+\* ... and to open one (NOTIF-016).
+HeadlessOpenCanRefuse == TRUE
 \* The refusing rule's config: the platform refuses every move of the
 \* process-wide proxy rule (PROXY-008); the offline config's device answers
 \* offline (WEBSPACE-013).
