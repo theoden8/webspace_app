@@ -43,8 +43,12 @@ runs:
           ~/.android/adb*
         key: avd-api${{ inputs.api-level }}-x86_64-${{ inputs.target == 'default' && 'aosp' || inputs.target }}-${{ inputs.profile }}-v1
 
+    # The runner's closing `adb emu kill` exits 255 once the emulator has
+    # saved the snapshot it writes on exit, failing this step after its work
+    # is done; the check below holds it to the snapshot instead.
     - name: Pre-warm AVD snapshot
       if: steps.avd-cache.outputs.cache-hit != 'true'
+      continue-on-error: true
       uses: reactivecircus/android-emulator-runner@v2
       with:
         api-level: ${{ inputs.api-level }}
@@ -56,3 +60,13 @@ runs:
         emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
         disable-animations: true
         script: echo "Generated AVD snapshot for caching."
+
+    - name: Check the pre-warmed snapshot
+      if: steps.avd-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        snap=~/.android/avd/test.avd/snapshots/default_boot
+        if [ -z "$(ls -A "$snap" 2>/dev/null)" ]; then
+          echo "::error::the pre-warm left no snapshot at $snap"
+          exit 1
+        fi
