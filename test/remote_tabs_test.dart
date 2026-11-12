@@ -101,7 +101,7 @@ void main() {
     await _press(tester, key: LogicalKeyboardKey.enter);
     expect(opened, ['Beta']);
 
-    expect(find.byKey(RemoteControls.ringKey), findsNothing,
+    expect(find.byKey(KeyNavigation.ringKey), findsNothing,
         reason: 'a chip outlines itself, inside its margin');
   });
 

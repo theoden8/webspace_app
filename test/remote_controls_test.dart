@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/page_focus.dart';
+import 'package:webspace/services/remote_input.dart';
 import 'package:webspace/widgets/remote_controls.dart';
 
-/// [home] in an app wrapped as `app.dart` wraps it where a remote drives the
-/// device; [remote] false leaves it as every other device has it.
-Widget _app(Widget home, {bool remote = true}) => MaterialApp(
-      builder: remote
-          ? (context, child) => RemoteControls(child: child!)
-          : null,
+/// What `app.dart` wraps the navigator in: a remote's keys, a desktop's, or
+/// none, as a phone has it.
+enum _Keys { remote, desktop, none }
+
+Widget _app(Widget home, {_Keys keys = _Keys.remote}) => MaterialApp(
+      builder: switch (keys) {
+        _Keys.remote => (context, child) => RemoteControls(child: child!),
+        _Keys.desktop => (context, child) => KeyNavigation(child: child!),
+        _Keys.none => null,
+      },
       home: Scaffold(body: home),
     );
 
-final _ring = find.byKey(RemoteControls.ringKey);
+final _ring = find.byKey(KeyNavigation.ringKey);
 
 void main() {
   late FocusNode field;
@@ -38,7 +44,7 @@ void main() {
   testWidgets(
       'a one-line field keeps Up and Down on every other device, so a remote '
       'is stuck in it', (tester) async {
-    await tester.pumpWidget(_app(form(), remote: false));
+    await tester.pumpWidget(_app(form(), keys: _Keys.none));
     field.requestFocus();
     await tester.pump();
 
@@ -78,7 +84,7 @@ void main() {
     testWidgets('takes Down as a change of its value on every other device',
         (tester) async {
       final values = <double>[];
-      await tester.pumpWidget(_app(settings(onChanged: values.add), remote: false));
+      await tester.pumpWidget(_app(settings(onChanged: values.add), keys: _Keys.none));
       slider.requestFocus();
       await tester.pump();
 
@@ -121,7 +127,7 @@ void main() {
 
     testWidgets('comes up as focus lands on a field on every other device',
         (tester) async {
-      await tester.pumpWidget(_app(form(), remote: false));
+      await tester.pumpWidget(_app(form(), keys: _Keys.none));
       below.requestFocus();
       await tester.pump();
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
@@ -283,5 +289,110 @@ void main() {
 
     expect(tester.getRect(_ring), before.translate(0, -40));
     expect(tester.getRect(_ring), target.rect);
+  });
+  group('on a desktop (NAV-021)', () {
+    testWidgets('chromeKeys gives a desktop the keyboard\'s keys and a remote '
+        'its own (NAV-021)', (tester) async {
+      expect(hostIsDesktop, isTrue, reason: 'the tests run on a desktop');
+      expect(chromeKeys(const SizedBox()), isA<KeyNavigation>());
+      RemoteInput.debugDrivenOverride = true;
+      addTearDown(() => RemoteInput.debugDrivenOverride = null);
+      expect(chromeKeys(const SizedBox()), isA<RemoteControls>());
+    });
+
+    testWidgets('Up and Down leave a one-line text field (NAV-021)',
+        (tester) async {
+      await tester.pumpWidget(_app(form(), keys: _Keys.desktop));
+      field.requestFocus();
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+      expect(below.hasPrimaryFocus, isTrue);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pump();
+      expect(field.hasPrimaryFocus, isTrue);
+    });
+
+    testWidgets('a slider leaves Down to the focus moves (NAV-021)',
+        (tester) async {
+      final slider = FocusNode(debugLabel: 'slider');
+      addTearDown(slider.dispose);
+      final values = <double>[];
+      await tester.pumpWidget(_app(
+        Column(children: [
+          Slider(focusNode: slider, value: 0.5, onChanged: values.add),
+          TextButton(focusNode: below, onPressed: () {}, child: const Text('go')),
+        ]),
+        keys: _Keys.desktop,
+      ));
+      slider.requestFocus();
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+
+      expect(values, hasLength(1));
+      expect(below.hasPrimaryFocus, isTrue);
+    });
+
+    testWidgets('a disabled control takes focus (NAV-021)', (tester) async {
+      final locked = FocusNode(debugLabel: 'locked');
+      addTearDown(locked.dispose);
+      await tester.pumpWidget(_app(
+        Column(children: [
+          TextButton(focusNode: below, onPressed: () {}, child: const Text('go')),
+          TextButton(focusNode: locked, onPressed: null, child: const Text('no')),
+        ]),
+        keys: _Keys.desktop,
+      ));
+      below.requestFocus();
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+
+      expect(locked.hasPrimaryFocus, isTrue);
+    });
+
+    testWidgets('an outline marks what a key moved focus to (NAV-021)',
+        (tester) async {
+      await tester.pumpWidget(_app(form(), keys: _Keys.desktop));
+      field.requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+      await tester.pump();
+
+      expect(_ring, findsOneWidget);
+      expect(tester.getRect(_ring), below.rect);
+    });
+
+    testWidgets('the keyboard comes up in a field and Enter is the field\'s '
+        '(NAV-021)', (tester) async {
+      final submitted = <String>[];
+      await tester.pumpWidget(_app(
+        Column(children: [
+          TextField(focusNode: field, onSubmitted: submitted.add),
+          TextButton(focusNode: below, onPressed: () {}, child: const Text('go')),
+        ]),
+        keys: _Keys.desktop,
+      ));
+      below.requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pump();
+      expect(field.hasPrimaryFocus, isTrue);
+      expect(tester.testTextInput.isVisible, isTrue);
+      expect(tester.testTextInput.setClientArgs?['inputType'],
+          isNot(containsPair('name', 'TextInputType.none')));
+
+      await tester.enterText(find.byType(TextField), 'abc');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      expect(submitted, ['abc']);
+    });
   });
 }

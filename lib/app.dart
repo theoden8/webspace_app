@@ -10,7 +10,6 @@ import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/widgets/caption_tint.dart';
 import 'package:webspace/widgets/remote_controls.dart';
-import 'package:webspace/services/remote_input.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/screens/webspace_page.dart';
 
@@ -60,7 +59,7 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
       scaffoldMessengerKey: rootScaffoldMessengerKey,
       builder: (context, child) {
         final app = CaptionTint(child: child ?? const SizedBox.shrink());
-        return RemoteInput.driven ? RemoteControls(child: app) : app;
+        return chromeKeys(app);
       },
       theme: buildAppTheme(accentColor, brightness: Brightness.light),
       darkTheme: buildAppTheme(accentColor, brightness: Brightness.dark),
