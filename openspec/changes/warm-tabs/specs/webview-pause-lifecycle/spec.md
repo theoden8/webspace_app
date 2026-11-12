@@ -4,17 +4,17 @@
 
 When the OS signals memory pressure via `WidgetsBindingObserver.didHaveMemoryPressure` while the app is resumed (PAUSE-034), the system SHALL promote one live webview by one tier per event, cascading through three states from least to most aggressive: `resident` → `cacheCleared` → `savedForRestore`. A webview is a site's active webview or a warm tab's (TAB-002); a warm tab's webview reaching `savedForRestore` is disposed and parks the tab, its state already captured as it went warm (TAB-028).
 
-The cascade is owned by [`SiteLifecyclePromotionEngine`](../../../lib/services/site_lifecycle_promotion_engine.dart), a pure-Dart picker that:
+The cascade is owned by [`SiteLifecyclePromotionEngine`](../../../../../lib/services/site_lifecycle_promotion_engine.dart), a pure-Dart picker that:
 
 - Walks tiers from least to most aggressive (`resident` first, then `cacheCleared`).
 - Within a tier, takes warm tabs before any active webview, in the order TAB-024 gives (warm tabs of other sites, hosted first, then warm tabs listed under the site on screen), then evicts out-of-active-webspace sites before in-webspace sites.
 - Within a (tier, keep) bucket, picks the LRU oldest first.
-- Never picks the active site (`SiteRuntime.current`) or the in-flight activation target (`SiteRuntime.activating`): `SiteRetentionPriority.evictable` is false for both, and every picker takes its candidates through [`evictionOrder`](../../../lib/services/site_retention_priority.dart), which leaves them out.
-- Treats `savedForRestore` as terminal — those sites are no longer in `_sites.loaded`, but their state lives in [`WebViewStateStorage`](../../../lib/services/webview_state_storage.dart) keyed by `siteId`.
+- Never picks the active site (`SiteRuntime.current`) or the in-flight activation target (`SiteRuntime.activating`): `SiteRetentionPriority.evictable` is false for both, and every picker takes its candidates through [`evictionOrder`](../../../../../lib/services/site_retention_priority.dart), which leaves them out.
+- Treats `savedForRestore` as terminal — those sites are no longer in `_sites.loaded`, but their state lives in [`WebViewStateStorage`](../../../../../lib/services/webview_state_storage.dart) keyed by `siteId`.
 
 The OS controls the curve: if pressure persists, the callback fires again and the next victim is promoted. One-per-event matches the OS signaling cadence and avoids over-evicting on transient pressure (e.g. another app's foreground spike).
 
-**Formal model:** the picker's selection invariants are model-checked in [formal/retention.tla](../../../formal/retention.tla): `Inv_CurrentKept` (the active site is never evicted) and `Inv_NotifLast` (higher-retention sites — e.g. notification sites in `SiteRetentionPriority` — are evicted only after every lower-retention non-active site is gone). The `starve` demonstrator evicts a retained site early and TLC rejects it. The model abstracts the per-site `resident → cacheCleared → savedForRestore` promotion as a binary loaded/evicted over one monotone pressure episode.
+**Formal model:** the picker's selection invariants are model-checked in [formal/retention.tla](../../../../../formal/retention.tla): `Inv_CurrentKept` (the active site is never evicted) and `Inv_NotifLast` (higher-retention sites — e.g. notification sites in `SiteRetentionPriority` — are evicted only after every lower-retention non-active site is gone). The `starve` demonstrator evicts a retained site early and TLC rejects it. The model abstracts the per-site `resident → cacheCleared → savedForRestore` promotion as a binary loaded/evicted over one monotone pressure episode.
 
 #### Scenario: First memory pressure event clears cache without losing state
 
@@ -93,7 +93,7 @@ The load ordering differs by platform because the restore APIs differ. On iOS/ma
 **And** the user has just activated A — `activate` is mid-flight, awaiting `_stateStorage.loadState`
 **When** `didHaveMemoryPressure` fires
 **Then** the picker excludes A from the candidate iteration
-The handler applies the plan [`SiteUnloadEngine.plan`](../../../lib/services/site_unload_engine.dart) gives for `MemoryPressure`: a cache clear for a `resident` victim, an unload for a `cacheCleared` one. Every other residency decision (activation, a webspace switch, a settled Tor exit, a nested open, a slot's identity change) is a `ResidencyEvent` case of the same plan, applied by `SiteUnloadEngine.apply`, which follows each site by identity and skips one no longer loaded when its turn comes.
+The handler applies the plan [`SiteUnloadEngine.plan`](../../../../../lib/services/site_unload_engine.dart) gives for `MemoryPressure`: a cache clear for a `resident` victim, an unload for a `cacheCleared` one. Every other residency decision (activation, a webspace switch, a settled Tor exit, a nested open, a slot's identity change) is a `ResidencyEvent` case of the same plan, applied by `SiteUnloadEngine.apply`, which follows each site by identity and skips one no longer loaded when its turn comes.
 
 **Because** `activate` records its target in `SiteRuntime.activating` (set synchronously before any await), and `SiteRuntime.retentionPriority` ranks it `activating` alongside the `active` current site. Without the in-flight guard, mid-activation eviction would dispose A's about-to-be-built webview, leaving `restoreState` to no-op against a null controller.
 
@@ -103,7 +103,7 @@ The handler applies the plan [`SiteUnloadEngine.plan`](../../../lib/services/sit
 **And** the unload is capturing A's navigation state, or on the shared jar its cookies
 **When** the user activates A before the capture returns
 **Then** the unload does not dispose A and A stays loaded
-**Because** an unload whose reason picks by retention priority (`UnloadReason.pickedByPriority`: memory pressure, the loaded-site cap) asks `priorityOf` again after its captures, with no await before the dispose, and backs off from a site that is no longer evictable. The pick alone cannot see an activation that begins after it. History: [BUG-033](../../../docs/bugs/033-eviction-disposes-the-activating-site.md).
+**Because** an unload whose reason picks by retention priority (`UnloadReason.pickedByPriority`: memory pressure, the loaded-site cap) asks `priorityOf` again after its captures, with no await before the dispose, and backs off from a site that is no longer evictable. The pick alone cannot see an activation that begins after it. History: [BUG-033](../../../../../docs/bugs/033-eviction-disposes-the-activating-site.md).
 
 #### Scenario: Pressure takes a warm tab before a background site
 
@@ -115,7 +115,7 @@ The handler applies the plan [`SiteUnloadEngine.plan`](../../../lib/services/sit
 
 ### Requirement: PAUSE-012 — Proactive Cache-Clear Threshold
 
-The system SHALL proactively promote the oldest webviews from `resident` to `cacheCleared` once the count of `resident`-tier live webviews (sites' active webviews and warm tabs, TAB-002) exceeds [`kMaxResidentSites`](../../../lib/services/site_lifecycle_promotion_engine.dart) (currently 10), without waiting for an OS memory-pressure event. This is the proactive complement to the reactive `SiteActivationController.memoryPressure` cascade — both call into the same priority hierarchy ([`SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets`](../../../lib/services/site_lifecycle_promotion_engine.dart) for proactive picks; the same out-of-keep ↦ in-keep, oldest-LRU-first rule, with warm tabs taken first as TAB-024 orders them).
+The system SHALL proactively promote the oldest webviews from `resident` to `cacheCleared` once the count of `resident`-tier live webviews (sites' active webviews and warm tabs, TAB-002) exceeds [`kMaxResidentSites`](../../../../../lib/services/site_lifecycle_promotion_engine.dart) (currently 10), without waiting for an OS memory-pressure event. This is the proactive complement to the reactive `SiteActivationController.memoryPressure` cascade — both call into the same priority hierarchy ([`SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets`](../../../../../lib/services/site_lifecycle_promotion_engine.dart) for proactive picks; the same out-of-keep ↦ in-keep, oldest-LRU-first rule, with warm tabs taken first as TAB-024 orders them).
 
 Why proactive: `didHaveMemoryPressure` doesn't fire reliably on Linux/desktop (no equivalent OS signal in WebKitGTK / WPE), and on iOS Jetsam is reactive — by the time pressure is signaled the OS may already be reclaiming. The threshold ensures every platform sees consistent memory hygiene regardless of OS signaling fidelity.
 

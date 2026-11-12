@@ -39,13 +39,13 @@ load and run concurrently with fully isolated cookies, `localStorage`,
   the webview if the user switches back
 
 The orchestration lives in
-[`SiteUnloadEngine.indicesToUnloadOnWebspaceSwitch`](../../../lib/services/site_unload_engine.dart),
+[`SiteUnloadEngine.indicesToUnloadOnWebspaceSwitch`](../../../../../lib/services/site_unload_engine.dart),
 which returns `{}` when `useContainers == true` and delegates to the
 legacy `WebspaceSelectionEngine` otherwise. To prevent unbounded growth
 under this policy, two backstops apply:
 
 1. **LRU cap**
-   ([`kMaxLoadedSites`](../../../lib/services/site_unload_engine.dart),
+   ([`kMaxLoadedSites`](../../../../../lib/services/site_unload_engine.dart),
    currently 20), counted in live webviews: a site's active webview
    and each warm tab (TAB-002). Activation evicts least-recently-used
    webviews when adding the new one would exceed the cap, warm tabs
@@ -56,7 +56,7 @@ under this policy, two backstops apply:
    (`WidgetsBindingObserver.didHaveMemoryPressure`). Each event
    promotes one site one lifecycle tier deeper through the activation
    table's pressure plan, which picks from
-   [`ActivationTable.pressureResident`](../../../lib/controllers/activation_table.dart),
+   [`ActivationTable.pressureResident`](../../../../../lib/controllers/activation_table.dart),
    else `pressureCleared` (see webview-pause-lifecycle). The OS controls the curve: if
    pressure persists, the callback fires again and the next site is
    picked. One-per-event matches
