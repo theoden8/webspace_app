@@ -239,8 +239,10 @@ List<PrintedFile> printedModels({required List<String> handWritten}) => [
   ...activationTypesProofs(
     tables: {
       for (final m in ModelTable.values)
-        m.name: _table(tables, of: m)
-            .flSteps(entered: _entered(tables), starts: _starts(tables)),
+        m.name: _table(
+          tables,
+          of: m,
+        ).flSteps(entered: _entered(tables), starts: _starts(tables)),
     },
     definitions: tlaDefinitions([
       activationVars(),
@@ -459,9 +461,10 @@ List<({ActivationStep step, ComposedAction action})> stepActions(Tables t) {
             armed: {
               for (final v in f.writes)
                 if ([
-                  for (final a in f.arms)
-                    if (a.writes.contains(v)) a.needs,
-                ] case final by when by.length < f.arms.length)
+                      for (final a in f.arms)
+                        if (a.writes.contains(v)) a.needs,
+                    ]
+                    case final by when by.length < f.arms.length)
                   v: by.reduce((x, y) => x.intersection(y)),
             },
           ),
@@ -722,10 +725,12 @@ String activationCalm(Tables t) {
       f.arms.any((a) => a.ends || a.fields.contains(row.field));
   bool readsRowOf(Footprint a, {required Footprint of}) {
     final r = _resolved(a.reads, seen: const {});
-    return {...r.rows, for (final o in r.base) ...o.rows}.any(
-      (row) => writesRow(of, row: row),
-    );
+    return {
+      ...r.rows,
+      for (final o in r.base) ...o.rows,
+    }.any((row) => writesRow(of, row: row));
   }
+
   bool meets(Footprint a, {required Footprint b}) {
     final wa = a.writes.difference(own), wb = b.writes.difference(own);
     return wa.any({...read(b), ...wb}.contains) ||
@@ -734,12 +739,18 @@ String activationCalm(Tables t) {
         readsRowOf(b, of: a);
   }
 
-  final between = [for (final f in all) if (internal.contains(f.place)) f];
+  final between = [
+    for (final f in all)
+      if (internal.contains(f.place)) f,
+  ];
   return [
     '# reply\trests on run-to-completion\tsteps between two awaits it meets',
     for (final f in all)
       if (f.turn == StepTurn.reply)
-        if ({for (final b in between) if (meets(f, b: b)) b.step.action}
+        if ({
+              for (final b in between)
+                if (meets(f, b: b)) b.step.action,
+            }
             case final met)
           [
             f.step.action,
@@ -1143,11 +1154,13 @@ List<String> _rowsInd(
     "g > inputs' => fl'[g].pc = \"done\"",
     for (final p in places) "(${p.replaceAll(RegExp(r'\bf\b'), 'g')})'",
   ];
+  const numbers = 'g \\in Nat /\\ inputs \\in Nat';
+  const fresh = 'g > inputs => fl[g].pc = "done"';
   final before = [
-    'g \\in Nat /\\ inputs \\in Nat',
+    numbers,
     'g \\in DOMAIN fl /\\ DOMAIN fl[g] = DOMAIN NoFlow',
     '$fields \\subseteq DOMAIN fl[g]',
-    'g > inputs => fl[g].pc = "done"',
+    fresh,
     'NoFlow.pc = "done"',
     for (final p in places) p.replaceAll(RegExp(r'\bf\b'), 'g'),
   ];
@@ -1170,9 +1183,15 @@ List<String> _rowsInd(
     '        OBVIOUS',
     '      <3>4. g \\in Flows',
     '        OBVIOUS',
+    for (final (n, b) in before.indexed) ...[
+      '      <3>${10 + n}. $b',
+      '        BY ONLY <1>0, <3>4, <2>5 DEF IndInv, FlowsOK, Fresh, Inv_Places, Flows',
+    ],
     '      <3>0.',
     for (final b in before) '          /\\ ($b)',
-    '        BY ONLY <1>0, <3>4, <2>5 DEF IndInv, FlowsOK, Fresh, Inv_Places, Flows',
+    '        BY ONLY ${[for (var n = 0; n < before.length; n++) '<3>${10 + n}'].join(', ')}',
+    '      <3>5. $numbers /\\ ($fresh)',
+    '        BY ONLY <3>${10 + before.indexOf(numbers)}, <3>${10 + before.indexOf(fresh)}',
     for (final (n, c) in [
       'g = f',
       'g = inputs + 1',
@@ -1190,11 +1209,11 @@ List<String> _rowsInd(
         '          BY ONLY <3>0, <3>${n + 1}, <1>$arm, <1>3',
       '        <4>2. ${claims[1]}',
       if (n == 0)
-        '          BY ONLY <3>0, <3>1, <2>1'
+        '          BY ONLY <3>5, <3>1, <2>1'
       else if (n == 1)
-        '          BY ONLY <3>0, <3>2, <2>0 DEF Starts'
+        '          BY ONLY <3>5, <3>2, <2>0 DEF Starts'
       else
-        '          BY ONLY <3>0, <4>0, <2>1',
+        '          BY ONLY <3>5, <4>0, <2>1',
       if (n < 2) ...[
         '        <4>4. fl\'[g].pc \\in {${[for (final p in next) '"$p"'].join(', ')}}',
         '          BY ONLY <3>0, <3>${n + 1}, <1>$arm, <1>3',
