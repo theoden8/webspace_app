@@ -8,7 +8,7 @@ abstract interface class PageHost {
 
   /// A SnackBar, built only while the page is mounted.
   void toast(
-    String Function(AppLocalizations loc) message, {
+    Localized Function(AppLocalizations loc) message, {
     Duration duration,
     bool floating,
   });

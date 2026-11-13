@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 
 import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/log_service.dart';
@@ -243,18 +242,15 @@ class SettingsBackupService {
     return const JsonEncoder.withIndent('  ').convert(backup.toJson());
   }
 
-  static Future<bool> exportAndSave(
-    BuildContext context, {
+  /// Saves [backup] where the user picks, under a file dialog titled
+  /// [dialogTitle].
+  static Future<BackupSaved> exportAndSave({
     required SettingsBackup backup,
+    required String dialogTitle,
   }) async {
-    bool failed(Exception e, {required StackTrace stack}) {
+    BackupSaved failed(Exception e, {required StackTrace stack}) {
       LogTag.settingsBackup.error('Export failed: $e\n$stack');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export failed: $e')),
-        );
-      }
-      return false;
+      return const SaveFailed();
     }
 
     try {
@@ -269,27 +265,17 @@ class SettingsBackupService {
       final bool isMobile = !kIsWeb && (hostIsIOS || hostIsAndroid);
 
       final outputPath = await FileDialog.saveFile(
-        dialogTitle: 'Save Settings Backup',
+        dialogTitle: dialogTitle,
         fileName: defaultFileName,
         bytes: isMobile ? bytes : null,
       );
-
-      if (outputPath == null) {
-        // User cancelled
-        return false;
-      }
+      if (outputPath == null) return const SaveCancelled();
 
       if (!isMobile) {
         final filePath = outputPath.endsWith('.json') ? outputPath : '$outputPath.json';
         await hostWriteFileText(filePath, contents: jsonString);
       }
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Settings exported successfully')),
-        );
-      }
-      return true;
+      return const Saved();
     } on FileDialogFailure catch (e, stack) {
       return failed(e, stack: stack);
     } on IOException catch (e, stack) {
@@ -312,50 +298,34 @@ class SettingsBackupService {
     }
   }
 
-  static Future<SettingsBackup?> pickAndImport(BuildContext context) async {
-    SettingsBackup? failed(Exception e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Import failed: $e')),
-        );
-      }
-      return null;
+  /// The backup file the user picks, read and parsed.
+  static Future<BackupPicked> pickAndImport() async {
+    BackupPicked failed(Exception e) {
+      LogTag.settingsBackup.error('Import failed: $e');
+      return const BackupUnreadable();
     }
 
     try {
       final file = await FileDialog.pickFile(extensions: ['json']);
-      if (file == null) return null;
-      String jsonString;
-
+      if (file == null) return const PickCancelled();
+      final String jsonString;
       if (file.bytes != null) {
         // Web or platforms that provide bytes
         jsonString = utf8.decode(file.bytes!);
       } else if (file.path != null) {
         jsonString = await hostReadFileText(file.path!);
       } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Could not read the selected file')),
-          );
-        }
-        return null;
+        return const BackupUnreadable();
       }
-
-      final backup = importFromJson(jsonString);
-      if (backup == null) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Invalid backup file format')),
-          );
-        }
-        return null;
-      }
-
-      return backup;
+      return switch (importFromJson(jsonString)) {
+        final backup? => Picked(backup),
+        null => const NotABackup(),
+      };
     } on FileDialogFailure catch (e) {
       return failed(e);
-    } on FormatException catch (e) {
-      return failed(e);
+    } on FormatException {
+      // Bytes that do not decode as UTF-8: not a file this app wrote.
+      return const NotABackup();
     } on IOException catch (e) {
       return failed(e);
     }
@@ -371,4 +341,47 @@ class SettingsBackupService {
     }
     return webspaces;
   }
+}
+
+/// How saving a backup ended; the prompts say which.
+sealed class BackupSaved {
+  const BackupSaved();
+}
+
+final class Saved extends BackupSaved {
+  const Saved();
+}
+
+final class SaveCancelled extends BackupSaved {
+  const SaveCancelled();
+}
+
+/// The dialog or the write failed; the log has why.
+final class SaveFailed extends BackupSaved {
+  const SaveFailed();
+}
+
+/// How picking a backup file ended; the prompts say which.
+sealed class BackupPicked {
+  const BackupPicked();
+}
+
+final class Picked extends BackupPicked {
+  const Picked(this.backup);
+
+  final SettingsBackup backup;
+}
+
+final class PickCancelled extends BackupPicked {
+  const PickCancelled();
+}
+
+/// The file is not a backup this app wrote.
+final class NotABackup extends BackupPicked {
+  const NotABackup();
+}
+
+/// The dialog failed or the file could not be read; the log has why.
+final class BackupUnreadable extends BackupPicked {
+  const BackupUnreadable();
 }

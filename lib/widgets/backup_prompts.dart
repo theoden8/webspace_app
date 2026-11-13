@@ -9,6 +9,7 @@ import 'package:webspace/settings/byte_size.dart';
 import 'package:webspace/settings/web_extension_backup.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// [BackupPrompts] as a file picker and dialogs over the page that owns
 /// [context].
@@ -18,11 +19,40 @@ class DialogBackupPrompts implements BackupPrompts {
   final BuildContext context;
 
   @override
-  Future<SettingsBackup?> pick() => SettingsBackupService.pickAndImport(context);
+  Future<SettingsBackup?> pick() async {
+    final loc = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    switch (await SettingsBackupService.pickAndImport()) {
+      case Picked(:final backup):
+        return backup;
+      case PickCancelled():
+        return null;
+      case NotABackup():
+        messenger.toast(loc.homeImportInvalidBackup);
+        return null;
+      case BackupUnreadable():
+        messenger.toast(loc.backupImportUnreadable);
+        return null;
+    }
+  }
 
   @override
-  Future<void> save(SettingsBackup backup) =>
-      SettingsBackupService.exportAndSave(context, backup: backup);
+  Future<void> save(SettingsBackup backup) async {
+    final loc = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final saved = await SettingsBackupService.exportAndSave(
+      backup: backup,
+      dialogTitle: loc.backupSaveDialogTitle,
+    );
+    switch (saved) {
+      case Saved():
+        messenger.toast(loc.backupExported);
+      case SaveCancelled():
+        break;
+      case SaveFailed():
+        messenger.toast(loc.backupExportFailed);
+    }
+  }
 
   @override
   Future<bool> confirmImport(SettingsBackup backup) async {
