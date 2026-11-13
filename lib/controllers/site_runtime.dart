@@ -22,7 +22,7 @@ import 'package:webspace/webspace_model.dart';
 /// it here too. Rows, which the page draws and an input names, are read
 /// off them when asked for, and mean a site only until the next await;
 /// [activationVersion] is what an activation suspended across one checks.
-class SiteRuntime implements SitesById {
+class SiteRuntime implements SiteModels {
   /// Written only by [apply].
   final List<WebViewModel> models = [];
 

@@ -290,7 +290,7 @@ class SiteNetworkController {
 
   /// Whether [model] gets a container profile, and so a Chromium network
   /// session, of its own.
-  bool ownsContainerProfile(WebViewModel model) => siteOwnsContainerProfile(
+  bool ownsContainerProfile(EngineSite model) => siteOwnsContainerProfile(
         isolation: _sites.isolation,
         incognito: model.effectiveIncognito,
       );

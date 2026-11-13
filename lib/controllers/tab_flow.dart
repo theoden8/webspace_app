@@ -74,8 +74,8 @@ abstract interface class TabState {
 /// process's, a capture's start, and the redraws and rebinds a step's act
 /// finishes with.
 final class TabCalls {
-  TabCalls(this._c, {required SitesById sites}) : _sites = sites;
-  final SitesById _sites;
+  TabCalls(this._c, {required SiteModels sites}) : _sites = sites;
+  final SiteModels _sites;
 
   final TabsController _c;
 
@@ -123,8 +123,8 @@ final class TabCalls {
 /// What a child tab not listed yet follows (`link`, LIR-034), read as
 /// [TabsController.linkHosts] reads a listed one's.
 final class ChildLinks {
-  ChildLinks(this._c, {required SitesById sites}) : _sites = sites;
-  final SitesById _sites;
+  ChildLinks(this._c, {required SiteModels sites}) : _sites = sites;
+  final SiteModels _sites;
   final TabsController _c;
 
   SiteId? of(SiteTab tab, {required SiteId owner}) =>
@@ -133,7 +133,7 @@ final class ChildLinks {
 
 /// What a tab flow's steps run against: the controller, the site, what the
 /// handler was asked, and what the flow found on its way.
-final class TabFlow implements Capturing, TabState, SitesById {
+final class TabFlow implements Capturing, TabState, SiteModels {
   TabFlow(
     this._c, {
     required this.site,

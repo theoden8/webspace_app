@@ -32,7 +32,7 @@ final class TabVars {
 
   /// How [TabVars] names a table's sites: by id, as the model knows them,
   /// the object the tab variables live on found through the world.
-  static SiteKeys<SiteId, W> ids<W extends SitesById>() => (
+  static SiteKeys<SiteId, W> ids<W extends SiteModels>() => (
     site: (w, {required key}) => w.siteOf(key),
     keyOf: (site) => site.siteId,
   );

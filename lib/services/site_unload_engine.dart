@@ -4,6 +4,7 @@ import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/nav_capture.dart';
 import 'package:webspace/services/runtime_vars.dart';
+import 'package:webspace/services/engine_site.dart';
 import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
@@ -12,8 +13,6 @@ import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/site_ids.dart';
-// ignore: webspace_lints/layer_import
-import 'package:webspace/web_view_model.dart';
 
 /// Default cap on concurrently loaded webviews. Keeps memory bounded when
 /// container mode lets sites stay resident across webspace switches; without
@@ -88,7 +87,7 @@ enum UnloadReason {
 
 /// What [SiteUnloadEngine.unloadFlow] reads and writes on the page.
 abstract interface class SiteUnloadHost implements SitesById {
-  List<WebViewModel> get models;
+  List<EngineSite> get models;
 
   /// The runtime's variables: the loaded sites, which an unload's dispose
   /// takes its site out of, and the site on screen and the activation in
@@ -99,11 +98,13 @@ abstract interface class SiteUnloadHost implements SitesById {
   /// share one, which an unload captures from in its turn.
   Isolation get isolation;
 
-  /// A capture of [model]'s back stack for its next activation; null when
-  /// it keeps none.
-  NavCapture? beginNavCapture(WebViewModel model);
+  /// A capture of the listed [site]'s back stack for its next activation;
+  /// null when it keeps none, or when [site] has left the list since the
+  /// plan was made.
+  NavCapture? beginNavCapture(SiteId site);
 
-  void noteUnloaded(WebViewModel model, {required UnloadReason reason});
+  /// [site] left the loaded set; a site no longer listed is not noted.
+  void noteUnloaded(SiteId site, {required UnloadReason reason});
 
   /// How hard the site at [index] is to evict, read again when an unload
   /// [UnloadReason.chosen] reaches its dispose.
@@ -126,9 +127,9 @@ const ResidencyCaps kResidencyCaps = (
 /// (LIR-024): a slot showing a hosted tab reads as its host. Only [of] makes
 /// one, so an engine handed the sites where it wants the slots does not
 /// compile.
-extension type const SlotIdentities._(List<WebViewModel> _slots)
-    implements List<WebViewModel> {
-  SlotIdentities.of(List<WebViewModel> sites)
+extension type const SlotIdentities._(List<EngineSite> _slots)
+    implements List<EngineSite> {
+  SlotIdentities.of(List<EngineSite> sites)
       : this._([for (final m in sites) m.runningIdentity]);
 }
 
@@ -200,10 +201,10 @@ final class ResidencyPlan {
   const ResidencyPlan({this.unloads = const [], this.cacheClears = const []});
 
   /// In the order they run.
-  final List<({WebViewModel site, UnloadReason reason})> unloads;
+  final List<({EngineSite site, UnloadReason reason})> unloads;
 
   /// Resident sites whose cache is cleared once the unloads ran.
-  final List<WebViewModel> cacheClears;
+  final List<EngineSite> cacheClears;
 
   bool get isEmpty => unloads.isEmpty && cacheClears.isEmpty;
 }
@@ -217,7 +218,7 @@ sealed class ProxyTopology {
 
   /// Whether a site running as [model] shares the proxy scope another site's
   /// activation repoints (`Contending` in the model).
-  bool contends(WebViewModel model) => switch (this) {
+  bool contends(EngineSite model) => switch (this) {
     PerSessionProxy() => false,
     ProcessGlobalProxy() => true,
     RoutedProxy(:final sharesDefaultSession) => sharesDefaultSession(model),
@@ -228,7 +229,7 @@ sealed class ProxyTopology {
   /// credential.
   factory ProxyTopology.of({
     required ProxyBinding binding,
-    required bool Function(WebViewModel model) sharesDefaultSession,
+    required bool Function(EngineSite model) sharesDefaultSession,
   }) =>
       switch (binding) {
         ProxyBinding.perSite => const PerSessionProxy._(),
@@ -256,7 +257,7 @@ final class ProcessGlobalProxy extends ProxyTopology {
 final class RoutedProxy extends ProxyTopology {
   const RoutedProxy._(this.sharesDefaultSession);
 
-  final bool Function(WebViewModel model) sharesDefaultSession;
+  final bool Function(EngineSite model) sharesDefaultSession;
 }
 
 /// What the proxy and Tor rules read: the sites by row, the site each slot
@@ -264,8 +265,8 @@ final class RoutedProxy extends ProxyTopology {
 /// run as their own site (a nested screen, a wake's checks), and how the
 /// host scopes a proxy.
 typedef ProxySlots = ({
-  List<WebViewModel> sites,
-  List<WebViewModel> slots,
+  List<EngineSite> sites,
+  List<EngineSite> slots,
   Set<int> loaded,
   Set<int> pages,
   ProxyTopology topology,
@@ -299,7 +300,7 @@ class SiteUnloadEngine {
     final models = host.models;
     // Rows hold for the plan, which awaits nothing; it names sites.
     final loaded = {for (final id in host.vars.loaded.value) _row(id, among: models)};
-    final unloads = <({WebViewModel site, UnloadReason reason})>[];
+    final unloads = <({EngineSite site, UnloadReason reason})>[];
     void unload(Iterable<int> indices, {required UnloadReason reason}) {
       for (final i in indices.toList()) {
         if (i < 0 || i >= models.length || !loaded.remove(i)) continue;
@@ -330,7 +331,7 @@ class SiteUnloadEngine {
         : const {};
     Map<int, SiteLifecycleState> tiers() => {
       for (final i in loaded)
-        if (i >= 0 && i < models.length) i: models[i].lifecycleState,
+        if (i >= 0 && i < models.length) i: models[i].tier.value,
     };
 
     switch (event) {
@@ -450,7 +451,7 @@ class SiteUnloadEngine {
   }) => conflicts.evaluate(host, args: [site]);
 
   /// The row of the site [id] names in [models], -1 when none.
-  static int _row(SiteId id, {required List<WebViewModel> among}) =>
+  static int _row(SiteId id, {required List<EngineSite> among}) =>
       among.indexWhere((m) => m.siteId == id);
 
   /// Runs [plan] through [unloadFlow]. A site no longer loaded when its
@@ -700,7 +701,7 @@ class SiteUnloadEngine {
           level: reason.logLevel,
           sensitivity: LogSensitivity.sensitive,
         );
-        return _keeps.run(c) ? plan.beginNavCapture(site) : null;
+        return _keeps.run(c) ? plan.beginNavCapture(site.siteId) : null;
       },
       marks: _victim.value,
       keeps: _keeps,
@@ -947,7 +948,7 @@ class SiteUnloadEngine {
   /// the pages that run as their own site.
   static Set<int> indicesToUnloadForProxyMismatch({
     required int runsAs,
-    required List<WebViewModel> sites,
+    required List<EngineSite> sites,
     required SlotIdentities models,
     required Set<int> loadedIndices,
     required Set<int> pageIndices,
@@ -1118,7 +1119,7 @@ class SiteUnloadEngine {
   /// says nothing about where their traffic goes.
   static Set<int> indicesToUnloadForTorExitMismatch({
     required int runsAs,
-    required List<WebViewModel> sites,
+    required List<EngineSite> sites,
     required SlotIdentities models,
     required Set<int> loadedIndices,
     required Set<int> pageIndices,
@@ -1160,7 +1161,7 @@ class SiteUnloadEngine {
 
   /// The `ExitNodes` value [site]'s own settings ask for: null when it pins
   /// no country or does not route through Tor.
-  static String? torExitNodesOf(WebViewModel site) =>
+  static String? torExitNodesOf(EngineSite site) =>
       switch (_torExitPin(site)) {
         _torUnpinned => null,
         final pin => pin,
@@ -1215,21 +1216,21 @@ class SiteUnloadEngine {
   /// Read off the *effective* settings, so a site on DEFAULT inherits the
   /// global proxy's country, and a country left over on a site since
   /// switched to SOCKS5 constrains nothing.
-  static String? torExitConstraint(WebViewModel model) => _torExitPin(model);
+  static String? torExitConstraint(EngineSite model) => _torExitPin(model);
 
   /// The sites a Tor sync reads, in the order that decides the pin: the
   /// site on screen while it is loaded, then the loaded ones, most recently
   /// used first. A site on screen but not loaded waits for its activation,
   /// whose plan moves the exit (LIR-024).
-  static Set<WebViewModel> torSyncOrder({
-    required WebViewModel? shown,
-    required Iterable<WebViewModel> loaded,
+  static Set<S> torSyncOrder<S extends EngineSite>({
+    required S? shown,
+    required Iterable<S> loaded,
   }) => {
     if (shown != null && loaded.hasKey(shown)) shown,
     ...loaded.toList().reversed,
   };
 
-  static String? _torExitPin(WebViewModel model) {
+  static String? _torExitPin(EngineSite model) {
     final effective = resolveEffectiveProxy(
       model.proxySettings,
       siteId: model.siteId,
@@ -1264,7 +1265,7 @@ typedef PlanAnswers = ({
   bool Function() isStale,
   UnloadReason Function(SiteId site) reasonOf,
   void Function(SiteId site) disposed,
-  NavCapture? Function(WebViewModel site) beginNavCapture,
+  NavCapture? Function(SiteId site) beginNavCapture,
   Isolation isolation,
   SitesById sites,
 });
@@ -1283,7 +1284,7 @@ final class UnloadFlow implements Capturing, SitesById {
 
   /// A site of the plan, the very one it names, else the host's.
   @override
-  WebViewModel siteOf(SiteId id) {
+  EngineSite siteOf(SiteId id) {
     for (final u in plan.unloads) {
       if (u.site.siteId == id) return u.site;
     }
@@ -1297,5 +1298,5 @@ final class UnloadFlow implements Capturing, SitesById {
       plan.unloads.firstWhere((u) => u.site.siteId == site).reason;
 
   void disposed(SiteId site) =>
-      host.noteUnloaded(siteOf(site), reason: reasonOf(site));
+      host.noteUnloaded(site, reason: reasonOf(site));
 }

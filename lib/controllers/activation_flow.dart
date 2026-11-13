@@ -59,13 +59,13 @@ abstract interface class ActivationState {
 /// through their `page` port, and the effects that change nothing the steps
 /// do not write themselves.
 final class ActivationCalls {
-  ActivationCalls(this._r, {required SitesById sites}) : _sites = sites;
+  ActivationCalls(this._r, {required SiteModels sites}) : _sites = sites;
 
   final ActivationReach _r;
 
   /// The site [id] names, for an answer that acts on it.
   WebViewModel _site(SiteId id) => _sites.siteOf(id);
-  final SitesById _sites;
+  final SiteModels _sites;
 
   SiteId? get shown => _r.sites.shown?.siteId;
   List<WebViewModel> get models => _r.sites.models;
@@ -120,7 +120,7 @@ final class ActivationCalls {
   }
 }
 
-final class ActivationFlow implements Capturing, ActivationState, SitesById {
+final class ActivationFlow implements Capturing, ActivationState, SiteModels {
   ActivationFlow(
     this.reach, {
     required this.target,
@@ -159,7 +159,7 @@ final class ActivationFlow implements Capturing, ActivationState, SitesById {
 
   /// The sites the flow's fields name by id, for the code that acts on
   /// one: what the model does not hold of a site.
-  static final sites = Port<SitesById, ActivationFlow>(
+  static final sites = Port<SiteModels, ActivationFlow>(
     'sites',
     reads: const {},
     changes: const {},
@@ -201,7 +201,7 @@ final class ActivationFlow implements Capturing, ActivationState, SitesById {
       ResidencyHost residency,
       Isolation isolation,
       RuntimeVars<SiteId> vars,
-      SitesById sites,
+      SiteModels sites,
     }),
     ActivationFlow
   >(

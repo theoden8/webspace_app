@@ -47,17 +47,6 @@ const LEFT = {
       + 'this line is the only record a refresh failed. Lifted when each wake '
       + 'step owns its failures.',
   },
-  layer_import: {
-    'lib/services/cookie_isolation.dart':
-      'the jar engine works over the WebViewModels it is handed: their ids, '
-      + 'URLs, incognito and cookie blocks, and the webview a clear disposes. '
-      + 'Lifted by a narrow site type the model implements, declared in '
-      + 'services.',
-    'lib/services/site_unload_engine.dart':
-      'the unload engine plans and runs over the WebViewModels the page holds: '
-      + 'their proxy, their tabs\' hosts and binding, and the webview cache an '
-      + 'unload clears. Lifted by a narrow site type, as for the jar.',
-  },
   raw_http_client: {
     'lib/design_gallery/roboto.dart':
       'the design builds fetch their own bundled Roboto by a URL relative to '

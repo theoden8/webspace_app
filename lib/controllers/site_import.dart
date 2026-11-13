@@ -82,7 +82,7 @@ final class SiteImport {
 
 /// What an import's steps run against: on the shared jar, the jar's turn
 /// too.
-final class ImportFlow extends JarWorld {
+final class ImportFlow extends JarWorld implements SiteModels {
   ImportFlow._(this.controller, {required this.replacement});
 
   final SiteImport controller;
@@ -100,7 +100,7 @@ final class ImportFlow extends JarWorld {
   RuntimeVars<SiteId> get vars => _sites.vars;
 
   @override
-  SitesById get sites => this;
+  SiteModels get sites => this;
 
   /// A listed or held site, else one the import replaced.
   @override

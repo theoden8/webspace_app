@@ -1,4 +1,5 @@
 import 'package:webspace/services/model_names.dart';
+import 'package:webspace/services/engine_site.dart';
 import 'package:webspace/services/step_table.dart';
 import 'dart:async';
 import 'dart:typed_data';
@@ -82,16 +83,20 @@ export 'package:webspace/web_view_model_domains.dart';
 export 'package:webspace/web_view_model_extensions.dart';
 export 'package:webspace/web_view_model_hosts.dart';
 export 'package:webspace/web_view_model_pause.dart';
+export 'package:webspace/services/engine_site.dart' show EngineSite, SitesById, tierCell;
 export 'package:webspace/services/url_host.dart'
     show extractDomain, getBaseDomain, getNormalizedDomain;
 export 'package:webspace/settings/blocked_cookie.dart';
 export 'package:webspace/settings/location.dart'
     show LocationMode, LocationGranularity, WebRtcPolicy;
 
-/// Where code holding sites by id finds the site it acts on (CONT-012).
-abstract interface class SitesById { WebViewModel siteOf(SiteId id); }
+/// [SitesById] where the code above the services holds the site whole.
+abstract interface class SiteModels implements SitesById {
+  @override
+  WebViewModel siteOf(SiteId id);
+}
 
-class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, BackedUpSite {
+class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, BackedUpSite, EngineSite {
   @override
   final SiteId siteId;
   @override
@@ -1797,15 +1802,21 @@ bool dispatch(NavigationDecision decision,
   /// paused-but-loaded sites both sit at this tier (the resume/pause
   /// distinction is orthogonal to memory tier). Promoted on memory pressure
   /// events; reset to `live` on re-activation when the webview is rebuilt.
-  SiteLifecycleState get lifecycleState => _lifecycleState;
-  SiteLifecycleState _lifecycleState = SiteLifecycleState.resident;
+  SiteLifecycleState get lifecycleState => tier.value;
+  @override
+  final TierBox tier = TierBox();
 
-  /// The model's `tier`, written only through a [Commit].
-  static final tierCell = SharedAt<WebViewModel, SiteLifecycleState>(
-    ModelVar.tier,
-    read: (m) => m._lifecycleState,
-    write: (m, {required to}) => m._lifecycleState = to,
-  );
+  /// The site this slot runs as (LIR-018): the host of the active tab, or
+  /// this site. The slot itself — the webview, controller, loading state and
+  /// the tab records — stays this site's.
+  @override
+  WebViewModel get runningIdentity => hostOf(activeTab) ?? this;
+
+  /// [tabHosts] by id, as the tables name sites (CONT-012).
+  @override
+  TabHosts<SiteId> get tabHostIds => TabHosts({
+    for (final t in tabs) t.id: (hostOf(t) ?? this).siteId,
+  }, site: siteId);
 
   /// The tab the webview was built for and the back stack queued for the
   /// next build. The activation and the tab switch queue the bytes before the

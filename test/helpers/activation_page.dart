@@ -91,10 +91,10 @@ final class FakeResidency implements ResidencyHost {
   Isolation get isolation => sites.isolation;
 
   @override
-  NavCapture? beginNavCapture(WebViewModel model) => null;
+  NavCapture? beginNavCapture(SiteId site) => null;
 
   @override
-  void noteUnloaded(WebViewModel model, {required UnloadReason reason}) {}
+  void noteUnloaded(SiteId site, {required UnloadReason reason}) {}
 
   @override
   SlotIdentities identities() => sites.slotIdentities();

@@ -17,7 +17,7 @@ extension ModelFixture on WebViewModel {
       .write(at: this, to: to, commit: const Commit.fixture());
 
   void setTier(SiteLifecycleState to) =>
-      WebViewModel.tierCell.write(at: this, to: to, commit: const Commit.fixture());
+      tierCell.write(at: this, to: to, commit: const Commit.fixture());
 }
 
 /// The lists as a test sets them up, or changes them where a test stands in

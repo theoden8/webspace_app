@@ -47,8 +47,8 @@ StepTable<W, P> _without<W, P extends Enum>(
 
 /// `RouteFree` holding for any site: a background load that repoints a
 /// loaded site's proxy, as the preload's guard did before it asked.
-Def<bool, SitesById> _routeFreeAlways() {
-  final a = Bound<SiteId, SitesById>('a');
+Def<bool, SiteModels> _routeFreeAlways() {
+  final a = Bound<SiteId, SiteModels>('a');
   return Def(
     ModelDef.routeFree,
     params: [a],
@@ -139,17 +139,17 @@ Def<List<int>, ProxySlots> _contendersSkippingOwnSlot() {
 
 /// `Capture` keying the bytes it read by the webview's tab at the save,
 /// after a rebind may have moved it (BUG-036 attempt 1).
-Def<Map<SiteId, Map<TabId, Map<SiteId, TabId?>>>, SitesById>
+Def<Map<SiteId, Map<TabId, Map<SiteId, TabId?>>>, SiteModels>
 _captureAtReply() {
-  final s = Bound<SiteId, SitesById>('s');
-  final t = Bound<TabId?, SitesById>('t');
-  final h = Bound<TabId?, SitesById>('h');
-  final a = Bound<SiteId, SitesById>('a');
-  final built = TabVars.built<SiteId, SitesById>(
-    keys: TabVars.ids<SitesById>(),
+  final s = Bound<SiteId, SiteModels>('s');
+  final t = Bound<TabId?, SiteModels>('t');
+  final h = Bound<TabId?, SiteModels>('h');
+  final a = Bound<SiteId, SiteModels>('a');
+  final built = TabVars.built<SiteId, SiteModels>(
+    keys: TabVars.ids<SiteModels>(),
   ).at(s.it);
   final builtTab = built.unwrapped;
-  final file = TabVars.file<SiteId, SitesById>().value;
+  final file = TabVars.file<SiteId, SiteModels>().value;
   return Def(
     ModelDef.capture,
     params: [s, t, h, a],
@@ -189,12 +189,12 @@ final _queuedAtReply = () {
   );
 }();
 
-Def<Map<SiteId, QueuedStack>, SitesById> _stagedAtReply() {
-  final s = Bound<SiteId, SitesById>('s');
-  final a = Bound<SiteId, SitesById>('a');
-  final t = Bound<TabId, SitesById>('t');
-  final queued = TabVars.queued<SiteId, SitesById>().value;
-  final saved = TabVars.file<SiteId, SitesById>().value
+Def<Map<SiteId, QueuedStack>, SiteModels> _stagedAtReply() {
+  final s = Bound<SiteId, SiteModels>('s');
+  final a = Bound<SiteId, SiteModels>('a');
+  final t = Bound<TabId, SiteModels>('t');
+  final queued = TabVars.queued<SiteId, SiteModels>().value;
+  final saved = TabVars.file<SiteId, SiteModels>().value
       .at(s.it)
       .at(t.it)
       .at(a.it);
@@ -203,13 +203,13 @@ Def<Map<SiteId, QueuedStack>, SitesById> _stagedAtReply() {
     params: [s, a, t],
     body: Expr.choose(
       when:
-          TabVars.tabbed<SiteId, SitesById>().has(s.it) &
+          TabVars.tabbed<SiteId, SiteModels>().has(s.it) &
           saved.neq(noTab()),
       then: queued.except(
         s.it,
         to: record({
-          't': TabVars.active<SiteId, SitesById>(
-            keys: TabVars.ids<SitesById>(),
+          't': TabVars.active<SiteId, SiteModels>(
+            keys: TabVars.ids<SiteModels>(),
           ).at(s.it),
           'h': saved,
         }, run: (_) => throw StateError('queued is the platform\'s')),
