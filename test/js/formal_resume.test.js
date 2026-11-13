@@ -132,6 +132,15 @@ test('shards run a few at a time are each kept as they end, so a stop loses only
   assert.deepEqual(repo.verify(['--resume'], oneAtATime), []);
 });
 
+test('a resume under fewer cores or another pace keeps the print, and redoes only a split cut another way', (t) => {
+  const repo = repository(t);
+  assert.deepEqual(repo.verify(['--resume']), everything);
+  assert.deepEqual(repo.verify(['--resume'], { FORMAL_SLOTS: '3' }),
+    ['shard 0/3', 'shard 1/3', 'shard 2/3']);
+  assert.deepEqual(repo.verify(['--resume'],
+    { FORMAL_SLOTS: '3', FORMAL_PARALLEL: '1', FORMAL_PROGRESS_SECONDS: '5' }), []);
+});
+
 test('a run without --resume keeps nothing', (t) => {
   const repo = repository(t);
   assert.deepEqual(repo.verify(['--resume']), everything);
@@ -171,6 +180,12 @@ test('every variable the schedules and walks read is one the key reads', () => {
     for (const m of text.matchAll(/_env\(\s*'([A-Z_]+)'/g)) read.add(m[1]);
   }
   assert.ok(read.has('SCHEDULE_LENGTH') && read.has('WALK_SEED'), 'the scan finds the reads');
+  const how = [...fs.readFileSync(path.join(formalDir, 'input_key.py'), 'utf8')
+    .match(/^HOW = \{([\s\S]*?)^\}/m)[1].matchAll(/^\s+"([A-Z_]+)":/gm)].map((m) => m[1]);
+  assert.ok(how.includes('FORMAL_SLOTS'), 'the scan finds HOW');
+  assert.deepEqual(how.filter((v) => read.has(v)), [], 'a variable the walk reads is left out of the key as HOW');
+  assert.deepEqual([...how, 'SCHEDULE_LENGTH'].filter((v) => read.has(v)), ['SCHEDULE_LENGTH'],
+    'planted: a schedule bound listed as HOW is caught');
   const missedBy = (keyed) =>
     [...read].filter((v) => !perShard.has(v) && !keyed.some((p) => v.startsWith(p)));
   assert.deepEqual(missedBy(prefixes), [], 'a variable the walk reads that the resume key does not');
