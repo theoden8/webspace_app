@@ -235,6 +235,8 @@ Set<Env> _with(Env e) => switch (e) {
   Env.joinOne ||
   Env.incognitoOne ||
   Env.jarRefuses ||
+  Env.headlessCloseRefuses ||
+  Env.headlessOpenRefuses ||
   Env.proxyRefuses ||
   Env.offline => const {},
 };
@@ -268,6 +270,8 @@ Env? _setting(ModelConst c, {required Set<Need> needs}) => switch (c) {
   ModelConst.clashing => Env.clashOne,
   ModelConst.incognito => Env.incognitoOne,
   ModelConst.jarRefuses => Env.jarRefuses,
+  ModelConst.headlessCloseRefuses => Env.headlessCloseRefuses,
+  ModelConst.headlessOpenRefuses => Env.headlessOpenRefuses,
   ModelConst.proxyRefused => Env.proxyRefuses,
   ModelConst.online => Env.offline,
   ModelConst.containers ||

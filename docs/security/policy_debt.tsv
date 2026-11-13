@@ -24,3 +24,4 @@ LEAK-002	R9	type	raw_http_client is an analyzer rule, a source-shape gate that s
 LEAK-003	R9	model	fail-closed is modeled by formal/proxy_failclosed.tla, which names no requirement	proxy_failclosed.tla citing LEAK-003, after ./formal/verify.sh
 NESTED-013	R10	type	whether a navigation is the top frame's is decided at run time	the frame type of CAM-014
 CAPTCHA-007	R10	type	the reCAPTCHA hosts are matched by a function	the captcha hosts as const data the classifier reads, with a probe
+-	R9	model	NOTIF-021's known limit, no requirement yet: a dispose the platform refuses ends the check and releases its route claim, though its native view may still run until the plugin tears it down: untilDestroyed waits, then only logs	keep the claim until the view is confirmed destroyed, as a step the wake takes and the model holds

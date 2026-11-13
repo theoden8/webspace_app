@@ -822,6 +822,27 @@ Tables mutated(Mutant m) => switch (m) {
       ),
     ),
   ),
+  // A wake that ends after closing one check whatever is left in headless:
+  // the ablation's survivor before Inv_HeadlessOwned.
+  Mutant.wakeendsearly => _with(
+    wake: _withArms(
+      tables.wake,
+      step: ActivationStep.wakeCloseNext,
+      arms: (s) => s.withArms(
+        branches: [
+          for (final b in s.branches)
+            Branch(
+              b.outcome,
+              when: Expr.constant(true),
+              pick: b.pick,
+              site: b.site,
+              then: b.then,
+              next: b.next,
+            ),
+        ],
+      ),
+    ),
+  ),
   // A webspace switch whose input supersedes no activation in flight, as
   // before BUG-033 attempt 5: a tap begun on the list before it opens a
   // site the switch stopped showing.

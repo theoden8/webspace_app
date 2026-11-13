@@ -67,6 +67,12 @@ ProxyRefused == FALSE
 \* Whether the platform may refuse a read, the nuke or a write of the shared
 \* jar (ISO-014); the pages' jar never does.
 JarRefuses == FALSE
+\* Whether the platform may refuse to dispose a wake's headless check
+\* (NOTIF-021); the pages' never does.
+HeadlessCloseRefuses == FALSE
+\* Whether the platform may refuse to open one, which the wake passes over
+\* as a skip (NOTIF-016); the pages' never does.
+HeadlessOpenRefuses == FALSE
 \* The sites with notifications on, which a background wake checks
 \* (NOTIF-016), and whether the app goes to the background at all; the
 \* pages have none and stay on screen.

@@ -41,6 +41,14 @@ enum Env {
     givesUp: {Inv.noSessionLoss},
   ),
   proxyRefuses(op: ModelConst.proxyRefused, by: 'ProxyCanRefuse'),
+  headlessCloseRefuses(
+    op: ModelConst.headlessCloseRefuses,
+    by: 'HeadlessCloseCanRefuse',
+  ),
+  headlessOpenRefuses(
+    op: ModelConst.headlessOpenRefuses,
+    by: 'HeadlessOpenCanRefuse',
+  ),
   offline(op: ModelConst.online, by: 'Offline');
 
   const Env({required this.op, required this.by, this.givesUp = const {}});
@@ -91,6 +99,7 @@ enum Inv {
     reads: {ModelVar.fore, ModelVar.headless},
     inductive: true,
   ),
+  headlessOwned(reads: {ModelVar.fl, ModelVar.headless}),
   told(reads: {ModelVar.dns, ModelVar.told}),
   tabShown(reads: {ModelVar.built, ModelVar.hist}),
   tabFiles(reads: {ModelVar.file}),
@@ -379,7 +388,7 @@ enum ActivationWorld {
     coldStart: true,
     inputs: 4,
     env: {Env.proxyGlobal, Env.globalProxy, Env.routeSplit, Env.notifyAll, Env.wakesUp},
-    invariants: [..._core, Inv.oneRoute, Inv.checksOffScreen],
+    invariants: [..._core, Inv.oneRoute, Inv.checksOffScreen, Inv.headlessOwned],
     holds:
         'containers, two routes, a background wake: the checks and the '
         'loaded sites run one route (NOTIF-016)',
@@ -397,7 +406,7 @@ enum ActivationWorld {
       Env.wakesUp,
     },
     allowed: {'Background', 'Foreground', 'NestedOpen', 'Wake'},
-    invariants: [..._core, Inv.oneRoute, Inv.checksOffScreen],
+    invariants: [..._core, Inv.oneRoute, Inv.checksOffScreen, Inv.headlessOwned],
     holds:
         'containers, two routes, a nested open beside a wake: no check runs '
         'beside the site its pop brings back on another route (BUG-037)',
@@ -407,7 +416,7 @@ enum ActivationWorld {
     coldStart: true,
     inputs: 4,
     env: {Env.torOn, Env.exitSplit, Env.notifyAll, Env.wakesUp},
-    invariants: [..._core, Inv.oneRoute, Inv.checksOffScreen],
+    invariants: [..._core, Inv.oneRoute, Inv.checksOffScreen, Inv.headlessOwned],
     holds:
         'containers, two Tor exits, a background wake: the checks and the '
         'loaded sites run one exit (TOR-014)',
@@ -649,7 +658,7 @@ enum ActivationWorld {
     maxTabs: 3,
     env: {Env.proxyGlobal, Env.globalProxy, Env.routeSplit, Env.notifyAll, Env.wakesUp},
     allowed: {'Background', 'ChildTab', 'Foreground', 'Tap', 'Wake'},
-    invariants: [..._core, ..._tabs, Inv.oneRoute, Inv.checksOffScreen],
+    invariants: [..._core, ..._tabs, Inv.oneRoute, Inv.checksOffScreen, Inv.headlessOwned],
     holds:
         "site 1's child tab on another route beside a wake: each check runs "
         'as its own site, and every running webview runs one route '
@@ -710,6 +719,28 @@ enum ActivationWorld {
         "site 3's tabs beside a reset's landings at home: a loaded site "
         'switches to the tab its landing names, one with no webview takes '
         'it as its pointer (TAB-014)',
+  ),
+  wakeArchiveContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    inputs: 3,
+    env: {Env.archiveOne, Env.notifyAll, Env.wakesUp, Env.headlessCloseRefuses},
+    allowed: {'Background', 'CloseArchive', 'Foreground', 'Wake'},
+    invariants: [..._core, Inv.checksOffScreen, Inv.headlessOwned],
+    holds:
+        'containers, a wake checking more than one site beside an archive '
+        "close: no check outlives the wake (NOTIF-021)",
+  ),
+  wakeOpenRefusedContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    inputs: 3,
+    env: {Env.notifyAll, Env.wakesUp, Env.headlessOpenRefuses},
+    allowed: {'Background', 'Foreground', 'Wake'},
+    invariants: [..._core, Inv.checksOffScreen, Inv.headlessOwned],
+    holds:
+        'containers, a wake whose every open the platform refuses: each check '
+        'is passed over and none is left running (NOTIF-016, NOTIF-021)',
   ),
   archiveContainers(
     cookies: Cookies.containers,
@@ -1210,6 +1241,13 @@ enum Mutant {
     world: ActivationWorld.wakeContainers,
     by: Inv.oneRoute,
     doc: "a wake's check that does not ask the rule (BUG-037 attempt 8, caught)",
+  ),
+  wakeendsearly(
+    world: ActivationWorld.wakeArchiveContainers,
+    by: Inv.headlessOwned,
+    doc:
+        "a wake that ends once one check closes while others still run: a "
+        'site left running unattended in the background (caught)',
   ),
   wakebesidenested(
     world: ActivationWorld.nestedWakeContainers,

@@ -80,6 +80,18 @@ class WakePlan {
 /// What the wake needs from the app, so the orchestration runs against fakes,
 /// over the app's sites of type [S] (the page's `WebViewModel`; a test's
 /// `SiteId`).
+/// The platform refused to dispose a headless check: the check is ended
+/// and its claim on the route given up all the same (NOTIF-021).
+final class HeadlessCloseFailure implements Exception {
+  const HeadlessCloseFailure(this.message);
+
+  /// The platform's report, as its exception printed it.
+  final String message;
+
+  @override
+  String toString() => 'HeadlessCloseFailure: $message';
+}
+
 abstract class BackgroundWakeHost<S extends Object> {
   /// The runtime's variables the wake's table writes: the checks it runs
   /// and the app on screen, beside the loaded sites it reads.
@@ -123,6 +135,8 @@ abstract class BackgroundWakeHost<S extends Object> {
   /// is loading, otherwise why it is not.
   Future<WakeSkip?> openHeadless(SiteId siteId);
 
+  /// Ends [siteId]'s check and gives up its route claim, refused or not; a
+  /// refusal is [HeadlessCloseFailure], the wake's [Refused] arm.
   Future<void> closeHeadless(SiteId siteId);
 
   /// Null once the site's webview, live or headless, is gone.
@@ -392,10 +406,14 @@ class BackgroundWakeEngine<S extends Object> {
     } finally {
       try {
         // A failed step leaves its checks open: the table closes them.
+        // A step that failed leaves its checks open: the table closes them,
+        // and a close the platform refuses goes on to the rest (NOTIF-021).
         if (flow.report == null && host.vars.headless.value.isNotEmpty) {
           _table.closeFirst(c);
           await table.run(c, from: WakePlace.wClose);
         }
+        assert(host.vars.headless.value.isEmpty,
+            'NOTIF-021: a wake leaves no headless check running');
       } finally {
         _waking = false;
       }
@@ -533,6 +551,7 @@ enum WakePlace {
   wOpen,
   wMiddle,
   wClose,
+  wCloseNext,
   done,
 }
 
@@ -771,11 +790,9 @@ final class _WakeTable<S extends Object> {
     ModelConst.proxyRefused,
     run: (c) => _calls.from(c).refused,
   );
-  late final _openRefused = Expr.op<bool, WakeFlow<S>>(
-    HandPaired.headlessOpenRefused,
-    tla: 'FALSE',
+  late final _openRefused = Expr.ofConstant<bool, WakeFlow<S>>(
+    ModelConst.headlessOpenRefuses,
     run: (c) => _calls.from(c).openRefused != null,
-    reads: Reads.none,
   );
 
   /// Where a wake goes once a check is placed or passed over: the next
@@ -969,6 +986,9 @@ final class _WakeTable<S extends Object> {
       // Each check disposed, then gone from the running sites; the route
       // the loaded sites need comes back once the last is. One the app's
       // return closed meanwhile is gone already.
+      // Each check disposed, or its dispose refused, then gone from the
+      // running sites either way: its route claim leaves with it
+      // (ProcessRoute.vacate), so a refusal goes on to the rest (NOTIF-021).
       WakePlace.wClose => Step(
         ActivationStep.wakeCloseReply,
         holds: null,
@@ -978,24 +998,36 @@ final class _WakeTable<S extends Object> {
           run: (c) => c.api.close(_site.of(c)),
           writes: const [],
         ),
+        branches: const [],
+        refused: Refused(
+          refusal: const Refusal<HeadlessCloseFailure>(),
+          when: Expr.ofConstant(ModelConst.headlessCloseRefuses, run: (_) => true),
+          then: [Act.of([_headless.becomes(_headless.value.without(_site.value))])],
+          next: to(WakePlace.wCloseNext),
+        ),
+        otherwise: Otherwise(
+          StepOutcome.go,
+          then: [Act.of([_headless.becomes(_headless.value.without(_site.value))])],
+          next: to(WakePlace.wCloseNext),
+        ),
+      ),
+      // The route the loaded sites need comes back once the last check is
+      // gone; one the app's return closed meanwhile is gone already.
+      WakePlace.wCloseNext => Step(
+        ActivationStep.wakeCloseNext,
+        holds: null,
         branches: [
           Branch(
             StepOutcome.end,
-            when: _headless.value.without(_site.value).isEmpty,
-            then: [
-              Act.of([_headless.becomes(_headless.value.without(_site.value))]),
-              _release,
-            ],
+            when: _headless.value.isEmpty,
+            then: [_release],
             next: to(WakePlace.done),
           ),
         ],
         otherwise: Otherwise(
           StepOutcome.more,
-          pick: _eachLeft,
-          then: [
-            Act.of([_headless.becomes(_headless.value.without(_site.value))]),
-            _site.becomes(_eachLeft.it),
-          ],
+          pick: _eachOpen,
+          then: [_site.becomes(_eachOpen.it)],
           next: to(WakePlace.wClose),
         ),
       ),
@@ -1004,18 +1036,10 @@ final class _WakeTable<S extends Object> {
   );
 
   late final _eachOpen = Pick<S, WakeFlow<S>>(_headless.value);
-  late final _eachLeft = Pick<S, WakeFlow<S>>(
-    _headless.value.without(_site.value),
-  );
 
   /// The route the loaded sites need put back once a check applied its
   /// own, unless the app came back: its return closed the checks in the
   /// rule's turn, and the site the user opens next takes the rule.
-  late final _release = Note<WakeFlow<S>>(
-    (c) => _calls.from(c).release(fore: _fore.value.run(c)),
-    reads: _fore.value.reads,
-  );
-
   /// Points the close at the first check still open, for a wake whose
   /// step failed before it reached its closes.
   void closeFirst(StepContext<WakeFlow<S>> c) => _site
@@ -1028,4 +1052,10 @@ final class _WakeTable<S extends Object> {
         ),
       )
       .run(c);
+
+  late final _release = Note<WakeFlow<S>>(
+    (c) => _calls.from(c).release(fore: _fore.value.run(c)),
+    reads: _fore.value.reads,
+  );
+
 }

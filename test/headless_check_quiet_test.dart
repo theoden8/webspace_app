@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/background_wake_engine.dart';
 import 'package:webspace/services/headless_site_check.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/webview_proxy.dart' show ProxyManager;
@@ -32,6 +33,17 @@ class _Controller implements inapp.InAppWebViewController {
 class _Headless implements inapp.HeadlessInAppWebView {
   @override
   Future<void> dispose() async => _asked.add('dispose');
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _RefusingHeadless implements inapp.HeadlessInAppWebView {
+  @override
+  Future<void> dispose() async {
+    _asked.add('dispose');
+    throw PlatformException(code: 'gone', message: 'the native view is gone');
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -96,6 +108,24 @@ void main() {
       await ending;
       await check.dispose();
       expect(_asked, hasLength(4), reason: 'a check ends once');
+    },
+  );
+
+  test(
+    'a dispose the platform refuses still waits out the view, then reports '
+    'the refusal for the wake to go on (NOTIF-021)',
+    () async {
+      final check = HeadlessSiteCheck.over(
+        _RefusingHeadless(),
+        controller: _Controller(),
+        settings: inapp.InAppWebViewSettings(javaScriptEnabled: false),
+      );
+      final ending = check.dispose();
+      await pumpEventQueue();
+      expect(_asked.last, 'whenWebViewDestroyed check-1',
+          reason: 'the rule still waits out the view');
+      destroyed.complete();
+      await expectLater(ending, throwsA(isA<HeadlessCloseFailure>()));
     },
   );
 }

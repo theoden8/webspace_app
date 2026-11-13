@@ -114,10 +114,6 @@ enum HandPaired implements Pairing {
   /// (`IF Containers THEN Notified \ loaded ELSE {}`).
   offlineNotified,
 
-  /// A headless check the platform refuses to open, which the model never
-  /// takes (`FALSE`).
-  headlessOpenRefused,
-
   /// The first headless check still open (`CHOOSE s \in headless : TRUE`).
   anyHeadless,
 

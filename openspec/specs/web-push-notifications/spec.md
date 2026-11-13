@@ -979,3 +979,37 @@ bus), `test/desktop_tray_test.dart` (the app), and
 **Given** the tray icon shown
 **When** the user turns Keep running when closed off
 **Then** the icon leaves the status area
+
+### Requirement: NOTIF-021 - A wake leaves no headless check running
+
+A background wake SHALL close every headless check it opened before it
+returns, however it returns. A dispose the platform refuses still ends the
+check and gives up its route claim (`ProcessRoute.vacate`), and the wake's
+close step takes the refusal (`HeadlessCloseFailure`) as its `Refused` arm,
+which drops the check and goes on to the rest as a dispose does, so no site is
+left running unattended in the background holding its route (PROXY-008).
+
+The model holds it as `Inv_HeadlessOwned` in `formal/activation.tla`: a
+headless check exists only while a wake is in flight (one wake runs at a time).
+TLC explores refused disposes in the refusing wake world, and catches a close
+that ends the wake early (`Mutant.wakeendsearly`); the code asserts it where
+`BackgroundWakeEngine` returns, which the walks reach with that mutant planted
+(`test/planted_mistakes_test.dart`). Two refused disposes in a row are
+`test/background_wake_engine_test.dart`; a refused dispose that still waits out
+its view is `test/headless_check_quiet_test.dart`.
+
+Known limit: after a refused dispose the native view may still be running.
+`ProcessRoute.untilDestroyed` waits for the plugin to report it destroyed and,
+past its wait, only logs, and the claim is released all the same, so a view the
+plugin failed to tear down may load on a route the app treats as free. The
+refusal is logged at warning level (`LogTag.backgroundTask`), and the gap is a
+row of `docs/security/policy_debt.tsv`: keep the claim until the view is
+confirmed destroyed. A `MissingPluginException` is not a refusal: it means no
+native side exists (a test, or an engine torn down), so nothing is left running.
+
+#### Scenario: A check's dispose fails in the middle of a wake
+
+**Given** a wake running two headless checks
+**When** the platform fails to dispose the first
+**Then** the second is still closed
+**And** the wake returns with no headless check running

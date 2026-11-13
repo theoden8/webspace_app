@@ -301,6 +301,8 @@ enum ModelConst {
   linked(ConstKind.set, range: r'SUBSET Sites'),
   proxyRefused(ConstKind.off, range: r'BOOLEAN'),
   jarRefuses(ConstKind.off, range: r'BOOLEAN'),
+  headlessCloseRefuses(ConstKind.off, range: r'BOOLEAN'),
+  headlessOpenRefuses(ConstKind.off, range: r'BOOLEAN'),
   notified(ConstKind.set, range: r'SUBSET Sites'),
   waking(ConstKind.off, range: r'BOOLEAN'),
   siteLevel(ConstKind.uniform, range: r'[Sites -> -1..5]'),

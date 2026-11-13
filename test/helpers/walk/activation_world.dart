@@ -1742,6 +1742,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       ModelConst.linked => set(nestedOpens ? every : const <int>[]),
       ModelConst.proxyRefused => _faults.contains(Fault.proxy) ? 'TRUE' : null,
       ModelConst.jarRefuses => _jarFails ? 'TRUE' : null,
+      // The walks' host disposes every check: the refusal is the engine
+      // test's (NOTIF-021).
+      ModelConst.headlessCloseRefuses => null,
+      ModelConst.headlessOpenRefuses => null,
       ModelConst.notified => set(wakes ? every : const <int>[]),
       ModelConst.waking => '$wakes'.toUpperCase(),
       ModelConst.siteLevel => seq(switch (dns?.siteLevels) {

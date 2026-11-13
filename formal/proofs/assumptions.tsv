@@ -15,4 +15,4 @@ no_lost_update	NAssumption	a6e71159cbd34811	N is a positive natural
 proxy_coherent	NAssumption	a6e71159cbd34811	N is a positive natural
 proxy_coherent	RouterTyping	12155a21536dbc9b	the router constant is off or on
 repaint_liveness	NAssumption	a6e71159cbd34811	N is a positive natural
-activation_types_proof	ConstantsType	b1718fb29448df1c	printed: the domain each model constant may take in a world, every conjunct a ModelConst's; it changes whenever a constant does, and each change is a row to review
+activation_types_proof	ConstantsType	79ebf328d247d534	printed: the domain each model constant may take in a world, every conjunct a ModelConst's; it changes whenever a constant does, and each change is a row to review
