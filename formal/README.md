@@ -209,10 +209,12 @@ class.
   `SiteActivationController`, `SiteUnloadEngine` and `CookieIsolationEngine`, and
   `activation_steps` (`Outcomes`) from `ActivationStep`. The inputs that start a flow (a tap,
   home, a preload, memory pressure) are steps of the activation table too (`Step.input`),
-  printed as `InputTableStep`. One of the environment's actions the code runs as a step
-  (`Step.environment`, the frame of a let-go webview, `FrameTable`) lands as an event does,
-  on no flow, and prints as `EnvTableStep`, which `Next` takes beside the actions
-  `activation.tla` still writes by hand. A step that starts another table's input in its own turn
+  printed as `InputTableStep`. An environment action the code runs as a step
+  (`Step.environment`: a loaded site's webview let go of, `LetGoTable`, and its frame,
+  `FrameTable`) lands as an event does, on no flow, and prints as `EnvTableStep`, which
+  `Next` takes beside the actions `activation.tla` still writes by hand. A let-go its guard
+  does not admit (a site not loaded, or no webview built) takes no step: its teardown runs
+  in `Commit.none()`, which fails on a write of the model. A step that starts another table's input in its own turn
   declares it, a `Spawn` (a reroute or a tab rebind that moves a slot to another site
   opens it again, LIR-024):
   the runner starts it after the arm's other effects and its mark and asserts the input
