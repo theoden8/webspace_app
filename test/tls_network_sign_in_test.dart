@@ -104,6 +104,38 @@ void main() {
       expect(TrustedHostsService.instance.all(), hasLength(1));
     });
 
+    test('a portal reported while the prompt is open pins nothing and '
+        'lets nothing through', () async {
+      // The verdict was read before the prompt; the user's Accept lands
+      // after the OS starts reporting a portal (tls_trust.tla).
+      final host = _Host(trust: () async {
+        verdict = SignInRequired(NetworkKey.android('100'));
+        return true;
+      });
+      expect(await answer('discord.com', hooks: host.hooks),
+          inapp.ServerTrustAuthResponseAction.CANCEL);
+      expect(host.asked, ['discord.com']);
+      expect(TrustedHostsService.instance.all(), isEmpty);
+      expect(host.told, hasLength(1));
+    });
+
+    test('so does the load error path\'s', () async {
+      await answer('discord.com', hooks: null);
+      final host = _Host(trust: () async {
+        verdict = SignInRequired(NetworkKey.networkManager('/active/4'));
+        return true;
+      });
+      expect(
+          await WebViewTls.handleSslLoadError(
+              view: null,
+              url: 'https://discord.com/app',
+              hooks: host.hooks,
+              apple: false),
+          isFalse);
+      expect(host.asked, ['discord.com']);
+      expect(TrustedHostsService.instance.all(), isEmpty);
+    });
+
     test('the load error path neither asks nor reloads', () async {
       verdict = SignInRequired(NetworkKey.networkManager('/active/3'));
       final host = _Host(trust: () async => true);

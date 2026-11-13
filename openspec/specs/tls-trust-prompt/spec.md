@@ -407,6 +407,13 @@ the OS's own (Android's `NET_CAPABILITY_CAPTIVE_PORTAL`, NetworkManager's
 **And** the first site webview that does tells them once, with a button to the OS's Wi-Fi settings where it has them
 **And** after a reconnect, which is a new network, it tells them again
 
+#### Scenario: A portal reported while the prompt is open
+
+**Given** a rejected certificate's prompt is open, the OS having reported no portal when it was asked
+**When** the OS starts reporting a portal and the user then taps "Trust"
+**Then** the verdict is read again as the answer lands: nothing is pinned, the load is cancelled, and the user is told to sign in
+**And** `test/tls_network_sign_in_test.dart` ("a portal reported while the prompt is open pins nothing and lets nothing through", and the load error path's) and `formal/tls_trust.tla`'s `Inv_NoPinInPortal`, with the planted mistake `answerunread`, hold it
+
 Lineage: [BUG-043](../../../docs/bugs/043-certificate-prompt-flood.md).
 
 #### Scenario: After signing in

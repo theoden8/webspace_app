@@ -140,7 +140,10 @@ abstract final class WebViewTls {
     }
     final approved = await _ask(host,
         port: port, cert: cert, fingerprint: fingerprint, hooks: hooks);
-    if (!approved) {
+    // The verdict is read again as the answer lands: a portal reported while
+    // the prompt was open is the network's certificate, not the site's.
+    if (!approved ||
+        await _heldForSignIn(host, port: port, cert: cert, hooks: hooks)) {
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.CANCEL);
     }
@@ -397,7 +400,10 @@ abstract final class WebViewTls {
     try {
       final approved = await _ask(host,
           port: port, cert: cert, fingerprint: fingerprint, hooks: hooks);
-      if (!approved) return false;
+      if (!approved ||
+          await _heldForSignIn(host, port: port, cert: cert, hooks: hooks)) {
+        return false;
+      }
       if (fingerprint == null) {
         LogTag.tls.debug(
             'user trusted cert for $host:$port but DER missing — cannot pin, load will fail again',

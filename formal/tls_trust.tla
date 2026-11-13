@@ -46,6 +46,8 @@
 (*                         pin while the OS reports a portal (TLS-012)     *)
 (*   Inv_DeclinedNotAsked  a declined certificate is not asked about again *)
 (*                         in the run, for any host (TLS-013)              *)
+(*   Inv_NoPinInPortal     nothing is pinned while the OS reports a portal, *)
+(*                         an Accept that lands in one included (TLS-012)  *)
 (*   Inv_OneAtATime        one certificate has one prompt open at a time   *)
 (*                         (TLS-002, TLS-013)                              *)
 (*                                                                         *)
@@ -61,15 +63,12 @@
 (*   forget        a decline is not remembered                             *)
 (*   noasking      a prompt does not wait for one already open on its      *)
 (*                 certificate                                             *)
+(*   answerunread  the verdict is not read again as an Accept lands, so a  *)
+(*                 portal reported while the prompt was open is pinned     *)
 (*                                                                         *)
 (* What the spec says and the code does not, the Gap invariants: each      *)
 (* tls_trust_gap cfg reproduces the code's counterexample, and none is     *)
 (* in check.sh, since a fix changes the action, not the cfg:               *)
-(*   Gap_NoPinInPortal     TLS-012 "SHALL NOT ... pin" while the OS        *)
-(*                         reports a portal; the verdict is read once,     *)
-(*                         before the prompt (webview_tls.dart:80, 372),   *)
-(*                         so an Accept that lands after the OS reports a  *)
-(*                         portal pins (148, 407) and proceeds (171)       *)
 (*   Gap_NoPinPassInPortal TLS-012 "a pin the user made earlier for that   *)
 (*                         certificate is not honoured"; the Dart clients  *)
 (*                         honour it, reading no verdict                   *)
@@ -95,7 +94,7 @@ CONSTANTS
     Mistake
 
 Mistakes == {"none", "anyfp", "pinonopen", "latecache", "noportal",
-             "staleverdict", "forget", "noasking"}
+             "staleverdict", "forget", "noasking", "answerunread"}
 Paths == {"trust", "bare", "error"}
 ASSUME Mistake \in Mistakes
 ASSUME Entries \subseteq Paths
@@ -344,9 +343,10 @@ Verdict(i) ==
 
 \* The user answers a prompt, whether or not its view is still there
 \* (webview_tls.dart:232-242). A decline is remembered for the run; an
-\* accept pins the certificate the prompt showed (147-152, 407-411), in
-\* memory at once (trusted_hosts_service.dart:153), then awaits the disk
-\* (154).
+\* accept reads the portal verdict again and, while the OS reports one,
+\* cancels and pins nothing (TLS-012); else it pins the certificate the
+\* prompt showed, in memory at once (trusted_hosts_service.dart:153), then
+\* awaits the disk (154).
 Answer(i, yes) ==
     /\ ch[i].pc = "prompt"
     /\ LET r == ch[i]
@@ -363,7 +363,13 @@ Answer(i, yes) ==
                /\ UNCHANGED << pins, accepted >>
           ELSE /\ accepted' = accepted \cup {<< r.host, r.cert >>}
                /\ UNCHANGED << declined, declinedEver >>
-               /\ IF r.cert \in Certs
+               /\ IF portal /\ Mistake # "answerunread"
+                  THEN /\ ch' = [ch EXCEPT ![i] = Fin]
+                       /\ ev' = QuietEv("portal")
+                       /\ inflight' = IF r.path = "error" THEN inflight \ {r.host}
+                                      ELSE inflight
+                       /\ UNCHANGED pins
+                  ELSE IF r.cert \in Certs
                   THEN /\ pins' = IF pinned \in Certs
                                   THEN [pins EXCEPT ![r.host] = pinned] ELSE pins
                        /\ ev' = [NoEv EXCEPT !.kind = "write", !.portal = portal,
@@ -433,7 +439,7 @@ Inv_OneAtATime ==
 
 \* --- What the spec says and the code does not -----------------------------
 
-Gap_NoPinInPortal == ev.kind = "write" => ~ev.portal
+Inv_NoPinInPortal == ev.kind = "write" => ~ev.portal
 
 Gap_NoPinPassInPortal == (ev.kind = "pass" /\ ev.how = "pin") => ~ev.portal
 

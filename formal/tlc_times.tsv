@@ -293,6 +293,7 @@ switchguard	4
 switchguard_noguard	4
 switchguard_reach	8
 tls_trust	24
+tls_trust_answerunread	4
 tls_trust_anyfp	4
 tls_trust_forget	4
 tls_trust_hosts	4
