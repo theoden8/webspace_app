@@ -5,6 +5,7 @@ import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/services/url_host.dart';
 
 /// What a site presents to the relay: its own id when it owns a container
 /// profile, else the one identity every site without one shares, since they
@@ -61,16 +62,8 @@ class ProxyRouterEngine {
   /// `127.0.0.1`, so the challenge check cannot compare against a
   /// constant. It still has to know the challenger is on loopback at all:
   /// a `407` from anywhere else is not ours whatever realm it names.
-  static bool isLoopbackHost(String? host) {
-    if (host == null) return false;
-    final parts = host.split('.');
-    if (parts.length != 4) return false;
-    for (var i = 0; i < 4; i++) {
-      final n = int.tryParse(parts[i]);
-      if (n == null || n < 0 || n > 255) return false;
-    }
-    return parts[0] == '127';
-  }
+  static bool isLoopbackHost(String? host) =>
+      host != null && Host(host).isLoopbackLiteral;
 
   /// Identity the relay attributes a site's traffic to when the site has
   /// no container profile of its own.

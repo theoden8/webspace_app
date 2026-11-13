@@ -47,7 +47,7 @@ void resetHostLookup() => _lookup = hostLookupAddresses;
 /// connect through the device's own resolver.
 bool isPrivateOrLoopbackHost(String raw) {
   final host = Host(raw);
-  if (host == 'localhost' || host.endsWith('.localhost')) return true;
+  if (host.isLoopback) return true;
 
   if (host.contains(':')) {
     final List<int> bytes;
@@ -61,7 +61,7 @@ bool isPrivateOrLoopbackHost(String raw) {
     return _classifyIpBytes(bytes);
   }
 
-  final octets = _ipv4Octets(host);
+  final octets = host.ipv4Octets;
   if (octets != null) return _classifyIpBytes(octets);
   // A numeric IPv4 in a non-canonical spelling (one decimal/hex number, hex or
   // octal octets, or fewer than four parts) that a resolver would still accept
@@ -76,7 +76,8 @@ final RegExp _numericIpv4Part = RegExp(r'^(0x[0-9a-f]+|[0-9]+)$');
 /// Whether [host] (lowercased, no port) is an IPv4 address written numerically
 /// in an `inet_aton` spelling other than the canonical dotted-quad: one to four
 /// dot-separated parts, each decimal, hex (`0x…`) or octal (leading zero).
-/// [_ipv4Octets] accepts the canonical form first, so this catches the rest.
+/// [Host.ipv4Octets] accepts the canonical form first, so this catches the
+/// rest.
 bool _looksNumericIpv4(String host) {
   final parts = host.split('.');
   if (parts.isEmpty || parts.length > 4) return false;
@@ -84,24 +85,6 @@ bool _looksNumericIpv4(String host) {
     if (!_numericIpv4Part.hasMatch(p)) return false;
   }
   return true;
-}
-
-/// The four octets of a canonical dotted-quad IPv4 [s] (`a.b.c.d`, each a plain
-/// decimal 0-255 with no leading zero), or null. Non-canonical numeric spellings
-/// are refused by [_looksNumericIpv4] at the top level; a trailing embedded v4
-/// in an IPv6 literal must be canonical too.
-List<int>? _ipv4Octets(String s) {
-  final parts = s.split('.');
-  if (parts.length != 4) return null;
-  final octets = <int>[];
-  for (final p in parts) {
-    if (p.isEmpty || p.length > 3) return null;
-    if (p.length > 1 && p.startsWith('0')) return null; // no leading zero/octal
-    final v = int.tryParse(p);
-    if (v == null || v < 0 || v > 255) return null;
-    octets.add(v);
-  }
-  return octets;
 }
 
 bool _ipv4PrivateOrLoopback(List<int> o) {

@@ -384,11 +384,7 @@ class PasskeyEngine {
   static bool isPotentiallyTrustworthy(Uri origin) {
     if (origin.scheme == 'https') return true;
     if (origin.scheme != 'http') return false;
-    final host = origin.host.toLowerCase();
-    return host == 'localhost' ||
-        host.endsWith('.localhost') ||
-        host == '::1' ||
-        RegExp(r'^127(\.\d{1,3}){3}$').hasMatch(host);
+    return Host(origin.host).isLoopback;
   }
 
   /// CollectedClientData in the WebAuthn L3 §5.8.1.1 serialization, which

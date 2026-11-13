@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/outbound_http.dart';
-import 'package:webspace/services/outbound_http_io.dart' show DefaultOutboundHttpFactory;
+import 'package:webspace/services/outbound_http_io.dart'
+    show DefaultOutboundHttpFactory, staysOnDevice;
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
@@ -31,6 +33,21 @@ void main() {
   });
 
   group('DefaultOutboundHttpFactory', () {
+    test('the proxy is bypassed for a loopback literal and localhost, never '
+        'for a name the resolver answers (PROXY-007)', () {
+      for (final (raw, direct) in [
+        ('localhost', true),
+        ('127.0.0.1', true),
+        ('127.0.0.2', true),
+        ('::1', true),
+        ('dev.localhost', false),
+        ('10.0.0.1', false),
+        ('example.com', false),
+      ]) {
+        expect(staysOnDevice(Host(raw)), direct, reason: raw);
+      }
+    });
+
     // The socket takes ProxyAddress.socketHost; the written host, brackets
     // kept, resolves nowhere, so the fetch failed where the native relay,
     // which already took socketHost, carried it.

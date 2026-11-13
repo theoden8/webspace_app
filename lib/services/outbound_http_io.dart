@@ -310,7 +310,7 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
       // destination is the SSRF to block, and letting it go DIRECT would reopen
       // the rebind/redirect hole the pin closes (SEC-049). Everything it fetches
       // goes to the proxy, which resolves and connects at the far end.
-      if (!pageSteered && _isLocalhost(uri.host.toLowerCase())) return 'DIRECT';
+      if (!pageSteered && staysOnDevice(Host(uri.host))) return 'DIRECT';
       return 'PROXY $addr';
     };
     if (settings.hasCredentials) {
@@ -526,6 +526,10 @@ ConnectionTask<S> _cancellableConnect<S extends Socket>(Future<S> connect) {
   return ConnectionTask.fromSocket(socket, () => cancelled = true);
 }
 
-bool _isLocalhost(String host) {
-  return host == 'localhost' || host == '127.0.0.1' || host == '::1';
-}
+/// A destination the proxy is bypassed for: a loopback literal, or the name
+/// `localhost` itself. Not every name under `.localhost` (`Host.isLoopback`):
+/// DIRECT hands a name to the device's resolver, whose answer for one is not
+/// promised to be loopback.
+@visibleForTesting
+bool staysOnDevice(Host host) =>
+    host.isLoopbackLiteral || host == 'localhost';
