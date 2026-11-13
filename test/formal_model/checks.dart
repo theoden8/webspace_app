@@ -1338,6 +1338,14 @@ enum Mutant {
         'a fold that tells the views before the new app-wide level is in '
         'force (caught)',
   ),
+  builtatglobal(
+    world: ActivationWorld.dnsContainers,
+    by: Inv.told,
+    doc:
+        "a site's first view built told the app-wide level, not the one its "
+        'site resolves to: a site off, or asking for a level it holds, runs '
+        'another (caught)',
+  ),
   preloadunbound(
     world: ActivationWorld.tabsCold,
     slice: (allowed: {'Preload'}),

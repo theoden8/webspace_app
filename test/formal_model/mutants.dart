@@ -1092,6 +1092,22 @@ Tables mutated(Mutant m) => switch (m) {
       ),
     ),
   ),
+  // A site's first view built is told the app-wide level, not the one its
+  // site resolves to: its attach runs at the level the write gives.
+  Mutant.builtatglobal => _with(
+    views: _withArms(
+      tables.views,
+      step: ActivationStep.viewBuilt,
+      arms: (s) => s.withArms(
+        otherwise: Otherwise(
+          s.otherwise.outcome,
+          site: s.otherwise.site,
+          then: [ViewsTable.told(to: ViewsTable.appWide)],
+          next: s.otherwise.next,
+        ),
+      ),
+    ),
+  ),
   Mutant.tierearly => _with(
     unload: _withArms(
       tables.unload,
