@@ -39,13 +39,6 @@ enum EnvAction {
     writes: {ModelVar.jar, ModelVar.signedIn},
     needs: {(of: ModelConst.containers, set: false)},
   ),
-  clearJar(
-    next: 'ClearJar',
-    coverage: 'ClearJar',
-    reads: {ModelVar.holder, ModelVar.queue},
-    writes: {ModelVar.jar, ModelVar.queue},
-    needs: {(of: ModelConst.containers, set: false)},
-  ),
   frame(
     next: r'\E s \in Sites : Frame(s)',
     coverage: 'Frame',

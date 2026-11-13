@@ -1551,11 +1551,12 @@ void main() {
         "passes on, and the launch leaves the jar to the next activation's",
         () async {
       harness.cookieManager.failing.add(JarCall.clear);
-      await expectLater(harness.engine.clearUnloaded(loaded: const []),
-          throwsA(isA<CookieJarFailure>()));
+      Future<void> clear() => harness.engine
+          .clearUnloaded(vars: harness.vars, sites: harness.runtime);
+      await expectLater(clear(), throwsA(isA<CookieJarFailure>()));
 
       harness.cookieManager.failing.clear();
-      await harness.engine.clearUnloaded(loaded: const []);
+      await clear();
       expect(
           File('lib/controllers/startup_controller.dart').readAsStringSync(),
           contains('test: (e) => e is CookieJarFailure'),

@@ -19,7 +19,8 @@
 // Structural rather than behavioral: reproducing the real defect needs an
 // Android device with WebViewFeature.MULTI_PROFILE and two live profiles,
 // which no CI tier here has. The legacy half is the activation model's
-// (formal/activation.tla, the cold start's ClearJar).
+// (formal/activation.tla, the cold start's ClearJar, printed from
+// CookieIsolationEngine.clearSteps).
 
 const test = require('node:test');
 const assert = require('node:assert/strict');

@@ -59,6 +59,7 @@ typedef Tables = ({
   StepTable<FrameWorld, FramePlace> frame,
   StepTable<LetGoWorld, LetGoPlace> letGo,
   StepTable<ViewsWorld, ViewsPlace> views,
+  StepTable<ClearWorld, ClearPlace> clear,
   List<Def<Object?, Object?>> ops,
 });
 
@@ -126,6 +127,7 @@ final Tables tables = (
   frame: FrameTable.table,
   letGo: LetGoTable.table,
   views: ViewsTable.table,
+  clear: CookieIsolationEngine.clearSteps,
   ops: definitions,
 );
 
@@ -147,6 +149,7 @@ enum ModelTable {
   frame,
   letGo,
   views,
+  clear,
 }
 
 StepTable<Object?, Enum> _table(Tables t, {required ModelTable of}) =>
@@ -166,6 +169,7 @@ StepTable<Object?, Enum> _table(Tables t, {required ModelTable of}) =>
       ModelTable.frame => t.frame,
       ModelTable.letGo => t.letGo,
       ModelTable.views => t.views,
+      ModelTable.clear => t.clear,
     };
 
 List<StepTable<Object?, Enum>> _all(Tables t) => [
@@ -955,6 +959,13 @@ String activationTables(
   if (_envSteps(t).isEmpty) '    FALSE',
   for (final s in _envSteps(t)) '    \\/ ${s.action}',
   '',
+  r"\* What each lock's queue holds at launch, before any input: flow 0, the",
+  r"\* environment's, where one of its actions is granted the lock's turn",
+  r'\* (LaunchTurn); activation.tla starts a cold launch from it.',
+  for (final lock in Lock.values)
+    'Launched_${lock.tla} == '
+        '${_envSteps(t).any((s) => s.granted == lock) ? '<< 0 >>' : '<< >>'}',
+  '',
   '=============================================================================',
   '',
 ].join('\n');
@@ -1113,16 +1124,23 @@ String _stepInd(
 ].join('\n');
 
 /// The lemma that every environment action of the tables keeps `IndInv`:
-/// each moves no flow and passes no turn, so it leaves every variable
-/// `IndInv` reads as it was (`Inv.places`'s, and `inputs`), which its
-/// definition's `UNCHANGED` says; `IndInv` then holds again as it stood.
+/// each moves no flow, and one a lock grants passes the turn it was
+/// granted, which no flow held, so it leaves every variable `IndInv` reads
+/// as it was (`Inv.places`'s, and `inputs`), which its definition's
+/// `UNCHANGED` says, or, for the holder it passes on, its lock's `Granted`
+/// and `PassTurn`; `IndInv` then holds again as it stood.
 String _envStepInd(List<Step<Object?, Enum>> steps) {
   final kept = {ModelVar.inputs, ...Inv.places.reads!};
   assert(
     steps.every(
       (s) => s.allArms.every(
         (a) => a.then.every(
-          (e) => e is! Act || e.writes.intersection(kept).isEmpty,
+          (e) =>
+              e is! Act ||
+              e.writes
+                  .intersection(kept)
+                  .difference({?s.granted?.holder})
+                  .isEmpty,
         ),
       ),
     ),
@@ -1139,7 +1157,7 @@ String _envStepInd(List<Step<Object?, Enum>> steps) {
     '  <1>1. $frame',
     for (final (i, s) in steps.indexed) ...[
       '    <2>${i + 1}. CASE ${s.action}',
-      '      BY <2>${i + 1} DEF ${s.action}',
+      '      BY <2>${i + 1} DEF ${[s.action, if (s.granted != null) ..._operators(s)].join(', ')}',
     ],
     '    <2> QED',
     '      BY ${[for (var i = 1; i <= steps.length; i++) '<2>$i'].join(', ')}'

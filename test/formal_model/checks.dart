@@ -1395,6 +1395,14 @@ enum Mutant {
         "a let-go that drops the webview's history but leaves its tab "
         'bound: a site bound to a tab shows no history (caught)',
   ),
+  lateclear(
+    world: ActivationWorld.coldstart,
+    by: Inv.noSessionLoss,
+    slice: (allowed: {'Preload'}),
+    doc:
+        "a launch clear outside the jar's turns empties a restored session "
+        '(ISO-012, caught)',
+  ),
   preloadbare(
     world: ActivationWorld.coldstart,
     by: Inv.noForeignSession,
@@ -1578,14 +1586,6 @@ enum HandMistake {
     doc:
         'a jar operation that keeps its turn leaves the flows behind it '
         'waiting forever (deadlock, caught)',
-  ),
-  lateclear(
-    world: ActivationWorld.coldstart,
-    slice: (allowed: {'Preload'}),
-    caught: Breaks(Inv.noSessionLoss),
-    doc:
-        "a launch clear outside the jar's turns empties a restored session "
-        '(ISO-012, caught)',
   ),
   joinsloaded(
     world: ActivationWorld.joins,

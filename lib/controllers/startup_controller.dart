@@ -221,7 +221,7 @@ class StartupController implements DeferredStartupHost {
     if (isolation case SharedJar(:final jar)) {
       // A jar that refuses is left as it is: the next activation empties it
       // before any site shows (ISO-012), and the launch goes on.
-      final cleared = jar.clearUnloaded(loaded: _sites.loaded);
+      final cleared = jar.clearUnloaded(vars: _sites.vars, sites: _sites);
       unawaited(
         cleared.catchError(
           (Object e) => LogTag.startup.warning('Launch jar clear failed: $e'),

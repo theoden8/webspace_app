@@ -684,7 +684,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     if (launch != null && !page.containers) {
       inFlow(
         flow: -1,
-        () => _track(sharedJar.clearUnloaded(loaded: sites.loaded)),
+        () => _track(sharedJar.clearUnloaded(vars: sites.vars, sites: sites)),
       );
     }
   }

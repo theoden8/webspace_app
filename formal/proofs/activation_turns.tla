@@ -84,12 +84,6 @@ LEMMA StepInd == Good /\ IndInv /\ [Next]_vars => IndInv'
       BY <2>1, TableStepInd
     <2> QED
       BY <2>1 DEF FlowStep
-  <1>3. CASE ClearJar
-    <2>1. inputs' = inputs /\ fl' = fl /\ holder' = holder
-          /\ dnsHolder' = dnsHolder
-      BY <1>3 DEF ClearJar
-    <2> QED
-      BY <2>1, KeepsTurns
   <1>5. CASE Done
     <2>1. inputs' = inputs /\ fl' = fl /\ holder' = holder
           /\ dnsHolder' = dnsHolder
@@ -113,7 +107,7 @@ LEMMA StepInd == Good /\ IndInv /\ [Next]_vars => IndInv'
   <1>7. CASE EnvTableStep
     BY <1>7, EnvStepInd
   <1> QED
-    BY <1>1, <1>2, <1>3, <1>4, <1>5, <1>6, <1>7 DEF Next
+    BY <1>1, <1>2, <1>4, <1>5, <1>6, <1>7 DEF Next
 
 THEOREM Turns == ASSUME Good PROVE Spec => []Inv_Places
   <1>1. Init => IndInv
