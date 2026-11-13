@@ -8,6 +8,7 @@ activation	23508
 activation_archive	932
 activation_archive_containers	168
 activation_archive_jar_refuses	1564
+activation_builtatglobal	6
 activation_cap_containers	132
 activation_captureatreply	60
 activation_childinplace	8

@@ -475,6 +475,14 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [DnsDownload(0)],
     breaks: 'where its site resolves to',
   ),
+  // Site 2's DNS blocking is off: once a download makes level 1 app-wide,
+  // its view built is told 1 where its site resolves to 0.
+  Mutant.builtatglobal => _By(
+    world: (d) => ActivationWorld(_mixed, dns: _dnsSites, declared: d),
+    setup: const [DnsDownload(0)],
+    script: const [Tap(2)],
+    breaks: 'where its site resolves to',
+  ),
   Mutant.pointerearly => _By(
     world: (d) => ActivationWorld(_mixed, tabbed: true, declared: d),
     setup: const [Tap(0)],
