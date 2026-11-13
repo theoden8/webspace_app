@@ -414,6 +414,21 @@ the OS's own (Android's `NET_CAPABILITY_CAPTIVE_PORTAL`, NetworkManager's
 **And** the first site webview that does tells them once, with a button to the OS's Wi-Fi settings where it has them
 **And** after a reconnect, which is a new network, it tells them again
 
+#### Scenario: A Dart client and a pin while a portal is reported
+
+**Given** the user pinned a self-signed certificate for a host
+**When** the OS last reported a captive portal and a favicon, download or user-script fetch meets that host's certificate
+**Then** the pin is not honoured and the handshake fails: every client that honours a pin asks `TrustedHostsService.honours`, which owns "a pin is honoured unless the OS last reported a portal" (SEC-055)
+**And** once a verdict reports the portal gone, the pin is honoured again
+**And** `test/outbound_pin_portal_test.dart` and `formal/tls_trust.tla`'s `Inv_NoDartPinOnPortal`, with the planted mistake `dartnoverdict`, hold it, and `test/js/pin_honour_owner.test.js` refuses a client that calls the bare pin lookup
+
+#### Scenario: No verdict yet, and how fresh the last one is
+
+**Given** no verdict has been read in this run (at startup, or on a platform that reports none)
+**When** a Dart client meets a pinned certificate
+**Then** the pin is honoured: no portal has been reported, and refusing would break pinned hosts with no evidence of interception
+**And** the verdict a Dart client goes by is the last one a webview read as a certificate was rejected; a portal the OS starts reporting after that read lets a pinned request through until the next read, a known limit `formal/tls_trust_gap_dartpininportal.cfg` reproduces, not a proved property
+
 #### Scenario: A portal reported while the prompt is open
 
 **Given** a rejected certificate's prompt is open, the OS having reported no portal when it was asked

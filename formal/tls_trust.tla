@@ -48,6 +48,9 @@
 (*                         in the run, for any host (TLS-013)              *)
 (*   Inv_NoPinInPortal     nothing is pinned while the OS reports a portal, *)
 (*                         an Accept that lands in one included (TLS-012)  *)
+(*   Inv_NoDartPinOnPortal no Dart client lets a certificate through on a  *)
+(*                         pin while the last verdict read reported a      *)
+(*                         portal (TLS-012, SEC-055)                       *)
 (*   Inv_ShownOwn          a prompt shows a certificate its own view met,  *)
 (*                         or none (SEC-054)                               *)
 (*   Inv_OneAtATime        one certificate has one prompt open at a time   *)
@@ -67,6 +70,8 @@
 (*                 certificate                                             *)
 (*   answerunread  the verdict is not read again as an Accept lands, so a  *)
 (*                 portal reported while the prompt was open is pinned     *)
+(*   dartnoverdict a Dart client honours a pin without the last verdict    *)
+(*                 (SEC-055)                                               *)
 (*   sharedcache   one certificate cache for every view of a host, written *)
 (*                 by any trust callback, so a load error prompts with     *)
 (*                 another view's certificate                              *)
@@ -74,7 +79,10 @@
 (* What the spec says and the code does not, the Gap invariants: each      *)
 (* tls_trust_gap cfg reproduces the code's counterexample, and none is     *)
 (* in check.sh, since a fix changes the action, not the cfg:               *)
-(*   Gap_NoPinPassInPortal TLS-012 "a pin the user made earlier for that   *)
+(*   Gap_NoPinPassInPortal, a known limit: a Dart client goes by the last  *)
+(*                         verdict read, so a portal the OS starts         *)
+(*                         reporting after it lets one request through;    *)
+(*                         TLS-012 "a pin the user made earlier for that   *)
 (*                         certificate is not honoured"; the Dart clients  *)
 (*                         honour it, reading no verdict                   *)
 (*                         (outbound_http_io.dart:349, 382)                *)
@@ -96,7 +104,7 @@ CONSTANTS
 
 Mistakes == {"none", "anyfp", "pinonopen", "latecache", "noportal",
              "staleverdict", "forget", "noasking", "answerunread",
-             "sharedcache"}
+             "sharedcache", "dartnoverdict"}
 Paths == {"trust", "bare", "error"}
 ASSUME Mistake \in Mistakes
 ASSUME Entries \subseteq Paths
@@ -120,7 +128,8 @@ Fin == [view |-> CHOOSE v \in Views : TRUE, host |-> CHOOSE h \in Hosts : TRUE,
 \* What a step did, as the invariants read it.
 NoEv == [kind |-> "none", how |-> "none", client |-> "none", why |-> "none",
          portal |-> FALSE, accepted |-> TRUE, pinned |-> TRUE,
-         declinedBefore |-> FALSE, own |-> TRUE, shown |-> TRUE, late |-> FALSE]
+         declinedBefore |-> FALSE, own |-> TRUE, shown |-> TRUE, late |-> FALSE,
+         seen |-> FALSE]
 
 VARIABLES
     \* The environment.
@@ -134,6 +143,7 @@ VARIABLES
     inflight,    \* WebViewTls._inflightSslPrompts
     ch,          \* each challenge, at its await
     used, dart, revokes,
+    seen,        \* NetworkSignIn._last reports a portal (portalReported)
     \* Ghosts the invariants read.
     presented,   \* << view, host, cert >> each view's connections met
     accepted,    \* << host, cert >> the user accepted in a prompt showing it
@@ -141,7 +151,7 @@ VARIABLES
     ev           \* what the last step did
 
 env == << portal, alive >>
-code == << pins, cache, declined, asking, inflight, ch, used, dart, revokes >>
+code == << pins, cache, declined, asking, inflight, ch, used, dart, revokes, seen >>
 ghosts == << presented, accepted, declinedEver >>
 vars == << env, code, ghosts, ev >>
 
@@ -157,6 +167,7 @@ TypeOK ==
     /\ used \in 0..MaxChallenges
     /\ dart \in 0..MaxDart
     /\ revokes \in 0..MaxRevokes
+    /\ seen \in BOOLEAN
     /\ presented \subseteq Views \X Hosts \X AllCerts
     /\ accepted \subseteq Hosts \X AllCerts
     /\ declinedEver \subseteq Keys
@@ -173,6 +184,7 @@ Init ==
     /\ used = 0
     /\ dart = 0
     /\ revokes = 0
+    /\ seen = FALSE
     /\ presented = {}
     /\ accepted = {}
     /\ declinedEver = {}
@@ -219,18 +231,20 @@ Revoke(h) ==
     /\ pins' = [pins EXCEPT ![h] = None]
     /\ revokes' = revokes + 1
     /\ ev' = NoEv
-    /\ UNCHANGED << env, cache, declined, asking, inflight, ch, used, dart, ghosts >>
+    /\ UNCHANGED << env, cache, declined, asking, inflight, ch, used, dart, seen, ghosts >>
 
 \* A Dart client's handshake the platform rejected: badCertificateCallback
 \* (outbound_http_io.dart:349, 382) lets it through on a pin, synchronously,
-\* reading no verdict.
+\* unless the last verdict read reported a portal
+\* (TrustedHostsService.honours, SEC-055).
 DartConnect(h, c) ==
     /\ dart < MaxDart
     /\ IsTrusted(h, c)
+    /\ Mistake = "dartnoverdict" \/ ~seen
     /\ dart' = dart + 1
-    /\ ev' = PassEv(h, c, "pin", "dart", accepted)
+    /\ ev' = [PassEv(h, c, "pin", "dart", accepted) EXCEPT !.seen = seen]
     /\ UNCHANGED << env, pins, cache, declined, asking, inflight, ch, used, revokes,
-                    ghosts >>
+                    seen, ghosts >>
 
 \* --- A rejected certificate ----------------------------------------------
 
@@ -250,7 +264,7 @@ ArriveTrust(v, h, c, p) ==
                 ELSE IF p = "trust" THEN [cache EXCEPT ![v][h] = c] ELSE cache
     /\ presented' = presented \cup {<< v, h, c >>}
     /\ ev' = NoEv
-    /\ UNCHANGED << env, pins, declined, asking, inflight, dart, revokes,
+    /\ UNCHANGED << env, pins, declined, asking, inflight, dart, revokes, seen,
                     accepted, declinedEver >>
 
 \* The main frame's load on [v] to [h] failed with a certificate error,
@@ -268,7 +282,7 @@ ArriveError(v, h) ==
     /\ used' = used + 1
     /\ ev' = NoEv
     /\ UNCHANGED << env, pins, cache, declined, asking, inflight, dart, revokes,
-                    ghosts >>
+                    seen, ghosts >>
 
 \* The verdict as the challenge reads it.
 Held(r) ==
@@ -346,6 +360,8 @@ Verdict(i) ==
                              /\ ev' = QuietEv(why)
                              /\ UNCHANGED << pins, asking, inflight >>
                         ELSE OpenPrompt(i, r)
+    \* The read is the last verdict the run has (NetworkSignIn._last).
+    /\ seen' = portal
     /\ UNCHANGED << env, cache, declined, used, dart, revokes, ghosts >>
 
 \* The user answers a prompt, whether or not its view is still there
@@ -395,6 +411,7 @@ Answer(i, yes) ==
                        /\ inflight' = IF r.path = "error" THEN inflight \ {r.host}
                                       ELSE inflight
                        /\ UNCHANGED pins
+    /\ seen' = IF yes /\ Mistake # "answerunread" THEN portal ELSE seen
     /\ UNCHANGED << env, cache, used, dart, revokes, presented >>
 
 \* The pin reaches disk: the trust path returns PROCEED (171), the error
@@ -407,7 +424,7 @@ Persisted(i) ==
                 THEN PassEv(r.host, r.cert, "accept", "web", accepted)
                 ELSE NoEv
        /\ inflight' = IF r.path = "error" THEN inflight \ {r.host} ELSE inflight
-    /\ UNCHANGED << env, pins, cache, declined, asking, used, dart, revokes, ghosts >>
+    /\ UNCHANGED << env, pins, cache, declined, asking, used, dart, revokes, seen, ghosts >>
 
 Next ==
     \/ PortalFlip
@@ -452,6 +469,9 @@ Inv_NoPinInPortal == ev.kind = "write" => ~ev.portal
 Gap_NoPinPassInPortal == (ev.kind = "pass" /\ ev.how = "pin") => ~ev.portal
 
 Inv_ShownOwn == ev.kind = "ask" => ev.own
+
+Inv_NoDartPinOnPortal ==
+    (ev.kind = "pass" /\ ev.how = "pin" /\ ev.client = "dart") => ~ev.seen
 
 \* --- Witnesses: each MUST be violated -------------------------------------
 

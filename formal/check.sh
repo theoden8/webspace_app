@@ -578,6 +578,8 @@ expect tls_trust_answerunread.cfg tls_trust.tla "Inv_NoPinInPortal is violated" 
   "an Accept landing after the OS reports a portal, the verdict not read again, is caught (TLS-012)"
 expect tls_trust_sharedcache.cfg tls_trust.tla "Inv_ShownOwn is violated" \
   "one certificate cache shared by every view of a host is caught (SEC-054)"
+expect tls_trust_dartnoverdict.cfg tls_trust.tla "Inv_NoDartPinOnPortal is violated" \
+  "a Dart client honouring a pin without the last verdict is caught (SEC-055)"
 expect tls_trust_reach_pinused.cfg tls_trust.tla "Reach_PinUsed is violated" \
   "a pinned certificate lets a later webview handshake through"
 expect tls_trust_reach_dartpinused.cfg tls_trust.tla "Reach_DartPinUsed is violated" \

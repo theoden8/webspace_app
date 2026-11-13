@@ -86,7 +86,7 @@ abstract final class WebViewTls {
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.CANCEL);
     }
-    if (TrustedHostsService.instance.isTrusted(
+    if (TrustedHostsService.instance.honours(
       host: host,
       port: port,
       fingerprint: fingerprint,
@@ -380,7 +380,7 @@ abstract final class WebViewTls {
     if (await _heldForSignIn(host, port: port, cert: cert, hooks: hooks)) {
       return false;
     }
-    if (TrustedHostsService.instance.isTrusted(
+    if (TrustedHostsService.instance.honours(
       host: host,
       port: port,
       fingerprint: fingerprint,

@@ -51,8 +51,15 @@ final class NetworkSignIn {
 
   final Future<NetworkVerdict> Function() _read;
   final Set<NetworkKey> _told = {};
+  NetworkVerdict? _last;
 
-  Future<NetworkVerdict> verdict() => _read();
+  Future<NetworkVerdict> verdict() async => _last = await _read();
+
+  /// Whether the last verdict this run read reported a portal: what a caller
+  /// that cannot await one (a Dart client's certificate callback) goes by.
+  /// No verdict read yet is none reported. It is as fresh as the last
+  /// certificate a webview had rejected (TLS-012).
+  bool get portalReported => _last is SignInRequired;
 
   /// True the first time [network] is passed here in this run.
   bool firstNotice(NetworkKey network) => _told.add(network);

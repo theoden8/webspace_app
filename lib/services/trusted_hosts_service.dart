@@ -6,6 +6,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/network_sign_in.dart';
 
 /// SharedPreferences key holding the encoded trusted-cert pin list.
 /// Never rides a settings backup (BACKUP-010, TLS-007).
@@ -143,6 +144,18 @@ class TrustedHostsService {
     final pinned = _byHostPort[_key(host, port: port)];
     return pinned != null && pinned.toLowerCase() == fingerprint.toLowerCase();
   }
+
+  /// Whether a rejected certificate is let through on its pin: [isTrusted],
+  /// unless the OS last reported a captive portal, whose certificate a pin
+  /// for the host does not answer for (TLS-012). Every client that honours a
+  /// pin asks here.
+  bool honours({
+    required String host,
+    required int port,
+    required String? fingerprint,
+  }) =>
+      !NetworkSignIn.instance.portalReported &&
+      isTrusted(host: host, port: port, fingerprint: fingerprint);
 
   Future<void> trust({
     required String host,
