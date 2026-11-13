@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/utils/concurrency.dart';
@@ -54,54 +55,50 @@ class PasskeyNative {
   }
 
   static Future<PasskeyNativeStatus> _readStatus() async {
-    try {
-      final raw = await _channel.invokeMapMethod<String, Object?>('status');
-      return _status = raw == null
-          ? PasskeyNativeStatus.none
-          : PasskeyNativeStatus(
-              sdk: raw['sdk'] is int ? raw['sdk'] as int : 0,
-              feature: raw['feature'] == true,
-              permission: raw['permission'] == true,
-              webViewSupport: raw['webViewSupport'] == true,
-            );
-    } on PlatformException {
-      return PasskeyNativeStatus.none;
-    } on MissingPluginException {
-      return PasskeyNativeStatus.none;
-    }
+    return switch (await _channel.askMap<String, Object?>('status')) {
+      Answered(value: null) => _status = PasskeyNativeStatus.none,
+      Answered(value: final raw?) => _status = PasskeyNativeStatus(
+          sdk: raw['sdk'] is int ? raw['sdk'] as int : 0,
+          feature: raw['feature'] == true,
+          permission: raw['permission'] == true,
+          webViewSupport: raw['webViewSupport'] == true,
+        ),
+      PlatformRefused() => PasskeyNativeStatus.none,
+      NoPlugin() => PasskeyNativeStatus.none,
+    };
   }
 
   /// Run [ceremony] through Credential Manager. Returns the provider's JSON,
   /// or throws [PasskeyNativeFailure].
   static Future<String> run(String key,
       {required PasskeyCeremony ceremony}) async {
-    try {
-      final json = await _channel.invokeMethod<String>(
-        ceremony.op == PasskeyOp.create ? 'create' : 'get',
-        {
-          'key': key,
-          'requestJson': ceremony.requestJson,
-          'origin': ceremony.origin,
-          'clientDataHash': ceremony.clientDataHash,
-        },
-      );
-      if (json == null) throw const PasskeyNativeFailure('UNREADABLE');
-      return json;
-    } on PlatformException catch (e) {
-      throw PasskeyNativeFailure(e.code);
-    } on MissingPluginException {
-      throw const PasskeyNativeFailure('UNSUPPORTED');
-    }
+    return switch (await _channel.ask<String>(
+      ceremony.op == PasskeyOp.create ? 'create' : 'get',
+      arguments: {
+        'key': key,
+        'requestJson': ceremony.requestJson,
+        'origin': ceremony.origin,
+        'clientDataHash': ceremony.clientDataHash,
+      },
+    )) {
+      Answered(value: final json?) => json,
+      Answered(value: null) => throw const PasskeyNativeFailure('UNREADABLE'),
+      PlatformRefused(:final error) => throw PasskeyNativeFailure(error.code),
+      NoPlugin() => throw const PasskeyNativeFailure('UNSUPPORTED'),
+    };
   }
 
   static Future<void> cancel(String key) async {
     if (!hostIsAndroid) return;
-    try {
-      await _channel.invokeMethod<void>('cancel', {'key': key});
-    } on PlatformException {
-      // Nothing in flight under this key any more.
-    } on MissingPluginException {
-      // No plugin, so nothing was started either.
+    switch (await _channel.ask<void>('cancel', arguments: {'key': key})) {
+      case Answered():
+        break;
+      case PlatformRefused():
+        // Nothing in flight under this key any more.
+        break;
+      case NoPlugin():
+        // No plugin, so nothing was started either.
+        break;
     }
   }
 

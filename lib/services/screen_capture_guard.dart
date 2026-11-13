@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 
 import 'package:webspace/platform/host_platform.dart';
 
@@ -40,13 +41,16 @@ class ScreenCaptureGuard {
   Future<void> apply({required bool blocked}) async {
     if (!_supported || blocked == _requested) return;
     _requested = blocked;
-    try {
-      await _channel.invokeMethod<void>('setBlocked', {'blocked': blocked});
-    } on PlatformException {
-      // Unknown window state: let the next call send again.
-      if (_requested == blocked) _requested = null;
-    } on MissingPluginException {
-      // No plugin on this host; resending every build would not change that.
+    switch (await _channel
+        .ask<void>('setBlocked', arguments: {'blocked': blocked})) {
+      case Answered():
+        break;
+      case PlatformRefused():
+        // Unknown window state: let the next call send again.
+        if (_requested == blocked) _requested = null;
+      case NoPlugin():
+        // No plugin on this host; resending every build would not change that.
+        break;
     }
   }
 }

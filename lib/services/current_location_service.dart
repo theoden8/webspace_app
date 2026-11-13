@@ -1,6 +1,7 @@
 import 'package:webspace/platform/host_platform.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 
 enum CurrentLocationStatus {
   ok,
@@ -83,64 +84,65 @@ class CurrentLocationService {
         message: 'Current location is not available on this platform.',
       );
     }
-    try {
-      final raw = await _channel.invokeMethod<dynamic>('getCurrentLocation', {
-        'timeoutMs': timeout.inMilliseconds,
-        'accuracy': accuracy.name,
-      });
-      if (raw is! Map) {
+    final Map<Object?, Object?> raw;
+    switch (await _channel.ask<Object?>('getCurrentLocation', arguments: {
+      'timeoutMs': timeout.inMilliseconds,
+      'accuracy': accuracy.name,
+    })) {
+      case Answered(value: final Map<Object?, Object?> map):
+        raw = map;
+      case Answered():
         return CurrentLocationResult.failure(
           CurrentLocationStatus.error,
           message: 'Unexpected response from platform.',
         );
-      }
-      final message = switch (raw['message']) {
-        final String m => m,
-        _ => null,
-      };
-      double? number(String key) => switch (raw[key]) {
-            final num n => n.toDouble(),
-            _ => null,
-          };
-      switch (raw['status']) {
-        case 'ok':
-          final lat = number('latitude');
-          final lng = number('longitude');
-          final acc = number('accuracy') ?? 0;
-          if (lat == null || lng == null) {
-            return CurrentLocationResult.failure(
-              CurrentLocationStatus.error,
-              message: 'Missing coordinates in platform response.',
-            );
-          }
-          return CurrentLocationResult.ok(
-            CurrentLocationFix(latitude: lat, longitude: lng, accuracy: acc),
+      case PlatformRefused(:final error):
+        return CurrentLocationResult.failure(
+            CurrentLocationStatus.error, message: error.message);
+      case NoPlugin(:final error):
+        return CurrentLocationResult.failure(
+            CurrentLocationStatus.error, message: error.message);
+    }
+    final message = switch (raw['message']) {
+      final String m => m,
+      _ => null,
+    };
+    double? number(String key) => switch (raw[key]) {
+          final num n => n.toDouble(),
+          _ => null,
+        };
+    switch (raw['status']) {
+      case 'ok':
+        final lat = number('latitude');
+        final lng = number('longitude');
+        final acc = number('accuracy') ?? 0;
+        if (lat == null || lng == null) {
+          return CurrentLocationResult.failure(
+            CurrentLocationStatus.error,
+            message: 'Missing coordinates in platform response.',
           );
-        case 'permission_denied':
-          return CurrentLocationResult.failure(
-              CurrentLocationStatus.permissionDenied,
-              message: message);
-        case 'permission_denied_forever':
-          return CurrentLocationResult.failure(
-              CurrentLocationStatus.permissionDeniedForever,
-              message: message);
-        case 'service_disabled':
-          return CurrentLocationResult.failure(
-              CurrentLocationStatus.serviceDisabled,
-              message: message);
-        case 'timeout':
-          return CurrentLocationResult.failure(CurrentLocationStatus.timeout,
-              message: message);
-        default:
-          return CurrentLocationResult.failure(
-              CurrentLocationStatus.error, message: message);
-      }
-    } on PlatformException catch (e) {
-      return CurrentLocationResult.failure(
-          CurrentLocationStatus.error, message: e.message);
-    } on MissingPluginException catch (e) {
-      return CurrentLocationResult.failure(
-          CurrentLocationStatus.error, message: e.message);
+        }
+        return CurrentLocationResult.ok(
+          CurrentLocationFix(latitude: lat, longitude: lng, accuracy: acc),
+        );
+      case 'permission_denied':
+        return CurrentLocationResult.failure(
+            CurrentLocationStatus.permissionDenied,
+            message: message);
+      case 'permission_denied_forever':
+        return CurrentLocationResult.failure(
+            CurrentLocationStatus.permissionDeniedForever,
+            message: message);
+      case 'service_disabled':
+        return CurrentLocationResult.failure(
+            CurrentLocationStatus.serviceDisabled,
+            message: message);
+      case 'timeout':
+        return CurrentLocationResult.failure(CurrentLocationStatus.timeout,
+            message: message);
+      default:
+        return CurrentLocationResult.failure(
+            CurrentLocationStatus.error, message: message);
     }
   }
 }

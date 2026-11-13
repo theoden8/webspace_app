@@ -4,6 +4,7 @@ import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/repaint_suppression.dart';
@@ -36,6 +37,14 @@ class DiagSeedData {
 class DiagSeed {
   static const _channel =
       MethodChannel('org.codeberg.theoden8.webspace/shortcuts');
+
+  /// The launch intent's extra [method] reads, null where the runner has none.
+  static Future<String?> _launchExtra(String method) async =>
+      switch (await _channel.ask<String>(method)) {
+        Answered(:final value) => value,
+        PlatformRefused() => null,
+        NoPlugin() => null,
+      };
 
   /// Decode a base64 `{"sites":[{"name":...,"url":...,"siteId":...}]}`
   /// seed. A site entry may carry an explicit siteId: the harness needs a
@@ -79,14 +88,7 @@ class DiagSeed {
   /// on. Non-release builds only, like the seed.
   static Future<int?> takeReloadRequest() async {
     if (kReleaseMode) return null;
-    String? spec;
-    try {
-      spec = await _channel.invokeMethod<String>('getDiagReload');
-    } on MissingPluginException {
-      spec = null;
-    } on PlatformException {
-      spec = null;
-    }
+    var spec = await _launchExtra('getDiagReload');
     spec ??= hostEnvironment['WS_DIAG_RELOAD'];
     if (spec == null || spec.trim().isEmpty) return null;
     return int.tryParse(spec.trim());
@@ -101,26 +103,12 @@ class DiagSeed {
   /// state loads models from prefs.
   static Future<bool> applyFromLaunch() async {
     if (kReleaseMode) return false;
-    String? encoded;
-    try {
-      encoded = await _channel.invokeMethod<String>('getDiagSeed');
-    } on MissingPluginException {
-      encoded = null;
-    } on PlatformException {
-      encoded = null;
-    }
+    var encoded = await _launchExtra('getDiagSeed');
     encoded ??= hostEnvironment['WS_DIAG_SEED'];
     // Independent of the site seed: a scenario may want the suppression
     // without reseeding, and an unparseable seed must not silently leave a
     // previous run's suppression armed.
-    String? suppress;
-    try {
-      suppress = await _channel.invokeMethod<String>('getDiagRepaintSuppression');
-    } on MissingPluginException {
-      suppress = null;
-    } on PlatformException {
-      suppress = null;
-    }
+    var suppress = await _launchExtra('getDiagRepaintSuppression');
     suppress ??= hostEnvironment['WS_DIAG_SUPPRESS_REPAINT'];
     RepaintSuppression.setFromSpec(suppress);
     if (RepaintSuppression.triggers.isNotEmpty) {

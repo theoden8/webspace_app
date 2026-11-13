@@ -1,5 +1,6 @@
 import 'package:dbus/dbus.dart';
 import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/log_service.dart';
@@ -79,18 +80,16 @@ final class NetworkSignIn {
   }
 
   static Future<NetworkVerdict> _android() async {
-    try {
-      final reply = await _channel.invokeMethod<Object?>('verdict');
-      return switch (reply) {
-        {'signIn': true, 'network': final String handle} =>
-          SignInRequired(NetworkKey.android(handle)),
-        _ => const NoSignIn(),
-      };
-    } on PlatformException catch (e) {
-      LogTag.tls.warning('no network verdict: $e');
-      return const NoSignIn();
-    } on MissingPluginException {
-      return const NoSignIn();
+    switch (await _channel.ask<Object?>('verdict')) {
+      case Answered(value: {'signIn': true, 'network': final String handle}):
+        return SignInRequired(NetworkKey.android(handle));
+      case Answered():
+        return const NoSignIn();
+      case PlatformRefused(:final error):
+        LogTag.tls.warning('no network verdict: $error');
+        return const NoSignIn();
+      case NoPlugin():
+        return const NoSignIn();
     }
   }
 

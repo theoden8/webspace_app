@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
 import 'package:webspace/platform/host_platform.dart';
@@ -73,14 +74,11 @@ abstract final class HostBrowser {
 
   static Future<void> initialize() async {
     if (!hostIsMacOS) return;
-    String? safariVersion;
-    try {
-      safariVersion = await _channel.invokeMethod<String>('safariVersion');
-    } on MissingPluginException {
-      safariVersion = null;
-    } on PlatformException {
-      safariVersion = null;
-    }
+    final safariVersion = switch (await _channel.ask<String>('safariVersion')) {
+      Answered(:final value) => value,
+      PlatformRefused() => null,
+      NoPlugin() => null,
+    };
     _defaultUserAgent = macSafariUserAgent(safariVersion: safariVersion);
     LogTag.startup
         .debug('host user agent: Safari ${safariVersion ?? 'unread'}');

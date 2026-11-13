@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 
 import 'package:webspace/platform/host_platform.dart';
 
@@ -23,12 +24,10 @@ abstract final class RemoteInput {
       _driven = false;
       return;
     }
-    try {
-      _driven = await _channel.invokeMethod<bool>('drivenByRemote') ?? false;
-    } on PlatformException {
-      _driven = false;
-    } on MissingPluginException {
-      _driven = false;
-    }
+    _driven = switch (await _channel.ask<bool>('drivenByRemote')) {
+      Answered(:final value) => value ?? false,
+      PlatformRefused() => false,
+      NoPlugin() => false,
+    };
   }
 }
