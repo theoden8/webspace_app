@@ -209,7 +209,10 @@ class.
   `SiteActivationController`, `SiteUnloadEngine` and `CookieIsolationEngine`, and
   `activation_steps` (`Outcomes`) from `ActivationStep`. The inputs that start a flow (a tap,
   home, a preload, memory pressure) are steps of the activation table too (`Step.input`),
-  printed as `InputTableStep`. A step that starts another table's input in its own turn
+  printed as `InputTableStep`. One of the environment's actions the code runs as a step
+  (`Step.environment`, the frame of a let-go webview, `FrameTable`) lands as an event does,
+  on no flow, and prints as `EnvTableStep`, which `Next` takes beside the actions
+  `activation.tla` still writes by hand. A step that starts another table's input in its own turn
   declares it, a `Spawn` (a reroute or a tab rebind that moves a slot to another site
   opens it again, LIR-024):
   the runner starts it after the arm's other effects and its mark and asserts the input
@@ -437,9 +440,10 @@ world takes from TLC's coverage of the world's holding check, which `check.sh` r
   names its own, and then hosts only the pairs whose inputs it allows). One world per
   setting takes every pair that needs it, and holds every invariant. The pairs the
   printer computes from the declarations (`activation_pairs.tsv`) are the gate's: the gate
-  fails where they differ from what the text shares. The environment's actions declare
-  their footprints (`EnvAction`) and the base's operators theirs (`BaseOp`), each held
-  to its text.
+  fails where they differ from what the text shares. The environment's actions written
+  by hand declare their footprints (`EnvAction`), the printed ones' come from their
+  steps as a table action's do, and the base's operators declare theirs (`BaseOp`),
+  each held to its text.
 - **Unreached actions are named:** a table action no world takes is checked by nothing,
   so it is taken in some world or listed in `untaken.tsv` with why none can; an
   unlisted one is planted on every run.

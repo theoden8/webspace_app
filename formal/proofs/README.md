@@ -86,8 +86,8 @@ TLC model it backs (same definitions — no re-modeling).
   `test/formal_model/checks.dart`), proving `[]Inv` beside `IndInv`, whose preservation is
   `activation_turns`'s `StepInd`: a lemma per kind of step with a case per printed step, each
   closed by its definition or, for an invariant proved an arm at a time (`Inv.byArm`), by its
-  lemma in `activation_inv_<inv>_<n>_proof`; then `Next`'s cases, the environment's
-  (`EnvAction`) by their definitions. One module an invariant, since tlapm holds what it
+  lemma in `activation_inv_<inv>_<n>_proof`; then `Next`'s cases, the environment's, printed
+  (`EnvTableStep`) or written by hand (`EnvAction`), by their definitions. One module an invariant, since tlapm holds what it
   proves until its module ends: `Inv_ChecksOffScreen` and `Inv_OneTabFlow` in one module
   outgrew a 14 GB run once `LetGo` and `Reframe` joined `Next`. An invariant is declared
   inductive only once its cases close; one that needs a strengthening is not yet. Today
