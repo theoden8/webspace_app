@@ -36,6 +36,10 @@ enum UnloadPlace {
   exit,
 }
 
+/// Where the launch's clear is: no flow's place, since its step, the
+/// environment's, moves none.
+enum ClearPlace { clear }
+
 /// The model's `tier[s]`: a site's lifecycle state, which every table that
 /// moves a site between the tiers reads and writes through this.
 Indexed<SiteId, SiteLifecycleState, W> tierOf<W extends SitesById>() =>
@@ -270,18 +274,35 @@ class CookieIsolationEngine {
     required List<Cookie> cookies,
   }) => _storage.saveCookiesForSite(site, cookies: cookies);
 
-  /// Empties the jar in its turn when no site is loaded then: at launch,
-  /// queued before any site can be tapped, which makes it the jar's first
-  /// turn. What the jar holds then is no loaded site's, and a share of it
-  /// saved as one's would hand that site another's session or a deleted
-  /// one's (ISO-003). Emptied with a site loaded, the jar would lose that
-  /// site's session, so then it keeps the jar as it is.
-  Future<void> clearUnloaded({required Iterable<EngineSite> loaded}) =>
-      _turn((turn) async {
-        if (loaded.isNotEmpty) return;
-        await _empty(turn);
-        ActivationSteps.mark(ActivationStep.clearJar);
-      });
+  /// Whether the launch's clear still waits for its turn: queued by
+  /// [clearUnloaded], passed on by its step ([clearSteps]).
+  bool _launchQueued = false;
+
+  /// Empties the jar in its first turn: at launch, queued before any site
+  /// can be tapped, so no site is loaded when it runs. What the jar holds
+  /// then is no loaded site's, and a share of it saved as one's would hand
+  /// that site another's session or a deleted one's (ISO-003). Emptied
+  /// with a site loaded, the jar would lose that site's session: the model
+  /// holds the clear to the jar's first turn (`Launched_Jar`), and the
+  /// code asserts what that turn finds.
+  Future<void> clearUnloaded({
+    required RuntimeVars<SiteId> vars,
+    required SitesById sites,
+  }) {
+    final launch = StepContext(
+      ClearWorld(engine: this, vars: vars, sites: sites),
+    );
+    _launchQueued = true;
+    return _turn((turn) {
+      assert(
+        vars.loaded.value.isEmpty,
+        "the launch's jar clear is the jar's first turn: no site is loaded "
+        'yet (ISO-003)',
+      );
+      launch.world.turn = turn;
+      return clearSteps.awaitEnvironment(launch, at: ClearPlace.clear);
+    });
+  }
 
   /// Captures [site]'s cookies to siteId-keyed storage, then disposes its
   /// webview and takes it out of [loaded]; every unload reason comes through
@@ -1027,6 +1048,44 @@ class CookieIsolationEngine {
     },
   );
 
+  /// The launch's turn on the jar ([clearUnloaded]), the model's flow 0.
+  static final _launchTurn = LaunchTurn<ClearWorld>(
+    Lock.jar,
+    waiting: Mutable(
+      ModelVar.queue,
+      read: (w) => w.engine._launchQueued,
+      write: (w, {required to}) => w.engine._launchQueued = to,
+    ),
+  );
+
+  /// The launch's clear, the environment's step granted the jar's first
+  /// turn (`ClearJar`): the jar emptied, and the turn passed on. The engine
+  /// is the shared jar's alone, so containers are off wherever it runs.
+  static final clearSteps = StepTable<ClearWorld, ClearPlace>(
+    ClearPlace.values,
+    vars: [_turnHolder<ClearWorld>(), _launchTurn.waiting],
+    at: (place) => switch (place) {
+      ClearPlace.clear => Step.environment(
+        ActivationStep.clearJar,
+        granted: Lock.jar,
+        enabled: ~Constant<bool, ClearWorld>(
+          ModelConst.containers,
+          read: (_) => false,
+        ).value,
+        call: Call.on(
+          _jarPort(),
+          run: (c) => c.api.clear(),
+          writes: [_jar<ClearWorld>().becomes(Expr.none())],
+        ),
+        otherwise: Otherwise(
+          StepOutcome.none,
+          then: [_launchTurn.passTurn],
+          next: to(ClearPlace.clear),
+        ),
+      ),
+    },
+  );
+
   /// Clears native cookies for a site about to be deleted. If a loaded
   /// same-base-domain site exists, snapshots its session first and
   /// restores after — the URL-scoped delete would otherwise evict the
@@ -1192,6 +1251,10 @@ final class _JarCalls {
     _engine._emptied = true;
   }
 
+  /// The jar emptied with nothing to refill: the launch's, which finds no
+  /// site loaded.
+  Future<void> clear() => _engine._empty(_turn);
+
   /// A refill's write: fails with the first cookie the jar refused, once
   /// the rest are written.
   Future<void> set({
@@ -1287,6 +1350,19 @@ typedef UnloadAnswers = ({
   /// Whether the victim left the loaded sites meanwhile (`Gone(f)`).
   bool Function() gone,
 });
+
+/// What the launch's clear runs against: the jar's turn it takes, over
+/// the runtime's variables.
+final class ClearWorld extends JarWorld {
+  ClearWorld({required this.engine, required this.vars, required this.sites});
+
+  @override
+  final CookieIsolationEngine engine;
+  @override
+  final RuntimeVars<SiteId> vars;
+  @override
+  final SitesById sites;
+}
 
 /// What a restore's steps run against.
 final class RestoreWorld extends JarWorld {

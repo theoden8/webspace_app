@@ -118,7 +118,7 @@ ColdInit ==
     /\ signedIn \in IF Containers THEN {{}} ELSE SUBSET (Sites \ Incognito)
     /\ stored = [s \in Sites |-> IF s \in signedIn THEN {s} ELSE {}]
     /\ jar \in IF Containers THEN {{}} ELSE SUBSET Sites
-    /\ queue = IF Containers \/ Mistake = "lateclear" THEN << >> ELSE << 0 >>
+    /\ queue = IF Containers THEN << >> ELSE Launched_Jar
 
 Init ==
     /\ rows = [q \in Pos |-> q]
@@ -169,8 +169,8 @@ Init ==
 
 -----------------------------------------------------------------------------
 (* Inputs. The tables start the flows (InputTableStep, printed); the rest *)
-(* is the environment: a row move the user makes, a page signing in, and  *)
-(* the launch clear, flow 0.                                               *)
+(* is the environment: a row move the user makes, a site joining, a page  *)
+(* signing in. The launch clear, flow 0, is printed (EnvTableStep).       *)
 
 \* SitesMoved(from, to): models.insert(to, models.removeAt(from)).
 Moved(i, from, to) ==
@@ -225,23 +225,6 @@ Login(s) ==
     /\ UNCHANGED << ids, site, stored, turn, fl, ghosts, tabVars, blocking,
                     archived >>
 
-\* clearUnloaded at launch: the jar's first turn, emptied while nothing is
-\* loaded. "lateclear" runs it once whenever, outside the turns.
-ClearJar ==
-    /\ Calm
-    /\ ~Containers
-    /\ IF Mistake = "lateclear"
-       THEN /\ ColdStart /\ "lateclear" \notin seen
-            /\ seen' = seen \cup {"lateclear"}
-            /\ UNCHANGED queue
-       ELSE /\ holder = 0 /\ queue # << >> /\ Head(queue) = 0
-            /\ queue' = Tail(queue)
-            /\ UNCHANGED seen
-    /\ jar' = {}
-    /\ Did("ClearJar", 0, "", 0)
-    /\ UNCHANGED << ids, site, stored, signedIn, holder, dnsHolder, dnsQueue, fl,
-                    inputs, newest, evictedShown, tabVars, blocking, archived >>
-
 \* The level a site's webview runs at with the lists in force now
 \* (DnsBlockService.effectiveLevelFor).
 Eff(s) == ResolveLevel(SiteLevel[s], dns.lvl, dns.levels)
@@ -291,10 +274,10 @@ Next ==
     \/ \E f \in Flows : FlowStep(f)
     \/ \E s \in Sites : Frame(s)
     \* The environment's actions the tables print: a loaded site's webview
-    \* let go of (LetGoTable) and its frame (FrameTable), and a running
-    \* site's first view built and its last gone (ViewsTable).
+    \* let go of (LetGoTable) and its frame (FrameTable), a running site's
+    \* first view built and its last gone (ViewsTable), and the launch's
+    \* clear of the jar in its first turn (CookieIsolationEngine.clearSteps).
     \/ EnvTableStep
-    \/ ClearJar
     \/ Done
 
 Spec == Init /\ [][Next]_vars

@@ -136,7 +136,7 @@ class.
   jar holding whatever the last session left, any site's, and the jar's clear queued for its
   first turn; notification sites load there as preloads, activations that do not show. Eleven
   planted mistakes, each a bug the code once had or would deadlock, are each caught (the cold
-  start's `lateclear`, a clear outside the jar's turns, and `preloadbare`, a site loaded with
+  start's `lateclear`, a clear queued on no turn of the jar, and `preloadbare`, a site loaded with
   no restore, among them; `keepturn`, a jar operation that ends holding its turn, is a
   deadlock, which every config here checks for: a behavior may end only in `Done`); six
   witnesses show the interleavings are reached. The same code under
@@ -213,8 +213,13 @@ class.
   printed as `InputTableStep`. An environment action the code runs as a step
   (`Step.environment`: a loaded site's webview let go of, `LetGoTable`, and its frame,
   `FrameTable`; a running site's first view attaching its DNS level and its last going,
-  `ViewsTable`) lands as an event does, on no flow, and prints as `EnvTableStep`, which
-  `Next` takes beside the actions `activation.tla` still writes by hand. A let-go its guard
+  `ViewsTable`; the launch's clear of the shared jar, `CookieIsolationEngine.clearSteps`)
+  lands as an event does, on no flow, and prints as `EnvTableStep`, which `Next` takes
+  beside the actions `activation.tla` still writes by hand. One a lock grants (the clear,
+  `granted: Lock.jar`) waits for the turn the launch queued for it, flow 0, before any
+  input (`Launched_Jar`, which `Init` starts a cold launch from), and passes it on
+  (`LaunchTurn`); one that waits on a call (`StepTable.awaitEnvironment`) lands at the reply,
+  its call's writes and its arm's one action. A let-go its guard
   does not admit (a site not loaded, or no webview built) takes no step: its teardown runs
   in `Commit.none()`, which fails on a write of the model. So does another view of a site
   that has one (a popup, a nested screen beside the site's own), which leaves the site's

@@ -161,6 +161,12 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [Tap(1)],
     breaks: "the jar holds another site's cookies under loaded",
   ),
+  Mutant.lateclear => _By(
+    world: (d) => ActivationWorld(_mixed, launch: _jarLaunch, declared: d),
+    setup: const [],
+    script: const [Preload(0)],
+    breaks: 'clearJar as  changed queue, which it does not write',
+  ),
   Mutant.preloadbare => _By(
     world: (d) => ActivationWorld(_mixed, launch: _jarLaunch, declared: d),
     setup: const [],

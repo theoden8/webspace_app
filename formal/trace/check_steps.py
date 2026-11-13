@@ -176,7 +176,7 @@ def module(name, trace, variables):
         "        /\\ signedIn = {} /\\ holder = 0",
         "        /\\ dnsHolder = 0 /\\ dnsQueue = << >>",
         "        /\\ ids = [s \\in Sites |-> s]",
-        "        /\\ queue = IF ColdStart /\\ ~Containers THEN << 0 >> ELSE << >>",
+        "        /\\ queue = IF ColdStart /\\ ~Containers THEN Launched_Jar ELSE << >>",
         "        /\\ fl = [f \\in Flows |-> NoFlow] /\\ inputs = 0",
         "        /\\ newest = 0 /\\ evictedShown = FALSE /\\ seen = {}",
         "        /\\ last = [a |-> \"init\", f |-> 0, o |-> \"\", s |-> 0]",

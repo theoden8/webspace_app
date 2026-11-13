@@ -51,7 +51,7 @@ test('every restore activation asks the engine first', () => {
 // isolation the step bound, so the order of the two steps is a type; rung 5
 // for what is left, that the step queues the clear in the same turn it binds
 // the jar, before it hands the isolation out.
-// formal/activation.tla's lateclear is the design half.
+// The lateclear mutant (test/formal_model/mutants.dart) is the design half.
 test('the launch jar clear is queued before the sites are committed', () => {
   const bind = blockAfter(src, 'Future<Isolation> _bindIsolation() async {', null, rel);
   const clear = bind.indexOf('jar.clearUnloaded(');

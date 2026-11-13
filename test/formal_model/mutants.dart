@@ -289,6 +289,7 @@ Tables _with({
   StepTable<FrameWorld, FramePlace>? frame,
   StepTable<LetGoWorld, LetGoPlace>? letGo,
   StepTable<ViewsWorld, ViewsPlace>? views,
+  StepTable<ClearWorld, ClearPlace>? clear,
   List<Def<Object?, Object?>>? ops,
 }) => (
   activation: activation ?? tables.activation,
@@ -306,6 +307,7 @@ Tables _with({
   frame: frame ?? tables.frame,
   letGo: letGo ?? tables.letGo,
   views: views ?? tables.views,
+  clear: clear ?? tables.clear,
   ops: ops ?? tables.ops,
 );
 
@@ -811,6 +813,35 @@ Tables mutated(Mutant m) => switch (m) {
             for (final e in s.otherwise.then)
               if (e is Act<LetGoWorld> && e.writes.contains(ModelVar.built))
                 _keepsBound(e, site: s.site!)
+              else
+                e,
+          ],
+          next: s.otherwise.next,
+        ),
+      ),
+    ),
+  ),
+  // The launch's clear outside the jar's turns, as the post-paint sweep
+  // once ran it: queued on none and granted none, it empties the jar
+  // whenever it lands. The code's pass of the launch's turn is the same,
+  // its declaration not.
+  Mutant.lateclear => _with(
+    clear: _withArms(
+      tables.clear,
+      step: ActivationStep.clearJar,
+      arms: (s) => Step.environment(
+        s.name,
+        enabled: s.enabled,
+        call: s.call,
+        pick: s.pick,
+        site: s.site,
+        otherwise: Otherwise(
+          s.otherwise.outcome,
+          site: s.otherwise.site,
+          then: [
+            for (final e in s.otherwise.then)
+              if (e is Act<ClearWorld> && e.writes.contains(ModelVar.queue))
+                Note<ClearWorld>(e.run)
               else
                 e,
           ],
