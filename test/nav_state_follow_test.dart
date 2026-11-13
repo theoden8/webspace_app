@@ -34,7 +34,7 @@ SiteActivationController _activation(
 FakeWebViewController _built(WebViewModel site) {
   final view = FakeWebViewController();
   site.controller = view;
-  site.tabBinding.bind(site.activeTabId,
+  site.tabBinding.frame(site.activeTabId,
       commit: const Commit.environment(Environment.frame));
   return view;
 }

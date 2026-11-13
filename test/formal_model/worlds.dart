@@ -78,22 +78,6 @@ enum EnvAction {
       (of: ModelConst.tabbed, set: true),
       (of: ModelConst.rebuilt, set: true),
     },
-  ),
-  reframe(
-    next: r'\E s \in Sites : Reframe(s)',
-    coverage: 'Reframe',
-    reads: {
-      ModelVar.active,
-      ModelVar.built,
-      ModelVar.hist,
-      ModelVar.loaded,
-      ModelVar.queued,
-    },
-    writes: {ModelVar.built, ModelVar.hist, ModelVar.queued},
-    needs: {
-      (of: ModelConst.tabbed, set: true),
-      (of: ModelConst.rebuilt, set: true),
-    },
   );
 
   const EnvAction({

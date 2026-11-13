@@ -7,8 +7,9 @@ part of 'step_table.dart';
 final class Commit {
   const Commit._() : environment = null, _none = false;
 
-  /// A write of one of the environment's actions `activation.tla` states by
-  /// hand: the model takes it there, not in a table's step.
+  /// A write of one of the environment's actions outside a table's turn:
+  /// one `activation.tla` states by hand, or the frame's build in
+  /// `getWebView`, which the model takes in the step it follows.
   const Commit.environment(Environment this.environment) : _none = false;
 
   /// A turn that writes none of the model's state: a change to what the
@@ -37,7 +38,11 @@ enum Environment {
   init,
 
   /// The frame that builds a loaded site's webview for its active tab and
-  /// hands it the back stack queued for that tab (`Frame(s)`).
+  /// hands it the back stack queued for that tab, as
+  /// `WebViewModel.getWebView` does it: the model takes it in the step whose
+  /// commit it follows (`TabVars.framed`), or for a webview let go of in the
+  /// frame table's `Reframe` (`FrameTable`). The model's layer runs no table
+  /// of the page's, so the build writes in this commit, not the step's.
   frame,
 
   /// A row moved to another place in the list (`Move(from, to)`).

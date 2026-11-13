@@ -1006,9 +1006,6 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
     if (controller == null) {
       return;
     }
-    // Read before the first await: onControllerCreated consumes the pending
-    // restore right after calling us, and that path issues its own load.
-    final restorePending = tabBinding.queuedFor == tabBinding.built;
     final ready = Completer<bool>();
     _proxyReady = ready;
     // Apply proxy settings first (before loading any URLs)
@@ -1016,7 +1013,7 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
     ready.complete(proxyApplied);
     if (_initialLoadDeferredForProxy) {
       _initialLoadDeferredForProxy = false;
-      if (proxyApplied && !restorePending) {
+      if (proxyApplied) {
         await controller?.loadUrl(currentUrl);
       }
     }
@@ -1231,7 +1228,14 @@ bool dispatch(NavigationDecision decision,
     }
     if (webview == null) {
       final builtTab = activeTabId;
-      tabBinding.bind(builtTab, commit: const Commit.environment(Environment.frame));
+      // The frame's one turn (TabVars.framed): bound to the active tab and
+      // handed the back stack queued for it, which the first controller
+      // restores and no later one does again.
+      var pending = tabBinding.frame(
+        builtTab,
+        commit: const Commit.environment(Environment.frame),
+      );
+      final restoreQueued = pending != null;
       LogTag.webView.debug(
           'Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl'
           '${hosted ? ', running as ${id.siteId}' : ''})', sensitive: true);
@@ -1253,7 +1257,7 @@ bool dispatch(NavigationDecision decision,
           homeUrl: navHome,
           initialUrl: currentUrl,
           signInHosts: signInTab ? PopupKind.isSignInUrl : null);
-      if (tabBinding.queuedFor == builtTab) {
+      if (restoreQueued) {
         navigationBoundary.useExistingDocument();
       }
       // The URL we most recently fired the post-state-commit IPC chain
@@ -1271,7 +1275,7 @@ bool dispatch(NavigationDecision decision,
       // restored entry from onControllerCreated; iOS/macOS keep the
       // initialUrlRequest load and replace state in place via interactionState.
       final bool deferRestoreLoad = deferInitialLoadForRestore(
-        hasPendingRestoreState: tabBinding.queuedFor == builtTab,
+        hasPendingRestoreState: restoreQueued,
         isAndroid: hostIsAndroid,
         isFileImport: isFileImportUrl(currentUrl),
       );
@@ -1298,7 +1302,9 @@ bool dispatch(NavigationDecision decision,
         overrideActive: ProxyManager.overrideActive,
         releasesContainerProxy: storeBinding.releasesContainerProxy,
       );
-      _initialLoadDeferredForProxy = deferForProxy && !deferRestoreLoad;
+      // A restore issues its own load once the proxy is in.
+      _initialLoadDeferredForProxy =
+          deferForProxy && !deferRestoreLoad && !restoreQueued;
       final iconSiteUrl = id.initUrl;
       _liveExtensions = extensionHomeOf(
         posture.page.extensions,
@@ -1555,14 +1561,12 @@ bool dispatch(NavigationDecision decision,
           // for the much-better re-activation UX.
           //
           // unawaited: subsequent webview-creation logic doesn't
-          // depend on the restore completing. Clear the field
-          // *before* awaiting so a back-to-back rebuild doesn't
-          // re-apply the same bytes.
-          final pending = tabBinding.take(
-            tab: builtTab,
-            commit: const Commit.environment(Environment.frame),
-          );
-          if (pending != null && restores) {
+          // depend on the restore completing. The bytes the frame took
+          // are let go of *before* awaiting so a second controller of
+          // this build doesn't re-apply them.
+          final restoring = pending;
+          pending = null;
+          if (restoring != null && restores) {
             // On Android the webview was built with no initial load
             // (deferRestoreLoad), so restoreState applies to a pristine
             // back/forward list. Android does not restore display data, so
@@ -1578,7 +1582,7 @@ bool dispatch(NavigationDecision decision,
               // The override must land before the restored entry loads;
               // on a proxy failure stay blank (fail closed).
               if (!await proxyReady) return;
-              final ok = await ctrl.restoreState(pending);
+              final ok = await ctrl.restoreState(restoring);
               LogTag.webView.debug(
                   'restoreState for "$name" (siteId: $siteId): $ok',
                   sensitive: true);
@@ -1821,7 +1825,8 @@ bool dispatch(NavigationDecision decision,
   /// The tab the webview was built for and the back stack queued for the
   /// next build. The activation and the tab switch queue the bytes before the
   /// rebuild, so the repaint and `restoreState` land in one render cycle;
-  /// [getWebView]'s `onControllerCreated` takes them.
+  /// [getWebView]'s frame takes them as it builds, and its
+  /// `onControllerCreated` restores them.
   final WebViewTabBinding tabBinding = WebViewTabBinding();
 
   /// Opaque per-site container key for archive-tier sites (ARCH-007).

@@ -36,26 +36,23 @@ final class WebViewTabBinding {
     commit.wrote(ModelVar.queued);
   }
 
-  /// A webview is being built for [tab]: the model's `built[s]`, written in
-  /// [commit].
-  void bind(TabId tab, {required Commit commit}) {
-    _built = tab;
-    commit.wrote(ModelVar.built);
-  }
-
   /// The webview is gone.
   void unbind({required Commit commit}) {
     _built = null;
     commit.wrote(ModelVar.built);
   }
 
-  /// The back stack queued for [tab], handed over once in [commit]. Bytes
+  /// The frame builds a webview for [tab] and hands it the back stack queued
+  /// for it, in one [commit] (`Bound`, `Shown` and `Taken`, TAB-003): the
+  /// model's `built[s]`, its `hist[s]` and its `queued[s]`, emptied. Bytes
   /// queued for another tab are dropped: that tab is no longer the one being
-  /// built.
-  Uint8List? take({required TabId tab, required Commit commit}) {
+  /// built. What it returns the build restores, once.
+  Uint8List? frame(TabId tab, {required Commit commit}) {
+    _built = tab;
     final queued = _queued;
     _queued = null;
     commit
+      ..wrote(ModelVar.built)
       ..wrote(ModelVar.queued)
       ..wrote(ModelVar.hist);
     if (queued == null) return null;

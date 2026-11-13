@@ -423,14 +423,18 @@ final class TabVars {
 
   /// The frame after a commit built the site's webview: bound to its
   /// active tab, showing what was queued for that tab, the queue taken,
-  /// among the [loaded] sites the frame sees.
+  /// among the [loaded] sites the frame sees. The platform holds all three:
+  /// [build] is the code's half where the step itself builds the webview
+  /// (the environment's frame, `FrameTable`); a commit's frame builds it
+  /// later, in `getWebView`.
   static Act<W> framed<S, W>(
     Expr<S, W> site, {
     required SiteKeys<S, W> keys,
     required Expr<Iterable<S>, W> loaded,
+    void Function(CommitView<W> c)? build,
   }) => Act.of([
     builtFn<S, W>().becomes(bound<S, W>(keys: keys).call([site, loaded])),
     hist<S, W>().becomes(shown<S, W>(keys: keys).call([site, loaded])),
     queued<S, W>().becomes(taken<S, W>().call([site, loaded])),
-  ]);
+  ], then: build);
 }
