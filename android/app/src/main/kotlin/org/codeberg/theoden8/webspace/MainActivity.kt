@@ -17,11 +17,10 @@ import androidx.core.graphics.drawable.IconCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterShellArgs
+import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity: FlutterActivity() {
-    private val CHANNEL = "org.codeberg.theoden8.webspace/shortcuts"
-    private val SHARE_CHANNEL = "org.codeberg.theoden8.webspace/share_intent"
     private var locationPlugin: LocationPlugin? = null
     private var cameraPermissionPlugin: CapturePermissionPlugin? = null
     private var microphonePermissionPlugin: CapturePermissionPlugin? = null
@@ -97,159 +96,143 @@ class MainActivity: FlutterActivity() {
         windowCaptionPlugin = WindowCaptionPlugin(this, flutterEngine)
         networkSignInPlugin = NetworkSignInPlugin(this, flutterEngine)
         captureSharePayload(intent)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "consumeLaunchUrl" -> {
-                    val url = pendingShareUrl
-                    pendingShareUrl = null
-                    result.success(url)
-                }
-                "consumeLaunchHtml" -> {
-                    val payload = pendingShareHtml
-                    pendingShareHtml = null
-                    if (payload == null) {
-                        result.success(null)
-                    } else {
-                        result.success(mapOf(
-                            "content" to payload.content,
-                            "title" to payload.title,
-                            "sourceUri" to payload.sourceUri,
-                        ))
-                    }
-                }
-                else -> result.notImplemented()
-            }
+        LaunchChannels.register(
+            flutterEngine.dartExecutor.binaryMessenger,
+            this,
+            launch,
+            ::shortcutAction,
+        )
+    }
+
+    /** What this activity was launched with: the tile tapped, the adb
+     * tier's extras, what another app shared. */
+    private val launch = object : LaunchSource {
+        private val debuggable: Boolean
+            get() = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+
+        override fun launchSite(): Map<String, String?>? {
+            val siteId = intent?.getStringExtra("siteId")
+            // A tile pinned before shortcut ids carries no shortcutId
+            // and was never rewritten, so its id is still the one it
+            // was pinned under (HS-017).
+            val shortcutId = intent?.getStringExtra("shortcutId")
+                ?: siteId?.let { "site_$it" }
+            // Drained, or every resume would re-navigate to the pinned site.
+            intent?.removeExtra("siteId")
+            intent?.removeExtra("shortcutId")
+            return siteId?.let { mapOf("siteId" to it, "shortcutId" to shortcutId) }
         }
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "pinShortcut" -> {
-                    val shortcutId = call.argument<String>("shortcutId")
-                    val siteId = call.argument<String>("siteId")
-                    val label = call.argument<String>("label")
-                    val iconBytes = call.argument<ByteArray>("iconBytes")
 
-                    if (shortcutId == null || siteId == null || label == null) {
-                        result.error("INVALID_ARGS", "shortcutId, siteId and label are required", null)
-                        return@setMethodCallHandler
-                    }
+        // MainActivity is exported, so on a release build a hostile launch
+        // intent must not be able to swap the user's site list.
+        override fun diagSeed(): String? =
+            if (debuggable) intent?.getStringExtra("ws_diag_seed") else null
 
-                    // Dart rasterizes the favicon through the site's proxy;
-                    // when that fails the shortcut gets the app icon (HS-003).
-                    // Never fetch a page-chosen icon URL here: it would leave
-                    // over the device IP, outside the proxy (LEAK-003).
-                    val icon = decodeIcon(iconBytes)
-                        ?: IconCompat.createWithResource(this, R.mipmap.ic_launcher)
-                    pinShortcut(siteShortcut(shortcutId, siteId, label, icon), result)
+        // This drops repaint triggers, so on a release build it could only
+        // ever make the recurring blank screen easier to hit.
+        override fun diagRepaintSuppression(): String? =
+            if (debuggable) intent?.getStringExtra("ws_diag_suppress_repaint") else null
+
+        // The refresh funnel is only reachable from the overflow menu, which
+        // adb cannot drive.
+        override fun diagReload(): String? {
+            val spec = if (debuggable) intent?.getStringExtra("ws_diag_reload") else null
+            intent?.removeExtra("ws_diag_reload")
+            return spec
+        }
+
+        override fun sharedUrl(): String? {
+            val url = pendingShareUrl
+            pendingShareUrl = null
+            return url
+        }
+
+        override fun sharedHtml(): Map<String, String?>? {
+            val payload = pendingShareHtml ?: return null
+            pendingShareHtml = null
+            return mapOf(
+                "content" to payload.content,
+                "title" to payload.title,
+                "sourceUri" to payload.sourceUri,
+            )
+        }
+    }
+
+    private fun shortcutAction(call: MethodCall, result: MethodChannel.Result) {
+        when (call.method) {
+            "pinShortcut" -> {
+                val shortcutId = call.argument<String>("shortcutId")
+                val siteId = call.argument<String>("siteId")
+                val label = call.argument<String>("label")
+                val iconBytes = call.argument<ByteArray>("iconBytes")
+
+                if (shortcutId == null || siteId == null || label == null) {
+                    result.error("INVALID_ARGS", "shortcutId, siteId and label are required", null)
+                    return
                 }
-                "canPinShortcuts" ->
-                    result.success(ShortcutManagerCompat.isRequestPinShortcutSupported(this))
-                "removeShortcut" -> {
-                    val siteId = call.argument<String>("siteId")
-                    if (siteId != null) {
-                        // Remove any dynamic copy, but DO NOT disable the pinned
-                        // shortcut: HS-011 keeps the launcher tile alive so a tap
-                        // after the site is deleted still launches the app and
-                        // re-routes via the siteId->url ledger (offer to open a
-                        // domain match or create a new site). Disabling it makes
-                        // the launcher refuse the tap with "shortcut isn't
-                        // available", which defeats that recovery.
-                        ShortcutManagerCompat.removeDynamicShortcuts(this, listOf("site_$siteId"))
-                    }
-                    result.success(true)
+
+                // Dart rasterizes the favicon through the site's proxy;
+                // when that fails the shortcut gets the app icon (HS-003).
+                // Never fetch a page-chosen icon URL here: it would leave
+                // over the device IP, outside the proxy (LEAK-003).
+                val icon = decodeIcon(iconBytes)
+                    ?: IconCompat.createWithResource(this, R.mipmap.ic_launcher)
+                pinShortcut(siteShortcut(shortcutId, siteId, label, icon), result)
+            }
+            "canPinShortcuts" ->
+                result.success(ShortcutManagerCompat.isRequestPinShortcutSupported(this))
+            "removeShortcut" -> {
+                val siteId = call.argument<String>("siteId")
+                if (siteId != null) {
+                    // Remove any dynamic copy, but DO NOT disable the pinned
+                    // shortcut: HS-011 keeps the launcher tile alive so a tap
+                    // after the site is deleted still launches the app and
+                    // re-routes via the siteId->url ledger (offer to open a
+                    // domain match or create a new site). Disabling it makes
+                    // the launcher refuse the tap with "shortcut isn't
+                    // available", which defeats that recovery.
+                    ShortcutManagerCompat.removeDynamicShortcuts(this, listOf("site_$siteId"))
                 }
-                "updateShortcuts" -> {
-                    // HS-016/HS-017: a pinned tile opens the site its intent
-                    // names, and shows that site's name and icon. A tile sent
-                    // without iconBytes keeps the icon it has.
-                    val tiles = call.argument<List<Map<String, Any?>>>("tiles").orEmpty()
-                    val shortcuts = tiles.mapNotNull { tile ->
-                        val shortcutId = tile["shortcutId"] as? String
-                        val siteId = tile["siteId"] as? String
-                        val label = tile["label"] as? String
-                        if (shortcutId == null || siteId == null || label.isNullOrEmpty()) {
-                            null
-                        } else {
-                            siteShortcut(
-                                shortcutId,
-                                siteId,
-                                label,
-                                decodeIcon(tile["iconBytes"] as? ByteArray),
-                            )
-                        }
-                    }
-                    result.success(updateTiles(shortcuts))
-                }
-                "disableShortcut" -> {
-                    // Explicit user opt-in (HS-011): the app can't remove a
-                    // pinned tile, but it can disable it — greyed out, launcher
-                    // shows "shortcut isn't available" on tap until the user
-                    // drags it off the home screen.
-                    val shortcutId = call.argument<String>("shortcutId")
-                    if (shortcutId != null) {
-                        ShortcutManagerCompat.disableShortcuts(
-                            this,
-                            listOf(shortcutId),
-                            "Disabled in WebSpace"
+                result.success(true)
+            }
+            "updateShortcuts" -> {
+                // HS-016/HS-017: a pinned tile opens the site its intent
+                // names, and shows that site's name and icon. A tile sent
+                // without iconBytes keeps the icon it has.
+                val tiles = call.argument<List<Map<String, Any?>>>("tiles").orEmpty()
+                val shortcuts = tiles.mapNotNull { tile ->
+                    val shortcutId = tile["shortcutId"] as? String
+                    val siteId = tile["siteId"] as? String
+                    val label = tile["label"] as? String
+                    if (shortcutId == null || siteId == null || label.isNullOrEmpty()) {
+                        null
+                    } else {
+                        siteShortcut(
+                            shortcutId,
+                            siteId,
+                            label,
+                            decodeIcon(tile["iconBytes"] as? ByteArray),
                         )
                     }
-                    result.success(true)
                 }
-                "getDiagSeed" -> {
-                    // Adb white-screen tier (INTEG-011). Debuggable builds
-                    // only: MainActivity is exported, so on a release build
-                    // a hostile launch intent must not be able to swap the
-                    // user's site list.
-                    val debuggable =
-                        (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-                    result.success(if (debuggable) intent?.getStringExtra("ws_diag_seed") else null)
-                }
-                "getDiagRepaintSuppression" -> {
-                    // Same debuggable gate as the seed: this drops repaint
-                    // triggers, so on a release build it could only ever make
-                    // the recurring blank screen easier to hit.
-                    val debuggable =
-                        (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-                    result.success(
-                        if (debuggable) {
-                            intent?.getStringExtra("ws_diag_suppress_repaint")
-                        } else {
-                            null
-                        }
-                    )
-                }
-                "getDiagReload" -> {
-                    // Adb white-screen tier (INTEG-011). The refresh funnel
-                    // is only reachable from the overflow menu, which adb
-                    // cannot drive; same debuggable gate as the seed. Drained
-                    // on read so a later resume does not reload again.
-                    val debuggable =
-                        (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-                    val spec =
-                        if (debuggable) intent?.getStringExtra("ws_diag_reload") else null
-                    intent?.removeExtra("ws_diag_reload")
-                    result.success(spec)
-                }
-                "getLaunchSiteId" -> {
-                    val siteId = intent?.getStringExtra("siteId")
-                    // A tile pinned before shortcut ids carries no shortcutId
-                    // and was never rewritten, so its id is still the one it
-                    // was pinned under (HS-017).
-                    val shortcutId = intent?.getStringExtra("shortcutId")
-                        ?: siteId?.let { "site_$it" }
-                    // Drain the extras after reading so they fire once per tap.
-                    // didChangeAppLifecycleState(resumed) re-polls this on every
-                    // foreground; without clearing, a plain background/return
-                    // would re-navigate to the pinned site (issue: shortcut
-                    // re-opens on resume).
-                    intent?.removeExtra("siteId")
-                    intent?.removeExtra("shortcutId")
-                    result.success(
-                        siteId?.let { mapOf("siteId" to it, "shortcutId" to shortcutId) }
-                    )
-                }
-                "getPinnedShortcuts" -> result.success(pinnedShortcuts(this))
-                else -> result.notImplemented()
+                result.success(updateTiles(shortcuts))
             }
+            "disableShortcut" -> {
+                // Explicit user opt-in (HS-011): the app can't remove a
+                // pinned tile, but it can disable it — greyed out, launcher
+                // shows "shortcut isn't available" on tap until the user
+                // drags it off the home screen.
+                val shortcutId = call.argument<String>("shortcutId")
+                if (shortcutId != null) {
+                    ShortcutManagerCompat.disableShortcuts(
+                        this,
+                        listOf(shortcutId),
+                        "Disabled in WebSpace"
+                    )
+                }
+                result.success(true)
+            }
+            else -> result.notImplemented()
         }
     }
 
