@@ -29,6 +29,22 @@ Act<FrameWorld> _unbound(
   );
 }
 
+/// The let-go [gone] without its write of `built`: the history goes, and
+/// the code it runs, the webview's teardown, is the same.
+Act<LetGoWorld> _keepsBound(
+  Act<LetGoWorld> gone, {
+  required Expr<Object?, LetGoWorld> site,
+}) {
+  final hist = histOf<Object?, LetGoWorld>();
+  final kept = Act.of([hist.becomes(hist.value.except(site, to: noTab()))]);
+  return Act(
+    writes: kept.writes,
+    tla: kept.tla,
+    reads: kept.reads,
+    run: gone.run,
+  );
+}
+
 /// [ops] with the definition named as [def] replaced by it.
 List<Def<Object?, Object?>> _withDef(
   List<Def<Object?, Object?>> ops, {
@@ -771,6 +787,28 @@ Tables mutated(Mutant m) => switch (m) {
             for (final e in s.otherwise.then)
               if (e is Act<FrameWorld> && e.writes.contains(ModelVar.built))
                 _unbound(e, site: s.site!)
+              else
+                e,
+          ],
+          next: s.otherwise.next,
+        ),
+      ),
+    ),
+  ),
+  // The let-go drops the history but leaves the tab bound: the code's
+  // teardown is the same, its declaration not.
+  Mutant.letgobound => _with(
+    letGo: _withArms(
+      tables.letGo,
+      step: ActivationStep.letGo,
+      arms: (s) => s.withArms(
+        otherwise: Otherwise(
+          s.otherwise.outcome,
+          site: s.otherwise.site,
+          then: [
+            for (final e in s.otherwise.then)
+              if (e is Act<LetGoWorld> && e.writes.contains(ModelVar.built))
+                _keepsBound(e, site: s.site!)
               else
                 e,
           ],
