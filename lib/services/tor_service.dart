@@ -13,6 +13,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 
 import 'package:webspace/services/host_storage.dart'
@@ -111,15 +112,12 @@ class MethodChannelTorRuntime implements TorRuntime {
 
   /// [method] on the plugin's channel. The plugin refusing it, or no plugin
   /// answering, is the runtime's failure.
-  Future<T?> _invoke<T>(String method, {Object? arguments}) async {
-    try {
-      return await _channel.invokeMethod<T>(method, arguments);
-    } on PlatformException catch (e) {
-      throw TorRuntimeFailure('$e');
-    } on MissingPluginException catch (e) {
-      throw TorRuntimeFailure('$e');
-    }
-  }
+  Future<T?> _invoke<T>(String method, {Object? arguments}) async =>
+      switch (await _channel.ask<T>(method, arguments: arguments)) {
+        Answered(:final value) => value,
+        PlatformRefused(:final error) => throw TorRuntimeFailure('$error'),
+        NoPlugin(:final error) => throw TorRuntimeFailure('$error'),
+      };
 
   @override
   Future<void> start() async {
@@ -142,18 +140,19 @@ class MethodChannelTorRuntime implements TorRuntime {
   @override
   Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {
     if (!isAvailable) return;
-    try {
-      await _channel.invokeMethod<void>('setExitCountry', {
-        'exitNodes': exitNodes,
-        'geoipFile': geoipFile,
-      });
-    } on PlatformException catch (e) {
-      if (e.code == 'exit_country_empty') {
-        throw TorExitCountryEmpty(e.message ?? 'No exit relay in that country.');
-      }
-      throw TorRuntimeFailure('$e');
-    } on MissingPluginException catch (e) {
-      throw TorRuntimeFailure('$e');
+    switch (await _channel.ask<void>('setExitCountry', arguments: {
+      'exitNodes': exitNodes,
+      'geoipFile': geoipFile,
+    })) {
+      case Answered():
+        return;
+      case PlatformRefused(:final error) when error.code == 'exit_country_empty':
+        throw TorExitCountryEmpty(
+            error.message ?? 'No exit relay in that country.');
+      case PlatformRefused(:final error):
+        throw TorRuntimeFailure('$error');
+      case NoPlugin(:final error):
+        throw TorRuntimeFailure('$error');
     }
   }
 
