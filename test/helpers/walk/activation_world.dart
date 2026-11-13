@@ -16,6 +16,7 @@ import 'package:webspace/controllers/shell_store.dart';
 import 'package:webspace/controllers/site_route.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/controllers/site_deletion.dart';
+import 'package:webspace/controllers/site_import.dart';
 import 'package:webspace/controllers/site_set_commit.dart';
 import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
@@ -223,6 +224,15 @@ final class Delete extends SiteAction {
   const Delete();
   @override
   String toString() => 'Delete()';
+}
+
+/// The user imports a backup that carries site 1 again and brings the
+/// page's last site, which starts off the list; site 2 leaves
+/// (`ImportSites`, `ImportOne`).
+final class ImportBackup extends SiteAction {
+  const ImportBackup();
+  @override
+  String toString() => 'ImportBackup()';
 }
 
 /// Site [site]'s routing switch flips and its settings close (LIR-034):
@@ -554,11 +564,16 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     this.archived = false,
     this.deletes = false,
     this.joins = false,
+    this.imports = false,
     this.rehosts = false,
     this.declared,
   }) {
     assert(!archived || page.containers, 'an archive needs containers');
     assert(!deletes || page.containers, 'the delete world runs on containers');
+    assert(
+      !imports || joins,
+      'the backup brings the site that starts off the list (ImportOne)',
+    );
     assert(
       !rehosts ||
           (page.containers &&
@@ -700,12 +715,39 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// The site that starts off the list, while [joins].
   WebViewModel? _joining;
 
-  /// The sites off the list: those a close or a delete took, and the one
-  /// yet to join (`gone`).
-  Iterable<WebViewModel> get _offList => [
+  /// The script may import a backup ([ImportBackup]) that carries site 1
+  /// again and brings the site that starts off the list ([joins]); a frame
+  /// mounts each loaded site's webview, which with containers binds its
+  /// container (`Importing`, `Frame`).
+  final bool imports;
+
+  /// The sites an import took off the list, as it found them.
+  final List<WebViewModel> _unlisted = [];
+
+  /// The sites a backup carries, by number (`ImportOne`).
+  Set<int> get _carried => {1, page.hosts.length};
+
+  late final SiteImport siteImport = SiteImport(
+    sites,
+    host: _WalkImportHost(this),
+  );
+
+  /// The sites off the list: those a close, a delete or an import took,
+  /// and the one yet to join (`gone`), each once.
+  Iterable<WebViewModel> get _offList => _byId([
     ..._followed.where(_gone),
     if (_joining case final j? when _gone(j)) j,
-  ];
+  ]);
+
+  /// [ms] with one site per id: an import lists a new model under an id
+  /// whose old one a flow may still hold.
+  static List<WebViewModel> _byId(Iterable<WebViewModel> ms) {
+    final seen = <SiteId>{};
+    return [
+      for (final m in ms)
+        if (seen.add(m.siteId)) m,
+    ];
+  }
 
   /// Site 1 starts with a second tab, a link of its own into site 3's
   /// domain, which [Reroute] runs as site 3 or as site 1.
@@ -721,9 +763,9 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   late final _declarations = FrameDeclarations(of: declared);
 
-  /// Whether the world follows the webviews and containers a close or a
-  /// delete takes away (`Boxed`).
-  bool get _boxed => archived || deletes;
+  /// Whether the world follows the webviews and containers a close, a
+  /// delete or an import takes away (`Boxed`).
+  bool get _boxed => archived || deletes || imports;
 
   late final SiteDeletion deletion = SiteDeletion(
     sites,
@@ -734,14 +776,19 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   WebViewModel? _deleted;
 
   /// The sites whose containers the model follows (`Boxed`).
-  Iterable<WebViewModel> get _followed => {
+  Iterable<WebViewModel> get _followed => _byId([
     ..._archived,
-    if (deletes) ...{
+    if (deletes) ...[
       ?_deleted,
       for (final m in sites.models)
         if (_siteNumber(m) == 1) m,
-    },
-  };
+    ],
+    if (imports) ...[
+      ..._unlisted,
+      for (final m in sites.models)
+        if (!_carried.contains(_siteNumber(m))) m,
+    ],
+  ]);
 
   final MockFlutterSecureStorage _keychain = MockFlutterSecureStorage();
   late final ArchiveController archives = ArchiveController(
@@ -760,20 +807,24 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// The sites an archive took, by the order they went in.
   final List<WebViewModel> _archived = [];
 
-  /// The sites whose webview is mounted, and the container each binds.
-  final Map<WebViewModel, ContainerKey> _mounted = {};
+  /// The sites whose webview is mounted, by id, and the container each
+  /// binds: an import lists a new model under a carried site's id, whose
+  /// webview the frame keeps while the site stays loaded.
+  final Map<SiteId, ContainerKey> _mounted = {};
 
   /// The list as it stood when a close or a delete took sites off it: the
   /// model keeps their rows, and moves none once one has gone.
   List<int>? _rowsAtDrop;
 
   /// The model's rows: the list, or as it stood at a drop.
-  List<int> get _rows =>
-      _rowsAtDrop ??
-      [
-        for (final m in sites.models) _siteNumber(m),
-        if (_joining case final j? when _gone(j)) _siteNumber(j),
-      ];
+  List<int> get _rows => _rowsAtDrop ?? _listedRows;
+
+  /// The rows as the list stands: the listed sites, then the one yet to
+  /// join, whose row the model keeps.
+  List<int> get _listedRows => [
+    for (final m in sites.models) _siteNumber(m),
+    if (_joining case final j? when _gone(j)) _siteNumber(j),
+  ];
 
   /// A frame's mounts and unmounts: a loaded site's webview mounts and binds
   /// its container, one no longer loaded unmounts (`Frame`).
@@ -785,21 +836,22 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     _letGoInPlace = false;
     if (!_boxed) return;
     inFlow(flow: _frameFlow, () {
-      for (final m in {..._bySite, ..._mounted.keys}) {
-        final live = sites.loaded.contains(m);
-        final bound = _mounted[m];
+      for (final m in _bySite) {
+        final live = sites.loaded.hasKey(m);
+        final bound = _mounted[m.siteId];
         if (live && bound == m.containerKey) continue;
         if (!live && bound == null) continue;
-        if (bound != null) native.unbind(bound);
+        if (bound != null && page.containers) native.unbind(bound);
         if (live) {
           // A webview let go and built again on another container (a move
           // into an archive) remounts: the model starts after that, so only
-          // a first mount or an unmount is a step of it.
-          _mounted[m] = m.containerKey;
-          native.bind(m.containerKey);
+          // a first mount or an unmount is a step of it. The shared jar
+          // has no container to bind.
+          _mounted[m.siteId] = m.containerKey;
+          if (page.containers) native.bind(m.containerKey);
           if (bound != null) continue;
         } else {
-          _mounted.remove(m);
+          _mounted.remove(m.siteId);
         }
         ActivationSteps.mark(ActivationStep.frame, site: m);
       }
@@ -809,10 +861,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// The frame a close waits for (`endOfFrame`): the webviews of sites no
   /// longer loaded unmount, which is all the close's step writes.
   void _unmountGone() {
-    for (final MapEntry(key: m, value: key) in [..._mounted.entries]) {
-      if (sites.loaded.contains(m)) continue;
-      _mounted.remove(m);
-      native.unbind(key);
+    for (final MapEntry(key: id, value: key) in [..._mounted.entries]) {
+      if (sites.loaded.any((m) => m.siteId == id)) continue;
+      _mounted.remove(id);
+      if (page.containers) native.unbind(key);
     }
   }
 
@@ -1195,6 +1247,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     SwitchWebspace() ||
     CloseArchive() ||
     Delete() ||
+    ImportBackup() ||
     Retap() ||
     OpenTab() ||
     NewTab() ||
@@ -1301,7 +1354,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       // A site's id never changes once it is made; a join that re-mints one
       // makes a new model (Admitted.of), so only Join writes it.
       ModelVar.ids => each((m) => m.siteId),
-      ModelVar.views => ids(_mounted.keys),
+      ModelVar.views => FrameValues([..._mounted.keys]..sort()),
       ModelVar.boxes => ids([
         for (final m in _followed)
           if (native.profiles.containsKey(m.containerKey)) m,
@@ -1332,8 +1385,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   /// A site as `formal/activation.tla` numbers it: by its place in the
   /// page's first list, from 1.
-  static int _siteNumber(WebViewModel site) =>
-      int.parse(site.siteId.substring('walk-'.length)) + 1;
+  static int _siteNumber(WebViewModel site) => _siteNumberOf(site.siteId);
+
+  static int _siteNumberOf(SiteId id) =>
+      int.parse(id.substring('walk-'.length)) + 1;
 
   /// Each site's tab ids as `formal/activation.tla` numbers them: by first
   /// sight, from 1, as the model mints them (`Mint`, never repeated).
@@ -1504,7 +1559,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     return TabId('none');
   }
 
-  bool _gone(WebViewModel m) => !sites.models.contains(m);
+  bool _gone(WebViewModel m) => !sites.models.hasKey(m);
 
   /// The state `formal/activation.tla` names, read off the page.
   Map<String, Object> _project() {
@@ -1563,7 +1618,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       if (_boxed || joins) ...{
         'gone': [for (final m in _offList) _siteNumber(m)]
           ..sort(),
-        'views': [for (final m in _mounted.keys) _siteNumber(m)]..sort(),
+        'views': [for (final id in _mounted.keys) _siteNumberOf(id)]..sort(),
         'boxes': [
           for (final m in _followed)
             if (native.profiles.containsKey(m.containerKey)) _siteNumber(m),
@@ -1691,6 +1746,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
             '${archived ? '_archive' : ''}'
             '${deletes ? '_delete' : ''}'
             '${joins ? '_join' : ''}'
+            '${imports ? '_import' : ''}'
             '${page.incognito.isEmpty ? '' : '_incognito'}'
             '${_faults.isEmpty ? '' : '_fails_${[for (final f in _faults) f.name].join('_')}'}',
         constants: (
@@ -1757,6 +1813,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       ModelConst.online => _faults.contains(Fault.network) ? 'FALSE' : null,
       ModelConst.archive => set([for (final m in _archived) _siteNumber(m)]),
       ModelConst.deletable => set(deletes ? const [1] : const <int>[]),
+      ModelConst.importing => set(imports ? _carried : const <int>[]),
+      ModelConst.imports => null,
       ModelConst.resettable => set(every),
       // A renderer dies only where the world builds webviews.
       ModelConst.rebuilt => set(_boxed || rehosts ? every : const <int>[]),
@@ -1799,6 +1857,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     SwitchWebspace() => ActivationStep.spaceSwitch,
     CloseArchive() => ActivationStep.closeArchive,
     Delete() => ActivationStep.deleteSite,
+    ImportBackup() => ActivationStep.importSites,
     OpenTab() => ActivationStep.openTab,
     NewTab() => ActivationStep.newTab,
     CloseTab() => ActivationStep.closeTab,
@@ -1846,7 +1905,32 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// delete's.
   void _noteRowsAtDrop({required bool overwrite}) {
     if (_rowsAtDrop != null && !overwrite) return;
-    _rowsAtDrop = [for (final m in sites.models) ActivationWorld._siteNumber(m)];
+    _rowsAtDrop = _listedRows;
+  }
+
+  /// The sites a landing takes off the list leave the walk's sign-ins: what
+  /// their pages signed in to goes with them (`signedIn \ gone`).
+  void _forgetUnlisted() {
+    for (final id in [..._signedIn.keys]) {
+      if (!sites.models.any((m) => m.siteId == id)) _signedIn.remove(id);
+    }
+  }
+
+  /// The backup ([ImportBackup]): the sites it carries, listed or not (a
+  /// delete may have taken site 1), each a new model under its id in the
+  /// order they had, those off the list last; the webspaces as they are.
+  Future<void> _importBackup() async {
+    await siteImport.replace(
+      SitesReplaced(
+        sites: [
+          for (final m in _byId([...sites.models, ..._offList]))
+            if (_carried.contains(_siteNumber(m)))
+              _site(page.hosts[_siteNumber(m) - 1], id: m.siteId),
+        ],
+        webspaces: [...sites.webspaces],
+        selectedWebspaceId: sites.selectedWebspaceId,
+      ),
+    );
   }
 
   /// Another component edits the rows, as `formal/activation.tla`'s
@@ -1916,8 +2000,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     ));
   }
 
-  WebViewModel _site(String host) => WebViewModel(
-    siteId: SiteId('walk-${_nextSite++}'),
+  WebViewModel _site(String host, {SiteId? id}) => WebViewModel(
+    siteId: id ?? SiteId('walk-${_nextSite++}'),
     initUrl: 'https://$host/',
     name: host,
     incognito: page.incognito.contains(host),
@@ -2309,6 +2393,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
             _track(deletion.delete(m));
           }
         }
+      case ImportBackup():
+        if (imports) _track(_importBackup());
       // A reroute requested while a tab handler holds the gate runs once it
       // lets go (TabHandlingGate.deferUntilIdle), as one landing then would;
       // the model lands one only on a free gate.
@@ -2412,6 +2498,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           ArchiveSite() ||
           CloseArchive() ||
           Delete() ||
+          ImportBackup() ||
           Reroute():
         start(action);
       case Reply(:final pick):
@@ -2637,9 +2724,9 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     expect(
       [
         for (final m in _followed.where(_gone))
-          if (sites.loaded.contains(m) ||
-              identical(m, sites.shown) ||
-              _mounted.containsKey(m) ||
+          if (sites.loaded.hasKey(m) ||
+              sites.shown?.siteId == m.siteId ||
+              _mounted.containsKey(m.siteId) ||
               native.profiles.containsKey(m.containerKey))
             m.siteId,
       ],
@@ -2683,8 +2770,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     // A site that left the list keeps its files until the startup orphan
     // sweep, which the walk does not run.
     final left = {
-      for (final m in {?_deleted, ..._archived})
-        if (!sites.models.contains(m))
+      for (final m in {?_deleted, ..._archived, ..._unlisted})
+        if (!sites.models.hasKey(m))
           for (final t in m.tabs) m.stateKeyForTab(t.id),
     };
     for (final key in navStates.files.keys) {
@@ -2901,11 +2988,6 @@ final class _WalkCommitHost implements SiteSetCommitHost {
 
   @override
   void rebuild() => world._drawn = world.sites.shown;
-
-
-  @override
-  Future<void> closeArchives() =>
-      throw UnsupportedError('no world imports a backup');
 
   @override
   Future<void> recordInArchive(SiteArchived change) =>
@@ -3360,7 +3442,53 @@ final class _WalkDeletionHost implements SiteDeletionHost {
     world,
     drop: drop,
     before: () => world._noteRowsAtDrop(overwrite: false),
+    landed: world._forgetUnlisted,
   );
+
+  @override
+  Future<void> endOfFrame() async {
+    await world.gate.pace(PlatformCall.frame);
+    world._unmountGone();
+  }
+}
+
+/// The page's side of an import: its commit, the funnel the page runs, and
+/// the frame it waits for; the sites the landing drops stay followed.
+final class _WalkImportHost implements SiteImportHost {
+  _WalkImportHost(this.world);
+
+  final ActivationWorld world;
+
+  @override
+  bool get mounted => true;
+
+  @override
+  void rebuild() => world._drawn = world.sites.shown;
+
+  @override
+  void toast(
+    String Function(AppLocalizations loc) message, {
+    Duration duration = const Duration(seconds: 4),
+    bool floating = false,
+  }) {}
+
+  @override
+  Future<void> commitSites(FunnelChange change) =>
+      throw UnsupportedError('an import lands in its own step');
+
+  @override
+  SiteSetStage stageSites(SiteDrop drop) {
+    final before = [...world.sites.models];
+    return _WalkStage(
+      world,
+      drop: drop,
+      before: () => world._noteRowsAtDrop(overwrite: false),
+      landed: () {
+        world._unlisted.addAll(before.where(world._gone));
+        world._forgetUnlisted();
+      },
+    );
+  }
 
   @override
   Future<void> endOfFrame() async {
@@ -3371,17 +3499,21 @@ final class _WalkDeletionHost implements SiteDeletionHost {
 
 /// The page's funnel run in parts, behind the platform reply the walk
 /// paces: the drop's call waits on it, then the funnel's own preparation.
+/// What the walk keeps beside the page follows the landing ([landed]).
 final class _WalkStage implements SiteSetStage {
   _WalkStage(
     this.world, {
     required SiteDrop drop,
     required void Function() before,
+    void Function()? landed,
   }) : _inner = world._siteSetCommit.stage(drop),
-       _before = before;
+       _before = before,
+       _landed = landed;
 
   final ActivationWorld world;
   final SiteSetStage _inner;
   final void Function() _before;
+  final void Function()? _landed;
 
   @override
   Future<void> prepare() async {
@@ -3391,7 +3523,10 @@ final class _WalkStage implements SiteSetStage {
   }
 
   @override
-  void land({required Commit commit}) => _inner.land(commit: commit);
+  void land({required Commit commit}) {
+    _inner.land(commit: commit);
+    _landed?.call();
+  }
 
   @override
   Future<void> follow() => _inner.follow();

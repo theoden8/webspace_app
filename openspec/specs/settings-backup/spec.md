@@ -51,11 +51,24 @@ Secure cookies (`isSecure=true`) SHALL NEVER be exported for security reasons.
 **Then** the backup includes only `[theme]`
 **And** the secure `session` cookie is excluded
 
+A site the backup carries again (one whose id a listed site holds) keeps
+the session it has, and its container where there are containers: the
+backup's cookies SHALL seed only the sites it brings new, so an import never
+signs a site out of a session newer than the backup
+([`SiteImport.land`](../../../lib/controllers/site_import.dart), ISO-015).
+
 #### Scenario: Import restores non-secure cookies
 
-**Given** a backup contains non-secure cookies
+**Given** a backup contains non-secure cookies for a site not on the list
 **When** settings are imported
 **Then** non-secure cookies are restored to the site
+
+#### Scenario: Import keeps a carried site's own session
+
+**Given** site A is on the list and signed in
+**And** a backup carries A under its id, with older cookies
+**When** settings are imported
+**Then** A keeps the session it had, not the backup's cookies
 
 ---
 

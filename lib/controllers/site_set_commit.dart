@@ -14,10 +14,6 @@ abstract interface class SiteSetCommitHost {
   bool get mounted;
   void rebuild();
 
-  /// ARCH-010: the open archives seal before an import replaces the rows
-  /// they were materialised into.
-  Future<void> closeArchives();
-
   /// The archived copy of [change]'s site, once its references settled.
   Future<void> recordInArchive(SiteArchived change);
 
@@ -60,8 +56,7 @@ final class SiteSetCommit {
   /// The model's action [change] is: a row move is the environment's
   /// `Move`, a site joining the list its `Join`, the startup load the list
   /// `Init` starts from; a change to what the model does not hold writes
-  /// none of it; an import no step takes yet. A drop lands in its own step
-  /// ([stage]).
+  /// none of it. A drop lands in its own step ([stage]).
   static Commit commitOf(FunnelChange change) => switch (change) {
     SitesMoved() => const Commit.environment(Environment.move),
     SiteAdded() ||
@@ -72,7 +67,6 @@ final class SiteSetCommit {
     SiteSettingsClosed() ||
     SiteArchived() ||
     SiteUnarchived() => const Commit.none(),
-    SitesReplaced() => const Commit.unmodeled(Unmodeled.sitesReplaced),
   };
 
   /// [drop] in the three parts a step table runs it in, so the lists
@@ -81,25 +75,6 @@ final class SiteSetCommit {
 
   /// Before anything moves; false when the page went away meanwhile.
   Future<bool> _prepare(SiteSetChange change) async {
-    // ARCH-010: open archives seal before an import replaces the rows they
-    // were materialised into.
-    switch (change) {
-      case SitesReplaced():
-        await _host.closeArchives();
-        if (!_host.mounted) return false;
-      case SitesEdited() ||
-          SiteRemoved() ||
-          SiteSettingsSaved() ||
-          SiteSettingsClosed() ||
-          SitesLoaded() ||
-          SiteAdded() ||
-          SitesMoved() ||
-          ArchiveOpened() ||
-          ArchiveClosed() ||
-          SiteArchived() ||
-          SiteUnarchived():
-        break;
-    }
     // Before the grid can build them: a webview's location shim takes the
     // zone as it is built, so one built first would run at the real zone.
     await resolveZones(change.arriving);

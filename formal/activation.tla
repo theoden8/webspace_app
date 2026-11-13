@@ -161,10 +161,11 @@ Init ==
     /\ gone = Joining
     \* Each site under its own id, a clashing one under a listed site's.
     /\ ids = [s \in Sites |-> IF s \in Clashing THEN Holder ELSE s]
-    \* Where an archive is open, a loaded site's webview is mounted and an
-    \* archive site's container is on disk once it was.
+    \* Where an archive is open, a loaded site's webview is mounted and,
+    \* with containers, an archive site's container is on disk once it was;
+    \* the shared jar has none.
     /\ views = IF Boxed = {} THEN {} ELSE loaded
-    /\ boxes = Boxed \cap loaded
+    /\ boxes = IF Containers THEN Boxed \cap loaded ELSE {}
 
 -----------------------------------------------------------------------------
 (* Inputs. The tables start the flows (InputTableStep, printed); the rest *)
@@ -269,17 +270,18 @@ ViewGone(s) ==
     /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabVars, dns,
                     archived >>
 
-\* A frame mounts a loaded site's webview, which binds its container, and
-\* unmounts one whose site is no longer loaded (SiteWebviewStack). Only
-\* where a close or a delete can take a site away: the other configs follow
-\* no view's mount.
+\* A frame mounts a loaded site's webview, which binds its container (the
+\* shared jar has none), and unmounts one whose site is no longer loaded
+\* (SiteWebviewStack). Only where a close or a delete can take a site
+\* away: the other configs follow no view's mount.
 Frame(s) ==
     /\ Calm
     /\ Boxed # {}
     /\ (s \in loaded) # (s \in views)
     /\ IF s \in loaded
        THEN /\ views' = views \cup {s}
-            /\ boxes' = IF s \in Boxed THEN boxes \cup {s} ELSE boxes
+            /\ boxes' = IF Containers /\ s \in Boxed
+                        THEN boxes \cup {s} ELSE boxes
        ELSE /\ views' = views \ {s}
             /\ UNCHANGED boxes
     /\ Did("Frame", 0, "", s)
@@ -491,9 +493,9 @@ ResidentOne == 1
 \* between two of them stops showing one of these (WEBSPACE-013).
 AwaySpaces == {{}, {3}, {1, 2}}
 
-\* ARCH-007, ARCH-014: once a close or a delete has taken sites off the
-\* list, at rest none is loaded or on screen, none has a webview mounted,
-\* and none's container is on disk.
+\* ARCH-007, ARCH-014, CONT-010: once a close, a delete or an import has
+\* taken sites off the list, at rest none is loaded or on screen, none has a
+\* webview mounted, and none's container is on disk.
 Inv_Retired ==
     Idle => gone \cap (loaded \cup views \cup boxes \cup {current}) = {}
 
@@ -507,6 +509,12 @@ RebuildOne == {1}
 JoinOne == {3}
 \* And arriving under a listed site's id (SEC-044).
 ClashOne == {3}
+\* The import configs': the backup carries site 1, signed in on screen at
+\* the start, and brings site 3, off the list (JoinOne); site 2 leaves.
+ImportOne == {1, 3}
+\* Beside an open archive (ArchiveOne): it carries site 1 alone, so the
+\* archive's site leaves with site 2.
+ImportKeep == {1}
 
 \* R8, ARCH-016: no two listed sites share an id, so a lookup by id names
 \* one site.
@@ -582,6 +590,12 @@ Reach_CloseSupersedes ==
 \* the delete config is not vacuous.
 Reach_DeleteSupersedes ==
     ~(last.a = "DeleteDropReply" /\ \E f \in Flows : fl[f].kind = "tap" /\ fl[f].pc # "done")
+\* An import lands while an archive's close has taken its sites off the
+\* list and not yet deleted their containers: the import beside an archive
+\* is not vacuous.
+Reach_ImportDuringClose ==
+    ~(last.a \in {"ImportLandReply", "ImportLandTurnReply"} /\
+      \E f \in Flows : fl[f].kind = "close" /\ fl[f].pc \in {"cFrame", "cDelete"})
 \* A restore sets a loaded incognito site's session back once the jar is
 \* emptied: the incognito config is not vacuous (INC-001).
 Reach_IncognitoKept ==

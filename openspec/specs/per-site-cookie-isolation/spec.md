@@ -442,12 +442,11 @@ The boundaries:
   the sessions the launch's restores put back
 - **On site switch** — inside `_restoreCookiesForSite`, after capturing
   cookies for other loaded sites
-- **On settings import** — `activate` during import routes through
-  `_restoreCookiesForSite`, which performs the nuke-and-restore cycle; the
-  import path MUST NOT issue a subsequent `deleteAllCookies()` or it would
-  wipe the session just restored for the imported active site. An import
-  that activates nothing empties the jar through `clearUnloaded`, in the
-  jar's turn and only while no site is loaded
+- **On settings import** — the import empties the jar in its own turn,
+  after saving the share of each loaded site it carries again, and lands
+  before the turn passes on (ISO-015). It MUST NOT issue a
+  `deleteAllCookies()` after it lands: a tap's restore may already have
+  refilled the jar, and the clear would wipe that session
 - **On site deletion** — for the deleted site's `initUrl` and `currentUrl`
   unconditionally, followed by an orphan sweep of siteId-keyed storage; if
   a loaded same-base-domain site exists, its session SHALL be snapshotted
@@ -513,8 +512,10 @@ session, whatever lands meanwhile.
 - A deletion's jar cleanup (ISO-010) drops the deleted site's stored cookies
   first; a jar that fails is left for the next activation to empty
   (ISO-012), and the deletion goes on.
-- The jar clear at launch, and after an import that restores no site
-  (ISO-012), is left to the next activation; the sweep and the import go on.
+- The jar clear at launch (ISO-012) is left to the next activation, and
+  the launch goes on. An import whose capture or nuke the jar refuses
+  saves what it could and lands, and the next activation empties the jar
+  before any site is shown (ISO-015).
 - The cookie mirror after a page load keeps the site's last saved cookies,
   and the rest of the load's work runs.
 - A blocked cookie the jar refuses to delete stays for the next load to take
@@ -568,6 +569,37 @@ success), so there a failed read still arrives as an empty jar.
 **Given** the user taps Clear Cookies on a site's settings and confirms
 **When** the jar refuses a delete
 **Then** the screen says the cookie store failed, not "Cookies cleared"
+
+### Requirement: ISO-015 - An Import Keeps the Sessions of the Sites It Carries
+
+A settings import on the shared jar SHALL wait for the jar's turn, save the
+share of each loaded site the backup carries again (by id) to that site's
+stored session, empty the jar, and land, all in that one turn
+([`SiteImport`](../../../lib/controllers/site_import.dart)). Its landing
+replaces every site with a new model, so a session held only in the jar
+would otherwise be lost with the old one; and a jar emptied after the
+landing, outside the turn, could empty a session a tap's restore had just
+set back. A site the backup brings onto the list starts with the backup's
+cookies alone (BACKUP-003).
+
+`formal/activation.tla` takes the import as a step table in its import
+worlds (`Importing`): `importnocapture`, an import that empties the jar
+without the save, is caught by `Inv_NoSessionLoss`.
+
+#### Scenario: A signed-in site the backup carries again
+
+**Given** Site A is on screen and signed in, its session in the jar alone
+**When** the user imports a backup that carries A
+**Then** A's share of the jar is saved to its stored session before the jar
+  is emptied
+**And** once the import lands, A's next activation restores that session
+
+#### Scenario: A tap right after the import lands
+
+**Given** an import has landed and emptied the jar in its turn
+**When** the user taps a site the backup carries
+**Then** the tap's restore fills the jar with that site's stored session
+**And** nothing empties the jar after it
 
 ## Implementation Details
 

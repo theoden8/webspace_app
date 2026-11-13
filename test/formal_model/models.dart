@@ -16,6 +16,7 @@ import 'package:webspace/controllers/activation_place.dart';
 import 'package:webspace/controllers/activation_flow.dart';
 import 'package:webspace/controllers/activation_table.dart';
 import 'package:webspace/controllers/site_deletion.dart';
+import 'package:webspace/controllers/site_import.dart';
 import 'package:webspace/controllers/tab_vars.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
 import 'package:webspace/services/activation_step.dart';
@@ -49,6 +50,8 @@ typedef Tables = ({
   StepTable<DnsFlow, DnsPlace> dns,
   StepTable<CloseFlow, ClosePlace> archive,
   StepTable<DeleteFlow, DeletePlace> delete,
+  StepTable<ImportFlow, ImportPlace> import,
+  StepTable<ImportFlow, ImportPlace> importTurn,
   List<Def<Object?, Object?>> ops,
 });
 
@@ -102,6 +105,8 @@ final Tables tables = (
   dns: DnsTable.table,
   archive: ArchiveController.closeTable,
   delete: SiteDeletion.deleteTable,
+  import: SiteImport.importTable,
+  importTurn: SiteImport.turnTable,
   ops: definitions,
 );
 
@@ -118,6 +123,8 @@ enum ModelTable {
   dns,
   archive,
   delete,
+  import,
+  importTurn,
 }
 
 StepTable<Object?, Enum> _table(Tables t, {required ModelTable of}) =>
@@ -132,6 +139,8 @@ StepTable<Object?, Enum> _table(Tables t, {required ModelTable of}) =>
       ModelTable.dns => t.dns,
       ModelTable.archive => t.archive,
       ModelTable.delete => t.delete,
+      ModelTable.import => t.import,
+      ModelTable.importTurn => t.importTurn,
     };
 
 List<StepTable<Object?, Enum>> _all(Tables t) => [
@@ -230,8 +239,10 @@ List<PrintedFile> printedModels({required List<String> handWritten}) => [
   ...activationTypesProofs(
     tables: {
       for (final m in ModelTable.values)
-        m.name: _table(tables, of: m)
-            .flSteps(entered: _entered(tables), starts: _starts(tables)),
+        m.name: _table(
+          tables,
+          of: m,
+        ).flSteps(entered: _entered(tables), starts: _starts(tables)),
     },
     definitions: tlaDefinitions([
       activationVars(),
@@ -450,9 +461,10 @@ List<({ActivationStep step, ComposedAction action})> stepActions(Tables t) {
             armed: {
               for (final v in f.writes)
                 if ([
-                  for (final a in f.arms)
-                    if (a.writes.contains(v)) a.needs,
-                ] case final by when by.length < f.arms.length)
+                      for (final a in f.arms)
+                        if (a.writes.contains(v)) a.needs,
+                    ]
+                    case final by when by.length < f.arms.length)
                   v: by.reduce((x, y) => x.intersection(y)),
             },
           ),
@@ -535,18 +547,7 @@ String activationOps(Tables t) => [
 /// [FlowField]'s range: `TypeOK`, which every world checks, over the kinds
 /// a flow can be and the places of every table.
 List<String> _types(Tables t) {
-  final tables = <StepTable<Object?, Enum>>[
-    t.activation,
-    t.tabInputs,
-    t.tabFlow,
-    t.unload,
-    t.jar,
-    t.restore,
-    t.wake,
-    t.dns,
-    t.archive,
-    t.delete,
-  ];
+  final tables = _all(t);
   final places = {
     FlowField.pc.none,
     for (final table in tables)
@@ -724,10 +725,12 @@ String activationCalm(Tables t) {
       f.arms.any((a) => a.ends || a.fields.contains(row.field));
   bool readsRowOf(Footprint a, {required Footprint of}) {
     final r = _resolved(a.reads, seen: const {});
-    return {...r.rows, for (final o in r.base) ...o.rows}.any(
-      (row) => writesRow(of, row: row),
-    );
+    return {
+      ...r.rows,
+      for (final o in r.base) ...o.rows,
+    }.any((row) => writesRow(of, row: row));
   }
+
   bool meets(Footprint a, {required Footprint b}) {
     final wa = a.writes.difference(own), wb = b.writes.difference(own);
     return wa.any({...read(b), ...wb}.contains) ||
@@ -736,12 +739,18 @@ String activationCalm(Tables t) {
         readsRowOf(b, of: a);
   }
 
-  final between = [for (final f in all) if (internal.contains(f.place)) f];
+  final between = [
+    for (final f in all)
+      if (internal.contains(f.place)) f,
+  ];
   return [
     '# reply\trests on run-to-completion\tsteps between two awaits it meets',
     for (final f in all)
       if (f.turn == StepTurn.reply)
-        if ({for (final b in between) if (meets(f, b: b)) b.step.action}
+        if ({
+              for (final b in between)
+                if (meets(f, b: b)) b.step.action,
+            }
             case final met)
           [
             f.step.action,
@@ -854,6 +863,25 @@ Map<String, Map<FlowKind, List<FlowWay>>> waysAt(List<Footprint> all) {
   return at;
 }
 
+/// `Inv_Places`, one conjunct for each need over every place of every table
+/// that needs it, as a membership: the places a lock's turn is held at are
+/// one statement, however many tables wait there, so a table that waits on
+/// the jar adds a place to a set and no conjunct to every step's lemma.
+List<String> invPlaces(Tables t) {
+  final byNeed = <String, List<String>>{};
+  for (final table in _all(t)) {
+    for (final (:place, :need) in table.placeNeeds) {
+      (byNeed[need] ??= []).add(place);
+    }
+  }
+  return [
+    for (final MapEntry(key: need, value: places) in byNeed.entries)
+      places.length == 1
+          ? '(fl[f].pc = "${places.single}" => ($need))'
+          : '(fl[f].pc \\in {${[for (final p in places) '"$p"'].join(', ')}} => ($need))',
+  ];
+}
+
 /// The kinds of flow a row can hold at each place ([flowsAt]).
 Map<String, Set<FlowKind>> kindsAt(List<Footprint> all) => {
   for (final MapEntry(:key, :value) in flowsAt(all).entries)
@@ -874,8 +902,7 @@ String activationTables(
   r'\* What a flow needs at each place it waits at, as the code asserts it',
   r"\* on the way in and after the place's call (Step.holds).",
   r'Inv_Places == \A f \in Flows :',
-  for (final table in _all(t))
-    for (final c in table.placesTla) '    /\\ $c',
+  for (final c in invPlaces(t)) '    /\\ $c',
   '',
   for (final table in _all(t))
     table.tla(
@@ -991,7 +1018,7 @@ List<PrintedFile> activationTablesParts(Tables t) {
             _armsInd(
               s,
               arms: arms[s.name]!,
-              places: [for (final table in _all(t)) ...table.placesTla],
+              places: invPlaces(t),
               footprint: footprints[s.name]!,
               held: held,
             ),
@@ -1127,11 +1154,13 @@ List<String> _rowsInd(
     "g > inputs' => fl'[g].pc = \"done\"",
     for (final p in places) "(${p.replaceAll(RegExp(r'\bf\b'), 'g')})'",
   ];
+  const numbers = 'g \\in Nat /\\ inputs \\in Nat';
+  const fresh = 'g > inputs => fl[g].pc = "done"';
   final before = [
-    'g \\in Nat /\\ inputs \\in Nat',
+    numbers,
     'g \\in DOMAIN fl /\\ DOMAIN fl[g] = DOMAIN NoFlow',
     '$fields \\subseteq DOMAIN fl[g]',
-    'g > inputs => fl[g].pc = "done"',
+    fresh,
     'NoFlow.pc = "done"',
     for (final p in places) p.replaceAll(RegExp(r'\bf\b'), 'g'),
   ];
@@ -1154,9 +1183,15 @@ List<String> _rowsInd(
     '        OBVIOUS',
     '      <3>4. g \\in Flows',
     '        OBVIOUS',
+    for (final (n, b) in before.indexed) ...[
+      '      <3>${10 + n}. $b',
+      '        BY ONLY <1>0, <3>4, <2>5 DEF IndInv, FlowsOK, Fresh, Inv_Places, Flows',
+    ],
     '      <3>0.',
     for (final b in before) '          /\\ ($b)',
-    '        BY ONLY <1>0, <3>4, <2>5 DEF IndInv, FlowsOK, Fresh, Inv_Places, Flows',
+    '        BY ONLY ${[for (var n = 0; n < before.length; n++) '<3>${10 + n}'].join(', ')}',
+    '      <3>5. $numbers /\\ ($fresh)',
+    '        BY ONLY <3>${10 + before.indexOf(numbers)}, <3>${10 + before.indexOf(fresh)}',
     for (final (n, c) in [
       'g = f',
       'g = inputs + 1',
@@ -1174,11 +1209,11 @@ List<String> _rowsInd(
         '          BY ONLY <3>0, <3>${n + 1}, <1>$arm, <1>3',
       '        <4>2. ${claims[1]}',
       if (n == 0)
-        '          BY ONLY <3>0, <3>1, <2>1'
+        '          BY ONLY <3>5, <3>1, <2>1'
       else if (n == 1)
-        '          BY ONLY <3>0, <3>2, <2>0 DEF Starts'
+        '          BY ONLY <3>5, <3>2, <2>0 DEF Starts'
       else
-        '          BY ONLY <3>0, <4>0, <2>1',
+        '          BY ONLY <3>5, <4>0, <2>1',
       if (n < 2) ...[
         '        <4>4. fl\'[g].pc \\in {${[for (final p in next) '"$p"'].join(', ')}}',
         '          BY ONLY <3>0, <3>${n + 1}, <1>$arm, <1>3',

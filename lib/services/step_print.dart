@@ -34,11 +34,10 @@ typedef _ActionContext<P extends Enum> = ({
 /// needs, what a flow records on entering a place, each step's footprint
 /// and its TLA+ action, all read off the declarations the runner runs.
 extension TablePrint<W, P extends Enum> on StepTable<W, P> {
-  /// Each place's need as a conjunct of `Inv_Places`, with the flow as `f`.
-  List<String> get placesTla => [
+  /// Each place's need, with the flow as `f`, for `Inv_Places`.
+  List<({String place, String need})> get placeNeeds => [
     for (final (:place, :step) in steps)
-      if (step.holds case final h?)
-        '(fl[f].pc = "${place.name}" => (${h.tla}))',
+      if (step.holds case final h?) (place: place.name, need: h.tla),
   ];
 
   /// What the flow records as it reaches each place whose call reads at

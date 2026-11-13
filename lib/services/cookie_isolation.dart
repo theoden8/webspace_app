@@ -264,11 +264,10 @@ class CookieIsolationEngine {
 
   /// Empties the jar in its turn when no site is loaded then: at launch,
   /// queued before any site can be tapped, which makes it the jar's first
-  /// turn, and after an import that activated nothing. What the jar holds
-  /// then is no loaded site's, and a share of it saved as one's would hand
-  /// that site another's session or a deleted one's (ISO-003). Emptied with
-  /// a site loaded, the jar would lose that site's session, so then it
-  /// keeps the jar as it is.
+  /// turn. What the jar holds then is no loaded site's, and a share of it
+  /// saved as one's would hand that site another's session or a deleted
+  /// one's (ISO-003). Emptied with a site loaded, the jar would lose that
+  /// site's session, so then it keeps the jar as it is.
   Future<void> clearUnloaded({required Iterable<WebViewModel> loaded}) =>
       _turn((turn) async {
         if (loaded.isNotEmpty) return;
@@ -358,6 +357,22 @@ class CookieIsolationEngine {
     }
   });
 
+  /// [run] in the jar's turn, [flow] its holder: the steps of a table
+  /// outside the engine that take the turn, an import's, which place
+  /// [shareSteps] and [nukeStep]. Once emptied, the jar is the flow's to
+  /// fill until the turn passes on.
+  Future<P> inTurn<P extends Enum>(
+    StepContext<JarWorld> flow, {
+    required Future<P> Function() run,
+  }) => _turn(flow: flow, (turn) async {
+    flow.world.turn = turn;
+    try {
+      return await run();
+    } finally {
+      _emptied = false;
+    }
+  });
+
   // ── The steps ───────────────────────────────────────────────────────────
 
   /// The model's variables as the jar's steps read them: the turn's holder
@@ -389,7 +404,7 @@ class CookieIsolationEngine {
 
   /// Past the step that grants it, a flow holds the jar's turn: no other
   /// operation reads or writes the jar meanwhile (ISO-003).
-  static Expr<bool, W> _holdsTurn<W extends JarWorld>() =>
+  static Expr<bool, W> holdsTurn<W extends JarWorld>() =>
       _turnHolder<W>().value.eq(Expr.flow());
 
   /// Whether the platform may refuse a call on the jar: always, though no
@@ -545,7 +560,7 @@ class CookieIsolationEngine {
       ),
       UnloadPlace.uCap => Step(
         ActivationStep.unloadCapReply,
-        holds: _holdsTurn(),
+        holds: holdsTurn(),
         // Snapshot the full native jar and attribute by base domain, so
         // sibling-subdomain cookies (`accounts.google.com` for a
         // `mail.google.com` site) are kept: a URL-scoped capture would only
@@ -580,7 +595,7 @@ class CookieIsolationEngine {
       ),
       UnloadPlace.uSave => Step(
         ActivationStep.unloadSaveReply,
-        holds: _holdsTurn(),
+        holds: holdsTurn(),
         call: Call.on(
           _storedPort(),
           run: (c) async {
@@ -605,7 +620,7 @@ class CookieIsolationEngine {
       ),
       UnloadPlace.uKept => Step(
         ActivationStep.unloadKept,
-        holds: _holdsTurn(),
+        holds: holdsTurn(),
         site: _victim.value,
         branches: [_sparedAfterCapture],
         otherwise: _disposedAfterCapture,
@@ -629,23 +644,136 @@ class CookieIsolationEngine {
   static const _snap = Field<List<Cookie>, RestoreWorld>(FlowField.snap);
   static const _todo = Field<List<WebViewModel>, RestoreWorld>(FlowField.todo);
 
-  /// The loaded sites whose share is saved: an incognito site's is held
-  /// in memory only (INC-001).
-  static final _saves = _ls.value.minus(incognitoOf());
+  /// The sites whose shares a capture saves, in its `ls` field: an
+  /// incognito site's is held in memory only (INC-001).
+  static Expr<List<WebViewModel>, W> _savesOf<W>() =>
+      Field<List<WebViewModel>, W>(FlowField.ls).value.minus(incognitoOf());
 
   /// A loaded incognito site keeps its share of the snapshot in memory, to
   /// be set back once the jar is emptied (INC-001).
-  static final _holdIncognito = () {
-    final u = Bound<WebViewModel, RestoreWorld>('u');
-    final shares = _ls.value
-        .where(u, holds: incognitoOf<RestoreWorld>().has(u.it))
-        .mapTo(u, to: _shareOf(u.it, of: _snap.value));
-    return Note<RestoreWorld>((c) {
+  static Note<W> _holdIncognito<W>() {
+    final u = Bound<WebViewModel, W>('u');
+    final shares = Field<List<WebViewModel>, W>(FlowField.ls).value
+        .where(u, holds: incognitoOf<W>().has(u.it))
+        .mapTo(
+          u,
+          to: _shareOf(u.it, of: Field<List<Cookie>, W>(FlowField.snap).value),
+        );
+    return Note<W>((c) {
       for (final MapEntry(key: site, value: cookies) in shares.run(c).entries) {
         site.cookies = cookies;
       }
     });
-  }();
+  }
+
+  /// The shares of the sites in a flow's `ls` field, in the jar's turn:
+  /// the snapshot of the jar, then each one's share saved to its stored
+  /// session, one site per step, an incognito site's held in memory
+  /// (INC-001); then the flow goes on to [nuke]. Where the flow can be
+  /// superseded, [stale] leaves at each step. The restore places them, and
+  /// so does an import, for the sites it carries again (ISO-015).
+  static ({Step<W, P> snap, Step<W, P> save})
+  shareSteps<W extends JarWorld, P extends Enum>({
+    required ({ActivationStep snap, ActivationStep save}) marks,
+    required P save,
+    required P nuke,
+    required List<WebViewModel> Function(StepView<W> c) urlsOf,
+    required ({Expr<bool, W> when, P to})? stale,
+    required Refused<W, P> refused,
+  }) {
+    final snap = Field<List<Cookie>, W>(FlowField.snap);
+    final todo = Field<List<WebViewModel>, W>(FlowField.todo);
+    final saves = _savesOf<W>();
+    final each = Pick(todo.value);
+    final picked = each.it;
+    return (
+      snap: Step(
+        marks.snap,
+        holds: holdsTurn(),
+        call: snap.receivesOn(
+          _jarPort(),
+          run: (c) => c.api.snapshot(of: urlsOf(c)),
+          reply: _jar<W>().value,
+        ),
+        branches: [
+          if (stale case (when: final superseded, to: final leave))
+            Branch(
+              StepOutcome.stale,
+              when: superseded,
+              then: [_release()],
+              next: to(leave),
+            ),
+          Branch(
+            StepOutcome.nuke,
+            when: saves.isEmpty,
+            then: [_holdIncognito<W>(), todo.becomes(saves)],
+            next: to(nuke),
+          ),
+        ],
+        otherwise: Otherwise(
+          StepOutcome.save,
+          then: [_holdIncognito<W>(), todo.becomes(saves)],
+          next: to(save),
+        ),
+        refused: refused,
+      ),
+      save: Step(
+        marks.save,
+        holds: holdsTurn(),
+        pick: each,
+        call: Call.on(
+          _storedPort(),
+          run: (c) {
+            final site = picked.run(c);
+            site.cookies = _shareOf(picked, of: snap.value).run(c);
+            return c.api.save(site: site, cookies: site.cookies);
+          },
+          writes: [
+            _stored<W>().except(picked, to: _shareOf(picked, of: snap.value)),
+          ],
+        ),
+        site: picked,
+        branches: [
+          if (stale case (when: final superseded, to: final leave))
+            Branch(
+              StepOutcome.stale,
+              when: superseded,
+              then: [_release(), todo.becomes(Expr.none())],
+              next: to(leave),
+            ),
+          Branch(
+            StepOutcome.nuke,
+            when: todo.value.isOnly(picked),
+            then: [todo.becomes(todo.value.without(picked))],
+            next: to(nuke),
+          ),
+        ],
+        otherwise: Otherwise(
+          StepOutcome.more,
+          then: [todo.becomes(todo.value.without(picked))],
+          next: to(save),
+        ),
+      ),
+    );
+  }
+
+  /// The jar emptied in its turn, then the flow goes on to [next]. The
+  /// restore places it, and so does an import.
+  static Step<W, P> nukeStep<W extends JarWorld, P extends Enum>(
+    ActivationStep mark, {
+    required P next,
+    required Refused<W, P> refused,
+  }) => Step(
+    mark,
+    holds: holdsTurn(),
+    call: Call.on(
+      _jarPort(),
+      run: (c) => c.api.empty(),
+      writes: [_jar<W>().becomes(Expr.none())],
+    ),
+    otherwise: Otherwise(StepOutcome.none, then: [], next: to(next)),
+    refused: refused,
+  );
   static const _tmp = Field<List<Cookie>, RestoreWorld>(FlowField.tmp);
   static const _target = Field<WebViewModel, RestoreWorld>(FlowField.site);
   static const _unrestored = Field<bool, RestoreWorld>(FlowField.unrestored);
@@ -717,6 +845,24 @@ class CookieIsolationEngine {
     _todo.becomes(Expr.none()),
   ];
 
+  /// The restore's capture: every loaded site's share, and the target's
+  /// read beside them where the jar is read per URL.
+  static final _restoreShares = shareSteps<RestoreWorld, RestorePlace>(
+    marks: (
+      snap: ActivationStep.restoreSnapReply,
+      save: ActivationStep.restoreSaveReply,
+    ),
+    save: RestorePlace.rSave,
+    nuke: RestorePlace.rNuke,
+    urlsOf: (c) {
+      final ls = _ls.of(c);
+      final target = _target.of(c);
+      return [...ls, if (!ls.hasKey(target)) target];
+    },
+    stale: (when: _restoreStale, to: RestorePlace.exit),
+    refused: _refusedEnd(at: 'snapshot'),
+  );
+
   /// A restore, in the jar's turn: the snapshot, a save of each loaded
   /// site's share, the nuke, then the target's stored session and each
   /// other loaded site's share back. No bail once the jar is nuked.
@@ -752,96 +898,16 @@ class CookieIsolationEngine {
           next: to(RestorePlace.rSnap),
         ),
       ),
-      RestorePlace.rSnap => Step(
-        ActivationStep.restoreSnapReply,
-        holds: _holdsTurn(),
-        call: _snap.receivesOn(
-          _jarPort(),
-          run: (c) {
-            final ls = _ls.of(c);
-            final target = _target.of(c);
-            return c.api.snapshot(of: [...ls, if (!ls.hasKey(target)) target]);
-          },
-          reply: _jar<RestoreWorld>().value,
-        ),
-        branches: [
-          Branch(
-            StepOutcome.stale,
-            when: _restoreStale,
-            then: [_release()],
-            next: to(RestorePlace.exit),
-          ),
-          Branch(
-            StepOutcome.nuke,
-            when: _saves.isEmpty,
-            then: [_holdIncognito, _todo.becomes(_saves)],
-            next: to(RestorePlace.rNuke),
-          ),
-        ],
-        otherwise: Otherwise(
-          StepOutcome.save,
-          then: [_holdIncognito, _todo.becomes(_saves)],
-          next: to(RestorePlace.rSave),
-        ),
-        refused: _refusedEnd(at: 'snapshot'),
-      ),
-      RestorePlace.rSave => Step(
-        ActivationStep.restoreSaveReply,
-        holds: _holdsTurn(),
-        pick: _eachTodo,
-        call: Call.on(
-          _storedPort(),
-          run: (c) {
-            final site = _picked.run(c);
-            site.cookies = _shareOf(_picked, of: _snap.value).run(c);
-            return c.api.save(site: site, cookies: site.cookies);
-          },
-          writes: [
-            _stored<RestoreWorld>().except(
-              _picked,
-              to: _shareOf(_picked, of: _snap.value),
-            ),
-          ],
-        ),
-        site: _picked,
-        branches: [
-          Branch(
-            StepOutcome.stale,
-            when: _restoreStale,
-            then: [_release(), _todo.becomes(Expr.none())],
-            next: to(RestorePlace.exit),
-          ),
-          Branch(
-            StepOutcome.nuke,
-            when: _todo.value.isOnly(_picked),
-            then: [_todo.becomes(_todo.value.without(_picked))],
-            next: to(RestorePlace.rNuke),
-          ),
-        ],
-        otherwise: Otherwise(
-          StepOutcome.more,
-          then: [_todo.becomes(_todo.value.without(_picked))],
-          next: to(RestorePlace.rSave),
-        ),
-      ),
-      RestorePlace.rNuke => Step(
+      RestorePlace.rSnap => _restoreShares.snap,
+      RestorePlace.rSave => _restoreShares.save,
+      RestorePlace.rNuke => nukeStep(
         ActivationStep.restoreNukeReply,
-        holds: _holdsTurn(),
-        call: Call.on(
-          _jarPort(),
-          run: (c) => c.api.empty(),
-          writes: [_jar<RestoreWorld>().becomes(Expr.none())],
-        ),
-        otherwise: Otherwise(
-          StepOutcome.none,
-          then: [],
-          next: to(RestorePlace.rLoad),
-        ),
+        next: RestorePlace.rLoad,
         refused: _refusedEnd(at: 'nuke'),
       ),
       RestorePlace.rLoad => Step(
         ActivationStep.restoreLoadReply,
-        holds: _holdsTurn(),
+        holds: holdsTurn(),
         call: _tmp.receivesOn(
           _storedPort(),
           run: (c) async {
@@ -865,7 +931,7 @@ class CookieIsolationEngine {
       ),
       RestorePlace.rSetT => Step(
         ActivationStep.restoreSetTargetReply,
-        holds: _holdsTurn(),
+        holds: holdsTurn(),
         call: Call.on(
           _jarPort(),
           run: (c) => c.api.set(site: _target.of(c), cookies: _tmp.of(c)),
@@ -892,7 +958,7 @@ class CookieIsolationEngine {
       ),
       RestorePlace.rSetO => Step(
         ActivationStep.restoreSetOtherReply,
-        holds: _holdsTurn(),
+        holds: holdsTurn(),
         pick: _eachTodo,
         call: Call.on(
           _jarPort(),
@@ -926,7 +992,7 @@ class CookieIsolationEngine {
       ),
       RestorePlace.rRefused => Step(
         ActivationStep.restoreRefused,
-        holds: _holdsTurn(),
+        holds: holdsTurn(),
         branches: [
           Branch(
             StepOutcome.end,

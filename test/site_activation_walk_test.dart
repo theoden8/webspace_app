@@ -12,7 +12,6 @@ import 'package:webspace/services/tor_service.dart';
 import 'helpers/fake_tor_runtime.dart';
 import 'helpers/walk/activation_world.dart';
 import 'helpers/walk/footprint_reads.dart';
-import 'helpers/walk/unmodeled_meets.dart';
 import 'helpers/walk/walk_rng.dart';
 import 'helpers/walk/walk_runner.dart';
 
@@ -85,7 +84,6 @@ final _spaceDraws = <SiteAction Function(WalkRng rng), int>{
 SiteAction _spaceDraw(WalkRng rng) => rng.pick(_spaceDraws)(rng);
 
 void main() {
-  tearDownAll(expectOnlyOwedMeets);
   tearDownAll(expectReadsInFootprints);
   setUpAll(
     () => TorService.overrideEngine(
