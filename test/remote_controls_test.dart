@@ -290,9 +290,9 @@ void main() {
     expect(tester.getRect(_ring), before.translate(0, -40));
     expect(tester.getRect(_ring), target.rect);
   });
-  group('on a desktop (NAV-021)', () {
+  group('on a desktop (NAV-022)', () {
     testWidgets('chromeKeys gives a desktop the keyboard\'s keys and a remote '
-        'its own (NAV-021)', (tester) async {
+        'its own (NAV-022)', (tester) async {
       expect(hostIsDesktop, isTrue, reason: 'the tests run on a desktop');
       expect(chromeKeys(const SizedBox()), isA<KeyNavigation>());
       RemoteInput.debugDrivenOverride = true;
@@ -300,7 +300,7 @@ void main() {
       expect(chromeKeys(const SizedBox()), isA<RemoteControls>());
     });
 
-    testWidgets('Up and Down leave a one-line text field (NAV-021)',
+    testWidgets('Up and Down leave a one-line text field (NAV-022)',
         (tester) async {
       await tester.pumpWidget(_app(form(), keys: _Keys.desktop));
       field.requestFocus();
@@ -315,7 +315,7 @@ void main() {
       expect(field.hasPrimaryFocus, isTrue);
     });
 
-    testWidgets('a slider leaves Down to the focus moves (NAV-021)',
+    testWidgets('a slider leaves Down to the focus moves (NAV-022)',
         (tester) async {
       final slider = FocusNode(debugLabel: 'slider');
       addTearDown(slider.dispose);
@@ -338,7 +338,7 @@ void main() {
       expect(below.hasPrimaryFocus, isTrue);
     });
 
-    testWidgets('a disabled control takes focus (NAV-021)', (tester) async {
+    testWidgets('a disabled control takes focus (NAV-022)', (tester) async {
       final locked = FocusNode(debugLabel: 'locked');
       addTearDown(locked.dispose);
       await tester.pumpWidget(_app(
@@ -357,7 +357,7 @@ void main() {
       expect(locked.hasPrimaryFocus, isTrue);
     });
 
-    testWidgets('an outline marks what a key moved focus to (NAV-021)',
+    testWidgets('an outline marks what a key moved focus to (NAV-022)',
         (tester) async {
       await tester.pumpWidget(_app(form(), keys: _Keys.desktop));
       field.requestFocus();
@@ -371,7 +371,7 @@ void main() {
     });
 
     testWidgets('the keyboard comes up in a field and Enter is the field\'s '
-        '(NAV-021)', (tester) async {
+        '(NAV-022)', (tester) async {
       final submitted = <String>[];
       await tester.pumpWidget(_app(
         Column(children: [
