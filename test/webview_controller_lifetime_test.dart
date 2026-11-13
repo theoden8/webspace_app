@@ -30,13 +30,13 @@ import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/web_view_model_hooks.dart';
 
-import 'helpers/capture_fakes.dart';
 import 'helpers/fake_outbound.dart';
 import 'helpers/fake_platform_controller.dart';
 import 'helpers/mock_cookie_manager.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_controller.dart';
 import 'helpers/isolations.dart';
+import 'helpers/host_hooks.dart';
 
 /// The native controller as the plugin hands it over: records every call that
 /// reaches the platform and fails them the way [failWith] says.
@@ -151,22 +151,10 @@ WebViewHostHooks _hooks({
           {required String url, required PopupKind kind})?
       showPopup,
 }) =>
-    WebViewHostHooks(
+    inertHostHooks(
       isolation: isolation ?? fakeSharedJar,
-      globalUserScripts: () => const [],
-      save: () async {},
-      rebuild: () {},
-      launchNested: (_, {required posture, homeTitle}) {},
-      openInBrowser: (_) async => false,
-      openSiteSettings: (_) {},
-      showPopup: showPopup ?? (_, {required url, required kind}) async {},
-      externalScheme: externalScheme ?? (_, {required loadIn}) async {},
-      confirmScriptFetch: (_) async => false,
-      untrustedCertificate: (_, {required port, required certificate}) async =>
-          false,
-      networkSignIn: (_) async {},
-      httpAuth: (_) async => null,
-      media: FakePrompter(),
+      showPopup: showPopup,
+      externalScheme: externalScheme,
     );
 
 /// [_hooks] for a site's own webview, on screen, keeping every link;

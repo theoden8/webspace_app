@@ -8,13 +8,11 @@ import 'package:webspace/services/headless_site_check.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/view_blockers.dart';
 import 'package:webspace/services/web_intercept_native.dart';
-import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/web_view_model_headless.dart';
 
-import 'helpers/capture_fakes.dart';
 import 'helpers/fake_outbound.dart';
-import 'helpers/isolations.dart';
+import 'helpers/host_hooks.dart';
 
 class _Controller implements inapp.InAppWebViewController {
   @override
@@ -39,24 +37,6 @@ class _Headless implements inapp.HeadlessInAppWebView {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
-
-WebViewHostHooks _hooks() => WebViewHostHooks(
-  isolation: fakeSharedJar,
-  globalUserScripts: () => const [],
-  save: () async {},
-  rebuild: () {},
-  launchNested: (_, {required posture, homeTitle}) {},
-  openInBrowser: (_) async => false,
-  openSiteSettings: (_) {},
-  showPopup: (_, {required url, required kind}) async {},
-  externalScheme: (_, {required loadIn}) async {},
-  confirmScriptFetch: (_) async => false,
-  untrustedCertificate: (_, {required port, required certificate}) async =>
-      false,
-  networkSignIn: (_) async {},
-  httpAuth: (_) async => null,
-  media: FakePrompter(),
-);
 
 /// A wake's headless check runs the page while the user may download a DNS
 /// level, and Android's interceptor keeps the level it was attached at: the
@@ -97,7 +77,7 @@ void main() {
   test('a check is told its level as the lists move, until it is disposed '
       '(DNS-022)', () async {
     final c = check();
-    await c.follow(site.headlessCheckConfig(_hooks()), headlessId: 'check-1');
+    await c.follow(site.headlessCheckConfig(inertHostHooks()), headlessId: 'check-1');
     expect(dns.views.told, {site.siteId: 0}, reason: 'attached at its level');
 
     expect(await dns.downloadList(1), isTrue);

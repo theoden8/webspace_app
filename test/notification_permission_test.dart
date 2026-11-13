@@ -7,13 +7,12 @@ import 'package:webspace/screens/settings.dart';
 import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/page_handlers.dart';
 import 'package:webspace/services/webview_config.dart';
-import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/web_view_model.dart';
-import 'helpers/capture_fakes.dart';
 import 'helpers/isolations.dart';
 import 'helpers/user_script_bridge_fakes.dart';
+import 'helpers/host_hooks.dart';
 
 const _home = 'https://chat.example/';
 
@@ -25,24 +24,6 @@ final class _View extends FakeUserScriptController {
   @override
   Future<inapp.WebUri?> getUrl() async => inapp.WebUri(top);
 }
-
-WebViewHostHooks _hooks() => WebViewHostHooks(
-      isolation: fakeContainers,
-      globalUserScripts: () => const [],
-      save: () async {},
-      rebuild: () {},
-      launchNested: (_, {required posture, homeTitle}) {},
-      openInBrowser: (_) async => false,
-      openSiteSettings: (_) {},
-      showPopup: (_, {required url, required kind}) async {},
-      externalScheme: (_, {required loadIn}) async {},
-      confirmScriptFetch: (_) async => false,
-      untrustedCertificate: (_, {required port, required certificate}) async =>
-          false,
-      networkSignIn: (_) async {},
-      httpAuth: (_) async => null,
-      media: FakePrompter(),
-    );
 
 /// What the page's `Notification.requestPermission()` resolves to, asked
 /// from a document of [origin] in a view showing [top], on a site whose
@@ -63,7 +44,7 @@ Future<Object?> _ask({
         globalUserScripts: const <UserScriptConfig>[],
         isolation: fakeContainers(),
       ),
-      hooks: _hooks(),
+      hooks: inertHostHooks(isolation: fakeContainers),
       initialUrl: _home,
       cacheFirst: false,
     ),
