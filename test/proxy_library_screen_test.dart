@@ -11,6 +11,7 @@ import 'package:webspace/services/proxy_health_service.dart';
 import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/location.dart';
+import 'package:webspace/settings/network_interface.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
@@ -33,6 +34,24 @@ class _MemoryStore extends ProxyLibraryStore {
     data = next.copy();
   }
 }
+
+/// A route picked on the Network screen, everything else at its default.
+NetworkChoices _choices({
+  required ProxyType proxyType,
+  SavedProxyId? savedProxyId,
+  GatewayId? gatewayId,
+  CredentialsId? credentialsId,
+  required WebRtcPolicy webRtcPolicy,
+}) =>
+    (
+      proxyType: proxyType,
+      torExitCountry: null,
+      savedProxyId: savedProxyId,
+      gatewayId: gatewayId,
+      credentialsId: credentialsId,
+      leavesBy: const SystemRouting(),
+      webRtcPolicy: webRtcPolicy,
+    );
 
 ProxyLibraryData _library() => ProxyLibraryData(
       gateways: [
@@ -326,12 +345,12 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
   });
 
   group('Network screen', () {
-    Future<List<SiteNetworkValues>> pumpNetwork(
+    Future<List<NetworkChoices>> pumpNetwork(
       WidgetTester tester, {
-      required SiteNetworkValues values,
+      required NetworkChoices values,
       TextEditingController? username,
     }) async {
-      final reported = <SiteNetworkValues>[];
+      final reported = <NetworkChoices>[];
       await _pump(
         tester,
         home: SiteNetworkScreen(
@@ -354,7 +373,7 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
         (tester) async {
       await pumpNetwork(
         tester,
-        values: SiteNetworkValues(
+        values: _choices(
           proxyType: ProxyType.SAVED,
           savedProxyId: SavedProxyId('work'),
           webRtcPolicy: WebRtcPolicy.defaultPolicy,
@@ -371,7 +390,7 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
         (tester) async {
       final reported = await pumpNetwork(
         tester,
-        values: SiteNetworkValues(
+        values: _choices(
           proxyType: ProxyType.GATEWAY,
           gatewayId: GatewayId('de'),
           webRtcPolicy: WebRtcPolicy.defaultPolicy,
@@ -390,7 +409,7 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
         (tester) async {
       final reported = await pumpNetwork(
         tester,
-        values: SiteNetworkValues(
+        values: _choices(
           proxyType: ProxyType.GATEWAY,
           gatewayId: GatewayId('de'),
           credentialsId: CredentialsId('mail'),
@@ -407,7 +426,7 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
         (tester) async {
       final reported = await pumpNetwork(
         tester,
-        values: SiteNetworkValues(
+        values: _choices(
           proxyType: ProxyType.GATEWAY,
           gatewayId: GatewayId('de'),
           credentialsId: CredentialsId('alice'),
@@ -424,7 +443,7 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
       final username = TextEditingController();
       await pumpNetwork(
         tester,
-        values: SiteNetworkValues(
+        values: _choices(
           proxyType: ProxyType.GATEWAY,
           gatewayId: GatewayId('de'),
           webRtcPolicy: WebRtcPolicy.defaultPolicy,
@@ -447,7 +466,7 @@ Future<List<ProxyChoice>> pick(WidgetTester tester,
       home: SiteNetworkScreen(
         host: 'example.com',
         siteId: SiteId('site-1'),
-        values: const SiteNetworkValues(
+        values: _choices(
           proxyType: ProxyType.DEFAULT,
           webRtcPolicy: WebRtcPolicy.defaultPolicy,
         ),

@@ -288,8 +288,8 @@ void main() {
         .setMockMethodCallHandler(channel, null));
 
     Future<void> pump(WidgetTester tester,
-        {required SiteNetworkValues values,
-        ValueChanged<SiteNetworkValues>? onChanged}) async {
+        {required NetworkChoices values,
+        ValueChanged<NetworkChoices>? onChanged}) async {
       tester.view.physicalSize = const Size(1000, 3000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -308,12 +308,16 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    SiteNetworkValues values({
+    NetworkChoices values({
       ProxyType proxyType = ProxyType.DEFAULT,
       InterfaceChoice leavesBy = const SystemRouting(),
     }) =>
-        SiteNetworkValues(
+        (
           proxyType: proxyType,
+          torExitCountry: null,
+          savedProxyId: null,
+          gatewayId: null,
+          credentialsId: null,
           leavesBy: leavesBy,
           webRtcPolicy: WebRtcPolicy.defaultPolicy,
         );
@@ -329,7 +333,7 @@ void main() {
     testWidgets('NETIF-010: lists the interfaces present and reports a pick',
         (tester) async {
       EgressRelay.instance.setInMemory(state: _up);
-      SiteNetworkValues? changed;
+      NetworkChoices? changed;
       await pump(tester, values: values(), onChanged: (v) => changed = v);
       expect(find.text('Network interface'), findsOneWidget);
       await tester.tap(dropdown);

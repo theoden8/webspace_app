@@ -7,7 +7,9 @@ import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/screen_capture_guard.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/scoped.dart';
+import 'package:webspace/widgets/dirty_guard.dart' show ValueSet;
 import 'package:webspace/widgets/level_slider.dart';
+import 'package:webspace/settings/filter_list_id.dart';
 
 import 'helpers/localized.dart';
 
@@ -20,6 +22,7 @@ SitePrivacyValues _values({
   bool contentBlock = false,
   bool localCdn = false,
   bool thirdPartyCookies = false,
+  Scoped<bool> httpsUpgrade = const FollowApp(),
   Scoped<bool> lockdownMode = const FollowApp(),
   bool letterbox = false,
   bool incognito = false,
@@ -28,19 +31,30 @@ SitePrivacyValues _values({
 }) =>
     SitePrivacyValues(
       archived: archived,
-      trackingProtectionEnabled: trackingProtection,
-      clearUrlEnabled: clearUrl,
-      dnsBlockEnabled: dnsBlock,
-      dnsBlockLevel: Scoped.fromStored(dnsBlockLevel),
-      contentBlockEnabled: contentBlock,
-      localCdnEnabled: localCdn,
-      thirdPartyCookiesEnabled: thirdPartyCookies,
-      lockdownMode: lockdownMode,
-      letterboxEnabled: letterbox,
-      incognito: incognito,
-      blockScreenshots: blockScreenshots,
-      javascriptEnabled: javascript,
+      choices: (
+        trackingProtectionEnabled: trackingProtection,
+        clearUrlEnabled: clearUrl,
+        dnsBlockEnabled: dnsBlock,
+        dnsBlockLevel: Scoped.fromStored(dnsBlockLevel),
+        contentBlockEnabled: contentBlock,
+        disabledFilterLists: ValueSet(const <FilterListId>{}),
+        localCdnEnabled: localCdn,
+        thirdPartyCookiesEnabled: thirdPartyCookies,
+        httpsUpgrade: httpsUpgrade,
+        lockdownMode: lockdownMode,
+        letterboxEnabled: letterbox,
+        incognito: incognito,
+        blockScreenshots: blockScreenshots,
+        javascriptEnabled: javascript,
+      ),
     );
+
+/// [v] with one choice changed, as the screen reports an edit.
+SitePrivacyValues _edited(
+  SitePrivacyValues v, {
+  required PrivacyChoices Function(PrivacyChoices) edit,
+}) =>
+    v.withChoices(edit(v.choices));
 
 Future<void> _pump(
   WidgetTester tester, {
@@ -74,19 +88,7 @@ SwitchListTile _switchTitled(WidgetTester tester, {required String title}) {
 void main() {
   group('SitePrivacyValues', () {
     test('the umbrella forces the four list-based subordinates on', () {
-      const v = SitePrivacyValues(
-        archived: false,
-        trackingProtectionEnabled: true,
-        clearUrlEnabled: false,
-        dnsBlockEnabled: false,
-        contentBlockEnabled: false,
-        localCdnEnabled: false,
-        thirdPartyCookiesEnabled: false,
-        lockdownMode: const FollowApp(),
-        letterboxEnabled: false,
-        incognito: false,
-        javascriptEnabled: true,
-      );
+      final v = _values(trackingProtection: true);
       expect(v.effectiveClearUrl, isTrue);
       expect(v.effectiveDnsBlock, isTrue);
       expect(v.effectiveContentBlock, isTrue);
@@ -94,32 +96,20 @@ void main() {
     });
 
     test('the umbrella forces third-party cookies off (ETP-024)', () {
-      const stored = SitePrivacyValues(
-        archived: false,
-        trackingProtectionEnabled: false,
-        clearUrlEnabled: false,
-        dnsBlockEnabled: false,
-        contentBlockEnabled: false,
-        localCdnEnabled: false,
-        thirdPartyCookiesEnabled: true,
-        lockdownMode: const FollowApp(),
-        letterboxEnabled: false,
-        incognito: false,
-        javascriptEnabled: true,
-      );
+      final stored = _values(thirdPartyCookies: true);
       expect(stored.effectiveThirdPartyCookies, isTrue);
       expect(
-        stored.copyWith(trackingProtectionEnabled: true)
+        _edited(stored, edit: (c) => c.copyWith(trackingProtectionEnabled: true))
             .effectiveThirdPartyCookies,
         isFalse,
       );
       // The stored value survives, so turning the umbrella back off restores
       // the user's own choice rather than silently resetting it.
       expect(
-        stored
-            .copyWith(trackingProtectionEnabled: true)
-            .copyWith(trackingProtectionEnabled: false)
-            .effectiveThirdPartyCookies,
+        _edited(
+          _edited(stored, edit: (c) => c.copyWith(trackingProtectionEnabled: true)),
+          edit: (c) => c.copyWith(trackingProtectionEnabled: false),
+        ).effectiveThirdPartyCookies,
         isTrue,
       );
     });
@@ -139,8 +129,10 @@ void main() {
     test('a following site runs it exactly when the umbrella is on', () {
       final following = _values();
       expect(following.effectiveLockdownMode, isFalse);
-      expect(following.copyWith(trackingProtectionEnabled: true)
-          .effectiveLockdownMode, isTrue);
+      expect(
+          _edited(following, edit: (c) => c.copyWith(trackingProtectionEnabled: true))
+              .effectiveLockdownMode,
+          isTrue);
       final own = _values(trackingProtection: true, lockdownMode: const Own(false));
       expect(own.effectiveLockdownMode, isFalse,
           reason: 'the site may leave it under the umbrella');
@@ -175,18 +167,20 @@ void main() {
           onChanged: (v) => seen = v);
       await tester.tap(toggle());
       await tester.pumpAndSettle();
-      expect(seen!.lockdownMode, const Own(false));
+      expect(seen!.choices.lockdownMode, const Own(false));
       expect(seen!.effectiveLockdownMode, isFalse);
       expect(opacity(tester), 1);
       await tester.longPress(toggle());
       await tester.pumpAndSettle();
-      expect(seen!.lockdownMode, const FollowApp<bool>());
+      expect(seen!.choices.lockdownMode, const FollowApp<bool>());
       expect(tester.widget<Switch>(toggle()).value, isTrue);
       await tester.longPress(toggle());
       await tester.pumpAndSettle();
-      expect(seen!.lockdownMode, const Own(true));
-      expect(seen!.copyWith(trackingProtectionEnabled: false)
-          .effectiveLockdownMode, isTrue,
+      expect(seen!.choices.lockdownMode, const Own(true));
+      expect(
+          _edited(seen!, edit: (c) => c.copyWith(trackingProtectionEnabled: false))
+              .effectiveLockdownMode,
+          isTrue,
           reason: 'a kept value no longer follows the umbrella');
     });
   });
@@ -212,7 +206,7 @@ void main() {
       final tile = _switchTitled(tester, title: 'Block screenshots');
       expect(tile.value, isFalse);
       tile.onChanged!(true);
-      expect(reported?.blockScreenshots, isTrue);
+      expect(reported?.choices.blockScreenshots, isTrue);
     });
 
     testWidgets('locked on while the app-wide switch covers every site',
@@ -258,8 +252,8 @@ void main() {
       await _pump(tester,
           values: _values(incognito: true), onChanged: (v) => seen = v);
       _switchTitled(tester, title: 'JavaScript Enabled').onChanged!(false);
-      expect(seen!.javascriptEnabled, isFalse);
-      expect(seen!.incognito, isTrue);
+      expect(seen!.choices.javascriptEnabled, isFalse);
+      expect(seen!.choices.incognito, isTrue);
     });
   });
 
@@ -366,11 +360,11 @@ void main() {
         onChanged: (v) => seen = v,
       );
       slider(tester).onChanged!(3);
-      expect(seen!.dnsBlockLevel, const Own(3));
+      expect(seen!.choices.dnsBlockLevel, const Own(3));
       await tester.pumpAndSettle();
       slider(tester).onChanged!(0);
-      expect(seen!.dnsBlockLevel, const FollowApp<int>());
-      expect(seen!.dnsBlockLevel.stored, isNull);
+      expect(seen!.choices.dnsBlockLevel, const FollowApp<int>());
+      expect(seen!.choices.dnsBlockLevel.stored, isNull);
     });
   });
 
@@ -397,14 +391,14 @@ void main() {
 
       await tester.tap(toggle());
       await tester.pumpAndSettle();
-      expect(seen!.httpsUpgrade, const Own(false));
+      expect(seen!.choices.httpsUpgrade, const Own(false));
       expect(shown(tester), isFalse);
       expect(opacity(tester), 1);
 
       await tester.longPress(toggle());
       await tester.pumpAndSettle();
-      expect(seen!.httpsUpgrade, const FollowApp<bool>());
-      expect(seen!.httpsUpgrade.stored, isNull, reason: 'stored as null');
+      expect(seen!.choices.httpsUpgrade, const FollowApp<bool>());
+      expect(seen!.choices.httpsUpgrade.stored, isNull, reason: 'stored as null');
       AppPref.httpsUpgradeEnabled.debugValue = false;
       await tester.pumpAndSettle();
       expect(shown(tester), isFalse, reason: "a following site shows the app's");
@@ -413,8 +407,8 @@ void main() {
     testWidgets('Tracking Protection shows it forced on and locks it',
         (tester) async {
       await _pump(tester,
-          values: _values(trackingProtection: true)
-              .copyWith(httpsUpgrade: const Own(false)));
+          values: _values(
+              trackingProtection: true, httpsUpgrade: const Own(false)));
       expect(shown(tester), isTrue);
       expect(opacity(tester), 1, reason: 'the value is forced, not followed');
       expect(tester.widget<Switch>(toggle()).onChanged, isNull);
@@ -441,8 +435,8 @@ void main() {
     await tester.tap(find.text('ClearURLs'));
     await tester.pumpAndSettle();
     expect(seen, isNotNull);
-    expect(seen!.clearUrlEnabled, isFalse);
+    expect(seen!.choices.clearUrlEnabled, isFalse);
     // Unrelated fields ride along untouched: the caller applies one value.
-    expect(seen!.incognito, isTrue);
+    expect(seen!.choices.incognito, isTrue);
   });
 }

@@ -10,6 +10,7 @@ import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/location.dart';
+import 'package:webspace/settings/network_interface.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 
@@ -17,14 +18,18 @@ import 'helpers/fake_tor_runtime.dart';
 import 'helpers/mock_secure_storage.dart';
 import 'helpers/localized.dart';
 
-SiteNetworkValues _values({
+NetworkChoices _values({
   ProxyType proxyType = ProxyType.DEFAULT,
   String? torExitCountry,
   WebRtcPolicy webRtcPolicy = WebRtcPolicy.defaultPolicy,
 }) =>
-    SiteNetworkValues(
+    (
       proxyType: proxyType,
       torExitCountry: torExitCountry,
+      savedProxyId: null,
+      gatewayId: null,
+      credentialsId: null,
+      leavesBy: const SystemRouting(),
       webRtcPolicy: webRtcPolicy,
     );
 
@@ -36,8 +41,8 @@ class _Form {
 
 Future<_Form> _pump(
   WidgetTester tester, {
-  required SiteNetworkValues values,
-  ValueChanged<SiteNetworkValues>? onChanged,
+  required NetworkChoices values,
+  ValueChanged<NetworkChoices>? onChanged,
   bool proxySupported = true,
   Widget? proxyTest,
   String address = '',
@@ -89,13 +94,13 @@ void main() {
     loc = await AppLocalizations.delegate.load(const Locale('en'));
   });
 
-  group('SiteNetworkValues', () {
+  group('NetworkChoices', () {
     test('an explicit null unpins the exit country, an omitted one keeps it',
         () {
       final pinned = _values(proxyType: ProxyType.TOR, torExitCountry: 'de');
       expect(pinned.copyWith(webRtcPolicy: WebRtcPolicy.disabled)
           .torExitCountry, 'de');
-      expect(pinned.copyWith(torExitCountry: null).torExitCountry, isNull);
+      expect(pinned.copyWith(torExitCountry: (null,)).torExitCountry, isNull);
     });
   });
 
@@ -153,7 +158,7 @@ void main() {
 
   testWidgets('picking a proxy reports the whole value and opens its fields',
       (tester) async {
-    SiteNetworkValues? reported;
+    NetworkChoices? reported;
     await _pump(
       tester,
       values: _values(webRtcPolicy: WebRtcPolicy.relayOnly),
@@ -186,7 +191,7 @@ void main() {
 
   testWidgets('TOR hides the manual fields and offers an exit country',
       (tester) async {
-    SiteNetworkValues? reported;
+    NetworkChoices? reported;
     await _pump(
       tester,
       values: _values(proxyType: ProxyType.TOR, torExitCountry: 'zz'),
@@ -220,7 +225,7 @@ void main() {
   });
 
   testWidgets('WebRTC policy reports the whole value', (tester) async {
-    SiteNetworkValues? reported;
+    NetworkChoices? reported;
     await _pump(
       tester,
       values: _values(proxyType: ProxyType.SOCKS5),
@@ -289,7 +294,7 @@ void main() {
     });
 
     testWidgets('Disabled can still be picked, and is kept', (tester) async {
-      SiteNetworkValues? reported;
+      NetworkChoices? reported;
       await _pump(
         tester,
         values: _values(proxyType: ProxyType.TOR),
@@ -303,7 +308,7 @@ void main() {
 
     testWidgets('re-picking the shown Relay only stores nothing',
         (tester) async {
-      SiteNetworkValues? reported;
+      NetworkChoices? reported;
       await _pump(
         tester,
         values: _values(proxyType: ProxyType.SOCKS5),

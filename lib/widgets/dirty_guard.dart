@@ -63,12 +63,16 @@ mixin DirtyGuard<W extends StatefulWidget> on State<W> {
   }
 }
 
-/// A list that compares by its elements, for a [DirtyGuard] snapshot.
+/// A list that compares by its elements, for a [DirtyGuard] snapshot or a
+/// record that one holds.
 @immutable
 final class ValueList<T> {
   ValueList(Iterable<T> items) : _items = List.unmodifiable(items);
 
   final List<T> _items;
+
+  /// The elements, unmodifiable.
+  List<T> get items => _items;
 
   @override
   bool operator ==(Object other) =>
@@ -78,12 +82,16 @@ final class ValueList<T> {
   int get hashCode => Object.hashAll(_items);
 }
 
-/// A set that compares by its elements, for a [DirtyGuard] snapshot.
+/// A set that compares by its elements, for a [DirtyGuard] snapshot or a
+/// record that one holds.
 @immutable
 final class ValueSet<T> {
   ValueSet(Iterable<T> items) : _items = Set.unmodifiable(items);
 
   final Set<T> _items;
+
+  /// The elements, unmodifiable.
+  Set<T> get items => _items;
 
   @override
   bool operator ==(Object other) =>

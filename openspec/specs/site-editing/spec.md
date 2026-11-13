@@ -196,13 +196,18 @@ differs it SHALL intercept every route-leaving affordance (system back,
 app-bar back, iOS edge swipe) with a confirmation dialog offering "Keep
 editing" and "Discard".
 
-Every form field assigned in `_loadFromModel` MUST be registered in the
-screen's `snapshot()` record (the `DirtyGuard` mixin,
-`lib/widgets/dirty_guard.dart`), except fields fully derived from an
-already-registered field. This registration is enforced structurally by
-`test/js/site_settings_dirty_snapshot.test.js` (runs in CI via
-`npm run test:js`); a derived-field exemption lives in that test's
-allowlist with a written justification. Every other screen with a Save
+What each Site screen (Behaviour, Network, Privacy, Permissions) edits
+SHALL be one record of the settings screen (`BehaviourChoices`,
+`NetworkChoices`, `PrivacyChoices`, `PermissionChoices`), held whole in
+its `snapshot()` record (the `DirtyGuard` mixin,
+`lib/widgets/dirty_guard.dart`), so record equality compares every
+setting inside it and none can be left out. Every other form field
+assigned in `_loadFromModel` (each record, the text controllers, the
+language, zoom and theme, the live-location flag) MUST be registered in
+`snapshot()` too, which `test/js/site_settings_dirty_snapshot.test.js`
+enforces structurally (runs in CI via `npm run test:js`).
+`test/site_settings_choices_test.dart` holds that each field of each record
+changes the record and survives a save. Every other screen with a Save
 action (the proxy library editors, the user script editor, the webspace
 editor) MUST guard its edits the same way, through the same mixin.
 
@@ -225,12 +230,12 @@ History: [docs/bugs/006-settings-silent-discard.md](../../../docs/bugs/006-setti
 
 #### Scenario: New form field is dirty-tracked (regression BUG-006)
 
-**Given** a developer adds a new per-site setting to the settings form,
-loading it in `_loadFromModel`
-**When** the field is not registered in `snapshot()` (and not
-allowlisted as derived)
-**Then** `test/js/site_settings_dirty_snapshot.test.js` fails CI naming the
-field
+**Given** a developer adds a new per-site setting to a Site screen
+**When** it is a field of that screen's choices record
+**Then** the snapshot compares it with no registration step
+**And** a form field the settings screen loads outside the records and
+leaves out of `snapshot()` fails `test/js/site_settings_dirty_snapshot.test.js`
+in CI, naming the field
 
 ---
 

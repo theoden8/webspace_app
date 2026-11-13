@@ -17,62 +17,89 @@ import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/widgets/container_mark.dart' show SiteIdLine;
+import 'package:webspace/widgets/dirty_guard.dart' show ValueList;
 import 'package:webspace/widgets/search_site_picker.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 
-/// Everything the behaviour screen may change, in one value so the caller can
-/// apply a whole edit in a single `setState`.
-///
-/// Same contract as `SitePrivacyValues` and `SitePermissionValues`: the
-/// settings screen keeps the fields, the dirty-snapshot diff and the save
-/// path, and this is only a different way of presenting them. Moving the
-/// fields here would take them out of that diff, which is how unsaved edits
-/// get dropped (BUG-006).
-class SiteBehaviourValues {
-  const SiteBehaviourValues({
-    required this.archived,
-    required this.alwaysOpenHome,
-    required this.kioskMode,
-    required this.fullscreenMode,
-    required this.htmlCachingEnabled,
-    required this.htmlSource,
-    this.externalLinkMode = const FollowApp(),
-    this.tabsEnabled = const FollowApp(),
-    this.routeOutboundLinks = false,
-    this.outboundPreferences = const [],
-    this.signInPopups = const FollowApp(),
-    this.searchAddress,
-    this.searchesWeb = false,
-    this.searchSites = const [],
-    this.searchDefault = const FollowApp(),
-  });
-
-  /// Not edited here: an archive-tier site runs with the archive's posture
-  /// for the settings ARCH-006 folds.
-  final bool archived;
-  final bool alwaysOpenHome;
-  final bool kioskMode;
-  final bool fullscreenMode;
-  final Scoped<bool> tabsEnabled;
-  final bool htmlCachingEnabled;
-
-  /// Where the site's HTML comes from (`htmlSourceFor`), which decides
-  /// whether HTML caching can be in effect at all.
-  final HtmlSource htmlSource;
-  final Scoped<ExternalLinkMode> externalLinkMode;
-  final bool routeOutboundLinks;
-  final List<OutboundPreference> outboundPreferences;
-  final Scoped<bool> signInPopups;
-
+/// What a site stores of how the app hosts it, the whole of what the
+/// behaviour screen edits. A record, so the settings screen's dirty snapshot
+/// compares every field of it and a field added here cannot be left out of
+/// that comparison, which is how unsaved edits got dropped (BUG-006).
+typedef BehaviourChoices = ({
+  bool alwaysOpenHome,
+  bool kioskMode,
+  bool fullscreenMode,
+  Scoped<bool> tabsEnabled,
+  bool htmlCachingEnabled,
+  Scoped<ExternalLinkMode> externalLinkMode,
+  bool routeOutboundLinks,
+  ValueList<OutboundPreference> outboundPreferences,
+  Scoped<bool> signInPopups,
   /// LIR-028: how to search this site, and what a search from it offers.
-  final String? searchAddress;
-  final bool searchesWeb;
-  final List<SiteId> searchSites;
-  final Scoped<SiteId> searchDefault;
+  String? searchAddress,
+  bool searchesWeb,
+  ValueList<SiteId> searchSites,
+  Scoped<SiteId> searchDefault,
+});
 
-  static const Object _keep = Object();
+/// Where a site's [BehaviourChoices] are stored: the one mapping between the
+/// record and the model's fields.
+extension SiteBehaviourChoices on WebViewModel {
+  BehaviourChoices get behaviourChoices => (
+        alwaysOpenHome: alwaysOpenHome,
+        kioskMode: kioskMode,
+        fullscreenMode: fullscreenMode,
+        tabsEnabled: Scoped.fromStored(tabsEnabled),
+        htmlCachingEnabled: htmlCachingEnabled,
+        externalLinkMode: Scoped.fromStored(externalLinkMode),
+        routeOutboundLinks: routeOutboundLinks,
+        outboundPreferences: ValueList(outboundPreferences),
+        signInPopups: Scoped.fromStored(signInPopups),
+        searchAddress: searchAddress,
+        searchesWeb: searchesWeb,
+        searchSites: ValueList(searchSites),
+        searchDefault: Scoped.fromStored(searchDefault),
+      );
 
-  SiteBehaviourValues copyWith({
+  /// The pattern names every field, so one added to [BehaviourChoices] does
+  /// not compile until it is stored here.
+  set behaviourChoices(BehaviourChoices c) {
+    final (
+      :alwaysOpenHome,
+      :kioskMode,
+      :fullscreenMode,
+      :tabsEnabled,
+      :htmlCachingEnabled,
+      :externalLinkMode,
+      :routeOutboundLinks,
+      :outboundPreferences,
+      :signInPopups,
+      :searchAddress,
+      :searchesWeb,
+      :searchSites,
+      :searchDefault,
+    ) = c;
+    this.alwaysOpenHome = alwaysOpenHome;
+    this.kioskMode = kioskMode;
+    this.fullscreenMode = fullscreenMode;
+    this.tabsEnabled = tabsEnabled.stored;
+    this.htmlCachingEnabled = htmlCachingEnabled;
+    this.externalLinkMode = externalLinkMode.stored;
+    this.routeOutboundLinks = routeOutboundLinks;
+    this.outboundPreferences = [...outboundPreferences.items];
+    this.signInPopups = signInPopups.stored;
+    this.searchAddress = searchAddress;
+    this.searchesWeb = searchesWeb;
+    this.searchSites = [...searchSites.items];
+    this.searchDefault = searchDefault.stored;
+  }
+}
+
+extension BehaviourChoicesEdit on BehaviourChoices {
+  /// These choices with the given ones replaced. A nullable field comes as a
+  /// one-element record, so clearing it (`searchAddress: (null,)`) is told
+  /// apart from leaving it out.
+  BehaviourChoices copyWith({
     bool? alwaysOpenHome,
     bool? kioskMode,
     bool? fullscreenMode,
@@ -80,57 +107,76 @@ class SiteBehaviourValues {
     bool? htmlCachingEnabled,
     Scoped<ExternalLinkMode>? externalLinkMode,
     bool? routeOutboundLinks,
-    List<OutboundPreference>? outboundPreferences,
+    ValueList<OutboundPreference>? outboundPreferences,
     Scoped<bool>? signInPopups,
-    Object? searchAddress = _keep,
+    (String?,)? searchAddress,
     bool? searchesWeb,
-    List<SiteId>? searchSites,
+    ValueList<SiteId>? searchSites,
     Scoped<SiteId>? searchDefault,
   }) =>
-      SiteBehaviourValues(
-        archived: archived,
+      (
         alwaysOpenHome: alwaysOpenHome ?? this.alwaysOpenHome,
         kioskMode: kioskMode ?? this.kioskMode,
         fullscreenMode: fullscreenMode ?? this.fullscreenMode,
         tabsEnabled: tabsEnabled ?? this.tabsEnabled,
         htmlCachingEnabled: htmlCachingEnabled ?? this.htmlCachingEnabled,
-        htmlSource: htmlSource,
         externalLinkMode: externalLinkMode ?? this.externalLinkMode,
         routeOutboundLinks: routeOutboundLinks ?? this.routeOutboundLinks,
         outboundPreferences: outboundPreferences ?? this.outboundPreferences,
         signInPopups: signInPopups ?? this.signInPopups,
-        searchAddress: identical(searchAddress, _keep)
-            ? this.searchAddress
-            : searchAddress as String?,
+        searchAddress:
+            searchAddress == null ? this.searchAddress : searchAddress.$1,
         searchesWeb: searchesWeb ?? this.searchesWeb,
         searchSites: searchSites ?? this.searchSites,
         searchDefault: searchDefault ?? this.searchDefault,
       );
+}
+
+/// The behaviour screen's input: the site's [choices] and what they resolve
+/// to where it runs.
+class SiteBehaviourValues {
+  const SiteBehaviourValues({
+    required this.archived,
+    required this.htmlSource,
+    required this.choices,
+  });
+
+  /// Not edited here: an archive-tier site runs with the archive's posture
+  /// for the settings ARCH-006 folds.
+  final bool archived;
+
+  /// Where the site's HTML comes from (`htmlSourceFor`), which decides
+  /// whether HTML caching can be in effect at all.
+  final HtmlSource htmlSource;
+  final BehaviourChoices choices;
+
+  SiteBehaviourValues withChoices(BehaviourChoices next) => SiteBehaviourValues(
+      archived: archived, htmlSource: htmlSource, choices: next);
 
   bool effectiveAlwaysOpenHome({required bool incognito}) =>
       resolveAlwaysOpenHome(
-          alwaysOpenHome: alwaysOpenHome, incognito: incognito);
+          alwaysOpenHome: choices.alwaysOpenHome, incognito: incognito);
 
   bool get effectiveKioskMode => resolveKiosk(
-      stored: kioskMode, shortcutsOffered: ShortcutService.offered);
+      stored: choices.kioskMode, shortcutsOffered: ShortcutService.offered);
 
   bool get effectiveTabsEnabled => resolveTabs(
-      tabs: tabsEnabled.resolve(AppPref.tabsEnabled.value),
+      tabs: choices.tabsEnabled.resolve(AppPref.tabsEnabled.value),
       kiosk: effectiveKioskMode);
 
   bool get effectiveRouteOutboundLinks => resolveRouteOutboundLinks(
-      route: routeOutboundLinks,
+      route: choices.routeOutboundLinks,
       appRoute: AppPref.routeOutboundLinks.value,
-      followsAppLinks: externalLinkMode is FollowApp,
+      followsAppLinks: choices.externalLinkMode is FollowApp,
       mode: effectiveExternalLinkMode);
 
   bool get effectiveHtmlCaching =>
       htmlCachingInEffect(htmlSource,
-          stored: htmlCachingEnabled, engineCan: engineLoadsCacheFirst);
+          stored: choices.htmlCachingEnabled, engineCan: engineLoadsCacheFirst);
 
   ExternalLinkMode get effectiveExternalLinkMode =>
       ArchiveFold.externalLinks(
-          externalLinkMode.resolve(ExternalLinkMode.appDefault),
+          choices.externalLinkMode.resolve(ExternalLinkMode.appDefault),
           archived: archived);
 }
 
@@ -196,19 +242,21 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
     with RebuildOnAppPref {
   late SiteBehaviourValues _values = widget.values;
 
-  void _update(SiteBehaviourValues next) {
-    setState(() => _values = next);
-    widget.onChanged(next);
+  BehaviourChoices get _choices => _values.choices;
+
+  void _update(BehaviourChoices next) {
+    setState(() => _values = _values.withChoices(next));
+    widget.onChanged(_values);
   }
 
   // Where no kiosk runs (KIOSK-006) the stored one is left for a device
   // that runs it.
-  void _setTabs(Scoped<bool> choice) => _update(_values.copyWith(
+  void _setTabs(Scoped<bool> choice) => _update(_choices.copyWith(
         tabsEnabled: choice,
         kioskMode: choice.resolve(AppPref.tabsEnabled.value) &&
                 _values.effectiveKioskMode
             ? false
-            : _values.kioskMode,
+            : _choices.kioskMode,
       ));
 
   // --- Link handling -------------------------------------------------------
@@ -226,13 +274,13 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
         lock: widget.containersActive
             ? null
             : Lock.because(loc.siteSettingsRouteOutboundLinksNeedsContainers),
-        control: Toggle(value: _values.routeOutboundLinks,
+        control: Toggle(value: _choices.routeOutboundLinks,
             onChanged: (value) =>
-                _update(_values.copyWith(routeOutboundLinks: value))),
+                _update(_choices.copyWith(routeOutboundLinks: value))),
       );
 
   Widget _outboundPreferences(AppLocalizations loc) {
-    final count = _values.outboundPreferences.length;
+    final count = _choices.outboundPreferences.items.length;
     return SettingTile(
       title: loc.outboundPreferencesTitle,
       hint: null,
@@ -243,10 +291,10 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
             context,
             MaterialPageRoute(
               builder: (_) => OutboundPreferencesScreen(
-                preferences: _values.outboundPreferences,
+                preferences: _choices.outboundPreferences.items,
                 targets: widget.routingTargets,
                 onChanged: (next) =>
-                    _update(_values.copyWith(outboundPreferences: next)),
+                    _update(_choices.copyWith(outboundPreferences: ValueList(next))),
               ),
             ),
           )),
@@ -265,7 +313,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
         ChoiceTile<Scoped<ExternalLinkMode>>(
           title: loc.siteSettingsExternalLinks,
           hint: loc.siteSettingsExternalLinksHint,
-          subtitle: _values.externalLinkMode is FollowApp
+          subtitle: _choices.externalLinkMode is FollowApp
               ? mode.label(loc)
               : null,
           values: [
@@ -276,15 +324,15 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
             FollowApp() => loc.webSearchUseAppDefault,
             Own(:final value) => value.label(loc),
           },
-          value: _values.externalLinkMode is Own &&
-                  mode != _values.externalLinkMode.stored
+          value: _choices.externalLinkMode is Own &&
+                  mode != _choices.externalLinkMode.stored
               ? Own(mode)
-              : _values.externalLinkMode,
+              : _choices.externalLinkMode,
           offered: (choice) => !_values.archived ||
               choice != const Own(ExternalLinkMode.browser),
-          onChanged: (choice) => _update(_values.copyWith(externalLinkMode: choice)),
+          onChanged: (choice) => _update(_choices.copyWith(externalLinkMode: choice)),
         ),
-        if (_values.externalLinkMode is Own && mode == ExternalLinkMode.inApp)
+        if (_choices.externalLinkMode is Own && mode == ExternalLinkMode.inApp)
           Padding(
             padding: const EdgeInsetsDirectional.only(start: 24),
             child: Column(
@@ -304,11 +352,11 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
         title: loc.siteSettingsSignInPopups,
         hint: loc.siteSettingsSignInPopupsHint,
         control: ScopedToggle(
-          value: PopupKind.signInOpens(choice: _values.signInPopups),
-          choice: _values.signInPopups,
+          value: PopupKind.signInOpens(choice: _choices.signInPopups),
+          choice: _choices.signInPopups,
           source: FollowSource.app,
           onChoice: (choice) =>
-              _update(_values.copyWith(signInPopups: choice)),
+              _update(_choices.copyWith(signInPopups: choice)),
         ),
       );
 
@@ -351,7 +399,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
         );
 
   Widget _searchAddressRow(AppLocalizations loc) {
-    final effective = _values.searchAddress ?? _knownSearch?.template;
+    final effective = _choices.searchAddress ?? _knownSearch?.template;
     return SettingTile(
       title: loc.webSearchTemplateLabel,
       hint: loc.webSearchAddressHint,
@@ -371,8 +419,8 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
       builder: (ctx) => _SearchAddressDialog(
         initial: current ?? '',
         searchesWeb:
-            _values.searchAddress != null ? _values.searchesWeb : knownWeb,
-        canReset: _values.searchAddress != null,
+            _choices.searchAddress != null ? _choices.searchesWeb : knownWeb,
+        canReset: _choices.searchAddress != null,
       ),
     );
     if (result == null) return;
@@ -381,14 +429,14 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
         result.address == known?.template &&
         result.web == knownWeb;
     final address = isKnown ? null : result.address;
-    _update(_values.copyWith(
-      searchAddress: address,
+    _update(_choices.copyWith(
+      searchAddress: (address,),
       searchesWeb: address == null ? false : result.web,
     ));
   }
 
   Widget _searchDefaultRow(AppLocalizations loc) {
-    final name = _nameOf(_values.searchDefault.stored);
+    final name = _nameOf(_choices.searchDefault.stored);
     return SettingTile(
       title: loc.webSearchFromSiteTitle,
       hint: loc.webSearchFromSiteHint,
@@ -402,7 +450,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
           builder: (ctx) => SearchSiteChoiceDialog(
             title: loc.webSearchFromSiteTitle,
             noneLabel: loc.webSearchUseAppDefault,
-            selected: _values.searchDefault.stored,
+            selected: _choices.searchDefault.stored,
             sites: [
               for (final m in _webSearchSites)
                 (
@@ -414,7 +462,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
           ),
         );
         if (picked == null) return;
-        _update(_values.copyWith(
+        _update(_choices.copyWith(
           searchDefault: Scoped.fromStored(picked.site),
         ));
       }),
@@ -423,7 +471,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
 
   Widget _searchOfferedRow(AppLocalizations loc) {
     final names = [
-      for (final id in _values.searchSites) ?_nameOf(id),
+      for (final id in _choices.searchSites.items) ?_nameOf(id),
     ];
     // Data, not copy: site names joined with punctuation (L10N-002).
     final summary = Localized.verbatim(names.join(', '));
@@ -436,15 +484,15 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
           context: context,
           builder: (ctx) => _SearchSitesDialog(
             sites: _webSearchSites,
-            selected: _values.searchSites,
+            selected: _choices.searchSites.items,
             idLine: _idLine,
           ),
         );
         if (picked == null) return;
-        _update(_values.copyWith(
-          searchSites: picked,
+        _update(_choices.copyWith(
+          searchSites: ValueList(picked),
           // A default the list no longer offers falls back to the app's.
-          searchDefault: switch (_values.searchDefault) {
+          searchDefault: switch (_choices.searchDefault) {
             Own(:final value)
                 when picked.isNotEmpty && !picked.contains(value) =>
               const FollowApp(),
@@ -471,22 +519,22 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
                 ? Lock.because(loc.siteSettingsAlwaysOpenHomeForced)
                 : null,
             control: Toggle(value: _values.effectiveAlwaysOpenHome(incognito: widget.incognito),
-                onChanged: (value) => _update(_values.copyWith(alwaysOpenHome: value))),
+                onChanged: (value) => _update(_choices.copyWith(alwaysOpenHome: value))),
           ),
           if (ShortcutService.offered)
             SettingTile(
               title: loc.siteSettingsKioskMode,
               hint: loc.siteSettingsKioskModeHint,
-              control: Toggle(value: _values.kioskMode,
-                  onChanged: (value) => _update(_values.copyWith(kioskMode: value))),
+              control: Toggle(value: _choices.kioskMode,
+                  onChanged: (value) => _update(_choices.copyWith(kioskMode: value))),
             ),
           SettingTile(
             title: loc.siteSettingsFullscreen,
             hintTitle: loc.siteSettingsFullscreenHintTitle,
             hint: loc.siteSettingsFullscreenHint,
             subtitle: loc.siteSettingsFullscreenSubtitle,
-            control: Toggle(value: _values.fullscreenMode,
-                onChanged: (value) => _update(_values.copyWith(fullscreenMode: value))),
+            control: Toggle(value: _choices.fullscreenMode,
+                onChanged: (value) => _update(_choices.copyWith(fullscreenMode: value))),
           ),
           // Either tabs or kiosk (TAB-013): turning tabs on turns Kiosk mode
           // off, and Kiosk mode on shows tabs off without forgetting the
@@ -496,7 +544,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
             hint: loc.siteSettingsTabsHint,
             control: ScopedToggle(
               value: _values.effectiveTabsEnabled,
-              choice: _values.tabsEnabled,
+              choice: _choices.tabsEnabled,
               source: FollowSource.app,
               onChoice: _setTabs,
             ),
@@ -509,7 +557,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen>
               hint: loc.siteSettingsHtmlCachingHint,
               lock: _values.archived ? const ArchiveLock() : null,
               control: Toggle(value: _values.effectiveHtmlCaching,
-                  onChanged: (value) => _update(_values.copyWith(htmlCachingEnabled: value))),
+                  onChanged: (value) => _update(_choices.copyWith(htmlCachingEnabled: value))),
             ),
           SettingsSection(loc.linkHandlingScreenTitle),
           _externalLinks(loc),

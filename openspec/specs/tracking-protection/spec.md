@@ -1131,10 +1131,10 @@ the Behaviour screen (BEHAV-001).
 The anti-fingerprinting note under the letterbox group SHALL render only
 while the umbrella is on, since with it off nothing is being randomised.
 
-The screen SHALL own no persistent state. `SiteSettingsScreen` keeps the
-fields, the dirty-snapshot diff and the save path (BUG-006 / EDIT-009);
-the screen reads a `SitePrivacyValues` and reports whole values back
-through `onChanged`.
+The screen SHALL own no persistent state. `SettingsScreen` keeps the
+choices, the dirty-snapshot diff and the save path (BUG-006 / EDIT-009);
+the screen reads a `SitePrivacyValues`, whose stored part is one
+`PrivacyChoices` record, and reports whole values back through `onChanged`.
 
 The Behaviour, Privacy and Permissions rows SHALL sit at the foot of site
 settings under a "Site" heading, below the leaf controls, in that order

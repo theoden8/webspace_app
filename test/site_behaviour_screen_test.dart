@@ -12,6 +12,7 @@ import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
+import 'package:webspace/widgets/dirty_guard.dart' show ValueList;
 import 'package:webspace/widgets/hint_button.dart';
 
 import 'helpers/no_shortcuts.dart';
@@ -34,19 +35,22 @@ SiteBehaviourValues _values({
 }) =>
     SiteBehaviourValues(
       archived: archived,
-      alwaysOpenHome: alwaysOpenHome,
-      kioskMode: kioskMode,
-      fullscreenMode: fullscreenMode,
-      tabsEnabled: Scoped.fromStored(tabsEnabled),
-      htmlCachingEnabled: htmlCaching,
       htmlSource: HtmlSource.cache,
-      externalLinkMode: Scoped.fromStored(externalLinkMode),
-      routeOutboundLinks: routeOutboundLinks,
-      outboundPreferences: outboundPreferences,
-      searchAddress: searchAddress,
-      searchesWeb: searchesWeb,
-      searchSites: searchSites,
-      searchDefault: Scoped.fromStored(searchDefault),
+      choices: (
+        alwaysOpenHome: alwaysOpenHome,
+        kioskMode: kioskMode,
+        fullscreenMode: fullscreenMode,
+        tabsEnabled: Scoped.fromStored(tabsEnabled),
+        htmlCachingEnabled: htmlCaching,
+        externalLinkMode: Scoped.fromStored(externalLinkMode),
+        routeOutboundLinks: routeOutboundLinks,
+        outboundPreferences: ValueList(outboundPreferences),
+        signInPopups: const FollowApp(),
+        searchAddress: searchAddress,
+        searchesWeb: searchesWeb,
+        searchSites: ValueList(searchSites),
+        searchDefault: Scoped.fromStored(searchDefault),
+      ),
     );
 
 Future<void> _pump(
@@ -155,9 +159,10 @@ void main() {
       final on = _values(routeOutboundLinks: true);
       expect(on.effectiveRouteOutboundLinks, isTrue);
       for (final mode in [ExternalLinkMode.browser, ExternalLinkMode.block]) {
-        final other = on.copyWith(externalLinkMode: Own(mode));
+        final other =
+            on.withChoices(on.choices.copyWith(externalLinkMode: Own(mode)));
         expect(other.effectiveRouteOutboundLinks, isFalse, reason: mode.name);
-        expect(other.routeOutboundLinks, isTrue);
+        expect(other.choices.routeOutboundLinks, isTrue);
       }
     });
 
@@ -165,7 +170,7 @@ void main() {
         'not', () {
       expect(_values().effectiveTabsEnabled, isTrue);
       expect(_values(kioskMode: true).effectiveTabsEnabled, isFalse);
-      expect(_values(kioskMode: true).tabsEnabled.stored, isTrue);
+      expect(_values(kioskMode: true).choices.tabsEnabled.stored, isTrue);
       expect(_values(fullscreenMode: true).effectiveTabsEnabled, isTrue);
       expect(_values(tabsEnabled: false).effectiveTabsEnabled, isFalse);
     });
@@ -178,7 +183,7 @@ void main() {
       // own choice rather than silently keeping the forced one.
       expect(
         stored
-            .copyWith(alwaysOpenHome: true)
+            .withChoices(stored.choices.copyWith(alwaysOpenHome: true))
             .effectiveAlwaysOpenHome(incognito: false),
         isTrue,
       );
@@ -229,7 +234,7 @@ void main() {
       await _pickMode(tester, label: 'App default');
       expect(find.text('Route links to my sites'), findsNothing);
       expect(find.text('Routing preferences'), findsNothing);
-      expect(seen!.routeOutboundLinks, isTrue);
+      expect(seen!.choices.routeOutboundLinks, isTrue);
       expect(seen!.effectiveRouteOutboundLinks, isFalse);
       AppPref.routeOutboundLinks.debugValue = true;
       await tester.pumpAndSettle();
@@ -248,7 +253,7 @@ void main() {
           values: _values(externalLinkMode: ExternalLinkMode.block),
           onChanged: (v) => seen = v);
       await _pickMode(tester, label: 'App default');
-      expect(seen!.externalLinkMode, const FollowApp<ExternalLinkMode>());
+      expect(seen!.choices.externalLinkMode, const FollowApp<ExternalLinkMode>());
       AppPref.externalLinkMode.debugValue = 'browser';
       await tester.pumpAndSettle();
       expect(seen!.effectiveExternalLinkMode, ExternalLinkMode.browser);
@@ -320,8 +325,8 @@ void main() {
         onChanged: (v) => seen = v,
       );
       await _pickMode(tester, label: 'Block');
-      expect(seen!.externalLinkMode.stored, ExternalLinkMode.block);
-      expect(seen!.kioskMode, isTrue);
+      expect(seen!.choices.externalLinkMode.stored, ExternalLinkMode.block);
+      expect(seen!.choices.kioskMode, isTrue);
       expect(_selectedMode(tester), ExternalLinkMode.block);
     });
   });
@@ -345,9 +350,9 @@ void main() {
     await tester.tap(find.text('Full screen mode'));
     await tester.pumpAndSettle();
     expect(seen, isNotNull);
-    expect(seen!.fullscreenMode, isTrue);
+    expect(seen!.choices.fullscreenMode, isTrue);
     // Unrelated fields ride along untouched: the caller applies one value.
-    expect(seen!.kioskMode, isTrue);
+    expect(seen!.choices.kioskMode, isTrue);
   });
 
   group('Tabs (TAB-013)', () {
@@ -368,19 +373,19 @@ void main() {
         expect(tester.getSemantics(_tabsTile).getSemanticsData()
             .hasAction(SemanticsAction.longPress), isTrue);
         await _tapTabs(tester);
-        expect(seen!.tabsEnabled, const Own(false));
+        expect(seen!.choices.tabsEnabled, const Own(false));
         expect(opacity(), 1);
         AppPref.tabsEnabled.debugValue = false;
         await tester.pumpAndSettle();
-        expect(seen!.tabsEnabled, const Own(false),
+        expect(seen!.choices.tabsEnabled, const Own(false),
             reason: 'matching the app does not clear an explicit choice');
         await _resetTabs(tester);
-        expect(seen!.tabsEnabled, const FollowApp<bool>());
+        expect(seen!.choices.tabsEnabled, const FollowApp<bool>());
         expect(_selectedTabs(tester), isFalse);
         expect(opacity(), lessThan(1));
         expect(changes, 2, reason: 'releasing a long press must not also tap');
         await _resetTabs(tester);
-        expect(seen!.tabsEnabled, const Own(false),
+        expect(seen!.choices.tabsEnabled, const Own(false),
             reason: 'a following switch keeps what it shows as its own');
         expect(_selectedTabs(tester), isFalse);
         expect(opacity(), 1);
@@ -399,7 +404,7 @@ void main() {
       await _pump(tester, values: _values(tabsEnabled: false),
           onChanged: (v) => seen = v);
       await _resetTabs(tester);
-      expect(seen!.tabsEnabled, const FollowApp<bool>());
+      expect(seen!.choices.tabsEnabled, const FollowApp<bool>());
       AppPref.tabsEnabled.debugValue = false;
       await tester.pumpAndSettle();
       expect(_selectedTabs(tester), isFalse);
@@ -422,9 +427,9 @@ void main() {
       );
       expect(_selectedTabs(tester), isFalse);
       await _tapTabs(tester);
-      expect(seen!.tabsEnabled.stored, isTrue);
-      expect(seen!.kioskMode, isFalse);
-      expect(seen!.fullscreenMode, isTrue);
+      expect(seen!.choices.tabsEnabled.stored, isTrue);
+      expect(seen!.choices.kioskMode, isFalse);
+      expect(seen!.choices.fullscreenMode, isTrue);
       expect(_selectedTabs(tester), isTrue);
       expect(_switchTitled(tester, title: 'Kiosk mode').value, isFalse);
       expect(_switchTitled(tester, title: 'Full screen mode').value, isTrue);
@@ -440,8 +445,8 @@ void main() {
         onChanged: (v) => seen = v,
       );
       await _tapTabs(tester);
-      expect(seen!.tabsEnabled.stored, isTrue);
-      expect(seen!.kioskMode, isTrue,
+      expect(seen!.choices.tabsEnabled.stored, isTrue);
+      expect(seen!.choices.kioskMode, isTrue,
           reason: 'a TV hides the kiosk it keeps for a phone');
       expect(_selectedTabs(tester), isTrue);
     });
@@ -456,7 +461,7 @@ void main() {
       await tester.tap(find.text('Kiosk mode'));
       await tester.pumpAndSettle();
       expect(_selectedTabs(tester), isFalse);
-      expect(seen!.tabsEnabled.stored, isTrue, reason: 'the stored choice is kept');
+      expect(seen!.choices.tabsEnabled.stored, isTrue, reason: 'the stored choice is kept');
       await tester.tap(find.text('Kiosk mode'));
       await tester.pumpAndSettle();
       expect(_selectedTabs(tester), isTrue);
@@ -478,9 +483,9 @@ void main() {
         onChanged: (v) => seen = v,
       );
       await _tapTabs(tester);
-      expect(seen!.tabsEnabled.stored, isFalse);
-      expect(seen!.kioskMode, isFalse);
-      expect(seen!.fullscreenMode, isFalse);
+      expect(seen!.choices.tabsEnabled.stored, isFalse);
+      expect(seen!.choices.kioskMode, isFalse);
+      expect(seen!.choices.fullscreenMode, isFalse);
     });
   });
 
@@ -505,12 +510,12 @@ void main() {
           findsOneWidget);
       await tester.tap(toggle());
       await tester.pumpAndSettle();
-      expect(seen!.signInPopups, const Own(false));
+      expect(seen!.choices.signInPopups, const Own(false));
       expect(shown(tester), isFalse);
       expect(opacity(), 1);
       await tester.longPress(toggle());
       await tester.pumpAndSettle();
-      expect(seen!.signInPopups, const FollowApp<bool>());
+      expect(seen!.choices.signInPopups, const FollowApp<bool>());
       AppPref.signInPopups.debugValue = false;
       await tester.pumpAndSettle();
       expect(shown(tester), isFalse, reason: "a following site shows the app's");
@@ -565,13 +570,13 @@ void main() {
         expect(find.descendant(of: _routingTile,
             matching: find.text('App default')), findsNothing);
         await _tapRouting(tester);
-        expect(seen!.routeOutboundLinks, isTrue);
+        expect(seen!.choices.routeOutboundLinks, isTrue);
         expect(find.text('Routing preferences'), findsOneWidget);
         AppPref.routeOutboundLinks.debugValue = false;
         await tester.pumpAndSettle();
         expect(_selectedRouting(tester), isTrue);
         await _tapRouting(tester);
-        expect(seen!.routeOutboundLinks, isFalse);
+        expect(seen!.choices.routeOutboundLinks, isFalse);
         expect(find.text('Routing preferences'), findsNothing);
       } finally {
         semantics.dispose();
@@ -634,7 +639,7 @@ void main() {
       );
       await _pickMode(tester, label: 'Open in browser');
       expect(find.text('Route links to my sites'), findsNothing);
-      expect(seen!.routeOutboundLinks, isTrue);
+      expect(seen!.choices.routeOutboundLinks, isTrue);
       await _pickMode(tester, label: 'Open in the app');
       expect(_selectedRouting(tester), isTrue);
     });
@@ -654,7 +659,7 @@ void main() {
       await _pump(tester, values: _values(), onChanged: (v) => seen = v);
       expect(find.text('Routing preferences'), findsNothing);
       await _tapRouting(tester);
-      expect(seen!.routeOutboundLinks, isTrue);
+      expect(seen!.choices.routeOutboundLinks, isTrue);
       expect(find.text('Routing preferences'), findsOneWidget);
       expect(find.text('Global routing only'), findsOneWidget);
     });
@@ -687,7 +692,7 @@ void main() {
       await tester.enterText(find.byType(TextField), 'github.com');
       await tester.tap(find.text('Add'));
       await tester.pumpAndSettle();
-      expect(seen!.outboundPreferences, [pref]);
+      expect(seen!.choices.outboundPreferences.items, [pref]);
       expect(find.text('Opens as Work GitHub'), findsOneWidget);
     });
 
@@ -767,8 +772,8 @@ void main() {
           _switchTitled(tester, title: 'Searches the whole web').value, isTrue);
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
-      expect(seen!.searchAddress, isNull);
-      expect(seen!.searchesWeb, isFalse);
+      expect(seen!.choices.searchAddress, isNull);
+      expect(seen!.choices.searchesWeb, isFalse);
     });
 
     testWidgets('Reset returns to the known address', (tester) async {
@@ -784,7 +789,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Reset'));
       await tester.pumpAndSettle();
-      expect(seen!.searchAddress, isNull);
+      expect(seen!.choices.searchAddress, isNull);
       expect(find.text('https://github.com/search?q=%s'), findsOneWidget);
     });
 
@@ -877,8 +882,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
-      expect(seen!.searchSites, ['ddg']);
-      expect(seen!.searchDefault, const FollowApp<String>());
+      expect(seen!.choices.searchSites.items, ['ddg']);
+      expect(seen!.choices.searchDefault, const FollowApp<String>());
       expect(searchDefaultSays('App default'), findsOneWidget);
     });
   });

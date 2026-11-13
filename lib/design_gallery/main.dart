@@ -328,10 +328,10 @@ class _SiteNetworkSavedCardState extends State<_SiteNetworkSavedCard> {
   Widget build(BuildContext context) => SiteNetworkScreen(
         host: 'mail.example.com',
         siteId: model.siteId,
-        values: SiteNetworkValues(
+        values: model.networkChoices.copyWith(
           proxyType: ProxyType.GATEWAY,
-          gatewayId: GatewayId('gw-de'),
-          credentialsId: CredentialsId('cr-mail'),
+          gatewayId: (GatewayId('gw-de'),),
+          credentialsId: (CredentialsId('cr-mail'),),
           webRtcPolicy: WebRtcPolicy.relayOnly,
         ),
         onChanged: (_) {},
@@ -368,10 +368,8 @@ class _SiteNetworkInterfaceCardState extends State<_SiteNetworkInterfaceCard> {
   final address = TextEditingController();
   final username = TextEditingController();
   final password = TextEditingController();
-  late SiteNetworkValues values = SiteNetworkValues(
-    proxyType: ProxyType.DEFAULT,
+  late NetworkChoices values = model.networkChoices.copyWith(
     leavesBy: NamedInterface(InterfaceName.parse(widget.chosen)!),
-    webRtcPolicy: WebRtcPolicy.defaultPolicy,
   );
 
   @override
@@ -1036,7 +1034,7 @@ class _SiteNetworkCardState extends State<_SiteNetworkCard> {
             ? SiteNetworkScreen(
                 host: 'nas.example.com',
                 siteId: model.siteId,
-                values: const SiteNetworkValues(
+                values: model.networkChoices.copyWith(
                   proxyType: ProxyType.SOCKS5,
                   webRtcPolicy: WebRtcPolicy.relayOnly,
                 ),
@@ -1072,15 +1070,11 @@ Widget _siteBehaviour(BuildContext _) {
     host: 'duckduckgo.com',
     incognito: false,
     containersActive: true,
-    values: const SiteBehaviourValues(
+    values: SiteBehaviourValues(
       archived: false,
-      alwaysOpenHome: false,
-      kioskMode: false,
-      fullscreenMode: false,
-      htmlCachingEnabled: false,
       htmlSource: HtmlSource.cache,
-      externalLinkMode: Own(ExternalLinkMode.inApp),
-      routeOutboundLinks: true,
+      choices: model.behaviourChoices
+          .copyWith(externalLinkMode: const Own(ExternalLinkMode.inApp)),
     ),
     onChanged: (_) {},
     routingTargets: [github],
@@ -1305,13 +1299,11 @@ Widget _siteBehaviourSearch(BuildContext _) => SiteBehaviourScreen(
       containersActive: true,
       values: SiteBehaviourValues(
         archived: false,
-        alwaysOpenHome: false,
-        kioskMode: false,
-        fullscreenMode: false,
-        htmlCachingEnabled: false,
         htmlSource: HtmlSource.cache,
-        routeOutboundLinks: false,
-        searchSites: [SiteId('ddg-work'), SiteId('ddg-home')],
+        choices: WebViewModel(
+          initUrl: 'https://searx.lan/',
+          searchSites: [SiteId('ddg-work'), SiteId('ddg-home')],
+        ).behaviourChoices,
       ),
       onChanged: (_) {},
       initUrl: 'https://searx.lan/',

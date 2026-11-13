@@ -34,10 +34,10 @@ this switch stores. Incognito itself stays on the Privacy screen, and the
 stored `alwaysOpenHome` SHALL be preserved so turning incognito off restores
 the user's own choice.
 
-The screen SHALL own no persistent state. `SettingsScreen` keeps the fields,
+The screen SHALL own no persistent state. `SettingsScreen` keeps the choices,
 the dirty-snapshot diff and the save path (BUG-006 / EDIT-009); the screen
-reads a `SiteBehaviourValues` and reports whole values back through
-`onChanged`. The domain-claim editor is the one exception and SHALL be passed
+reads a `SiteBehaviourValues`, whose stored part is one `BehaviourChoices`
+record, and reports whole values back through `onChanged`. The domain-claim editor is the one exception and SHALL be passed
 in as a widget by the caller: it writes straight to the model rather than
 through the value object, exactly as it did while it rendered inline, so it
 stays with the screen that holds the model.

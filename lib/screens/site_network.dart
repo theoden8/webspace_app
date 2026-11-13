@@ -23,64 +23,100 @@ import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 import 'package:webspace/widgets/proxy_status_indicator.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/services/webview_proxy.dart';
+import 'package:webspace/web_view_model.dart';
 
-/// Everything the network screen may change through a switch or a picker, in
-/// one value so the caller can apply a whole edit in a single `setState`.
-///
-/// Same contract as `SitePrivacyValues` and `SiteBehaviourValues`: the
-/// settings screen keeps the fields, the dirty-snapshot diff and the save
-/// path (BUG-006). The proxy address and credentials are text, so they stay
-/// in the caller's controllers, which that diff already reads.
-class SiteNetworkValues {
-  const SiteNetworkValues({
-    required this.proxyType,
-    this.torExitCountry,
-    this.savedProxyId,
-    this.gatewayId,
-    this.credentialsId,
-    this.leavesBy = const SystemRouting(),
-    required this.webRtcPolicy,
-  });
-
-  final ProxyType proxyType;
-
+/// What a site stores of its network route but the typed proxy address and
+/// credentials, the whole of what the network screen edits through a switch
+/// or a picker. A record, so the settings screen's dirty snapshot compares
+/// every field of it and a field added here cannot be left out of that
+/// comparison, which is how unsaved edits got dropped (BUG-006). The address
+/// and credentials are text, so they stay in the caller's controllers, which
+/// that snapshot reads beside it.
+typedef NetworkChoices = ({
+  ProxyType proxyType,
+  /// Country the Tor exit is pinned to, or null for any.
+  String? torExitCountry,
   /// The library entries picked: the saved proxy under [ProxyType.SAVED],
   /// the saved gateway under [ProxyType.GATEWAY], and saved credentials
   /// (null meaning the typed ones).
-  final SavedProxyId? savedProxyId;
-  final GatewayId? gatewayId;
-  final CredentialsId? credentialsId;
-
-  /// Country the Tor exit is pinned to, or null for any.
-  final String? torExitCountry;
-
+  SavedProxyId? savedProxyId,
+  GatewayId? gatewayId,
+  CredentialsId? credentialsId,
   /// The interface the site's traffic leaves by (NETIF-001).
-  final InterfaceChoice leavesBy;
-  final WebRtcPolicy webRtcPolicy;
+  InterfaceChoice leavesBy,
+  WebRtcPolicy webRtcPolicy,
+});
 
-  /// `torExitCountry` is nullable *and* meaningful when null ("any country"),
-  /// so passing null has to mean "set it to null", not "leave it".
-  static const Object _keep = Object();
+/// Where a site's [NetworkChoices] are read from. The route is stored as a
+/// [UserProxySettings], which the save builds with [NetworkChoicesEdit.over]
+/// and sends through `updateProxySettings`.
+extension SiteNetworkChoices on WebViewModel {
+  /// The proxy as this platform can bind one: DEFAULT where it cannot bind a
+  /// per-site proxy (PROXY-006).
+  UserProxySettings get bindableProxy => PlatformInfo.isProxySupported
+      ? proxySettings
+      : UserProxySettings(type: ProxyType.DEFAULT);
 
-  SiteNetworkValues copyWith({
+  NetworkChoices get networkChoices {
+    final proxy = bindableProxy;
+    return (
+      proxyType: proxy.type,
+      torExitCountry: proxy.torExitCountry,
+      savedProxyId: proxy.savedProxyId,
+      gatewayId: proxy.gatewayId,
+      credentialsId: proxy.credentialsId,
+      leavesBy: proxy.leavesBy,
+      webRtcPolicy: webRtcPolicy,
+    );
+  }
+}
+
+extension NetworkChoicesEdit on NetworkChoices {
+  /// These choices with the given ones replaced. A nullable field comes as a
+  /// one-element record, so clearing it (`torExitCountry: (null,)`) is told
+  /// apart from leaving it out.
+  NetworkChoices copyWith({
     ProxyType? proxyType,
-    Object? torExitCountry = _keep,
-    Object? savedProxyId = _keep,
-    Object? gatewayId = _keep,
-    Object? credentialsId = _keep,
+    (String?,)? torExitCountry,
+    (SavedProxyId?,)? savedProxyId,
+    (GatewayId?,)? gatewayId,
+    (CredentialsId?,)? credentialsId,
     InterfaceChoice? leavesBy,
     WebRtcPolicy? webRtcPolicy,
-  }) {
-    T? or<T>(Object? next, {required T? kept}) =>
-        identical(next, _keep) ? kept : next as T?;
-    return SiteNetworkValues(
-      proxyType: proxyType ?? this.proxyType,
-      torExitCountry: or(torExitCountry, kept: this.torExitCountry),
-      savedProxyId: or(savedProxyId, kept: this.savedProxyId),
-      gatewayId: or(gatewayId, kept: this.gatewayId),
-      credentialsId: or(credentialsId, kept: this.credentialsId),
-      leavesBy: leavesBy ?? this.leavesBy,
-      webRtcPolicy: webRtcPolicy ?? this.webRtcPolicy,
+  }) =>
+      (
+        proxyType: proxyType ?? this.proxyType,
+        torExitCountry:
+            torExitCountry == null ? this.torExitCountry : torExitCountry.$1,
+        savedProxyId:
+            savedProxyId == null ? this.savedProxyId : savedProxyId.$1,
+        gatewayId: gatewayId == null ? this.gatewayId : gatewayId.$1,
+        credentialsId:
+            credentialsId == null ? this.credentialsId : credentialsId.$1,
+        leavesBy: leavesBy ?? this.leavesBy,
+        webRtcPolicy: webRtcPolicy ?? this.webRtcPolicy,
+      );
+
+  /// [proxy] with the route these choices pick, its typed fields kept. The
+  /// pattern names every field, so one added to [NetworkChoices] does not
+  /// compile until it is placed here or named as not the route's.
+  UserProxySettings over(UserProxySettings proxy) {
+    final (
+      :proxyType,
+      :torExitCountry,
+      :savedProxyId,
+      :gatewayId,
+      :credentialsId,
+      :leavesBy,
+      webRtcPolicy: _,
+    ) = this;
+    return proxy.copyWith(
+      type: proxyType,
+      torExitCountry: (torExitCountry,),
+      savedProxyId: (savedProxyId,),
+      gatewayId: (gatewayId,),
+      credentialsId: (credentialsId,),
+      leavesBy: leavesBy,
     );
   }
 }
@@ -127,8 +163,8 @@ class SiteNetworkScreen extends StatefulWidget {
   /// Keys the saved sign-ins row.
   final SiteId siteId;
 
-  final SiteNetworkValues values;
-  final ValueChanged<SiteNetworkValues> onChanged;
+  final NetworkChoices values;
+  final ValueChanged<NetworkChoices> onChanged;
 
   /// Owned by the caller, whose dirty snapshot reads their text.
   final TextEditingController proxyAddressController;
@@ -161,7 +197,7 @@ class SiteNetworkScreen extends StatefulWidget {
 }
 
 class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
-  late SiteNetworkValues _values = widget.values;
+  late NetworkChoices _values = widget.values;
 
   /// The interfaces present as the screen opened, while the experiment is
   /// reachable (NETIF-010); null until the platform answers.
@@ -201,7 +237,7 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
     if (mounted && _values.proxyType == ProxyType.GATEWAY) setState(() {});
   }
 
-  void _update(SiteNetworkValues next) {
+  void _update(NetworkChoices next) {
     setState(() => _values = next);
     widget.onChanged(next);
   }
@@ -221,11 +257,11 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
             false);
     _update(_values.copyWith(
       proxyType: choice.type,
-      savedProxyId: choice.type == ProxyType.SAVED
+      savedProxyId: (choice.type == ProxyType.SAVED
           ? choice.savedProxyId
-          : _values.savedProxyId,
-      gatewayId: gatewayId,
-      credentialsId: keepCredentials ? _values.credentialsId : null,
+          : _values.savedProxyId,),
+      gatewayId: (gatewayId,),
+      credentialsId: (keepCredentials ? _values.credentialsId : null,),
     ));
   }
 
@@ -307,7 +343,7 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
     );
     if (selected == null || !mounted) return;
     _update(_values.copyWith(
-      torExitCountry: selected.isEmpty ? null : selected,
+      torExitCountry: (selected.isEmpty ? null : selected,),
     ));
   }
 
@@ -354,7 +390,7 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
           passwordController: widget.proxyPasswordController,
           addressValidator: (value) => validateProxyAddress(loc, type: type, value: value),
           onCredentialsChanged: (id) =>
-              _update(_values.copyWith(credentialsId: id)),
+              _update(_values.copyWith(credentialsId: (id,))),
         ),
       if (type != ProxyType.DEFAULT && widget.proxyTest != null)
         widget.proxyTest!,

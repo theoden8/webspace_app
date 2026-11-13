@@ -1,7 +1,5 @@
 import 'dart:async';
 
-import 'package:webspace/settings/filter_list_id.dart';
-import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 
@@ -10,9 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/web_view_model.dart';
-import 'package:webspace/settings/capture.dart';
-import 'package:webspace/settings/origin_choices.dart';
-import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/settings/location.dart';
@@ -25,7 +20,6 @@ import 'package:webspace/settings/tor_exit_countries.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/user_agent_identity.dart';
 import 'package:webspace/services/log_service.dart';
-import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/proxy_form_engine.dart';
 import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/services/screen_capture_guard.dart';
@@ -165,60 +159,28 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen>
     with DirtyGuard<SettingsScreen> {
-  late UserProxySettings _proxySettings;
+  late PrivacyChoices _privacy;
+  late BehaviourChoices _behaviour;
+  late PermissionChoices _permissions;
+  late NetworkChoices _network;
+
+  /// The proxy as the site stored it: what the typed fields start from, and
+  /// what a save keeps of the fields the chosen type hides (PROXY-010).
+  late final UserProxySettings _storedProxy =
+      widget.webViewModel.bindableProxy;
   final _userAgentController = TextEditingController();
   final _proxyAddressController = TextEditingController();
   final _proxyUsernameController = TextEditingController();
   final _proxyPasswordController = TextEditingController();
-  late bool _javascriptEnabled;
-  late bool _thirdPartyCookiesEnabled;
-  late bool? _httpsUpgradeEnabled;
-  late bool _incognito;
-  late bool _alwaysOpenHome;
-  late bool _kioskMode;
-  late bool _clearUrlEnabled;
-  late bool _dnsBlockEnabled;
-  late int? _dnsBlockLevel;
-  late bool _contentBlockEnabled;
-  late Set<FilterListId> _disabledFilterLists;
-  late bool _trackingProtectionEnabled;
-  late bool? _lockdownModeEnabled;
-  late bool _letterboxEnabled;
-  late bool _blockScreenshots;
-  late bool _localCdnEnabled;
-  late ExternalLinkMode? _externalLinkMode;
-  late bool _routeOutboundLinks;
-  late List<OutboundPreference> _outboundPreferences;
-  late bool? _signInPopups;
-  String? _searchAddress;
-  late bool _searchesWeb;
-  late List<SiteId> _searchSites;
-  SiteId? _searchDefault;
-  late bool _fullscreenMode;
-  late bool? _tabsEnabled;
-  late bool _htmlCachingEnabled;
-  late bool _notificationsEnabled;
-  late bool _backgroundAudioEnabled;
-  bool? _protectedContentAllowed;
-  CaptureGrants _captures = CaptureGrants.none;
-  OriginChoices _originChoices = OriginChoices.none;
   String? _selectedLanguage;
   late int _zoomPercent;
   late Scoped<WebViewTheme> _theme;
   final _latitudeController = TextEditingController();
   final _longitudeController = TextEditingController();
   final _accuracyController = TextEditingController();
-  String? _spoofTimezone;
-  bool _spoofTimezoneFromLocation = false;
   // Tracks the "live" geolocation mode. Mutually exclusive with static
   // coordinates: enabling live clears coords; picking coords clears live.
   bool _isLiveLocation = false;
-  // Granularity applied to the live fix before the shim surfaces it to
-  // the page. Only meaningful when `_isLiveLocation` is true; persists
-  // across switches between segments so the user's preference isn't lost
-  // when they toggle Off → Live again.
-  LocationGranularity _liveLocationGranularity = LocationGranularity.gps;
-  late WebRtcPolicy _webRtcPolicy;
 
   @override
   void initState() {
@@ -254,59 +216,21 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   @override
   Record snapshot() => (
-        proxyType: _proxySettings.type,
-        torExitCountry: _proxySettings.torExitCountry,
-        savedProxyId: _proxySettings.savedProxyId,
-        gatewayId: _proxySettings.gatewayId,
-        credentialsId: _proxySettings.credentialsId,
-        leavesBy: _proxySettings.leavesBy,
         proxyAddress: _proxyAddressController.text,
         proxyUsername: _proxyUsernameController.text,
         proxyPassword: _proxyPasswordController.text,
         userAgent: _userAgentController.text,
-        javascriptEnabled: _javascriptEnabled,
-        thirdPartyCookiesEnabled: _thirdPartyCookiesEnabled,
-        httpsUpgradeEnabled: _httpsUpgradeEnabled,
-        incognito: _incognito,
-        alwaysOpenHome: _alwaysOpenHome,
-        kioskMode: _kioskMode,
-        clearUrlEnabled: _clearUrlEnabled,
-        dnsBlockEnabled: _dnsBlockEnabled,
-        dnsBlockLevel: _dnsBlockLevel,
-        contentBlockEnabled: _contentBlockEnabled,
-        disabledFilterLists: ValueSet(_disabledFilterLists),
-        trackingProtectionEnabled: _trackingProtectionEnabled,
-        lockdownModeEnabled: _lockdownModeEnabled,
-        letterboxEnabled: _letterboxEnabled,
-        blockScreenshots: _blockScreenshots,
-        localCdnEnabled: _localCdnEnabled,
-        externalLinkMode: _externalLinkMode,
-        routeOutboundLinks: _routeOutboundLinks,
-        outboundPreferences: ValueList(_outboundPreferences),
-        signInPopups: _signInPopups,
-        searchAddress: _searchAddress,
-        searchesWeb: _searchesWeb,
-        searchSites: ValueList(_searchSites),
-        searchDefault: _searchDefault,
-        fullscreenMode: _fullscreenMode,
-        tabsEnabled: _tabsEnabled,
-        htmlCachingEnabled: _htmlCachingEnabled,
-        notificationsEnabled: _notificationsEnabled,
-        backgroundAudioEnabled: _backgroundAudioEnabled,
-        protectedContentAllowed: _protectedContentAllowed,
-        captures: _captures,
-        originChoices: _originChoices,
+        privacy: _privacy,
+        behaviour: _behaviour,
+        permissions: _permissions,
+        network: _network,
         selectedLanguage: _selectedLanguage,
         zoomPercent: _zoomPercent,
         theme: _theme,
         latitude: _latitudeController.text,
         longitude: _longitudeController.text,
         accuracy: _accuracyController.text,
-        spoofTimezone: _spoofTimezone,
-        spoofTimezoneFromLocation: _spoofTimezoneFromLocation,
         isLiveLocation: _isLiveLocation,
-        liveLocationGranularity: _liveLocationGranularity,
-        webRtcPolicy: _webRtcPolicy,
       );
 
   /// Live browser/OS identity + validity readout for the UA field. Follows
@@ -414,60 +338,25 @@ class _SettingsScreenState extends State<SettingsScreen>
   /// Mirror [widget.webViewModel] into the form state.
   void _loadFromModel() {
     final m = widget.webViewModel;
-    _proxySettings = PlatformInfo.isProxySupported
-        ? m.proxySettings
-        : UserProxySettings(type: ProxyType.DEFAULT);
+    _privacy = m.privacyChoices;
+    _behaviour = m.behaviourChoices;
+    _permissions = m.permissionChoices;
+    _network = m.networkChoices;
     // effectiveUserAgent so a preset site's field shows the string the
     // webview actually sends (current version), not the stored snapshot.
     // Empty means "no override": the webview default shows as a hint, never
     // as field text — pre-filling it froze the default into storage on save.
     _userAgentController.text = m.effectiveUserAgent;
-    _proxyAddressController.text = _proxySettings.address ?? '';
-    _proxyUsernameController.text = _proxySettings.username ?? '';
-    _proxyPasswordController.text = _proxySettings.password ?? '';
-    _javascriptEnabled = m.javascriptEnabled;
-    _thirdPartyCookiesEnabled = m.thirdPartyCookiesEnabled;
-    _httpsUpgradeEnabled = m.httpsUpgradeEnabled;
-    _incognito = m.incognito;
-    _alwaysOpenHome = m.alwaysOpenHome;
-    _kioskMode = m.kioskMode;
-    _clearUrlEnabled = m.clearUrlEnabled;
-    _dnsBlockEnabled = m.dnsBlockEnabled;
-    _dnsBlockLevel = m.dnsBlockLevel;
-    _contentBlockEnabled = m.contentBlockEnabled;
-    _disabledFilterLists = {...m.disabledFilterLists};
-    _trackingProtectionEnabled = m.trackingProtectionEnabled;
-    _lockdownModeEnabled = m.lockdownModeEnabled;
-    _letterboxEnabled = m.letterboxEnabled;
-    _blockScreenshots = m.blockScreenshots;
-    _localCdnEnabled = m.localCdnEnabled;
-    _externalLinkMode = m.externalLinkMode;
-    _routeOutboundLinks = m.routeOutboundLinks;
-    _outboundPreferences = [...m.outboundPreferences];
-    _signInPopups = m.signInPopups;
-    _searchAddress = m.searchAddress;
-    _searchesWeb = m.searchesWeb;
-    _searchSites = [...m.searchSites];
-    _searchDefault = m.searchDefault;
-    _fullscreenMode = m.fullscreenMode;
-    _tabsEnabled = m.tabsEnabled;
-    _htmlCachingEnabled = m.htmlCachingEnabled;
-    _notificationsEnabled = m.notificationsEnabled;
-    _backgroundAudioEnabled = m.backgroundAudioEnabled;
-    _protectedContentAllowed = m.protectedContentAllowed;
-    _captures = m.captures;
-    _originChoices = m.originChoices;
+    _proxyAddressController.text = _storedProxy.address ?? '';
+    _proxyUsernameController.text = _storedProxy.username ?? '';
+    _proxyPasswordController.text = _storedProxy.password ?? '';
     _selectedLanguage = m.language;
     _zoomPercent = m.zoomPercent;
     _theme = Scoped.fromStored(m.theme);
     _latitudeController.text = m.spoofLatitude?.toString() ?? '';
     _longitudeController.text = m.spoofLongitude?.toString() ?? '';
     _accuracyController.text = m.spoofAccuracy.toString();
-    _spoofTimezone = m.spoofTimezone;
-    _spoofTimezoneFromLocation = m.spoofTimezoneFromLocation;
     _isLiveLocation = m.locationMode == LocationMode.live;
-    _liveLocationGranularity = m.liveLocationGranularity;
-    _webRtcPolicy = m.webRtcPolicy;
   }
 
   @override
@@ -484,17 +373,20 @@ class _SettingsScreenState extends State<SettingsScreen>
   /// one works, and answering it about the persisted copy would be a
   /// different question.
   UserProxySettings _formProxy() => applyProxyForm(
-        stored: _proxySettings,
+        stored: _proxyPicked,
         fields: ProxyFormFields(
-          type: _proxySettings.type,
+          type: _network.proxyType,
           address: _proxyAddressController.text,
           username: _proxyUsernameController.text,
           password: _proxyPasswordController.text,
-          savedProxyId: _proxySettings.savedProxyId,
-          gatewayId: _proxySettings.gatewayId,
-          credentialsId: _proxySettings.credentialsId,
+          savedProxyId: _network.savedProxyId,
+          gatewayId: _network.gatewayId,
+          credentialsId: _network.credentialsId,
         ),
       );
+
+  /// The stored proxy with the route the form picks, before the typed fields.
+  UserProxySettings get _proxyPicked => _network.over(_storedProxy);
 
   Widget _buildExtensionsRow(AppLocalizations loc) {
     final plan = widget.webViewModel.extensionPlan;
@@ -543,7 +435,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     final loc = AppLocalizations.of(context);
     if (PlatformInfo.isProxySupported) {
       final proxyError = validateProxyAddress(
-          loc, type: _proxySettings.type, value: _proxyAddressController.text);
+          loc, type: _network.proxyType, value: _proxyAddressController.text);
       if (proxyError != null) {
         ScaffoldMessenger.of(context).toast(
           loc.siteSettingsProxyError(proxyError),
@@ -554,13 +446,13 @@ class _SettingsScreenState extends State<SettingsScreen>
 
     final m = widget.webViewModel;
     if (PlatformInfo.isProxySupported) {
-      _proxySettings = _formProxy();
-      m.proxySettings = _proxySettings;
+      final proxy = _formProxy();
+      m.proxySettings = proxy;
       LogTag.proxy.info(
           'Saving per-site proxy for siteId=${m.siteId}: '
-          '${_proxySettings.describeForLogs()}', sensitive: true);
+          '${proxy.describeForLogs()}', sensitive: true);
       await widget.onProxyChanging?.call();
-      await m.updateProxySettings(_proxySettings);
+      await m.updateProxySettings(proxy);
     } else {
       final defaultProxy = UserProxySettings(type: ProxyType.DEFAULT);
       m.proxySettings = defaultProxy;
@@ -575,38 +467,12 @@ class _SettingsScreenState extends State<SettingsScreen>
     // re-attaches a preset for generated shapes and drops stock
     // webview-default strings back to "no override".
     m.setUserAgent(_userAgentController.text);
-    m.javascriptEnabled = _javascriptEnabled;
-    m.thirdPartyCookiesEnabled = _thirdPartyCookiesEnabled;
-    m.httpsUpgradeEnabled = _httpsUpgradeEnabled;
-    m.incognito = _incognito;
-    m.alwaysOpenHome = _alwaysOpenHome;
-    m.kioskMode = _kioskMode;
-    m.clearUrlEnabled = _clearUrlEnabled;
-    m.dnsBlockEnabled = _dnsBlockEnabled;
-    m.dnsBlockLevel = _dnsBlockLevel;
-    m.contentBlockEnabled = _contentBlockEnabled;
-    m.disabledFilterLists = {..._disabledFilterLists};
-    m.trackingProtectionEnabled = _trackingProtectionEnabled;
-    m.lockdownModeEnabled = _lockdownModeEnabled;
-    m.letterboxEnabled = _letterboxEnabled;
-    m.blockScreenshots = _blockScreenshots;
-    m.localCdnEnabled = _localCdnEnabled;
-    m.externalLinkMode = _externalLinkMode;
-    m.routeOutboundLinks = _routeOutboundLinks;
-    m.outboundPreferences = [..._outboundPreferences];
-    m.signInPopups = _signInPopups;
-    m.searchAddress = _searchAddress;
-    m.searchesWeb = _searchesWeb;
-    m.searchSites = [..._searchSites];
-    m.searchDefault = _searchDefault;
-    m.fullscreenMode = _fullscreenMode;
-    m.tabsEnabled = _tabsEnabled;
-    m.htmlCachingEnabled = _htmlCachingEnabled;
-    m.notificationsEnabled = _notificationsEnabled;
-    m.backgroundAudioEnabled = _backgroundAudioEnabled;
-    m.protectedContentAllowed = _protectedContentAllowed;
-    m.captures = _captures;
-    m.originChoices = _originChoices;
+    m.privacyChoices = _privacy;
+    m.behaviourChoices = _behaviour;
+    // Read before the choices land: a zone derived from the coordinates
+    // falls back to the one stored before.
+    final storedTimezone = m.spoofTimezone;
+    m.permissionChoices = _permissions;
     m.language = _selectedLanguage;
     m.zoomPercent = _zoomPercent;
     m.theme = _theme.stored;
@@ -626,8 +492,8 @@ class _SettingsScreenState extends State<SettingsScreen>
     // off the cold-start path. Tracking Protection forces from-location when
     // coords are set, mirroring _buildTimezoneDropdown's forceFromLocation.
     final bool effFromLocation = derivesTimezoneFromLocation(
-      spoofTimezoneFromLocation: _spoofTimezoneFromLocation,
-      trackingProtectionEnabled: _trackingProtectionEnabled,
+      spoofTimezoneFromLocation: _permissions.spoofTimezoneFromLocation,
+      trackingProtectionEnabled: _privacy.trackingProtectionEnabled,
       spoofLatitude: lat,
       spoofLongitude: lng,
     );
@@ -636,13 +502,9 @@ class _SettingsScreenState extends State<SettingsScreen>
       // isn't loaded right now.
       m.spoofTimezone =
           TimezoneLocationService.instance.lookup(lat, longitude: lng) ??
-              m.spoofTimezone;
-    } else {
-      m.spoofTimezone = _spoofTimezone;
+              storedTimezone;
     }
-    m.spoofTimezoneFromLocation = _spoofTimezoneFromLocation;
-    m.liveLocationGranularity = _liveLocationGranularity;
-    m.webRtcPolicy = _webRtcPolicy;
+    m.webRtcPolicy = _network.webRtcPolicy;
 
     if (!mounted) return;
 
@@ -735,7 +597,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       notifications: widget.isolation is Containers && v.effectiveNotifications,
       protectedContent: hostIsAndroid &&
           v.effectiveProtectedContent(
-                  trackingProtection: _trackingProtectionEnabled) ==
+                  trackingProtection: _privacy.trackingProtectionEnabled) ==
               true,
       // Not a grant (the Permissions screen says so under its switch).
       backgroundAudio: false,
@@ -776,16 +638,9 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   SitePermissionValues get _permissionValues => SitePermissionValues(
         archived: _archived,
-        captures: _captures,
-        originChoices: _originChoices,
-        notificationsEnabled: _notificationsEnabled,
-        backgroundAudioEnabled: _backgroundAudioEnabled,
-        protectedContentAllowed: _protectedContentAllowed,
+        choices: _permissions,
         locationMode: _effectiveLocationMode,
-        liveLocationGranularity: _liveLocationGranularity,
         hasStaticCoordinates: _hasStaticCoordinates,
-        spoofTimezone: _spoofTimezone,
-        spoofTimezoneFromLocation: _spoofTimezoneFromLocation,
       );
 
   /// Opens one of the Site screens; its row is redrawn from what it changed.
@@ -796,7 +651,7 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   Future<void> _openPermissions() => _push((_) => SitePermissionsScreen(
         host: widget.webViewModel.currentUrl,
-        trackingProtectionEnabled: _trackingProtectionEnabled,
+        trackingProtectionEnabled: _privacy.trackingProtectionEnabled,
         notificationsBlockedBySite: widget.notificationsBlockedBySite,
         showNotifications: widget.isolation is Containers,
         values: _permissionValues,
@@ -815,14 +670,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           await NotificationService.instance.requestPermission();
         },
         onChanged: (values) => setState(() {
-          _captures = values.captures;
-          _originChoices = values.originChoices;
-          _notificationsEnabled = values.notificationsEnabled;
-          _backgroundAudioEnabled = values.backgroundAudioEnabled;
-          _protectedContentAllowed = values.protectedContentAllowed;
-          _liveLocationGranularity = values.liveLocationGranularity;
-          _spoofTimezone = values.spoofTimezone;
-          _spoofTimezoneFromLocation = values.spoofTimezoneFromLocation;
+          _permissions = values.choices;
           _isLiveLocation = values.locationMode == LocationMode.live;
           if (values.locationMode == LocationMode.off) {
             // Off is a refusal now, so stale coordinates must not linger
@@ -836,24 +684,12 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   SiteBehaviourValues get _behaviourValues => SiteBehaviourValues(
         archived: _archived,
-        alwaysOpenHome: _alwaysOpenHome,
-        kioskMode: _kioskMode,
-        fullscreenMode: _fullscreenMode,
-        tabsEnabled: Scoped.fromStored(_tabsEnabled),
-        htmlCachingEnabled: _htmlCachingEnabled,
         htmlSource: htmlSourceFor(
-          incognito: _incognito,
+          incognito: _privacy.incognito,
           isArchiveTier: _archived,
           initUrl: widget.webViewModel.initUrl,
         ),
-        externalLinkMode: Scoped.fromStored(_externalLinkMode),
-        routeOutboundLinks: _routeOutboundLinks,
-        outboundPreferences: _outboundPreferences,
-        signInPopups: Scoped.fromStored(_signInPopups),
-        searchAddress: _searchAddress,
-        searchesWeb: _searchesWeb,
-        searchSites: _searchSites,
-        searchDefault: Scoped.fromStored(_searchDefault),
+        choices: _behaviour,
       );
 
   /// One of the four rows that open a screen of their own. Behaviour is what
@@ -873,7 +709,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           ))
             loc.siteSettingsAlwaysOpenHome,
           if (v.effectiveKioskMode) loc.siteSettingsKioskMode,
-          if (v.fullscreenMode) loc.siteSettingsFullscreen,
+          if (v.choices.fullscreenMode) loc.siteSettingsFullscreen,
           if (v.effectiveHtmlCaching) loc.siteSettingsHtmlCaching,
           if (v.effectiveRouteOutboundLinks) loc.siteSettingsRouteOutboundLinks,
           ?v.effectiveExternalLinkMode.summary(loc),
@@ -902,39 +738,16 @@ class _SettingsScreenState extends State<SettingsScreen>
           otherSites: widget.otherSites,
           onChanged: (next) => widget.webViewModel.domainClaims = next,
         ),
-        onChanged: (values) => setState(() {
-          _alwaysOpenHome = values.alwaysOpenHome;
-          _kioskMode = values.kioskMode;
-          _fullscreenMode = values.fullscreenMode;
-          _tabsEnabled = values.tabsEnabled.stored;
-          _htmlCachingEnabled = values.htmlCachingEnabled;
-          _externalLinkMode = values.externalLinkMode.stored;
-          _routeOutboundLinks = values.routeOutboundLinks;
-          _outboundPreferences = values.outboundPreferences;
-          _signInPopups = values.signInPopups.stored;
-          _searchAddress = values.searchAddress;
-          _searchesWeb = values.searchesWeb;
-          _searchSites = values.searchSites;
-          _searchDefault = values.searchDefault.stored;
-        }),
+        onChanged: (values) => setState(() => _behaviour = values.choices),
       ));
 
-  SiteNetworkValues get _networkValues => SiteNetworkValues(
-        proxyType: _proxySettings.type,
-        torExitCountry: _proxySettings.torExitCountry,
-        savedProxyId: _proxySettings.savedProxyId,
-        gatewayId: _proxySettings.gatewayId,
-        credentialsId: _proxySettings.credentialsId,
-        leavesBy: _proxySettings.leavesBy,
-        webRtcPolicy: _webRtcPolicy,
-      );
 
   /// Follows Behaviour: like it, this is how the app carries the site rather
   /// than what the site may do. The subtitle names the route the traffic
   /// takes, so whether the site is proxied is answered without opening it.
   Widget _buildNetworkRow() {
     final loc = AppLocalizations.of(context);
-    final v = _networkValues;
+    final v = _network;
     final proxied =
         PlatformInfo.isProxySupported && v.proxyType != ProxyType.DEFAULT;
     // DEFAULT means "no proxy of my own", and such a site goes through the
@@ -950,7 +763,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         relay: EgressRelay.instance.state);
     final webRtc = resolveWebRtcPolicy(
       stored: v.webRtcPolicy,
-      trackingProtectionEnabled: _trackingProtectionEnabled,
+      trackingProtectionEnabled: _privacy.trackingProtectionEnabled,
       proxied: v.proxyType != ProxyType.DEFAULT || appProxySet || bound,
     );
     final address = _proxyAddressController.text.trim();
@@ -968,7 +781,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       // (PROXY-030).
       if (proxied &&
           (v.proxyType == ProxyType.SAVED || v.proxyType == ProxyType.GATEWAY))
-        libraryRouteLabel(loc, route: _proxySettings)
+        libraryRouteLabel(loc, route: _proxyPicked)
       else if (proxied)
         v.proxyType == ProxyType.TOR
             ? torRouteLabel(loc)
@@ -998,7 +811,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   Future<void> _openNetwork() => _push((_) => SiteNetworkScreen(
         host: widget.webViewModel.currentUrl,
         siteId: widget.webViewModel.siteId,
-        values: _networkValues,
+        values: _network,
         proxySupported: PlatformInfo.isProxySupported,
         proxyAddressController: _proxyAddressController,
         proxyUsernameController: _proxyUsernameController,
@@ -1009,38 +822,13 @@ class _SettingsScreenState extends State<SettingsScreen>
           siteId: widget.webViewModel.siteId,
         ),
         showSavedSignIns: !widget.webViewModel.isArchiveTier,
-        trackingProtectionEnabled: _trackingProtectionEnabled,
+        trackingProtectionEnabled: _privacy.trackingProtectionEnabled,
         appProxySet: GlobalOutboundProxy.current.type != ProxyType.DEFAULT,
-        onChanged: (values) => setState(() {
-          _proxySettings = _proxySettings.copyWith(
-            type: values.proxyType,
-            torExitCountry: (values.torExitCountry,),
-            savedProxyId: (values.savedProxyId,),
-            gatewayId: (values.gatewayId,),
-            credentialsId: (values.credentialsId,),
-            leavesBy: values.leavesBy,
-          );
-          _webRtcPolicy = values.webRtcPolicy;
-        }),
+        onChanged: (values) => setState(() => _network = values),
       ));
 
-  SitePrivacyValues get _privacyValues => SitePrivacyValues(
-        archived: _archived,
-        trackingProtectionEnabled: _trackingProtectionEnabled,
-        clearUrlEnabled: _clearUrlEnabled,
-        dnsBlockEnabled: _dnsBlockEnabled,
-        dnsBlockLevel: Scoped.fromStored(_dnsBlockLevel),
-        contentBlockEnabled: _contentBlockEnabled,
-        disabledFilterLists: _disabledFilterLists,
-        localCdnEnabled: _localCdnEnabled,
-        thirdPartyCookiesEnabled: _thirdPartyCookiesEnabled,
-        httpsUpgrade: Scoped.fromStored(_httpsUpgradeEnabled),
-        lockdownMode: Scoped.fromStored(_lockdownModeEnabled),
-        letterboxEnabled: _letterboxEnabled,
-        incognito: _incognito,
-        blockScreenshots: _blockScreenshots,
-        javascriptEnabled: _javascriptEnabled,
-      );
+  SitePrivacyValues get _privacyValues =>
+      SitePrivacyValues(archived: _archived, choices: _privacy);
 
   /// Counterpart of [_buildPermissionsRow] for everything that decides what a
   /// site can learn or keep. The subtitle answers the same question without
@@ -1049,7 +837,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     final loc = AppLocalizations.of(context);
     final v = _privacyValues;
     return SummaryNavRow(
-      leading: Icon(v.trackingProtectionEnabled
+      leading: Icon(v.choices.trackingProtectionEnabled
           ? Icons.verified_user
           : Icons.verified_user_outlined),
       title: loc.privacyTitle,
@@ -1058,8 +846,8 @@ class _SettingsScreenState extends State<SettingsScreen>
         on: [
           // Leads, so the overflow never hides it: it breaks more pages than
           // anything else here, and the umbrella's line does not stand for it.
-          if (!v.javascriptEnabled) loc.privacySummaryJavascriptOff,
-          if (v.trackingProtectionEnabled)
+          if (!v.choices.javascriptEnabled) loc.privacySummaryJavascriptOff,
+          if (v.choices.trackingProtectionEnabled)
             loc.privacySummaryProtectionOn
           else ...[
             if (v.effectiveClearUrl) loc.siteSettingsClearUrls,
@@ -1083,22 +871,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         host: widget.webViewModel.currentUrl,
         siteId: widget.webViewModel.siteId,
         values: _privacyValues,
-        onChanged: (values) => setState(() {
-          _trackingProtectionEnabled = values.trackingProtectionEnabled;
-          _clearUrlEnabled = values.clearUrlEnabled;
-          _dnsBlockEnabled = values.dnsBlockEnabled;
-          _dnsBlockLevel = values.dnsBlockLevel.stored;
-          _contentBlockEnabled = values.contentBlockEnabled;
-          _disabledFilterLists = values.disabledFilterLists;
-          _localCdnEnabled = values.localCdnEnabled;
-          _thirdPartyCookiesEnabled = values.thirdPartyCookiesEnabled;
-          _httpsUpgradeEnabled = values.httpsUpgrade.stored;
-          _lockdownModeEnabled = values.lockdownMode.stored;
-          _letterboxEnabled = values.letterboxEnabled;
-          _incognito = values.incognito;
-          _blockScreenshots = values.blockScreenshots;
-          _javascriptEnabled = values.javascriptEnabled;
-        }),
+        onChanged: (values) => setState(() => _privacy = values.choices),
       ));
 
   @override

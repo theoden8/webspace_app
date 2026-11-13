@@ -21,121 +21,173 @@ import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
 import 'package:webspace/widgets/stat_chip.dart';
 import 'package:webspace/widgets/toast.dart';
+import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/dirty_guard.dart' show ValueSet;
 
-/// Everything the privacy screen may change, in one value so the caller can
-/// apply a whole edit in a single `setState`.
-///
-/// Same contract as `SitePermissionValues`: [SiteSettingsScreen] keeps the
-/// fields, the dirty-snapshot diff and the save path, and this is only a
-/// different way of presenting them. Moving the fields here would take them
-/// out of that diff, which is how unsaved edits get dropped (BUG-006).
-class SitePrivacyValues {
-  const SitePrivacyValues({
-    required this.archived,
-    required this.trackingProtectionEnabled,
-    required this.clearUrlEnabled,
-    required this.dnsBlockEnabled,
-    this.dnsBlockLevel = const FollowApp(),
-    required this.contentBlockEnabled,
-    this.disabledFilterLists = const <FilterListId>{},
-    required this.localCdnEnabled,
-    required this.thirdPartyCookiesEnabled,
-    this.httpsUpgrade = const FollowApp(),
-    required this.lockdownMode,
-    required this.letterboxEnabled,
-    required this.incognito,
-    this.blockScreenshots = false,
-    required this.javascriptEnabled,
-  });
-
-  /// Not edited here: an archive-tier site runs with the archive's posture
-  /// for the settings ARCH-006 folds.
-  final bool archived;
-  final bool trackingProtectionEnabled;
-  final bool clearUrlEnabled;
-  final bool dnsBlockEnabled;
-  final Scoped<int> dnsBlockLevel;
-  final bool contentBlockEnabled;
-
+/// What a site stores of its privacy posture, the whole of what the privacy
+/// screen edits. A record, so the settings screen's dirty snapshot compares
+/// every field of it and a field added here cannot be left out of that
+/// comparison, which is how unsaved edits got dropped (BUG-006).
+typedef PrivacyChoices = ({
+  bool trackingProtectionEnabled,
+  bool clearUrlEnabled,
+  bool dnsBlockEnabled,
+  Scoped<int> dnsBlockLevel,
+  bool contentBlockEnabled,
   /// Filter list ids this site opts out of.
-  final Set<FilterListId> disabledFilterLists;
-  final bool localCdnEnabled;
-  final bool thirdPartyCookiesEnabled;
-  final Scoped<bool> httpsUpgrade;
-  final Scoped<bool> lockdownMode;
-  final bool letterboxEnabled;
-  final bool incognito;
-  final bool blockScreenshots;
-  final bool javascriptEnabled;
+  ValueSet<FilterListId> disabledFilterLists,
+  bool localCdnEnabled,
+  bool thirdPartyCookiesEnabled,
+  Scoped<bool> httpsUpgrade,
+  Scoped<bool> lockdownMode,
+  bool letterboxEnabled,
+  bool incognito,
+  bool blockScreenshots,
+  bool javascriptEnabled,
+});
 
-  SitePrivacyValues copyWith({
+/// Where a site's [PrivacyChoices] are stored: the one mapping between the
+/// record and the model's fields.
+extension SitePrivacyChoices on WebViewModel {
+  PrivacyChoices get privacyChoices => (
+        trackingProtectionEnabled: trackingProtectionEnabled,
+        clearUrlEnabled: clearUrlEnabled,
+        dnsBlockEnabled: dnsBlockEnabled,
+        dnsBlockLevel: Scoped.fromStored(dnsBlockLevel),
+        contentBlockEnabled: contentBlockEnabled,
+        disabledFilterLists: ValueSet(disabledFilterLists),
+        localCdnEnabled: localCdnEnabled,
+        thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
+        httpsUpgrade: Scoped.fromStored(httpsUpgradeEnabled),
+        lockdownMode: Scoped.fromStored(lockdownModeEnabled),
+        letterboxEnabled: letterboxEnabled,
+        incognito: incognito,
+        blockScreenshots: blockScreenshots,
+        javascriptEnabled: javascriptEnabled,
+      );
+
+  /// The pattern names every field, so one added to [PrivacyChoices] does
+  /// not compile until it is stored here.
+  set privacyChoices(PrivacyChoices c) {
+    final (
+      :trackingProtectionEnabled,
+      :clearUrlEnabled,
+      :dnsBlockEnabled,
+      :dnsBlockLevel,
+      :contentBlockEnabled,
+      :disabledFilterLists,
+      :localCdnEnabled,
+      :thirdPartyCookiesEnabled,
+      :httpsUpgrade,
+      :lockdownMode,
+      :letterboxEnabled,
+      :incognito,
+      :blockScreenshots,
+      :javascriptEnabled,
+    ) = c;
+    this.trackingProtectionEnabled = trackingProtectionEnabled;
+    this.clearUrlEnabled = clearUrlEnabled;
+    this.dnsBlockEnabled = dnsBlockEnabled;
+    this.dnsBlockLevel = dnsBlockLevel.stored;
+    this.contentBlockEnabled = contentBlockEnabled;
+    this.disabledFilterLists = {...disabledFilterLists.items};
+    this.localCdnEnabled = localCdnEnabled;
+    this.thirdPartyCookiesEnabled = thirdPartyCookiesEnabled;
+    httpsUpgradeEnabled = httpsUpgrade.stored;
+    lockdownModeEnabled = lockdownMode.stored;
+    this.letterboxEnabled = letterboxEnabled;
+    this.incognito = incognito;
+    this.blockScreenshots = blockScreenshots;
+    this.javascriptEnabled = javascriptEnabled;
+  }
+}
+
+extension PrivacyChoicesEdit on PrivacyChoices {
+  /// These choices with the given ones replaced.
+  PrivacyChoices copyWith({
     bool? trackingProtectionEnabled,
     bool? clearUrlEnabled,
     bool? dnsBlockEnabled,
     Scoped<int>? dnsBlockLevel,
-    Scoped<bool>? httpsUpgrade,
     bool? contentBlockEnabled,
-    Set<FilterListId>? disabledFilterLists,
+    ValueSet<FilterListId>? disabledFilterLists,
     bool? localCdnEnabled,
     bool? thirdPartyCookiesEnabled,
+    Scoped<bool>? httpsUpgrade,
     Scoped<bool>? lockdownMode,
     bool? letterboxEnabled,
     bool? incognito,
     bool? blockScreenshots,
     bool? javascriptEnabled,
   }) =>
-      SitePrivacyValues(
-        archived: archived,
+      (
         trackingProtectionEnabled:
             trackingProtectionEnabled ?? this.trackingProtectionEnabled,
         clearUrlEnabled: clearUrlEnabled ?? this.clearUrlEnabled,
         dnsBlockEnabled: dnsBlockEnabled ?? this.dnsBlockEnabled,
         dnsBlockLevel: dnsBlockLevel ?? this.dnsBlockLevel,
-        httpsUpgrade: httpsUpgrade ?? this.httpsUpgrade,
         contentBlockEnabled: contentBlockEnabled ?? this.contentBlockEnabled,
         disabledFilterLists: disabledFilterLists ?? this.disabledFilterLists,
         localCdnEnabled: localCdnEnabled ?? this.localCdnEnabled,
         thirdPartyCookiesEnabled:
             thirdPartyCookiesEnabled ?? this.thirdPartyCookiesEnabled,
+        httpsUpgrade: httpsUpgrade ?? this.httpsUpgrade,
         lockdownMode: lockdownMode ?? this.lockdownMode,
         letterboxEnabled: letterboxEnabled ?? this.letterboxEnabled,
         incognito: incognito ?? this.incognito,
         blockScreenshots: blockScreenshots ?? this.blockScreenshots,
         javascriptEnabled: javascriptEnabled ?? this.javascriptEnabled,
       );
+}
 
-  bool _forced(TrackingProtectionForce force, {required bool stored}) => force
-      .resolve(stored: stored, trackingProtection: trackingProtectionEnabled);
+/// The privacy screen's input: the site's [choices] and what they resolve to
+/// where it runs.
+class SitePrivacyValues {
+  const SitePrivacyValues({required this.archived, required this.choices});
 
-  bool get effectiveClearUrl =>
-      _forced(TrackingProtectionForce.clearUrls, stored: clearUrlEnabled);
-  bool get effectiveDnsBlock =>
-      _forced(TrackingProtectionForce.dnsBlock, stored: dnsBlockEnabled);
+  /// Not edited here: an archive-tier site runs with the archive's posture
+  /// for the settings ARCH-006 folds.
+  final bool archived;
+  final PrivacyChoices choices;
+
+  SitePrivacyValues withChoices(PrivacyChoices next) =>
+      SitePrivacyValues(archived: archived, choices: next);
+
+  bool _forced(TrackingProtectionForce force, {required bool stored}) =>
+      force.resolve(
+          stored: stored, trackingProtection: choices.trackingProtectionEnabled);
+
+  bool get effectiveClearUrl => _forced(TrackingProtectionForce.clearUrls,
+      stored: choices.clearUrlEnabled);
+  bool get effectiveDnsBlock => _forced(TrackingProtectionForce.dnsBlock,
+      stored: choices.dnsBlockEnabled);
   bool get effectiveContentBlock =>
       _forced(TrackingProtectionForce.contentBlock,
-          stored: contentBlockEnabled);
+          stored: choices.contentBlockEnabled);
   bool get effectiveLocalCdn => ArchiveFold.localCdn(
-      stored:
-          _forced(TrackingProtectionForce.localCdn, stored: localCdnEnabled),
+      stored: _forced(TrackingProtectionForce.localCdn,
+          stored: choices.localCdnEnabled),
       archived: archived);
   bool get effectiveThirdPartyCookies =>
       _forced(TrackingProtectionForce.thirdPartyCookies,
-          stored: thirdPartyCookiesEnabled);
+          stored: choices.thirdPartyCookiesEnabled);
   bool get effectiveHttpsUpgrade => _forced(TrackingProtectionForce.httpsUpgrade,
-      stored: httpsUpgrade.resolve(AppPref.httpsUpgradeEnabled.value));
+      stored: choices.httpsUpgrade.resolve(AppPref.httpsUpgradeEnabled.value));
   bool get effectiveLockdownMode => resolveLockdownMode(
-      choice: lockdownMode, trackingProtection: trackingProtectionEnabled);
+      choice: choices.lockdownMode,
+      trackingProtection: choices.trackingProtectionEnabled);
   bool get effectiveIncognito =>
-      ArchiveFold.incognito(stored: incognito, archived: archived);
+      ArchiveFold.incognito(stored: choices.incognito, archived: archived);
 
   /// The archive drops the per-site level, which would pin a level file on
   /// disk outside its keyspace.
   int? get effectiveDnsBlockLevel =>
-      ArchiveFold.dnsBlockLevel(dnsBlockLevel.stored, archived: archived);
+      ArchiveFold.dnsBlockLevel(choices.dnsBlockLevel.stored,
+          archived: archived);
 
   /// The app-wide switch covers every site (SCREENBLOCK-002).
   bool get effectiveBlockScreenshots =>
-      blockScreenshots || AppPref.blockScreenshots.value;
+      choices.blockScreenshots || AppPref.blockScreenshots.value;
 }
 
 /// Per-site privacy screen: the tracking-protection umbrella, the settings it
@@ -170,9 +222,11 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
   /// working rather than looking like the pick did nothing.
   int? _downloadingLevel;
 
-  void _update(SitePrivacyValues next) {
-    setState(() => _values = next);
-    widget.onChanged(next);
+  PrivacyChoices get _choices => _values.choices;
+
+  void _update(PrivacyChoices next) {
+    setState(() => _values = _values.withChoices(next));
+    widget.onChanged(_values);
   }
 
   /// Shown when the user enables a blocker whose backing data (DNS blocklist,
@@ -187,7 +241,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
   }
 
   Lock? _umbrella(TrackingProtectionForce force) =>
-      _values.trackingProtectionEnabled
+      _choices.trackingProtectionEnabled
           ? TrackingProtectionLock(forcedTo: force.forcedTo)
           : null;
 
@@ -195,7 +249,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
 
   Widget _trackingProtectionCard(AppLocalizations loc) {
     final scheme = Theme.of(context).colorScheme;
-    final on = _values.trackingProtectionEnabled;
+    final on = _choices.trackingProtectionEnabled;
     List<String> missing() => [
           if (!DnsBlockService.instance.hasBlocklist)
             loc.siteSettingsDnsBlocklist,
@@ -224,7 +278,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
           if (value && unconfigured.isNotEmpty) {
             _warnNotConfigured(unconfigured.join(', '));
           }
-          _update(_values.copyWith(trackingProtectionEnabled: value));
+          _update(_choices.copyWith(trackingProtectionEnabled: value));
         },
       ),
     );
@@ -244,7 +298,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
       lock: _umbrella(TrackingProtectionForce.dnsBlock),
       control: Toggle(value: _values.effectiveDnsBlock, onChanged: (value) {
         if (value && !ready) _warnNotConfigured(loc.siteSettingsDnsBlocklist);
-        _update(_values.copyWith(dnsBlockEnabled: value));
+        _update(_choices.copyWith(dnsBlockEnabled: value));
       }),
     );
   }
@@ -262,7 +316,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
       lock: _umbrella(TrackingProtectionForce.contentBlock),
       control: Toggle(value: _values.effectiveContentBlock, onChanged: (value) {
         if (value && !ready) _warnNotConfigured(loc.siteSettingsContentBlocker);
-        _update(_values.copyWith(contentBlockEnabled: value));
+        _update(_choices.copyWith(contentBlockEnabled: value));
       }),
     );
   }
@@ -286,7 +340,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
 
   Widget _dnsBlocklistLevel(AppLocalizations loc) {
     final needsDownload = _dnsLevelNeedsDownload;
-    final chosen = _values.dnsBlockLevel;
+    final chosen = _choices.dnsBlockLevel;
     final title = loc.siteSettingsDnsBlocklistLevel;
     final subtitle = needsDownload
         ? loc.siteSettingsDnsLevelNeedsDownload(
@@ -324,7 +378,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
           },
           onChanged: _downloadingLevel != null || _values.archived
               ? null
-              : (stop) => _update(_values.copyWith(
+              : (stop) => _update(_choices.copyWith(
                     dnsBlockLevel:
                         stop == _followsAppStop ? const FollowApp() : Own(stop),
                   )),
@@ -361,7 +415,8 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
     final available =
         ContentBlockerService.instance.lists.where((l) => l.enabled).toList();
     if (available.isEmpty) return const SizedBox.shrink();
-    final off = ArchiveFold.disabledFilterLists(_values.disabledFilterLists,
+    final off = ArchiveFold.disabledFilterLists(
+        _choices.disabledFilterLists.items,
         archived: _values.archived);
     final onCount = available.where((l) => !off.contains(l.id)).length;
     return SettingTile(
@@ -377,7 +432,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
 
   Future<void> _pickFilterLists(List<FilterList> available) async {
     final loc = AppLocalizations.of(context);
-    final off = {..._values.disabledFilterLists};
+    final off = {..._choices.disabledFilterLists.items};
     await showDialog<void>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -413,7 +468,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
       ),
     );
     if (!mounted) return;
-    _update(_values.copyWith(disabledFilterLists: off));
+    _update(_choices.copyWith(disabledFilterLists: ValueSet(off)));
   }
 
   Widget _localCdn(AppLocalizations loc) {
@@ -430,7 +485,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
               : _umbrella(TrackingProtectionForce.localCdn),
       control: Toggle(value: _values.effectiveLocalCdn && hasCache,
           onChanged: (value) =>
-              _update(_values.copyWith(localCdnEnabled: value))),
+              _update(_choices.copyWith(localCdnEnabled: value))),
     );
   }
 
@@ -462,7 +517,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
         value: on,
         onChanged: _values.archived
             ? null
-            : (value) => _update(_values.copyWith(incognito: value)),
+            : (value) => _update(_choices.copyWith(incognito: value)),
       ),
     );
   }
@@ -493,7 +548,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
             subtitle: loc.siteSettingsClearUrlsSubtitle,
             lock: _umbrella(TrackingProtectionForce.clearUrls),
             control: Toggle(value: _values.effectiveClearUrl,
-                onChanged: (value) => _update(_values.copyWith(clearUrlEnabled: value))),
+                onChanged: (value) => _update(_choices.copyWith(clearUrlEnabled: value))),
           ),
           _dnsBlocklist(loc),
           if (_values.effectiveDnsBlock && DnsBlockService.instance.hasBlocklist)
@@ -512,7 +567,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
             control: Toggle(
                 value: _values.effectiveThirdPartyCookies,
                 onChanged: (value) =>
-                    _update(_values.copyWith(thirdPartyCookiesEnabled: value))),
+                    _update(_choices.copyWith(thirdPartyCookiesEnabled: value))),
           ),
           SettingTile(
             title: loc.siteSettingsHttpsUpgrade,
@@ -520,35 +575,35 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
             lock: _umbrella(TrackingProtectionForce.httpsUpgrade),
             control: ScopedToggle(
               value: _values.effectiveHttpsUpgrade,
-              choice: _values.httpsUpgrade,
+              choice: _choices.httpsUpgrade,
               source: FollowSource.app,
               onChoice: (choice) =>
-                  _update(_values.copyWith(httpsUpgrade: choice)),
+                  _update(_choices.copyWith(httpsUpgrade: choice)),
             ),
           ),
           SettingsSection(loc.privacyGroupFingerprinting),
           SettingTile(
             title: loc.siteSettingsLetterboxTitle,
             hint: loc.siteSettingsWindowSizeHelper,
-            lock: _values.trackingProtectionEnabled
+            lock: _choices.trackingProtectionEnabled
                 ? null
                 : Lock.because(loc.siteSettingsNeedsTrackingProtection),
             control: Toggle(
-                value: _values.letterboxEnabled && _values.trackingProtectionEnabled,
-                onChanged: (value) => _update(_values.copyWith(letterboxEnabled: value))),
+                value: _choices.letterboxEnabled && _choices.trackingProtectionEnabled,
+                onChanged: (value) => _update(_choices.copyWith(letterboxEnabled: value))),
           ),
           // Only while the umbrella is on: with it off nothing is being
           // randomised, and the note would be describing something that is
           // not happening.
-          if (_values.trackingProtectionEnabled)
+          if (_choices.trackingProtectionEnabled)
             SettingsNote(loc.privacyFingerprintingNote),
           SettingsSection(loc.privacyGroupSecurity),
           SettingTile(
             title: loc.siteSettingsJavascriptEnabled,
             hint: null,
-            control: Toggle(value: _values.javascriptEnabled,
+            control: Toggle(value: _choices.javascriptEnabled,
                 onChanged: (value) =>
-                    _update(_values.copyWith(javascriptEnabled: value))),
+                    _update(_choices.copyWith(javascriptEnabled: value))),
           ),
           if (hostHasLockdownMode)
             SettingTile(
@@ -556,10 +611,10 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
               hint: loc.siteSettingsLockdownModeHint,
               control: ScopedToggle(
                 value: _values.effectiveLockdownMode,
-                choice: _values.lockdownMode,
+                choice: _choices.lockdownMode,
                 source: FollowSource.trackingProtection,
                 onChoice: (choice) =>
-                    _update(_values.copyWith(lockdownMode: choice)),
+                    _update(_choices.copyWith(lockdownMode: choice)),
               ),
             ),
           if (ScreenCaptureGuard.isSupported) ...[
@@ -571,7 +626,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
                   ? Lock.because(loc.siteSettingsBlockScreenshotsAppWide)
                   : null,
               control: Toggle(value: _values.effectiveBlockScreenshots,
-                  onChanged: (value) => _update(_values.copyWith(blockScreenshots: value))),
+                  onChanged: (value) => _update(_choices.copyWith(blockScreenshots: value))),
             ),
           ],
           const SizedBox(height: 24),
