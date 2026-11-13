@@ -66,6 +66,7 @@ const _formPage = '''
 const _probeJs = '''
 JSON.stringify({
   ready: document.readyState,
+  form: document.getElementById('first') !== null,
   focused: document.hasFocus(),
   active: document.activeElement ? (document.activeElement.id || document.activeElement.tagName) : null,
   caret: document.activeElement && 'selectionStart' in document.activeElement ? document.activeElement.selectionStart : null
@@ -286,13 +287,16 @@ void main() {
       }
 
       Map<String, dynamic>? state;
-      for (var i = 0; i < 90 && state?['ready'] != 'complete'; i++) {
+      // The webview's first document (about:blank) also reads complete, and
+      // has no field for the keys to reach.
+      bool loaded() => state?['ready'] == 'complete' && state?['form'] == true;
+      for (var i = 0; i < 90 && !loaded(); i++) {
         await tester.runAsync(
             () => Future<void>.delayed(const Duration(milliseconds: 500)));
         await tester.pump();
         state = await probe();
       }
-      expect(state?['ready'], 'complete', reason: 'the page never loaded');
+      expect(loaded(), isTrue, reason: 'the form page never loaded');
 
       bar.requestFocus();
       await tester.pump();
