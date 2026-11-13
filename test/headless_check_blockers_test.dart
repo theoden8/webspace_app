@@ -80,8 +80,13 @@ void main() {
   test('a check is told its level as the lists move, until it is disposed '
       '(DNS-022)', () async {
     final c = check();
-    await c.follow(site.headlessCheckConfig(
-        inertHostHooks(vars: RuntimeVars.ofSet({}, checked: {site.siteId}))), headlessId: 'check-1');
+    expect(
+      await c.follow(site.headlessCheckConfig(
+          inertHostHooks(vars: RuntimeVars.ofSet({}, checked: {site.siteId}))),
+          headlessId: 'check-1'),
+      isNot(CheckView.letGo),
+      reason: 'the channel answers nothing here, so it may not attach',
+    );
     expect(dns.views.told, {site.siteId: 0}, reason: 'attached at its level');
 
     expect(await dns.downloadList(1), isTrue);
@@ -93,5 +98,19 @@ void main() {
     expect(await dns.downloadList(2), isTrue);
     expect(dns.views.told, isEmpty, reason: 'a disposed check is no view');
     expect(sent, isEmpty);
+  });
+
+  test('a check whose wake let go of its site while it was built is let go '
+      '(DNS-022)', () async {
+    final c = check();
+    expect(
+      await c.follow(site.headlessCheckConfig(
+          inertHostHooks(vars: RuntimeVars.ofSet({}))), headlessId: 'check-2'),
+      CheckView.letGo,
+    );
+    expect(dns.views.told, isEmpty, reason: 'no view the views keep');
+    expect(await dns.downloadList(1), isTrue);
+    expect(sent, isEmpty, reason: 'nothing tells a check let go of');
+    await c.dispose();
   });
 }

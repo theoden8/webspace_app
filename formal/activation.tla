@@ -146,6 +146,7 @@ Init ==
     /\ built = [s \in Sites |-> IF s \in Tabbed /\ s \in loaded THEN 1 ELSE 0]
     /\ hist = built
     /\ queued = [s \in Sites |-> NoQueued]
+    /\ held = [s \in Sites |-> NoQueued]
     /\ file = [s \in Sites |-> [t \in TabIds |-> [h \in Sites |-> 0]]]
     /\ minted = [s \in Sites |-> IF s \in Tabbed THEN 2 ELSE 1]
     /\ host = [s \in Sites |-> [t \in TabIds |-> s]]
@@ -487,6 +488,10 @@ Inv_TabFilesHosted == Idle => \A s \in Tabbed : \A t \in tabs[s] : \A h \in Site
 Inv_TabFilesListed == Idle => \A s \in Tabbed : \A t \in TabIds \ tabs[s] :
     \A h \in Sites : file[s][t][h] = 0
 Inv_TabBound == \A s \in Tabbed : built[s] \in {0, active[s]}
+\* TAB-003: a back stack a build took that no controller restored is held
+\* only for that live build, so a let-go before its controller comes
+\* leaves none behind: it queues it again for the next build.
+Inv_HeldBuilt == \A s \in Tabbed : held[s] # NoQueued => held[s].t = built[s]
 \* LIR-034: a tab follows a listed opener or none, so a site that leaves
 \* the list stops being one in the step that takes it.
 Inv_OpenerListed == \A s \in Tabbed : \A t \in tabs[s] : opener[s][t] \in Listed \cup {0}

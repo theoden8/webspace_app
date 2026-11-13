@@ -210,17 +210,28 @@ abstract final class PopupWebView {
         // (DNS-022).
         if (controller.getViewId() case final Object id
             when WebInterceptNative.isSupported) {
-          final viewId = attachedView = OnPlatformView(id);
-          unawaited(WebInterceptNative.attach(
-            DnsBlockService.instance.views.built(
-              viewId,
-              site: parent.posture.siteId,
-              siteLevel: parent.siteDnsAsk,
-              localCdn: parent.posture.blocking.localCdn,
-              contentBlock: parent.posture.blocking.contentBlock,
-              vars: parent.hooks.vars,
-            ),
-          ));
+          final viewId = OnPlatformView(id);
+          switch (DnsBlockService.instance.views.built(
+            viewId,
+            site: parent.posture.siteId,
+            siteLevel: parent.siteDnsAsk,
+            localCdn: parent.posture.blocking.localCdn,
+            contentBlock: parent.posture.blocking.contentBlock,
+            vars: parent.hooks.vars,
+          )) {
+            case AttachView(:final attach):
+              attachedView = viewId;
+              unawaited(WebInterceptNative.attach(attach));
+            case LetViewGo():
+              // The site that opened it stopped running before the popup
+              // came (DNS-022): nothing would tell it, so it closes.
+              LogTag.webView.debug(
+                  'A popup of ${parent.posture.siteId} came after its site '
+                  'stopped running; closed',
+                  sensitive: true);
+              onCloseWindow?.call();
+              return;
+          }
         }
         // A view made again replaces the one its opener holds, which would
         // otherwise be closed twice.

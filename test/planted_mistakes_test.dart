@@ -469,6 +469,20 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [RendererGone(0)],
     breaks: 'letGo as  changed built, which it does not write',
   ),
+  // Back on its first tab, site 1's rebuild takes the back stack its switch
+  // away saved; the renderer dies before that build's controller comes.
+  Mutant.letgodrops => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      deletes: true,
+      tabbed: true,
+      lateControllers: true,
+      declared: d,
+    ),
+    setup: const [Tap(0), OpenTab(0, tab: 1)],
+    script: const [OpenTab(0, tab: 0), RendererGone(0)],
+    breaks: 'letGo as  changed queued, which it does not write',
+  ),
   Mutant.foldbeforelevel => _By(
     world: (d) => ActivationWorld(_mixed, dns: _dnsSites, declared: d),
     setup: const [Tap(0)],

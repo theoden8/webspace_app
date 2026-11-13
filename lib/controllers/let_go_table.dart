@@ -30,7 +30,9 @@ final class LetGoWorld implements SiteModels {
 /// an archive or out. Where the model lets one go (a loaded site with a
 /// webview built, `Rebuilt`) the step writes `built` and `hist` as the
 /// model does: the history goes, the site stays loaded and its view keeps
-/// its container and its DNS level. Anywhere else (a site not loaded, or
+/// its container and its DNS level; a back stack its build took that no
+/// controller restored yet is queued again for its tab, so the next frame
+/// shows it (TAB-003). Anywhere else (a site not loaded, or
 /// one whose webview is already gone) the webview's teardown runs in a
 /// turn that writes none of the model, which [Commit.none] asserts, and no
 /// step is taken.
@@ -52,7 +54,7 @@ abstract final class LetGoTable {
 
   static final StepTable<LetGoWorld, LetGoPlace> table = StepTable(
     LetGoPlace.values,
-    vars: [_loaded, _current, _built, _queued],
+    vars: [_loaded, _current, _built, _queued, _held],
     at: (place) => switch (place) {
       LetGoPlace.letGo => Step.environment(
         ActivationStep.letGo,
@@ -69,11 +71,11 @@ abstract final class LetGoTable {
           StepOutcome.none,
           then: [
             Act.of(
-              webViewGone<SiteId, LetGoWorld>(_each.it),
+              [...webViewGone<SiteId, LetGoWorld>(_each.it), requeued],
               then: (c) => _sites
                   .from(c)
                   .siteOf(_named.from(c))
-                  .disposeWebView(commit: c.commit, end: _end.from(c)),
+                  .letGoWebView(commit: c.commit, end: _end.from(c)),
             ),
           ],
           next: to(LetGoPlace.letGo),
@@ -81,7 +83,24 @@ abstract final class LetGoTable {
       ),
     },
   );
+
+  /// A back stack the let-go webview's build took that no controller
+  /// restored, queued again for its tab (TAB-003): the next frame shows it.
+  static final Write<LetGoWorld> requeued = TabVars.queued<SiteId, LetGoWorld>()
+      .becomes(
+        Expr.choose(
+          when: _heldAt.neq(noQueued()),
+          then: TabVars.queued<SiteId, LetGoWorld>().value.except(
+            _each.it,
+            to: _heldAt,
+          ),
+          otherwise: TabVars.queued<SiteId, LetGoWorld>().value,
+        ),
+      );
 }
+
+/// `held[s]`: what the let-go webview's build took.
+final _heldAt = TabVars.held<SiteId, LetGoWorld>().value.at(_each.it);
 
 /// The site let go of, `s` in the model, any site its guard admits.
 final _each = Pick<SiteId, LetGoWorld>(
@@ -125,8 +144,8 @@ final _current = Mutable<SiteId?, LetGoWorld>.over(
   of: (w) => w._sites.vars.current,
 );
 
-/// `built` and `queued` whole, as the bindings hold them, so the frame
-/// check holds the teardown to the writes the step declares.
+/// `built`, `queued` and `held` whole, as the bindings hold them, so the
+/// frame check holds the teardown to the writes the step declares.
 final _built = Var<Map<SiteId, TabId?>, LetGoWorld>(
   ModelVar.built,
   read: (w) => {for (final m in w._sites.models) m.siteId: m.tabBinding.built},
@@ -135,5 +154,11 @@ final _queued = Var<Map<SiteId, TabId?>, LetGoWorld>(
   ModelVar.queued,
   read: (w) => {
     for (final m in w._sites.models) m.siteId: m.tabBinding.queuedFor,
+  },
+);
+final _held = Var<Map<SiteId, TabId?>, LetGoWorld>(
+  ModelVar.held,
+  read: (w) => {
+    for (final m in w._sites.models) m.siteId: m.tabBinding.held?.tab,
   },
 );

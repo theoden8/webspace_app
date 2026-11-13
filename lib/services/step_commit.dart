@@ -45,6 +45,12 @@ enum Environment {
   /// of the page's, so the build writes in this commit, not the step's.
   frame,
 
+  /// A built webview's controller restoring the back stack its frame took,
+  /// as `WebViewModel.getWebView`'s `onControllerCreated` does it: the
+  /// model's `Restored`, which the frame table's step prints and the walks
+  /// mark (`FrameTable`).
+  restore,
+
   /// A row moved to another place in the list (`Move(from, to)`).
   move,
 

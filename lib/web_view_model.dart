@@ -1237,13 +1237,14 @@ bool dispatch(NavigationDecision decision,
     if (webview == null) {
       final builtTab = activeTabId;
       // The frame's one turn (TabVars.framed): bound to the active tab and
-      // handed the back stack queued for it, which the first controller
-      // restores and no later one does again.
-      var pending = tabBinding.frame(
+      // handed the back stack queued for it, which the binding holds until
+      // this build's first controller restores it, or a let-go queues it
+      // again (TAB-003).
+      final build = tabBinding.frame(
         builtTab,
         commit: const Commit.environment(Environment.frame),
       );
-      final restoreQueued = pending != null;
+      final restoreQueued = build.restores;
       LogTag.webView.debug(
           'Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl'
           '${hosted ? ', running as ${id.siteId}' : ''})', sensitive: true);
@@ -1570,11 +1571,14 @@ bool dispatch(NavigationDecision decision,
           // for the much-better re-activation UX.
           //
           // unawaited: subsequent webview-creation logic doesn't
-          // depend on the restore completing. The bytes the frame took
-          // are let go of *before* awaiting so a second controller of
-          // this build doesn't re-apply them.
-          final restoring = pending;
-          pending = null;
+          // depend on the restore completing. The binding hands the bytes
+          // over once, to this build, *before* awaiting, so a second
+          // controller of this build, or one of a build let go of since,
+          // restores nothing.
+          final restoring = tabBinding.restore(
+            build,
+            commit: const Commit.environment(Environment.restore),
+          );
           if (restoring != null && restores) {
             // On Android the webview was built with no initial load
             // (deferRestoreLoad), so restoreState applies to a pristine
@@ -1640,9 +1644,9 @@ bool dispatch(NavigationDecision decision,
     cookies = [];
   }
 
-  /// Lets go of the webview, in [commit]: an unload's, the commit that takes
-  /// the site off the list, or the environment's let-go (`LetGoTable`), as
-  /// [end] says it ended.
+  /// Lets go of the webview for good or for another build, in [commit]: an
+  /// unload's, the commit that takes the site off the list, a tab's
+  /// rebind, as [end] says it ended. What its build held goes with it.
   @override
   void disposeWebView({
     required Commit commit,
@@ -1651,29 +1655,40 @@ bool dispatch(NavigationDecision decision,
     LogTag.webView.debug(
         'disposeWebView called for "$name" (siteId: $siteId, $end)\n${StackTrace.current}',
         sensitive: true);
-    _letGoOfWebView(
-      view: switch (end) {
+    tabBinding.unbind(commit: commit);
+    _letGoOfWebView(view: _leaving(end));
+  }
+
+  /// Lets go of the webview for the frame to build it again, in [commit]
+  /// (`LetGoTable`), as [end] says it ended: a back stack its build took
+  /// that no controller restored is queued again for the next build
+  /// (TAB-003).
+  void letGoWebView({
+    required Commit commit,
+    WebViewEnd end = WebViewEnd.live,
+  }) {
+    LogTag.webView.debug(
+        'letGoWebView called for "$name" (siteId: $siteId, $end)',
+        sensitive: true);
+    tabBinding.letGo(commit: commit);
+    _letGoOfWebView(view: _leaving(end));
+  }
+
+  LeavingView? _leaving(WebViewEnd end) => switch (end) {
         WebViewEnd.live => controller,
         // A dead renderer loads nothing more, so nothing is left to quiet.
         WebViewEnd.rendererGone => null,
-      },
-      commit: commit,
-    );
-  }
+      };
 
   /// The webview and its controller go, and with them what they held: the
   /// route, once [view] is quiet and destroyed (at once with no view to
-  /// wait for), the tab the webview was built for, the resume reload, the
-  /// site's media session and its screen share.
-  void _letGoOfWebView({
-    required LeavingView? view,
-    required Commit commit,
-  }) {
+  /// wait for), the resume reload, the site's media session and its screen
+  /// share; the caller unbinds its tab first.
+  void _letGoOfWebView({required LeavingView? view}) {
     _webview = null;
     _liveExtensions = null;
     _controller = null;
     unawaited(ProcessRoute.instance.leave(routeClaim.occupant, view: view));
-    tabBinding.unbind(commit: commit);
     resumeReload.reset();
     // The player this site's media session was speaking for is gone with the
     // webview. Without this the OS transport controls outlive it and their
