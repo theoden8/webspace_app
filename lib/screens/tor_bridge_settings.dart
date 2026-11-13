@@ -17,6 +17,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/tor_bridge_secure_storage.dart';
 import 'package:webspace/services/tor_bridges.dart';
 import 'package:webspace/services/tor_moat_client.dart';
@@ -75,7 +76,9 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
 
   TorBridgeConfig _config = const TorBridgeConfig();
   bool _loading = true;
-  bool _busy = false;
+  late final _guard = ReentryGuard(onChange: () {
+    if (mounted) setState(() {});
+  });
   bool _restartNeeded = false;
   String? _pasteError;
   String? _message;
@@ -106,24 +109,21 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
   /// Storage first: if the write fails there is nothing to tell tor about,
   /// and reporting success on a configuration that did not survive a restart
   /// would be a lie the user only discovers on the next launch.
-  Future<void> _commit(TorBridgeConfig next) async {
-    setState(() => _busy = true);
+  Future<void> _commit(TorBridgeConfig next) => _guard.run(() => _save(next));
+
+  Future<void> _save(TorBridgeConfig next) async {
     final saved = await _storage.save(next);
     if (!mounted) return;
     if (!saved) return _settle();
     final needsRestart = TorService.instance.setBridges(next);
     setState(() {
       _config = next;
-      _busy = false;
       _restartNeeded = _restartNeeded || needsRestart;
     });
   }
 
   /// Ends a step that did not change the configuration, saying [message].
-  void _settle([String? message]) => setState(() {
-        _busy = false;
-        _message = message;
-      });
+  void _settle([String? message]) => setState(() => _message = message);
 
   Future<void> _addPasted() async {
     final result = parseTorBridgeLine(_pasteController.text);
@@ -149,11 +149,11 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
   Future<void> _fetchFromMoat() async {
     final loc = AppLocalizations.of(context);
     final client = widget.moatClientFactory?.call() ?? MoatClient();
-    setState(() {
-      _busy = true;
-      _message = loc.torBridgesFetching;
-    });
+    await _guard.run(() => _fetch(client, loc: loc));
+  }
 
+  Future<void> _fetch(MoatClient client, {required AppLocalizations loc}) async {
+    setState(() => _message = loc.torBridgesFetching);
     try {
       var attempt = await client.obtainBridges(_config.transport);
 
@@ -173,7 +173,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
       final lines = (attempt as MoatBridgesObtained).lines;
       if (!mounted) return;
       setState(() => _message = null);
-      await _commit(_config.copyWith(
+      await _save(_config.copyWith(
         enabled: true,
         transport: lines.first.transport,
         lines: [..._config.lines, ...lines],
@@ -230,15 +230,10 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
     }
   }
 
-  Future<void> _restartTor() async {
-    setState(() => _busy = true);
-    await TorService.instance.restart();
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _restartNeeded = false;
-    });
-  }
+  Future<void> _restartTor() => _guard.run(() async {
+        await TorService.instance.restart();
+        if (mounted) setState(() => _restartNeeded = false);
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -262,7 +257,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
                 SettingTile(
                   title: loc.torBridgesEnable,
                   hint: null,
-                  lock: _busy ? const Lock.because(null) : null,
+                  lock: _guard.busy ? const Lock.because(null) : null,
                   control: Toggle(value: _config.enabled,
                       onChanged: (v) => _commit(_config.copyWith(enabled: v))),
                 ),
@@ -277,7 +272,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
                     values: TorTransport.values,
                     label: (t) => t.wireName,
                     value: _config.transport,
-                    lock: _busy ? const Lock.because(null) : null,
+                    lock: _guard.busy ? const Lock.because(null) : null,
                     onChanged: (v) => _commit(_config.copyWith(transport: v)),
                   ),
                   if (_restartNeeded) _restartNotice(loc, theme: theme),
@@ -321,7 +316,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
                       color: theme.colorScheme.onSecondaryContainer)),
             ),
             TextButton(
-              onPressed: _busy ? null : _restartTor,
+              onPressed: _guard.busy ? null : _restartTor,
               child: Text(loc.torBridgesRestartNow),
             ),
           ],
@@ -368,7 +363,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
             trailing: IconButton(
               tooltip: loc.torBridgesRemove,
               icon: const Icon(Icons.delete_outline),
-              onPressed: _busy
+              onPressed: _guard.busy
                   ? null
                   : () => _commit(_config.copyWith(
                       lines: _config.lines.where((l) => l != line).toList())),
@@ -395,13 +390,13 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
                     border: const OutlineInputBorder(),
                   ),
                   onSubmitted: (_) {
-                    if (!_busy) unawaited(_addPasted());
+                    if (!_guard.busy) unawaited(_addPasted());
                   },
                 ),
               ),
               const SizedBox(width: Spacing.sm),
               TextButton(
-                onPressed: _busy ? null : _addPasted,
+                onPressed: _guard.busy ? null : _addPasted,
                 child: Text(loc.torBridgesAdd),
               ),
             ],
@@ -426,7 +421,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
             ),
             const SizedBox(height: Spacing.sm),
             FilledButton.tonalIcon(
-              onPressed: _busy ? null : _fetchFromMoat,
+              onPressed: _guard.busy ? null : _fetchFromMoat,
               icon: const Icon(Icons.download_outlined),
               label: Text(loc.torBridgesFetch),
             ),
