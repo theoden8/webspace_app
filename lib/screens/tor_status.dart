@@ -12,6 +12,7 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
 import 'package:webspace/widgets/external_tor_control_tiles.dart';
 import 'package:webspace/widgets/setting_tile.dart';
+import 'package:webspace/widgets/flag_text.dart';
 import 'package:webspace/widgets/tor_status_card.dart';
 
 /// Tor as one runtime shared by the whole app (TOR-004): what state it is
@@ -119,7 +120,7 @@ class _TorStatusScreenState extends State<TorStatusScreen> {
               leading: const Icon(Icons.language),
               title: Text(site.name),
               subtitle: exitsChosen
-                  ? Text(loc.torStateSiteExitCountry(
+                  ? flagText(loc.torStateSiteExitCountry(
                       _exitCountry(loc, nodes: site.exitNodes ?? ownExits)))
                   : null,
             ),
