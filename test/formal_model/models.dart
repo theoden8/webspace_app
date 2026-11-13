@@ -450,7 +450,7 @@ List<({ActivationStep step, ComposedAction action})> stepActions(Tables t) {
                       for (final r in a.spawns) ...r.fields,
                     ],
                   },
-            ways: f.input
+            ways: f.input || f.turn == StepTurn.environment
                 ? [
                     for (final k in {for (final a in f.arms) a.kind})
                       (kind: k, needs: f.needs, from: const {}),
@@ -555,10 +555,13 @@ String activationOps(Tables t) => [
 /// a flow can be and the places of every table.
 List<String> _types(Tables t) {
   final tables = _all(t);
+  // A place only the environment's action is at is no flow's.
   final places = {
     FlowField.pc.none,
     for (final table in tables)
-      for (final p in table.places) '"${p.name}"',
+      for (final p in table.places)
+        if (table.at(p) case Step(environment: false) || Within() || Leaves())
+          '"${p.name}"',
   };
   return [
     'FlowKinds == {${[FlowField.kind.none, for (final k in FlowKind.values) '"${k.name}"'].join(', ')}}',
@@ -626,7 +629,7 @@ String activationFootprints(Tables t) {
   // What an action needs: what each kind of flow reaching it needs, in
   // common, and its own step's; nothing reaches an action no flow does.
   Set<Need>? needed(Footprint f) {
-    if (f.input) return f.needs;
+    if (f.input || f.turn == StepTurn.environment) return f.needs;
     final byKind = flows[f.place];
     if (byKind == null || byKind.isEmpty) return null;
     return {...byKind.values.reduce((a, b) => a.intersection(b)), ...f.needs};
@@ -928,6 +931,12 @@ String activationTables(
   'InputTableStep(f) ==',
   for (final s in _inputSteps(t)) '    \\/ ${s.action}(f)',
   '',
+  r"\* Every action of the environment's the tables print, which",
+  r"\* activation.tla's Next takes whole.",
+  'EnvTableStep ==',
+  if (_envSteps(t).isEmpty) '    FALSE',
+  for (final s in _envSteps(t)) '    \\/ ${s.action}',
+  '',
   '=============================================================================',
   '',
 ].join('\n');
@@ -935,7 +944,15 @@ String activationTables(
 List<Step<Object?, Enum>> _flowSteps(Tables t) => [
   for (final table in _all(t))
     for (final (:step, place: _) in table.steps)
-      if (!step.input) step,
+      if (!step.input && !step.environment) step,
+];
+
+/// The environment's actions the tables print (`Step.environment`), on no
+/// flow.
+List<Step<Object?, Enum>> _envSteps(Tables t) => [
+  for (final table in _all(t))
+    for (final (:step, place: _) in table.steps)
+      if (step.environment) step,
 ];
 
 /// The inputs that start a flow on their own; a [Step.spawned] one prints
@@ -970,6 +987,7 @@ String activationTablesProof(Tables t) => [
     steps: _inputSteps(t),
     byLemma: false,
   ),
+  _envStepInd(_envSteps(t)),
   '=============================================================================',
   '',
 ].join('\n');
@@ -1075,6 +1093,54 @@ String _stepInd(
   '       DEF $over',
   '',
 ].join('\n');
+
+/// The lemma that every environment action of the tables keeps `IndInv`:
+/// each moves no flow and passes no turn, so it leaves every variable
+/// `IndInv` reads as it was (`Inv.places`'s, and `inputs`), which its
+/// definition's `UNCHANGED` says; `IndInv` then holds again as it stood.
+String _envStepInd(List<Step<Object?, Enum>> steps) {
+  final kept = {ModelVar.inputs, ...Inv.places.reads!};
+  assert(
+    steps.every(
+      (s) => s.allArms.every(
+        (a) => a.then.every(
+          (e) => e is! Act || e.writes.intersection(kept).isEmpty,
+        ),
+      ),
+    ),
+    'an environment action leaves what IndInv reads as it was',
+  );
+  final frame = [
+    for (final v in ModelVar.values)
+      if (kept.contains(v)) "${v.name}' = ${v.name}",
+  ].join(r' /\ ');
+  return [
+    'LEMMA EnvStepInd ==',
+    '    ASSUME IndInv, EnvTableStep',
+    "    PROVE  IndInv'",
+    '  <1>1. $frame',
+    for (final (i, s) in steps.indexed) ...[
+      '    <2>${i + 1}. CASE ${s.action}',
+      '      BY <2>${i + 1} DEF ${s.action}',
+    ],
+    '    <2> QED',
+    '      BY ${[for (var i = 1; i <= steps.length; i++) '<2>$i'].join(', ')}'
+        '${steps.isEmpty ? '' : ' '}DEF EnvTableStep',
+    // A conjunct at a time, as activation_turns' KeepsTurns: the whole of
+    // IndInv' in one obligation outlasts SMT's time and lands on Zenon.
+    "  <1>2. inputs' \\in Nat",
+    '    BY <1>1 DEF IndInv',
+    "  <1>3. FlowsOK'",
+    '    BY <1>1 DEF IndInv, FlowsOK',
+    "  <1>4. Fresh'",
+    '    BY <1>1 DEF IndInv, Fresh, Flows',
+    "  <1>5. Inv_Places'",
+    '    BY <1>1 DEF IndInv, Inv_Places',
+    '  <1> QED',
+    '    BY <1>2, <1>3, <1>4, <1>5 DEF IndInv',
+    '',
+  ].join('\n');
+}
 
 /// The lemma that flow step [s] keeps `IndInv`, an arm at a time: its
 /// action is unfolded once, into its alternatives [arms], and each is
@@ -1267,7 +1333,7 @@ List<PrintedFile> activationInvariantsProofs(Tables t) => [
           '',
           _keeps(i, over: 'TableStep', steps: _flowSteps(t)),
           _keeps(i, over: 'InputTableStep', steps: _inputSteps(t)),
-          _holds(i),
+          _holds(i, env: _envSteps(t)),
           '=============================================================================',
           '',
         ].join('\n'),
@@ -1355,12 +1421,17 @@ String _armKeeps(
   '',
 ].join('\n');
 
-/// [i] in every state: `Next`'s cases, the tables' by their lemmas and the
-/// environment's ([EnvAction]) by their definitions.
-String _holds(Inv i) {
+/// [i] in every state: `Next`'s cases, the tables' flow steps and inputs by
+/// their lemmas, and the environment's, the tables' [env] and those
+/// `activation.tla` writes by hand ([EnvAction]), by their definitions.
+String _holds(Inv i, {required List<Step<Object?, Enum>> env}) {
   final cases = [
     (r'\E f \in Flows : InputTableStep(f)', '${i.tla}_InputTableStep'),
     (r'\E f \in Flows : FlowStep(f)', '${i.tla}_TableStep DEF FlowStep'),
+    (
+      'EnvTableStep',
+      'DEF ${['EnvTableStep', for (final s in env) ...[s.action, ..._operators(s)]].join(', ')}',
+    ),
     for (final e in EnvAction.values)
       (
         e.next,

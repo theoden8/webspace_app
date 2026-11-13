@@ -1421,6 +1421,7 @@ final class Step<W, P extends Enum> extends At<W, P> {
     this.refused,
   }) : input = false,
        spawned = false,
+       environment = false,
        enabled = null;
 
   /// An input's own step, the first of the flow it starts, run before any
@@ -1437,6 +1438,7 @@ final class Step<W, P extends Enum> extends At<W, P> {
     required this.otherwise,
   }) : input = true,
        spawned = false,
+       environment = false,
        holds = null,
        granted = null,
        call = null,
@@ -1454,7 +1456,29 @@ final class Step<W, P extends Enum> extends At<W, P> {
     required this.otherwise,
   }) : input = true,
        spawned = true,
+       environment = false,
        enabled = null,
+       holds = null,
+       granted = null,
+       call = null,
+       refused = null;
+
+  /// One of the environment's actions, run as the code does it
+  /// ([StepTable.runEnvironment]): in the model it lands while every flow
+  /// waits, as an event does, on no flow, where [enabled] holds (asserted on
+  /// the way in), its one arm going to the step's own place, since it moves
+  /// no flow; it starts none and sets no field of one.
+  const Step.environment(
+    this.name, {
+    this.enabled,
+    this.pick,
+    this.site,
+    required this.otherwise,
+  }) : input = false,
+       spawned = false,
+       environment = true,
+       branches = const [],
+       tab = null,
        holds = null,
        granted = null,
        call = null,
@@ -1463,6 +1487,7 @@ final class Step<W, P extends Enum> extends At<W, P> {
   final ActivationStep name;
   final bool input;
   final bool spawned;
+  final bool environment;
   final Expr<bool, W>? enabled;
 
   /// What a flow at the step's place needs: asserted as it moves in and
@@ -1500,13 +1525,22 @@ final class Step<W, P extends Enum> extends At<W, P> {
   }
 
   /// Whether the step runs between two awaits: nothing lands before it.
-  bool get internal => call == null && granted == null && !input;
+  bool get internal =>
+      call == null && granted == null && !input && !environment;
 
   Step<W, P> withArms({
     List<Branch<W, P>>? branches,
     Otherwise<W, P>? otherwise,
     Refused<W, P>? refused,
-  }) => spawned
+  }) => environment
+      ? Step.environment(
+          name,
+          enabled: enabled,
+          pick: pick,
+          site: site,
+          otherwise: otherwise ?? this.otherwise,
+        )
+      : spawned
       ? Step.spawned(
           name,
           pick: pick,
@@ -1565,6 +1599,16 @@ final class StepTable<W, P extends Enum> {
           '${step.name} at ${place.name} cannot end as ${arm.outcome}',
         );
       }
+      assert(
+        !step.environment ||
+            step.allArms.every(
+              (a) =>
+                  a.next.tla == '"${place.name}"' &&
+                  a.then.every((e) => e is Act<W> || e is Note<W>),
+            ),
+        '${step.name} is the environment\'s: its arm moves no flow, so it '
+        'goes to ${place.name} and sets no field and starts no input',
+      );
     }
   }
 
@@ -1694,6 +1738,27 @@ final class StepTable<W, P extends Enum> {
     step as Step<W, P>;
     _enter(step, on: c);
     return _land(step, on: c);
+  }
+
+  /// Runs the environment's step at [at] on [c], as an event lands: its
+  /// pick made, its guard asserted, its arm's effects done and the step
+  /// marked, all in one turn.
+  void runEnvironment(StepContext<W> c, {required P at}) {
+    if (Planted._current?._table(this) case final StepTable<W, P> planted) {
+      return planted._runEnvironment(c, at: at);
+    }
+    _runEnvironment(c, at: at);
+  }
+
+  void _runEnvironment(StepContext<W> c, {required P at}) {
+    final step = this.at(at);
+    assert(
+      step is Step<W, P> && step.environment,
+      '${at.name} is no environment action',
+    );
+    step as Step<W, P>;
+    _enter(step, on: c);
+    _land(step, on: c);
   }
 
   /// [step]'s pick made and its guard asserted on [on], read as its action
