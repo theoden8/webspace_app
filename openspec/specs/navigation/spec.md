@@ -856,7 +856,7 @@ Test: [test/page_focus_test.dart](../../../test/page_focus_test.dart),
 
 ---
 
-### Requirement: NAV-021 - Keys Move Through The App On A Desktop
+### Requirement: NAV-022 - Keys Move Through The App On A Desktop
 
 On macOS, Linux and Windows, the app's own screens SHALL be driven by the keyboard as NAV-016
 drives them by a remote, everywhere outside a site's page: App Settings and every screen it

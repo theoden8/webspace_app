@@ -11,7 +11,7 @@ import 'package:webspace/theme/design_tokens.dart';
 
 /// The keys around the app's navigator, so dialogs, sheets and menus have
 /// them too: a remote's where one drives the device ([RemoteControls]), a
-/// keyboard's on a desktop ([KeyNavigation], NAV-021), and none elsewhere,
+/// keyboard's on a desktop ([KeyNavigation], NAV-022), and none elsewhere,
 /// where a finger drives the chrome.
 Widget chromeKeys(Widget app) {
   if (RemoteInput.driven) return RemoteControls(child: app);
@@ -19,7 +19,7 @@ Widget chromeKeys(Widget app) {
   return app;
 }
 
-/// The app's chrome driven by keys, outside a site's page (NAV-021): Up and
+/// The app's chrome driven by keys, outside a site's page (NAV-022): Up and
 /// Down leave a one-line text field, whose caret would otherwise keep every
 /// arrow, and an outline marks whatever has focus once a key moved it. It
 /// runs in Flutter's directional navigation, which Flutter never picks
