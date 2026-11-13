@@ -22,11 +22,9 @@ usage: footprint.py --model <printed dir> --coverage <dir of TLC logs>
                     --debt <footprint_debt.tsv> [--write]
 
 --write rewrites the debt list from this run instead of checking it.
---plant checks the list with one mistake planted and must fail: a pair no
-world needs listed, when the list has one a listed pair left off, a read
-dropped from a table action's declarations, an untaken action left off
-untaken.tsv, the rows a table action reads dropped, or a need no world
-that takes the action gives.
+--plant <name> checks with one mistake of PLANTS planted, and exits CAUGHT
+when the gate fails on it, NOTHING when this model gives it nothing to
+break; check.sh plants each one --plants lists.
 """
 import argparse
 import glob
@@ -34,10 +32,27 @@ import os
 import re
 import sys
 
+import tla_text
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 # What the model keeps for the checkers, not for the flows: the step just
 # taken, the input count that bounds a behavior, the witnesses met.
 UNSHARED = {"last", "inputs", "seen"}
+
+# Every mistake --plant can make, and what it is.
+PLANTS = {
+    "listed": "a pair listed that no world needs listed",
+    "unlisted": "a listed pair left off the list",
+    "declared": "a read dropped from a table action's declaration",
+    "untaken": "an action no world takes, left off untaken.tsv",
+    "rows": "a row read dropped from a table action's declaration",
+    "invariant": "a read dropped from an invariant's declaration",
+    "needs": "a need no world that takes its action gives",
+}
+# A plant's exits: the gate failed on it, or there was nothing to plant it
+# in. A traceback exits 1, so it reads as neither.
+CAUGHT = 10
+NOTHING = 3
 # The event loop every input waits on (Calm: every flow waits on a reply),
 # which is how the model schedules, not state a flow owns; and where an
 # input lands (Lands), which Did checks for the inputs alone.
@@ -47,9 +62,7 @@ IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:![A-Za-z_][A-Za-z0-9_]*)?")
 
 
 def strip(text):
-    text = re.sub(r"\(\*.*?\*\)", " ", text, flags=re.S)
-    text = re.sub(r"\\\*[^\n]*", " ", text)
-    text = re.sub(r'"(?:[^"\\]|\\.)*"', '""', text)
+    text = tla_text.code(text, keep_strings=False)
     # A record's field names are not operators: `![f].site`, `[t |-> s]`.
     text = re.sub(r"\.[A-Za-z_]\w*", " ", text)
     return re.sub(r"[A-Za-z_]\w*\s*\|->", " ", text)
@@ -203,15 +216,21 @@ def taken(log, sources):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", required=True)
-    ap.add_argument("--coverage", required=True)
-    ap.add_argument("--debt", required=True)
+    ap.add_argument("--model")
+    ap.add_argument("--coverage")
+    ap.add_argument("--debt")
     ap.add_argument("--write", action="store_true")
-    ap.add_argument("--plant", choices=["listed", "unlisted", "declared",
-                                        "untaken", "rows", "needs",
-                                        "invariant"])
+    ap.add_argument("--plant", choices=list(PLANTS))
+    ap.add_argument("--plants", action="store_true",
+                    help="list the plants, one name and what it is a line")
     ap.add_argument("--untaken", default=os.path.join(HERE, "untaken.tsv"))
     args = ap.parse_args()
+    if args.plants:
+        for name, what in PLANTS.items():
+            print("%s\t%s" % (name, what))
+        return
+    if not (args.model and args.coverage and args.debt):
+        ap.error("--model, --coverage and --debt are required")
 
     sources = modules(args.model)
     defs = definitions(sources)
@@ -314,9 +333,10 @@ def main():
                         if a in rows and rows[a][3] is not None
                         for c in sorted(set().union(*sets.values()) - sets.get(w, set()))),
                        None)
-        if planted:
-            a, c = planted
-            rows[a] = rows[a][:3] + (rows[a][3] | {(c, True)},)
+        if not planted:
+            sys.exit(NOTHING)
+        a, c = planted
+        rows[a] = rows[a][:3] + (rows[a][3] | {(c, True)},)
     ungiven = False
     for w, took_here in sorted(worlds.items()):
         if w not in sets:
@@ -340,7 +360,9 @@ def main():
     skipped = {l.split("\t")[0] for l in open(args.untaken)
                if l.strip() and not l.startswith("#")}
     if args.plant == "untaken":
-        skipped.discard(min(skipped, default=None))
+        if not skipped:
+            sys.exit(NOTHING)
+        skipped.discard(min(skipped))
     vacuous = False
     for action in sorted(set(decl) - took - skipped):
         vacuous = True
@@ -421,7 +443,7 @@ def main():
         listed.add(("Planted", "Planted"))
     elif args.plant == "unlisted":
         if not listed:
-            sys.exit(0)
+            sys.exit(NOTHING)
         listed.discard(min(listed))
     new = sorted(set(pairs) - listed)
     gone = sorted(listed - set(pairs))
@@ -439,4 +461,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit as e:
+        if e.code == 1 and "--plant" in sys.argv:
+            sys.exit(CAUGHT)
+        raise
