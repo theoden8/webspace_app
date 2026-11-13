@@ -9,7 +9,11 @@
 // outside its notices carries a GNU licence's notice, but a debug source of a
 // library whose copyright file names the LGPL, under the LGPL alone.
 //
-//   node tool/check_bundle_licences.js <unpacked package or bundle directory>
+//   node tool/check_bundle_licences.js <unpacked package or bundle directory> [--owed <list>]
+//
+// --owed names a list of packages whose copyright files are not read yet
+// (linux/appimage/licences_owed.tsv): their refusals are reported, not
+// failed, and a package the list names that no longer needs it fails.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -131,16 +135,51 @@ function refusals(root, { table = names(), licences = L.policy() } = {}) {
   return out;
 }
 
-module.exports = { names, spdxOf, licencesOf, copyrightFiles, refusals, NAMES };
+/**
+ * [found] split by a list of packages whose copyright files are owed a
+ * reading (a TSV of a package and why): a refusal of a listed package's file
+ * is owed, not an error; a listed package with nothing refused, or none
+ * under [root], is an error, so the list only shrinks.
+ */
+function owing(found, { root, owed }) {
+  const listed = new Map(L.rows(owed).map(([pkg, why = '']) => [pkg.trim(), why.trim()]));
+  const shipped = new Set(copyrightFiles(root).map((f) => f.pkg));
+  const errors = [];
+  const owes = new Map();
+  for (const line of found) {
+    const pkg = line.match(/^(?:usr\/)?share\/doc\/([^/]+)\/copyright: /)?.[1];
+    if (pkg && listed.has(pkg)) owes.set(pkg, (owes.get(pkg) ?? 0) + 1);
+    else errors.push(line);
+  }
+  for (const [pkg, why] of listed) {
+    if (!why) errors.push(`${pkg}: listed as owed with no reason`);
+    else if (!shipped.has(pkg)) errors.push(`${pkg}: listed as owed but not in the package; drop it from the list`);
+    else if (!owes.has(pkg)) errors.push(`${pkg}: listed as owed but nothing in it is refused; drop it from the list`);
+  }
+  return { errors, owes };
+}
+
+module.exports = { names, spdxOf, licencesOf, copyrightFiles, refusals, owing, NAMES };
 
 if (require.main === module) {
-  const root = process.argv[2];
-  if (!root) {
-    console.error('usage: node tool/check_bundle_licences.js <package directory>');
+  const args = process.argv.slice(2);
+  const at = args.indexOf('--owed');
+  const owedFile = at >= 0 ? args.splice(at, 2)[1] : null;
+  const root = args[0];
+  if (!root || (at >= 0 && !owedFile)) {
+    console.error('usage: node tool/check_bundle_licences.js <package directory> [--owed <list>]');
     process.exit(2);
   }
   const found = refusals(path.resolve(root));
-  for (const line of found) console.error(`::error::${line}`);
-  if (found.length) process.exit(1);
-  console.log(`OK: ${copyrightFiles(path.resolve(root)).length} copyright files under ${root}`);
+  const { errors, owes } = owedFile
+    ? owing(found, { root: path.resolve(root), owed: fs.readFileSync(owedFile, 'utf8') })
+    : { errors: found, owes: new Map() };
+  for (const line of errors) console.error(`::error::${line}`);
+  if (owes.size) {
+    console.log(`::warning::${owes.size} packages' copyright files are owed a reading (${owedFile}): `
+      + [...owes].map(([pkg, n]) => `${pkg} (${n})`).join(', '));
+  }
+  if (errors.length) process.exit(1);
+  console.log(`OK: ${copyrightFiles(path.resolve(root)).length} copyright files under ${root}`
+    + (owes.size ? `, ${owes.size} of them owed` : ''));
 }
