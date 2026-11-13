@@ -74,7 +74,8 @@ abstract interface class TabState {
 /// process's, a capture's start, and the redraws and rebinds a step's act
 /// finishes with.
 final class TabCalls {
-  TabCalls(this._c);
+  TabCalls(this._c, {required SitesById sites}) : _sites = sites;
+  final SitesById _sites;
 
   final TabsController _c;
 
@@ -88,12 +89,12 @@ final class TabCalls {
     final topology = _c.residency.proxyTopology;
     return topology.contends(from) || topology.contends(to) || torRuntime;
   }
-  bool isShown(WebViewModel site) => identical(site, _c._sites.shown);
-  bool isLoaded(WebViewModel site) => _c._sites.loaded.hasKey(site);
+  bool isShown(SiteId site) => _c._sites.vars.current.value == site;
+  bool isLoaded(SiteId site) => _c._sites.vars.loaded.value.contains(site);
 
-  NavCapture? beginCapture(WebViewModel site) {
-    _c._host.cancelPendingCapture(site.siteId);
-    return _c._host.beginNavCapture(site);
+  NavCapture? beginCapture(SiteId site) {
+    _c._host.cancelPendingCapture(site);
+    return _c._host.beginNavCapture(_sites.siteOf(site));
   }
 
   void rebind(CommitView<TabFlow> c) => _c._rebind(c);
@@ -104,7 +105,8 @@ final class TabCalls {
   Set<WebViewModel> get loaded => {..._c._sites.loaded};
 
   /// An activation of [site], its input run before this returns.
-  void activate(WebViewModel site) => unawaited(_c._host.activate(site));
+  void activate(SiteId site) =>
+      unawaited(_c._host.activate(_sites.siteOf(site)));
   void closed(StepView<TabFlow> c) => _c._closed(c);
   void duplicated(StepView<TabFlow> c) => _c._duplicated(c);
   void parked(StepView<TabFlow> c) => _c._parked(c);
@@ -112,23 +114,26 @@ final class TabCalls {
 
   /// The site [tab], a child of [owner]'s not yet listed, runs as, as
   /// [WebViewModel.tabHosts] reports it once it is.
-  WebViewModel childHost(SiteTab tab, {required WebViewModel owner}) =>
-      owner.hostOf(tab) ?? owner;
+  SiteId childHost(SiteTab tab, {required SiteId owner}) {
+    final site = _sites.siteOf(owner);
+    return (site.hostOf(tab) ?? site).siteId;
+  }
 }
 
 /// What a child tab not listed yet follows (`link`, LIR-034), read as
 /// [TabsController.linkHosts] reads a listed one's.
 final class ChildLinks {
-  ChildLinks(this._c);
+  ChildLinks(this._c, {required SitesById sites}) : _sites = sites;
+  final SitesById _sites;
   final TabsController _c;
 
-  WebViewModel? of(SiteTab tab, {required WebViewModel owner}) =>
-      _c._linkOf(owner, tab: tab);
+  SiteId? of(SiteTab tab, {required SiteId owner}) =>
+      _c._linkOf(_sites.siteOf(owner), tab: tab)?.siteId;
 }
 
 /// What a tab flow's steps run against: the controller, the site, what the
 /// handler was asked, and what the flow found on its way.
-final class TabFlow implements Capturing, TabState {
+final class TabFlow implements Capturing, TabState, SitesById {
   TabFlow(
     this._c, {
     required this.site,
@@ -136,11 +141,22 @@ final class TabFlow implements Capturing, TabState {
     this.landed,
     this.url,
     this.subtree = false,
-  });
+  }) : _known = _c._sites.known();
 
   final TabsController _c;
   @override
   final WebViewModel site;
+
+  /// The sites the runtime found as the flow started, for an id the flow
+  /// names after its site left the list.
+  final Map<SiteId, WebViewModel> _known;
+
+  @override
+  WebViewModel siteOf(SiteId id) {
+    final site = _c._sites.find(id) ?? _known[id];
+    assert(site != null, 'a flow names a site listed or held as it ran');
+    return site!;
+  }
 
   @override
   NavCapture? capture;

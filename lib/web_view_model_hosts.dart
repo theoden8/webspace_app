@@ -1,5 +1,6 @@
 import 'package:webspace/services/popup_webview.dart' show PopupKind;
 import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// The site each of a site's tabs runs as (LIR-018), and what follows from
@@ -16,6 +17,11 @@ extension WebViewModelHosts on WebViewModel {
   /// this site. The slot itself — the webview, controller, loading state and
   /// the tab records — stays this site's.
   WebViewModel get runningIdentity => hostOf(activeTab) ?? this;
+
+  /// [tabHosts] by id, as the tables name sites (CONT-012).
+  TabHosts<SiteId> get tabHostIds => TabHosts({
+    for (final t in tabs) t.id: (hostOf(t) ?? this).siteId,
+  }, site: siteId);
 
   /// The site each tab runs as, the model's `host[s]`.
   Map<TabId, WebViewModel> get tabHosts =>

@@ -13,6 +13,7 @@ import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/step_flow.dart';
 import 'package:webspace/services/step_table.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// The activation's step table: every place an activation, a preload, a
@@ -21,15 +22,25 @@ import 'package:webspace/web_view_model.dart';
 /// [SiteActivationController] runs it; the printer prints it.
 abstract final class ActivationTable {
   static const kind = Field<FlowKind, ActivationFlow>(FlowField.kind);
-  static const _site = Field<WebViewModel, ActivationFlow>(FlowField.site);
+  static const _site = Field<SiteId, ActivationFlow>(FlowField.site);
+
+  /// The site the flow's `site` field names, for the code that acts on it.
+  static WebViewModel _target(StepView<ActivationFlow> c) =>
+      ActivationFlow.sites.from(c).siteOf(_site.of(c));
   static const _v = Field<int, ActivationFlow>(FlowField.v);
 
   /// The jar refused a call of the flow's restore, so its target is not
   /// shown (ISO-014).
   static const unrestored = Field<bool, ActivationFlow>(FlowField.unrestored);
-  static const _victims = Field<List<WebViewModel>, ActivationFlow>(FlowField.victims);
-  static const _clears = Field<List<WebViewModel>, ActivationFlow>(FlowField.clears);
-  static const _picked = Field<List<WebViewModel>, ActivationFlow>(FlowField.picked);
+  static const _victims = Field<List<SiteId>, ActivationFlow>(
+    FlowField.victims,
+  );
+  static const _clears = Field<List<SiteId>, ActivationFlow>(
+    FlowField.clears,
+  );
+  static const _picked = Field<List<SiteId>, ActivationFlow>(
+    FlowField.picked,
+  );
   static Expr<bool, ActivationFlow> _is(FlowKind k) => kind.isKind(k);
 
   /// The activation was superseded by a newer input. A preload's version is
@@ -53,7 +64,7 @@ abstract final class ActivationTable {
 
   /// The site on screen: the one a return home leaves, and the one a nested
   /// screen covers.
-  static final _onScreen = Expr.op<WebViewModel, ActivationFlow>(
+  static final _onScreen = Expr.op<SiteId, ActivationFlow>(
     HandPaired.onScreen,
     tla: 'current',
     run: (c) => ActivationFlow.page.from(c).shown!,
@@ -62,26 +73,39 @@ abstract final class ActivationTable {
 
   /// The target's saved back stack queued for its active tab, and the
   /// frame after a commit building its webview (TAB-003).
-  static final _queuedWrite = TabVars.queued<ActivationFlow>().becomes(
-    TabVars.staged<ActivationFlow>()
-        .call([_site.value, _navAs.value, _navTab.value]),
-  );
+  static final _queuedWrite = TabVars.queued<SiteId, ActivationFlow>()
+      .becomes(
+        TabVars.staged<SiteId, ActivationFlow>().call([
+          _site.value,
+          _navAs.value,
+          _navTab.value,
+        ]),
+      );
 
   /// What the nav read names when it is issued: the site the target's slot
   /// runs as, and the tab it is on. A home landing can move the tab before
   /// the reply, and the stack read is that tab's.
-  static const _navAs = Field<WebViewModel, ActivationFlow>(FlowField.navAs);
+  static const _navAs = Field<SiteId, ActivationFlow>(FlowField.navAs);
   static const _navTab = Field<TabId, ActivationFlow>(FlowField.navTab);
   static final _readsAs = [
-    _navAs.becomes(TabVars.slotHost<ActivationFlow>(_site.value)),
-    _navTab.becomes(TabVars.active<ActivationFlow>().at(_site.value)),
+    _navAs.becomes(
+      TabVars.slotHost<SiteId, ActivationFlow>(
+        _site.value,
+        keys: TabVars.ids(),
+      ),
+    ),
+    _navTab.becomes(
+      TabVars.active<SiteId, ActivationFlow>(
+        keys: TabVars.ids<ActivationFlow>(),
+      ).at(_site.value),
+    ),
   ];
   static final _queued = Act.of([_queuedWrite], then: _queueNav);
 
   /// The code's half of [_queuedWrite]: the back stack the nav read,
   /// queued for the next build of the target's active tab.
   static void _queueNav(CommitView<ActivationFlow> c) {
-    final target = _site.of(c);
+    final target = _target(c);
     if (ActivationFlow.state.from(c).navBytes case final bytes?) {
       target.tabBinding.queue(bytes, tab: _navTab.of(c), commit: c.commit);
       LogTag.webViewState.debug(
@@ -91,15 +115,21 @@ abstract final class ActivationTable {
       );
     }
   }
+
   /// The frame after the resume builds the target's webview, if it is
   /// still loaded.
-  static final _framed = TabVars.framed(_site.value, loaded: _loaded.value);
+  static final _framed = TabVars.framed(
+    _site.value,
+    loaded: _loaded.value,
+    keys: TabVars.ids(),
+  );
 
   /// The frame after a preload's commit builds the site's webview: the
   /// commit loads it, so the frame sees it loaded.
   static final _preloadFramed = TabVars.framed(
     _site.value,
     loaded: _loaded.value.union(_site.value.asSet),
+    keys: TabVars.ids(),
   );
   static final _containers = Constant<bool, ActivationFlow>(
     ModelConst.containers,
@@ -111,39 +141,40 @@ abstract final class ActivationTable {
   /// screen and the marker of the activation in flight.
   static final _version = Mutable<int, ActivationFlow>.over(
     ModelVar.version,
-    of: (w) => w.reach.sites.objectVars.version,
+    of: (w) => w.reach.sites.vars.version,
   );
   static final _marker =
-      Mutable<({WebViewModel target, int version})?, ActivationFlow>.over(
+      Mutable<({SiteId target, int version})?, ActivationFlow>.over(
         ModelVar.marker,
-        of: (w) => w.reach.sites.objectVars.marker,
+        of: (w) => w.reach.sites.vars.marker,
       );
 
   static final _markerVersion = _marker.value.part('v', get: (m) => m?.version);
   static final _noMarker =
-      Expr.constant<({WebViewModel target, int version})?, ActivationFlow>(
+      Expr.constant<({SiteId target, int version})?, ActivationFlow>(
         null,
         tla: 'NoMarker',
       );
 
   /// The site an input names, `s` in the model: the one tapped or preloaded,
   /// from the sites on the list (`Listed`).
-  static final _eachSite = Pick<WebViewModel, ActivationFlow>(
+  static final _eachSite = Pick<SiteId, ActivationFlow>(
     Expr.op(
       HandPaired.listedSites,
       tla: 'Listed',
-      run: (c) => [ActivationFlow.state.from(c).target!], reads: const Reads(base: {BaseOp.listed}),
+      run: (c) => [ActivationFlow.state.from(c).target!.siteId],
+      reads: const Reads(base: {BaseOp.listed}),
     ),
   );
   static final _chosen = _eachSite.it;
 
   /// The site a home reset unloads, from the listed sites a world lets it
   /// name (`Resettable`).
-  static final _eachResettable = Pick<WebViewModel, ActivationFlow>(
+  static final _eachResettable = Pick<SiteId, ActivationFlow>(
     Expr.op(
       HandPaired.resettableSites,
       tla: r'Listed \cap Resettable',
-      run: (c) => [ActivationFlow.state.from(c).target!],
+      run: (c) => [ActivationFlow.state.from(c).target!.siteId],
       reads: const Reads(base: {BaseOp.listed}),
       needs: const {(of: ModelConst.resettable, set: true)},
     ),
@@ -151,17 +182,17 @@ abstract final class ActivationTable {
 
   /// The site a switch spawns the load of: `k`, beside the switch's own
   /// pick of what it stops showing.
-  static final _eachKept = Pick<WebViewModel, ActivationFlow>(
+  static final _eachKept = Pick<SiteId, ActivationFlow>(
     Expr.op(
       HandPaired.keptSites,
       tla: 'Listed',
-      run: (c) => [ActivationFlow.state.from(c).target!],
+      run: (c) => [ActivationFlow.state.from(c).target!.siteId],
       reads: const Reads(base: {BaseOp.listed}),
     ),
     name: 'k',
   );
   static final _bump = Act.of([_version.becomes(_version.value.plus(1))]);
-  static Act<ActivationFlow> _markerFor(Expr<WebViewModel, ActivationFlow> s) =>
+  static Act<ActivationFlow> _markerFor(Expr<SiteId, ActivationFlow> s) =>
       Act.of([
         _marker.becomes(
           record(
@@ -184,26 +215,24 @@ abstract final class ActivationTable {
 
   /// Another site by any way leaves the Tabs sheet's way back behind
   /// (TAB-019); a jump the sheet makes puts its own back once it lands.
-  static final _forgetReturns = Note<ActivationFlow>(
-    (c) {
-      final p = ActivationFlow.page.from(c);
-      if (!identical(ActivationFlow.state.from(c).target, p.shown)) p.forgetTabReturns();
-    },
-  );
+  static final _forgetReturns = Note<ActivationFlow>((c) {
+    final p = ActivationFlow.page.from(c);
+    if (!identical(ActivationFlow.state.from(c).target, p.shown))
+      p.forgetTabReturns();
+  });
 
   /// A target with a webview keeps its back stack; one about to be built
   /// first reads the stack saved for it, unless its tab keeps none (a
   /// kiosk's): the model's `NoNavState`, which holds no site there.
-  static final _noNavState = Members<WebViewModel, ActivationFlow>(
+  static final _noNavState = Members<SiteId, ActivationFlow>(
     ModelConst.noNavState,
-    test: (_, {required member}) => !member.activeTabPersistsNavState,
+    test: (w, {required member}) => !w.siteOf(member).activeTabPersistsNavState,
   );
 
-  static Expr<bool, ActivationFlow> _inFlight(FlowKind k) =>
-      Expr.inFlight(
-        k,
-        run: (c) => ActivationFlow.page.from(c).kindsInFlight.contains(k),
-      );
+  static Expr<bool, ActivationFlow> _inFlight(FlowKind k) => Expr.inFlight(
+    k,
+    run: (c) => ActivationFlow.page.from(c).kindsInFlight.contains(k),
+  );
 
   /// A memory-pressure event while one is still applying its plan is
   /// dropped.
@@ -215,16 +244,15 @@ abstract final class ActivationTable {
     body: _inFlight(FlowKind.tap),
   );
 
-  static const _s = Bound<WebViewModel, ActivationFlow>('s');
-  static const _u = Bound<WebViewModel, ActivationFlow>('u');
+  static const _s = Bound<SiteId, ActivationFlow>('s');
+  static const _u = Bound<SiteId, ActivationFlow>('u');
   static Expr<bool, ActivationFlow> _evictable(
-    Expr<WebViewModel, ActivationFlow> s,
-  ) => ModelDef.evictable.over(
-    [s],
-    run: (c) => ActivationFlow.page.from(c).isEvictable(s.run(c)),
-  );
+    Expr<SiteId, ActivationFlow> s,
+  ) => ModelDef.evictable.over([
+    s,
+  ], run: (c) => ActivationFlow.page.from(c).isEvictable(s.run(c)));
   static Expr<bool, ActivationFlow> _at(
-    Expr<WebViewModel, ActivationFlow> s, {
+    Expr<SiteId, ActivationFlow> s, {
     required SiteLifecycleState tier,
     required String tla,
   }) => _tier.at(s).eq(Expr.constant(tier, tla: tla));
@@ -232,7 +260,7 @@ abstract final class ActivationTable {
   /// What a pressure plan picks from: the evictable residents, else the
   /// evictable cleared sites; among them the one retention priority takes
   /// first (SiteRuntime.firstToEvict).
-  static final pressureResident = Def<List<WebViewModel>, ActivationFlow>(
+  static final pressureResident = Def<List<SiteId>, ActivationFlow>(
     ModelDef.pressureResident,
     body: _loaded.value.where(
       _s,
@@ -241,7 +269,7 @@ abstract final class ActivationTable {
           _at(_s.it, tier: SiteLifecycleState.resident, tla: '"resident"'),
     ),
   );
-  static final pressureCleared = Def<List<WebViewModel>, ActivationFlow>(
+  static final pressureCleared = Def<List<SiteId>, ActivationFlow>(
     ModelDef.pressureCleared,
     body: _loaded.value.where(
       _s,
@@ -250,9 +278,9 @@ abstract final class ActivationTable {
           _at(_s.it, tier: SiteLifecycleState.cacheCleared, tla: '"cleared"'),
     ),
   );
-  static WebViewModel _firstToEvict(
+  static SiteId _firstToEvict(
     StepView<ActivationFlow> c, {
-    required List<WebViewModel> among,
+    required List<SiteId> among,
   }) => ActivationFlow.page.from(c).firstToEvict(among);
   static final _eachResident = Pick(
     pressureResident.value,
@@ -274,7 +302,7 @@ abstract final class ActivationTable {
   /// preload in flight, [s] not loaded, its base domain free on the shared
   /// jar, and its route free.
   static Expr<bool, ActivationFlow> _keepable(
-    Expr<WebViewModel, ActivationFlow> s,
+    Expr<SiteId, ActivationFlow> s,
   ) =>
       _noPreloadInFlight &
       ~_loaded.value.has(s) &
@@ -283,24 +311,23 @@ abstract final class ActivationTable {
 
   /// The loaded sites [s] cannot share the jar with (SiteUnloadEngine's
   /// `Conflicts`).
-  static Expr<List<WebViewModel>, ActivationFlow> _conflicts(
-    Expr<WebViewModel, ActivationFlow> s,
-  ) => ModelDef.conflicts.over(
-    [s],
-    run: (c) => ActivationFlow.page.from(c).conflicts(s.run(c)),
-  );
+  static Expr<List<SiteId>, ActivationFlow> _conflicts(
+    Expr<SiteId, ActivationFlow> s,
+  ) => ModelDef.conflicts.over([
+    s,
+  ], run: (c) => ActivationFlow.page.from(c).conflicts(s.run(c)));
   static Expr<bool, ActivationFlow> _baseFree(
-    Expr<WebViewModel, ActivationFlow> s,
+    Expr<SiteId, ActivationFlow> s,
   ) => _conflicts(s).isEmpty;
-  static final _loaded = Mutable<Iterable<WebViewModel>, ActivationFlow>.over(
+  static final _loaded = Mutable<Iterable<SiteId>, ActivationFlow>.over(
     ModelVar.loaded,
-    of: (w) => w.reach.sites.objectVars.loaded,
+    of: (w) => w.reach.sites.vars.loaded,
   );
-  static final _current = Mutable<WebViewModel?, ActivationFlow>.over(
+  static final _current = Mutable<SiteId?, ActivationFlow>.over(
     ModelVar.current,
-    of: (w) => w.reach.sites.objectVars.current,
+    of: (w) => w.reach.sites.vars.current,
   );
-  static final _noSite = Expr.constant<WebViewModel?, ActivationFlow>(
+  static final _noSite = Expr.constant<SiteId?, ActivationFlow>(
     null,
     tla: '0',
   );
@@ -309,20 +336,21 @@ abstract final class ActivationTable {
   /// delete takes away (`Boxed`): every site binds one in the code; the
   /// webviews mounted and the containers on disk are the platform's,
   /// written only by its calls.
-  static final _boxed = Expr.ofConstant<Iterable<WebViewModel>, ActivationFlow>(
+  static final _boxed = Expr.ofConstant<Iterable<SiteId>, ActivationFlow>(
     ModelConst.boxed,
-    run: (c) => ActivationFlow.page.from(c).models,
+    run: (c) => [for (final m in ActivationFlow.page.from(c).models) m.siteId],
   );
-  static final _boxes = Mutable<Iterable<WebViewModel>, ActivationFlow>.remote(
+  static final _boxes = Mutable<Iterable<SiteId>, ActivationFlow>.remote(
     ModelVar.boxes,
   );
-  static final _views = Mutable<Iterable<WebViewModel>, ActivationFlow>.remote(
+  static final _views = Mutable<Iterable<SiteId>, ActivationFlow>.remote(
     ModelVar.views,
   );
   static final _siteGone = Expr.op<bool, ActivationFlow>(
     HandPaired.activationSiteGone,
     tla: '${_site.value.tla} \\in gone',
-    run: (c) => !ActivationFlow.page.from(c).models.hasKey(_site.of(c)),
+    run: (c) =>
+        !ActivationFlow.page.from(c).models.any((m) => m.siteId == _site.of(c)),
     reads: _site.value.reads + const Reads(vars: {ModelVar.gone}),
   );
   static final _tier = tierOf<ActivationFlow>();
@@ -339,7 +367,7 @@ abstract final class ActivationTable {
   /// proxy or Tor exit (PROXY-008): what a load that runs no plan needs. A
   /// slot asks for the site it runs as, a page for its own.
   static final routeFree = () {
-    const a = Bound<WebViewModel, ActivationFlow>('a');
+    const a = Bound<SiteId, ActivationFlow>('a');
     return Def<bool, ActivationFlow>(
       ModelDef.routeFree,
       params: const [a],
@@ -355,8 +383,9 @@ abstract final class ActivationTable {
   static final _oneRoute =
       _loaded.value.forAll(_u, holds: _alone(_runsAs(_u.it))) &
       _pages.forAll(_u, holds: _alone(_u.it));
-  static Expr<bool, ActivationFlow> _alone(Expr<WebViewModel, ActivationFlow> a) =>
-      _contendersOf(a).isEmpty & _dissentersOf(a).isEmpty;
+  static Expr<bool, ActivationFlow> _alone(
+    Expr<SiteId, ActivationFlow> a,
+  ) => _contendersOf(a).isEmpty & _dissentersOf(a).isEmpty;
 
   /// The switch leaves a site: the one on screen is another loaded site
   /// (nothing to do when the user tapped the site they are on).
@@ -365,39 +394,39 @@ abstract final class ActivationTable {
       _current.value.neq(_site.value) &
       _loaded.value.has(_current.value);
 
-  static WebViewModel? _outgoingSite(StepView<ActivationFlow> c) =>
+  static SiteId? _outgoingSite(StepView<ActivationFlow> c) =>
       _outgoing.run(c) ? _current.value.run(c) : null;
 
   /// The slot's proxy route is shared and must move before the target
   /// loads (LIR-024): the model's `Routed`, which holds no site there.
-  static final _routed = Members<WebViewModel, ActivationFlow>(
+  static final _routed = Members<SiteId, ActivationFlow>(
     ModelConst.routed,
-    test: (w, {required member}) =>
-        switch (w.reach.residency.proxyTopology) {
-          RoutedProxy(:final sharesDefaultSession) => sharesDefaultSession(
-            member,
-          ),
-          PerSessionProxy() || ProcessGlobalProxy() => false,
-        },
+    test: (w, {required member}) => switch (w.reach.residency.proxyTopology) {
+      RoutedProxy(:final sharesDefaultSession) => sharesDefaultSession(
+        w.siteOf(member),
+      ),
+      PerSessionProxy() || ProcessGlobalProxy() => false,
+    },
   ).has(_site.value);
 
   /// The site whose nested screen is up (`nested`), 0 for none.
-  static final _nested = Mutable<WebViewModel?, ActivationFlow>.over(
+  static final _nested = Mutable<SiteId?, ActivationFlow>.over(
     ModelVar.nested,
-    of: (w) => w.reach.sites.objectVars.nested,
+    of: (w) => w.reach.sites.vars.nested,
   );
   static final _nestedUp = Act.of([_nested.becomes(_site.value)]);
   static final _nestedDown = Act.of([_nested.becomes(_noSite)]);
 
   /// The pages whose traffic runs, each as its own site: a nested screen
   /// and a wake's checks (the runtime's `Pages`).
-  static final _pages = ModelDef.pages.named<Iterable<WebViewModel>, ActivationFlow>(
-    run: (c) => ActivationFlow.page.from(c).pages,
-  );
+  static final _pages = ModelDef.pages
+      .named<Iterable<SiteId>, ActivationFlow>(
+        run: (c) => ActivationFlow.page.from(c).pages,
+      );
 
   /// The sites a link may open nested: any in the code, as many as a
   /// configuration of the model follows (`Linked`).
-  static final _linked = Members<WebViewModel, ActivationFlow>(
+  static final _linked = Members<SiteId, ActivationFlow>(
     ModelConst.linked,
     test: (_, {required member}) => true,
   );
@@ -406,10 +435,10 @@ abstract final class ActivationTable {
   /// The sites that share a contended proxy scope (`Contending`): every one
   /// under a process-global proxy, the router's default session, none per
   /// session. A nested screen as one of them moves the rule they share.
-  static final _contending = Members<WebViewModel, ActivationFlow>(
+  static final _contending = Members<SiteId, ActivationFlow>(
     ModelConst.contending,
     test: (w, {required member}) =>
-        w.reach.residency.proxyTopology.contends(member),
+        w.reach.residency.proxyTopology.contends(w.siteOf(member)),
   );
 
   /// The proxy did not apply; the model's environment always applies it.
@@ -419,18 +448,22 @@ abstract final class ActivationTable {
   );
 
   /// The sites a webspace switch stops showing: any of `Away`, the list's.
-  static final _eachAway = Pick<List<WebViewModel>, ActivationFlow>(
+  static final _eachAway = Pick<List<SiteId>, ActivationFlow>(
     Expr.ofConstant(
       ModelConst.away,
-      run: (c) => [ActivationFlow.state.from(c).leaving!.toList()],
+      run: (c) => [
+        [for (final m in ActivationFlow.state.from(c).leaving!) m.siteId],
+      ],
     ),
   );
-  static const _away = Field<List<WebViewModel>, ActivationFlow>(FlowField.away);
-  static const _behind = Field<WebViewModel?, ActivationFlow>(FlowField.behind);
+  static const _away = Field<List<SiteId>, ActivationFlow>(
+    FlowField.away,
+  );
+  static const _behind = Field<SiteId?, ActivationFlow>(FlowField.behind);
 
   /// The target of the activation in flight while no input has superseded
   /// it, the model's `LiveTarget`.
-  static final _liveTarget = Expr.op<WebViewModel?, ActivationFlow>(
+  static final _liveTarget = Expr.op<SiteId?, ActivationFlow>(
     HandPaired.liveTarget,
     tla: 'LiveTarget',
     run: (c) => ActivationFlow.page.from(c).liveTarget,
@@ -447,7 +480,7 @@ abstract final class ActivationTable {
   static final _leftBehind = () {
     final rule = Expr.choose(
       when: _containers,
-      then: Expr.none<WebViewModel, ActivationFlow>(),
+      then: Expr.none<SiteId, ActivationFlow>(),
       otherwise: _loaded.value.where(
         _u,
         holds:
@@ -458,7 +491,7 @@ abstract final class ActivationTable {
     );
     return Expr.checked(
       rule: rule,
-      run: (c) => [for (final u in _planOf(c).unloads) u.site],
+      run: (c) => [for (final u in _planOf(c).unloads) u.site.siteId],
       key: (s) => s,
       why: 'the switch unloads what its printed rule names',
     );
@@ -483,7 +516,8 @@ abstract final class ActivationTable {
     holds: null,
     call: Call.on(
       ActivationFlow.page,
-      run: (c) async => ActivationFlow.state.from(c).online = await c.api.isOnline(),
+      run: (c) async =>
+          ActivationFlow.state.from(c).online = await c.api.isOnline(),
       writes: const [],
     ),
     decide: When(
@@ -542,7 +576,10 @@ abstract final class ActivationTable {
         _v.becomes(_version.value.plus(1)),
         _bump,
         _newestNone,
-      ] else ...[_behind.becomes(_noSite), _v.becomes(_version.value)],
+      ] else ...[
+        _behind.becomes(_noSite),
+        _v.becomes(_version.value),
+      ],
     ],
     next: _spaceOnline,
   );
@@ -550,15 +587,20 @@ abstract final class ActivationTable {
   /// The running sites a nested screen as the flow's site would repoint:
   /// its plan's unloads (`NestedOpening`), the proxy's contenders and the
   /// Tor exit's dissenters.
+  /// The row of the flow's site among the page's, for a residency event.
+  static int _rowOf(StepView<ActivationFlow> c, {required ActivationCalls page}) =>
+      page.models.indexWhere((m) => m.siteId == _site.of(c));
+
   static ResidencyPlan _nestedPlan(StepView<ActivationFlow> c) {
     final page = ActivationFlow.page.from(c);
     return page.residencyPlan(
-      NestedOpening(page.models.indexOfKey(_site.of(c))),
+      NestedOpening(_rowOf(c, page: page)),
     );
   }
+
   static final _screenVictims = Expr.checked(
     rule: _contendersOf(_site.value).union(_dissentersOf(_site.value)),
-    run: (c) => {for (final u in _nestedPlan(c).unloads) u.site},
+    run: (c) => {for (final u in _nestedPlan(c).unloads) u.site.siteId},
     key: (s) => s,
     why: 'a nested open unloads what its printed rules name',
   );
@@ -569,39 +611,41 @@ abstract final class ActivationTable {
     _victims.becomes(_screenVictims),
     _clears.becomes(Expr.none()),
     _picked.becomes(Expr.none()),
-    Note<ActivationFlow>((c) => ActivationFlow.state.from(c).plan = _nestedPlan(c)),
+    Note<ActivationFlow>(
+      (c) => ActivationFlow.state.from(c).plan = _nestedPlan(c),
+    ),
   ];
 
   /// The screen is gone, and what it ran on is released.
   static final _screenGone = Note<ActivationFlow>(
-    (c) => ActivationFlow.state.from(c).opening!.screen.closed(_site.of(c)),
+    (c) => ActivationFlow.state.from(c).opening!.screen.closed(_target(c)),
   );
 
   /// The running sites a webview running as [a] would repoint the proxy of
   /// (PROXY-008), as the unload engine's `ProxyContenders` names them: a
   /// slot's activation asks for the site it runs as (LIR-024), a nested
   /// screen for its own site whatever its slot shows (`NestedOpening`).
-  static Expr<List<WebViewModel>, ActivationFlow> _contendersOf(
-    Expr<WebViewModel, ActivationFlow> a,
-  ) => ModelDef.proxyContenders.over(
-    [a],
-    run: (c) => ActivationFlow.page.from(c).proxyContenders(runsAs: a.run(c)),
-  );
+  static Expr<List<SiteId>, ActivationFlow> _contendersOf(
+    Expr<SiteId, ActivationFlow> a,
+  ) => ModelDef.proxyContenders.over([
+    a,
+  ], run: (c) => ActivationFlow.page.from(c).proxyContenders(runsAs: a.run(c)));
 
-  static Expr<WebViewModel, ActivationFlow> _runsAs(
-    Expr<WebViewModel, ActivationFlow> s,
-  ) => TabVars.runsAs<ActivationFlow>().call([s]);
+  static Expr<SiteId, ActivationFlow> _runsAs(
+    Expr<SiteId, ActivationFlow> s,
+  ) => TabVars.runsAs<SiteId, ActivationFlow>(
+    keys: TabVars.ids<ActivationFlow>(),
+  ).call([s]);
 
   /// The running sites whose Tor exit a webview running as [a] would
   /// repoint, when a Tor runtime exists (`TorDissenters`).
-  static Expr<List<WebViewModel>, ActivationFlow> _dissentersOf(
-    Expr<WebViewModel, ActivationFlow> a,
+  static Expr<List<SiteId>, ActivationFlow> _dissentersOf(
+    Expr<SiteId, ActivationFlow> a,
   ) => Expr.choose(
     when: _torRuntime,
-    then: ModelDef.torDissenters.over(
-      [a],
-      run: (c) => ActivationFlow.page.from(c).torDissenters(runsAs: a.run(c)),
-    ),
+    then: ModelDef.torDissenters.over([
+      a,
+    ], run: (c) => ActivationFlow.page.from(c).torDissenters(runsAs: a.run(c))),
     otherwise: Expr.none(),
   );
   static final _torRuntime = Constant<bool, ActivationFlow>(
@@ -614,9 +658,9 @@ abstract final class ActivationTable {
   /// dissenters. A page they name is no site to unload, and no activation
   /// starts beside one (`Reopens`).
   static final ruled = () {
-    const s = Bound<WebViewModel, ActivationFlow>('s');
-    const v = Bound<WebViewModel, ActivationFlow>('v');
-    return Def<List<WebViewModel>, ActivationFlow>(
+    const s = Bound<SiteId, ActivationFlow>('s');
+    const v = Bound<SiteId, ActivationFlow>('v');
+    return Def<List<SiteId>, ActivationFlow>(
       ModelDef.ruled,
       params: const [s],
       body: _conflicts(s.it)
@@ -625,15 +669,15 @@ abstract final class ActivationTable {
           .where(v, holds: _loaded.value.has(v.it)),
     );
   }();
-  static Expr<List<WebViewModel>, ActivationFlow> _ruled(
-    Expr<WebViewModel, ActivationFlow> s,
+  static Expr<List<SiteId>, ActivationFlow> _ruled(
+    Expr<SiteId, ActivationFlow> s,
   ) => ruled.call([s]);
 
   /// The loaded sites the rules leave for [s], which the loaded-site cap
   /// picks among.
   static final kept = () {
-    const s = Bound<WebViewModel, ActivationFlow>('s');
-    return Def<List<WebViewModel>, ActivationFlow>(
+    const s = Bound<SiteId, ActivationFlow>('s');
+    return Def<List<SiteId>, ActivationFlow>(
       ModelDef.kept,
       params: const [s],
       body: _loaded.value.less(ruled.call([s.it])),
@@ -650,7 +694,7 @@ abstract final class ActivationTable {
   static final _capCandidates = _kept
       .without(_site.value)
       .where(_u, holds: _evictable(_u.it));
-  static final _capPick = Pick<List<WebViewModel>, ActivationFlow>(
+  static final _capPick = Pick<List<SiteId>, ActivationFlow>(
     _capCandidates.choices(
       size: _kept
           .union(_site.value.asSet)
@@ -659,7 +703,7 @@ abstract final class ActivationTable {
           .atMost(_capCandidates.size),
       taken: (c) => [
         for (final u in _planOf(c).unloads)
-          if (u.reason == UnloadReason.loadedSiteCap) u.site,
+          if (u.reason == UnloadReason.loadedSiteCap) u.site.siteId,
       ],
     ),
     name: 'cap',
@@ -679,12 +723,12 @@ abstract final class ActivationTable {
     _u,
     holds: _evictable(_u.it),
   );
-  static final _clearPick = Pick<List<WebViewModel>, ActivationFlow>(
+  static final _clearPick = Pick<List<SiteId>, ActivationFlow>(
     _clearCandidates.choices(
       size: _residentsLeft.size
           .over(_maxResident)
           .atMost(_clearCandidates.size),
-      taken: (c) => _planOf(c).cacheClears,
+      taken: (c) => [for (final m in _planOf(c).cacheClears) m.siteId],
     ),
     name: 'clr',
   );
@@ -701,13 +745,13 @@ abstract final class ActivationTable {
   /// cap's picks; the code's plan is asserted to be exactly these.
   static final _planVictims = Expr.checked(
     rule: _ruled(_site.value).union(_capPick.it),
-    run: (c) => [for (final u in _planOf(c).unloads) u.site],
+    run: (c) => [for (final u in _planOf(c).unloads) u.site.siteId],
     key: (s) => s,
     why: 'the plan unloads what its printed rules and picks name',
   );
   static final _planClears = Expr.chosen(
     among: _clearPick.it,
-    run: (c) => _planOf(c).cacheClears,
+    run: (c) => [for (final m in _planOf(c).cacheClears) m.siteId],
   );
 
   /// The plan's priority picks: the loaded-site cap's.
@@ -722,33 +766,36 @@ abstract final class ActivationTable {
   static ResidencyPlan _planOf(StepView<ActivationFlow> c) {
     final page = ActivationFlow.page.from(c);
     final models = page.models;
-    return ActivationFlow.state.from(c).plan ??= page.residencyPlan(switch (kind.of(c)) {
-        FlowKind.tap || FlowKind.preload || FlowKind.home => Activating(
-          models.indexOfKey(_site.of(c)),
-        ),
-        FlowKind.pressure => throw StateError('made by the pressure plan step'),
-        FlowKind.unload => throw StateError('made by the unload\'s caller'),
-        FlowKind.nested => NestedOpening(models.indexOfKey(_site.of(c))),
-        FlowKind.space => WebspaceSwitched(
-          leaving: {
-            for (final m in _away.of(c))
-              if (models.hasKey(m) && m.modelKey != _behind.of(c)?.modelKey)
-                models.indexOfKey(m),
-          },
-        ),
-        FlowKind.tab => throw StateError('a tab flow plans no residency'),
-        FlowKind.wake => throw StateError('a wake plans no residency'),
-        FlowKind.dns => throw StateError('a DNS download plans no residency'),
-        FlowKind.close => throw StateError('an archive close plans no residency'),
-        FlowKind.delete => throw StateError('a delete plans no residency'),
-        FlowKind.import => throw StateError('an import plans no residency'),
-      });
+    return ActivationFlow.state.from(c).plan ??= page.residencyPlan(switch (kind
+        .of(c)) {
+      FlowKind.tap ||
+      FlowKind.preload ||
+      FlowKind.home => Activating(_rowOf(c, page: page)),
+      FlowKind.pressure => throw StateError('made by the pressure plan step'),
+      FlowKind.unload => throw StateError('made by the unload\'s caller'),
+      FlowKind.nested => NestedOpening(_rowOf(c, page: page)),
+      FlowKind.space => WebspaceSwitched(
+        leaving: {
+          for (final id in _away.of(c))
+            if (id != _behind.of(c))
+              if (models.indexWhere((m) => m.siteId == id) case final row
+                  when row >= 0)
+                row,
+        },
+      ),
+      FlowKind.tab => throw StateError('a tab flow plans no residency'),
+      FlowKind.wake => throw StateError('a wake plans no residency'),
+      FlowKind.dns => throw StateError('a DNS download plans no residency'),
+      FlowKind.close => throw StateError('an archive close plans no residency'),
+      FlowKind.delete => throw StateError('a delete plans no residency'),
+      FlowKind.import => throw StateError('an import plans no residency'),
+    });
   }
 
   /// Where a spent plan goes: the unload engine's own rule.
   static Expr<ActivationPlace, ActivationFlow> _afterUnloads({
-    required Expr<List<WebViewModel>, ActivationFlow> victims,
-    required Expr<List<WebViewModel>, ActivationFlow> clears,
+    required Expr<List<SiteId>, ActivationFlow> victims,
+    required Expr<List<SiteId>, ActivationFlow> clears,
   }) => SiteUnloadEngine.afterUnloads(
     victims: victims,
     clears: clears,
@@ -813,9 +860,7 @@ abstract final class ActivationTable {
   /// nothing else would leave that site with no webview behind it (LAZY-007,
   /// BUG-029).
   static final _screenEmpty =
-      _shows &
-      _current.value.neq(_noSite) &
-      ~_loaded.value.has(_current.value);
+      _shows & _current.value.neq(_noSite) & ~_loaded.value.has(_current.value);
 
   /// On to the target's cookies: its container, or its turn on the jar.
   static List<Branch<ActivationFlow, ActivationPlace>> _toCookies(
@@ -870,7 +915,7 @@ abstract final class ActivationTable {
       SharedJar(:final jar) => await jar.restoreInTurn(
         StepContext.sharing(
           c,
-          world: RestoreWorld(engine: jar, vars: nest.vars),
+          world: RestoreWorld(engine: jar, vars: nest.vars, sites: nest.sites),
         ),
         from: RestorePlace.values.byName(from.name),
       ),
@@ -887,7 +932,7 @@ abstract final class ActivationTable {
   /// at the jar's.
   /// Going home captures the site left, in the capture's steps.
   static final _homeCapture =
-      captureSteps<WebViewModel, ActivationFlow, ActivationPlace>(
+      captureSteps<SiteId, ActivationFlow, ActivationPlace>(
         names: (
           read: ActivationStep.homeCapture,
           save: ActivationStep.homeCaptureSave,
@@ -902,9 +947,10 @@ abstract final class ActivationTable {
         ),
         of: (
           site: _site.value,
-          built: (s) => s.tabBinding.built,
-          hosts: (s) => s.tabHosts,
-          begin: (c) => ActivationFlow.page.from(c).beginNavCapture(_site.of(c)),
+          built: (w, {required site}) => w.siteOf(site).tabBinding.built,
+          hosts: (w, {required site}) => w.siteOf(site).tabHostIds,
+          begin: (c) =>
+              ActivationFlow.page.from(c).beginNavCapture(_site.of(c)),
           marks: null,
           keeps: null,
         ),
@@ -993,7 +1039,8 @@ abstract final class ActivationTable {
         branches: [
           Branch(
             StepOutcome.empty,
-            when: pressureResident.value.isEmpty & pressureCleared.value.isEmpty,
+            when:
+                pressureResident.value.isEmpty & pressureCleared.value.isEmpty,
             then: [],
             next: to(ActivationPlace.done),
           ),
@@ -1008,7 +1055,9 @@ abstract final class ActivationTable {
               _picked.becomes(Expr.none()),
               Note(
                 (c) => ActivationFlow.state.from(c).plan = ResidencyPlan(
-                  cacheClears: [_eachResident.it.run(c)],
+                  cacheClears: [
+                    ActivationFlow.sites.from(c).siteOf(_eachResident.it.run(c)),
+                  ],
                 ),
               ),
             ],
@@ -1027,7 +1076,9 @@ abstract final class ActivationTable {
               (c) => ActivationFlow.state.from(c).plan = ResidencyPlan(
                 unloads: [
                   (
-                    site: _eachCleared.it.run(c),
+                    site: ActivationFlow.sites.from(c).siteOf(
+                      _eachCleared.it.run(c),
+                    ),
                     reason: UnloadReason.memoryPressure,
                   ),
                 ],
@@ -1086,7 +1137,7 @@ abstract final class ActivationTable {
         call: Call.on(
           ActivationFlow.files,
           run: (c) async {
-            final target = _site.of(c);
+            final target = _target(c);
             ActivationFlow.state.from(c).navBytes = await c.api.loadState(
               target.stateKeyForTab(_navTab.of(c)),
             );
@@ -1236,7 +1287,7 @@ abstract final class ActivationTable {
         call: Call.on(
           ActivationFlow.boxes,
           run: (c) =>
-              c.api?.ensureContainer(_site.of(c).containerKey) ??
+              c.api?.ensureContainer(_target(c).containerKey) ??
               Future.value(),
           writes: [
             _boxes.becomes(
@@ -1274,7 +1325,9 @@ abstract final class ActivationTable {
         call: Call.on(
           ActivationFlow.boxes,
           run: (c) =>
-              c.api?.containerNative.deleteContainer(_site.of(c).containerKey) ??
+              c.api?.containerNative.deleteContainer(
+                _target(c).containerKey,
+              ) ??
               Future.value(),
           writes: [
             _boxes.becomes(
@@ -1330,9 +1383,10 @@ abstract final class ActivationTable {
         call: Call.on(
           ActivationFlow.queue,
           run: (c) async {
-            final target = _site.of(c);
+            final target = _target(c);
             // restoreState applies only to a freshly created controller.
-            if (!target.activeTabPersistsNavState || target.controller != null) {
+            if (!target.activeTabPersistsNavState ||
+                target.controller != null) {
               return;
             }
             ActivationFlow.state.from(c).navBytes = await c.api.loadState(
@@ -1400,7 +1454,7 @@ abstract final class ActivationTable {
           ActivationFlow.state,
           run: (c) => switch (c.api.opening!) {
             (source: null, :final screen, url: _) => screen.switchWebspaceFor(
-              _site.of(c),
+              _target(c),
             ),
             _ => Future.value(),
           },
@@ -1457,7 +1511,7 @@ abstract final class ActivationTable {
           ActivationFlow.state,
           run: (c) async {
             try {
-              await c.api.opening!.screen.applyProxyOf(_site.of(c));
+              await c.api.opening!.screen.applyProxyOf(_target(c));
             } on ProxyRefused catch (e) {
               c.api.refused = true;
               c.api.opening!.screen.reportProxyFailure(e);
@@ -1512,13 +1566,18 @@ abstract final class ActivationTable {
         site: _site.value,
         call: Call.on(
           ActivationFlow.state,
-          run: (c) => c.api.opening!.screen.launch(_site.of(c), url: c.api.opening!.url),
+          run: (c) => c.api.opening!.screen.launch(
+            _target(c),
+            url: c.api.opening!.url,
+          ),
           writes: const [],
         ),
         branches: [
           Branch(
             StepOutcome.go,
-            when: _current.value.neq(_noSite) & ~_loaded.value.has(_current.value),
+            when:
+                _current.value.neq(_noSite) &
+                ~_loaded.value.has(_current.value),
             then: [
               _nestedDown,
               _screenGone,
@@ -1566,7 +1625,9 @@ abstract final class ActivationTable {
               _loadedAdd,
               _preloaded,
               _preloadFramed,
-              Note((c) => ActivationFlow.page.from(c).rebuildAndNoteBackground()),
+              Note(
+                (c) => ActivationFlow.page.from(c).rebuildAndNoteBackground(),
+              ),
             ],
             next: to(ActivationPlace.exit),
           ),
@@ -1598,7 +1659,9 @@ abstract final class ActivationTable {
           then: [
             _framed,
             Note(
-              (c) => ActivationFlow.page.from(c).afterResume(_site.of(c), version: _v.of(c)),
+              (c) => ActivationFlow.page
+                  .from(c)
+                  .afterResume(_site.of(c), version: _v.of(c)),
             ),
           ],
           next: to(ActivationPlace.exit),
@@ -1623,7 +1686,8 @@ abstract final class ActivationTable {
               _newestOff,
               _bailedAfterUnload,
               Note(
-                (c) => ActivationFlow.page.from(c).cookiesNotRestored(_site.of(c)),
+                (c) =>
+                    ActivationFlow.page.from(c).cookiesNotRestored(_site.of(c)),
               ),
             ],
             next: to(ActivationPlace.done),

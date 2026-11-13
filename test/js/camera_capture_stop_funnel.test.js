@@ -73,7 +73,7 @@ for (const { line, i } of pauseSites) {
 }
 
 test('WebViewModel.stopRealCapture is not folded into pauseWebView', () => {
-  const model = read('lib/web_view_model.dart');
+  const model = read('lib/web_view_model_pause.dart');
   const pauseBody = model.slice(
     model.indexOf('Future<void> pauseWebView()'),
     model.indexOf('Future<void> stopRealCapture()'),

@@ -17,6 +17,16 @@ abstract final class TabTable {
     of: (w) => w,
   );
 
+  /// The site the flow's `site` field names, for the code that acts on it:
+  /// what the model does not hold of a site.
+  static WebViewModel _siteIn(StepView<TabFlow> c) =>
+      Port<SitesById, TabFlow>(
+        'sites',
+        reads: const {},
+        changes: const {},
+        of: (w) => w,
+      ).from(c).siteOf(_site.of(c));
+
   /// What the tab steps ask of the page and do to it ([TabCalls]): the
   /// rebinds that finish a switch change the webview's binding and what
   /// is queued for it.
@@ -24,26 +34,30 @@ abstract final class TabTable {
     'page',
     reads: const {},
     changes: {ModelVar.built, ModelVar.hist, ModelVar.queued},
-    of: (w) => TabCalls(w._c),
+    of: (w) => TabCalls(w._c, sites: w),
   );
 
   /// The openers whose routing switch is on, as a reroute reads them.
-  static final _routing = Port<List<WebViewModel> Function(WebViewModel owner), TabFlow>(
-    'routing',
-    reads: {ModelVar.tabs, ModelVar.opener},
-    changes: const {},
-    of: (w) => w._c.routingOpeners,
-  );
+  static final _routing =
+      Port<List<SiteId> Function(SiteId owner), TabFlow>(
+        'routing',
+        reads: {ModelVar.tabs, ModelVar.opener},
+        changes: const {},
+        of: (w) => (owner) => [
+          for (final m in w._c.routingOpeners(w.siteOf(owner))) m.siteId,
+        ],
+      );
 
   /// The opener a child tab's press named, the flow's own payload
   /// ([TabFlow.namedOpener]): no variable of the model, which picks any
   /// listed site for it (LIR-034).
-  static final _childOpeners = Port<WebViewModel? Function(TabState flow), TabFlow>(
-    'childOpeners',
-    reads: const {},
-    changes: const {},
-    of: (w) => w._c._namedOpener,
-  );
+  static final _childOpeners =
+      Port<SiteId? Function(TabState flow), TabFlow>(
+        'childOpeners',
+        reads: const {},
+        changes: const {},
+        of: (w) => (flow) => w._c._namedOpener(flow)?.siteId,
+      );
 
   /// What a child tab not listed yet follows, read as [_link] reads a
   /// listed one's (`link`, LIR-034).
@@ -51,7 +65,7 @@ abstract final class TabTable {
     'childLinks',
     reads: {ModelVar.link, ModelVar.host, ModelVar.opener},
     changes: const {},
-    of: (w) => ChildLinks(w._c),
+    of: (w) => ChildLinks(w._c, sites: w),
   );
 
   /// The tabs' state files, the model's `file` (TAB-003).
@@ -62,29 +76,29 @@ abstract final class TabTable {
     of: (w) => w._c.navStates,
   );
 
-  static Expr<WebViewModel, TabFlow> get _current => Expr.op(
-        HandPaired.tabSiteOnScreen,
-        tla: 'current',
-        run: (c) => _flow.from(c).site,
-        reads: const Reads(vars: {ModelVar.current}),
-      );
-  static final _currentVar = Var<WebViewModel?, TabFlow>(
-    ModelVar.current,
-    read: (w) => w._c._sites.shown,
+  static Expr<SiteId, TabFlow> get _current => Expr.op(
+    HandPaired.tabSiteOnScreen,
+    tla: 'current',
+    run: (c) => _flow.from(c).site.siteId,
+    reads: const Reads(vars: {ModelVar.current}),
   );
-  static final _marker = Var<ActivationMarker<WebViewModel>?, TabFlow>(
+  static final _currentVar = Var<SiteId?, TabFlow>(
+    ModelVar.current,
+    read: (w) => w._c._sites.vars.current.value,
+  );
+  static final _marker = Var<ActivationMarker<SiteId>?, TabFlow>(
     ModelVar.marker,
-    read: (w) => w._c._sites.activating,
+    read: (w) => w._c._sites.vars.marker.value,
   );
 
-  static final _nestedVar = Var<WebViewModel?, TabFlow>(
+  static final _nestedVar = Var<SiteId?, TabFlow>(
     ModelVar.nested,
-    read: (w) => w._c._sites.objectVars.nested.value,
+    read: (w) => w._c._sites.vars.nested.value,
   );
-  static final _noSite = Expr.constant<WebViewModel?, TabFlow>(null, tla: '0');
+  static final _noSite = Expr.constant<SiteId?, TabFlow>(null, tla: '0');
 
   /// The site [s] is on screen, or the target of the activation in flight.
-  static Expr<bool, TabFlow> shownOrTarget(Expr<WebViewModel, TabFlow> s) =>
+  static Expr<bool, TabFlow> shownOrTarget(Expr<SiteId, TabFlow> s) =>
       _currentVar.value.eq(s) |
       _marker.value.part('t', get: (m) => m?.target).eq(s);
 
@@ -92,7 +106,7 @@ abstract final class TabTable {
   /// Not while a nested screen is up, which runs on its own route and takes
   /// no plan: its pop opens the site on screen as its activation (BUG-037).
   static final reopens = () {
-    const s = Bound<WebViewModel, TabFlow>('s');
+    const s = Bound<SiteId, TabFlow>('s');
     return Def<bool, TabFlow>(
       ModelDef.reopens,
       params: const [s],
@@ -100,11 +114,13 @@ abstract final class TabTable {
     );
   }();
   static final _reopened = reopens.call([_site.value]);
-  static final _loaded = Mutable<Iterable<WebViewModel>, TabFlow>.over(
+  static final _loaded = Mutable<Iterable<SiteId>, TabFlow>.over(
     ModelVar.loaded,
-    of: (w) => w._c._sites.objectVars.loaded,
+    of: (w) => w._c._sites.vars.loaded,
   );
-  static final _active = TabVars.active<TabFlow>();
+  static final _active = TabVars.active<SiteId, TabFlow>(
+    keys: TabVars.ids<TabFlow>(),
+  );
   static final _tier = tierOf<TabFlow>();
 
   /// `tabs[s]` as this controller writes it: the engine's list, whose ids
@@ -112,20 +128,24 @@ abstract final class TabTable {
   static final _tabs = Indexed<WebViewModel, List<SiteTab>, TabFlow>.over(
     ModelVar.tabs,
     cell: WebViewModel.tabsCell,
-  );
-  static Expr<List<TabId>, TabFlow> _tabIds(Expr<WebViewModel, TabFlow> s) =>
-      TabVars.tabs<TabFlow>().at(s);
+  ).keyedBy<SiteId>((w, {required key}) => w.siteOf(key));
+  static Expr<List<TabId>, TabFlow> _tabIds(Expr<SiteId, TabFlow> s) =>
+      TabVars.tabs<SiteId, TabFlow>(
+        keys: TabVars.ids<TabFlow>(),
+      ).at(s);
 
   static const _kind = Field<FlowKind, TabFlow>(FlowField.kind);
-  static const _site = Field<WebViewModel, TabFlow>(FlowField.site);
+  static const _site = Field<SiteId, TabFlow>(FlowField.site);
   static const _tab = Field<TabId, TabFlow>(FlowField.tab);
   static const _keep = Field<bool, TabFlow>(FlowField.keep);
   static const _rest = Field<List<SiteTab>, TabFlow>(FlowField.rest);
   static const _closing = Field<List<TabId>, TabFlow>(FlowField.closing);
-  static const _routed = Field<List<WebViewModel>, TabFlow>(FlowField.routed);
-  static const _ranAs = Field<Map<TabId, WebViewModel>, TabFlow>(FlowField.ranAs);
+  static const _routed = Field<List<SiteId>, TabFlow>(FlowField.routed);
+  static const _ranAs = Field<Map<TabId, SiteId>, TabFlow>(
+    FlowField.ranAs,
+  );
   static const _copy = Field<TabId, TabFlow>(FlowField.copy);
-  static const _copyAs = Field<WebViewModel?, TabFlow>(FlowField.copyAs);
+  static const _copyAs = Field<SiteId?, TabFlow>(FlowField.copyAs);
   static const _label = Field<Uint8List?, TabFlow>(FlowField.label);
   static const _wrote = Field<bool, TabFlow>(FlowField.wrote);
   static const _dupView = Field<bool, TabFlow>(FlowField.dupView);
@@ -147,7 +167,7 @@ abstract final class TabTable {
   static final _tabbedCurrent = Expr.op<bool, TabFlow>(
     HandPaired.tabbedOnScreen,
     tla: 'current \\in Tabbed',
-    run: (c) => _page.from(c).isShown(_flow.from(c).site),
+    run: (c) => _page.from(c).isShown(_flow.from(c).site.siteId),
     reads: const Reads(vars: {ModelVar.current}),
     needs: const {(of: ModelConst.tabbed, set: true)},
   );
@@ -183,8 +203,8 @@ abstract final class TabTable {
   static final _hasFresh = Expr.op<bool, TabFlow>(
     HandPaired.hasFreshTab,
     tla: 'HasFresh(current)',
-    run: (_) => true, reads: const Reads(vars: {ModelVar.current},
-    base: {BaseOp.hasFresh}),
+    run: (_) => true,
+    reads: const Reads(vars: {ModelVar.current}, base: {BaseOp.hasFresh}),
   );
   static final _mint = Expr.op<TabId, TabFlow>(
     HandPaired.mintOnScreen,
@@ -201,7 +221,10 @@ abstract final class TabTable {
   static final _mintedBump = modelOnly<TabFlow>(
     "minted' = [minted EXCEPT ![current] = Mint(current)]",
     writes: {ModelVar.minted},
-    reads: const Reads(vars: {ModelVar.current, ModelVar.minted}, base: {BaseOp.mint}),
+    reads: const Reads(
+      vars: {ModelVar.current, ModelVar.minted},
+      base: {BaseOp.mint},
+    ),
   );
   static final _mintedBumpSite = modelOnly<TabFlow>(
     "minted' = [minted EXCEPT ![fl[f].site] = Mint(fl[f].site)]",
@@ -243,6 +266,7 @@ abstract final class TabTable {
     ),
     name: 'shut',
   );
+
   /// The close the engine decides, once: it moves the survivors up as it
   /// decides, so a second decision would find them moved already.
   static TabCloseResult _closeOf(StepView<TabFlow> c) {
@@ -259,6 +283,7 @@ abstract final class TabTable {
             closeId: _chosenTab.run(c),
           );
   }
+
   static final _resultTabs = Expr.checked(
     rule: _tabIds(_current).less(_eachClosed.it),
     run: (c) => _flow.from(c).result!.tabs,
@@ -293,8 +318,8 @@ abstract final class TabTable {
     run: (c) => !_page.from(c).mounted
         ? const []
         : _rest.isSet(c)
-            ? [for (final t in _rest.of(c)) t.id]
-            : [for (final t in _flow.from(c).site.tabs) t.id],
+        ? [for (final t in _rest.of(c)) t.id]
+        : [for (final t in _flow.from(c).site.tabs) t.id],
     reads: const Reads(vars: {ModelVar.tabs}),
   );
   static SiteTab? _targetOf(StepView<TabFlow> c) {
@@ -316,7 +341,7 @@ abstract final class TabTable {
     Act.of([
       _active.except(_site.value, to: _tab.value),
       _tabs.except(_site.value, to: _installed),
-      ...TabVars.dropped(_site.value, kept: _targetIn),
+      ...TabVars.dropped(_site.value, kept: _targetIn, keys: TabVars.ids()),
       _loaded.becomes(_loaded.value.less(_site.value.asSet)),
       ...TabVars.rebound(
         _site.value,
@@ -338,7 +363,7 @@ abstract final class TabTable {
     Act.of([
       _active.except(_site.value, to: _tab.value),
       _tabs.except(_site.value, to: _installed),
-      ...TabVars.dropped(_site.value, kept: _targetIn),
+      ...TabVars.dropped(_site.value, kept: _targetIn, keys: TabVars.ids()),
       _tier.except(_site.value, to: _residentIfLoaded),
       ...TabVars.rebound(
         _site.value,
@@ -349,7 +374,8 @@ abstract final class TabTable {
     ], then: (c) => _page.from(c).rebind(c)),
   ];
 
-  static final _live = _currentVar.value.eq(_site.value) | _loaded.value.has(_site.value);
+  static final _live =
+      _currentVar.value.eq(_site.value) | _loaded.value.has(_site.value);
 
   /// The duplicate's source is still the site's (and the page is there).
   static final _sourceStays = Expr.handPaired<bool, TabFlow>(
@@ -389,31 +415,32 @@ abstract final class TabTable {
     ModelConst.containers,
     read: (w) => w._c._sites.useContainers,
   ).value;
-  static final _sitesListed = Constant<List<WebViewModel>, TabFlow>(
+  static final _sitesListed = Constant<List<SiteId>, TabFlow>(
     ModelConst.sites,
-    read: (w) => w._c._sites.models,
+    read: (w) => [for (final m in w._c._sites.models) m.siteId],
   ).value;
-  static final _noLink = Expr.constant<WebViewModel?, TabFlow>(null, tla: '0');
+  static final _noLink = Expr.constant<SiteId?, TabFlow>(null, tla: '0');
 
   /// The listed tabs of [s] a link opened that some reading of the
   /// switches moves (LIR-034): one with two places, its link's site and
   /// its opener, or one that runs at neither.
-  static Expr<List<TabId>, TabFlow> _relinked(Expr<WebViewModel, TabFlow> s) {
+  static Expr<List<TabId>, TabFlow> _relinked(Expr<SiteId, TabFlow> s) {
     const l = Bound<TabId, TabFlow>('l');
     final by = _opener.at(s).at(l.it);
     return _tabIds(s).where(
       l,
-      holds: by.neq(_noLink) &
+      holds:
+          by.neq(_noLink) &
           ~(_link.at(s).at(l.it).eq(by) & by.eq(_tabHost.at(s).at(l.it))),
     );
   }
 
   /// Where tab [t] of [s] runs while the openers [routed] route outbound
   /// links and the rest do not: its link's site, or its opener.
-  static Expr<WebViewModel, TabFlow> _placeOf(
-    Expr<WebViewModel, TabFlow> s, {
+  static Expr<SiteId, TabFlow> _placeOf(
+    Expr<SiteId, TabFlow> s, {
     required Expr<TabId, TabFlow> t,
-    required Expr<Iterable<WebViewModel>, TabFlow> routed,
+    required Expr<Iterable<SiteId>, TabFlow> routed,
   }) => Expr.choose(
     when: routed.has(_opener.at(s).at(t)),
     then: _link.at(s).at(t).unwrapped,
@@ -424,15 +451,16 @@ abstract final class TabTable {
   /// them while the openers `R` route (`Misplaced`): the reroute picks a
   /// reading that leaves one out of place, and its flip moves them.
   static final misplaced = () {
-    const s = Bound<WebViewModel, TabFlow>('s');
-    const routed = Bound<Iterable<WebViewModel>, TabFlow>('R');
+    const s = Bound<SiteId, TabFlow>('s');
+    const routed = Bound<Iterable<SiteId>, TabFlow>('R');
     const l = Bound<TabId, TabFlow>('l');
     return Def<List<TabId>, TabFlow>(
       ModelDef.misplaced,
       params: const [s, routed],
       body: _tabIds(s.it).where(
         l,
-        holds: _opener.at(s.it).at(l.it).neq(_noLink) &
+        holds:
+            _opener.at(s.it).at(l.it).neq(_noLink) &
             _tabHost
                 .at(s.it)
                 .at(l.it)
@@ -441,21 +469,23 @@ abstract final class TabTable {
     );
   }();
   static Expr<List<TabId>, TabFlow> _misplaced(
-    Expr<WebViewModel, TabFlow> s, {
-    required Expr<Iterable<WebViewModel>, TabFlow> routed,
+    Expr<SiteId, TabFlow> s, {
+    required Expr<Iterable<SiteId>, TabFlow> routed,
   }) => misplaced.call([s, routed]);
 
   /// A site whose switch-following tabs may move: one whose tabs the model
   /// follows (`Tabbed`) with a tab that has two places.
   static final _eachRerouted = () {
-    const o = Bound<WebViewModel, TabFlow>('o');
+    const o = Bound<SiteId, TabFlow>('o');
     // Not `s`: the activation its slot's arm spawns binds that.
-    return Pick<WebViewModel, TabFlow>(
+    return Pick<SiteId, TabFlow>(
       _sitesListed.where(
         o,
-        holds: TabVars.tabbed<TabFlow>().has(o.it) & _relinked(o.it).isNotEmpty,
+        holds:
+            TabVars.tabbed<SiteId, TabFlow>().has(o.it) &
+            _relinked(o.it).isNotEmpty,
       ),
-      first: (c, {required among}) => _flow.from(c).site,
+      first: (c, {required among}) => _flow.from(c).site.siteId,
       name: 'r',
     );
   }();
@@ -465,16 +495,16 @@ abstract final class TabTable {
   /// takes any set of them that leaves a tab out of place, the code the
   /// ones it read on (LIR-013).
   static final _eachRouted = () {
-    const o = Bound<WebViewModel, TabFlow>('o');
+    const o = Bound<SiteId, TabFlow>('o');
     const l = Bound<TabId, TabFlow>('l');
-    const x = Bound<List<WebViewModel>, TabFlow>('R');
+    const x = Bound<List<SiteId>, TabFlow>('R');
     final openers = _sitesListed.where(
       o,
-      holds: _tabIds(_rerouted)
-          .where(l, holds: _opener.at(_rerouted).at(l.it).eq(o.it))
-          .isNotEmpty,
+      holds: _tabIds(
+        _rerouted,
+      ).where(l, holds: _opener.at(_rerouted).at(l.it).eq(o.it)).isNotEmpty,
     );
-    return Pick<List<WebViewModel>, TabFlow>(
+    return Pick<List<SiteId>, TabFlow>(
       openers.choicesWhere(
         x,
         holds: _misplaced(_rerouted, routed: x.it).isNotEmpty,
@@ -485,11 +515,11 @@ abstract final class TabTable {
   }();
 
   /// The sites with tabs a reset lands at home (TAB-014).
-  static final _eachLanded = Pick<WebViewModel, TabFlow>(
+  static final _eachLanded = Pick<SiteId, TabFlow>(
     Expr.op(
       HandPaired.landedSites,
       tla: r'Listed \cap Resettable \cap Tabbed',
-      run: (c) => [_flow.from(c).site],
+      run: (c) => [_flow.from(c).site.siteId],
       reads: const Reads(base: {BaseOp.listed}),
       needs: const {
         (of: ModelConst.resettable, set: true),
@@ -502,11 +532,11 @@ abstract final class TabTable {
   /// The sites with tabs an owner-run move may take (LIR-018): the engine
   /// asks for one only for a site whose slot runs as another, or on a tab
   /// anchored in another domain, which the model does not follow.
-  static final _eachOwnerRun = Pick<WebViewModel, TabFlow>(
+  static final _eachOwnerRun = Pick<SiteId, TabFlow>(
     Expr.op(
       HandPaired.ownerRunSites,
       tla: r'Listed \cap Tabbed',
-      run: (c) => [_flow.from(c).site],
+      run: (c) => [_flow.from(c).site.siteId],
       reads: const Reads(base: {BaseOp.listed}),
       needs: const {(of: ModelConst.tabbed, set: true)},
     ),
@@ -515,11 +545,11 @@ abstract final class TabTable {
 
   /// The site with tabs a child tab opens in, while the model's pool has
   /// a fresh tab id for it.
-  static final _eachChildOwner = Pick<WebViewModel, TabFlow>(
+  static final _eachChildOwner = Pick<SiteId, TabFlow>(
     Expr.op(
       HandPaired.childSites,
       tla: r'{o \in Listed \cap Tabbed : HasFresh(o)}',
-      run: (c) => [_flow.from(c).site],
+      run: (c) => [_flow.from(c).site.siteId],
       reads: const Reads(base: {BaseOp.listed, BaseOp.hasFresh}),
       needs: const {(of: ModelConst.tabbed, set: true)},
     ),
@@ -528,11 +558,13 @@ abstract final class TabTable {
 
   /// The site a child tab runs as: another listed site where containers
   /// keep their cookies apart (LIR-032), else its own.
-  static final _eachChildHost = Pick<WebViewModel, TabFlow>(
+  static final _eachChildHost = Pick<SiteId, TabFlow>(
     Expr.op(
       HandPaired.childHosts,
       tla: r'IF Containers THEN Listed ELSE {fl[f].site}',
-      run: (c) => [_page.from(c).childHost(_flow.from(c).fresh!, owner: _site.of(c))],
+      run: (c) => [
+        _page.from(c).childHost(_flow.from(c).fresh!, owner: _site.of(c)),
+      ],
       reads: const Reads(base: {BaseOp.listed}),
     ),
     name: 'hs',
@@ -541,18 +573,24 @@ abstract final class TabTable {
   /// What a child tab follows while its opener routes outbound links
   /// (LIR-034): a listed site where its handler named an opener at its
   /// input ([_eachChildOpener]), none (`0`) for one no link opened.
-  static final _eachChildLink = Pick<WebViewModel?, TabFlow>(
+  static final _eachChildLink = Pick<SiteId?, TabFlow>(
     Expr.op(
       HandPaired.childLinks,
       tla: r'IF fl[f].copyAs = 0 THEN {0} ELSE Listed',
-      run: (c) => [_childLinks.from(c).of(_flow.from(c).fresh!, owner: _site.of(c))],
-      reads: const Reads(vars: {ModelVar.link, ModelVar.host}, base: {BaseOp.listed}),
+      run: (c) => [
+        _childLinks.from(c).of(_flow.from(c).fresh!, owner: _site.of(c)),
+      ],
+      reads: const Reads(
+        vars: {ModelVar.link, ModelVar.host},
+        base: {BaseOp.listed},
+      ),
     ),
     name: 'lk',
   );
+
   /// The site whose switch a child tab follows, which its handler names as
   /// the link is pressed, before a park waits for a free gate (TAB-006).
-  static final _eachChildOpener = Pick<WebViewModel?, TabFlow>(
+  static final _eachChildOpener = Pick<SiteId?, TabFlow>(
     Expr.op(
       HandPaired.childOpeners,
       tla: r'{0} \cup Listed',
@@ -561,6 +599,7 @@ abstract final class TabTable {
     ),
     name: 'op',
   );
+
   /// Whether the close kept the tab's history: the model either, the code
   /// whether its removal took any bytes.
   static final _eachKept = Pick<bool, TabFlow>(
@@ -572,7 +611,7 @@ abstract final class TabTable {
   static final _withReopened = Expr.checked(
     rule: _tabIds(_site.value).union(_copy.value.asSet),
     run: (c) => TabLifecycleEngine.reopen(
-      _site.of(c).tabs,
+      _siteIn(c).tabs,
       tab: _flow.from(c).fresh!,
       closed: _flow.from(c).reopening!,
     ),
@@ -581,7 +620,10 @@ abstract final class TabTable {
   );
   static final _withChild = Expr.checked(
     rule: _tabIds(_site.value).union(_mintSite.asSet),
-    run: (c) => TabLifecycleEngine.insertChild(_site.of(c).tabs, tab: _flow.from(c).fresh!),
+    run: (c) => TabLifecycleEngine.insertChild(
+      _siteIn(c).tabs,
+      tab: _flow.from(c).fresh!,
+    ),
     key: (SiteTab t) => t.id,
     why: "a child tab joins its site's list",
   );
@@ -591,7 +633,8 @@ abstract final class TabTable {
   static final _eachLanding = Pick<TabId, TabFlow>(
     Expr.op(
       HandPaired.landingTabs,
-      tla: r'tabs[fl[f].site] \cup '
+      tla:
+          r'tabs[fl[f].site] \cup '
           r'(IF HasFresh(fl[f].site) THEN {Mint(fl[f].site)} ELSE {})',
       run: (c) => [for (final t in _flow.from(c).landed!) t.id],
       reads: const Reads(
@@ -617,17 +660,19 @@ abstract final class TabTable {
 
   /// Each of [s]'s tabs out of place runs where its opener's switch, as
   /// the reroute read it, puts it.
-  static Write<TabFlow> _flip(Expr<WebViewModel, TabFlow> s) {
+  static Write<TabFlow> _flip(Expr<SiteId, TabFlow> s) {
     const t = Bound<TabId, TabFlow>('t');
-    final host = TabVars.hostFn<TabFlow>();
+    final host = TabVars.hostFn<SiteId, TabFlow>();
     return host.becomes(
       host.value.except(
         s,
-        to: host.value.at(s).exceptEach(
-          _misplaced(s, routed: _routed.value),
-          x: t,
-          to: _placeOf(s, t: t.it, routed: _routed.value),
-        ),
+        to: host.value
+            .at(s)
+            .exceptEach(
+              _misplaced(s, routed: _routed.value),
+              x: t,
+              to: _placeOf(s, t: t.it, routed: _routed.value),
+            ),
       ),
     );
   }
@@ -639,24 +684,26 @@ abstract final class TabTable {
 
   /// The tab on screen is one the reroute flips: the slot runs as another
   /// site.
-  static final _slotFlips = _misplaced(_site.value, routed: _routed.value)
-      .has(_active.at(_site.value));
+  static final _slotFlips = _misplaced(
+    _site.value,
+    routed: _routed.value,
+  ).has(_active.at(_site.value));
 
   /// `Contending`: the sites in a proxy scope another site's activation
   /// repoints, every one under one process-wide proxy and the router's
   /// shared session under the router.
-  static final contending = Members<WebViewModel, TabFlow>(
+  static final contending = Members<SiteId, TabFlow>(
     ModelConst.contending,
     test: (w, {required member}) =>
-        w._c.residency.proxyTopology.contends(member),
+        w._c.residency.proxyTopology.contends(w.siteOf(member)),
   );
   static final globalProxy = Constant<bool, TabFlow>(
     ModelConst.globalProxy,
-    read: (w) => TabCalls(w._c).processGlobal,
+    read: (w) => TabCalls(w._c, sites: w).processGlobal,
   ).value;
   static final torRuntime = Constant<bool, TabFlow>(
     ModelConst.torRuntime,
-    read: (w) => TabCalls(w._c).torRuntime,
+    read: (w) => TabCalls(w._c, sites: w).torRuntime,
   ).value;
 
   /// Whether a slot that runs as `a` and comes to run as `b` moves a rule
@@ -665,8 +712,8 @@ abstract final class TabTable {
   /// loaded sites, and its activation's plan unloads what its new route
   /// would move; the code's flips outside a step read [TabCalls.movesRule].
   static final movesRule = () {
-    const a = Bound<WebViewModel, TabFlow>('a');
-    const b = Bound<WebViewModel, TabFlow>('b');
+    const a = Bound<SiteId, TabFlow>('a');
+    const b = Bound<SiteId, TabFlow>('b');
     return Def<bool, TabFlow>(
       ModelDef.movesRule,
       params: const [a, b],
@@ -675,31 +722,48 @@ abstract final class TabTable {
   }();
 
   /// The site [s]'s slot runs as once a reroute flips its tab on screen.
-  static Expr<WebViewModel, TabFlow> _flippedAs(Expr<WebViewModel, TabFlow> s) =>
-      _placeOf(s, t: _active.at(s), routed: _routed.value);
-  static final _tabHost = TabVars.host<TabFlow>();
-  static Expr<WebViewModel, TabFlow> _runsAs(Expr<WebViewModel, TabFlow> s) =>
-      TabVars.runsAs<TabFlow>().call([s]);
+  static Expr<SiteId, TabFlow> _flippedAs(
+    Expr<SiteId, TabFlow> s,
+  ) => _placeOf(s, t: _active.at(s), routed: _routed.value);
+  static final _tabHost = TabVars.host<SiteId, TabFlow>(
+    keys: TabVars.ids<TabFlow>(),
+  );
+  static Expr<SiteId, TabFlow> _runsAs(Expr<SiteId, TabFlow> s) =>
+      TabVars.runsAs<SiteId, TabFlow>(
+        keys: TabVars.ids<TabFlow>(),
+      ).call([s]);
 
   /// `link[s]` as the code reads it: the site each link tab runs as while
   /// its opener routes outbound links ([linkHosts]).
-  static final _link = Indexed<WebViewModel, Map<TabId, WebViewModel?>, TabFlow>.reported(
-    ModelVar.link,
-    read: (w, {required at}) => w._c.linkHosts(at),
-  );
+  static final _link =
+      Indexed<SiteId, Map<TabId, SiteId?>, TabFlow>.reported(
+        ModelVar.link,
+        read: (w, {required at}) => {
+          for (final MapEntry(:key, :value)
+              in w._c.linkHosts(w.siteOf(at)).entries)
+            key: value?.siteId,
+        },
+      );
 
   /// `opener[s]` as the code reads it: the listed site whose switch each
   /// link tab follows ([linkOpeners]).
-  static final _opener = Indexed<WebViewModel, Map<TabId, WebViewModel?>, TabFlow>.reported(
-    ModelVar.opener,
-    read: (w, {required at}) => w._c.linkOpeners(at),
-  );
+  static final _opener =
+      Indexed<SiteId, Map<TabId, SiteId?>, TabFlow>.reported(
+        ModelVar.opener,
+        read: (w, {required at}) => {
+          for (final MapEntry(:key, :value)
+              in w._c.linkOpeners(w.siteOf(at)).entries)
+            key: value?.siteId,
+        },
+      );
 
   static String _copyKey(StepView<TabFlow> c) {
     final copy = _flow.from(c).fresh!;
-    return webViewStateKey(copy.hostSiteId ?? _site.of(c).siteId, tabId: copy.id);
+    return webViewStateKey(
+      copy.hostSiteId ?? _site.of(c),
+      tabId: copy.id,
+    );
   }
-
 
   // ── The tab flows as a step table (TAB-003), printed into activation.tla ──
 
@@ -777,10 +841,14 @@ abstract final class TabTable {
               final f = _flow.from(c);
               final result = _closeOf(c);
               f.dropped = {
-                for (final id in result.closedIds) id: f.site.stateKeyForTab(id),
+                for (final id in result.closedIds)
+                  id: f.site.stateKeyForTab(id),
               };
-              f.closed = TabLifecycleEngine.closedFrom(f.site.tabs,
-                  site: f.site.siteId, result: result);
+              f.closed = TabLifecycleEngine.closedFrom(
+                f.site.tabs,
+                site: f.site.siteId,
+                result: result,
+              );
             }),
             ..._starts,
             _tab.becomes(_chosenTab),
@@ -961,7 +1029,7 @@ abstract final class TabTable {
   /// the capture's steps; a target tab that left the list meanwhile ends
   /// the switch first. The switch holds the tab gate, so no close or
   /// reroute moves the tab while the save is out: no unsave.
-  static final _capture = captureSteps<WebViewModel, TabFlow, TabPlace>(
+  static final _capture = captureSteps<SiteId, TabFlow, TabPlace>(
     names: (
       read: ActivationStep.tabCaptureReply,
       save: ActivationStep.tabCaptureSave,
@@ -970,8 +1038,8 @@ abstract final class TabTable {
     unsave: null,
     of: (
       site: _site.value,
-      built: (s) => s.tabBinding.built,
-      hosts: (s) => s.tabHosts,
+      built: (w, {required site}) => w.siteOf(site).tabBinding.built,
+      hosts: (w, {required site}) => w.siteOf(site).tabHostIds,
       begin: (c) => _page.from(c).beginCapture(_site.of(c)),
       marks: _site.value,
       keeps: null,
@@ -1016,16 +1084,23 @@ abstract final class TabTable {
         call: _label.receivesOn(
           _files,
           run: (c) async {
-            final site = _site.of(c);
+            final site = _siteIn(c);
             final incoming = _targetOf(c);
             if (incoming == null || !site.tabPersistsNavState(incoming)) {
               return null;
             }
             return c.api.loadState(
-              webViewStateKey(incoming.hostSiteId ?? site.siteId, tabId: incoming.id),
+              webViewStateKey(
+                incoming.hostSiteId ?? site.siteId,
+                tabId: incoming.id,
+              ),
             );
           },
-          reply: TabVars.savedFor(_site.value, tab: _tab.value),
+          reply: TabVars.savedFor(
+            _site.value,
+            tab: _tab.value,
+            keys: TabVars.ids(),
+          ),
         ),
         site: _site.value,
         branches: [
@@ -1036,7 +1111,11 @@ abstract final class TabTable {
             next: to(TabPlace.done),
           ),
         ],
-        otherwise: Otherwise(StepOutcome.go, then: [], next: to(TabPlace.tRebind)),
+        otherwise: Otherwise(
+          StepOutcome.go,
+          then: [],
+          next: to(TabPlace.tRebind),
+        ),
       ),
       // List, pointer and webview move in one turn: the bytes read are
       // queued for the target, the old webview goes, the rebuild frame
@@ -1089,7 +1168,9 @@ abstract final class TabTable {
             StepOutcome.rebind,
             when: _restIds.isEmpty,
             then: [
-              Note((c) => _flow.from(c).fresh = SiteTab(url: _site.of(c).initUrl)),
+              Note(
+                (c) => _flow.from(c).fresh = SiteTab(url: _siteIn(c).initUrl),
+              ),
               _mintedBumpSite,
               _tab.becomes(_mintSite),
               _rest.becomes(_onlyFresh),
@@ -1112,7 +1193,11 @@ abstract final class TabTable {
           then: [
             Act.of([
               _tabs.except(_site.value, to: _rest.value),
-              ...TabVars.dropped(_site.value, kept: _restIds),
+              ...TabVars.dropped(
+                _site.value,
+                kept: _restIds,
+                keys: TabVars.ids(),
+              ),
               _active.except(
                 _site.value,
                 to: Expr.choose(
@@ -1158,7 +1243,11 @@ abstract final class TabTable {
             next: to(TabPlace.tRemove),
           ),
         ],
-        otherwise: Otherwise(StepOutcome.end, then: [], next: to(TabPlace.done)),
+        otherwise: Otherwise(
+          StepOutcome.end,
+          then: [],
+          next: to(TabPlace.done),
+        ),
       ),
       // The duplicate's source read: the webview's back stack when the
       // site is loaded and the webview is the source's, else its file.
@@ -1175,17 +1264,21 @@ abstract final class TabTable {
             _label.fromPlatform(
               Expr.choose(
                 when: _loaded.value.has(_site.value),
-                then: TabVars.dupShown(_site.value, source: _tab.value),
+                then: TabVars.dupShown(
+                  _site.value,
+                  source: _tab.value,
+                  keys: TabVars.ids(),
+                ),
                 otherwise: noTab(),
               ),
             ),
           ],
           run: (c) async {
-            final site = _site.of(c);
+            final site = _siteIn(c);
             final source = _tab.of(c);
             final tab = site.tabs.where((t) => t.id == source).firstOrNull;
             if (tab == null || !site.tabPersistsNavState(tab)) return null;
-            if (_page.from(c).isLoaded(site)) {
+            if (_page.from(c).isLoaded(site.siteId)) {
               return switch (await site.captureNavigationState()) {
                 (:final tab, :final bytes) when tab == source => bytes,
                 _ => null,
@@ -1196,7 +1289,11 @@ abstract final class TabTable {
           reply: Expr.choose(
             when: _dupView.value,
             then: _label.value,
-            otherwise: TabVars.savedFor(_site.value, tab: _tab.value),
+            otherwise: TabVars.savedFor(
+              _site.value,
+              tab: _tab.value,
+              keys: TabVars.ids(),
+            ),
           ),
         ),
         site: _site.value,
@@ -1208,7 +1305,11 @@ abstract final class TabTable {
             next: to(TabPlace.tDupInsert),
           ),
         ],
-        otherwise: Otherwise(StepOutcome.save, then: [], next: to(TabPlace.tDupSave)),
+        otherwise: Otherwise(
+          StepOutcome.save,
+          then: [],
+          next: to(TabPlace.tDupSave),
+        ),
       ),
       // The copy's file written: the source's own history becomes the
       // copy's own.
@@ -1256,34 +1357,31 @@ abstract final class TabTable {
         otherwise: Otherwise(
           StepOutcome.go,
           then: [
-            Act.of(
-              [
-                _tabs.except(_site.value, to: _withCopy),
-                // The copy runs as its source did and follows its link.
-                TabVars.hostFn<TabFlow>().becomes(
-                  TabVars.hostFn<TabFlow>().value.exceptAt(
-                    _site.value,
-                    at: _copy.value,
-                    to: _copyAs.value.unwrapped,
-                  ),
+            Act.of([
+              _tabs.except(_site.value, to: _withCopy),
+              // The copy runs as its source did and follows its link.
+              TabVars.hostFn<SiteId, TabFlow>().becomes(
+                TabVars.hostFn<SiteId, TabFlow>().value.exceptAt(
+                  _site.value,
+                  at: _copy.value,
+                  to: _copyAs.value.unwrapped,
                 ),
-                TabVars.linkFn<TabFlow>().becomes(
-                  TabVars.linkFn<TabFlow>().value.exceptAt(
-                    _site.value,
-                    at: _copy.value,
-                    to: _link.at(_site.value).at(_tab.value),
-                  ),
+              ),
+              TabVars.linkFn<SiteId, TabFlow>().becomes(
+                TabVars.linkFn<SiteId, TabFlow>().value.exceptAt(
+                  _site.value,
+                  at: _copy.value,
+                  to: _link.at(_site.value).at(_tab.value),
                 ),
-                TabVars.openerFn<TabFlow>().becomes(
-                  TabVars.openerFn<TabFlow>().value.exceptAt(
-                    _site.value,
-                    at: _copy.value,
-                    to: _opener.at(_site.value).at(_tab.value),
-                  ),
+              ),
+              TabVars.openerFn<SiteId, TabFlow>().becomes(
+                TabVars.openerFn<SiteId, TabFlow>().value.exceptAt(
+                  _site.value,
+                  at: _copy.value,
+                  to: _opener.at(_site.value).at(_tab.value),
                 ),
-              ],
-              then: (c) => _page.from(c).duplicated(c),
-            ),
+              ),
+            ], then: (c) => _page.from(c).duplicated(c)),
           ],
           next: to(TabPlace.done),
         ),
@@ -1295,11 +1393,19 @@ abstract final class TabTable {
           _files,
           run: (c) => c.api.removeState(_copyKey(c)),
           writes: [
-            TabVars.removedAs(_site.value, tab: _copy.value, as: _copyAs.value.unwrapped),
+            TabVars.removedAs(
+              _site.value,
+              tab: _copy.value,
+              as: _copyAs.value.unwrapped,
+            ),
           ],
         ),
         site: _site.value,
-        otherwise: Otherwise(StepOutcome.none, then: [], next: to(TabPlace.done)),
+        otherwise: Otherwise(
+          StepOutcome.none,
+          then: [],
+          next: to(TabPlace.done),
+        ),
       ),
       // The flips, in the reroute's turn. The tab on screen moves the slot
       // to the other site: across a rule another site shares it leaves the
@@ -1371,9 +1477,8 @@ abstract final class TabTable {
         pick: _eachClosing,
         call: Call.on(
           _files,
-          run: (c) => c.api.removeState(
-            _flow.from(c).dropped[_eachClosing.it.run(c)]!,
-          ),
+          run: (c) =>
+              c.api.removeState(_flow.from(c).dropped[_eachClosing.it.run(c)]!),
           writes: [
             TabVars.removedAs(
               _site.value,
@@ -1391,7 +1496,11 @@ abstract final class TabTable {
             next: to(TabPlace.rRemove),
           ),
         ],
-        otherwise: Otherwise(StepOutcome.end, then: [], next: to(TabPlace.done)),
+        otherwise: Otherwise(
+          StepOutcome.end,
+          then: [],
+          next: to(TabPlace.done),
+        ),
       ),
       TabPlace.hLand => _landOn(ActivationStep.homeLand),
       TabPlace.oLand => _landOn(ActivationStep.ownerLand),
@@ -1402,7 +1511,11 @@ abstract final class TabTable {
         ActivationStep.childOpen,
         holds: null,
         site: _site.value,
-        otherwise: Otherwise(StepOutcome.none, then: [], next: to(TabPlace.tCap)),
+        otherwise: Otherwise(
+          StepOutcome.none,
+          then: [],
+          next: to(TabPlace.tCap),
+        ),
       ),
       TabPlace.pLand => _childLand(ActivationStep.parkLand, opens: false),
       // The reopened tab's landing: it runs as the site it ran as while
@@ -1441,8 +1554,8 @@ abstract final class TabTable {
             state: _flow.from(c).reopening!.history!,
           ),
           writes: [
-            TabVars.file<TabFlow>().becomes(
-              TabVars.file<TabFlow>().value.exceptAt(
+            TabVars.file<SiteId, TabFlow>().becomes(
+              TabVars.file<SiteId, TabFlow>().value.exceptAt(
                 _site.value,
                 at: _copy.value,
                 by: _copyAs.value.unwrapped,
@@ -1452,7 +1565,11 @@ abstract final class TabTable {
           ],
         ),
         site: _site.value,
-        otherwise: Otherwise(StepOutcome.none, then: [], next: to(TabPlace.reInsert)),
+        otherwise: Otherwise(
+          StepOutcome.none,
+          then: [],
+          next: to(TabPlace.reInsert),
+        ),
       ),
       // The reopened tab joins its site's list where it stood, running as
       // its landing fixed and following no opener: a tab nothing routes.
@@ -1463,33 +1580,30 @@ abstract final class TabTable {
         otherwise: Otherwise(
           StepOutcome.go,
           then: [
-            Act.of(
-              [
-                _tabs.except(_site.value, to: _withReopened),
-                TabVars.hostFn<TabFlow>().becomes(
-                  TabVars.hostFn<TabFlow>().value.exceptAt(
-                    _site.value,
-                    at: _copy.value,
-                    to: _copyAs.value.unwrapped,
-                  ),
+            Act.of([
+              _tabs.except(_site.value, to: _withReopened),
+              TabVars.hostFn<SiteId, TabFlow>().becomes(
+                TabVars.hostFn<SiteId, TabFlow>().value.exceptAt(
+                  _site.value,
+                  at: _copy.value,
+                  to: _copyAs.value.unwrapped,
                 ),
-                TabVars.linkFn<TabFlow>().becomes(
-                  TabVars.linkFn<TabFlow>().value.exceptAt(
-                    _site.value,
-                    at: _copy.value,
-                    to: _noLink,
-                  ),
+              ),
+              TabVars.linkFn<SiteId, TabFlow>().becomes(
+                TabVars.linkFn<SiteId, TabFlow>().value.exceptAt(
+                  _site.value,
+                  at: _copy.value,
+                  to: _noLink,
                 ),
-                TabVars.openerFn<TabFlow>().becomes(
-                  TabVars.openerFn<TabFlow>().value.exceptAt(
-                    _site.value,
-                    at: _copy.value,
-                    to: _noLink,
-                  ),
+              ),
+              TabVars.openerFn<SiteId, TabFlow>().becomes(
+                TabVars.openerFn<SiteId, TabFlow>().value.exceptAt(
+                  _site.value,
+                  at: _copy.value,
+                  to: _noLink,
                 ),
-              ],
-              then: (c) => _page.from(c).reopened(c),
-            ),
+              ),
+            ], then: (c) => _page.from(c).reopened(c)),
           ],
           next: to(TabPlace.done),
         ),
@@ -1501,7 +1615,10 @@ abstract final class TabTable {
   /// as the site [_eachChildHost] picks and following what [_eachChildLink]
   /// picks (LIR-032, LIR-034). One the handler [opens] is switched to as a
   /// new tab is (cOpen, then tCap); a parked one is offered (TAB-006).
-  static Step<TabFlow, TabPlace> _childLand(ActivationStep step, {required bool opens}) => Step(
+  static Step<TabFlow, TabPlace> _childLand(
+    ActivationStep step, {
+    required bool opens,
+  }) => Step(
     step,
     holds: null,
     pick: _eachChildHost,
@@ -1511,34 +1628,31 @@ abstract final class TabTable {
       pick: _eachChildLink,
       then: [
         _mintedBumpSite,
-        Act.of(
-          [
-            _tabs.except(_site.value, to: _withChild),
-            TabVars.hostFn<TabFlow>().becomes(
-              TabVars.hostFn<TabFlow>().value.exceptAt(
-                _site.value,
-                at: _mintSite,
-                to: _eachChildHost.it,
-              ),
+        Act.of([
+          _tabs.except(_site.value, to: _withChild),
+          TabVars.hostFn<SiteId, TabFlow>().becomes(
+            TabVars.hostFn<SiteId, TabFlow>().value.exceptAt(
+              _site.value,
+              at: _mintSite,
+              to: _eachChildHost.it,
             ),
-            TabVars.linkFn<TabFlow>().becomes(
-              TabVars.linkFn<TabFlow>().value.exceptAt(
-                _site.value,
-                at: _mintSite,
-                to: _eachChildLink.it,
-              ),
+          ),
+          TabVars.linkFn<SiteId, TabFlow>().becomes(
+            TabVars.linkFn<SiteId, TabFlow>().value.exceptAt(
+              _site.value,
+              at: _mintSite,
+              to: _eachChildLink.it,
             ),
-            // A child follows the opener its handler named at its input.
-            TabVars.openerFn<TabFlow>().becomes(
-              TabVars.openerFn<TabFlow>().value.exceptAt(
-                _site.value,
-                at: _mintSite,
-                to: _copyAs.value,
-              ),
+          ),
+          // A child follows the opener its handler named at its input.
+          TabVars.openerFn<SiteId, TabFlow>().becomes(
+            TabVars.openerFn<SiteId, TabFlow>().value.exceptAt(
+              _site.value,
+              at: _mintSite,
+              to: _copyAs.value,
             ),
-          ],
-          then: opens ? null : (c) => _page.from(c).parked(c),
-        ),
+          ),
+        ], then: opens ? null : (c) => _page.from(c).parked(c)),
         if (opens) ...[_tab.becomes(_mintSite), _keep.becomes(_yes)],
       ],
       next: to(opens ? TabPlace.cOpen : TabPlace.done),

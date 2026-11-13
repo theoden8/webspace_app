@@ -1,6 +1,7 @@
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/services/runtime_vars.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
 import 'model_fixture.dart';
 
@@ -10,7 +11,8 @@ mixin SiteListState {
   final SiteRuntime runtime = SiteRuntime();
 
   List<WebViewModel> get sites => runtime.models;
-  RuntimeVars<WebViewModel> get vars => runtime.objectVars;
+  RuntimeVars<SiteId> get vars => runtime.vars;
+  WebViewModel siteOf(SiteId id) => runtime.siteOf(id);
   Set<int> get loadedIndices => runtime.loadedRows;
   int? get currentIndex => runtime.current;
 

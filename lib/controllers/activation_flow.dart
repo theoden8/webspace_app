@@ -12,6 +12,7 @@ import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/webview_state_storage.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// What [SiteActivationController] answers its flows: its own rules and
@@ -58,24 +59,28 @@ abstract interface class ActivationState {
 /// through their `page` port, and the effects that change nothing the steps
 /// do not write themselves.
 final class ActivationCalls {
-  ActivationCalls(this._r);
+  ActivationCalls(this._r, {required SitesById sites}) : _sites = sites;
 
   final ActivationReach _r;
 
-  WebViewModel? get shown => _r.sites.shown;
+  /// The site [id] names, for an answer that acts on it.
+  WebViewModel _site(SiteId id) => _sites.siteOf(id);
+  final SitesById _sites;
+
+  SiteId? get shown => _r.sites.shown?.siteId;
   List<WebViewModel> get models => _r.sites.models;
-  Iterable<WebViewModel> get pages => _r.sites.objectVars.pages;
+  Iterable<SiteId> get pages => _r.sites.vars.pages;
   Iterable<FlowKind> get kindsInFlight => _r.answers.kindsInFlight();
-  bool isEvictable(WebViewModel site) => _r.sites.objectVars.isEvictable(site);
-  WebViewModel? get liveTarget => _r.sites.objectVars.liveTarget;
-  void keepLoading(WebViewModel site) => _r.answers.keepLoading(site);
-  WebViewModel firstToEvict(List<WebViewModel> among) =>
-      _r.sites.firstToEvict(among);
-  List<WebViewModel> conflicts(WebViewModel site) =>
+  bool isEvictable(SiteId site) => _r.sites.vars.isEvictable(site);
+  SiteId? get liveTarget => _r.sites.vars.liveTarget;
+  void keepLoading(SiteId site) => _r.answers.keepLoading(_site(site));
+  SiteId firstToEvict(List<SiteId> among) =>
+      _r.sites.firstToEvict([for (final id in among) _site(id)]).siteId;
+  List<SiteId> conflicts(SiteId site) =>
       SiteUnloadEngine.conflictsOf(_r.residency, site: site);
-  List<WebViewModel> proxyContenders({required WebViewModel runsAs}) =>
+  List<SiteId> proxyContenders({required SiteId runsAs}) =>
       SiteUnloadEngine.proxyContendersOf(_r.residency, runsAs: runsAs);
-  List<WebViewModel> torDissenters({required WebViewModel runsAs}) =>
+  List<SiteId> torDissenters({required SiteId runsAs}) =>
       SiteUnloadEngine.torDissentersOf(_r.residency, runsAs: runsAs);
   ResidencyPlan residencyPlan(ResidencyEvent event) => _r.answers.residencyPlan(event);
 
@@ -84,43 +89,49 @@ final class ActivationCalls {
   void leftForHome() => _r.answers.leftForHome();
 
   /// [site] was not shown, since the jar refused its cookies (ISO-014).
-  void cookiesNotRestored(WebViewModel site) =>
-      _r.host.toast((loc) => loc.siteCookiesNotRestored(site.getDisplayName()));
-  NavCapture? beginNavCapture(WebViewModel site) => _r.answers.beginNavCapture(site);
-  Future<void> refreshRoutes({required WebViewModel active}) =>
-      _r.host.refreshRoutes(active: active);
-  Future<void> ensureSiteHtml(WebViewModel site) =>
-      _r.answers.ensureSiteHtml(site);
+  void cookiesNotRestored(SiteId site) => _r.host.toast(
+    (loc) => loc.siteCookiesNotRestored(_site(site).getDisplayName()),
+  );
+  NavCapture? beginNavCapture(SiteId site) =>
+      _r.answers.beginNavCapture(_site(site));
+  Future<void> refreshRoutes({required SiteId active}) =>
+      _r.host.refreshRoutes(active: _site(active));
+  Future<void> ensureSiteHtml(SiteId site) =>
+      _r.answers.ensureSiteHtml(_site(site));
   void rebuild() => _r.host.rebuild();
   void rebuildAndNoteBackground() => _r.host
     ..rebuild()
     ..backgroundSitesChanged();
-  void afterResume(WebViewModel site, {required int version}) =>
-      _r.answers.afterResume(site, version: version);
+  void afterResume(SiteId site, {required int version}) =>
+      _r.answers.afterResume(_site(site), version: version);
 
   /// [site]'s webview resumed, once the activation has committed.
-  Future<void> resume(WebViewModel site) => site.resumeWebView();
+  Future<void> resume(SiteId site) => _site(site).resumeWebView();
 
   /// The site left stopped and paused (SiteTeardownEngine).
-  Future<void> pause(WebViewModel site, {required int version}) =>
-      _r.answers.pause(site, version: version);
+  Future<void> pause(SiteId site, {required int version}) =>
+      _r.answers.pause(_site(site), version: version);
 
   /// The Tor exit pin follows [site] and the loaded sites (TOR-014).
-  void syncTorExitPin(WebViewModel site) {
+  void syncTorExitPin(SiteId site) {
     if (TorService.instance.isAvailable) {
-      _r.host.syncTorExitPin({site, ..._r.sites.loaded});
+      _r.host.syncTorExitPin({_site(site), ..._r.sites.loaded});
     }
   }
 }
 
-final class ActivationFlow implements Capturing, ActivationState {
+final class ActivationFlow implements Capturing, ActivationState, SitesById {
   ActivationFlow(
     this.reach, {
     required this.target,
     required this.launch,
     required this.opening,
     required this.leaving,
-  });
+  }) : _known = reach.sites.known();
+
+  /// The sites the runtime found as the flow started, for an id the flow
+  /// names after its site left the list.
+  final Map<SiteId, WebViewModel> _known;
 
   /// What the flow's steps reach of the controller that runs it, through
   /// its leaves and ports.
@@ -143,7 +154,16 @@ final class ActivationFlow implements Capturing, ActivationState {
     'page',
     reads: const {},
     changes: const {},
-    of: (w) => ActivationCalls(w.reach),
+    of: (w) => ActivationCalls(w.reach, sites: w),
+  );
+
+  /// The sites the flow's fields name by id, for the code that acts on
+  /// one: what the model does not hold of a site.
+  static final sites = Port<SitesById, ActivationFlow>(
+    'sites',
+    reads: const {},
+    changes: const {},
+    of: (w) => w,
   );
 
   /// The site's state file read for its active tab, the model's `file`.
@@ -177,7 +197,12 @@ final class ActivationFlow implements Capturing, ActivationState {
 
   /// What the unload and restore tables nested here run against.
   static final nest = Port<
-    ({ResidencyHost residency, Isolation isolation, RuntimeVars<WebViewModel> vars}),
+    ({
+      ResidencyHost residency,
+      Isolation isolation,
+      RuntimeVars<SiteId> vars,
+      SitesById sites,
+    }),
     ActivationFlow
   >(
     'nest',
@@ -186,9 +211,17 @@ final class ActivationFlow implements Capturing, ActivationState {
     of: (w) => (
       residency: w.reach.residency,
       isolation: w.reach.sites.isolation,
-      vars: w.reach.sites.objectVars,
+      vars: w.reach.sites.vars,
+      sites: w,
     ),
   );
+
+  @override
+  WebViewModel siteOf(SiteId id) {
+    final site = reach.sites.find(id) ?? _known[id];
+    assert(site != null, 'a flow names a site listed or held as it ran');
+    return site!;
+  }
 
   @override
   NavCapture? capture;

@@ -600,7 +600,7 @@ test('SHARE-017: a main-frame load ends the share its webview started', () => {
     'a popup\'s next document does not inherit its share');
   assert.match(popup, /onUnmount: \(\) \{[\s\S]*?ScreenShare\.instance\.endView\(key\)/,
     'a closed popup ends its share');
-  const model = read('lib/web_view_model.dart');
+  const model = read('lib/web_view_model_pause.dart');
   assert.match(model,
     /Future<void> stopRealCapture\(\) async \{\s*await ScreenShare\.instance\.endSite\(siteId\);/,
     'the deactivation stop ends the share itself, not through the page');

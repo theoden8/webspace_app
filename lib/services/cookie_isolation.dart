@@ -6,6 +6,7 @@ import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/tab_leaves.dart';
 import 'package:webspace/services/url_host.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/utils/concurrency.dart';
 // ignore: webspace_lints/layer_import
 import 'package:webspace/web_view_model.dart';
@@ -38,16 +39,19 @@ enum UnloadPlace {
 
 /// The model's `tier[s]`: a site's lifecycle state, which every table that
 /// moves a site between the tiers reads and writes through this.
-Indexed<WebViewModel, SiteLifecycleState, W> tierOf<W>() =>
-    Indexed.over(ModelVar.tier, cell: WebViewModel.tierCell);
+Indexed<SiteId, SiteLifecycleState, W> tierOf<W extends SitesById>() =>
+    Indexed<WebViewModel, SiteLifecycleState, W>.over(
+      ModelVar.tier,
+      cell: WebViewModel.tierCell,
+    ).keyedBy<SiteId>((w, {required key}) => w.siteOf(key));
 
 /// The model's `Base[x]`: the base domain of a site, or of a cookie
 /// ([cookieBase]), so a site's share of the jar is the cookies on its base.
-Indexed<Object, String, W> baseOf<W>() => Indexed.fixed(
+Indexed<Object, String, W> baseOf<W extends SitesById>() => Indexed.fixed(
   ModelConst.base,
-  read: (_, {required at}) => switch (at) {
-    WebViewModel(:final initUrl) => getBaseDomain(initUrl),
+  read: (w, {required at}) => switch (at) {
     Cookie() => cookieBase(at),
+    final SiteId site => getBaseDomain(w.siteOf(site).initUrl),
     _ => throw ArgumentError.value(at, 'at', 'has no base domain'),
   },
 );
@@ -62,18 +66,18 @@ String cookieBase(Cookie cookie) {
 
 /// The model's `Incognito`: the sites that keep nothing to capture or
 /// restore, and conflict with no other on the shared jar.
-Members<WebViewModel, W> incognitoOf<W>() => Members(
+Members<SiteId, W> incognitoOf<W extends SitesById>() => Members(
   ModelConst.incognito,
-  test: (_, {required member}) => member.effectiveIncognito,
+  test: (w, {required member}) => w.siteOf(member).effectiveIncognito,
 );
 
 /// The variables an unload's dispose reads in world [W]: the loaded sites
 /// it writes, and what says whether its victim may go.
 typedef UnloadLeaves<W> = ({
-  Mutable<Iterable<WebViewModel>, W> loaded,
+  Mutable<Iterable<SiteId>, W> loaded,
   Expr<bool, W> picked,
-  Expr<WebViewModel?, W> current,
-  Expr<WebViewModel?, W> liveTarget,
+  Expr<SiteId?, W> current,
+  Expr<SiteId?, W> liveTarget,
 });
 
 /// The webview goes: the site leaves [UnloadLeaves.loaded] and moves to
@@ -84,8 +88,8 @@ typedef UnloadLeaves<W> = ({
 /// asserts here (PAUSE-006, BUG-033). Every flow of the model has a kind;
 /// a plan outside it (a settings save, a tab's, a home reset) keeps its
 /// own staleness and is not held to the invariant.
-Act<W> disposeOf<W>(
-  Field<WebViewModel, W> victim, {
+Act<W> disposeOf<W extends SitesById>(
+  Field<SiteId, W> victim, {
   required UnloadLeaves<W> over,
   required void Function(StepView<W> c) then,
 }) {
@@ -103,7 +107,7 @@ Act<W> disposeOf<W>(
         victim.value,
         to: Expr.constant(SiteLifecycleState.savedForRestore, tla: '"saved"'),
       ),
-      ...webViewGone<WebViewModel, W>(victim.value),
+      ...webViewGone<SiteId, W>(victim.value),
       ghost(
         ModelVar.evictedShown,
         never:
@@ -116,7 +120,12 @@ Act<W> disposeOf<W>(
       ),
     ],
     then: (c) {
-      final site = victim.of(c);
+      final site = Port<SitesById, W>(
+        'sites',
+        reads: const {},
+        changes: const {},
+        of: (w) => w,
+      ).from(c).siteOf(victim.of(c));
       site.disposeWebView(commit: c.commit);
       LogTag.cookieIsolation.debug(
         'Disposed webview for "${site.name}"',
@@ -146,7 +155,7 @@ Act<W> evictedMid<W>() => modelOnly(
 /// Back to the unload engine's loop over its plan: the victim is spent, and
 /// the flow remembers that it disposed a site.
 List<Effect<W>> unloadReturn<W>(
-  Field<WebViewModel, W> victim, {
+  Field<SiteId, W> victim, {
   required bool disposed,
 }) => [
   victim.cleared(none: 0),
@@ -253,14 +262,14 @@ class CookieIsolationEngine {
 
   Future<List<Cookie>> _loadStored(
     JarTurn turn, {
-    required WebViewModel site,
-  }) => _storage.loadCookiesForSite(site.siteId);
+    required SiteId site,
+  }) => _storage.loadCookiesForSite(site);
 
   Future<void> _saveStored(
     JarTurn turn, {
-    required WebViewModel site,
+    required SiteId site,
     required List<Cookie> cookies,
-  }) => _storage.saveCookiesForSite(site.siteId, cookies: cookies);
+  }) => _storage.saveCookiesForSite(site, cookies: cookies);
 
   /// Empties the jar in its turn when no site is loaded then: at launch,
   /// queued before any site can be tapped, which makes it the jar's first
@@ -290,7 +299,7 @@ class CookieIsolationEngine {
   /// is, and the unload goes on: what unloads a site (a conflict, a cap,
   /// memory) does not wait for the jar (ISO-014).
   Future<void> unloadSiteForDomainSwitch({
-    required WebViewModel site,
+    required SiteId site,
     required UnloadWorld world,
   }) async {
     final flow = StepContext(world);
@@ -331,11 +340,14 @@ class CookieIsolationEngine {
   /// to run first, so the jar holds all of the stored sets the platform
   /// takes.
   Future<bool> restoreCookiesForSite({
-    required WebViewModel site,
-    required RuntimeVars<WebViewModel> vars,
+    required SiteId site,
+    required RuntimeVars<SiteId> vars,
+    required SitesById sites,
     required int versionAtEntry,
   }) async {
-    final flow = StepContext(RestoreWorld(engine: this, vars: vars));
+    final flow = StepContext(
+      RestoreWorld(engine: this, vars: vars, sites: sites),
+    );
     _target.put(flow, value: site);
     _v.put(flow, value: versionAtEntry);
     await restoreInTurn(flow, from: RestorePlace.rTurn);
@@ -380,10 +392,10 @@ class CookieIsolationEngine {
   /// and the stored sessions, the platform's, which only a call reaches.
   static Var<Object?, W> _turnHolder<W extends JarWorld>() =>
       Var(ModelVar.holder, read: (w) => w.engine._holder);
-  static Mutable<Iterable<WebViewModel>, W> _loaded<W extends JarWorld>() =>
+  static Mutable<Iterable<SiteId>, W> _loaded<W extends JarWorld>() =>
       Mutable.over(ModelVar.loaded, of: (w) => w.vars.loaded);
   static Mutable<List<Cookie>, W> _jar<W>() => Mutable.remote(ModelVar.jar);
-  static Indexed<WebViewModel, List<Cookie>, W> _stored<W>() =>
+  static Indexed<SiteId, List<Cookie>, W> _stored<W>() =>
       Indexed.remote(ModelVar.stored);
 
   /// The platform's jar as a step in the turn reaches it.
@@ -391,7 +403,7 @@ class CookieIsolationEngine {
     'jar',
     reads: {ModelVar.jar},
     changes: {ModelVar.jar},
-    of: (w) => _JarCalls(engine: w.engine, turn: w.turn),
+    of: (w) => _JarCalls(engine: w.engine, turn: w.turn, sites: w.sites),
   );
 
   /// The stored sessions as a step in the turn reaches them.
@@ -399,8 +411,18 @@ class CookieIsolationEngine {
     'stored',
     reads: {ModelVar.stored},
     changes: {ModelVar.stored},
-    of: (w) => _StoredCalls(engine: w.engine, turn: w.turn),
+    of: (w) => _StoredCalls(engine: w.engine, turn: w.turn, sites: w.sites),
   );
+
+  /// The sites a step in the turn acts on, by the ids its fields hold, for
+  /// what the model does not hold of them: a name for the log, the share
+  /// kept in memory.
+  static Port<SitesById, W> _sitesPort<W extends JarWorld>() =>
+      Port('sites', reads: const {}, changes: const {}, of: (w) => w.sites);
+  static WebViewModel _siteIn<W extends JarWorld>(
+    StepView<W> c, {
+    required SiteId id,
+  }) => _sitesPort<W>().from(c).siteOf(id);
 
   /// Past the step that grants it, a flow holds the jar's turn: no other
   /// operation reads or writes the jar meanwhile (ISO-003).
@@ -416,13 +438,13 @@ class CookieIsolationEngine {
   static const jarRefusal = Refusal<CookieJarFailure>();
 
   /// An incognito site keeps nothing to capture or restore.
-  static Expr<bool, W> _incognito<W>(Expr<WebViewModel, W> site) =>
+  static Expr<bool, W> _incognito<W extends SitesById>(Expr<SiteId, W> site) =>
       incognitoOf<W>().has(site);
 
   /// A site's share of the jar: the cookies on its base domain, which in
   /// the model are the sessions of the sites on that domain.
-  static Def<List<Cookie>, W> share<W>() {
-    final s = Bound<WebViewModel, W>('s');
+  static Def<List<Cookie>, W> share<W extends SitesById>() {
+    final s = Bound<SiteId, W>('s');
     final cookies = Bound<List<Cookie>, W>('cookies');
     final x = Bound<Cookie, W>('x');
     final base = baseOf<W>();
@@ -433,8 +455,8 @@ class CookieIsolationEngine {
     );
   }
 
-  static Expr<List<Cookie>, W> _shareOf<W>(
-    Expr<WebViewModel, W> site, {
+  static Expr<List<Cookie>, W> _shareOf<W extends SitesById>(
+    Expr<SiteId, W> site, {
     required Expr<List<Cookie>, W> of,
   }) => share<W>().call([site, of]);
 
@@ -443,7 +465,7 @@ class CookieIsolationEngine {
   static Act<W> _release<W>() => Lock.jar.release();
 
   static const _unloadSnap = Field<List<Cookie>, UnloadWorld>(FlowField.snap);
-  static const _victim = Field<WebViewModel, UnloadWorld>(FlowField.victim);
+  static const _victim = Field<SiteId, UnloadWorld>(FlowField.victim);
   /// The unload engine's answers about the victim, which change nothing the
   /// model holds: the definitions it owns, run by name, and the note of a
   /// dispose.
@@ -453,7 +475,7 @@ class CookieIsolationEngine {
     changes: const {},
     of: (w) => w.answers,
   );
-  static final _unloadVars = RuntimeVars.port<WebViewModel, UnloadWorld>(
+  static final _unloadVars = RuntimeVars.port<SiteId, UnloadWorld>(
     reads: {ModelVar.marker, ModelVar.version},
     of: (w) => w.vars,
   );
@@ -465,7 +487,7 @@ class CookieIsolationEngine {
     over: (
       loaded: _loaded(),
       picked: ModelDef.picked.ofFlow(run: (c) => _unload.from(c).picked()),
-      current: Var<WebViewModel?, UnloadWorld>(
+      current: Var<SiteId?, UnloadWorld>(
         ModelVar.current,
         read: (w) => w.vars.current.value,
       ).value,
@@ -549,8 +571,8 @@ class CookieIsolationEngine {
             _takeTurn(),
             Note(
               (c) => LogTag.cookieIsolation.debug(
-                'Unloading site "${_victim.of(c).name}" '
-                '(siteId: ${_victim.of(c).siteId})',
+                'Unloading site "${_siteIn(c, id: _victim.of(c)).name}" '
+                '(siteId: ${_victim.of(c)})',
                 sensitive: true,
               ),
             ),
@@ -584,7 +606,7 @@ class CookieIsolationEngine {
           then: [
             Note(
               (c) => LogTag.cookieIsolation.warning(
-                'Capture for "${_victim.of(c).name}" failed, its stored '
+                'Capture for "${_siteIn(c, id: _victim.of(c)).name}" failed, its stored '
                 'cookies stay',
                 sensitive: true,
               ),
@@ -600,10 +622,10 @@ class CookieIsolationEngine {
           _storedPort(),
           run: (c) async {
             final victim = _victim.of(c);
-            victim.cookies = _shareOf(_victim.value, of: _unloadSnap.value).run(c);
-            await c.api.save(site: victim, cookies: victim.cookies);
+            final share = _shareOf(_victim.value, of: _unloadSnap.value).run(c);
+            await c.api.save(site: victim, cookies: share);
             LogTag.cookieIsolation.debug(
-              'Captured ${victim.cookies.length} cookies for "${victim.name}"',
+              'Captured ${share.length} cookies for site $victim',
               sensitive: true,
             );
           },
@@ -640,20 +662,20 @@ class CookieIsolationEngine {
 
   /// The sites loaded as the restore took its turn, incognito ones too:
   /// every one shares the jar the restore empties.
-  static const _ls = Field<List<WebViewModel>, RestoreWorld>(FlowField.ls);
+  static const _ls = Field<List<SiteId>, RestoreWorld>(FlowField.ls);
   static const _snap = Field<List<Cookie>, RestoreWorld>(FlowField.snap);
-  static const _todo = Field<List<WebViewModel>, RestoreWorld>(FlowField.todo);
+  static const _todo = Field<List<SiteId>, RestoreWorld>(FlowField.todo);
 
   /// The sites whose shares a capture saves, in its `ls` field: an
   /// incognito site's is held in memory only (INC-001).
-  static Expr<List<WebViewModel>, W> _savesOf<W>() =>
-      Field<List<WebViewModel>, W>(FlowField.ls).value.minus(incognitoOf());
+  static Expr<List<SiteId>, W> _savesOf<W extends SitesById>() =>
+      Field<List<SiteId>, W>(FlowField.ls).value.minus(incognitoOf());
 
   /// A loaded incognito site keeps its share of the snapshot in memory, to
   /// be set back once the jar is emptied (INC-001).
-  static Note<W> _holdIncognito<W>() {
-    final u = Bound<WebViewModel, W>('u');
-    final shares = Field<List<WebViewModel>, W>(FlowField.ls).value
+  static Note<W> _holdIncognito<W extends JarWorld>() {
+    final u = Bound<SiteId, W>('u');
+    final shares = Field<List<SiteId>, W>(FlowField.ls).value
         .where(u, holds: incognitoOf<W>().has(u.it))
         .mapTo(
           u,
@@ -661,7 +683,7 @@ class CookieIsolationEngine {
         );
     return Note<W>((c) {
       for (final MapEntry(key: site, value: cookies) in shares.run(c).entries) {
-        site.cookies = cookies;
+        _siteIn(c, id: site).cookies = cookies;
       }
     });
   }
@@ -677,12 +699,12 @@ class CookieIsolationEngine {
     required ({ActivationStep snap, ActivationStep save}) marks,
     required P save,
     required P nuke,
-    required List<WebViewModel> Function(StepView<W> c) urlsOf,
+    required List<SiteId> Function(StepView<W> c) urlsOf,
     required ({Expr<bool, W> when, P to})? stale,
     required Refused<W, P> refused,
   }) {
     final snap = Field<List<Cookie>, W>(FlowField.snap);
-    final todo = Field<List<WebViewModel>, W>(FlowField.todo);
+    final todo = Field<List<SiteId>, W>(FlowField.todo);
     final saves = _savesOf<W>();
     final each = Pick(todo.value);
     final picked = each.it;
@@ -723,11 +745,10 @@ class CookieIsolationEngine {
         pick: each,
         call: Call.on(
           _storedPort(),
-          run: (c) {
-            final site = picked.run(c);
-            site.cookies = _shareOf(picked, of: snap.value).run(c);
-            return c.api.save(site: site, cookies: site.cookies);
-          },
+          run: (c) => c.api.save(
+            site: picked.run(c),
+            cookies: _shareOf(picked, of: snap.value).run(c),
+          ),
           writes: [
             _stored<W>().except(picked, to: _shareOf(picked, of: snap.value)),
           ],
@@ -775,7 +796,7 @@ class CookieIsolationEngine {
     refused: refused,
   );
   static const _tmp = Field<List<Cookie>, RestoreWorld>(FlowField.tmp);
-  static const _target = Field<WebViewModel, RestoreWorld>(FlowField.site);
+  static const _target = Field<SiteId, RestoreWorld>(FlowField.site);
   static const _unrestored = Field<bool, RestoreWorld>(FlowField.unrestored);
   static const _v = Field<int, RestoreWorld>(FlowField.v);
   static final _version = Var<int, RestoreWorld>(
@@ -807,7 +828,7 @@ class CookieIsolationEngine {
       ..._restoreEnd,
       Note(
         (c) => LogTag.cookieIsolation.error(
-          'Restore for "${_target.of(c).name}" failed at the $at, not '
+          'Restore for "${_siteIn(c, id: _target.of(c)).name}" failed at the $at, not '
           'shown',
           sensitive: true,
         ),
@@ -819,7 +840,7 @@ class CookieIsolationEngine {
   /// The jar refused a write of the refill: the rest is still written, and
   /// then the target is not shown (ISO-014).
   static Refused<RestoreWorld, RestorePlace> _refusedSet({
-    required Expr<List<WebViewModel>, RestoreWorld> todo,
+    required Expr<List<SiteId>, RestoreWorld> todo,
   }) => Refused(
     refusal: jarRefusal,
     when: _jarRefuses(),
@@ -828,7 +849,8 @@ class CookieIsolationEngine {
       _todo.becomes(todo),
       Note(
         (c) => LogTag.cookieIsolation.error(
-          'Restore for "${_target.of(c).name}" refused a cookie, not shown',
+          'Restore for "${_siteIn(c, id: _target.of(c)).name}" refused a cookie, '
+          'not shown',
           sensitive: true,
         ),
       ),
@@ -857,7 +879,7 @@ class CookieIsolationEngine {
     urlsOf: (c) {
       final ls = _ls.of(c);
       final target = _target.of(c);
-      return [...ls, if (!ls.hasKey(target)) target];
+      return [...ls, if (!ls.contains(target)) target];
     },
     stale: (when: _restoreStale, to: RestorePlace.exit),
     refused: _refusedEnd(at: 'snapshot'),
@@ -913,10 +935,8 @@ class CookieIsolationEngine {
           run: (c) async {
             final target = _target.of(c);
             final cookies = await c.api.load(site: target);
-            target.cookies = cookies;
             LogTag.cookieIsolation.debug(
-              'Restoring ${cookies.length} cookies for "${target.name}" '
-              '(siteId: ${target.siteId})',
+              'Restoring ${cookies.length} cookies for site $target',
               sensitive: true,
             );
             return cookies;
@@ -962,10 +982,7 @@ class CookieIsolationEngine {
         pick: _eachTodo,
         call: Call.on(
           _jarPort(),
-          run: (c) {
-            final site = _picked.run(c);
-            return c.api.set(site: site, cookies: site.cookies);
-          },
+          run: (c) => c.api.setKept(site: _picked.run(c)),
           writes: [
             _jar<RestoreWorld>().becomes(
               _jar<RestoreWorld>().value.union(
@@ -1031,7 +1048,7 @@ class CookieIsolationEngine {
     required WebViewModel deletedModel,
     required Iterable<WebViewModel> loaded,
   }) async {
-    await _saveStored(turn, site: deletedModel, cookies: []);
+    await _saveStored(turn, site: deletedModel.siteId, cookies: []);
     try {
       await _clearDeletedFromJar(
         turn,
@@ -1158,13 +1175,18 @@ final class JarTurn {
 /// The operations a step in the jar's turn makes on the platform's jar:
 /// what the jar's port hands a call.
 final class _JarCalls {
-  const _JarCalls({required this._engine, required this._turn});
+  const _JarCalls({
+    required this._engine,
+    required this._turn,
+    required this._sites,
+  });
 
   final CookieIsolationEngine _engine;
   final JarTurn _turn;
+  final SitesById _sites;
 
-  Future<List<Cookie>> snapshot({required Iterable<WebViewModel> of}) =>
-      _engine._snapshot(_turn, of: of);
+  Future<List<Cookie>> snapshot({required Iterable<SiteId> of}) =>
+      _engine._snapshot(_turn, of: [for (final id in of) _sites.siteOf(id)]);
 
   Future<void> empty() async {
     await _engine._empty(_turn);
@@ -1174,49 +1196,79 @@ final class _JarCalls {
   /// A refill's write: fails with the first cookie the jar refused, once
   /// the rest are written.
   Future<void> set({
-    required WebViewModel site,
+    required SiteId site,
     required List<Cookie> cookies,
   }) async {
-    if (await _engine._setCookies(_turn, site: site, cookies: cookies)
+    if (await _engine._setCookies(
+          _turn,
+          site: _sites.siteOf(site),
+          cookies: cookies,
+        )
         case final refused?) {
       throw refused;
     }
   }
+
+  /// [set] with the share [site] keeps in memory, which its capture or
+  /// the restore's load left on it.
+  Future<void> setKept({required SiteId site}) =>
+      set(site: site, cookies: _sites.siteOf(site).cookies);
 }
 
 /// The operations a step in the jar's turn makes on the stored sessions:
 /// what the stored sessions' port hands a call.
 final class _StoredCalls {
-  const _StoredCalls({required this._engine, required this._turn});
+  const _StoredCalls({
+    required this._engine,
+    required this._turn,
+    required this._sites,
+  });
 
   final CookieIsolationEngine _engine;
   final JarTurn _turn;
+  final SitesById _sites;
 
-  Future<void> save({
-    required WebViewModel site,
-    required List<Cookie> cookies,
-  }) => _engine._saveStored(_turn, site: site, cookies: cookies);
+  /// [cookies] kept on [site] in memory and saved as its stored session.
+  Future<void> save({required SiteId site, required List<Cookie> cookies}) {
+    _sites.siteOf(site).cookies = cookies;
+    return _engine._saveStored(_turn, site: site, cookies: cookies);
+  }
 
-  Future<List<Cookie>> load({required WebViewModel site}) =>
-      _engine._loadStored(_turn, site: site);
+  /// [site]'s stored session, kept on it in memory too.
+  Future<List<Cookie>> load({required SiteId site}) async {
+    final cookies = await _engine._loadStored(_turn, site: site);
+    _sites.siteOf(site).cookies = cookies;
+    return cookies;
+  }
 }
 
-abstract base class JarWorld {
+abstract base class JarWorld implements SitesById {
   CookieIsolationEngine get engine;
-  RuntimeVars<WebViewModel> get vars;
+  RuntimeVars<SiteId> get vars;
+  SitesById get sites;
   late final JarTurn turn;
+
+  @override
+  WebViewModel siteOf(SiteId id) => sites.siteOf(id);
 }
 
 /// What the jar's unload steps run against: the unload engine's flow seen
 /// from the jar ([SiteUnloadEngine.unloadFlow] nests them), the victim in
 /// the flow's `victim` field, and the engine's answers about it.
 final class UnloadWorld extends JarWorld {
-  UnloadWorld({required this.engine, required this.vars, required this.answers});
+  UnloadWorld({
+    required this.engine,
+    required this.vars,
+    required this.sites,
+    required this.answers,
+  });
 
   @override
   final CookieIsolationEngine engine;
   @override
-  final RuntimeVars<WebViewModel> vars;
+  final RuntimeVars<SiteId> vars;
+  @override
+  final SitesById sites;
   final UnloadAnswers answers;
 }
 
@@ -1239,10 +1291,12 @@ typedef UnloadAnswers = ({
 
 /// What a restore's steps run against.
 final class RestoreWorld extends JarWorld {
-  RestoreWorld({required this.engine, required this.vars});
+  RestoreWorld({required this.engine, required this.vars, required this.sites});
 
   @override
   final CookieIsolationEngine engine;
   @override
-  final RuntimeVars<WebViewModel> vars;
+  final RuntimeVars<SiteId> vars;
+  @override
+  final SitesById sites;
 }
