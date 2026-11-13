@@ -248,6 +248,22 @@ enum ActivationWorld {
         "site 1's tabs on the shared jar from launch: a preloaded webview "
         'shows its active tab (TAB-003)',
   ),
+  // No input lands: a pair it takes is the environment's alone, so the
+  // printed worlds keep every input they allow.
+  tabsRebuild(
+    cookies: Cookies.sharedJar,
+    coldStart: false,
+    inputs: 1,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {Env.rebuildOne},
+    allowed: {},
+    invariants: [..._core, ..._jar, ..._tabs],
+    holds:
+        "site 1's tabs on the shared jar, its webview let go of and framed "
+        'again: the frame binds its active tab and shows its history '
+        '(TAB-003)',
+  ),
   coldstart(
     cookies: Cookies.sharedJar,
     coldStart: true,
@@ -1329,6 +1345,14 @@ enum Mutant {
     doc:
         "a preload's frame that sees its site unloaded binds no tab, so the "
         'webview it builds shows none (caught)',
+  ),
+  reframeunbound(
+    world: ActivationWorld.tabsRebuild,
+    by: Inv.tabActive,
+    doc:
+        "a let-go webview's frame that shows the active tab and takes the "
+        'queue but binds no tab: a loaded site with no webview shows a '
+        'history (caught)',
   ),
   preloadbare(
     world: ActivationWorld.coldstart,

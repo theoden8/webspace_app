@@ -184,6 +184,7 @@ activation_reach_wakebeside	76
 activation_reach_wakeskips	8
 activation_rebindskipsclose	28
 activation_recapture	146
+activation_reframeunbound	4
 activation_reopenbesidenested	252
 activation_rerouteinplace	408
 activation_reset	596
@@ -212,6 +213,7 @@ activation_tabs_cold	11154
 activation_tabs_containers	1510
 activation_tabs_dns_proxy_containers	184
 activation_tabs_owner_run_containers	104
+activation_tabs_rebuild	4
 activation_tabs_reroute_containers	5560
 activation_tabs_reroute_router_containers	636
 activation_tabs_reroute_tor_containers	3598

@@ -3,6 +3,32 @@
 // (`planted`).
 part of 'models.dart';
 
+/// The frame [framed] without its write of `built`: what it shows and takes
+/// stays, and the code it runs, its build, is the same.
+Act<FrameWorld> _unbound(
+  Act<FrameWorld> framed, {
+  required Expr<Object?, FrameWorld> site,
+}) {
+  final loaded = Mutable<Iterable<SiteId>, FrameWorld>.remote(
+    ModelVar.loaded,
+  ).value;
+  final keys = TabVars.ids<FrameWorld>();
+  final kept = Act.of([
+    TabVars.hist<SiteId, FrameWorld>().becomes(
+      TabVars.shown<SiteId, FrameWorld>(keys: keys).call([site, loaded]),
+    ),
+    TabVars.queued<SiteId, FrameWorld>().becomes(
+      TabVars.taken<SiteId, FrameWorld>().call([site, loaded]),
+    ),
+  ]);
+  return Act(
+    writes: kept.writes,
+    tla: kept.tla,
+    reads: kept.reads,
+    run: framed.run,
+  );
+}
+
 /// [ops] with the definition named as [def] replaced by it.
 List<Def<Object?, Object?>> _withDef(
   List<Def<Object?, Object?>> ops, {
@@ -726,6 +752,28 @@ Tables mutated(Mutant m) => switch (m) {
               next: b.next,
             ),
         ],
+      ),
+    ),
+  ),
+  // The frame of a let-go webview shows its active tab and takes the queue
+  // but binds no tab: the code's build is the same, its declaration not.
+  Mutant.reframeunbound => _with(
+    frame: _withArms(
+      tables.frame,
+      step: ActivationStep.reframe,
+      arms: (s) => s.withArms(
+        otherwise: Otherwise(
+          s.otherwise.outcome,
+          site: s.otherwise.site,
+          then: [
+            for (final e in s.otherwise.then)
+              if (e is Act<FrameWorld> && e.writes.contains(ModelVar.built))
+                _unbound(e, site: s.site!)
+              else
+                e,
+          ],
+          next: s.otherwise.next,
+        ),
       ),
     ),
   ),
