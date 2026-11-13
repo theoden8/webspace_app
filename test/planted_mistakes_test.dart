@@ -447,6 +447,17 @@ _Catch _catching(Mutant m) => switch (m) {
     'describes as writes of `built`, `hist` and `queued` the platform holds: '
     'planting it changes no code',
   ),
+  Mutant.reframeunbound => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      deletes: true,
+      tabbed: true,
+      declared: d,
+    ),
+    setup: const [Tap(0)],
+    script: const [RendererGone(0)],
+    breaks: 'changed built, which it does not write',
+  ),
   Mutant.foldbeforelevel => _By(
     world: (d) => ActivationWorld(_mixed, dns: _dnsSites, declared: d),
     setup: const [Tap(0)],
