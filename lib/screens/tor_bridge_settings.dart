@@ -109,9 +109,9 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
   /// Storage first: if the write fails there is nothing to tell tor about,
   /// and reporting success on a configuration that did not survive a restart
   /// would be a lie the user only discovers on the next launch.
-  Future<void> _commit(TorBridgeConfig next) => _guard.run(() => _save(next));
+  Future<void> _commit(TorBridgeConfig next) => _guard.run(() => _persist(next));
 
-  Future<void> _save(TorBridgeConfig next) async {
+  Future<void> _persist(TorBridgeConfig next) async {
     final saved = await _storage.save(next);
     if (!mounted) return;
     if (!saved) return _settle();
@@ -173,7 +173,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
       final lines = (attempt as MoatBridgesObtained).lines;
       if (!mounted) return;
       setState(() => _message = null);
-      await _save(_config.copyWith(
+      await _persist(_config.copyWith(
         enabled: true,
         transport: lines.first.transport,
         lines: [..._config.lines, ...lines],
