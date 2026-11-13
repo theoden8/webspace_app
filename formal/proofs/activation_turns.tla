@@ -126,14 +126,8 @@ LEMMA StepInd == Good /\ IndInv /\ [Next]_vars => IndInv'
       BY DEF LetGo, turn
     <2> QED
       BY <2>1, KeepsTurns
-  <1>9. CASE \E s \in Sites : Reframe(s)
-    <2> PICK s \in Sites : Reframe(s)
-      BY <1>9
-    <2>1. inputs' = inputs /\ fl' = fl /\ holder' = holder
-          /\ dnsHolder' = dnsHolder
-      BY DEF Reframe, turn
-    <2> QED
-      BY <2>1, KeepsTurns
+  <1>9. CASE EnvTableStep
+    BY <1>9, EnvStepInd
   <1> QED
     BY <1>1, <1>2, <1>3, <1>4, <1>5, <1>6, <1>7, <1>8, <1>9 DEF Next
 

@@ -305,22 +305,6 @@ LetGo(s) ==
                     queued, file, minted, host, link, opener, blocking,
                     archived >>
 
-\* The frame builds a let-go site's webview again, for its active tab and
-\* from the back stack queued for it, as a commit's frame does
-\* (WebViewModel.getWebView).
-Reframe(s) ==
-    /\ Calm
-    /\ s \in Rebuilt
-    /\ s \in loaded
-    /\ s \in Tabbed
-    /\ built[s] = 0
-    /\ built' = Bound(s, loaded)
-    /\ hist' = Shown(s, loaded)
-    /\ queued' = Taken(s, loaded)
-    /\ Did("Reframe", 0, "", s)
-    /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabs, active,
-                    file, minted, host, link, opener, blocking, archived >>
-
 -----------------------------------------------------------------------------
 
 \* Every flow finished and the launch clear run: a behavior may end there,
@@ -349,7 +333,9 @@ Next ==
     \/ \E s \in Sites : ViewBuilt(s) \/ ViewGone(s)
     \/ \E s \in Sites : Frame(s)
     \/ \E s \in Sites : LetGo(s)
-    \/ \E s \in Sites : Reframe(s)
+    \* The environment's actions the tables print: the frame of a let-go
+    \* site's webview (FrameTable).
+    \/ EnvTableStep
     \/ ClearJar
     \/ Done
 
