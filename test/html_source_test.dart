@@ -136,4 +136,35 @@ void main() {
       }
     });
   });
+
+  // The settings screen read its own rule, which knew only the archive, and
+  // showed caching on for an incognito or imported site the webview never
+  // caches. Both now read this one.
+  test('HTML caching is in effect only for a cached site on an engine that '
+      'loads from its cache', () {
+    for (final (incognito, archived, url, stored, engineCan, inEffect) in [
+      (false, false, 'https://example.com', true, true, true),
+      (false, false, 'https://example.com', false, true, false),
+      (true, false, 'https://example.com', true, true, false),
+      (false, true, 'https://example.com', true, true, false),
+      (false, false, 'file:///import.html', true, true, false),
+      (false, false, 'https://example.com', true, false, false),
+    ]) {
+      final source = htmlSourceFor(
+          incognito: incognito, isArchiveTier: archived, initUrl: url);
+      expect(
+          htmlCachingInEffect(source, stored: stored, engineCan: engineCan),
+          inEffect,
+          reason: 'incognito=$incognito archived=$archived $url '
+              'stored=$stored engineCan=$engineCan');
+      if (inEffect) {
+        expect(
+            loadsCacheFirst(source,
+                htmlCaching: stored, online: true, engineCan: engineCan),
+            isTrue,
+            reason: 'the webview loads cache-first wherever the screen shows '
+                'caching on');
+      }
+    }
+  });
 }

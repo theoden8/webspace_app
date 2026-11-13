@@ -86,6 +86,7 @@ import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/html_source.dart';
 
 class GalleryCard {
   const GalleryCard({
@@ -1077,6 +1078,7 @@ Widget _siteBehaviour(BuildContext _) {
       kioskMode: false,
       fullscreenMode: false,
       htmlCachingEnabled: false,
+      htmlSource: HtmlSource.cache,
       externalLinkMode: Own(ExternalLinkMode.inApp),
       routeOutboundLinks: true,
     ),
@@ -1307,6 +1309,7 @@ Widget _siteBehaviourSearch(BuildContext _) => SiteBehaviourScreen(
         kioskMode: false,
         fullscreenMode: false,
         htmlCachingEnabled: false,
+        htmlSource: HtmlSource.cache,
         routeOutboundLinks: false,
         searchSites: [SiteId('ddg-work'), SiteId('ddg-home')],
       ),

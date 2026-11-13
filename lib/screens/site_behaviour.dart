@@ -35,6 +35,7 @@ class SiteBehaviourValues {
     required this.kioskMode,
     required this.fullscreenMode,
     required this.htmlCachingEnabled,
+    required this.htmlSource,
     this.externalLinkMode = const FollowApp(),
     this.tabsEnabled = const FollowApp(),
     this.routeOutboundLinks = false,
@@ -54,6 +55,10 @@ class SiteBehaviourValues {
   final bool fullscreenMode;
   final Scoped<bool> tabsEnabled;
   final bool htmlCachingEnabled;
+
+  /// Where the site's HTML comes from (`htmlSourceFor`), which decides
+  /// whether HTML caching can be in effect at all.
+  final HtmlSource htmlSource;
   final Scoped<ExternalLinkMode> externalLinkMode;
   final bool routeOutboundLinks;
   final List<OutboundPreference> outboundPreferences;
@@ -89,6 +94,7 @@ class SiteBehaviourValues {
         fullscreenMode: fullscreenMode ?? this.fullscreenMode,
         tabsEnabled: tabsEnabled ?? this.tabsEnabled,
         htmlCachingEnabled: htmlCachingEnabled ?? this.htmlCachingEnabled,
+        htmlSource: htmlSource,
         externalLinkMode: externalLinkMode ?? this.externalLinkMode,
         routeOutboundLinks: routeOutboundLinks ?? this.routeOutboundLinks,
         outboundPreferences: outboundPreferences ?? this.outboundPreferences,
@@ -119,8 +125,8 @@ class SiteBehaviourValues {
       mode: effectiveExternalLinkMode);
 
   bool get effectiveHtmlCaching =>
-      engineLoadsCacheFirst &&
-      ArchiveFold.htmlCaching(stored: htmlCachingEnabled, archived: archived);
+      htmlCachingInEffect(htmlSource,
+          stored: htmlCachingEnabled, engineCan: engineLoadsCacheFirst);
 
   ExternalLinkMode get effectiveExternalLinkMode =>
       ArchiveFold.externalLinks(

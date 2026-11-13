@@ -61,6 +61,7 @@ import 'package:webspace/widgets/site_permission_badges.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
 import 'package:webspace/services/step_table.dart';
+import 'package:webspace/services/html_source.dart';
 
 const List<MapEntry<String?, String>> _languages = [
   MapEntry(null, 'System default'),
@@ -840,6 +841,11 @@ class _SettingsScreenState extends State<SettingsScreen>
         fullscreenMode: _fullscreenMode,
         tabsEnabled: Scoped.fromStored(_tabsEnabled),
         htmlCachingEnabled: _htmlCachingEnabled,
+        htmlSource: htmlSourceFor(
+          incognito: _incognito,
+          isArchiveTier: _archived,
+          initUrl: widget.webViewModel.initUrl,
+        ),
         externalLinkMode: Scoped.fromStored(_externalLinkMode),
         routeOutboundLinks: _routeOutboundLinks,
         outboundPreferences: _outboundPreferences,

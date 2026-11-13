@@ -39,6 +39,7 @@ SiteBehaviourValues _values({
       fullscreenMode: fullscreenMode,
       tabsEnabled: Scoped.fromStored(tabsEnabled),
       htmlCachingEnabled: htmlCaching,
+      htmlSource: HtmlSource.cache,
       externalLinkMode: Scoped.fromStored(externalLinkMode),
       routeOutboundLinks: routeOutboundLinks,
       outboundPreferences: outboundPreferences,
