@@ -248,7 +248,8 @@ function plantedScript(t, { from, to }) {
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const formal = path.join(dir, 'formal');
   fs.mkdirSync(path.join(formal, 'proofs'), { recursive: true });
-  for (const [folder, kept] of [['formal', /\.tla$/], ['formal/proofs', /\.(tla|py)$/]]) {
+  // tla_text.py: integrity.py reads module text through it.
+  for (const [folder, kept] of [['formal', /\.tla$|^tla_text\.py$/], ['formal/proofs', /\.(tla|py)$/]]) {
     for (const name of fs.readdirSync(path.join(root, folder)).filter((n) => kept.test(n))) {
       fs.copyFileSync(path.join(root, folder, name), path.join(dir, folder, name));
     }
