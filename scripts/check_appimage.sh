@@ -3,10 +3,14 @@
 # file in it links resolves inside it, but those linux/appimage/excludelist
 # leaves to the machine, so nothing it runs depends on the build host's
 # libraries. Then runs it with one site, in a home of its own and a session bus
-# of its own: the app owns its application ID on the bus, a second launch with
-# a webspace://open link hands it over and exits (PLATFORM-011), and the site's
-# page is requested, with WebKit's web and network processes started from the
-# bundle (linux/wpe_root.patch), not from /usr.
+# of its own: launched with a webspace://open link to the site, the app owns
+# its application ID on the bus, a second launch hands over and exits
+# (PLATFORM-011), and the site's page is requested, with WebKit's web and
+# network processes started from the bundle (linux/wpe_root.patch), not from
+# /usr. The link goes to the first launch: the app reads a handed-over link at
+# its cold launch and then on a resume, which a display with no window manager
+# never gives it, and the AppImage starts fast enough to have read before a
+# second launch's arrives.
 #
 #   scripts/check_appimage.sh APPDIR [APPIMAGE]
 #
@@ -99,7 +103,8 @@ owned() {
   grep -q true <<<"$reply"
 }
 
-"${run[@]}" > "$work/app.log" 2>&1 &
+link="webspace://open?url=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$url")"
+"${run[@]}" "$link" > "$work/app.log" 2>&1 &
 app=$!
 pids+=("$app")
 for _ in $(seq 90); do
@@ -111,9 +116,8 @@ kill -0 "$app" 2>/dev/null || fail "the app exited"
 owned || fail "the app does not own $id on the session bus"
 echo "the app runs and owns $id"
 
-link="webspace://open?url=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$url")"
 start=$SECONDS
-timeout 30 "${run[@]}" "$link" > "$work/second.log" 2>&1 \
+timeout 30 "${run[@]}" > "$work/second.log" 2>&1 \
   || fail "a second launch did not hand over and exit: $(cat "$work/second.log")"
 echo "a second launch handed over and exited after $((SECONDS - start)) s"
 
