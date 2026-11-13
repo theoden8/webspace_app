@@ -14,6 +14,7 @@ import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/widgets/http_auth_prompt.dart';
 import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/widgets/untrusted_cert_prompt.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
 
 /// What a site webview asks the user, as dialogs over the page that owns
 /// [context]: the same questions for a site's own webview and for the nested
@@ -122,24 +123,14 @@ class DialogWebViewPrompts implements MediaPrompter {
   Future<bool> confirmScriptFetch(String url) async {
     if (!context.mounted) return false;
     final loc = AppLocalizations.of(context);
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.homeLoadExternalScriptTitle),
-        content: Text(loc.homeLoadExternalScriptBody(url)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.homeDenyAction),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(loc.homeAllowAction),
-          ),
-        ],
-      ),
+    return confirm(
+      context,
+      title: loc.homeLoadExternalScriptTitle,
+      body: loc.homeLoadExternalScriptBody(url),
+      cancelLabel: loc.homeDenyAction,
+      confirmLabel: loc.homeAllowAction,
+      destructive: false,
     );
-    return result ?? false;
   }
 
   /// Shown the first time a site requests `PROTECTED_MEDIA_ID` (e.g. the
@@ -149,24 +140,14 @@ class DialogWebViewPrompts implements MediaPrompter {
   Future<bool> protectedContent(String origin) async {
     if (!context.mounted) return false;
     final loc = AppLocalizations.of(context);
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.homePlayProtectedContentTitle),
-        content: Text(loc.homePlayProtectedContentBody(origin)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.homeBlockAction),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(loc.homeAllowAction),
-          ),
-        ],
-      ),
+    return confirm(
+      context,
+      title: loc.homePlayProtectedContentTitle,
+      body: loc.homePlayProtectedContentBody(origin),
+      cancelLabel: loc.homeBlockAction,
+      confirmLabel: loc.homeAllowAction,
+      destructive: false,
     );
-    return result ?? false;
   }
 
   /// Asked once per origin that is not one of the site's own: Allow or
@@ -179,22 +160,11 @@ class DialogWebViewPrompts implements MediaPrompter {
   }) async {
     if (!context.mounted) return null;
     final loc = AppLocalizations.of(context);
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(permission.promptTitle(loc)),
-        content: Text(loc.homeOriginAccessBody(origin)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.homeBlockAction),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(loc.homeAllowAction),
-          ),
-        ],
-      ),
+    return choose<bool>(
+      context,
+      title: permission.promptTitle(loc),
+      body: loc.homeOriginAccessBody(origin),
+      options: [(false, loc.homeBlockAction), (true, loc.homeAllowAction)],
     );
   }
 

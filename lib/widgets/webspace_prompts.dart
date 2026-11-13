@@ -4,6 +4,7 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/webspace_detail.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
 
 /// [WebspacePrompts] as the webspace editor and a dialog over the page that
 /// owns [context].
@@ -33,24 +34,12 @@ class DialogWebspacePrompts implements WebspacePrompts {
   @override
   Future<bool> confirmDelete(Webspace webspace) async {
     final loc = AppLocalizations.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(loc.homeDeleteWebspaceTitle),
-        content: Text(loc.homeDeleteWebspaceConfirm(webspace.name)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(loc.commonDelete),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-          ),
-        ],
-      ),
+    return confirm(
+      context,
+      title: loc.homeDeleteWebspaceTitle,
+      body: loc.homeDeleteWebspaceConfirm(webspace.name),
+      confirmLabel: loc.commonDelete,
+      destructive: true,
     );
-    return confirmed == true;
   }
 }

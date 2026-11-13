@@ -68,53 +68,37 @@ class DialogBackupPrompts implements BackupPrompts {
     // Neither is visible in a site list, so the dialog has to name them.
     final incomingGlobalProxy = backupGlobalProxyAddress(backup);
     final incomingScriptCount = backupUserScriptCount(backup);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(loc.homeImportSettingsTitle),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(loc.homeImportSettingsConfirm(sitesCount, webspacesCount)),
-              SizedBox(height: 12),
-              Text(
-                exportedLabel,
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              if (incomingGlobalProxy != null) ...[
-                SizedBox(height: 12),
-                Text(loc.homeImportGlobalProxyWarning(incomingGlobalProxy)),
-              ],
-              if (incomingScriptCount > 0) ...[
-                SizedBox(height: 12),
-                Text(loc.homeImportUserScriptsWarning(incomingScriptCount)),
-              ],
-              SizedBox(height: 16),
-              Text(
-                loc.homeImportSettingsSessionsNote,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
-            ],
+    return confirm(
+      context,
+      title: loc.homeImportSettingsTitle,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(loc.homeImportSettingsConfirm(sitesCount, webspacesCount)),
+          SizedBox(height: 12),
+          Text(
+            exportedLabel,
+            style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(loc.homeImportAction),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.primary,
-            ),
+          if (incomingGlobalProxy != null) ...[
+            SizedBox(height: 12),
+            Text(loc.homeImportGlobalProxyWarning(incomingGlobalProxy)),
+          ],
+          if (incomingScriptCount > 0) ...[
+            SizedBox(height: 12),
+            Text(loc.homeImportUserScriptsWarning(incomingScriptCount)),
+          ],
+          SizedBox(height: 16),
+          Text(
+            loc.homeImportSettingsSessionsNote,
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
           ),
         ],
       ),
+      confirmLabel: loc.homeImportAction,
+      destructive: false,
     );
-    return confirmed == true;
   }
 
   @override

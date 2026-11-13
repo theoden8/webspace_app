@@ -143,44 +143,31 @@ class DialogSiteEditingPrompts implements SiteEditingPrompts {
           qr['locationMode'] != LocationMode.off.name)
         loc.siteSettingsGeolocation,
     ];
-    final accepted = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.homeQrReviewTitle),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(loc.homeQrReviewBody),
-              SizedBox(height: 12),
-              Text(loc.homeQrReviewUrl(url)),
-              Text(loc.homeQrReviewName(name)),
-              if (proxyLabel != null) Text(loc.homeQrReviewProxy(proxyLabel)),
-              if (weakened.isNotEmpty) ...[
-                SizedBox(height: 12),
-                Text(loc.homeQrReviewTurnsOff(weakened.join(', '))),
-              ],
-              if (granted.isNotEmpty) ...[
-                SizedBox(height: 12),
-                Text(loc.homeQrReviewTurnsOn(granted.join(', '))),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(loc.qrApplyConfirm),
-          ),
+    return confirm(
+      context,
+      title: loc.homeQrReviewTitle,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(loc.homeQrReviewBody),
+          SizedBox(height: 12),
+          Text(loc.homeQrReviewUrl(url)),
+          Text(loc.homeQrReviewName(name)),
+          if (proxyLabel != null) Text(loc.homeQrReviewProxy(proxyLabel)),
+          if (weakened.isNotEmpty) ...[
+            SizedBox(height: 12),
+            Text(loc.homeQrReviewTurnsOff(weakened.join(', '))),
+          ],
+          if (granted.isNotEmpty) ...[
+            SizedBox(height: 12),
+            Text(loc.homeQrReviewTurnsOn(granted.join(', '))),
+          ],
         ],
       ),
+      confirmLabel: loc.qrApplyConfirm,
+      destructive: false,
     );
-    return accepted == true;
   }
 
   /// Membership is edited from the site only in the library; the legacy
@@ -196,24 +183,12 @@ class DialogSiteEditingPrompts implements SiteEditingPrompts {
   Future<bool> confirmDelete(WebViewModel site) async {
     final loc = AppLocalizations.of(context);
     final siteName = site.getDisplayName();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(loc.homeDeleteSiteTitle),
-        content: Text(loc.homeDeleteSiteConfirm(siteName)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(loc.commonDelete),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-          ),
-        ],
-      ),
+    return confirm(
+      context,
+      title: loc.homeDeleteSiteTitle,
+      body: loc.homeDeleteSiteConfirm(siteName),
+      confirmLabel: loc.commonDelete,
+      destructive: true,
     );
-    return confirmed == true;
   }
 }
