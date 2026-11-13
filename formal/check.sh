@@ -554,6 +554,38 @@ expect proxy_failclosed_leak.cfg proxy_failclosed.tla "Inv_NoDirectWhenProxied i
   "a proxied-but-unbuildable config falling back to direct is caught"
 expect proxy_failclosed_reach.cfg proxy_failclosed.tla "Reach_Proxied is violated" \
   "a proxied egress is reachable (fail-closed not vacuous)"
+
+section "TLS TRUST" "the trust prompt's pins, portal verdict and declines (TLS-002 to TLS-013)"
+expect tls_trust.cfg tls_trust.tla "No error has been found" \
+  "a rejected certificate passes only as the user accepted it, and never on a pin or a prompt in a portal"
+expect tls_trust_hosts.cfg tls_trust.tla "No error has been found" \
+  "a decline stands for every host, and one certificate has one prompt at a time"
+expect tls_trust_anyfp.cfg tls_trust.tla "Inv_PassPinned is violated" \
+  "a pin that matches its host whatever the certificate is caught"
+expect tls_trust_pinonopen.cfg tls_trust.tla "Inv_PinAccepted is violated" \
+  "a pin written as the prompt opens, before the answer, is caught"
+expect tls_trust_latecache.cfg tls_trust.tla "Inv_LateAnswer is violated" \
+  "a late answer pinning the certificate another view cached since is caught"
+expect tls_trust_noportal.cfg tls_trust.tla "Inv_NoWebPinPassInPortal is violated" \
+  "a pin honoured without reading the portal verdict is caught (TLS-012)"
+expect tls_trust_staleverdict.cfg tls_trust.tla "Inv_NoAskInPortal is violated" \
+  "a verdict read as the handshake arrived, not at the read, is caught (TLS-012)"
+expect tls_trust_forget.cfg tls_trust.tla "Inv_DeclinedNotAsked is violated" \
+  "a decline not remembered is caught (TLS-013)"
+expect tls_trust_noasking.cfg tls_trust.tla "Inv_OneAtATime is violated" \
+  "a second prompt for a certificate already asked about is caught (TLS-002)"
+expect tls_trust_reach_pinused.cfg tls_trust.tla "Reach_PinUsed is violated" \
+  "a pinned certificate lets a later webview handshake through"
+expect tls_trust_reach_dartpinused.cfg tls_trust.tla "Reach_DartPinUsed is violated" \
+  "a pinned certificate lets a Dart client's handshake through (TLS-004)"
+expect tls_trust_reach_lateanswer.cfg tls_trust.tla "Reach_LateAnswerPinned is violated" \
+  "an answer landing after its view went away pins what it showed"
+expect tls_trust_reach_pinheldinportal.cfg tls_trust.tla "Reach_PinHeldInPortal is violated" \
+  "a pinned certificate is held back while the OS reports a portal"
+expect tls_trust_reach_declinedquiet.cfg tls_trust.tla "Reach_DeclinedQuiet is violated" \
+  "a declined certificate met again is cancelled without a prompt"
+expect tls_trust_reach_coalesced.cfg tls_trust.tla "Reach_Coalesced is violated" \
+  "a certificate met while its prompt is open is cancelled without another"
 }
 
 activation_runs() {
