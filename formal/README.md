@@ -87,6 +87,20 @@ class.
   `unordered` and `nowait` demonstrators let installs overtake each other and answer a
   challenge as it arrives, the code before PROXY-034. Standalone: who asks for which table,
   and when, is the app's.
+- **`tls_trust.tla`** + `tls_trust*.cfg` — the TLS trust prompt's timing on Android and Linux
+  (TLS-002 to TLS-013), as `WebViewTls` and `TrustedHostsService` run it: rejected
+  certificates met by several views and hosts through the trust callback (with the page's
+  hooks or none) and the load error path, each split at the portal verdict, the user's answer
+  and the pin's write, with the OS's portal verdict flipping, views going away under an open
+  prompt, a pin revoked and a Dart client reading the pins between them. Each step records
+  what it did in `ev`, so an invariant over it checks every event: `Inv_PinAccepted`,
+  `Inv_PassPinned`, `Inv_LateAnswer`, `Inv_NoAskInPortal`, `Inv_NoWebPinPassInPortal`,
+  `Inv_DeclinedNotAsked`, `Inv_OneAtATime`, each with a demonstrator (`anyfp`, `pinonopen`,
+  `latecache`, `staleverdict`, `noportal`, `forget`, `noasking`) and six witnesses. The
+  `tls_trust_gap_*.cfg` configs are not in `check.sh`: each reproduces where the code falls
+  short of the spec (`Gap_NoPinInPortal`, `Gap_NoPinPassInPortal`, `Gap_ShownOwn`), and holds
+  once the code and the model's action are fixed. Standalone: which site loads what is the
+  app's.
 - **`retention.tla`** + `retention*.cfg` — memory-pressure cascade picker (PAUSE-006).
   `Inv_CurrentKept` (the active site is never evicted) + `Inv_NotifLast` (higher-retention /
   notification sites are evicted last); the `starve` demonstrator evicts a retained site early
