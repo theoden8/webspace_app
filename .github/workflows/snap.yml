@@ -6,7 +6,9 @@ name: Snap
 # here logs in to the Snap Store or uploads: registering, uploading and
 # releasing are the maintainer's, by hand (docs/releasing.md). Kept out of
 # build-and-test.yml because a cold WPE WebKit build takes hours; ccache keeps
-# its objects between runs.
+# its objects between runs. The same job makes the AppImage from what
+# snapcraft primed (PLATFORM-013), packs it, and runs it with one site; the
+# maintainer signs and publishes it (scripts/release_appimage.sh).
 
 on:
   workflow_dispatch:
@@ -26,6 +28,8 @@ on:
       - openspec/specs/legal/**
       - snap/**
       - scripts/check_snap.sh
+      - scripts/check_appimage.sh
+      - tool/appimage_signature.js
       - tool/check_source_offer.js
       - linux/**
       - pubspec.lock
@@ -40,6 +44,8 @@ on:
       - openspec/specs/legal/**
       - snap/**
       - scripts/check_snap.sh
+      - scripts/check_appimage.sh
+      - tool/appimage_signature.js
       - tool/check_source_offer.js
       - linux/**
       - pubspec.lock
@@ -59,14 +65,22 @@ jobs:
       matrix:
         include:
           - arch: amd64
+            appimage_arch: x86_64
             runner: ubuntu-24.04
             # amd64's caches were saved before they carried an architecture.
             fallback: snap-ccache-
           - arch: arm64
+            appimage_arch: aarch64
             runner: ubuntu-24.04-arm
             fallback: snap-ccache-arm64-
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 350
+    # id-token and attestations: the build provenance of the AppDir a tag's
+    # run keeps, which scripts/release_appimage.sh checks before it signs.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -167,4 +181,68 @@ jobs:
         with:
           name: webspace-snap-${{ matrix.arch }}
           path: '*.snap'
+          if-no-files-found: error
+
+      # PLATFORM-013: the AppImage's AppDir, from the snap's primed tree and
+      # this Ubuntu 24.04 host's libraries.
+      - name: Assemble the AppImage
+        run: |
+          [ -d prime ] || { echo "::error::snapcraft left no prime/ in the project directory" >&2; exit 1; }
+          sudo apt-get install -y --no-install-recommends $(bash linux/appimage/build_appdir.sh packages)
+          sudo bash linux/appimage/build_appdir.sh prime AppDir
+          sudo chown -R "$USER" AppDir
+
+      # LICENSE-001 over what the AppImage carries. Until no bundled package is
+      # owed a reading, the AppDir is not kept and nothing can publish it.
+      - name: Check the AppImage's licences
+        id: appimage-licences
+        run: |
+          node tool/check_bundle_licences.js AppDir --owed linux/appimage/licences_owed.tsv
+          if grep -qv '^#' linux/appimage/licences_owed.tsv; then
+            echo "clear=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "clear=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Packed as the release packs it, signed by a key made for this run, so
+      # the signature tool/appimage_signature.js checks is appimagetool's own.
+      - name: Pack the AppImage
+        run: |
+          GNUPGHOME="$(mktemp -d)"
+          export GNUPGHOME
+          gpg --batch --pinentry-mode loopback --passphrase '' \
+            --quick-generate-key 'WebSpace CI, this run only' ed25519 sign 1d
+          fpr="$(gpg --with-colons --list-keys | awk -F: '$1 == "fpr" { print $10; exit }')"
+          gpg --armor --export "$fpr" > "$RUNNER_TEMP/throwaway.asc"
+          info="gh-releases-zsync|${GITHUB_REPOSITORY%%/*}|${GITHUB_REPOSITORY#*/}|latest|WebSpace-*-${{ matrix.appimage_arch }}.AppImage.zsync"
+          bash linux/appimage/fetch_tools.sh "$RUNNER_TEMP/appimage-tools"
+          bash linux/appimage/pack.sh --appdir AppDir --out "WebSpace-ci-${{ matrix.appimage_arch }}.AppImage" \
+            --tools "$RUNNER_TEMP/appimage-tools" --key "$fpr" --update-info "$info"
+          node tool/appimage_signature.js "WebSpace-ci-${{ matrix.appimage_arch }}.AppImage" \
+            --key "$RUNNER_TEMP/throwaway.asc" --update-info "$info"
+          ls -l WebSpace-ci-*
+
+      - name: Run the AppImage with a site
+        run: |
+          sudo apt-get install -y --no-install-recommends fuse3 xvfb libglib2.0-bin dbus
+          bash scripts/check_appimage.sh AppDir "WebSpace-ci-${{ matrix.appimage_arch }}.AppImage"
+
+      - name: Keep the AppDir for the release
+        if: steps.appimage-licences.outputs.clear == 'true'
+        run: |
+          tar -C AppDir --sort=name --numeric-owner --owner=0 --group=0 -cf - . \
+            | zstd -19 -T0 -o "webspace-appdir-${{ matrix.arch }}.tar.zst"
+
+      - name: Attest the AppDir's provenance
+        if: steps.appimage-licences.outputs.clear == 'true' && startsWith(github.ref, 'refs/tags/v')
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: webspace-appdir-${{ matrix.arch }}.tar.zst
+
+      - name: Upload the AppDir
+        if: steps.appimage-licences.outputs.clear == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: webspace-appdir-${{ matrix.arch }}
+          path: webspace-appdir-${{ matrix.arch }}.tar.zst
           if-no-files-found: error

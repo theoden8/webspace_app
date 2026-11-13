@@ -343,7 +343,9 @@ desktop entry and metainfo are the bundle's (PLATFORM-008).
   released in 2.56), which the plugin reads through weak symbols, for `/usr`. A release build of WebKit runs its helper
   processes only from the directory it was configured with, so the snap's
   layout binds that directory, the injected bundle's and the inspector
-  resources' to the snap's copies. WebKit is built with PDF.js, whose
+  resources' to the snap's copies. `linux/wpe_root.patch` lets the same build
+  look for them under a directory `WEBSPACE_WPE_ROOT` names instead, which the
+  AppImage sets (PLATFORM-013) and the snap does not. WebKit is built with PDF.js, whose
   Liberation Sans 1.07.4 fonts, under GPL-2.0 and compiled into the library,
   `linux/pdfjs_fonts.sh` replaces before the build with Ubuntu's 2.x release
   under the OFL (LICENSE-001); the snap check reads the built library for
@@ -384,6 +386,60 @@ Registering the name, uploading and releasing are the maintainer's
 **Then** the second launch exits
 **And** the site's page is requested, with WebKit's web and network processes
 running from the snap
+
+### Requirement: PLATFORM-013 - The AppImage
+
+The AppImage SHALL run on a desktop Linux whose glibc is at least the build
+host's (Ubuntu 24.04's 2.39) with nothing installed for it, carrying every
+library it links but those `linux/appimage/excludelist` leaves to the machine:
+glibc, the GPU driver's and the display server's client libraries, the sound
+server's, fontconfig with the font libraries, and p11-kit, through which the
+bundled GnuTLS finds the machine's trusted certificates where that machine
+keeps them. It runs as `org.codeberg.theoden8.webspace` (PLATFORM-009).
+
+- **One build:** the Snap workflow's job makes it from what snapcraft primed
+  for the snap, the app's bundle and the WebKit and libwpe it built, with the
+  rest of its libraries from the build host
+  (`linux/appimage/build_appdir.sh`). Every ELF file in it finds the bundled
+  libraries by a RUNPATH relative to itself, and keeps no absolute one, so
+  nothing the app starts inherits a library path and no build machine's
+  directory is searched. The AppImage mounts somewhere new each run, so
+  `AppRun` names the bundle to WebKit (`WEBSPACE_WPE_ROOT`), GIO, gdk-pixbuf
+  and GStreamer.
+- **Licences (LICENSE-001):** each bundled package's copyright file goes with
+  it and `tool/check_bundle_licences.js` reads them all. A package whose file
+  is not read yet is listed, with what the reading must settle, in
+  `linux/appimage/licences_owed.tsv`, a list that only shrinks; while it holds
+  a row the workflow keeps no AppDir and nothing publishes one. No GStreamer
+  plugin under the GPL ships, so H.264 and AAC do not play.
+- **Signing and updates:** the runtime and appimagetool are release
+  downloads pinned by SHA-256 (`linux/appimage/tools.tsv`). The maintainer
+  signs on their own machine with the release key whose public half is
+  `linux/appimage/signing_key.asc`, after checking the AppDir's build
+  provenance from the tag's run (`scripts/release_appimage.sh`). Each
+  AppImage's update information points AppImageUpdate at the repository's
+  latest GitHub release, whose `.zsync` beside it is made from the signed
+  file, and `tool/appimage_signature.js` checks its signature against the
+  pinned key.
+
+CI packs it as the release does, signed with a key made for the run, checks
+that signature, and runs it.
+
+#### Scenario: Run the AppImage
+
+**Given** the AppImage CI packed and one site saved
+**When** it runs, and a second launch hands it a `webspace://open` link to the site
+**Then** every library in it resolves inside it or is one the machine keeps
+**And** the second launch exits
+**And** the site's page is requested, with WebKit's web and network processes
+running from the AppImage
+
+#### Scenario: Check a release
+
+**Given** an AppImage of a release and `linux/appimage/signing_key.asc`
+**When** `tool/appimage_signature.js` reads it
+**Then** it verifies only when the release key signed those bytes, the key it
+carries is that key, and its updates come from the repository's latest release
 
 ---
 

@@ -71,3 +71,7 @@ pub:csslib/third_party/materialize/LICENSE	MIT	build	1.0.2	CSS the package's tes
 pub:csslib/third_party/mdc/LICENSE	MIT	build	1.0.2	CSS the package's tests parse; lib/ takes nothing from third_party/
 pub:csslib/third_party/pure/LICENSE	BSD-3-Clause	build	1.0.2	CSS the package's tests parse; lib/ takes nothing from third_party/
 pub:csslib/third_party/skeleton/LICENSE.md	MIT	build	1.0.2	CSS the package's tests parse; lib/ takes nothing from third_party/
+url:https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64	MIT AND LGPL-2.1-only AND BSD-2-Clause AND BSD-3-Clause AND Zlib	shared		the AppImage runtime at tag 20251108: its LICENSE (MIT) and src/runtime/Makefile, which links libfuse3 (LGPL-2.1-only), squashfuse (BSD-2-Clause), zstd (BSD-3-Clause), zlib (Zlib) and mimalloc (MIT) statically into a program of its own at the head of the AppImage file, which a user replaces with one built from that source (appimagetool --runtime-file)
+url:https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-aarch64	MIT AND LGPL-2.1-only AND BSD-2-Clause AND BSD-3-Clause AND Zlib	shared		as runtime-x86_64
+url:https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage	MIT	build		its LICENSE at 1.9.1; it packs and signs the AppImage on the maintainer's machine and in CI
+url:https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-aarch64.AppImage	MIT	build		as appimagetool-x86_64.AppImage

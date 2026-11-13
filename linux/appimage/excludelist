@@ -1,0 +1,63 @@
+# The shared libraries the AppImage leaves to the machine it runs on
+# (PLATFORM-013): linux/appimage/build_appdir.sh neither bundles these nor
+# follows what they link. One soname per line, then a tab and why.
+#
+# The base is the AppImage community's list (pkg2appimage's excludelist at
+# master in November 2026): glibc, which the AppImage's floor is (Ubuntu
+# 24.04's 2.39), and what the GPU driver or the desktop session must agree on.
+ld-linux.so.2	glibc
+ld-linux-x86-64.so.2	glibc
+ld-linux-aarch64.so.1	glibc
+libanl.so.1	glibc
+libBrokenLocale.so.1	glibc
+libc.so.6	glibc
+libdl.so.2	glibc
+libm.so.6	glibc
+libmvec.so.1	glibc
+libnss_compat.so.2	glibc
+libnss_dns.so.2	glibc
+libnss_files.so.2	glibc
+libpthread.so.0	glibc
+libresolv.so.2	glibc
+librt.so.1	glibc
+libthread_db.so.1	glibc
+libutil.so.1	glibc
+libstdc++.so.6	the GPU driver links the machine's, which is never older than the one built against
+libgcc_s.so.1	as libstdc++
+libGL.so.1	the GPU driver's
+libEGL.so.1	the GPU driver's
+libGLESv2.so.2	the GPU driver's
+libGLdispatch.so.0	the GPU driver's
+libGLX.so.0	the GPU driver's
+libOpenGL.so.0	the GPU driver's
+libglapi.so.0	the GPU driver's
+libgbm.so.1	the GPU driver's
+libdrm.so.2	the GPU driver's
+libxcb.so.1	the X server's protocol, which the GPU driver links too
+libX11.so.6	as libxcb
+libX11-xcb.so.1	as libxcb
+libxcb-dri2.so.0	the GPU driver's
+libxcb-dri3.so.0	the GPU driver's
+libwayland-client.so.0	the compositor's protocol, which the GPU driver links too
+libwayland-egl.so.1	the GPU driver's
+libwayland-cursor.so.0	as libwayland-client
+libwayland-server.so.0	libgbm links it
+libasound.so.2	the sound server's
+libjack.so.0	the sound server's
+libpipewire-0.3.so.0	the PipeWire daemon's; its client loads the machine's SPA plugins, built against it
+libfontconfig.so.1	reads the machine's font configuration, whose format moves with it
+libfreetype.so.6	as fontconfig
+libharfbuzz.so.0	as fontconfig
+libfribidi.so.0	as fontconfig
+libexpat.so.1	the GPU driver links it
+libz.so.1	everywhere, and the GPU driver links it
+libcom_err.so.2	the machine's Kerberos
+libgpg-error.so.0	the machine's
+libICE.so.6	the X session's
+libSM.so.6	the X session's
+libusb-1.0.so.0	the machine's
+libuuid.so.1	the machine's
+libgmp.so.10	the machine's
+#
+# Beyond the community's list.
+libp11-kit.so.0	GnuTLS finds the trusted certificates through it, at the module paths of the machine's p11-kit; Debian's would look where Fedora and openSUSE keep none

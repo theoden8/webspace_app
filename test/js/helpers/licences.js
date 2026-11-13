@@ -180,7 +180,7 @@ function buildFiles() {
   for (const rel of files('linux', /\.(cmake|txt)$/)) {
     if (/CMakeLists\.txt$|\.cmake$/.test(rel) && !rel.includes('/flutter/')) out.push([rel, urls]);
   }
-  for (const rel of ['snap/snapcraft.yaml', 'rust/webspace_adblock/build.rs']) {
+  for (const rel of ['snap/snapcraft.yaml', 'rust/webspace_adblock/build.rs', 'linux/appimage/tools.tsv']) {
     if (exists(rel)) out.push([rel, urls]);
   }
   if (exists('linux/flatpak')) {

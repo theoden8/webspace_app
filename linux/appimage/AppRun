@@ -1,0 +1,41 @@
+#!/bin/sh
+# The AppImage's entry point (PLATFORM-013), written into the AppDir by
+# linux/appimage/build_appdir.sh. The AppImage mounts somewhere new each run,
+# so what WebKit, GIO, gdk-pixbuf and GStreamer were built to read from /usr
+# is named here by where the bundle is now. Libraries need nothing: every ELF
+# file finds the bundled ones by its RUNPATH.
+set -eu
+
+here="$(dirname "$(readlink -f "$0")")"
+lib="$here/usr/lib/@TRIPLET@"
+
+# WebKit's helper processes, injected bundle and inspector resources
+# (linux/wpe_root.patch).
+export WEBSPACE_WPE_ROOT="$here"
+# TLS from the bundle's GLib module alone: the machine's modules are built
+# against its own GLib.
+export GIO_MODULE_DIR="$lib/gio/modules"
+unset GIO_EXTRA_MODULES
+# The GTK and desktop schemas, the desktop entry and the icon.
+export XDG_DATA_DIRS="$here/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+export GST_PLUGIN_SYSTEM_PATH_1_0="$lib/gstreamer-1.0"
+export GST_PLUGIN_SCANNER_1_0="$lib/gstreamer1.0/gstreamer-1.0/gst-plugin-scanner"
+unset GST_PLUGIN_PATH GST_PLUGIN_PATH_1_0
+
+# The app's own cache directory (PLATFORM-010) keeps the GStreamer registry
+# apart from the machine's, and the gdk-pixbuf loader cache, which names each
+# loader by absolute path, written for this mount.
+cache="${XDG_CACHE_HOME:-$HOME/.cache}/@APPLICATION_ID@/appimage"
+if mkdir -p "$cache" 2>/dev/null; then
+  GST_REGISTRY_1_0="$cache/gstreamer-registry-$(uname -m).bin"
+  export GST_REGISTRY_1_0
+  loaders="$lib/gdk-pixbuf-2.0/2.10.0/loaders.cache.in"
+  if tmp="$(mktemp "$cache/loaders.cache.XXXXXX" 2>/dev/null)"; then
+    WEBSPACE_APPDIR="$here" awk '
+      { while ((i = index($0, "@APPDIR@")) > 0) $0 = substr($0, 1, i - 1) ENVIRON["WEBSPACE_APPDIR"] substr($0, i + 8); print }
+    ' "$loaders" > "$tmp" && mv -f "$tmp" "$cache/loaders.cache" \
+      && export GDK_PIXBUF_MODULE_FILE="$cache/loaders.cache"
+  fi
+fi
+
+exec "$here/opt/webspace/webspace_app" "$@"
