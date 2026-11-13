@@ -146,7 +146,7 @@ final class PageFocus {
 }
 
 /// A subtree that shows its own focus, so the keys' focus outline is not
-/// drawn over it (NAV-016, NAV-021): a site page, whose engine outlines the
+/// drawn over it (NAV-016, NAV-022): a site page, whose engine outlines the
 /// link it has focused, and a launcher icon, which outlines itself.
 class OwnFocusOutline extends InheritedWidget {
   const OwnFocusOutline({super.key, required super.child});
