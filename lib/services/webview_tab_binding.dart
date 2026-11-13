@@ -36,8 +36,10 @@ final class WebViewTabBinding {
     commit.wrote(ModelVar.queued);
   }
 
-  /// The webview is gone.
+  /// The webview is gone: `built[s]` written only where one was built, so
+  /// a teardown of none writes nothing of the model.
   void unbind({required Commit commit}) {
+    if (_built == null) return;
     _built = null;
     commit.wrote(ModelVar.built);
   }

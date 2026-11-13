@@ -1855,14 +1855,17 @@ final class StepTable<W, P extends Enum> {
     return next;
   }
 
-  /// Whether the input step at [place] would run on [c]: its pick made and
-  /// its [Step.enabled] holding, read as its action reads them. The caller
-  /// of an input that is not decides what to answer; the step asserts it
-  /// again on the way in.
+  /// Whether the input or environment step at [place] would run on [c]:
+  /// its pick made and its [Step.enabled] holding, read as its action reads
+  /// them. The caller of one that is not decides what to answer; the step
+  /// asserts it again on the way in.
   bool admits(P place, {required StepContext<W> on}) {
     final c = on;
     final step = at(place);
-    assert(step is Step<W, P> && step.input, '${place.name} is no input');
+    assert(
+      step is Step<W, P> && (step.input || step.environment),
+      '${place.name} is no input or environment action',
+    );
     step as Step<W, P>;
     return _charged(
       step.name,

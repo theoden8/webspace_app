@@ -12,6 +12,7 @@ final class SiteHooks {
     required this.routeOutbound,
     required this.linkMenu,
     required this.firstPageLoaded,
+    required this.rendererGone,
   });
 
   final WebViewHostHooks host;
@@ -36,4 +37,9 @@ final class SiteHooks {
   /// Offers an unclaimed domain reached by this slot's first live page.
   final Future<void> Function(WebViewModel source, {required String url})
       firstPageLoaded;
+
+  /// [source]'s renderer died under its webview (BUG-002): the host lets
+  /// the webview go, so the frame builds it afresh (`LetGoTable`).
+  final void Function(WebViewModel source, {required bool didCrash})
+      rendererGone;
 }

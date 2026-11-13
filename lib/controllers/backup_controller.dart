@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/controllers/let_go_table.dart';
 import 'package:webspace/controllers/archive_controller.dart';
 import 'package:webspace/controllers/background_sites_controller.dart';
 import 'package:webspace/controllers/page_host.dart';
@@ -190,7 +191,7 @@ class BackupController {
     if (apply && matched.isNotEmpty) {
       for (final m in matched) {
         m.contentBlockEnabled = false;
-        m.disposeWebView(commit: const Commit.environment(Environment.letGo));
+        LetGoTable.letGo(_sites, site: m);
       }
       _host.rebuild();
       await _host.commitSites(const SitesEdited());
@@ -339,7 +340,7 @@ class BackupController {
       for (final script in plan.heldScripts) {
         script.release();
         for (final site in script.sites) {
-          site.disposeWebView(commit: const Commit.environment(Environment.letGo));
+          LetGoTable.letGo(_sites, site: site);
         }
       }
       _host.rebuild();

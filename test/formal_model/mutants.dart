@@ -271,6 +271,7 @@ Tables _with({
   StepTable<ImportFlow, ImportPlace>? import,
   StepTable<ImportFlow, ImportPlace>? importTurn,
   StepTable<FrameWorld, FramePlace>? frame,
+  StepTable<LetGoWorld, LetGoPlace>? letGo,
   List<Def<Object?, Object?>>? ops,
 }) => (
   activation: activation ?? tables.activation,
@@ -286,6 +287,7 @@ Tables _with({
   import: import ?? tables.import,
   importTurn: importTurn ?? tables.importTurn,
   frame: frame ?? tables.frame,
+  letGo: letGo ?? tables.letGo,
   ops: ops ?? tables.ops,
 );
 

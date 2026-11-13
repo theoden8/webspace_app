@@ -19,6 +19,7 @@ SiteHooks _hooks() => SiteHooks(
           (_, {required url, required decision, required hadGesture}) => false,
       linkMenu: (_, {required url}) async {},
       firstPageLoaded: (_, {required url}) async {},
+      rendererGone: (_, {required didCrash}) {},
     );
 
 void main() {

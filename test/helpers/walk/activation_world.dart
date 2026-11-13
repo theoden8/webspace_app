@@ -13,6 +13,7 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/activation_host.dart';
 import 'package:webspace/controllers/archive_controller.dart';
 import 'package:webspace/controllers/frame_table.dart';
+import 'package:webspace/controllers/let_go_table.dart';
 import 'package:webspace/controllers/site_activation_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/shell_store.dart';
@@ -294,8 +295,8 @@ final class Fails extends SiteAction {
 }
 
 /// The renderer under the webview of the site at [slot] dies, and the
-/// webview goes with it (`handleRendererGone`, BUG-002); the next frame
-/// builds it again.
+/// webview goes with it (`AppLifecycleController.rendererGone`, BUG-002);
+/// the next frame builds it again.
 final class RendererGone extends SiteAction {
   const RendererGone(this.slot);
   final int slot;
@@ -2312,9 +2313,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           _letGoInPlace = true;
           // The environment's (`LetGo`), as a frame's view builds are.
           inFlow(flow: _frameFlow, () {
-            m.handleRendererGone(didCrash: true);
+            LetGoTable.letGo(sites, site: m, end: WebViewEnd.rendererGone);
             _letGo.add(m);
-            ActivationSteps.mark(ActivationStep.letGo, site: m);
           });
         }
       case OpenTab(:final slot, :final tab):

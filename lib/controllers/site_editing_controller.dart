@@ -1,3 +1,4 @@
+import 'package:webspace/controllers/let_go_table.dart';
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/shell_store.dart';
 import 'package:webspace/controllers/shortcut_controller.dart';
@@ -215,7 +216,7 @@ class SiteEditingController {
     if (url != model.initUrl) {
       model.initUrl = url;
       model.currentUrl = url;
-      model.disposeWebView(commit: const Commit.environment(Environment.letGo));
+      LetGoTable.letGo(_sites, site: model);
       _host.rebuild();
     }
 

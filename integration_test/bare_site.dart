@@ -96,6 +96,7 @@ SiteHooks bareSiteHooks({void Function(String url)? leaving}) => SiteHooks(
       },
       linkMenu: (_, {required url}) async {},
       firstPageLoaded: (_, {required url}) async {},
+      rendererGone: (_, {required didCrash}) {},
     );
 
 /// A capture prompt in these tests is a bug in the test.

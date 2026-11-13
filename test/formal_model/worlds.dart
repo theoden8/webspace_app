@@ -68,16 +68,6 @@ enum EnvAction {
     reads: {ModelVar.boxes, ModelVar.loaded, ModelVar.views},
     writes: {ModelVar.boxes, ModelVar.views},
     needs: {(of: ModelConst.boxed, set: true)},
-  ),
-  letGo(
-    next: r'\E s \in Sites : LetGo(s)',
-    coverage: 'LetGo',
-    reads: {ModelVar.built, ModelVar.hist, ModelVar.loaded},
-    writes: {ModelVar.built, ModelVar.hist},
-    needs: {
-      (of: ModelConst.tabbed, set: true),
-      (of: ModelConst.rebuilt, set: true),
-    },
   );
 
   const EnvAction({
