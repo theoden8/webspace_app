@@ -138,8 +138,10 @@ function refusals(root, { table = names(), licences = L.policy() } = {}) {
 /**
  * [found] split by a list of packages whose copyright files are owed a
  * reading (a TSV of a package and why): a refusal of a listed package's file
- * is owed, not an error; a listed package with nothing refused, or none
- * under [root], is an error, so the list only shrinks.
+ * is owed, not an error; a listed package [root] carries with nothing
+ * refused is an error, so the list only shrinks. One list serves every
+ * architecture, so a package [root] does not carry (libatomic1 links only
+ * on amd64) is passed over.
  */
 function owing(found, { root, owed }) {
   const listed = new Map(L.rows(owed).map(([pkg, why = '']) => [pkg.trim(), why.trim()]));
@@ -153,8 +155,7 @@ function owing(found, { root, owed }) {
   }
   for (const [pkg, why] of listed) {
     if (!why) errors.push(`${pkg}: listed as owed with no reason`);
-    else if (!shipped.has(pkg)) errors.push(`${pkg}: listed as owed but not in the package; drop it from the list`);
-    else if (!owes.has(pkg)) errors.push(`${pkg}: listed as owed but nothing in it is refused; drop it from the list`);
+    else if (shipped.has(pkg) && !owes.has(pkg)) errors.push(`${pkg}: listed as owed but nothing in it is refused; drop it from the list`);
   }
   return { errors, owes };
 }

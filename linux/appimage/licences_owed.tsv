@@ -1,8 +1,9 @@
 # The Ubuntu packages the AppImage bundles whose copyright files are owed a
 # reading against LICENSE-001 (PLATFORM-013): a package, a tab, and what the
 # reading must settle. tool/check_bundle_licences.js --owed reports their
-# refusals instead of failing on them, and fails on a package listed here
-# that no longer needs to be; the list only shrinks. A package leaves it once
+# refusals instead of failing on them, and fails on a package listed here,
+# in a bundle that carries it, that no longer needs to be; the list only
+# shrinks. A package leaves it once
 # openspec/specs/legal/debian_licences.tsv reads every licence its file names,
 # a GPL stanza read as covering files the binary package does not ship being a
 # row of that package marking them LicenseRef-build-only, as libevent's are.

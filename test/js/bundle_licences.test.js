@@ -176,7 +176,7 @@ test('LICENSE-001 an owed package\'s refusals are owed, not errors, and the list
   assert.deepEqual([...owes], [['libowed', 1]]);
   assert.deepEqual(owing('libowed\tnot read\nlibnew\tnot read\nlibread\tnot read\n').errors,
     ['libread: listed as owed but nothing in it is refused; drop it from the list'], 'a package read since');
-  assert.deepEqual(owing('libowed\tnot read\nlibnew\tnot read\nlibgone\tnot read\n').errors,
-    ['libgone: listed as owed but not in the package; drop it from the list'], 'a package no longer bundled');
+  assert.deepEqual(owing('libowed\tnot read\nlibnew\tnot read\nlibother\tnot read\n').errors, [],
+    "a package another architecture's bundle carries");
   assert.deepEqual(owing('libowed\nlibnew\tnot read\n').errors, ['libowed: listed as owed with no reason']);
 });
