@@ -114,3 +114,38 @@ The store reviews each upload, and one its automated checks flag waits for a
 person. The `password-manager-service` plug never connects by itself; a user
 without a Secret portal connects it with
 `snap connect webspace-app:password-manager-service`.
+
+## The AppImage
+
+The tag's Snap workflow run also makes the AppImage's AppDir from what
+snapcraft primed, packs it, runs it with a site, and keeps the AppDir, with
+its build provenance, as the `webspace-appdir-amd64` and
+`webspace-appdir-arm64` artifacts (PLATFORM-013). Signing and publishing are
+yours, on your own machine; CI never holds the key.
+
+It keeps no AppDir while `linux/appimage/licences_owed.tsv` lists a bundled
+package whose copyright file is not read yet, and the script below refuses
+to publish then too.
+
+Once, make the release key and commit its public half. gpg asks for the
+passphrase; back the key up as the script says. Every AppImage is signed by
+this key from then on: AppImageUpdate takes an update only when the installed
+copy's key signed it, so a new key strands every installed copy.
+
+```bash
+scripts/release_appimage.sh key
+```
+
+Each release, after the tag's Snap run has passed:
+
+```bash
+scripts/release_appimage.sh publish vX.Y.Z
+```
+
+It checks each AppDir was built by the Snap workflow from that tag, packs and
+signs one AppImage per architecture with its `.zsync`, checks each signature
+against `linux/appimage/signing_key.asc`, signs `SHA256SUMS`, shows you the
+files, and uploads them to the tag's GitHub release once you answer `y`,
+making the release from the build's changelog if there is none. Installed
+copies update from the latest release. It needs `gh` signed in, `gpg`, `node`,
+`curl`, `tar` and `zstd`.
