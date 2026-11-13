@@ -916,13 +916,11 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   /// [view] of site [of] attaches ([up]) or goes, as the platform reports
   /// it: a frame's webview, or a wake's check as its open and its dispose
-  /// do. The model's `told` is a site's, so a site's first view to attach is
-  /// its `ViewBuilt` and its last to go its `ViewGone`.
+  /// do, through the views' own steps (`ViewsTable`).
   void _view(InterceptedView view, {required WebViewModel of, required bool up}) {
     final levels = dns?.siteLevels;
     if (levels == null) return;
     final views = DnsBlockService.instance.views;
-    final had = views.told.containsKey(of.siteId);
     inFlow(flow: _frameFlow, () {
       if (up) {
         views.built(
@@ -931,13 +929,11 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           siteLevel: levels[_siteNumber(of) - 1],
           localCdn: false,
           contentBlock: false,
+          vars: sites.vars,
         );
       } else {
         views.gone(view);
       }
-      final has = views.told.containsKey(of.siteId);
-      if (!had && has) ActivationSteps.mark(ActivationStep.viewBuilt, site: of);
-      if (had && !has) ActivationSteps.mark(ActivationStep.viewGone, site: of);
     });
   }
 

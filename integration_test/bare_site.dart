@@ -1,3 +1,4 @@
+import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/media_grant_engine.dart';
@@ -56,8 +57,9 @@ SitePosture barePosture(
   return site.sitePosture(globalUserScripts: const [], isolation: bareIsolation);
 }
 
-/// A host with no app around the webview: every prompt answers no and nothing
-/// opens elsewhere. [httpAuth] stands in for the sign-in prompt; [leaving]
+/// A host with no app around the webview: every prompt answers no, nothing
+/// opens elsewhere and no site runs, so a view is told no level after its
+/// attach. [httpAuth] stands in for the sign-in prompt; [leaving]
 /// hears each URL a navigation would have taken out of the site (a nested
 /// screen, the browser, another site's slot), which this host declines.
 WebViewHostHooks bareHooks({
@@ -66,6 +68,7 @@ WebViewHostHooks bareHooks({
 }) =>
     WebViewHostHooks(
       isolation: () => bareIsolation,
+      vars: RuntimeVars.ofSet({}),
       globalUserScripts: () => const [],
       save: () async {},
       rebuild: () {},

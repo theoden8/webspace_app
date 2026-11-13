@@ -33,6 +33,7 @@ import 'package:webspace/services/proxy_conflict_engine.dart';
 import 'package:webspace/settings/proxy.dart' show ProxyRouteKey;
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/step_table.dart';
+import 'package:webspace/services/view_blockers.dart';
 
 part 'mutants.dart';
 
@@ -57,6 +58,7 @@ typedef Tables = ({
   StepTable<ImportFlow, ImportPlace> importTurn,
   StepTable<FrameWorld, FramePlace> frame,
   StepTable<LetGoWorld, LetGoPlace> letGo,
+  StepTable<ViewsWorld, ViewsPlace> views,
   List<Def<Object?, Object?>> ops,
 });
 
@@ -120,6 +122,7 @@ final Tables tables = (
   importTurn: SiteImport.turnTable,
   frame: FrameTable.table,
   letGo: LetGoTable.table,
+  views: ViewsTable.table,
   ops: definitions,
 );
 
@@ -140,6 +143,7 @@ enum ModelTable {
   importTurn,
   frame,
   letGo,
+  views,
 }
 
 StepTable<Object?, Enum> _table(Tables t, {required ModelTable of}) =>
@@ -158,6 +162,7 @@ StepTable<Object?, Enum> _table(Tables t, {required ModelTable of}) =>
       ModelTable.importTurn => t.importTurn,
       ModelTable.frame => t.frame,
       ModelTable.letGo => t.letGo,
+      ModelTable.views => t.views,
     };
 
 List<StepTable<Object?, Enum>> _all(Tables t) => [

@@ -651,6 +651,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// What this page answers for every site webview, root and nested.
   late final WebViewHostHooks _webViewHooks = WebViewHostHooks(
     isolation: () => _sites.isolation,
+    vars: _sites.vars,
     globalUserScripts: () => _shell.globalUserScripts,
     save: () => _commitSites(const SitesEdited()),
     rebuild: () {
