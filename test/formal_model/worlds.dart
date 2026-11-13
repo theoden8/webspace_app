@@ -46,22 +46,6 @@ enum EnvAction {
     writes: {ModelVar.jar, ModelVar.queue},
     needs: {(of: ModelConst.containers, set: false)},
   ),
-  viewBuilt(
-    next: r'\E s \in Sites : ViewBuilt(s)',
-    coverage: 'ViewBuilt',
-    reads: {ModelVar.dns, ModelVar.headless, ModelVar.loaded, ModelVar.told},
-    writes: {ModelVar.told},
-    needs: {(of: ModelConst.dnsLevels, set: true)},
-  ),
-  // A view is told a level only where a download can pick one, so one
-  // goes only there.
-  viewGone(
-    next: r'\E s \in Sites : ViewGone(s)',
-    coverage: 'ViewGone',
-    reads: {ModelVar.told},
-    writes: {ModelVar.told},
-    needs: {(of: ModelConst.dnsLevels, set: true)},
-  ),
   frame(
     next: r'\E s \in Sites : Frame(s)',
     coverage: 'Frame',

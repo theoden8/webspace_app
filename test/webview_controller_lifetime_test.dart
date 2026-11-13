@@ -7,6 +7,7 @@ import 'package:flutter_inappwebview_android/flutter_inappwebview_android.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
@@ -140,8 +141,9 @@ class _NativeController implements inapp.InAppWebViewController {
 
 final _site = WebViewModel(initUrl: 'https://example.com/');
 
-/// A host that answers nothing, but for [externalScheme] and [showPopup]
-/// when a test asks what reached them, its cookies kept apart by [isolation].
+/// A host where [_site] is loaded that answers nothing, but for
+/// [externalScheme] and [showPopup] when a test asks what reached them, its
+/// cookies kept apart by [isolation].
 WebViewHostHooks _hooks({
   Future<void> Function(ExternalUrlInfo info,
           {required WebViewController? loadIn})?
@@ -152,6 +154,7 @@ WebViewHostHooks _hooks({
       showPopup,
 }) =>
     inertHostHooks(
+      vars: RuntimeVars.ofSet({_site.siteId}),
       isolation: isolation ?? fakeSharedJar,
       showPopup: showPopup,
       externalScheme: externalScheme,
