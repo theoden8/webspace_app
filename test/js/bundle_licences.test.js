@@ -159,3 +159,24 @@ test('LICENSE-001 CI checks the Linux bundle and the snap it builds', () => {
   assert.match(read('.github/workflows/snap.yml'), /node tool\/check_bundle_licences\.js /,
     'CI does not check the snap it builds');
 });
+
+// PLATFORM-013: the AppImage bundles packages whose copyright files are not
+// read yet, listed in linux/appimage/licences_owed.tsv. The list lets their
+// refusals through as owed and only shrinks.
+test('LICENSE-001 an owed package\'s refusals are owed, not errors, and the list only shrinks', (t) => {
+  const root = pkg(t, {
+    'usr/share/doc/libowed/copyright': dep5(['*', 'GPL-2+']),
+    'usr/share/doc/libread/copyright': dep5(['*', 'Expat']),
+    'usr/share/doc/libnew/copyright': dep5(['*', 'GPL-3+']),
+  });
+  const found = B.refusals(root);
+  const owing = (owed) => B.owing(found, { root, owed });
+  const { errors, owes } = owing('libowed\tits GPL stanza is not read yet\n');
+  assert.deepEqual(errors, ['usr/share/doc/libnew/copyright: GPL-3.0-or-later'], 'a package the list does not name');
+  assert.deepEqual([...owes], [['libowed', 1]]);
+  assert.deepEqual(owing('libowed\tnot read\nlibnew\tnot read\nlibread\tnot read\n').errors,
+    ['libread: listed as owed but nothing in it is refused; drop it from the list'], 'a package read since');
+  assert.deepEqual(owing('libowed\tnot read\nlibnew\tnot read\nlibother\tnot read\n').errors, [],
+    "a package another architecture's bundle carries");
+  assert.deepEqual(owing('libowed\nlibnew\tnot read\n').errors, ['libowed: listed as owed with no reason']);
+});

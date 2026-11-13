@@ -138,11 +138,16 @@ parts:
     # PDF.js's Liberation Sans fonts are 1.07.4, under GPL-2.0, and WebKit
     # compiles them into the library; linux/pdfjs_fonts.sh replaces them with
     # Ubuntu's 2.x release, under the OFL, before the build (LICENSE-001).
+    # linux/wpe_root.sh lets the same build run moved whole, as the AppImage
+    # the Snap workflow makes from this part runs it (PLATFORM-013); the snap
+    # sets no WEBSPACE_WPE_ROOT and reads the configured paths, which its
+    # layout binds.
     override-build: |
       export PATH=/usr/sbin:/usr/bin:/sbin:/bin
       changed="$(bash "$CRAFT_PROJECT_DIR/linux/pdfjs_fonts.sh" --src "$CRAFT_PART_SRC" \
         --fonts /usr/share/fonts/truetype/liberation \
         --copyright /usr/share/doc/fonts-liberation/copyright)"
+      changed="$changed; $(bash "$CRAFT_PROJECT_DIR/linux/wpe_root.sh" --src "$CRAFT_PART_SRC")"
       export PKG_CONFIG_PATH="$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig"
       export CMAKE_PREFIX_PATH="$CRAFT_STAGE/usr"
       unset LD_LIBRARY_PATH PYTHONPATH GI_TYPELIB_PATH ACLOCAL_PATH \
@@ -176,6 +181,7 @@ parts:
         --license "LGPL-2.1+ and LGPL-2+ and BSD-2-clause and BSD-2-Clause-Patent and BSD-3-clause and Expat and Apache-2.0 and BSL-1.0 and ISC and CC0-1.0 and OFL-1.1" \
         --third-party "$CRAFT_PROJECT_DIR/linux/webkit_third_party.tsv" --offer \
         --changed "$changed"
+      install -m 644 "$CRAFT_PROJECT_DIR/linux/wpe_root.patch" "$CRAFT_PART_INSTALL/usr/share/doc/wpewebkit/"
     build-packages:
       - ccache
       - clang
