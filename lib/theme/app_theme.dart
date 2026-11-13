@@ -2,16 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 
-/// The app's theme. A glyph its font lacks is looked for in the colour emoji
-/// font before the platform's own fallback, which on Linux can pick a font
-/// that draws a flag's regional indicators as boxed letters (Adwaita Mono).
+/// The app's theme. It names no font family or fallback: a flag takes the
+/// colour emoji font through `flagText`.
 ThemeData buildAppTheme(Color accent, {required Brightness brightness}) => ThemeData(
       colorScheme: buildAccentColorScheme(accent, brightness: brightness),
       scaffoldBackgroundColor: switch (brightness) {
         Brightness.light => const Color(0xFFFFFFFF),
         Brightness.dark => const Color(0xFF000000),
       },
-      fontFamilyFallback: const ['Noto Color Emoji'],
     );
 
 enum AccentColor {

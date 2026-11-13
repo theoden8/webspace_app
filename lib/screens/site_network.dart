@@ -21,6 +21,7 @@ import 'package:webspace/settings/tor_exit_countries.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 import 'package:webspace/widgets/proxy_status_indicator.dart';
+import 'package:webspace/widgets/flag_text.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/web_view_model.dart';
@@ -336,7 +337,7 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
           for (final c in kTorExitCountries)
             SimpleDialogOption(
               onPressed: () => Navigator.pop(ctx, c.code),
-              child: Text(c.label),
+              child: flagText(c.label),
             ),
         ],
       ),

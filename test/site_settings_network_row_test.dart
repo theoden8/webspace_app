@@ -48,7 +48,8 @@ String _summary(WidgetTester tester) {
     matching: find.byType(ListTile),
   );
   final tile = tester.widget<ListTile>(row);
-  return (tile.subtitle! as Text).data!;
+  final text = tile.subtitle! as Text;
+  return text.data ?? text.textSpan!.toPlainText();
 }
 
 Future<void> _openNetwork(WidgetTester tester) async {

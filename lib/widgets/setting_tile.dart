@@ -6,6 +6,7 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/widgets/flag_text.dart';
 import 'package:webspace/widgets/hint_button.dart';
 
 /// A settings title with its hint button beside it. The label is `Flexible`,
@@ -291,7 +292,7 @@ class SettingTile extends StatelessWidget {
     );
     final subtitleText = text == null
         ? null
-        : Text(
+        : flagText(
             text,
             style: missingData
                 ? const TextStyle(color: HintedTitle.missingDataColor)
@@ -487,7 +488,7 @@ class SummaryNavRow extends StatelessWidget {
       title: Text(title),
       subtitle: summary == null
           ? null
-          : Text(summary, style: const TextStyle(fontSize: 12.5)),
+          : flagText(summary, style: const TextStyle(fontSize: 12.5)),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

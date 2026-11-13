@@ -15,11 +15,14 @@ void _appTheme(ThemeMode mode) =>
 void main() {
   tearDown(() => WebViewModel.appTheme = WebViewTheme.light);
 
-  test('a glyph the font lacks comes from the colour emoji font first, in either brightness', () {
+  // The colour emoji font as a fallback of the whole theme came first for
+  // every character, and on Linux its keycap bases drew each space and digit
+  // emoji-wide. A flag takes it through flagText instead.
+  test('the theme names no font fallback, in either brightness', () {
     for (final brightness in Brightness.values) {
       final text = buildAppTheme(accentBlue, brightness: brightness).textTheme;
       for (final style in [text.bodyMedium, text.bodyLarge, text.titleMedium, text.labelLarge]) {
-        expect(style!.fontFamilyFallback, contains('Noto Color Emoji'), reason: '$brightness');
+        expect(style!.fontFamilyFallback, isNull, reason: '$brightness');
       }
     }
   });
