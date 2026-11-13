@@ -13,6 +13,7 @@ import 'package:webspace/widgets/untrusted_cert_prompt.dart';
 
 import 'helpers/localized.dart';
 import 'helpers/host_hooks.dart';
+import 'helpers/fake_webview_controller.dart';
 
 /// A certificate as the platform hands it over: a Wi-Fi sign-in page's
 /// (an Aruba controller's) unless named otherwise, with [der] standing in
@@ -120,14 +121,19 @@ void main() {
     });
 
     test('so does the load error path\'s', () async {
-      await answer('discord.com', hooks: null);
       final host = _Host(trust: () async {
         verdict = SignInRequired(NetworkKey.networkManager('/active/4'));
         return true;
       });
+      final view = FakeWebViewController();
+      // The view's trust callback met the certificate the error path shows.
+      await WebViewTls.handleServerTrust(view,
+          challenge: _challenge('discord.com', cert: _cert()),
+          hooks: host.hooks,
+          apple: true);
       expect(
           await WebViewTls.handleSslLoadError(
-              view: null,
+              view: view,
               url: 'https://discord.com/app',
               hooks: host.hooks,
               apple: false),

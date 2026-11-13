@@ -152,7 +152,7 @@ late; the redundant prompt MUST NOT be re-shown.
 
 **Given** the trust callback saw the certificate for `self-signed.example.com:443`, which the user pinned
 **When** the platform delivers a late load error for the original failed navigation, once or several times
-**Then** `WebViewTls.handleSslLoadError` reads the certificate the trust callback cached, finds the pin matches, and does not prompt
+**Then** `WebViewTls.handleSslLoadError` reads the certificate that view's trust callback met, finds the pin matches, and does not prompt
 **And** it reloads the page once for the burst (`_claimReloadGuard`, 10 s), not once an error
 
 iOS and macOS never reach this path (TLS-009).
@@ -160,6 +160,13 @@ iOS and macOS never reach this path (TLS-009).
 Test: `test/webview_tls_test.dart` ("TLS-003").
 
 ---
+
+#### Scenario: A load error asks only about a certificate its own view met
+
+**Given** one view's trust callback met a certificate for a host, and another view of the same host met none
+**When** the second view's load fails with a certificate error
+**Then** it asks nothing and pins nothing: the certificates a view met are kept per view, so another view's is never shown or pinned (SEC-054)
+**And** `test/webview_tls_test.dart` ("a load error asks about, and pins, only a certificate its own view met") and `formal/tls_trust.tla`'s `Inv_ShownOwn`, with the planted mistake `sharedcache`, hold it
 
 ### Requirement: TLS-004 - Dart-side HTTP client honors the same pin list
 

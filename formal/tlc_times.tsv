@@ -307,6 +307,7 @@ tls_trust_reach_declinedquiet	4
 tls_trust_reach_lateanswer	4
 tls_trust_reach_pinheldinportal	4
 tls_trust_reach_pinused	8
+tls_trust_sharedcache	4
 tls_trust_staleverdict	4
 warmstart	8
 warmstart_bug	8

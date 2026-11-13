@@ -48,6 +48,8 @@
 (*                         in the run, for any host (TLS-013)              *)
 (*   Inv_NoPinInPortal     nothing is pinned while the OS reports a portal, *)
 (*                         an Accept that lands in one included (TLS-012)  *)
+(*   Inv_ShownOwn          a prompt shows a certificate its own view met,  *)
+(*                         or none (SEC-054)                               *)
 (*   Inv_OneAtATime        one certificate has one prompt open at a time   *)
 (*                         (TLS-002, TLS-013)                              *)
 (*                                                                         *)
@@ -65,6 +67,9 @@
 (*                 certificate                                             *)
 (*   answerunread  the verdict is not read again as an Accept lands, so a  *)
 (*                 portal reported while the prompt was open is pinned     *)
+(*   sharedcache   one certificate cache for every view of a host, written *)
+(*                 by any trust callback, so a load error prompts with     *)
+(*                 another view's certificate                              *)
 (*                                                                         *)
 (* What the spec says and the code does not, the Gap invariants: each      *)
 (* tls_trust_gap cfg reproduces the code's counterexample, and none is     *)
@@ -73,10 +78,6 @@
 (*                         certificate is not honoured"; the Dart clients  *)
 (*                         honour it, reading no verdict                   *)
 (*                         (outbound_http_io.dart:349, 382)                *)
-(*   Gap_ShownOwn          the load error path shows, and on Accept pins,  *)
-(*                         the certificate the last trust callback for the *)
-(*                         host cached, which may be another view's        *)
-(*                         (webview_tls.dart:68, 369)                      *)
 (***************************************************************************)
 EXTENDS Naturals, FiniteSets
 
@@ -94,7 +95,8 @@ CONSTANTS
     Mistake
 
 Mistakes == {"none", "anyfp", "pinonopen", "latecache", "noportal",
-             "staleverdict", "forget", "noasking", "answerunread"}
+             "staleverdict", "forget", "noasking", "answerunread",
+             "sharedcache"}
 Paths == {"trust", "bare", "error"}
 ASSUME Mistake \in Mistakes
 ASSUME Entries \subseteq Paths
@@ -126,7 +128,7 @@ VARIABLES
     alive,       \* which views are still there
     \* The code's state.
     pins,        \* TrustedHostsService._byHostPort
-    cache,       \* WebViewTls._sslCertificateCache
+    cache,       \* WebViewTls._certsSeen: per view, by host:port
     declined,    \* WebViewTls._declined
     asking,      \* WebViewTls._asking
     inflight,    \* WebViewTls._inflightSslPrompts
@@ -147,7 +149,7 @@ TypeOK ==
     /\ portal \in BOOLEAN
     /\ alive \in [Views -> BOOLEAN]
     /\ pins \in [Hosts -> Certs \cup {None}]
-    /\ cache \in [Hosts -> AllCerts \cup {None}]
+    /\ cache \in [Views -> [Hosts -> AllCerts \cup {None}]]
     /\ declined \subseteq Keys
     /\ asking \subseteq Keys
     /\ inflight \subseteq Hosts
@@ -163,7 +165,7 @@ Init ==
     /\ portal = FALSE
     /\ alive = [v \in Views |-> TRUE]
     /\ pins = [h \in Hosts |-> None]
-    /\ cache = [h \in Hosts |-> None]
+    /\ cache = [v \in Views |-> [h \in Hosts |-> None]]
     /\ declined = {}
     /\ asking = {}
     /\ inflight = {}
@@ -234,16 +236,18 @@ DartConnect(h, c) ==
 
 \* The trust callback for a handshake on [v] to [h] whose certificate [c]
 \* the OS rejected (onReceivedServerTrustAuthRequest, webview.dart:1845;
-\* popup_webview.dart:275; headless_site_check.dart:132): it caches the
-\* certificate (webview_tls.dart:65-69) and asks the OS for its verdict
-\* (80, 190).
+\* popup_webview.dart:275; headless_site_check.dart:132): a view that can
+\* prompt keeps the certificate it met (webview_tls.dart:65-71) and asks the
+\* OS for its verdict (80, 190).
 ArriveTrust(v, h, c, p) ==
     /\ used < MaxChallenges
     /\ alive[v]
     /\ ch' = [ch EXCEPT ![used + 1] = [view |-> v, host |-> h, cert |-> c,
                 path |-> p, pc |-> "verdict", portal0 |-> portal]]
     /\ used' = used + 1
-    /\ cache' = [cache EXCEPT ![h] = c]
+    /\ cache' = IF Mistake = "sharedcache"
+                THEN [w \in Views |-> [cache[w] EXCEPT ![h] = c]]
+                ELSE IF p = "trust" THEN [cache EXCEPT ![v][h] = c] ELSE cache
     /\ presented' = presented \cup {<< v, h, c >>}
     /\ ev' = NoEv
     /\ UNCHANGED << env, pins, declined, asking, inflight, dart, revokes,
@@ -251,13 +255,15 @@ ArriveTrust(v, h, c, p) ==
 
 \* The main frame's load on [v] to [h] failed with a certificate error,
 \* after a trust callback for it (onReceivedError, webview.dart:1726-1735):
-\* it reads the certificate cached for the host (webview_tls.dart:368-371)
-\* and asks the OS for its verdict (372).
+\* it reads the certificate its own view met for the host
+\* (webview_tls.dart:368-371) and asks the OS for its verdict (372).
 ArriveError(v, h) ==
     /\ used < MaxChallenges
     /\ alive[v]
     /\ \E c \in AllCerts : << v, h, c >> \in presented
-    /\ ch' = [ch EXCEPT ![used + 1] = [view |-> v, host |-> h, cert |-> cache[h],
+    \* A view with no certificate of its own met asks nothing (SEC-054).
+    /\ cache[v][h] # None
+    /\ ch' = [ch EXCEPT ![used + 1] = [view |-> v, host |-> h, cert |-> cache[v][h],
                 path |-> "error", pc |-> "verdict", portal0 |-> portal]]
     /\ used' = used + 1
     /\ ev' = NoEv
@@ -281,7 +287,8 @@ OpenPrompt(i, r) ==
                THEN [pins EXCEPT ![r.host] = r.cert] ELSE pins
     /\ ev' = [NoEv EXCEPT !.kind = "ask", !.portal = portal,
                           !.declinedBefore = (k \in declinedEver),
-                          !.own = (<< r.view, r.host, r.cert >> \in presented)]
+                          !.own = (r.cert = None
+                                   \/ << r.view, r.host, r.cert >> \in presented)]
 
 \* The verdict arrives, and the code runs on to its next await.
 Verdict(i) ==
@@ -349,9 +356,10 @@ Verdict(i) ==
 \* awaits the disk (154).
 Answer(i, yes) ==
     /\ ch[i].pc = "prompt"
-    /\ LET r == ch[i]
+    /\ \E w \in Views : LET r == ch[i]
            k == Key(r.host, r.cert)
-           pinned == IF Mistake = "latecache" THEN cache[r.host] ELSE r.cert
+           \* latecache: what some view met for the host since, w's.
+           pinned == IF Mistake = "latecache" THEN cache[w][r.host] ELSE r.cert
        IN
        /\ asking' = asking \ {k}
        /\ IF ~yes
@@ -443,7 +451,7 @@ Inv_NoPinInPortal == ev.kind = "write" => ~ev.portal
 
 Gap_NoPinPassInPortal == (ev.kind = "pass" /\ ev.how = "pin") => ~ev.portal
 
-Gap_ShownOwn == ev.kind = "ask" => ev.own
+Inv_ShownOwn == ev.kind = "ask" => ev.own
 
 \* --- Witnesses: each MUST be violated -------------------------------------
 

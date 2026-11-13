@@ -119,12 +119,12 @@ void main() {
       'asks nothing', () async {
     final host = _Host(trust: true);
     final view = FakeWebViewController();
-    // The trust callback saw the certificate, which the failed load does not
-    // carry, and the user pinned it.
+    // The view's trust callback saw the certificate, which the failed load
+    // does not carry, and the user pinned it.
     await WebViewTls.handleServerTrust(
-      null,
+      view,
       challenge: _challenge(_host, cert: _cert()),
-      hooks: null,
+      hooks: host.hooks,
       apple: true,
     );
     await TrustedHostsService.instance.trust(
@@ -147,6 +147,33 @@ void main() {
     expect(host.asked, isEmpty);
     expect(view.calls, ['loadUrl $_url'],
         reason: 'one reload a failure burst, not one an error');
+  });
+
+  test('TLS-003: a load error asks about, and pins, only a certificate its '
+      'own view met (SEC-054)', () async {
+    final shown = <inapp.SslCertificate?>[];
+    final hooks = inertHostHooks(
+        untrustedCertificate: (host, {required port, required certificate}) async {
+      shown.add(certificate);
+      return true;
+    });
+    final other = FakeWebViewController();
+    final view = FakeWebViewController();
+    // Another view of the host met its own certificate first.
+    await WebViewTls.handleServerTrust(
+      other,
+      challenge: _challenge(_host, cert: _cert()),
+      hooks: hooks,
+      apple: true,
+    );
+    expect(
+      await WebViewTls.handleSslLoadError(
+          view: view, url: _url, hooks: hooks, apple: false),
+      isFalse,
+      reason: 'no certificate of its own to show or pin',
+    );
+    expect(shown, isEmpty, reason: 'the other view\'s certificate is not shown');
+    expect(_pinned(_cert()), isFalse);
   });
 
   group('TLS-006: a certificate whose bytes the platform did not give', () {
