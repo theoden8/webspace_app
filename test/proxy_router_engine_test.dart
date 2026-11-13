@@ -408,7 +408,8 @@ void main() {
       expect(wire.dropped.keys, [RouterIdentity.ofSite(SiteId('plain'))]);
     });
 
-    test('an IPv6 proxy address keeps its host intact', () {
+    test('an IPv6 proxy address reaches the wire as the host a socket takes, '
+        'as the relay start sends it', () {
       final state = ProxyRouterState();
       final wire = ProxyRouterEngine.toWire(
         ProxyRouterEngine.buildRoutes(
@@ -416,7 +417,7 @@ void main() {
           tokens: {RouterIdentity.ofSite(SiteId('a')): state.tokenFor(RouterIdentity.ofSite(SiteId('a')))},
         ),
       );
-      expect(wire.routes[state.credentialFor(RouterIdentity.ofSite(SiteId('a')))]!['host'], '[::1]');
+      expect(wire.routes[state.credentialFor(RouterIdentity.ofSite(SiteId('a')))]!['host'], '::1');
     });
   });
 

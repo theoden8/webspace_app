@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,6 +15,7 @@ import 'package:webspace/settings/proxy_ids.dart';
 
 import 'helpers/mock_secure_storage.dart';
 import 'helpers/fake_outbound.dart';
+import '../integration_test/socks5_fixture.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -26,37 +30,43 @@ void main() {
     GlobalOutboundProxy.resetForTest();
   });
 
-  group('parseHostPort', () {
-    test('parses host:port', () {
-      expect(parseHostPort('proxy.example.com:8080'), ('proxy.example.com', 8080));
-    });
-
-    test('parses IPv4:port', () {
-      expect(parseHostPort('127.0.0.1:9050'), ('127.0.0.1', 9050));
-    });
-
-    test('rejects missing port', () {
-      expect(parseHostPort('proxy.example.com'), isNull);
-    });
-
-    test('rejects empty port', () {
-      expect(parseHostPort('proxy.example.com:'), isNull);
-    });
-
-    test('rejects non-numeric port', () {
-      expect(parseHostPort('host:abc'), isNull);
-    });
-
-    test('rejects port out of range (high)', () {
-      expect(parseHostPort('host:99999'), isNull);
-    });
-
-    test('rejects port out of range (low)', () {
-      expect(parseHostPort('host:0'), isNull);
-    });
-  });
-
   group('DefaultOutboundHttpFactory', () {
+    // The socket takes ProxyAddress.socketHost; the written host, brackets
+    // kept, resolves nowhere, so the fetch failed where the native relay,
+    // which already took socketHost, carried it.
+    test('a SOCKS5 proxy written as a bracketed IPv6 literal carries a fetch '
+        '(PROXY-017)', () async {
+      final Socks5Fixture socks;
+      try {
+        socks = await Socks5Fixture.bind(on: InternetAddress.loopbackIPv6);
+      } on SocketException {
+        // CI's runners have ::1; a sandbox without it may skip, CI may not.
+        if (Platform.environment['CI'] == 'true') rethrow;
+        markTestSkipped('no IPv6 loopback on this machine');
+        return;
+      }
+      addTearDown(socks.close);
+      final origin = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => origin.close(force: true));
+      origin.listen((request) {
+        request.response.write('ok');
+        unawaited(request.response.close());
+      });
+      final client = (const DefaultOutboundHttpFactory().clientFor(
+        OutboundProxy.ofApp(UserProxySettings(
+          type: ProxyType.SOCKS5,
+          address: '[::1]:${socks.port}',
+        )).resolved,
+      ) as OutboundClientReady)
+          .client;
+      addTearDown(client.close);
+      final res = await client
+          .get(Uri.parse('http://127.0.0.1:${origin.port}/'))
+          .timeout(const Duration(seconds: 5));
+      expect(res.body, 'ok');
+      expect(socks.targets, ['127.0.0.1:${origin.port}']);
+    });
+
     final factory = const DefaultOutboundHttpFactory();
 
     test('DEFAULT type returns a Ready client', () {

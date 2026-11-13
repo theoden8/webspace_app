@@ -285,10 +285,15 @@ class ProxyRouterEngine {
     if (proxy.credentialsId != null) {
       return const _Dropped('its saved credentials sign in to no gateway');
     }
-    final parsed = splitProxyAddress(proxy.address);
-    if (parsed == null) {
-      return _Dropped('its proxy address "${proxy.address ?? ''}" is not '
-          'host:port');
+    final ProxyAddress parsed;
+    switch (ProxyAddressParse.of(proxy.address)) {
+      case final ProxyAddress p:
+        parsed = p;
+      case ProxyAddressMissing() ||
+            ProxyAddressMalformed() ||
+            ProxyAddressBadPort():
+        return _Dropped('its proxy address "${proxy.address ?? ''}" is not '
+            'host:port');
     }
     return _Wire({
       'siteId': route.identity,
@@ -297,7 +302,7 @@ class ProxyRouterEngine {
         ProxyType.SOCKS5 => 'socks5',
         _ => 'http',
       },
-      'host': parsed.host,
+      'host': parsed.socketHost,
       'port': parsed.port,
       'username': proxy.username,
       'password': proxy.password,

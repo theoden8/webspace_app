@@ -139,20 +139,6 @@ UserProxySettings _torTagged(UserProxySettings s, {required TorTag? tag}) {
   );
 }
 
-/// Split a `host:port` proxy address, or null if it is not one.
-///
-/// Splits on the LAST colon so a bracketed IPv6 literal (`[::1]:8080`)
-/// keeps its host. Both per-site proxy mechanisms, the native per-WebView
-/// binding and the Android router's route table, parse addresses through
-/// here, so they cannot disagree on IPv6.
-({String host, int port})? splitProxyAddress(String? address) =>
-    switch (ProxyAddressParse.of(address)) {
-      ProxyAddress(:final host, :final port) => (host: host, port: port),
-      ProxyAddressMissing() ||
-      ProxyAddressMalformed() ||
-      ProxyAddressBadPort() => null,
-    };
-
 /// Expands a tagged [ProxyType.TOR] into live SOCKS5 settings, or says why
 /// the runtime is not up.
 typedef TorProxyResolver = TorRoute Function(TorTag tag);
@@ -289,13 +275,6 @@ enum BodyEncoding {
   /// is the wire bytes against that length. A browser decodes regardless.
   asSent,
 }
-
-/// Parse `host:port`. Returns null on invalid input. Used by the dart:io
-/// factory as well as tests, so it cannot be test-only.
-(String, int)? parseHostPort(String addr) => switch (splitProxyAddress(addr)) {
-  (:final host, :final port) => (host, port),
-  null => null,
-};
 
 /// TOR-008: whether a site's webview must wait for the Tor runtime. Resolves
 /// DEFAULT through the global proxy (PROXY-011), so a site that inherits a

@@ -15,11 +15,10 @@ import 'dart:async';
 
 import 'package:webspace/services/external_tor_posture_engine.dart';
 import 'package:webspace/services/log_service.dart';
-import 'package:webspace/services/outbound_http_types.dart'
-    show splitProxyAddress;
 import 'package:webspace/services/tor_control.dart';
 import 'package:webspace/services/tor_control_link.dart';
 import 'package:webspace/services/tor_engine.dart';
+import 'package:webspace/settings/proxy.dart';
 
 /// What a listener said when asked whether it is tor.
 enum ExternalTorAnswer {
@@ -238,20 +237,25 @@ class ExternalTorRuntime implements TorRuntime {
     if (_pinned != null) _events.add(const TorStarting());
     if (_link != null) await _dropLink();
     if (attempt != _attempt) return;
-    final parsed = splitProxyAddress(address);
-    if (parsed == null) {
-      _fail('The external Tor address "$address" is not host:port.');
-      return;
+    final ProxyAddress parsed;
+    switch (ProxyAddressParse.of(address)) {
+      case final ProxyAddress p:
+        parsed = p;
+      case ProxyAddressMissing() ||
+            ProxyAddressMalformed() ||
+            ProxyAddressBadPort():
+        _fail('The external Tor address "$address" is not host:port.');
+        return;
     }
     LogTag.tor.debug('Asking $address whether it is tor', sensitive: true);
-    final answer = await _identify(parsed.host, port: parsed.port);
+    final answer = await _identify(parsed.socketHost, port: parsed.port);
     if (attempt != _attempt) return;
     switch (answer) {
       case ExternalTorAnswer.tor:
         LogTag.tor.debug('$address answered as tor', sensitive: true);
-        await _attach(attempt: attempt, socks: parsed);
+        await _attach(attempt: attempt, socks: _listener(parsed));
         if (attempt != _attempt) return;
-        _events.add(TorUp(parsed.host, port: parsed.port));
+        _events.add(TorUp(parsed.urlHost, port: parsed.port));
       case ExternalTorAnswer.notTor:
         _fail('Something answers at $address, but not as tor.');
       case ExternalTorAnswer.unreachable:
@@ -333,10 +337,15 @@ class ExternalTorRuntime implements TorRuntime {
   Future<void> _reattach() async {
     final attempt = ++_attempt;
     await _dropLink();
-    final parsed = splitProxyAddress(_address());
-    if (parsed == null || attempt != _attempt) return;
-    await _attach(attempt: attempt, socks: parsed);
+    if (ProxyAddressParse.of(_address()) case final ProxyAddress parsed
+        when attempt == _attempt) {
+      await _attach(attempt: attempt, socks: _listener(parsed));
+    }
   }
+
+  /// The SOCKS listener as tor names it in `net/listeners/socks`.
+  static ({String host, int port}) _listener(ProxyAddress address) =>
+      (host: address.urlHost, port: address.port);
 
   void _publishAttached(TorPostureRead posture) {
     _setControl(TorControlAttached(version: _link?.version, gaps: posture.gaps));

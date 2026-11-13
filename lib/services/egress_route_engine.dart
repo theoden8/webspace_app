@@ -129,10 +129,10 @@ UserProxySettings get _nowhere => UserProxySettings(type: ProxyType.SAVED);
   String? upstreamPassword;
   if (upstream case (:final route, :final wire)) {
     if (ProxyAddressParse.of(route.address) case ProxyAddress(
-      :final host,
+      :final urlHost,
       :final port,
     )) {
-      buffer.write('&t=$wire&h=${e(host)}&p=$port');
+      buffer.write('&t=$wire&h=${e(urlHost)}&p=$port');
     } else {
       return null;
     }

@@ -159,7 +159,7 @@ void main() {
       ]) {
         final parsed = ProxyAddressParse.of(address);
         expect(parsed, isA<ProxyAddress>(), reason: address);
-        expect((parsed as ProxyAddress).host, host, reason: address);
+        expect((parsed as ProxyAddress).urlHost, host, reason: address);
         expect(parsed.port, port, reason: address);
       }
     });

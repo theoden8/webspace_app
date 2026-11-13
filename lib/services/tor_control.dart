@@ -11,8 +11,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
-import 'package:webspace/services/outbound_http_types.dart'
-    show splitProxyAddress;
+import 'package:webspace/settings/proxy.dart';
 
 /// Where an external tor's control channel listens.
 sealed class TorControlEndpoint {
@@ -25,9 +24,13 @@ sealed class TorControlEndpoint {
     final value = raw.trim();
     final path = value.startsWith('unix:') ? value.substring(5) : value;
     if (path.startsWith('/')) return TorControlSocket(path);
-    final hostPort = splitProxyAddress(value);
-    if (hostPort == null) return null;
-    return TorControlTcp(hostPort.host, port: hostPort.port);
+    return switch (ProxyAddressParse.of(value)) {
+      ProxyAddress(:final socketHost, :final port) =>
+        TorControlTcp(socketHost, port: port),
+      ProxyAddressMissing() ||
+      ProxyAddressMalformed() ||
+      ProxyAddressBadPort() => null,
+    };
   }
 }
 

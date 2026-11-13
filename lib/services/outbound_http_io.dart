@@ -77,17 +77,22 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
             'blocked to avoid leaking the device IP via a direct fallback.',
           );
         }
-        final hostPort = parseHostPort(addr);
-        if (hostPort == null) {
-          return OutboundClientBlocked(
-            'Invalid proxy address "$addr". Outbound request blocked to '
-            'avoid leaking the device IP via a direct fallback.',
-          );
+        final ProxyAddress proxy;
+        switch (ProxyAddressParse.of(addr)) {
+          case final ProxyAddress parsed:
+            proxy = parsed;
+          case ProxyAddressMissing() ||
+                ProxyAddressMalformed() ||
+                ProxyAddressBadPort():
+            return OutboundClientBlocked(
+              'Invalid proxy address "$addr". Outbound request blocked to '
+              'avoid leaking the device IP via a direct fallback.',
+            );
         }
         return _httpProxyClient(
           settings,
           addr: addr,
-          hostPort: hostPort,
+          proxy: proxy,
           tls: settings.type == ProxyType.HTTPS,
           encoding: encoding,
           pageSteered: pageSteered,
@@ -127,16 +132,21 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
             'fallback.',
           );
         }
-        final hostPort = parseHostPort(addr);
-        if (hostPort == null) {
-          return OutboundClientBlocked(
-            'Invalid SOCKS5 proxy address "$addr". Outbound request blocked '
-            'to avoid leaking the device IP via a direct fallback.',
-          );
+        final ProxyAddress proxy;
+        switch (ProxyAddressParse.of(addr)) {
+          case final ProxyAddress parsed:
+            proxy = parsed;
+          case ProxyAddressMissing() ||
+                ProxyAddressMalformed() ||
+                ProxyAddressBadPort():
+            return OutboundClientBlocked(
+              'Invalid SOCKS5 proxy address "$addr". Outbound request blocked '
+              'to avoid leaking the device IP via a direct fallback.',
+            );
         }
         return _socks5Client(
-          host: hostPort.$1,
-          port: hostPort.$2,
+          host: proxy.socketHost,
+          port: proxy.port,
           username: settings.hasCredentials ? settings.username : null,
           password: settings.hasCredentials ? settings.password : null,
           encoding: encoding,
@@ -289,7 +299,7 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
   static OutboundClient _httpProxyClient(
     UserProxySettings settings, {
     required String addr,
-    required (String, int) hostPort,
+    required ProxyAddress proxy,
     required bool tls,
     required BodyEncoding encoding,
     bool pageSteered = false,
@@ -305,8 +315,8 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
     };
     if (settings.hasCredentials) {
       inner.addProxyCredentials(
-        hostPort.$1,
-        hostPort.$2,
+        proxy.urlHost,
+        proxy.port,
         '',
         HttpClientBasicCredentials(settings.username!, settings.password!),
       );
