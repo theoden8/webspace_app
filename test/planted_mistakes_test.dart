@@ -423,7 +423,8 @@ _Catch _catching(Mutant m) => switch (m) {
     world: (d) => ActivationWorld(_mixed, tabbed: true, declared: d),
     setup: const [Tap(0), Login(0), Tap(1)],
     script: const [Tap(0), CloseTab(0, tab: 0)],
-    breaks: "webview shows another tab's history",
+    // The binding's own assert catches it before the walk's invariant does.
+    breaks: 'a held back stack belongs to the live build',
   ),
   Mutant.tabgateopen => _By(
     world: (d) => ActivationWorld(_mixed, tabbed: true, declared: d),
