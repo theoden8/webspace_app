@@ -178,11 +178,12 @@ class.
   (`told`, `ViewBlockers`). Each is asked for as it lands and joins the lists' queue (the `Dns`
   instance of `activation_lock`, the code's `_mutations`), and its turn decides it: a level
   held by then is not fetched again, a prune drops of what it asked only what is still held
-  and not the app-wide level, an import of the level in force changes nothing; a frame builds
-  and drops the views (`ViewBuilt`, `ViewGone`, hand-written), and `activation_dns*.cfg` hold
-  `Inv_Told` with the sites' levels (`SiteLevel`) and the levels a download picks
-  (`DnsLevels`); `foldbeforelevel` (the views told with the level the fold replaces) is a
-  printed mutant. A webspace chosen on the list is an input of the activation table too
+  and not the app-wide level, an import of the level in force changes nothing; a running
+  site's first view built and its last gone are the views' table (`ViewBuilt`, `ViewGone`,
+  `ViewsTable`), and `activation_dns*.cfg` hold `Inv_Told` with the sites' levels
+  (`SiteLevel`) and the levels a download picks (`DnsLevels`); `foldbeforelevel` (the views
+  told with the level the fold replaces) and `builtatglobal` (a view built told the
+  app-wide level) are printed mutants. A webspace chosen on the list is an input of the activation table too
   (WEBSPACE-013): it supersedes an activation in flight, waits for the device's online
   answer, and unloads, as choices, the loaded sites it stops showing (`Away`); the
   `activation_spaces*.cfg` hold the activation's invariants across it and `Inv_LeftHidden`
@@ -211,10 +212,13 @@ class.
   home, a preload, memory pressure) are steps of the activation table too (`Step.input`),
   printed as `InputTableStep`. An environment action the code runs as a step
   (`Step.environment`: a loaded site's webview let go of, `LetGoTable`, and its frame,
-  `FrameTable`) lands as an event does, on no flow, and prints as `EnvTableStep`, which
+  `FrameTable`; a running site's first view attaching its DNS level and its last going,
+  `ViewsTable`) lands as an event does, on no flow, and prints as `EnvTableStep`, which
   `Next` takes beside the actions `activation.tla` still writes by hand. A let-go its guard
   does not admit (a site not loaded, or no webview built) takes no step: its teardown runs
-  in `Commit.none()`, which fails on a write of the model. A step that starts another table's input in its own turn
+  in `Commit.none()`, which fails on a write of the model. So does another view of a site
+  that has one (a popup, a nested screen beside the site's own), which leaves the site's
+  `told` as it was; a view whose site no longer runs attaches untold, outside the table. A step that starts another table's input in its own turn
   declares it, a `Spawn` (a reroute or a tab rebind that moves a slot to another site
   opens it again, LIR-024):
   the runner starts it after the arm's other effects and its mark and asserts the input

@@ -1041,8 +1041,9 @@ Tests: `test/webview_controller_lifetime_test.dart` ("an app-wide download reach
 **When** downloads of the app-wide level and of a site's level, and the clear, interleave with activations that build and drop those webviews
 **Then** at every step each live view's interceptor was last told the level its site resolves to under the lists in force (`Inv_Told` in `formal/activation.tla`)
 **And** the download, the level a site asks for and the clear run from one step table (`DnsTable`), whose fold writes the lists, the app-wide level and what each view was told as one step and asserts the views were told what the model says
+**And** a site's first view built, where the site runs (loaded, a nested screen's or a wake's check), and its last view gone are the views' own steps (`ViewsTable`), the first attaching at the level its write gives and asserting that is the level its site resolves to; a view built after its site stopped running attaches at that level and is told nothing more
 
-Tests: `test/view_blockers_test.dart`; `test/activation_schedules_test.dart` ("DNS downloads"), replayed against the model by `formal/trace/check_steps.sh`; `formal/check.sh` (`activation_dns*.cfg`, the `foldbeforelevel` mutant).
+Tests: `test/view_blockers_test.dart`; `test/activation_schedules_test.dart` ("DNS downloads"), replayed against the model by `formal/trace/check_steps.sh`; `formal/check.sh` (`activation_dns*.cfg`, the `foldbeforelevel` and `builtatglobal` mutants).
 
 #### Scenario: A background wake's check follows the lists as a site's webview does
 
