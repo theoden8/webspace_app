@@ -38,10 +38,10 @@ keep more than one tab live without raising the bound.
 - **Only the active tab acts as the site.** A tab that goes warm is paused and
   loses camera, microphone and screen capture; background audio and
   notification polling stay with the active tab.
-- **A hosted tab can stay warm.** It counts toward, and is judged as, the site
-  it runs as (LIR-018): an unload of that site for a domain conflict, proxy
-  mismatch or Tor exit mismatch takes it, wherever it is listed. It mounts in
-  its owner's slot and goes when that slot is unloaded.
+- **A hosted tab can stay warm.** It counts toward the slot it is shown in,
+  which keeps warm only views running as the site its shown tab runs as
+  (LIR-018), so an unload of that slot for a domain conflict, proxy mismatch or
+  Tor exit mismatch takes it.
 - **Both isolation engines.** Tabs of a site share its cookies under the
   legacy shared jar too; an unload of a site takes every webview running as
   it, and the jar is captured once per site, as today.
@@ -65,18 +65,17 @@ None.
 
 ## Impact
 
-- **Engines:** `SiteUnloadEngine` (the LRU cap's unit, the conflict unloads),
-  `SiteLifecyclePromotionEngine` (tiers per webview), `SiteRetentionPriority`
-  (two warm tiers), the tab tables (`TabTable.tabInputs`, `tabFlow`: a switch
-  to a warm tab, a warm tab's eviction).
-- **Runtime state:** `WebViewTabBinding` keeps `built` (the shown view's tab)
-  and gains the warm views by tab; `RuntimeVars.loaded` stays a set of sites,
-  and the caps read a count of live views. Both are joins in the CLAUDE.md
-  map, flagged for review.
+- **Engines:** `SiteUnloadEngine` (the cap counts warm views, `inDropOrder`),
+  the activation's plan and memory pressure (they take warm views first), the
+  tab tables (`TabTable.tabInputs`, `tabFlow`: a switch to a warm tab, the
+  limit).
+- **Runtime state:** `SiteViews` holds a site's shown view and its warm ones;
+  `WebViewTabBinding.built` stays the shown view's tab and `RuntimeVars.loaded`
+  a set of sites, and the caps count warm views beside it.
 - **Model:** `formal/activation.tla` keeps `built` and `hist` as the shown
   view and gains a `warm` variable, the history each warm view shows, written
-  only by actions that already write `built` or `hist`; three new invariants,
-  each with a planted mistake; `formal/retention.tla` gets the warm tiers.
+  only by actions that already write `built` or `hist`; its invariants each
+  with a planted mistake; `formal/retention.tla` ranks warm views before sites.
 - **UI:** the site's slot under `ValueKey(siteId)` holds one subtree per live
   tab; the Tabs sheet shows a warm tab at full strength (TAB-011).
 - **Unmeasured:** Android, where every webview shares one renderer process,

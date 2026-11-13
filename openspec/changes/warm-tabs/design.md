@@ -121,9 +121,10 @@ case changes), or retyping `loaded` to views (37 readers). Both rejected.
   (`WebViewTabBinding`, through `TabVars`), so the printer writes it into
   every frame, the facts proofs and the replay. The hand-written environment
   actions take it by hand.
-- **One operator for the live views**, `Live(s) == ({built[s]} \cup {t \in
-  TabIds : warm[s][t] # 0}) \ {0}`, a printed `Def`. The cap's count and
-  TAB-023's limit read it, never `built` and `warm` apart.
+- **The warm views as printed operators**: `WarmTabs(s)`, a slot's warm
+  tabs, and `WarmUnits(S)`, the pairs `<<s, t>>` over a set of sites, each a
+  `Def` in `TabVars`. The cap's count, TAB-023's limit (`WarmOver`) and the
+  plans' picks read them, never `warm` apart.
 - **Invariants**, each with its own planted mistake:
 
 | Invariant | Mutant | World |
@@ -136,9 +137,9 @@ Worlds:
 
 | World | Warm | Checks |
 |---|---|---|
-| the printed tab worlds (`Tabbed = {1}`, `MaxTabs = 3`) | `MaxWarm = 1` | the active tab against a warm one: a switch landing after a capture, a close of the tab being captured, the queued bytes' tag (TAB-003, BUG-036) |
-| one written world, `Tabbed = {1}`, `MaxTabs = 3` | `MaxWarm = 2` | two warm tabs: the limit's choice between them (TAB-023) |
-| one link world (as `tabs_link_any`) | `MaxWarm = 1` | an unload of a site takes the warm view running as it (TAB-026, TAB-027) |
+| the printed tab worlds (`Tabbed = {1}`, `MaxTabs = 3`) | `WarmOwn = 3`, `WarmHosted = 2` | the active tab against a warm one: a switch landing after a capture, a close of the tab being captured, the queued bytes' tag (TAB-003, BUG-036) |
+| `tabs_warm_one`, `Tabbed = {1}`, `MaxTabs = 3` | a limit of one | two warm tabs: the limit's choice between them (TAB-023) |
+| `tabs_cap_two`, the cap at two | the limits as shipped | an unload of a site takes the warm view running as it (TAB-026, TAB-027) |
 | the base world (`Tabbed = {}`) | none | unchanged: the same distinct states |
 
 The cost to watch is the costliest tab world,
@@ -164,9 +165,10 @@ unloaded slot holds none (TAB-026).
 ### D8. Unloads by running site
 
 Domain conflict, proxy mismatch and Tor exit mismatch already judge a slot by
-the identity it runs as (LIR-024). They judge each `LiveView` by its own
-running identity, and an unload of a site takes every view running as it
-(TAB-027). Under the legacy jar the cookie capture runs once, after the last
+the identity it runs as (LIR-024). A slot's warm views run as that identity
+(D3), so the slot's judgment covers them, and an unload of a site takes every
+view of its slot (TAB-027): `LetGo` and the unload's dispose zero its `warm`
+row with `built`. Under the legacy jar the cookie capture runs once, after the last
 of those views is disposed, so the jar is read after no view of the site can
 write it.
 
