@@ -63,3 +63,15 @@ test('properties read consistently across multiple accesses', () => {
   assert.equal(a, b);
   assert.equal(c, d);
 });
+
+test('each getter stringifies as a native accessor', () => {
+  // A getter whose source prints names the shim to any page that reads it
+  // back; this one did until it went through nativeGetter.
+  const dom = loadShim(pageJs('do_not_track'));
+  const proto = dom.window.Navigator.prototype;
+  for (const name of ['doNotTrack', 'msDoNotTrack', 'globalPrivacyControl']) {
+    const get = Object.getOwnPropertyDescriptor(proto, name).get;
+    assert.equal(dom.window.Function.prototype.toString.call(get),
+      `function get ${name}() { [native code] }`, name);
+  }
+});
