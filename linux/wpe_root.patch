@@ -1,0 +1,78 @@
+diff --git a/Source/WTF/wtf/glib/GResources.cpp b/Source/WTF/wtf/glib/GResources.cpp
+index 885eead4..50e243d5 100644
+--- a/Source/WTF/wtf/glib/GResources.cpp
++++ b/Source/WTF/wtf/glib/GResources.cpp
+@@ -37,6 +37,15 @@ void registerInspectorResourceIfNeeded()
+         const char* dataDir = PKGDATADIR;
+         GUniqueOutPtr<GError> error;
+ 
++        // WebSpace: as for the helper processes, WEBSPACE_WPE_ROOT names
++        // where a WebKit moved whole now keeps its /usr tree.
++        GUniquePtr<char> movedDataDir;
++        const char* root = g_getenv("WEBSPACE_WPE_ROOT");
++        if (root && *root) {
++            movedDataDir.reset(g_strconcat(root, PKGDATADIR, nullptr));
++            dataDir = movedDataDir.get();
++        }
++
+         const char* path = g_getenv("WEBKIT_INSPECTOR_RESOURCES_PATH");
+         if (path && g_file_test(path, G_FILE_TEST_IS_DIR))
+             dataDir = path;
+diff --git a/Source/WebKit/Shared/glib/ProcessExecutablePathGLib.cpp b/Source/WebKit/Shared/glib/ProcessExecutablePathGLib.cpp
+index e2d99ba8..0cf769c9 100644
+--- a/Source/WebKit/Shared/glib/ProcessExecutablePathGLib.cpp
++++ b/Source/WebKit/Shared/glib/ProcessExecutablePathGLib.cpp
+@@ -29,6 +29,7 @@
+ 
+ #include <glib.h>
+ #include <wtf/FileSystem.h>
++#include <wtf/glib/GUniquePtr.h>
+ 
+ namespace WebKit {
+ 
+@@ -42,6 +43,17 @@ static String getExecutablePath()
+ }
+ #endif
+ 
++// WebSpace: a WebKit moved whole, its /usr tree under another directory (the
++// AppImage), names that directory in WEBSPACE_WPE_ROOT.
++static String executableDirectory()
++{
++    const char* root = g_getenv("WEBSPACE_WPE_ROOT");
++    if (!root || !*root)
++        return FileSystem::stringFromFileSystemRepresentation(PKGLIBEXECDIR);
++    GUniquePtr<char> moved(g_strconcat(root, PKGLIBEXECDIR, nullptr));
++    return FileSystem::stringFromFileSystemRepresentation(moved.get());
++}
++
+ static String findWebKitProcess(const ASCIILiteral processName)
+ {
+ #if ENABLE(DEVELOPER_MODE)
+@@ -60,7 +72,7 @@ static String findWebKitProcess(const ASCIILiteral processName)
+     }
+ #endif
+ 
+-    return FileSystem::pathByAppendingComponent(FileSystem::stringFromFileSystemRepresentation(PKGLIBEXECDIR), processName);
++    return FileSystem::pathByAppendingComponent(executableDirectory(), processName);
+ }
+ 
+ String executablePathOfWebProcess()
+diff --git a/Source/WebKit/UIProcess/API/glib/WebKitWebContext.cpp b/Source/WebKit/UIProcess/API/glib/WebKitWebContext.cpp
+index 3e519be4..22a695da 100644
+--- a/Source/WebKit/UIProcess/API/glib/WebKitWebContext.cpp
++++ b/Source/WebKit/UIProcess/API/glib/WebKitWebContext.cpp
+@@ -348,6 +348,14 @@ static UTF8CString injectedBundleDirectory()
+     if (bundleDirectory && g_file_test(bundleDirectory, G_FILE_TEST_IS_DIR))
+         return UTF8CString::unsafeFromUTF8(bundleDirectory);
+ 
++    // WebSpace: as for the helper processes, WEBSPACE_WPE_ROOT names where a
++    // WebKit moved whole now keeps its /usr tree.
++    const char* root = g_getenv("WEBSPACE_WPE_ROOT");
++    if (root && *root) {
++        GUniquePtr<char> moved(g_strconcat(root, PKGLIBDIR G_DIR_SEPARATOR_S "injected-bundle" G_DIR_SEPARATOR_S, nullptr));
++        return UTF8CString::unsafeFromUTF8(moved.get());
++    }
++
+     return PKGLIBDIR G_DIR_SEPARATOR_S "injected-bundle"_s G_DIR_SEPARATOR_S;
+ }
+ 
