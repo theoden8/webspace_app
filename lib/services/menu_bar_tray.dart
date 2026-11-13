@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tray_icon.dart';
@@ -66,13 +67,13 @@ class MenuBarTray implements TrayIcon {
   }
 
   Future<bool> _invoke(String method, {required Object? args}) async {
-    try {
-      await _channel.invokeMethod<void>(method, args);
-      return true;
-    } on PlatformException catch (e) {
-      LogTag.lifecycle.error('Tray $method failed: ${e.code}');
-    } on MissingPluginException {
-      LogTag.lifecycle.warning('Tray $method: the runner has no channel');
+    switch (await _channel.ask<void>(method, arguments: args)) {
+      case Answered():
+        return true;
+      case PlatformRefused(:final error):
+        LogTag.lifecycle.error('Tray $method failed: ${error.code}');
+      case NoPlugin():
+        LogTag.lifecycle.warning('Tray $method: the runner has no channel');
     }
     return false;
   }

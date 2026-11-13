@@ -41,6 +41,10 @@ import re
 import sys
 import tempfile
 
+# Run with -I, which leaves the script's own directory off the path.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import tla_text  # noqa: E402
+
 STATEMENT = re.compile(
     r"^(THEOREM|LEMMA|PROPOSITION|COROLLARY)\b\s*(?:(\w+)\s*==)?")
 ASSUMPTION = re.compile(r"^(ASSUME|ASSUMPTION|AXIOM)\b\s*(?:(\w+)\s*==)?")
@@ -57,34 +61,7 @@ READ = re.compile(r"obligations? proved|Proof incomplete in module")
 def code(text):
     """[text] with its comments blanked, line breaks kept, so line numbers
     stay tlapm's."""
-    out, i, depth, n = [], 0, 0, len(text)
-    while i < n:
-        if text.startswith("(*", i):
-            depth += 1
-            out.append("  ")
-            i += 2
-        elif depth and text.startswith("*)", i):
-            depth -= 1
-            out.append("  ")
-            i += 2
-        elif depth:
-            out.append("\n" if text[i] == "\n" else " ")
-            i += 1
-        elif text.startswith("\\*", i):
-            j = text.find("\n", i)
-            j = n if j < 0 else j
-            out.append(" " * (j - i))
-            i = j
-        elif text[i] == '"':
-            j = i + 1
-            while j < n and text[j] != '"':
-                j += 2 if text[j] == "\\" else 1
-            out.append(text[i:j + 1])
-            i = j + 1
-        else:
-            out.append(text[i])
-            i += 1
-    return "".join(out)
+    return tla_text.code(text, keep_strings=True)
 
 
 def words(text):

@@ -98,11 +98,21 @@ class ScreenSharePlugin(
             result.success(null)
             return
         }
+        // Dart always sends these and owns their limits (ShareLimits); a
+        // missing one is a caller's mistake, not a reason to pick another.
+        val maxWidth = call.argument<Any>("maxWidth") as? Int
+        val maxHeight = call.argument<Any>("maxHeight") as? Int
+        val maxLongSide = call.argument<Any>("maxLongSide") as? Int
+        val fps = call.argument<Any>("fps") as? Int
+        if (maxWidth == null || maxHeight == null || maxLongSide == null || fps == null || fps < 1) {
+            result.error("bad-args", "start needs maxWidth, maxHeight, maxLongSide, fps", null)
+            return
+        }
         val request = ShareRequest(
-            maxWidth = call.argument<Int>("maxWidth") ?: 0,
-            maxHeight = call.argument<Int>("maxHeight") ?: 0,
-            maxLongSide = call.argument<Int>("maxLongSide") ?: 1280,
-            fps = (call.argument<Int>("fps") ?: 10).coerceIn(1, 30),
+            maxWidth = maxWidth,
+            maxHeight = maxHeight,
+            maxLongSide = maxLongSide,
+            fps = fps,
             title = call.argument<String>("title").orEmpty(),
             text = call.argument<String>("text").orEmpty(),
             stop = call.argument<String>("stop").orEmpty(),

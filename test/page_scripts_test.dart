@@ -6,32 +6,13 @@ import 'package:webspace/services/page_shim.dart';
 import 'package:webspace/services/opensearch_engine.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/webview_config.dart';
-import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
 
-import 'helpers/capture_fakes.dart';
 import 'helpers/isolations.dart';
+import 'helpers/host_hooks.dart';
 
 const _home = 'https://example.com/';
-
-WebViewHostHooks _hooks() => WebViewHostHooks(
-      isolation: fakeContainers,
-      globalUserScripts: () => const [],
-      save: () async {},
-      rebuild: () {},
-      launchNested: (_, {required posture, homeTitle}) {},
-      openInBrowser: (_) async => false,
-      openSiteSettings: (_) {},
-      showPopup: (_, {required url, required kind}) async {},
-      externalScheme: (_, {required loadIn}) async {},
-      confirmScriptFetch: (_) async => false,
-      untrustedCertificate: (_, {required port, required certificate}) async =>
-          false,
-      networkSignIn: (_) async {},
-      httpAuth: (_) async => null,
-      media: FakePrompter(),
-    );
 
 /// A site's config with an icon and a search target, as its own webview has
 /// them and a popup it spawns inherits them.
@@ -41,7 +22,7 @@ WebViewConfig _config({List<UserScriptConfig> scripts = const []}) =>
         globalUserScripts: const <UserScriptConfig>[],
         isolation: fakeContainers(),
       ),
-      hooks: _hooks(),
+      hooks: inertHostHooks(isolation: fakeContainers),
       initialUrl: _home,
       cacheFirst: false,
       siteIcon: SiteIconTarget(siteUrl: _home, onIcon: (_) {}),

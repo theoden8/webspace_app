@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/egress_route_engine.dart';
@@ -49,11 +50,12 @@ class EgressRelay {
   /// After the experimental switches and developer mode have loaded.
   Future<void> initialize() async {
     if (!hostIsLinux) return;
-    try {
-      _offered = await _channel.invokeMethod<bool>('probe') ?? false;
-    } on MissingPluginException {
-      _offered = false;
-    }
+    _offered = switch (await _channel.ask<bool>('probe')) {
+      Answered(:final value) => value ?? false,
+      PlatformRefused(:final error, :final stack) =>
+        Error.throwWithStackTrace(error, stack),
+      NoPlugin() => false,
+    };
     if (!_offered) {
       LogTag.proxy.info('Network interfaces: this kernel binds no socket');
       return;

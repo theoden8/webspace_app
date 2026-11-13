@@ -23,7 +23,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/screens/tor_status.dart';
 import 'package:webspace/services/developer_mode_service.dart';
@@ -41,6 +40,7 @@ import 'package:webspace/widgets/tor_bootstrap.dart';
 import 'package:webspace/widgets/tor_status_card.dart';
 import 'helpers/fake_tor_control.dart';
 import 'helpers/fake_tor_runtime.dart';
+import 'helpers/localized.dart';
 
 final bool _writePngs = Platform.environment['WS_TOR_UI_PNG'] == '1';
 
@@ -133,10 +133,8 @@ void main() {
     await t.pump(const Duration(milliseconds: 10));
   }
 
-  Widget host(Widget child, {required Size size}) => MaterialApp(
+  Widget host(Widget child, {required Size size}) => localizedApp(
         debugShowCheckedModeBanner: false,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
         theme: ThemeData(
           colorSchemeSeed: const Color(0xFF3F51B5),
           useMaterial3: true,
@@ -146,7 +144,7 @@ void main() {
           // the run degrades to boxes rather than to blank text.
           fontFamily: _fontsLoaded ? 'Roboto' : null,
         ),
-        home: Scaffold(
+        Scaffold(
           body: Center(
             child: SizedBox.fromSize(
               size: size,

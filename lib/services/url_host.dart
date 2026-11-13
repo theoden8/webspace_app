@@ -39,6 +39,46 @@ extension type const Host._(String name) implements String {
   /// Whether this names an onion service (RFC 7686). Only Tor resolves one:
   /// any other resolver answers nothing and has learned the name (LEAK-016).
   bool get isOnion => this == 'onion' || endsWith('.onion');
+
+  /// The four octets of this host when it is a canonical dotted-quad IPv4
+  /// (`a.b.c.d`, each a plain decimal 0-255 with no leading zero), or null.
+  List<int>? get ipv4Octets {
+    final parts = split('.');
+    if (parts.length != 4) return null;
+    final octets = <int>[];
+    for (final p in parts) {
+      if (p.isEmpty || p.length > 3) return null;
+      if (p.length > 1 && p.startsWith('0')) return null; // no leading zero/octal
+      final v = int.tryParse(p);
+      if (v == null || v < 0 || v > 255) return null;
+      octets.add(v);
+    }
+    return octets;
+  }
+
+  /// Whether this is an address literal on the loopback interface: in
+  /// 127.0.0.0/8, `::1`, or an IPv4-mapped 127/8. A name is never one,
+  /// `localhost` included: where a name points is its resolver's answer.
+  bool get isLoopbackLiteral {
+    if (ipv4Octets case final octets?) return octets[0] == 127;
+    if (!contains(':')) return false;
+    final List<int> bytes;
+    try {
+      bytes = Uri.parseIPv6Address(split('%').first);
+    } on FormatException {
+      return false;
+    }
+    final g = [for (var i = 0; i < 16; i += 2) bytes[i] << 8 | bytes[i + 1]];
+    if (g.take(5).any((group) => group != 0)) return false;
+    if (g[5] == 0 && g[6] == 0 && g[7] == 1) return true;
+    return g[5] == 0xffff && g[6] >> 8 == 127;
+  }
+
+  /// Whether this names the loopback interface as a secure context reads it
+  /// (W3C Secure Contexts, RFC 6761): a loopback literal, `localhost`, or a
+  /// name under it.
+  bool get isLoopback =>
+      isLoopbackLiteral || this == 'localhost' || endsWith('.localhost');
 }
 
 /// The host of [url], or [url] itself when it has none (a bare domain).

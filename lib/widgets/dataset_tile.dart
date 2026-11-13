@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/widgets/setting_tile.dart';
@@ -66,7 +67,7 @@ class DatasetTile<D extends DownloadableDataset> extends StatefulWidget {
 class _DatasetTileState<D extends DownloadableDataset>
     extends State<DatasetTile<D>> {
   late final D _dataset = widget.create()..addListener(_changed);
-  bool _busy = false;
+  late final _guard = ReentryGuard(onChange: _changed);
 
   void _changed() {
     if (mounted) setState(() {});
@@ -81,14 +82,12 @@ class _DatasetTileState<D extends DownloadableDataset>
 
   Future<void> _run(
       Future<Localized?> Function(AppLocalizations) action) async {
-    if (_busy) return;
     final loc = AppLocalizations.of(context);
     final messenger =
         rootScaffoldMessengerKey.currentState ?? ScaffoldMessenger.of(context);
-    setState(() => _busy = true);
-    final message = await action(loc);
-    if (mounted) setState(() => _busy = false);
-    if (message != null) messenger.toast(message);
+    Localized? message;
+    await _guard.run(() async => message = await action(loc));
+    if (message case final said?) messenger.toast(said);
   }
 
   void _download() => _run(_dataset.download);
@@ -116,7 +115,7 @@ class _DatasetTileState<D extends DownloadableDataset>
                   ),
               ],
             ),
-      trailing: _busy
+      trailing: _guard.busy
           ? const SizedBox.square(
               dimension: IconSizes.floating,
               child: CircularProgressIndicator(strokeWidth: 2),
@@ -144,7 +143,7 @@ class _DatasetTileState<D extends DownloadableDataset>
     if (below == null) return row;
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: [row, below(_dataset, download: _busy ? null : _download)],
+      children: [row, below(_dataset, download: _guard.busy ? null : _download)],
     );
   }
 }

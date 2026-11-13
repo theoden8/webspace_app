@@ -11,6 +11,7 @@ import 'package:webspace/services/proxy_leg_failure.dart';
 import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
+import 'package:webspace/services/url_host.dart';
 
 /// How a site webview answers a certificate the OS rejected: the user's
 /// trust prompt, the pinned exceptions, and the reload after a refused load.
@@ -248,11 +249,6 @@ abstract final class WebViewTls {
     _asking.clear();
   }
 
-  static bool _isLoopbackHost(String host) {
-    final h = host.toLowerCase();
-    return h == 'localhost' || h == '127.0.0.1' || h == '::1' || h == '[::1]';
-  }
-
   /// True when [cert] is a self-signed `CN=localhost` certificate served
   /// for a non-loopback [host] — the signature of a device-level DNS/ad
   /// sinkhole answering a blocked tracker on `127.0.0.1`. Such a cert is
@@ -277,7 +273,7 @@ abstract final class WebViewTls {
     String? issuedToCName,
     String? issuedByCName,
   }) {
-    if (_isLoopbackHost(host)) return false;
+    if (Host(host).isLoopback) return false;
     final issuedTo = issuedToCName?.trim().toLowerCase();
     final issuedBy = issuedByCName?.trim().toLowerCase();
     return issuedTo == 'localhost' || issuedBy == 'localhost';

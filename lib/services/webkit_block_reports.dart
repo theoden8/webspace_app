@@ -1,4 +1,4 @@
-import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 import 'package:meta/meta.dart';
 
 import 'package:webspace/platform/app_distribution.dart';
@@ -31,14 +31,13 @@ abstract final class WebKitBlockReports {
   /// or a WebKit whose view class it found no way into.
   static Future<void> start({required bool wanted}) async {
     if (!offered || !wanted) return;
-    try {
-      _active = await appleContentRuleListChannel
-              .invokeMethod<bool>('reportBlocks') ??
-          false;
-    } on PlatformException catch (e) {
-      LogTag.contentBlocker.warning('WebKit block reports refused: $e');
-    } on MissingPluginException {
-      LogTag.contentBlocker.warning('WebKit block reports: no Runner plugin');
+    switch (await appleContentRuleListChannel.ask<bool>('reportBlocks')) {
+      case Answered(:final value):
+        _active = value ?? false;
+      case PlatformRefused(:final error):
+        LogTag.contentBlocker.warning('WebKit block reports refused: $error');
+      case NoPlugin():
+        LogTag.contentBlocker.warning('WebKit block reports: no Runner plugin');
     }
     LogTag.contentBlocker.info('WebKit block reports: ${_active ? 'on' : 'off'}');
   }

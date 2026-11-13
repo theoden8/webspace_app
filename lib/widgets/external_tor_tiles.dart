@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
-import 'package:webspace/services/outbound_http_types.dart'
-    show splitProxyAddress;
 import 'package:webspace/services/proxy_test_service.dart' show NoSite;
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
@@ -116,7 +114,7 @@ class _ExternalTorAddressDialogState extends State<ExternalTorAddressDialog> {
 
   String? _validate(AppLocalizations loc, {required String value}) {
     if (value.isEmpty) return loc.appSettingsProxyAddressRequired;
-    if (splitProxyAddress(value) == null) {
+    if (ProxyAddressParse.of(value) is! ProxyAddress) {
       return loc.appSettingsProxyFormatHostPort;
     }
     return null;

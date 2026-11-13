@@ -1,6 +1,7 @@
 import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 
 import 'package:webspace/services/log_service.dart';
 
@@ -45,21 +46,20 @@ class CapturePermissionService {
   /// permission prompt when the permission is not yet granted.
   Future<bool> ensure() async {
     if (!hostIsAndroid) return true;
-    try {
-      final status =
-          await MethodChannel(_channelName).invokeMethod<String>(_method);
-      if (status != 'granted') {
-        _tag.debug(
-            'App ${_tag.label.toLowerCase()} permission not granted (status: '
-            '$status); webview request denied.');
-      }
-      return status == 'granted';
-    } on PlatformException catch (e) {
-      _tag.debug(
-          '${_tag.label} permission channel failed: ${e.code} ${e.message}');
-      return false;
-    } on MissingPluginException {
-      return false;
+    switch (await MethodChannel(_channelName).ask<String>(_method)) {
+      case Answered(value: final status):
+        if (status != 'granted') {
+          _tag.debug(
+              'App ${_tag.label.toLowerCase()} permission not granted (status: '
+              '$status); webview request denied.');
+        }
+        return status == 'granted';
+      case PlatformRefused(:final error):
+        _tag.debug('${_tag.label} permission channel failed: '
+            '${error.code} ${error.message}');
+        return false;
+      case NoPlugin():
+        return false;
     }
   }
 }

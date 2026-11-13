@@ -32,6 +32,50 @@ void main() {
     });
   });
 
+  // The cases the five hand-written checks this owner replaced answered
+  // differently: the proxy bypass missed 127.0.0.2, the router's challenge
+  // check missed ::1, the passkey check took 127.999.0.1.
+  group('Host loopback', () {
+    test('a loopback literal is an address on the loopback interface', () {
+      for (final (raw, literal) in [
+        ('127.0.0.1', true),
+        ('127.0.0.2', true),
+        ('127.255.255.254', true),
+        ('::1', true),
+        ('[::1]', true),
+        ('0:0:0:0:0:0:0:1', true),
+        ('::ffff:127.0.0.1', true),
+        ('128.0.0.1', false),
+        ('127.0.0', false),
+        ('127.0.0.256', false),
+        ('127.999.0.1', false),
+        ('::', false),
+        ('::ffff:10.0.0.1', false),
+        ('localhost', false),
+        ('a.localhost', false),
+        ('example.com', false),
+      ]) {
+        expect(Host(raw).isLoopbackLiteral, literal, reason: raw);
+      }
+    });
+
+    test('loopback as a secure context reads it adds localhost and names '
+        'under it', () {
+      for (final (raw, loopback) in [
+        ('localhost', true),
+        ('LOCALHOST.', true),
+        ('dev.localhost', true),
+        ('127.0.0.2', true),
+        ('[::1]', true),
+        ('localhost.example', false),
+        ('notlocalhost', false),
+        ('203.0.113.9', false),
+      ]) {
+        expect(Host(raw).isLoopback, loopback, reason: raw);
+      }
+    });
+  });
+
   group('extractDomain', () {
     test('returns the host of a URL', () {
       expect(extractDomain('https://example.com'), 'example.com');

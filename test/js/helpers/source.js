@@ -35,6 +35,10 @@ function files(dir, re) {
 const dartFiles = (dir = 'lib') =>
   files(dir, /\.dart$/).filter((f) => !f.startsWith('lib/l10n/gen/'));
 
+/** The Dart files `roots` name: a file itself, a directory each under it. */
+const dartFilesUnder = (roots) =>
+  roots.flatMap((r) => (r.endsWith('.dart') ? [r].filter(exists) : dartFiles(r)));
+
 /** The scripts the app runs in pages (lib/js, read through PageJs). */
 const jsFiles = () => files('lib/js', /\.js$/);
 
@@ -233,6 +237,7 @@ module.exports = {
   read,
   files,
   dartFiles,
+  dartFilesUnder,
   jsFiles,
   code,
   lineAt,

@@ -9,6 +9,7 @@ import 'package:webspace/settings/byte_size.dart';
 import 'package:webspace/settings/web_extension_backup.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// [BackupPrompts] as a file picker and dialogs over the page that owns
 /// [context].
@@ -18,11 +19,40 @@ class DialogBackupPrompts implements BackupPrompts {
   final BuildContext context;
 
   @override
-  Future<SettingsBackup?> pick() => SettingsBackupService.pickAndImport(context);
+  Future<SettingsBackup?> pick() async {
+    final loc = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    switch (await SettingsBackupService.pickAndImport()) {
+      case Picked(:final backup):
+        return backup;
+      case PickCancelled():
+        return null;
+      case NotABackup():
+        messenger.toast(loc.homeImportInvalidBackup);
+        return null;
+      case BackupUnreadable():
+        messenger.toast(loc.backupImportUnreadable);
+        return null;
+    }
+  }
 
   @override
-  Future<void> save(SettingsBackup backup) =>
-      SettingsBackupService.exportAndSave(context, backup: backup);
+  Future<void> save(SettingsBackup backup) async {
+    final loc = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final saved = await SettingsBackupService.exportAndSave(
+      backup: backup,
+      dialogTitle: loc.backupSaveDialogTitle,
+    );
+    switch (saved) {
+      case Saved():
+        messenger.toast(loc.backupExported);
+      case SaveCancelled():
+        break;
+      case SaveFailed():
+        messenger.toast(loc.backupExportFailed);
+    }
+  }
 
   @override
   Future<bool> confirmImport(SettingsBackup backup) async {
@@ -38,53 +68,37 @@ class DialogBackupPrompts implements BackupPrompts {
     // Neither is visible in a site list, so the dialog has to name them.
     final incomingGlobalProxy = backupGlobalProxyAddress(backup);
     final incomingScriptCount = backupUserScriptCount(backup);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(loc.homeImportSettingsTitle),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(loc.homeImportSettingsConfirm(sitesCount, webspacesCount)),
-              SizedBox(height: 12),
-              Text(
-                exportedLabel,
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              if (incomingGlobalProxy != null) ...[
-                SizedBox(height: 12),
-                Text(loc.homeImportGlobalProxyWarning(incomingGlobalProxy)),
-              ],
-              if (incomingScriptCount > 0) ...[
-                SizedBox(height: 12),
-                Text(loc.homeImportUserScriptsWarning(incomingScriptCount)),
-              ],
-              SizedBox(height: 16),
-              Text(
-                loc.homeImportSettingsSessionsNote,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
-            ],
+    return confirm(
+      context,
+      title: loc.homeImportSettingsTitle,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(loc.homeImportSettingsConfirm(sitesCount, webspacesCount)),
+          SizedBox(height: 12),
+          Text(
+            exportedLabel,
+            style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(loc.homeImportAction),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.primary,
-            ),
+          if (incomingGlobalProxy != null) ...[
+            SizedBox(height: 12),
+            Text(loc.homeImportGlobalProxyWarning(incomingGlobalProxy)),
+          ],
+          if (incomingScriptCount > 0) ...[
+            SizedBox(height: 12),
+            Text(loc.homeImportUserScriptsWarning(incomingScriptCount)),
+          ],
+          SizedBox(height: 16),
+          Text(
+            loc.homeImportSettingsSessionsNote,
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
           ),
         ],
       ),
+      confirmLabel: loc.homeImportAction,
+      destructive: false,
     );
-    return confirmed == true;
   }
 
   @override

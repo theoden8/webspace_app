@@ -23,10 +23,10 @@ Relay only, and a caption saying why. The screen reads the unsaved umbrella
 value and whether an app-wide proxy is set from its caller. The "Proxy" group SHALL be absent where the platform cannot bind
 a per-site proxy (PROXY-006); the "Connection" group is always shown.
 
-The screen SHALL own no persistent state. `SettingsScreen` keeps the fields,
+The screen SHALL own no persistent state. `SettingsScreen` keeps the choices,
 the dirty-snapshot diff and the save path (BUG-006 / EDIT-009); the screen
-reads a `SiteNetworkValues` (proxy type, Tor exit country, WebRTC policy) and
-reports whole values back through `onChanged`. The proxy address, username and
+reads a `NetworkChoices` record (proxy type, library picks, Tor exit country,
+interface, WebRTC policy) and reports whole records back through `onChanged`. The proxy address, username and
 password are text and SHALL be edited in controllers the caller owns, since
 those are what its snapshot reads. The connection test SHALL be built by the
 caller, which owns the save path and so knows what a save would store

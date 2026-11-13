@@ -11,9 +11,8 @@ import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/services/webview_tls.dart';
 import 'package:webspace/widgets/untrusted_cert_prompt.dart';
 
-import 'helpers/capture_fakes.dart';
-import 'helpers/isolations.dart';
 import 'helpers/localized.dart';
+import 'helpers/host_hooks.dart';
 
 /// A certificate as the platform hands it over: a Wi-Fi sign-in page's
 /// (an Aruba controller's) unless named otherwise, with [der] standing in
@@ -45,25 +44,10 @@ class _Host {
   final asked = <String>[];
   final told = <SignInNotice>[];
 
-  WebViewHostHooks get hooks => WebViewHostHooks(
-        isolation: fakeSharedJar,
-        globalUserScripts: () => const [],
-        save: () async {},
-        rebuild: () {},
-        launchNested: (_, {required posture, homeTitle}) {},
-        openInBrowser: (_) async => false,
-        openSiteSettings: (_) {},
-        showPopup: (_, {required url, required kind}) async {},
-        externalScheme: (_, {required loadIn}) async {},
-        confirmScriptFetch: (_) async => false,
-        untrustedCertificate: (host, {required port, required certificate}) {
+  WebViewHostHooks get hooks => inertHostHooks(untrustedCertificate: (host, {required port, required certificate}) {
           asked.add(host);
           return trust();
-        },
-        networkSignIn: (notice) async => told.add(notice),
-        httpAuth: (_) async => null,
-        media: FakePrompter(),
-      );
+        }, networkSignIn: (notice) async => told.add(notice),);
 }
 
 void main() {

@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 
 class InboundHtmlShare {
   final String content;
@@ -22,35 +23,34 @@ class ShareIntentService {
   /// and clears it from the native side so the same URL is not handed out
   /// twice. Returns null if no inbound URL is pending.
   static Future<String?> consumeLaunchUrl() async {
-    try {
-      final result = await _channel.invokeMethod('consumeLaunchUrl');
-      return result is String ? result : null;
-    } on PlatformException {
-      return null;
-    } on MissingPluginException {
-      return null;
-    }
+    return switch (await _channel.ask<Object?>('consumeLaunchUrl')) {
+      Answered(value: final String url) => url,
+      Answered() => null,
+      PlatformRefused() => null,
+      NoPlugin() => null,
+    };
   }
 
   /// Reads any HTML file payload delivered via `text/html` ACTION_SEND.
   /// Cleared on the native side after one read. Returns null when no
   /// HTML share is pending or the platform doesn't support it.
   static Future<InboundHtmlShare?> consumeLaunchHtml() async {
-    try {
-      final result = await _channel.invokeMethod('consumeLaunchHtml');
-      if (result is! Map) return null;
-      final content = result['content'];
-      if (content is! String || content.isEmpty) return null;
-      return InboundHtmlShare(
-        content: content,
-        title: result['title'] is String ? result['title'] as String : null,
-        sourceUri:
-            result['sourceUri'] is String ? result['sourceUri'] as String : null,
-      );
-    } on PlatformException {
-      return null;
-    } on MissingPluginException {
-      return null;
+    final Map<Object?, Object?> result;
+    switch (await _channel.ask<Object?>('consumeLaunchHtml')) {
+      case Answered(value: final Map<Object?, Object?> map):
+        result = map;
+      case Answered():
+      case PlatformRefused():
+      case NoPlugin():
+        return null;
     }
+    final content = result['content'];
+    if (content is! String || content.isEmpty) return null;
+    return InboundHtmlShare(
+      content: content,
+      title: result['title'] is String ? result['title'] as String : null,
+      sourceUri:
+          result['sourceUri'] is String ? result['sourceUri'] as String : null,
+    );
   }
 }

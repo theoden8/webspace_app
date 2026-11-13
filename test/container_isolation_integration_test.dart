@@ -3,84 +3,8 @@ import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/web_view_model.dart';
 
+import 'helpers/mock_container_native.dart';
 import 'helpers/site_list_state.dart';
-
-/// In-memory model of the native Profile API with **per-profile cookie
-/// storage**, so the central spec claim — sites in different profiles do
-/// not see each other's cookies — can actually be asserted, not just
-/// assumed. Every cookie write goes through a [SimWebView] that is
-/// scoped to its site's profile from construction (CONT-005); reads from
-/// the wrong profile see nothing.
-///
-/// Mirrors the [MockCookieManager] pattern in
-/// [test/helpers/mock_cookie_manager.dart] — modeling the engine's
-/// actual contract end-to-end, not stubbing it.
-class MockContainerNative implements ContainerNative {
-  bool supported;
-
-  /// `siteId` -> `ws-<siteId>` for every profile that exists in the
-  /// simulated `ProfileStore`. Mirrors `ProfileStore.getAllProfileNames()`.
-  final Map<String, String> containers = {};
-
-  /// Per-profile cookie store. Outer key is the profile name
-  /// (`ws-<siteId>`); inner is `cookieName -> value`. A read from the
-  /// wrong profile sees the empty map for that profile, so cross-profile
-  /// leaks fail the assertion that the owning site's cookie is intact.
-  final Map<String, Map<String, String>> cookiesByContainer = {};
-
-  /// Records every native call so tests can assert which ones ran.
-  final List<String> calls = [];
-
-  MockContainerNative({this.supported = true});
-
-  @override
-  Future<bool> isSupported() async {
-    calls.add('isSupported');
-    return supported;
-  }
-
-  @override
-  Future<ContainerName> getOrCreateContainer(ContainerKey siteId) async {
-    calls.add('getOrCreateContainer($siteId)');
-    final name = ContainerName.of(siteId);
-    containers[siteId] = name;
-    cookiesByContainer.putIfAbsent(name, () => <String, String>{});
-    return name;
-  }
-
-
-  @override
-  Future<bool> deleteContainer(ContainerKey siteId) async {
-    calls.add('deleteContainer($siteId)');
-    final existed = containers.remove(siteId) != null;
-    cookiesByContainer.remove(ContainerName.of(siteId));
-    return existed;
-  }
-
-  @override
-  Future<bool> clearContainerData(ContainerKey siteId) async {
-    calls.add('clearContainerData($siteId)');
-    if (!containers.containsKey(siteId)) return false;
-    cookiesByContainer[ContainerName.of(siteId)] = {};
-    return true;
-  }
-
-  @override
-  Future<List<ContainerKey>> listContainers() async {
-    calls.add('listContainers');
-    return [for (final name in containers.keys) ContainerKey.named(name)];
-  }
-
-  /// Inject an orphan profile to simulate state left behind by a previous
-  /// session (site deleted before profile mode shipped, or a crash mid-
-  /// deletion). The orphan has its own cookie jar so a successful GC
-  /// must drop both the profile name and its data.
-  void seedOrphanContainer(String siteId,
-      {required Map<String, String> cookies}) {
-    containers[siteId] = ContainerName.of(ContainerKey.named(siteId));
-    cookiesByContainer[ContainerName.of(ContainerKey.named(siteId))] = Map.of(cookies);
-  }
-}
 
 /// A site's webview, bound to its profile. Cookie ops are scoped to the
 /// profile registered at bind time — analogous to how
@@ -184,7 +108,7 @@ void main() {
 
       await h.switchToSite(0);
 
-      expect(h.native.containers.values, contains('ws-${h.sites[0].siteId}'));
+      expect(h.native.profiles.values, contains('ws-${h.sites[0].siteId}'));
       expect(h.native.calls, contains('getOrCreateContainer(${h.sites[0].siteId})'));
     });
 
@@ -197,7 +121,7 @@ void main() {
       await h.switchToSite(0);
 
       // ProfileStore should still have exactly one profile for this site.
-      expect(h.native.containers.length, 1);
+      expect(h.native.profiles.length, 1);
       // The simulated webview is reused, not rebuilt — modeling the
       // _loadedIndices lazy-load behavior.
       expect(h.webViews.length, 1);
@@ -334,9 +258,9 @@ void main() {
       // legacy preDeleteCookieCleanup goes through hoops to preserve B's
       // session because A's URL-scoped delete would wipe B's host
       // cookies; profiles avoid that whole class of bug.
-      expect(h.native.containers.containsKey(aSiteId), isFalse);
+      expect(h.native.profiles.containsKey(aSiteId), isFalse);
       expect(h.native.cookiesByContainer.containsKey('ws-$aSiteId'), isFalse);
-      expect(h.native.containers[bSiteId], 'ws-$bSiteId');
+      expect(h.native.profiles[bSiteId], 'ws-$bSiteId');
       expect(h.native.cookiesByContainer['ws-$bSiteId'], {'session': 'bob'});
     });
 
@@ -397,11 +321,11 @@ void main() {
       final deleted = await h.simulateAppStartupGc();
 
       expect(deleted, 1);
-      expect(h.native.containers.containsKey('deleted-in-prev-session'), isFalse);
+      expect(h.native.profiles.containsKey('deleted-in-prev-session'), isFalse);
       expect(h.native.cookiesByContainer['ws-deleted-in-prev-session'], isNull);
       // The two live sites' profiles are intact.
-      expect(h.native.containers[h.sites[0].siteId], isNotNull);
-      expect(h.native.containers[h.sites[1].siteId], isNotNull);
+      expect(h.native.profiles[h.sites[0].siteId], isNotNull);
+      expect(h.native.profiles[h.sites[1].siteId], isNotNull);
     });
 
     test('GC at startup is a no-op when every profile has a live owner',
@@ -415,7 +339,7 @@ void main() {
       final deleted = await h.simulateAppStartupGc();
 
       expect(deleted, 0);
-      expect(h.native.containers.length, 2);
+      expect(h.native.profiles.length, 2);
     });
 
     test('GC sweeps every profile when the site list is empty', () async {
@@ -426,7 +350,7 @@ void main() {
       final deleted = await h.simulateAppStartupGc();
 
       expect(deleted, 2);
-      expect(h.native.containers, isEmpty);
+      expect(h.native.profiles, isEmpty);
       expect(h.native.cookiesByContainer, isEmpty);
     });
   });

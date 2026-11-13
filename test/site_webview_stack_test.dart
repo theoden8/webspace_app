@@ -4,34 +4,16 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_inappwebview_android/flutter_inappwebview_android.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/connectivity_service.dart';
-import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/web_view_model_hooks.dart';
 import 'package:webspace/widgets/site_webview_stack.dart';
 import 'package:webspace/widgets/stats_banner.dart';
 
-import 'helpers/capture_fakes.dart';
-import 'helpers/isolations.dart';
+import 'helpers/host_hooks.dart';
 
 /// A host that answers nothing: the stack never reaches a prompt here.
 SiteHooks _hooks() => SiteHooks(
-      host: WebViewHostHooks(
-        isolation: fakeSharedJar,
-        globalUserScripts: () => const [],
-        save: () async {},
-        rebuild: () {},
-        launchNested: (_, {required posture, homeTitle}) {},
-        openInBrowser: (_) async => false,
-        openSiteSettings: (_) {},
-        showPopup: (_, {required url, required kind}) async {},
-        externalScheme: (_, {required loadIn}) async {},
-        confirmScriptFetch: (_) async => false,
-        untrustedCertificate: (_, {required port, required certificate}) async =>
-            false,
-        networkSignIn: (_) async {},
-        httpAuth: (_) async => null,
-        media: FakePrompter(),
-      ),
+      host: inertHostHooks(),
       onScreen: (_) => true,
       routeOutbound:
           (_, {required url, required decision, required hadGesture}) => false,

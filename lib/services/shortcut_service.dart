@@ -4,6 +4,7 @@ import 'package:webspace/settings/site_ids.dart';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show compute, visibleForTesting;
 import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 import 'package:webspace/services/launcher_tile_engine.dart';
 import 'package:webspace/services/startup_restore_engine.dart'
     show TileUpdate;
@@ -85,22 +86,18 @@ class ShortcutService {
     if (!hostIsAndroid && !hostIsIOS && !hostIsMacOS) {
       return PinShortcutResult.failed;
     }
-    try {
-      final result = await _channel.invokeMethod(
-        'pinShortcut',
-        await tileArguments(
-          tile: shortcutId,
-          site: siteId,
-          label: label,
-          siteIcon: iconBytes,
-        ),
-      );
-      return PinShortcutResult.fromChannel(result);
-    } on PlatformException {
-      return PinShortcutResult.failed;
-    } on MissingPluginException {
-      return PinShortcutResult.failed;
-    }
+    final arguments = await tileArguments(
+      tile: shortcutId,
+      site: siteId,
+      label: label,
+      siteIcon: iconBytes,
+    );
+    return switch (
+        await _channel.ask<Object?>('pinShortcut', arguments: arguments)) {
+      Answered(:final value) => PinShortcutResult.fromChannel(value),
+      PlatformRefused() => PinShortcutResult.failed,
+      NoPlugin() => PinShortcutResult.failed,
+    };
   }
 
   /// Drop any dynamic shortcut copy for a deleted site (Android only). The
@@ -130,32 +127,34 @@ class ShortcutService {
     if (!hostIsAndroid && !hostIsIOS && !hostIsMacOS) {
       return null;
     }
-    try {
-      final res = await _channel.invokeMethod('getLaunchSiteId');
-      if (res is String) {
-        return switch (SiteId.parse(res)) {
-          final id? => ShortcutLaunch(siteId: id),
-          null => null,
-        };
-      }
-      if (res is Map) {
-        if (SiteId.parse(res['siteId']) case final id?) {
-          final url = res['url'];
-          return ShortcutLaunch(
-            siteId: id,
-            url: url is String && url.isNotEmpty ? url : null,
-            shortcutId: ShortcutId.parse(res['shortcutId']),
-          );
-        }
-      }
-      return null;
-    } on PlatformException {
-      return null;
-    } on MissingPluginException {
-      // No shortcuts channel on this build (e.g. macOS integration-test
-      // host where the plugin isn't registered) means no pending launch.
-      return null;
+    final Object? res;
+    switch (await _channel.ask<Object?>('getLaunchSiteId')) {
+      case Answered(:final value):
+        res = value;
+      case PlatformRefused():
+        return null;
+      case NoPlugin():
+        // No shortcuts channel on this build (e.g. macOS integration-test
+        // host where the plugin isn't registered) means no pending launch.
+        return null;
     }
+    if (res is String) {
+      return switch (SiteId.parse(res)) {
+        final id? => ShortcutLaunch(siteId: id),
+        null => null,
+      };
+    }
+    if (res is Map) {
+      if (SiteId.parse(res['siteId']) case final id?) {
+        final url = res['url'];
+        return ShortcutLaunch(
+          siteId: id,
+          url: url is String && url.isNotEmpty ? url : null,
+          shortcutId: ShortcutId.parse(res['shortcutId']),
+        );
+      }
+    }
+    return null;
   }
 
   /// The enabled pinned home shortcuts, each with the site its launch intent
@@ -250,15 +249,18 @@ class ShortcutService {
     List<ShortcutSite> tombstones = const [],
   }) async {
     if (!hostIsIOS && !hostIsMacOS) return;
-    try {
-      await _channel.invokeMethod('syncSites', {
-        'sites': sites.map((s) => s.toMap()).toList(),
-        'tombstones': tombstones.map((s) => s.toMap()).toList(),
-      });
-    } on PlatformException {
-      // best-effort; the picker just shows stale data until next call.
-    } on MissingPluginException {
-      // Shortcuts channel absent on this build; nothing to sync.
+    switch (await _channel.ask<Object?>('syncSites', arguments: {
+      'sites': sites.map((s) => s.toMap()).toList(),
+      'tombstones': tombstones.map((s) => s.toMap()).toList(),
+    })) {
+      case Answered():
+        break;
+      case PlatformRefused():
+        // best-effort; the picker just shows stale data until next call.
+        break;
+      case NoPlugin():
+        // Shortcuts channel absent on this build; nothing to sync.
+        break;
     }
   }
 
@@ -281,15 +283,13 @@ class ShortcutService {
             ? 'isAppIntentsSupported'
             : null;
     if (method == null) return;
-    try {
-      _offered = await _channel.invokeMethod(method) == true;
-    } on PlatformException {
-      _offered = false;
-    } on MissingPluginException {
+    _offered = switch (await _channel.ask<Object?>(method)) {
+      Answered(:final value) => value == true,
+      PlatformRefused() => false,
       // macOS builds without the shortcuts channel handler (no App Intents
       // native side), and a background wake's engine, report no
       // implementation rather than a PlatformException.
-      _offered = false;
-    }
+      NoPlugin() => false,
+    };
   }
 }

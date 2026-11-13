@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/site_network.dart';
 import 'package:webspace/services/egress_relay.dart';
 import 'package:webspace/services/egress_route_engine.dart';
@@ -17,7 +16,9 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
+
 import 'helpers/isolations.dart';
+import 'helpers/localized.dart';
 
 const _secret = '00112233445566778899aabbccddeeff';
 const _up = EgressUp(host: '127.44.5.6', port: 41000, secret: _secret);
@@ -287,16 +288,13 @@ void main() {
         .setMockMethodCallHandler(channel, null));
 
     Future<void> pump(WidgetTester tester,
-        {required SiteNetworkValues values,
-        ValueChanged<SiteNetworkValues>? onChanged}) async {
+        {required NetworkChoices values,
+        ValueChanged<NetworkChoices>? onChanged}) async {
       tester.view.physicalSize = const Size(1000, 3000);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: SiteNetworkScreen(
+      await tester.pumpWidget(localizedApp(SiteNetworkScreen(
           host: 'example.com',
           siteId: SiteId('site-1'),
           values: values,
@@ -306,17 +304,20 @@ void main() {
           proxyPasswordController: TextEditingController(),
           proxySupported: true,
           showSavedSignIns: false,
-        ),
-      ));
+        )));
       await tester.pumpAndSettle();
     }
 
-    SiteNetworkValues values({
+    NetworkChoices values({
       ProxyType proxyType = ProxyType.DEFAULT,
       InterfaceChoice leavesBy = const SystemRouting(),
     }) =>
-        SiteNetworkValues(
+        (
           proxyType: proxyType,
+          torExitCountry: null,
+          savedProxyId: null,
+          gatewayId: null,
+          credentialsId: null,
           leavesBy: leavesBy,
           webRtcPolicy: WebRtcPolicy.defaultPolicy,
         );
@@ -332,7 +333,7 @@ void main() {
     testWidgets('NETIF-010: lists the interfaces present and reports a pick',
         (tester) async {
       EgressRelay.instance.setInMemory(state: _up);
-      SiteNetworkValues? changed;
+      NetworkChoices? changed;
       await pump(tester, values: values(), onChanged: (v) => changed = v);
       expect(find.text('Network interface'), findsOneWidget);
       await tester.tap(dropdown);

@@ -49,9 +49,19 @@ bool loadsCacheFirst(
   required bool? online,
   required bool engineCan,
 }) =>
-    engineCan &&
-    source == HtmlSource.cache &&
-    (htmlCaching || !(online ?? true));
+    htmlCachingInEffect(source, stored: htmlCaching, engineCan: engineCan) ||
+    (engineCan && source == HtmlSource.cache && !(online ?? true));
+
+/// Whether a site's HTML caching is in effect: its setting is on, its HTML
+/// store is the engine's cache (not an incognito, archive-tier or imported
+/// site), and this engine can load from it first. The settings screen shows
+/// this, so it shows what the webview runs.
+bool htmlCachingInEffect(
+  HtmlSource source, {
+  required bool stored,
+  required bool engineCan,
+}) =>
+    stored && engineCan && source == HtmlSource.cache;
 
 /// Whether this platform's webview can load a page from its cache first:
 /// Android and Apple's WebKit can be told to; WPE has no per-load cache

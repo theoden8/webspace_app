@@ -76,12 +76,12 @@ class ShortcutsPlugin: NSObject {
 
   private func syncSites(_ rawSites: [[String: Any]], tombstones rawTombstones: [[String: Any]]) {
     guard let defaults = AppGroup.defaults else {
-      NSLog("[WebSpace] ShortcutsPlugin: App Group \(AppGroup.id) unavailable")
+      WebSpaceLog.line("ShortcutsPlugin: App Group \(AppGroup.id) unavailable", carries: .noUserData)
       return
     }
     let sites = Self.normalize(rawSites)
     let tombs = Self.normalize(rawTombstones)
-    NSLog("[WebSpace] ShortcutsPlugin.syncSites sites=\(sites.count) tombstones=\(tombs.count)")
+    WebSpaceLog.line("ShortcutsPlugin.syncSites sites=\(sites.count) tombstones=\(tombs.count)", carries: .noUserData)
     if let json = try? JSONSerialization.data(withJSONObject: sites) {
       defaults.set(json, forKey: AppGroup.shortcutSitesKey)
     }
@@ -119,7 +119,7 @@ class ShortcutsPlugin: NSObject {
     defaults.removeObject(forKey: AppGroup.pendingShortcutUrlKey)
     var payload = ["siteId": siteId]
     if let url = url, !url.isEmpty { payload["url"] = url }
-    NSLog("[WebSpace] drainPendingLaunch siteId=\(siteId) url=\(url ?? "nil")")
+    WebSpaceLog.line("drainPendingLaunch siteId=\(siteId) url=\(url ?? "nil")", carries: .userData)
     return payload
   }
 

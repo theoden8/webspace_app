@@ -4,6 +4,7 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:webspace/services/block_decision.dart';
+import 'package:webspace/services/channel_reply.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/log_service.dart';
@@ -174,15 +175,16 @@ class WebInterceptNative {
   /// after a dataset or a setting changed. Returns how many are attached.
   static Future<int> attachToWebViews() async {
     if (!isSupported) return 0;
-    try {
-      final count = await _channel.invokeMethod<int>('attachToWebViews');
-      LogTag.webIntercept.debug('Refreshed $count attached webviews');
-      return count ?? 0;
-    } on PlatformException catch (e) {
-      LogTag.webIntercept.error('Failed to refresh the native interceptors: $e');
-      return 0;
-    } on MissingPluginException {
-      return 0;
+    switch (await _channel.ask<int>('attachToWebViews')) {
+      case Answered(value: final count):
+        LogTag.webIntercept.debug('Refreshed $count attached webviews');
+        return count ?? 0;
+      case PlatformRefused(:final error):
+        LogTag.webIntercept
+            .error('Failed to refresh the native interceptors: $error');
+        return 0;
+      case NoPlugin():
+        return 0;
     }
   }
 }
@@ -231,37 +233,36 @@ final class NativeIntercept {
   /// A domain appears once however many levels name it.
   Future<void> sendDnsLevelGroups(Map<int, Set<String>> groups) async {
     if (!WebInterceptNative.isSupported) return;
-    try {
-      // Send one newline-joined blob, not a List<String>: the platform-channel
-      // codec encodes a list element-by-element (type tag + length + UTF-8 per
-      // entry), which is ~1s for a full ~650k-domain blocklist. A single string
-      // is one encode/decode; the native side splits on '\n'.
-      final sw = Stopwatch()..start();
-      final masks = groups.keys.toList()..sort();
-      final buf = StringBuffer();
-      var total = 0;
-      for (final mask in masks) {
-        buf.writeln('#${mask.toRadixString(16)}');
-        for (final domain in groups[mask]!) {
-          buf.writeln(domain);
-          total++;
-        }
+    // Send one newline-joined blob, not a List<String>: the platform-channel
+    // codec encodes a list element-by-element (type tag + length + UTF-8 per
+    // entry), which is ~1s for a full ~650k-domain blocklist. A single string
+    // is one encode/decode; the native side splits on '\n'.
+    final sw = Stopwatch()..start();
+    final masks = groups.keys.toList()..sort();
+    final buf = StringBuffer();
+    var total = 0;
+    for (final mask in masks) {
+      buf.writeln('#${mask.toRadixString(16)}');
+      for (final domain in groups[mask]!) {
+        buf.writeln(domain);
+        total++;
       }
-      final blob = buf.toString();
-      final joinMs = sw.elapsedMilliseconds;
-      // The native handler kicks the set build onto a worker thread and returns
-      // immediately; we already know the count here, so don't make native
-      // recompute it.
-      await WebInterceptNative._channel.invokeMethod('setDnsBlockedDomains', {
-        'domains': blob,
-      });
-      LogTag.dnsBlock.info(
-          'Queued $total DNS domains across ${masks.length} group(s) for native build '
-          '(join=${joinMs}ms channel+native=${sw.elapsedMilliseconds - joinMs}ms)');
-    } on PlatformException catch (e) {
-      LogTag.dnsBlock.error('Failed to send DNS domains to native: $e');
-    } on MissingPluginException catch (e) {
-      LogTag.dnsBlock.error('Failed to send DNS domains to native: $e');
+    }
+    final blob = buf.toString();
+    final joinMs = sw.elapsedMilliseconds;
+    // The native handler kicks the set build onto a worker thread and returns
+    // immediately; we already know the count here, so don't make native
+    // recompute it.
+    switch (await WebInterceptNative._channel
+        .ask<Object?>('setDnsBlockedDomains', arguments: {'domains': blob})) {
+      case Answered():
+        LogTag.dnsBlock.info(
+            'Queued $total DNS domains across ${masks.length} group(s) for native build '
+            '(join=${joinMs}ms channel+native=${sw.elapsedMilliseconds - joinMs}ms)');
+      case PlatformRefused(:final error):
+        LogTag.dnsBlock.error('Failed to send DNS domains to native: $error');
+      case NoPlugin(:final error):
+        LogTag.dnsBlock.error('Failed to send DNS domains to native: $error');
     }
   }
 
@@ -307,15 +308,14 @@ final class NativeIntercept {
   /// LocalCdnService's _cdnPatterns table).
   Future<void> sendCdnPatterns(List<String> patterns) async {
     if (!WebInterceptNative.isSupported) return;
-    try {
-      final count = await WebInterceptNative._channel.invokeMethod('setCdnPatterns', {
-        'patterns': patterns,
-      });
-      LogTag.localCdn.info('Sent $count CDN patterns to native handler');
-    } on PlatformException catch (e) {
-      LogTag.localCdn.error('Failed to send CDN patterns to native: $e');
-    } on MissingPluginException catch (e) {
-      LogTag.localCdn.error('Failed to send CDN patterns to native: $e');
+    switch (await WebInterceptNative._channel
+        .ask<Object?>('setCdnPatterns', arguments: {'patterns': patterns})) {
+      case Answered(value: final count):
+        LogTag.localCdn.info('Sent $count CDN patterns to native handler');
+      case PlatformRefused(:final error):
+        LogTag.localCdn.error('Failed to send CDN patterns to native: $error');
+      case NoPlugin(:final error):
+        LogTag.localCdn.error('Failed to send CDN patterns to native: $error');
     }
   }
 
@@ -323,15 +323,14 @@ final class NativeIntercept {
   /// interceptor. Call this whenever the cache changes (download, clear).
   Future<void> sendCdnCacheIndex(Map<String, String> index) async {
     if (!WebInterceptNative.isSupported) return;
-    try {
-      final count = await WebInterceptNative._channel.invokeMethod('setCdnCacheIndex', {
-        'index': index,
-      });
-      LogTag.localCdn.info('Sent $count cached CDN entries to native handler');
-    } on PlatformException catch (e) {
-      LogTag.localCdn.error('Failed to send CDN cache index to native: $e');
-    } on MissingPluginException catch (e) {
-      LogTag.localCdn.error('Failed to send CDN cache index to native: $e');
+    switch (await WebInterceptNative._channel
+        .ask<Object?>('setCdnCacheIndex', arguments: {'index': index})) {
+      case Answered(value: final count):
+        LogTag.localCdn.info('Sent $count cached CDN entries to native handler');
+      case PlatformRefused(:final error):
+        LogTag.localCdn.error('Failed to send CDN cache index to native: $error');
+      case NoPlugin(:final error):
+        LogTag.localCdn.error('Failed to send CDN cache index to native: $error');
     }
   }
 }

@@ -41,6 +41,7 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/web_view_model_hooks.dart';
 import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/widgets/page_layer.dart';
 import 'package:webspace/widgets/webspace_name.dart';
 import 'package:webspace/platform/host_platform.dart';
@@ -746,19 +747,19 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Shows a SnackBar. Built after the mounted check, so a caller past an
   /// await never reads a defunct context.
   void _toast(
-    String Function(AppLocalizations loc) message, {
+    Localized Function(AppLocalizations loc) message, {
     Duration duration = const Duration(seconds: 4),
     bool floating = false,
     SnackBarAction Function(AppLocalizations loc)? action,
   }) {
     if (!mounted) return;
     final loc = AppLocalizations.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(message(loc)),
+    ScaffoldMessenger.of(context).toast(
+      message(loc),
       duration: duration,
-      behavior: floating ? SnackBarBehavior.floating : null,
+      floating: floating,
       action: action?.call(loc),
-    ));
+    );
   }
 
   void _toastOpenedInNewTab(WebViewModel model, {required TabId tabId}) =>
@@ -1706,7 +1707,7 @@ class _PageHost
 
   @override
   void toast(
-    String Function(AppLocalizations loc) message, {
+    Localized Function(AppLocalizations loc) message, {
     Duration duration = const Duration(seconds: 4),
     bool floating = false,
   }) =>

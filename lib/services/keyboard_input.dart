@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 
 import 'package:webspace/platform/host_platform.dart';
 
@@ -23,13 +24,10 @@ abstract final class KeyboardInput {
         attached.value = now;
       }
     });
-    try {
-      attached.value =
-          await _channel.invokeMethod<bool>('attached') ?? false;
-    } on PlatformException {
-      attached.value = false;
-    } on MissingPluginException {
-      attached.value = false;
-    }
+    attached.value = switch (await _channel.ask<bool>('attached')) {
+      Answered(:final value) => value ?? false,
+      PlatformRefused() => false,
+      NoPlugin() => false,
+    };
   }
 }

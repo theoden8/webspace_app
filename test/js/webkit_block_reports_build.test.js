@@ -14,7 +14,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { read } = require('./helpers/source');
+const { read, files } = require('./helpers/source');
 
 const SCRIPT = 'scripts/check_webkit_block_reports.sh';
 const SWIFT = 'ios/Runner/WebKitBlockReports.swift';
@@ -44,9 +44,8 @@ test(`the Swift is all inside #if ${CONDITION}`, () => {
 test('no other Runner source names the selector', () => {
   const found = [];
   for (const dir of ['ios/Runner', 'macos/Runner']) {
-    for (const name of fs.readdirSync(dir)) {
-      const file = path.join(dir, name);
-      if (!name.endsWith('.swift') || file === SWIFT) continue;
+    for (const file of files(dir, /\.swift$/)) {
+      if (file === SWIFT) continue;
       if (read(file).includes(marker)) found.push(file);
     }
   }

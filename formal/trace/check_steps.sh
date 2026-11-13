@@ -23,12 +23,7 @@ MODEL="$(cd "$2" && pwd)"
 cd "$(dirname "$0")"
 
 JAR="${TLA2TOOLS_JAR:-../tla2tools.jar}"
-if [ ! -f "$JAR" ]; then
-  echo "Fetching tla2tools.jar…"
-  # Same source and retries as formal/check.sh, unpinned for the same reason.
-  curl -fsSL --retry 4 --retry-delay 2 -o "$JAR" \
-    https://github.com/tlaplus/tlaplus/releases/latest/download/tla2tools.jar
-fi
+../fetch_tla2tools.sh "$JAR"
 PY="${PYTHON:-python3}"
 
 echo "── STEPS: each step the code marked, replayed against activation.tla ──"

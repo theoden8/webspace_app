@@ -2,7 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/outbound_http.dart';
-import 'package:webspace/services/outbound_http_io.dart' show DefaultOutboundHttpFactory;
+import 'package:webspace/services/outbound_http_io.dart'
+    show DefaultOutboundHttpFactory, staysOnDevice;
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
@@ -26,37 +28,22 @@ void main() {
     GlobalOutboundProxy.resetForTest();
   });
 
-  group('parseHostPort', () {
-    test('parses host:port', () {
-      expect(parseHostPort('proxy.example.com:8080'), ('proxy.example.com', 8080));
-    });
-
-    test('parses IPv4:port', () {
-      expect(parseHostPort('127.0.0.1:9050'), ('127.0.0.1', 9050));
-    });
-
-    test('rejects missing port', () {
-      expect(parseHostPort('proxy.example.com'), isNull);
-    });
-
-    test('rejects empty port', () {
-      expect(parseHostPort('proxy.example.com:'), isNull);
-    });
-
-    test('rejects non-numeric port', () {
-      expect(parseHostPort('host:abc'), isNull);
-    });
-
-    test('rejects port out of range (high)', () {
-      expect(parseHostPort('host:99999'), isNull);
-    });
-
-    test('rejects port out of range (low)', () {
-      expect(parseHostPort('host:0'), isNull);
-    });
-  });
-
   group('DefaultOutboundHttpFactory', () {
+    test('the proxy is bypassed for a loopback literal and localhost, never '
+        'for a name the resolver answers (PROXY-007)', () {
+      for (final (raw, direct) in [
+        ('localhost', true),
+        ('127.0.0.1', true),
+        ('127.0.0.2', true),
+        ('::1', true),
+        ('dev.localhost', false),
+        ('10.0.0.1', false),
+        ('example.com', false),
+      ]) {
+        expect(staysOnDevice(Host(raw)), direct, reason: raw);
+      }
+    });
+
     final factory = const DefaultOutboundHttpFactory();
 
     test('DEFAULT type returns a Ready client', () {

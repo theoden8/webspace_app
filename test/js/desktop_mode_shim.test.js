@@ -125,3 +125,15 @@ test('re-entrance guard: running the shim twice is a no-op', () => {
   assert.equal(dom.window.matchMedia('(pointer: fine)').matches, true);
   assert.equal(dom.window.__ws_desktop_shim__, true);
 });
+
+test('each navigator getter stringifies as a native accessor', () => {
+  // These printed as `function platform() { [native code] }`, which no real
+  // accessor does, until they went through nativeGetter.
+  const dom = loadShim(pageJs('desktop_mode', { platform: 'Linux x86_64' }));
+  const proto = dom.window.Navigator.prototype;
+  for (const name of ['userAgentData', 'maxTouchPoints', 'platform']) {
+    const get = Object.getOwnPropertyDescriptor(proto, name).get;
+    assert.equal(dom.window.Function.prototype.toString.call(get),
+      `function get ${name}() { [native code] }`, name);
+  }
+});

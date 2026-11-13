@@ -55,3 +55,38 @@ test('a share starts only from an app in front', () => {
     /isAtLeast\(Lifecycle\.State\.RESUMED\)[\s\S]*?if \(ScreenShareSession\.pendingStart != null \|\| !resumed\) \{\s*result\.success\(null\)/,
     'a prompt raised from the background lands over another app, or never answers');
 });
+
+// A share's limits are Dart's (ShareLimits in lib/services/screen_share.dart):
+// each native side once invented its own when a value was missing (1280 and
+// 10 fps, clamped at 30, against Dart's 15), so a caller that forgot one got
+// a share Dart never allowed. Native sides now refuse a missing value; a
+// fallback or a clamp written beside one of these keys is what this refuses.
+const LIMIT_KEYS = ['maxWidth', 'maxHeight', 'maxLongSide', 'fps'];
+const NATIVE = [
+  `${ROOT}/ScreenSharePlugin.kt`,
+  'macos/Runner/ScreenSharePlugin.swift',
+  'linux/screen_share.cc',
+];
+
+function restatedLimits(rel, src) {
+  const keys = LIMIT_KEYS.join('|');
+  const read = new RegExp(String.raw`["'](?:${keys})["'][^\n]*?(?:\?:|\?\?|coerceIn|,\s*-?\d+\s*\))`, 'g');
+  return [...src.matchAll(read)].map((m) => `${rel}:${src.slice(0, m.index).split('\n').length}`);
+}
+
+test('no native side restates a share limit Dart owns', () => {
+  assert.deepEqual(NATIVE.flatMap((rel) => restatedLimits(rel, read(rel))), [],
+    'refuse a missing value with bad-args instead of picking one');
+});
+
+test('planted: each native fallback shape is caught; a required read is not', () => {
+  for (const planted of [
+    'maxLongSide = call.argument<Int>("maxLongSide") ?: 1280,',
+    'fps: min(max(args["fps"] as? Int ?? 10, 1), 30)',
+    'int_arg(args, "maxLongSide", 1280),',
+  ]) {
+    assert.equal(restatedLimits('planted', planted).length, 1, planted);
+  }
+  assert.deepEqual(restatedLimits('planted', 'val fps = call.argument<Any>("fps") as? Int'), []);
+  assert.deepEqual(restatedLimits('planted', 'const auto fps = required_int(args, "fps");'), []);
+});

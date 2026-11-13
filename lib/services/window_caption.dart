@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/log_service.dart';
@@ -23,18 +24,20 @@ class WindowCaption {
   Future<void> follow(Brightness brightness) async {
     if (!_drawn || brightness == _told) return;
     _told = brightness;
-    try {
-      await _channel.invokeMethod<void>(
-        'setLight',
-        switch (brightness) {
-          Brightness.light => true,
-          Brightness.dark => false,
-        },
-      );
-    } on PlatformException catch (e) {
-      LogTag.lifecycle.error('Window caption: ${e.code}');
-    } on MissingPluginException {
-      // An engine without the activity's plugins draws no window.
+    switch (await _channel.ask<void>(
+      'setLight',
+      arguments: switch (brightness) {
+        Brightness.light => true,
+        Brightness.dark => false,
+      },
+    )) {
+      case Answered():
+        break;
+      case PlatformRefused(:final error):
+        LogTag.lifecycle.error('Window caption: ${error.code}');
+      case NoPlugin():
+        // An engine without the activity's plugins draws no window.
+        break;
     }
   }
 }

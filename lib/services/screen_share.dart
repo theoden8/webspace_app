@@ -8,6 +8,7 @@ import 'dart:convert';
 
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_grant_engine.dart';
@@ -284,56 +285,51 @@ final class ChannelScreenShareNative implements ScreenShareNative {
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'ended') _onEnded?.call();
     });
-    try {
-      final reply = await _channel.invokeMethod<Object?>('start', {
-        'maxWidth': request.maxWidth,
-        'maxHeight': request.maxHeight,
-        'maxLongSide': ShareLimits.maxLongSide,
-        'fps': request.fps,
-        'title': notice.title,
-        'text': notice.text,
-        'stop': notice.stop,
-      });
-      return switch (reply) {
-        {'width': final int width, 'height': final int height}
-            when width > 0 && height > 0 =>
-          (width: width, height: height),
-        _ => null,
-      };
-    } on PlatformException catch (e) {
-      LogTag.screenShare.debug('Share failed to start: ${e.code} ${e.message}');
-      return null;
-    } on MissingPluginException {
-      return null;
+    switch (await _channel.ask<Object?>('start', arguments: {
+      'maxWidth': request.maxWidth,
+      'maxHeight': request.maxHeight,
+      'maxLongSide': ShareLimits.maxLongSide,
+      'fps': request.fps,
+      'title': notice.title,
+      'text': notice.text,
+      'stop': notice.stop,
+    })) {
+      case Answered(value: {'width': final int width, 'height': final int height})
+          when width > 0 && height > 0:
+        return (width: width, height: height);
+      case Answered():
+        return null;
+      case PlatformRefused(:final error):
+        LogTag.screenShare
+            .debug('Share failed to start: ${error.code} ${error.message}');
+        return null;
+      case NoPlugin():
+        return null;
     }
   }
 
   @override
   Future<ShareFrame> frame({required int after}) async {
-    try {
-      final reply =
-          await _channel.invokeMethod<Object?>('frame', {'after': after});
-      return switch (reply) {
-        {'seq': final int seq, 'jpeg': final Uint8List jpeg} =>
-          FrameReady(seq: seq, jpeg: jpeg),
-        {'seq': final int seq} => NoNewFrame(seq),
-        _ => const ShareEnded(),
-      };
-    } on PlatformException {
-      return const ShareEnded();
-    } on MissingPluginException {
-      return const ShareEnded();
-    }
+    return switch (
+        await _channel.ask<Object?>('frame', arguments: {'after': after})) {
+      Answered(value: {'seq': final int seq, 'jpeg': final Uint8List jpeg}) =>
+        FrameReady(seq: seq, jpeg: jpeg),
+      Answered(value: {'seq': final int seq}) => NoNewFrame(seq),
+      Answered() => const ShareEnded(),
+      PlatformRefused() => const ShareEnded(),
+      NoPlugin() => const ShareEnded(),
+    };
   }
 
   @override
   Future<void> stop() async {
-    try {
-      await _channel.invokeMethod<void>('stop');
-    } on PlatformException catch (e) {
-      LogTag.screenShare.debug('Share failed to stop: ${e.code} ${e.message}');
-    } on MissingPluginException {
-      return;
+    switch (await _channel.ask<void>('stop')) {
+      case PlatformRefused(:final error):
+        LogTag.screenShare
+            .debug('Share failed to stop: ${error.code} ${error.message}');
+      case Answered():
+      case NoPlugin():
+        return;
     }
   }
 }

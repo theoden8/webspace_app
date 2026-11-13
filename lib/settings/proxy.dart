@@ -240,21 +240,25 @@ sealed class ProxyAddressParse {
     if (port == null || port < 1 || port > 65535) {
       return const ProxyAddressBadPort();
     }
-    return ProxyAddress(host: host, port: port);
+    return ProxyAddress(urlHost: host, port: port);
   }
 }
 
-/// An address that parsed: the host as written, brackets kept, and its port.
+/// An address that parsed, and its port. Its host has two readings and a
+/// reader names the one it means: [urlHost] where the address is written out
+/// again (a proxy URL, a credential, a listener tor names), [socketHost]
+/// where a socket is opened to it.
 final class ProxyAddress extends ProxyAddressParse {
-  const ProxyAddress({required this.host, required this.port});
-  final String host;
+  const ProxyAddress({required this.urlHost, required this.port});
+
+  /// The host as written: an IPv6 literal keeps its brackets.
+  final String urlHost;
   final int port;
 
-  /// [host] as a socket or a native call takes it: an IPv6 literal without
-  /// its brackets.
-  String get socketHost => host.startsWith('[') && host.endsWith(']')
-      ? host.substring(1, host.length - 1)
-      : host;
+  /// The host a socket connects to: an IPv6 literal without its brackets.
+  String get socketHost => urlHost.startsWith('[') && urlHost.endsWith(']')
+      ? urlHost.substring(1, urlHost.length - 1)
+      : urlHost;
 }
 
 /// Nothing was given.

@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/tor_bridge_settings.dart';
+import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/tor_bridges.dart' show bridgesMayHelp;
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/theme/design_tokens.dart';
@@ -150,7 +151,9 @@ class TorStatusCard extends StatefulWidget {
 class _TorStatusCardState extends State<TorStatusCard> {
   StreamSubscription<TorStatus>? _sub;
   TorStatus _status = const TorStopped();
-  bool _busy = false;
+  late final _guard = ReentryGuard(onChange: () {
+    if (mounted) setState(() {});
+  });
 
   @override
   void initState() {
@@ -165,16 +168,6 @@ class _TorStatusCardState extends State<TorStatusCard> {
   void dispose() {
     unawaited(_sub?.cancel());
     super.dispose();
-  }
-
-  Future<void> _run(Future<void> Function() action) async {
-    if (_busy) return;
-    setState(() => _busy = true);
-    try {
-      await action();
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
   }
 
   @override
@@ -275,9 +268,9 @@ class _TorStatusCardState extends State<TorStatusCard> {
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
-              onPressed: _busy
+              onPressed: _guard.busy
                   ? null
-                  : () => _run(TorService.instance.rebuildCircuits),
+                  : () => _guard.run(TorService.instance.rebuildCircuits),
               icon: const Icon(Icons.refresh, size: IconSizes.action),
               label: Text(loc.torStatusRebuildCircuits),
             ),
@@ -325,8 +318,8 @@ class _TorStatusCardState extends State<TorStatusCard> {
           children: torRecoveryActions(
             context,
             kind: failure.kind,
-            busy: _busy,
-            onRetry: () => _run(TorService.instance.restart),
+            busy: _guard.busy,
+            onRetry: () => _guard.run(TorService.instance.restart),
           ),
         ),
       ],

@@ -1,6 +1,7 @@
 import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 
 /// Verdict over a sampled window region.
 ///
@@ -55,28 +56,29 @@ class SurfaceDiagNative {
   /// detects, and the Flutter window there composites platform views in-tree.
   static Future<WindowRegionSample> sampleWindowRegion(Rect physicalRect) async {
     if (!hostIsAndroid) return WindowRegionSample.unsupported;
-    try {
-      final res = await _channel
-          .invokeMapMethod<String, dynamic>('sampleWindowRegion', <String, int>{
-        'left': physicalRect.left.round(),
-        'top': physicalRect.top.round(),
-        'width': physicalRect.width.round(),
-        'height': physicalRect.height.round(),
-      });
-      if (res == null) return WindowRegionSample.unsupported;
-      // Kotlin sends a signed 32-bit ARGB int; normalize to unsigned so
-      // 0xFF123524 stays 0xFF123524 on the Dart side.
-      final rawColor = res['dominantColor'] as int?;
-      return WindowRegionSample(
-        status: res['status'] as String? ?? 'unsupported',
-        dominantColor: rawColor == null ? null : rawColor & 0xFFFFFFFF,
-        uniformFraction: (res['uniformFraction'] as num?)?.toDouble(),
-      );
-    } on MissingPluginException {
-      return WindowRegionSample.unsupported;
-    } on PlatformException {
-      return WindowRegionSample.unsupported;
+    final Map<String, dynamic> res;
+    switch (await _channel
+        .askMap<String, dynamic>('sampleWindowRegion', arguments: <String, int>{
+      'left': physicalRect.left.round(),
+      'top': physicalRect.top.round(),
+      'width': physicalRect.width.round(),
+      'height': physicalRect.height.round(),
+    })) {
+      case Answered(value: final map?):
+        res = map;
+      case Answered(value: null):
+      case PlatformRefused():
+      case NoPlugin():
+        return WindowRegionSample.unsupported;
     }
+    // Kotlin sends a signed 32-bit ARGB int; normalize to unsigned so
+    // 0xFF123524 stays 0xFF123524 on the Dart side.
+    final rawColor = res['dominantColor'] as int?;
+    return WindowRegionSample(
+      status: res['status'] as String? ?? 'unsupported',
+      dominantColor: rawColor == null ? null : rawColor & 0xFFFFFFFF,
+      uniformFraction: (res['uniformFraction'] as num?)?.toDouble(),
+    );
   }
 
   /// Ask the Android views themselves to redraw ([SurfaceDiagPlugin.kt]).
@@ -89,17 +91,14 @@ class SurfaceDiagNative {
   /// views it reached, or null off Android.
   static Future<int?> nativeRepaint(String mode) async {
     if (!hostIsAndroid) return null;
-    try {
-      final res = await _channel.invokeMapMethod<String, dynamic>(
-          'nativeRepaint', <String, String>{'mode': mode});
-      if (res == null) return null;
-      if (res['status'] != 'ok') return null;
-      return res['views'] as int?;
-    } on MissingPluginException {
-      return null;
-    } on PlatformException {
-      return null;
-    }
+    return switch (await _channel.askMap<String, dynamic>('nativeRepaint',
+        arguments: <String, String>{'mode': mode})) {
+      Answered(value: final res?) when res['status'] == 'ok' =>
+        res['views'] as int?,
+      Answered() => null,
+      PlatformRefused() => null,
+      NoPlugin() => null,
+    };
   }
 
   /// Map a logical-coordinate region to the physical-pixel window rect the

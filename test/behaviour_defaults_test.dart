@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/app_behaviour.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/services/popup_webview.dart';
@@ -12,6 +11,7 @@ import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/web_view_model.dart';
 
 import 'helpers/isolations.dart';
+import 'helpers/localized.dart';
 
 void main() {
   setUp(() async {
@@ -156,14 +156,10 @@ void main() {
   ) async {
     final site = WebViewModel(initUrl: 'https://example.org/');
     await tester.pumpWidget(
-      MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: AppBehaviourScreen(
+      localizedApp(AppBehaviourScreen(
           onOpenLinkHandlingSettings: () {},
           homeShortcuts: null,
-        ),
-      ),
+        )),
     );
     await tester.pumpAndSettle();
     expect(find.text('Site defaults'), findsNothing);
@@ -201,14 +197,10 @@ void main() {
           PopupKind.signInOpens(choice: Scoped.fromStored(site.signInPopups));
       expect(opens(following), isTrue);
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: AppBehaviourScreen(
+        localizedApp(AppBehaviourScreen(
             onOpenLinkHandlingSettings: () {},
             homeShortcuts: null,
-          ),
-        ),
+          )),
       );
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.text('Sign-in popups'), 200);
@@ -229,10 +221,7 @@ void main() {
           initUrl: 'https://example.org/', signInPopups: false);
       expect(site.toJson()['signInPopups'], isFalse);
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Builder(
+        localizedApp(Builder(
             builder: (context) => TextButton(
               onPressed: () => Navigator.push<void>(
                 context,
@@ -246,8 +235,7 @@ void main() {
               ),
               child: const Text('open'),
             ),
-          ),
-        ),
+          )),
       );
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
@@ -295,10 +283,7 @@ void main() {
         routeOutboundLinks: true,
       );
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Builder(
+        localizedApp(Builder(
             builder: (context) => TextButton(
               onPressed: () => Navigator.push<void>(
                 context,
@@ -313,8 +298,7 @@ void main() {
               ),
               child: const Text('open'),
             ),
-          ),
-        ),
+          )),
       );
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();

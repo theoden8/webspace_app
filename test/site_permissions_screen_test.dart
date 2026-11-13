@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/screens/site_permissions.dart';
 import 'package:webspace/settings/capture.dart';
@@ -8,6 +7,8 @@ import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/origin_choices.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/widgets/site_permission_chip.dart';
+
+import 'helpers/localized.dart';
 
 SitePermissionValues _values({
   bool archived = false,
@@ -21,20 +22,22 @@ SitePermissionValues _values({
 }) =>
     SitePermissionValues(
       archived: archived,
-      captures: CaptureGrants(
-        camera: (mode: camera, source: null),
-        microphone: (mode: microphone, source: null),
-        screenShare: (mode: screenShare, source: null),
+      choices: (
+        captures: CaptureGrants(
+          camera: (mode: camera, source: null),
+          microphone: (mode: microphone, source: null),
+          screenShare: (mode: screenShare, source: null),
+        ),
+        originChoices: originChoices,
+        notificationsEnabled: notifications,
+        backgroundAudioEnabled: false,
+        protectedContentAllowed: protectedContent,
+        liveLocationGranularity: LocationGranularity.gps,
+        spoofTimezone: null,
+        spoofTimezoneFromLocation: false,
       ),
-      originChoices: originChoices,
-      notificationsEnabled: notifications,
-      backgroundAudioEnabled: false,
-      protectedContentAllowed: protectedContent,
       locationMode: location,
-      liveLocationGranularity: LocationGranularity.gps,
       hasStaticCoordinates: false,
-      spoofTimezone: null,
-      spoofTimezoneFromLocation: false,
     );
 
 Future<void> _pump(
@@ -43,10 +46,7 @@ Future<void> _pump(
   ValueChanged<SitePermissionValues>? onChanged,
   bool trackingProtection = false,
 }) async {
-  await tester.pumpWidget(MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: SitePermissionsScreen(
+  await tester.pumpWidget(localizedApp(SitePermissionsScreen(
       host: 'example.com',
       values: values,
       trackingProtectionEnabled: trackingProtection,
@@ -55,8 +55,7 @@ Future<void> _pump(
       onEnableNotifications: () async {},
       timezonePreview: () => 'Europe/Paris',
       coordinatesPreview: () => '48.8566, 2.3522',
-    ),
-  ));
+    )));
   await tester.pumpAndSettle();
 }
 
@@ -146,7 +145,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Allow').last);
       await tester.pumpAndSettle();
-      expect(changes.last.captures.screenShare.mode, ScreenShareMode.real);
+      expect(changes.last.choices.captures.screenShare.mode, ScreenShareMode.real);
     });
   });
 
@@ -177,10 +176,7 @@ void main() {
 
   testWidgets('a capability another setting owns is inert and says why',
       (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: SitePermissionsScreen(
+    await tester.pumpWidget(localizedApp(SitePermissionsScreen(
         host: 'example.com',
         values: _values(),
         notificationsBlockedBySite: 'bank.example',
@@ -189,8 +185,7 @@ void main() {
         onEnableNotifications: () async {},
         timezonePreview: () => 'Europe/Paris',
         coordinatesPreview: () => '48.8566, 2.3522',
-      ),
-    ));
+      )));
     await tester.pumpAndSettle();
 
     final tile = tester.widget<ListTile>(
@@ -215,7 +210,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Always block'));
     await tester.pumpAndSettle();
-    expect(reported?.captures.camera.mode, CameraAccessMode.block);
+    expect(reported?.choices.captures.camera.mode, CameraAccessMode.block);
   });
 
   testWidgets('timezone sits inside the location sheet, not in the list',
@@ -250,10 +245,7 @@ void main() {
 
   testWidgets('tracking protection forces the timezone to follow coordinates',
       (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: SitePermissionsScreen(
+    await tester.pumpWidget(localizedApp(SitePermissionsScreen(
         host: 'example.com',
         values: _values(location: LocationMode.spoof)
             .copyWith(hasStaticCoordinates: true),
@@ -263,8 +255,7 @@ void main() {
         onEnableNotifications: () async {},
         timezonePreview: () => 'Europe/Paris',
         coordinatesPreview: () => '48.8566, 2.3522',
-      ),
-    ));
+      )));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Geolocation'));
@@ -337,7 +328,7 @@ void main() {
       final changes = await openCamera(tester);
       await tester.tap(find.byTooltip('Forget, so it is asked again').first);
       await tester.pumpAndSettle();
-      expect(changes.last.originChoices.listed(SitePermission.camera),
+      expect(changes.last.choices.originChoices.listed(SitePermission.camera),
           {reached: false});
       expect(find.text(embed), findsNothing);
     });
@@ -346,7 +337,7 @@ void main() {
       final changes = await openCamera(tester);
       await tester.tap(find.text(reached));
       await tester.pumpAndSettle();
-      expect(changes.last.originChoices
+      expect(changes.last.choices.originChoices
           .of(SitePermission.camera, origin: reached), isTrue);
     });
 
@@ -355,8 +346,8 @@ void main() {
       final changes = await openCamera(tester);
       await tester.tap(find.text('Always block').last);
       await tester.pumpAndSettle();
-      expect(changes.last.originChoices.listed(SitePermission.camera), isEmpty);
-      expect(changes.last.originChoices
+      expect(changes.last.choices.originChoices.listed(SitePermission.camera), isEmpty);
+      expect(changes.last.choices.originChoices
           .of(SitePermission.location, origin: embed), isTrue,
           reason: 'only the capability that moved');
       expect(find.text('Other origins'), findsNothing);

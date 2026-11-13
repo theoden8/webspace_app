@@ -50,7 +50,7 @@ final class BackgroundLogFile {
           try BackgroundLogFile.compact(url)
         }
       } catch {
-        NSLog("BackgroundLogFile: append failed: \(error)")
+        WebSpaceLog.line("BackgroundLogFile: append failed: \(error)", carries: .noUserData)
       }
     }
   }
@@ -72,7 +72,7 @@ final class BackgroundLogFile {
               + "without an expiry or a termination notice")
         }
       } catch {
-        NSLog("BackgroundLogFile: launch read failed: \(error)")
+        WebSpaceLog.line("BackgroundLogFile: launch read failed: \(error)", carries: .noUserData)
       }
       self.append(t: t, level: "info", tag: "iOS", message: message)
     }
@@ -123,7 +123,7 @@ final class BackgroundLogFile {
           try fm.removeItem(at: url)
         }
       } catch {
-        NSLog("BackgroundLogFile: setEnabled(\(enabled)) failed: \(error)")
+        WebSpaceLog.line("BackgroundLogFile: setEnabled(\(enabled)) failed: \(error)", carries: .noUserData)
       }
     }
   }
@@ -135,7 +135,7 @@ final class BackgroundLogFile {
       do {
         try Data().write(to: url, options: .atomic)
       } catch {
-        NSLog("BackgroundLogFile: clear failed: \(error)")
+        WebSpaceLog.line("BackgroundLogFile: clear failed: \(error)", carries: .noUserData)
       }
     }
   }
@@ -150,7 +150,7 @@ final class BackgroundLogFile {
           lines = try String(contentsOf: url, encoding: .utf8)
             .split(separator: "\n").map(String.init)
         } catch {
-          NSLog("BackgroundLogFile: read failed: \(error)")
+          WebSpaceLog.line("BackgroundLogFile: read failed: \(error)", carries: .noUserData)
           lines = nil
         }
       }
@@ -305,11 +305,11 @@ class BackgroundTaskPlugin: NSObject {
   /// every access to the pending slot is funnelled onto the main queue and
   /// completion is made idempotent per task via [completeTask].
   private func handleRefreshTask(_ task: BGAppRefreshTask) {
-    NSLog("BackgroundTaskPlugin: BGAppRefreshTask received — forwarding to Dart")
+    WebSpaceLog.line("BackgroundTaskPlugin: BGAppRefreshTask received — forwarding to Dart", carries: .noUserData)
     BackgroundLogFile.shared.record("BGAppRefreshTask received; forwarding to Dart")
     task.expirationHandler = { [weak self, weak task] in
       guard let self = self, let task = task else { return }
-      NSLog("BackgroundTaskPlugin: refresh task expired before Dart completed")
+      WebSpaceLog.line("BackgroundTaskPlugin: refresh task expired before Dart completed", carries: .noUserData)
       BackgroundLogFile.shared.record(
         "refresh task expired before Dart completed", level: "warning")
       DispatchQueue.main.async { self.completeTask(task, success: false) }
@@ -360,10 +360,10 @@ class BackgroundTaskPlugin: NSObject {
     let delay = Int(BackgroundTaskPlugin.refreshMinDelaySeconds)
     do {
       try BGTaskScheduler.shared.submit(request)
-      NSLog("BackgroundTaskPlugin: scheduled next refresh in >= \(delay)s")
+      WebSpaceLog.line("BackgroundTaskPlugin: scheduled next refresh in >= \(delay)s", carries: .noUserData)
       BackgroundLogFile.shared.record("refresh request submitted (earliest in \(delay)s)")
     } catch let error as BGTaskScheduler.Error {
-      NSLog("BackgroundTaskPlugin: failed to schedule refresh: \(error)")
+      WebSpaceLog.line("BackgroundTaskPlugin: failed to schedule refresh: \(error)", carries: .noUserData)
       let code: String
       switch error.code {
       case .unavailable: code = "unavailable"
@@ -374,7 +374,7 @@ class BackgroundTaskPlugin: NSObject {
       BackgroundLogFile.shared.record(
         "refresh request rejected by BGTaskScheduler: \(code)", level: "error")
     } catch {
-      NSLog("BackgroundTaskPlugin: failed to schedule refresh: \(error)")
+      WebSpaceLog.line("BackgroundTaskPlugin: failed to schedule refresh: \(error)", carries: .noUserData)
       BackgroundLogFile.shared.record(
         "refresh request rejected: \(error.localizedDescription)", level: "error")
     }
@@ -443,7 +443,7 @@ class BackgroundTaskPlugin: NSObject {
       scheduleNextRefresh()
       result(nil)
     case "cancelScheduledRefreshes":
-      NSLog("BackgroundTaskPlugin: cancelling scheduled refreshes")
+      WebSpaceLog.line("BackgroundTaskPlugin: cancelling scheduled refreshes", carries: .noUserData)
       BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: BackgroundTaskPlugin.refreshIdentifier)
       BackgroundLogFile.shared.record("pending refresh requests cancelled")
       result(nil)
@@ -465,7 +465,7 @@ class BackgroundTaskPlugin: NSObject {
       } else {
         success = true
       }
-      NSLog("BackgroundTaskPlugin: Dart reported refresh complete (success: \(success))")
+      WebSpaceLog.line("BackgroundTaskPlugin: Dart reported refresh complete (success: \(success))", carries: .noUserData)
       // Runs on the Flutter platform (main) thread, the same queue the
       // pending slot is confined to. Complete via the funnel so a racing
       // expiration handler can't also complete the task.
@@ -550,7 +550,7 @@ class BackgroundTaskPlugin: NSObject {
         try session.setCategory(.ambient, mode: .default)
       }
     } catch {
-      NSLog("BackgroundTaskPlugin: audio session category change failed: \(error)")
+      WebSpaceLog.line("BackgroundTaskPlugin: audio session category change failed: \(error)", carries: .noUserData)
     }
   }
 

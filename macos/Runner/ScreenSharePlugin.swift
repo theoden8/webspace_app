@@ -90,13 +90,21 @@ private final class PickedScreenShare: NSObject, SCContentSharingPickerObserver,
     let args = call.arguments as? [String: Any] ?? [:]
     switch call.method {
     case "start":
+      // Dart always sends these and owns their limits (ShareLimits); a
+      // missing one is a caller's mistake, not a reason to pick another.
+      guard let maxWidth = args["maxWidth"] as? Int,
+        let maxHeight = args["maxHeight"] as? Int,
+        let maxLongSide = args["maxLongSide"] as? Int,
+        let fps = args["fps"] as? Int, fps >= 1
+      else {
+        result(
+          FlutterError(
+            code: "bad-args", message: "start needs maxWidth, maxHeight, maxLongSide, fps",
+            details: nil))
+        return
+      }
       start(
-        Request(
-          maxWidth: args["maxWidth"] as? Int ?? 0,
-          maxHeight: args["maxHeight"] as? Int ?? 0,
-          maxLongSide: args["maxLongSide"] as? Int ?? 1280,
-          fps: min(max(args["fps"] as? Int ?? 10, 1), 30)
-        ),
+        Request(maxWidth: maxWidth, maxHeight: maxHeight, maxLongSide: maxLongSide, fps: fps),
         result: result
       )
     case "frame":

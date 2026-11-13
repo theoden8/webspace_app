@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as image;
-import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/webspace_library.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/services/remote_input.dart';
@@ -20,6 +19,8 @@ import 'package:webspace/widgets/remote_controls.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/site_list_menu.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
+
+import 'helpers/localized.dart';
 
 final Uint8List _icon = image.encodePng(image.Image(width: 2, height: 2));
 
@@ -195,11 +196,9 @@ Future<_LibraryHarnessState> _pumpTv(WidgetTester tester) async {
   tester.view.physicalSize = const Size(1920, 1080);
   tester.view.devicePixelRatio = 2;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+  await tester.pumpWidget(localizedApp(
+    const _LibraryHarness(),
     builder: (context, child) => RemoteControls(child: child!),
-    home: const _LibraryHarness(),
   ));
   await tester.pumpAndSettle();
   return tester.state<_LibraryHarnessState>(find.byType(_LibraryHarness));
@@ -290,11 +289,7 @@ void main() {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: const _LibraryHarness(),
-    ));
+    await tester.pumpWidget(localizedApp(const _LibraryHarness()));
     await tester.pumpAndSettle();
     final state =
         tester.state<_LibraryHarnessState>(find.byType(_LibraryHarness));

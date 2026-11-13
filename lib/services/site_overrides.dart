@@ -54,9 +54,6 @@ abstract final class ArchiveFold {
   static bool localCdn({required bool stored,required bool archived}) =>
       stored && !archived;
 
-  static bool htmlCaching({required bool stored,required bool archived}) =>
-      stored && !archived;
-
   static bool incognito({required bool stored,required bool archived}) =>
       stored || archived;
 

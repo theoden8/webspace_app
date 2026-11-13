@@ -17,100 +17,144 @@ import 'package:webspace/widgets/site_permission_badges.dart';
 import 'package:webspace/widgets/site_permission_chip.dart';
 import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/widgets/virtual_source_preview.dart';
+import 'package:webspace/web_view_model.dart';
 
-/// Everything the permission screen may change, in one value so the caller can
-/// apply a whole edit in a single `setState`.
-///
-/// The screen deliberately owns no persistent state: [SiteSettingsScreen]
-/// keeps the fields, the dirty-snapshot diff and the save path exactly as they
-/// were, and this is only a different way of presenting them. Moving the
-/// fields here instead would have taken them out of that diff, which is how
-/// unsaved edits get dropped (BUG-006).
+/// What a site stores of its permissions, the whole of what the permission
+/// screen edits but the location mode, which the settings screen derives from
+/// its coordinate fields. A record, so the settings screen's dirty snapshot
+/// compares every field of it and a field added here cannot be left out of
+/// that comparison, which is how unsaved edits got dropped (BUG-006).
+typedef PermissionChoices = ({
+  CaptureGrants captures,
+  /// What other origins inside the site were answered, which each sheet
+  /// lists under its capability (PERM-002).
+  OriginChoices originChoices,
+  bool notificationsEnabled,
+  bool backgroundAudioEnabled,
+  bool? protectedContentAllowed,
+  LocationGranularity liveLocationGranularity,
+  /// IANA zone reported to the page, or null for the system default. Sits
+  /// with location rather than beside the user agent because it is the same
+  /// disclosure: a zone pins a site's guess at where you are to a region, and
+  /// `spoofTimezoneFromLocation` derives it from the very coordinates chosen
+  /// one control above.
+  String? spoofTimezone,
+  bool spoofTimezoneFromLocation,
+});
+
+/// Where a site's [PermissionChoices] are stored: the one mapping between the
+/// record and the model's fields.
+extension SitePermissionChoices on WebViewModel {
+  PermissionChoices get permissionChoices => (
+        captures: captures,
+        originChoices: originChoices,
+        notificationsEnabled: notificationsEnabled,
+        backgroundAudioEnabled: backgroundAudioEnabled,
+        protectedContentAllowed: protectedContentAllowed,
+        liveLocationGranularity: liveLocationGranularity,
+        spoofTimezone: spoofTimezone,
+        spoofTimezoneFromLocation: spoofTimezoneFromLocation,
+      );
+
+  /// The pattern names every field, so one added to [PermissionChoices] does
+  /// not compile until it is stored here.
+  set permissionChoices(PermissionChoices c) {
+    final (
+      :captures,
+      :originChoices,
+      :notificationsEnabled,
+      :backgroundAudioEnabled,
+      :protectedContentAllowed,
+      :liveLocationGranularity,
+      :spoofTimezone,
+      :spoofTimezoneFromLocation,
+    ) = c;
+    this.captures = captures;
+    this.originChoices = originChoices;
+    this.notificationsEnabled = notificationsEnabled;
+    this.backgroundAudioEnabled = backgroundAudioEnabled;
+    this.protectedContentAllowed = protectedContentAllowed;
+    this.liveLocationGranularity = liveLocationGranularity;
+    this.spoofTimezone = spoofTimezone;
+    this.spoofTimezoneFromLocation = spoofTimezoneFromLocation;
+  }
+}
+
+extension PermissionChoicesEdit on PermissionChoices {
+  /// These choices with the given ones replaced. A nullable field comes as a
+  /// one-element record, so clearing it (`spoofTimezone: (null,)`) is told
+  /// apart from leaving it out.
+  PermissionChoices copyWith({
+    CaptureGrants? captures,
+    OriginChoices? originChoices,
+    bool? notificationsEnabled,
+    bool? backgroundAudioEnabled,
+    (bool?,)? protectedContentAllowed,
+    LocationGranularity? liveLocationGranularity,
+    (String?,)? spoofTimezone,
+    bool? spoofTimezoneFromLocation,
+  }) =>
+      (
+        captures: captures ?? this.captures,
+        originChoices: originChoices ?? this.originChoices,
+        notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
+        backgroundAudioEnabled:
+            backgroundAudioEnabled ?? this.backgroundAudioEnabled,
+        protectedContentAllowed: protectedContentAllowed == null
+            ? this.protectedContentAllowed
+            : protectedContentAllowed.$1,
+        liveLocationGranularity:
+            liveLocationGranularity ?? this.liveLocationGranularity,
+        spoofTimezone:
+            spoofTimezone == null ? this.spoofTimezone : spoofTimezone.$1,
+        spoofTimezoneFromLocation:
+            spoofTimezoneFromLocation ?? this.spoofTimezoneFromLocation,
+      );
+}
+
+/// The permission screen's input: the site's [choices], the location mode
+/// the settings screen derives, and what they resolve to where it runs.
 class SitePermissionValues {
   const SitePermissionValues({
     required this.archived,
-    required this.captures,
-    required this.originChoices,
-    required this.notificationsEnabled,
-    required this.backgroundAudioEnabled,
-    required this.protectedContentAllowed,
+    required this.choices,
     required this.locationMode,
-    required this.liveLocationGranularity,
     required this.hasStaticCoordinates,
-    required this.spoofTimezone,
-    required this.spoofTimezoneFromLocation,
   });
 
   /// Not edited here: an archive-tier site is held to the archive's posture
   /// for every capability ARCH-006 folds.
   final bool archived;
-  final CaptureGrants captures;
-
-  /// What other origins inside the site were answered, which each sheet
-  /// lists under its capability (PERM-002).
-  final OriginChoices originChoices;
-  final bool notificationsEnabled;
-  final bool backgroundAudioEnabled;
-  final bool? protectedContentAllowed;
+  final PermissionChoices choices;
   final LocationMode locationMode;
-  final LocationGranularity liveLocationGranularity;
 
   /// Whether static coordinates are set. The coordinates themselves stay with
   /// the caller's text controllers; the screen only needs to know if picking
   /// one is still outstanding.
   final bool hasStaticCoordinates;
 
-  /// IANA zone reported to the page, or null for the system default. Sits with
-  /// location rather than beside the user agent because it is the same
-  /// disclosure: a zone pins a site's guess at where you are to a region, and
-  /// `spoofTimezoneFromLocation` derives it from the very coordinates chosen
-  /// one control above.
-  final String? spoofTimezone;
-  final bool spoofTimezoneFromLocation;
-
   /// A change of a capability's own mode to Block or Ask forgets what other
   /// origins were answered for it ([OriginChoices.afterModeChange]).
   SitePermissionValues copyWith({
-    CaptureGrants? captures,
-    OriginChoices? originChoices,
-    bool? notificationsEnabled,
-    bool? backgroundAudioEnabled,
-    bool? protectedContentAllowed,
-    bool clearProtectedContentAllowed = false,
+    PermissionChoices? choices,
     LocationMode? locationMode,
-    LocationGranularity? liveLocationGranularity,
     bool? hasStaticCoordinates,
-    String? spoofTimezone,
-    bool clearSpoofTimezone = false,
-    bool? spoofTimezoneFromLocation,
   }) {
     final next = SitePermissionValues(
-        archived: archived,
-        captures: captures ?? this.captures,
-        originChoices: originChoices ?? this.originChoices,
-        notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
-        backgroundAudioEnabled:
-            backgroundAudioEnabled ?? this.backgroundAudioEnabled,
-        protectedContentAllowed: clearProtectedContentAllowed
-            ? null
-            : (protectedContentAllowed ?? this.protectedContentAllowed),
-        locationMode: locationMode ?? this.locationMode,
-        liveLocationGranularity:
-            liveLocationGranularity ?? this.liveLocationGranularity,
-        hasStaticCoordinates: hasStaticCoordinates ?? this.hasStaticCoordinates,
-        spoofTimezone:
-            clearSpoofTimezone ? null : (spoofTimezone ?? this.spoofTimezone),
-        spoofTimezoneFromLocation:
-            spoofTimezoneFromLocation ?? this.spoofTimezoneFromLocation,
-      );
+      archived: archived,
+      choices: choices ?? this.choices,
+      locationMode: locationMode ?? this.locationMode,
+      hasStaticCoordinates: hasStaticCoordinates ?? this.hasStaticCoordinates,
+    );
     final followed = SitePermission.values.fold(
-      next.originChoices,
+      next.choices.originChoices,
       (choices, p) =>
           choices.afterModeChange(p, from: stateOf(p), to: next.stateOf(p)),
     );
-    return followed == next.originChoices
+    return followed == next.choices.originChoices
         ? next
-        : next.copyWith(originChoices: followed);
+        : next.copyWith(
+            choices: next.choices.copyWith(originChoices: followed));
   }
 
   /// The site's own state for [permission], as it is stored.
@@ -121,25 +165,26 @@ class SitePermissionValues {
         SitePermission.screenShare => _captureState(CaptureKind.screenShare),
         SitePermission.location => locationPermissionState(locationMode),
         SitePermission.notifications =>
-          notificationPermissionState(enabled: notificationsEnabled),
+          notificationPermissionState(enabled: choices.notificationsEnabled),
         SitePermission.protectedContent =>
-          protectedContentPermissionState(allowed: protectedContentAllowed),
+          protectedContentPermissionState(
+              allowed: choices.protectedContentAllowed),
       };
 
   SitePermissionState _captureState(CaptureKind kind) =>
-      kind.grantOf(captures).mode.state;
+      kind.grantOf(choices.captures).mode.state;
 
   /// What the site runs with, which is what the screen and the settings row
   /// show; the stored values survive underneath for when it leaves the
   /// archive.
   CaptureGrants get effectiveCaptures =>
-      ArchiveFold.captures(captures, archived: archived);
+      ArchiveFold.captures(choices.captures, archived: archived);
   bool get effectiveNotifications => ArchiveFold.notifications(
-      stored: notificationsEnabled, archived: archived);
+      stored: choices.notificationsEnabled, archived: archived);
   bool get effectiveBackgroundAudio => ArchiveFold.backgroundAudio(
-      stored: backgroundAudioEnabled, archived: archived);
+      stored: choices.backgroundAudioEnabled, archived: archived);
   bool? effectiveProtectedContent({required bool trackingProtection}) =>
-      resolveProtectedContent(stored: protectedContentAllowed,
+      resolveProtectedContent(stored: choices.protectedContentAllowed,
           archived: archived, trackingProtection: trackingProtection);
 }
 
@@ -278,10 +323,15 @@ class SitePermissionsScreen extends StatefulWidget {
 class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
   late SitePermissionValues _values = widget.values;
 
+  PermissionChoices get _choices => _values.choices;
+
   void _update(SitePermissionValues next) {
     setState(() => _values = next);
     widget.onChanged(next);
   }
+
+  void _edit(PermissionChoices next) =>
+      _update(_values.copyWith(choices: next));
 
   /// Picks [kind]'s file; a picked one becomes the site's source, a rejected
   /// one is named in a SnackBar, and a cancelled pick changes nothing.
@@ -289,7 +339,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
     final result = await VirtualMediaPicker.pick(kind.medium);
     if (!mounted) return;
     if (result.source case final source?) {
-      final grant = kind.grantOf(_values.captures);
+      final grant = kind.grantOf(_choices.captures);
       _setGrant(kind, grant: (mode: grant.mode, source: source));
     } else if (result.error case final error?) {
       ScaffoldMessenger.of(context).toast(
@@ -298,8 +348,8 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
     }
   }
 
-  void _setGrant(CaptureKind kind, {required CaptureGrant grant}) => _update(
-    _values.copyWith(captures: kind.withGrant(_values.captures, grant: grant)),
+  void _setGrant(CaptureKind kind, {required CaptureGrant grant}) => _edit(
+    _choices.copyWith(captures: kind.withGrant(_choices.captures, grant: grant)),
   );
 
   // --- Capability descriptors ---------------------------------------------
@@ -336,7 +386,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
       );
       if (!allowed || !mounted) return;
     }
-    final source = kind.grantOf(_values.captures).source;
+    final source = kind.grantOf(_choices.captures).source;
     _setGrant(kind, grant: (mode: mode, source: source));
     if (mode == kind.virtual && source == null) await _pickSource(kind);
   }
@@ -357,7 +407,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
   _Capability _capture(CaptureKind kind) {
     final loc = AppLocalizations.of(context);
     final text = kind.text(loc);
-    final stored = kind.grantOf(_values.captures);
+    final stored = kind.grantOf(_choices.captures);
     final state = kind.grantOf(_values.effectiveCaptures).mode.state;
     return _Capability(
       permission: SitePermission.ofCapture(kind),
@@ -389,7 +439,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
         ],
       ),
       detail: (context, {required setSheetState}) {
-        final grant = kind.grantOf(_values.captures);
+        final grant = kind.grantOf(_choices.captures);
         if (grant.mode != kind.virtual) return const SizedBox.shrink();
         final preview = switch (grant.source) {
           final VirtualVisualSource source => VirtualSourcePreview(
@@ -446,7 +496,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
         hint: loc.siteSettingsGeolocationHint,
         state: locationPermissionState(_values.locationMode),
         qualifier: switch (_values.locationMode) {
-          LocationMode.live => _values.liveLocationGranularity.description(loc),
+          LocationMode.live => _choices.liveLocationGranularity.description(loc),
           LocationMode.spoof => _values.hasStaticCoordinates
               ? widget.coordinatesPreview()
               : loc.siteSettingsLocationNoneSet,
@@ -479,13 +529,13 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
                 contentPadding: EdgeInsets.zero,
                 dense: true,
                 value: tier,
-                groupValue: _values.liveLocationGranularity,
+                groupValue: _choices.liveLocationGranularity,
                 title: Text(tier.label(loc)),
                 subtitle: Text(tier.description(loc),
                     style: const TextStyle(fontSize: 11)),
                 onChanged: (v) {
                   if (v == null) return;
-                  _update(_values.copyWith(liveLocationGranularity: v));
+                  _edit(_choices.copyWith(liveLocationGranularity: v));
                   setSheetState(() {});
                 },
               ),
@@ -549,10 +599,10 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
     // the system default) stands.
     final forceFromLocation =
         widget.trackingProtectionEnabled && _values.hasStaticCoordinates;
-    final String? value = (forceFromLocation || _values.spoofTimezoneFromLocation)
+    final String? value = (forceFromLocation || _choices.spoofTimezoneFromLocation)
         ? _kFromLocationSentinel
-        : (commonTimezones.any((e) => e.key == _values.spoofTimezone)
-            ? _values.spoofTimezone
+        : (commonTimezones.any((e) => e.key == _choices.spoofTimezone)
+            ? _choices.spoofTimezone
             : null);
 
     // "From picked location" is conceptually a sibling of "System default":
@@ -589,10 +639,9 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
           ? null
           : (v) {
               final fromLocation = v == _kFromLocationSentinel;
-              _update(_values.copyWith(
+              _edit(_choices.copyWith(
                   spoofTimezoneFromLocation: fromLocation,
-                  spoofTimezone: fromLocation ? null : v,
-                  clearSpoofTimezone: fromLocation || v == null));
+                  spoofTimezone: (fromLocation ? null : v,)));
               setSheetState(() {});
             },
     );
@@ -631,9 +680,8 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
             _Option(
               state: state,
               label: label,
-              onSelect: () => _update(allowed == null
-                  ? _values.copyWith(clearProtectedContentAllowed: true)
-                  : _values.copyWith(protectedContentAllowed: allowed)),
+              onSelect: () => _edit(
+                  _choices.copyWith(protectedContentAllowed: (allowed,))),
             ),
         ],
       );
@@ -642,8 +690,8 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
     final blockedBy = widget.notificationsBlockedBySite;
     // The conflict gate only forbids enabling. An already-on toggle can still
     // be turned off; we just do not let it flip back while the conflict holds.
-    final blocked = blockedBy != null && !_values.notificationsEnabled;
-    final permissionDenied = _values.notificationsEnabled &&
+    final blocked = blockedBy != null && !_choices.notificationsEnabled;
+    final permissionDenied = _choices.notificationsEnabled &&
         NotificationService.instance.permissionGranted == false;
     final settingsPath =
         hostIsIOS ? 'Notifications → WebSpace' : 'WebSpace → Notifications';
@@ -663,7 +711,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
           state: SitePermissionState.allowed,
           label: loc.siteSettingsProtectedContentAllow,
           onSelect: () async {
-            _update(_values.copyWith(notificationsEnabled: true));
+            _edit(_choices.copyWith(notificationsEnabled: true));
             await widget.onEnableNotifications();
           },
         ),
@@ -671,7 +719,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
           state: SitePermissionState.blocked,
           label: loc.siteSettingsProtectedContentBlock,
           onSelect: () =>
-              _update(_values.copyWith(notificationsEnabled: false)),
+              _edit(_choices.copyWith(notificationsEnabled: false)),
         ),
       ],
     );
@@ -789,11 +837,11 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
     required StateSetter setSheetState,
   }) {
     final permission = capability.permission;
-    final listed = _values.originChoices.listed(permission);
+    final listed = _choices.originChoices.listed(permission);
     if (listed.isEmpty) return const [];
     final loc = AppLocalizations.of(context);
     void set(OriginChoices choices) {
-      _update(_values.copyWith(originChoices: choices));
+      _edit(_choices.copyWith(originChoices: choices));
       setSheetState(() {});
     }
 
@@ -802,7 +850,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
       for (final MapEntry(key: origin, value: allowed) in listed.entries)
         ListTile(
           title: Text(origin),
-          onTap: () => set(_values.originChoices
+          onTap: () => set(_choices.originChoices
               .remember(permission, origin: origin, allowed: !allowed)),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
@@ -815,7 +863,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
               IconButton(
                 icon: const Icon(Icons.close),
                 tooltip: loc.permissionsForgetOrigin,
-                onPressed: () => set(_values.originChoices
+                onPressed: () => set(_choices.originChoices
                     .forget(permission, origin: origin)),
               ),
             ],
@@ -853,7 +901,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
             subtitle: loc.permissionsBackgroundAudioNotAGrant,
             lock: _values.archived ? const ArchiveLock() : null,
             control: Toggle(value: _values.effectiveBackgroundAudio, onChanged: (value) async {
-              _update(_values.copyWith(backgroundAudioEnabled: value));
+              _edit(_choices.copyWith(backgroundAudioEnabled: value));
               // Android shows a media notification with transport controls for
               // background audio; on Android 13+ that needs POST_NOTIFICATIONS.
               if (value && hostIsAndroid) {

@@ -618,6 +618,20 @@ int int_arg(FlValue* args, const char* key, int fallback) {
              : fallback;
 }
 
+// A value Dart always sends: absent or of another type is a caller's mistake,
+// never a reason to pick a limit Dart's ShareLimits does not.
+bool required_int(FlValue* args, const char* key, int* out) {
+  if (args == nullptr || fl_value_get_type(args) != FL_VALUE_TYPE_MAP) {
+    return false;
+  }
+  FlValue* value = fl_value_lookup_string(args, key);
+  if (value == nullptr || fl_value_get_type(value) != FL_VALUE_TYPE_INT) {
+    return false;
+  }
+  *out = static_cast<int>(fl_value_get_int(value));
+  return true;
+}
+
 void respond(FlMethodCall* call, FlValue* reply) {
   g_autoptr(FlValue) owned = reply;
   g_autoptr(GError) error = nullptr;
@@ -688,18 +702,26 @@ void Host::start(FlMethodCall* call) {
     respond(call, nullptr);
     return;
   }
+  FlValue* args = fl_method_call_get_args(call);
+  Request request{};
+  if (!required_int(args, "maxWidth", &request.max_width) ||
+      !required_int(args, "maxHeight", &request.max_height) ||
+      !required_int(args, "maxLongSide", &request.max_long_side) ||
+      !required_int(args, "fps", &request.fps) || request.fps < 1) {
+    g_autoptr(GError) error = nullptr;
+    fl_method_call_respond_error(
+        call, "bad-args", "start needs maxWidth, maxHeight, maxLongSide, fps",
+        nullptr, &error);
+    return;
+  }
   end(false);
   if (bus_ == nullptr) {
     respond(call, nullptr);
     return;
   }
-  FlValue* args = fl_method_call_get_args(call);
   share_ = std::make_unique<Share>();
   share_->id = ++shares_;
-  share_->request = {int_arg(args, "maxWidth", 0),
-                     int_arg(args, "maxHeight", 0),
-                     int_arg(args, "maxLongSide", 1280),
-                     std::min(std::max(int_arg(args, "fps", 10), 1), 30)};
+  share_->request = request;
   share_->start = FL_METHOD_CALL(g_object_ref(call));
   share_->cancellable = g_cancellable_new();
   share_->step = Step::kProperties;

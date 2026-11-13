@@ -121,8 +121,9 @@ class Socks5Fixture {
 
   int get port => _server.port;
 
-  static Future<Socks5Fixture> bind() async {
-    final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+  static Future<Socks5Fixture> bind({InternetAddress? on}) async {
+    final server =
+        await ServerSocket.bind(on ?? InternetAddress.loopbackIPv4, 0);
     final fixture = Socks5Fixture._(server);
     // Through the shared helper: an error on this socket is otherwise an
     // uncaught async error, which flutter_test reports against whichever

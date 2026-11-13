@@ -59,10 +59,17 @@ inapp.ProxySettings? userProxyToInappProxy(UserProxySettings settings) {
     if (route.type == ProxyType.SAVED) return null;
     return userProxyToInappProxy(route);
   }
-  final parsed = splitProxyAddress(settings.address);
-  if (parsed == null) return null;
-  final host = parsed.host;
-  final port = parsed.port;
+  final String host;
+  final int port;
+  switch (ProxyAddressParse.of(settings.address)) {
+    case ProxyAddress(:final urlHost, port: final at):
+      host = urlHost;
+      port = at;
+    case ProxyAddressMissing() ||
+          ProxyAddressMalformed() ||
+          ProxyAddressBadPort():
+      return null;
+  }
   final scheme = switch (settings.type) {
     ProxyType.HTTPS => 'https',
     ProxyType.SOCKS5 => 'socks5',
@@ -443,7 +450,7 @@ class ProxyManager {
     }
 
     final (host, port) = switch (ProxyAddressParse.of(effective.address)) {
-      ProxyAddress(:final host, :final port) => (host, port),
+      ProxyAddress(:final urlHost, :final port) => (urlHost, port),
       ProxyAddressMissing() => _refuse(effective,
           why: 'missing address', message: 'Proxy address is required'),
       ProxyAddressMalformed() => _refuse(effective,

@@ -25,13 +25,8 @@ import 'package:webspace/services/webview_proxy.dart';
 /// mechanisms disagree in shape (a proxy URL vs a route-table row) and
 /// that is fine. What must match is the (scheme, host, port) a site's
 /// bytes leave through, and — the leak-relevant half — whether a site
-/// egresses at all.
-/// `Uri.host` strips an IPv6 literal's brackets and the wire entry keeps
-/// them; the address is the same host either way.
-String _bareHost(String host) =>
-    host.startsWith('[') && host.endsWith(']')
-        ? host.substring(1, host.length - 1)
-        : host;
+/// egresses at all. Both name the host a socket takes: `Uri.host` strips an
+/// IPv6 literal's brackets, and the wire sends `ProxyAddress.socketHost`.
 
 void main() {
   /// Where the native per-WebView mechanism sends this site, or null for
@@ -45,7 +40,7 @@ void main() {
     );
     if (settings == null) return null;
     final uri = Uri.parse(settings.proxyRules.first.url);
-    return (scheme: uri.scheme, host: _bareHost(uri.host), port: uri.port);
+    return (scheme: uri.scheme, host: uri.host, port: uri.port);
   }
 
   /// Where router mode sends this site, or null when it has no route and
@@ -65,7 +60,7 @@ void main() {
     if (entry['type'] == 'direct') return null;
     return (
       scheme: entry['type']! as String,
-      host: _bareHost(entry['host']! as String),
+      host: entry['host']! as String,
       port: entry['port']! as int,
     );
   }

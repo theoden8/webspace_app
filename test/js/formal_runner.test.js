@@ -15,7 +15,7 @@ function runner(t) {
   const model = path.join(dir, 'model');
   for (const folder of [formal, bin, model]) fs.mkdirSync(folder);
   for (const name of fs.readdirSync(path.join(root, 'formal'))) {
-    if (/\.(tla|cfg)$/.test(name) || name === 'check.sh') {
+    if (/\.(tla|cfg)$/.test(name) || name === 'check.sh' || name === 'fetch_tla2tools.sh') {
       fs.copyFileSync(path.join(root, 'formal', name), path.join(formal, name));
     }
   }

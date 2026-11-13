@@ -9,11 +9,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 JAR="${TLA2TOOLS_JAR:-../tla2tools.jar}"
-if [ ! -f "$JAR" ]; then
-  echo "Fetching tla2tools.jar…"
-  curl -fsSL -o "$JAR" \
-    https://github.com/tlaplus/tlaplus/releases/latest/download/tla2tools.jar
-fi
+../fetch_tla2tools.sh "$JAR"
 
 PY="${PYTHON:-python3}"
 

@@ -1,10 +1,12 @@
 # BUG-006 — Site settings silently drop unsaved changes on leave
 
 Status: closed (one `DirtyGuard` mixin, `lib/widgets/dirty_guard.dart`, guards
-every editor; `test/js/site_settings_dirty_snapshot.test.js` fails CI when a
-form field loaded in `_loadFromModel`, or a member written into a form object
-in place, is missing from the settings screen's `snapshot()` record, and when a
-screen with a Save action does not mix the guard in)
+every editor; what each Site screen edits is one record the snapshot holds
+whole, so record equality compares every setting in it;
+`test/js/site_settings_dirty_snapshot.test.js` fails CI when a form field
+loaded in `_loadFromModel` outside those records is missing from the settings
+screen's `snapshot()` record, and when a screen with a Save action does not mix
+the guard in)
 
 **Spec:** [openspec/specs/site-editing/spec.md](../../openspec/specs/site-editing/spec.md) — EDIT-009
 
@@ -84,12 +86,24 @@ except fields fully derived from an already-registered field.**
    rule stays; the editor rule keys off the method name. Regression test:
    `test/editor_discard_guard_test.dart`.
 
+7. **2026-11-13 — this branch.** Each Site screen's stored settings are one
+   Dart record (`PrivacyChoices`, `BehaviourChoices`, `PermissionChoices`,
+   `NetworkChoices`), declared beside its screen with its one mapping to the
+   model (`m.privacyChoices` and its setter, which destructures every field;
+   `NetworkChoices.over` for the proxy). The settings screen holds one field
+   per record and puts the record in `snapshot()`, so record equality, not a
+   hand list, decides whether an edit inside it counts: the settings screen
+   no longer names those fields at all, and the gate's per-field and member
+   rules are gone for them. *Why partial*: the fields the screen keeps outside
+   the records (text controllers, language, zoom, theme, the live-location
+   flag) are still listed by hand and held by the gate's first rule; a setter
+   that names a field in its pattern but never assigns it compiles, which
+   `test/site_settings_choices_test.dart` catches per field instead.
+
 ## Known open gaps
 
-- The member rule matches `_field.member = ...` statements only. A form
-  object mutated through a method (`_proxySettings.pin(...)`) or a cascade
-  would not be seen; keep form objects plain, or replace them whole.
-
+- Fields outside the four records are registered by hand. A record of them
+  would lift the rest of the gate the same way.
 - The gate keys off `_loadFromModel`. A hypothetical form field initialized
   elsewhere (inline initializer only, never loaded from the model) would
   escape it — though such a field also wouldn't reflect persisted state, so
@@ -102,4 +116,5 @@ except fields fully derived from an already-registered field.**
 - The editor rule finds editors by a `_save`/`_saveSettings` method; an
   editor whose save action is named otherwise escapes it. The four "Site" screens
   (behaviour, network, privacy, permissions) are not in that set: they
-  report into the settings screen's fields, which the snapshot reads.
+  report into the settings screen's choices records, which the snapshot
+  holds whole.

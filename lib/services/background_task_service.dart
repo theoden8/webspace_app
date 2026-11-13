@@ -3,6 +3,7 @@ import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/log_service.dart';
 
@@ -200,19 +201,20 @@ class BackgroundTaskService {
     if (!hostIsIOS) return;
     if (_backgroundAudioActive == active) return;
     _backgroundAudioActive = active;
-    try {
-      await _channel
-          .invokeMethod('setBackgroundAudioActive', {'active': active});
-      BackgroundLog.instance.record(LogTag.backgroundTask,
-          message: 'Background audio session active=$active');
-    } on PlatformException catch (e) {
-      BackgroundLog.instance.record(
-        LogTag.backgroundTask,
-        message: 'setBackgroundAudioActive failed: ${e.message}',
-        level: LogLevel.warning,
-      );
-    } on MissingPluginException {
-      // Older native side without the handler; harmless.
+    switch (await _channel.ask<Object?>('setBackgroundAudioActive',
+        arguments: {'active': active})) {
+      case Answered():
+        BackgroundLog.instance.record(LogTag.backgroundTask,
+            message: 'Background audio session active=$active');
+      case PlatformRefused(:final error):
+        BackgroundLog.instance.record(
+          LogTag.backgroundTask,
+          message: 'setBackgroundAudioActive failed: ${error.message}',
+          level: LogLevel.warning,
+        );
+      case NoPlugin():
+        // Older native side without the handler; harmless.
+        break;
     }
   }
 }

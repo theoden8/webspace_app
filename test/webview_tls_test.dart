@@ -8,9 +8,8 @@ import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/services/webview_tls.dart';
 
-import 'helpers/capture_fakes.dart';
 import 'helpers/fake_webview_controller.dart';
-import 'helpers/isolations.dart';
+import 'helpers/host_hooks.dart';
 
 /// A self-signed certificate as the platform hands it over, [der] standing
 /// in for its bytes, which only the fingerprint reads.
@@ -42,25 +41,10 @@ class _Host {
   final bool trust;
   final asked = <String>[];
 
-  WebViewHostHooks get hooks => WebViewHostHooks(
-    isolation: fakeSharedJar,
-    globalUserScripts: () => const [],
-    save: () async {},
-    rebuild: () {},
-    launchNested: (_, {required posture, homeTitle}) {},
-    openInBrowser: (_) async => false,
-    openSiteSettings: (_) {},
-    showPopup: (_, {required url, required kind}) async {},
-    externalScheme: (_, {required loadIn}) async {},
-    confirmScriptFetch: (_) async => false,
-    untrustedCertificate: (host, {required port, required certificate}) async {
+  WebViewHostHooks get hooks => inertHostHooks(untrustedCertificate: (host, {required port, required certificate}) async {
       asked.add(host);
       return trust;
-    },
-    networkSignIn: (_) async {},
-    httpAuth: (_) async => null,
-    media: FakePrompter(),
-  );
+    });
 }
 
 const _host = 'self-signed.example';

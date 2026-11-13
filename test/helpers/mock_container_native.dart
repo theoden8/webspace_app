@@ -15,6 +15,11 @@ class MockContainerNative implements ContainerNative {
   /// `clearContainerData` wiped contents without removing the entry.
   final Map<String, List<String>> dataByContainer = {};
 
+  /// Each container's cookie jar, by its native name (`ws-<siteId>`): what
+  /// a webview bound to it reads and writes, so a test can assert one site
+  /// never sees another's (CONT-005). A delete drops it, a clear empties it.
+  final Map<String, Map<String, String>> cookiesByContainer = {};
+
   /// Records every method call so tests can assert sequencing.
   final List<String> calls = [];
 
@@ -57,6 +62,7 @@ class MockContainerNative implements ContainerNative {
     final name = ContainerName.of(siteId);
     profiles[siteId] = name;
     dataByContainer.putIfAbsent(siteId, () => []);
+    cookiesByContainer.putIfAbsent(name, () => {});
     return name;
   }
 
@@ -67,6 +73,7 @@ class MockContainerNative implements ContainerNative {
     if (bound.contains(siteId)) return false;
     final existed = profiles.remove(siteId) != null;
     dataByContainer.remove(siteId);
+    cookiesByContainer.remove(ContainerName.of(siteId));
     return existed;
   }
 
@@ -77,6 +84,7 @@ class MockContainerNative implements ContainerNative {
     if (refuseClearFor?.contains(siteId) ?? false) return false;
     if (!profiles.containsKey(siteId)) return false;
     dataByContainer[siteId] = [];
+    cookiesByContainer[ContainerName.of(siteId)] = {};
     return true;
   }
 
@@ -85,5 +93,15 @@ class MockContainerNative implements ContainerNative {
     await pace?.call(PlatformCall.containerList);
     calls.add('listContainers');
     return [for (final name in profiles.keys) ContainerKey.named(name)];
+  }
+
+  /// A container a previous session left behind (its site deleted before
+  /// containers shipped, or a crash mid-delete), holding [cookies], so a
+  /// sweep must drop both the container and its jar.
+  void seedOrphanContainer(String siteId,
+      {required Map<String, String> cookies}) {
+    final key = ContainerKey.named(siteId);
+    profiles[key] = ContainerName.of(key);
+    cookiesByContainer[ContainerName.of(key)] = Map.of(cookies);
   }
 }

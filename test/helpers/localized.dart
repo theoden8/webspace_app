@@ -4,8 +4,18 @@ import 'package:webspace/l10n/gen/localizations.dart';
 
 /// A MaterialApp around [home] wired for AppLocalizations, without which
 /// `AppLocalizations.of(context)` is null in a migrated widget.
-Widget localizedApp(Widget home, {ThemeData? theme, Locale? locale}) =>
+Widget localizedApp(
+  Widget home, {
+  ThemeData? theme,
+  Locale? locale,
+  GlobalKey<NavigatorState>? navigatorKey,
+  TransitionBuilder? builder,
+  bool debugShowCheckedModeBanner = true,
+}) =>
     MaterialApp(
+      navigatorKey: navigatorKey,
+      builder: builder,
+      debugShowCheckedModeBanner: debugShowCheckedModeBanner,
       theme: theme,
       locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,

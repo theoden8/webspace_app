@@ -1,14 +1,13 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/web_view_model.dart';
 
 import 'helpers/isolations.dart';
+import 'helpers/localized.dart';
 
 /// The site settings screen for a site at [url].
 Future<void> _settings(WidgetTester tester, {required String url}) async {
@@ -16,15 +15,11 @@ Future<void> _settings(WidgetTester tester, {required String url}) async {
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
-  await tester.pumpWidget(MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: SettingsScreen(
+  await tester.pumpWidget(localizedApp(SettingsScreen(
       webViewModel: WebViewModel(initUrl: url),
       appTheme: WebViewTheme.system,
       isolation: fakeContainers(),
-    ),
-  ));
+    )));
   await tester.pumpAndSettle();
 }
 

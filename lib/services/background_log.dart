@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:webspace/services/channel_reply.dart';
 
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/log_service.dart';
@@ -45,12 +46,13 @@ class MethodChannelBackgroundLogNative implements BackgroundLogNative {
   bool get available => hostIsIOS || hostIsAndroid;
 
   Future<T?> _invoke<T>(String method, {Object? args}) async {
-    try {
-      return await _channel.invokeMethod<T>(method, args);
-    } on PlatformException catch (e) {
-      LogTag.backgroundLog.warning('$method failed: ${e.message}');
-    } on MissingPluginException {
-      LogTag.backgroundLog.warning('$method: no native handler');
+    switch (await _channel.ask<T>(method, arguments: args)) {
+      case Answered(:final value):
+        return value;
+      case PlatformRefused(:final error):
+        LogTag.backgroundLog.warning('$method failed: ${error.message}');
+      case NoPlugin():
+        LogTag.backgroundLog.warning('$method: no native handler');
     }
     return null;
   }

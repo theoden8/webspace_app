@@ -5,11 +5,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
-import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/screens/webspace_detail.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/webspace_model.dart';
+
+import 'helpers/localized.dart';
 
 void main() {
   final navigator = GlobalKey<NavigatorState>();
@@ -17,12 +18,7 @@ void main() {
 
   Future<void> open(WidgetTester tester, {required Widget editor}) async {
     await tester.pumpWidget(
-      MaterialApp(
-        navigatorKey: navigator,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: const Scaffold(),
-      ),
+      localizedApp(const Scaffold(), navigatorKey: navigator),
     );
     result = navigator.currentState!.push<Object?>(
       MaterialPageRoute(builder: (_) => editor),
