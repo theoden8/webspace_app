@@ -483,6 +483,21 @@ the override under the sites already loaded.
   the proxy it now reads. Either way ordering Dart's calls around the
   destroy does not close it; the per-webview proxy (PROXY-013) is the case
   that does not depend on it, as the first gap above says.
+- Investigated 2026-11-13 (fork `v6.2.0-beta.3-privacy-v13.16`): on
+  `ProxyBinding.processWide` the residual has no sound close short of a
+  per-site network context. The only context-destroy is
+  `ProfileStore.deleteProfile`, which refuses the default and any in-use
+  profile and needs `MULTI_PROFILE`; restarting the in-process network stack
+  means killing the app process; and on Android the WebView engine is the
+  system APK the app does not build, so no loader-cancel hook can be patched
+  in (unlike Linux WPE). Close-connections / drain-wait / timeout levers only
+  police the flip window and leave `sendBeacon` / `fetch(keepalive:true)`,
+  which outlive the document. Fail-closed (refuse a differing-proxy site via
+  the existing `proxyUnavailable` blank load) is sound but drops per-site
+  proxy on these devices; the maintainer's decision is to keep the feature, so
+  the `processWide` residual is accepted as a platform limitation, tracked as
+  SEC-052 in `docs/security/2026-11-07-review.md`. Unchanged where the binding
+  is `routed` (PROXY-013) or `perSite`.
 - Not determined which load started the old site's favicon download in the
   CI run; Chromium's `IconHelper` downloads it through
   `WebContents::DownloadImage`, and whether `WebContents::Stop` cancels an

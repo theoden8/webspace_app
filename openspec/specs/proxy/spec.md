@@ -266,6 +266,15 @@ cancelled by the stop, not the block (BUG-037). Only Android without
 per-site profiles has the one rule: every other host binds a proxy per store
 or routes it (PROXY-027).
 
+A request a disposed webview had already handed to Chromium's network service
+(a favicon or other image fetch) can still outlive `WebView.destroy()` and
+reach the next site's proxy after the override flips. The serialise-and-destroy
+above closes the common case, not this residual; on Android without per-site
+profiles it is not closable without a per-site network context (`MULTI_PROFILE`,
+PROXY-013) or dropping per-site proxy, and per-site proxy is kept. It is
+accepted as a platform limitation, tracked as SEC-052
+(`docs/security/2026-11-07-review.md`) and BUG-037.
+
 Every nested screen SHALL open through the activation's nested open, a
 typed address, a link menu's Open and a nested fallback as much as a routed
 link: it is what puts the site's route in force and lists the screen on the
