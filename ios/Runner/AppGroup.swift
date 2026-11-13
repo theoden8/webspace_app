@@ -42,3 +42,25 @@ enum AppGroup {
   static let pendingShortcutSiteIdKey = "pending_shortcut_site_id"
   static let pendingShortcutUrlKey = "pending_shortcut_url"
 }
+
+/// The one way the Apple targets write a line to the system log, which
+/// outlives the session and which other processes on the device can read.
+/// A line says whether it names what the user opened or shared (a URL, a
+/// host, a site id); such a line is written by debug builds only.
+enum WebSpaceLog {
+  enum Carries {
+    case noUserData
+    case userData
+  }
+
+  static func line(_ message: @autoclosure () -> String, carries: Carries) {
+    switch carries {
+    case .noUserData:
+      NSLog("[WebSpace] \(message())")
+    case .userData:
+      #if DEBUG
+        NSLog("[WebSpace] \(message())")
+      #endif
+    }
+  }
+}

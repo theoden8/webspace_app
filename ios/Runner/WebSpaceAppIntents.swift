@@ -62,7 +62,7 @@ struct SiteEntityQuery: EntityQuery {
     for id in identifiers where seen.insert(id).inserted {
       resolved.append(byId[id] ?? SiteEntity(id: id, name: "Removed WebSpace site", url: nil))
     }
-    NSLog("[WebSpace] SiteEntityQuery.entities(for: \(identifiers)) live=\(live.count) tombstones=\(tombs.count) resolved=\(resolved.count)")
+    WebSpaceLog.line("SiteEntityQuery.entities(for: \(identifiers)) live=\(live.count) tombstones=\(tombs.count) resolved=\(resolved.count)", carries: .userData)
     return resolved
   }
 
@@ -75,7 +75,7 @@ struct SiteEntityQuery: EntityQuery {
   // the behaviour this split is meant to verify.
   func suggestedEntities() async throws -> [SiteEntity] {
     let live = Self.loadSites()
-    NSLog("[WebSpace] SiteEntityQuery.suggestedEntities live=\(live.count)")
+    WebSpaceLog.line("SiteEntityQuery.suggestedEntities live=\(live.count)", carries: .noUserData)
     return live
   }
 
@@ -125,7 +125,7 @@ struct OpenSiteIntent: AppIntent, OpenIntent {
   }
 
   func perform() async throws -> some IntentResult {
-    NSLog("[WebSpace] OpenSiteIntent.perform id=\(target.id) url=\(target.url ?? "nil")")
+    WebSpaceLog.line("OpenSiteIntent.perform id=\(target.id) url=\(target.url ?? "nil")", carries: .userData)
     if let defaults = AppGroup.defaults {
       defaults.set(target.id, forKey: AppGroup.pendingShortcutSiteIdKey)
       if let url = target.url, !url.isEmpty {
@@ -134,7 +134,7 @@ struct OpenSiteIntent: AppIntent, OpenIntent {
         defaults.removeObject(forKey: AppGroup.pendingShortcutUrlKey)
       }
     } else {
-      NSLog("[WebSpace] OpenSiteIntent: App Group \(AppGroup.id) unavailable")
+      WebSpaceLog.line("OpenSiteIntent: App Group \(AppGroup.id) unavailable", carries: .noUserData)
     }
     return .result()
   }

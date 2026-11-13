@@ -32,14 +32,14 @@ final class ShareIntentPlugin: NSObject {
         self.drainPendingUrl()
         let url = self.pendingUrl
         self.pendingUrl = nil
-        trace("consumeLaunchUrl returning: \(url ?? "nil")")
+        WebSpaceLog.line("consumeLaunchUrl returning: \(url ?? "nil")", carries: .userData)
         result(url)
       case "consumeLaunchHtml":
         // The share extension writes an HTML document into the group
         // container and wakes the app with `webspace://openhtml`; one read,
         // then delete. Only the iOS extension writes one.
         let payload = self.drainPendingHtml()
-        trace("consumeLaunchHtml returning: \(payload == nil ? "nil" : "payload")")
+        WebSpaceLog.line("consumeLaunchHtml returning: \(payload == nil ? "nil" : "payload")", carries: .userData)
         result(payload)
       default:
         result(FlutterMethodNotImplemented)
@@ -60,7 +60,7 @@ final class ShareIntentPlugin: NSObject {
   /// False for a URL of any other scheme, which is not this plugin's.
   private func capture(_ url: URL) -> Bool {
     guard url.scheme?.lowercased() == "webspace" else {
-      trace("ignoring non-webspace scheme: \(url.scheme ?? "nil")")
+      WebSpaceLog.line("ignoring non-webspace scheme: \(url.scheme ?? "nil")", carries: .userData)
       return false
     }
     switch url.host?.lowercased() {
@@ -69,7 +69,7 @@ final class ShareIntentPlugin: NSObject {
       // `LinkRoutingService.parseWebspaceUri` validates and unwraps the inner
       // http(s) target; a qr URL is routed by its scheme.
       pendingUrl = url.absoluteString
-      trace("captured \(url.absoluteString)")
+      WebSpaceLog.line("captured \(url.absoluteString)", carries: .userData)
     case "share":
       // The legacy form, still what the share extensions open.
       guard
@@ -78,37 +78,37 @@ final class ShareIntentPlugin: NSObject {
         let httpScheme = URL(string: inner)?.scheme?.lowercased(),
         httpScheme == "http" || httpScheme == "https"
       else {
-        trace("share URL has no valid http(s) inner: \(url.absoluteString)")
+        WebSpaceLog.line("share URL has no valid http(s) inner: \(url.absoluteString)", carries: .userData)
         return true
       }
       pendingUrl = inner
-      trace("captured share inner URL: \(inner)")
+      WebSpaceLog.line("captured share inner URL: \(inner)", carries: .userData)
     case "openhtml":
       // Only foregrounds the app: the document rides the group container,
       // and Dart's share poll drains it through consumeLaunchHtml.
-      trace("received openhtml trigger")
+      WebSpaceLog.line("received openhtml trigger", carries: .userData)
     case let host:
-      trace("unrecognized webspace host: \(host ?? "nil")")
+      WebSpaceLog.line("unrecognized webspace host: \(host ?? "nil")", carries: .userData)
     }
     return true
   }
 
   private func drainPendingUrl() {
     guard let defaults = AppGroup.defaults else {
-      NSLog("[WebSpace] app group \(AppGroup.id) unavailable; cannot drain pending URL")
+      WebSpaceLog.line("app group \(AppGroup.id) unavailable; cannot drain pending URL", carries: .noUserData)
       return
     }
     if let stored = defaults.string(forKey: AppGroup.pendingShareUrlKey), !stored.isEmpty {
       pendingUrl = stored
       defaults.removeObject(forKey: AppGroup.pendingShareUrlKey)
-      trace("drained pending URL from app group: \(stored)")
+      WebSpaceLog.line("drained pending URL from app group: \(stored)", carries: .userData)
     }
   }
 
   private func drainPendingHtml() -> [String: Any]? {
     let fm = FileManager.default
     guard let container = fm.containerURL(forSecurityApplicationGroupIdentifier: AppGroup.id) else {
-      NSLog("[WebSpace] app group \(AppGroup.id) unavailable; cannot drain pending HTML")
+      WebSpaceLog.line("app group \(AppGroup.id) unavailable; cannot drain pending HTML", carries: .noUserData)
       return nil
     }
     let fileURL = container.appendingPathComponent(AppGroup.pendingShareHtmlFile)
@@ -129,7 +129,7 @@ final class ShareIntentPlugin: NSObject {
       defaults.removeObject(forKey: AppGroup.pendingShareHtmlSourceKey)
     }
     try? fm.removeItem(at: fileURL)
-    trace("drained pending HTML from app group (\(content.count) chars)")
+    WebSpaceLog.line("drained pending HTML from app group (\(content.count) chars)", carries: .userData)
     return payload
   }
 }
@@ -154,9 +154,3 @@ final class ShareIntentPlugin: NSObject {
   }
 #endif
 
-/// URLs and hosts a user opened; kept out of release logs.
-private func trace(_ message: @autoclosure () -> String) {
-  #if DEBUG
-    NSLog("[WebSpace] \(message())")
-  #endif
-}

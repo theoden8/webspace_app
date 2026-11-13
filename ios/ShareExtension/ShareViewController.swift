@@ -13,21 +13,21 @@ final class ShareViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .clear
-        NSLog("[WebSpace.ShareExt] viewDidLoad")
+        WebSpaceLog.line("viewDidLoad", carries: .noUserData)
         extractPayload { payload in
             DispatchQueue.main.async {
                 if let html = payload?.html, !html.isEmpty {
-                    NSLog("[WebSpace.ShareExt] extracted HTML (\(html.count) chars)")
+                    WebSpaceLog.line("extracted HTML (\(html.count) chars)", carries: .noUserData)
                     self.handOffHtml(html, title: payload?.htmlTitle, source: payload?.htmlSource) {
                         self.finish()
                     }
                     return
                 }
                 guard let url = payload?.url, !url.isEmpty else {
-                    NSLog("[WebSpace.ShareExt] nothing extracted; dismissing")
+                    WebSpaceLog.line("nothing extracted; dismissing", carries: .noUserData)
                     self.finish(); return
                 }
-                NSLog("[WebSpace.ShareExt] extracted URL: \(url)")
+                WebSpaceLog.line("extracted URL: \(url)", carries: .userData)
                 self.handOffUrl(url) {
                     self.finish()
                 }
@@ -199,9 +199,9 @@ final class ShareViewController: UIViewController {
     private func handOffUrl(_ url: String, completion: @escaping () -> Void) {
         if let defaults = AppGroup.defaults {
             defaults.set(url, forKey: AppGroup.pendingShareUrlKey)
-            NSLog("[WebSpace.ShareExt] wrote URL to app group")
+            WebSpaceLog.line("wrote URL to app group", carries: .noUserData)
         } else {
-            NSLog("[WebSpace.ShareExt] app group \(AppGroup.id) unavailable; URL not persisted")
+            WebSpaceLog.line("app group \(AppGroup.id) unavailable; URL not persisted", carries: .noUserData)
         }
         var components = URLComponents()
         components.scheme = ShareViewController.hostScheme
@@ -211,7 +211,7 @@ final class ShareViewController: UIViewController {
             completion()
             return
         }
-        NSLog("[WebSpace.ShareExt] opening host app via \(openUrl.absoluteString)")
+        WebSpaceLog.line("opening host app via \(openUrl.absoluteString)", carries: .userData)
         openHostApp(openUrl, completion: completion)
     }
 
@@ -224,12 +224,12 @@ final class ShareViewController: UIViewController {
             let fileURL = container.appendingPathComponent(AppGroup.pendingShareHtmlFile)
             do {
                 try content.data(using: .utf8)?.write(to: fileURL, options: .atomic)
-                NSLog("[WebSpace.ShareExt] wrote HTML to app group container")
+                WebSpaceLog.line("wrote HTML to app group container", carries: .noUserData)
             } catch {
-                NSLog("[WebSpace.ShareExt] failed to write HTML: \(error.localizedDescription)")
+                WebSpaceLog.line("failed to write HTML: \(error.localizedDescription)", carries: .noUserData)
             }
         } else {
-            NSLog("[WebSpace.ShareExt] app group unavailable; HTML not persisted")
+            WebSpaceLog.line("app group unavailable; HTML not persisted", carries: .noUserData)
         }
         if let defaults = AppGroup.defaults {
             if let title = title {
@@ -250,7 +250,7 @@ final class ShareViewController: UIViewController {
             completion()
             return
         }
-        NSLog("[WebSpace.ShareExt] opening host app via \(openUrl.absoluteString)")
+        WebSpaceLog.line("opening host app via \(openUrl.absoluteString)", carries: .userData)
         openHostApp(openUrl, completion: completion)
     }
 
@@ -280,19 +280,19 @@ final class ShareViewController: UIViewController {
             if let application = r as? UIApplication {
                 if #available(iOS 18.0, *) {
                     application.open(url, options: [:]) { success in
-                        NSLog("[WebSpace.ShareExt] UIApplication.open returned \(success)")
+                        WebSpaceLog.line("UIApplication.open returned \(success)", carries: .noUserData)
                     }
-                    NSLog("[WebSpace.ShareExt] dispatched open via responder-chain UIApplication (iOS 18+ public API)")
+                    WebSpaceLog.line("dispatched open via responder-chain UIApplication (iOS 18+ public API)", carries: .noUserData)
                 } else {
                     let _ = application.perform(NSSelectorFromString("openURL:"), with: url)
-                    NSLog("[WebSpace.ShareExt] dispatched openURL via responder-chain UIApplication (legacy selector)")
+                    WebSpaceLog.line("dispatched openURL via responder-chain UIApplication (legacy selector)", carries: .noUserData)
                 }
                 completion()
                 return
             }
             responder = r.next
         }
-        NSLog("[WebSpace.ShareExt] no UIApplication on responder chain — host app fallback to app-group only")
+        WebSpaceLog.line("no UIApplication on responder chain — host app fallback to app-group only", carries: .noUserData)
         completion()
     }
 }

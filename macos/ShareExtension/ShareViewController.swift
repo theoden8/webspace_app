@@ -25,14 +25,14 @@ final class ShareViewController: NSViewController {
 
     override func viewDidAppear() {
         super.viewDidAppear()
-        NSLog("[WebSpace.ShareExt.macOS] viewDidAppear")
+        WebSpaceLog.line("viewDidAppear", carries: .noUserData)
         extractURL { url in
             DispatchQueue.main.async {
                 guard let url = url, !url.isEmpty else {
-                    NSLog("[WebSpace.ShareExt.macOS] no URL extracted; dismissing")
+                    WebSpaceLog.line("no URL extracted; dismissing", carries: .noUserData)
                     self.finish(); return
                 }
-                NSLog("[WebSpace.ShareExt.macOS] extracted URL: \(url)")
+                WebSpaceLog.line("extracted URL: \(url)", carries: .userData)
                 self.handOff(url) {
                     self.finish()
                 }
@@ -107,9 +107,9 @@ final class ShareViewController: NSViewController {
     private func handOff(_ url: String, completion: @escaping () -> Void) {
         if let defaults = AppGroup.defaults {
             defaults.set(url, forKey: AppGroup.pendingShareUrlKey)
-            NSLog("[WebSpace.ShareExt.macOS] wrote URL to app group")
+            WebSpaceLog.line("wrote URL to app group", carries: .noUserData)
         } else {
-            NSLog("[WebSpace.ShareExt.macOS] app group \(AppGroup.id) unavailable; URL not persisted")
+            WebSpaceLog.line("app group \(AppGroup.id) unavailable; URL not persisted", carries: .noUserData)
         }
         var components = URLComponents()
         components.scheme = ShareViewController.hostScheme
@@ -119,7 +119,7 @@ final class ShareViewController: NSViewController {
             completion()
             return
         }
-        NSLog("[WebSpace.ShareExt.macOS] opening host app via \(openUrl.absoluteString)")
+        WebSpaceLog.line("opening host app via \(openUrl.absoluteString)", carries: .userData)
         openHostApp(openUrl, completion: completion)
     }
 
@@ -132,11 +132,11 @@ final class ShareViewController: NSViewController {
     private func openHostApp(_ url: URL, completion: @escaping () -> Void) {
         if let ctx = extensionContext {
             ctx.open(url) { success in
-                NSLog("[WebSpace.ShareExt.macOS] extensionContext.open returned \(success)")
+                WebSpaceLog.line("extensionContext.open returned \(success)", carries: .noUserData)
                 DispatchQueue.main.async {
                     if !success {
                         let workspaceOk = NSWorkspace.shared.open(url)
-                        NSLog("[WebSpace.ShareExt.macOS] NSWorkspace.shared.open returned \(workspaceOk)")
+                        WebSpaceLog.line("NSWorkspace.shared.open returned \(workspaceOk)", carries: .noUserData)
                     }
                     completion()
                 }
@@ -144,7 +144,7 @@ final class ShareViewController: NSViewController {
             return
         }
         let workspaceOk = NSWorkspace.shared.open(url)
-        NSLog("[WebSpace.ShareExt.macOS] NSWorkspace.shared.open returned \(workspaceOk) (no extensionContext)")
+        WebSpaceLog.line("NSWorkspace.shared.open returned \(workspaceOk) (no extensionContext)", carries: .noUserData)
         completion()
     }
 
