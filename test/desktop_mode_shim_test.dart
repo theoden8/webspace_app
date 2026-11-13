@@ -30,7 +30,7 @@ void main() {
       // should see undefined — anything else is a tell.
       final js = buildDesktopModeShim(firefoxMacosDesktopUserAgent);
       expect(js, contains(
-        "def('userAgentData', asNative(function() { return undefined; }, 'userAgentData'));"));
+        "nativeGetter(nav, 'userAgentData', function() { return undefined; });"));
     });
 
     test('Linux UA emits "Linux x86_64" navigator.platform', () {
