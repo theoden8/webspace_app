@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
-import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/web_view_model.dart';
@@ -12,6 +11,7 @@ import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/edit_site_dialog.dart';
 
 import 'helpers/fake_outbound.dart';
+import 'helpers/localized.dart';
 
 Uint8List _png() =>
     Uint8List.fromList(img.encodePng(img.Image(width: 8, height: 8)));
@@ -24,11 +24,9 @@ Future<SiteEdit? Function()> _open(
   SiteEdit? result;
   var closed = false;
   await tester.pumpWidget(
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
+    localizedApp(
       // The page's Scaffold, for the toast a title refresh shows.
-      home: Scaffold(
+      Scaffold(
         body: Builder(
           builder: (context) => TextButton(
             onPressed: () async {

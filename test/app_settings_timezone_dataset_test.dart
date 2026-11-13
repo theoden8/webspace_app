@@ -10,11 +10,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/timezone_location_service.dart';
+
 import 'helpers/fake_path_provider.dart';
+import 'helpers/localized.dart';
 
 const _fixture = '''
 {
@@ -34,10 +35,7 @@ void main() {
   late Directory docs;
   late File dataset;
 
-  Widget host() => MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: AppSettingsScreen(
+  Widget host() => localizedApp(AppSettingsScreen(
           currentSettings: AppThemeSettings(),
           containersRunHere: true,
           onSettingsChanged: (_) {},
@@ -45,8 +43,7 @@ void main() {
           onImportSettings: () {},
           onOpenLinkHandlingSettings: () {},
           homeShortcuts: null,
-        ),
-      );
+        ));
 
   setUp(() async {
     docs = await Directory.systemTemp.createTemp('webspace_tz_row_');

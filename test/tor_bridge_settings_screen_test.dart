@@ -17,7 +17,9 @@ import 'package:webspace/screens/tor_bridge_settings.dart';
 import 'package:webspace/services/tor_bridge_secure_storage.dart';
 import 'package:webspace/services/tor_bridges.dart';
 import 'package:webspace/services/tor_moat_client.dart';
+
 import 'helpers/mock_secure_storage.dart';
+import 'helpers/localized.dart';
 
 const _obfs4 =
     'obfs4 192.0.2.10:9443 A1B2C3D4E5F60718293A4B5C6D7E8F9012345678 '
@@ -59,11 +61,7 @@ class _FakeHttp extends http.BaseClient {
 http.Response _json(Object body) => http.Response(jsonEncode(body), 200);
 
 void main() {
-  Widget host(Widget child) => MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: child,
-      );
+  Widget host(Widget child) => localizedApp(child);
 
   testWidgets('the Moat exposure is stated on the screen, not hidden',
       (t) async {

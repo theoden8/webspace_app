@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/screens/site_privacy.dart';
@@ -9,6 +8,8 @@ import 'package:webspace/services/screen_capture_guard.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/widgets/level_slider.dart';
+
+import 'helpers/localized.dart';
 
 SitePrivacyValues _values({
   bool archived = false,
@@ -52,16 +53,12 @@ Future<void> _pump(
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
-  await tester.pumpWidget(MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: SitePrivacyScreen(
+  await tester.pumpWidget(localizedApp(SitePrivacyScreen(
       host: 'example.com',
       siteId: SiteId('site-1'),
       values: values,
       onChanged: onChanged ?? (_) {},
-    ),
-  ));
+    )));
   await tester.pumpAndSettle();
 }
 

@@ -15,6 +15,7 @@ import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 
 import 'helpers/fake_tor_runtime.dart';
 import 'helpers/mock_secure_storage.dart';
+import 'helpers/localized.dart';
 
 SiteNetworkValues _values({
   ProxyType proxyType = ProxyType.DEFAULT,
@@ -48,10 +49,7 @@ Future<_Form> _pump(
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   final form = _Form()..address.text = address;
-  await tester.pumpWidget(MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: SiteNetworkScreen(
+  await tester.pumpWidget(localizedApp(SiteNetworkScreen(
       host: 'example.com',
       siteId: SiteId('site-1'),
       values: values,
@@ -66,8 +64,7 @@ Future<_Form> _pump(
       showSavedSignIns: false,
       trackingProtectionEnabled: trackingProtectionEnabled,
       appProxySet: appProxySet,
-    ),
-  ));
+    )));
   await tester.pumpAndSettle();
   return form;
 }
@@ -341,13 +338,9 @@ void main() {
             host: Host('nas.example.com'), realm: 'Admin', credential: c);
       });
 
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
+      await tester.pumpWidget(localizedApp(Scaffold(
           body: SavedSignInsTile(siteId: SiteId('site-1'), storage: store),
-        ),
-      ));
+        )));
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pumpAndSettle();
       expect(find.text('2 saved'), findsOneWidget);

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
+
+import 'helpers/localized.dart';
 
 void main() {
   group('LinkHandlingSettingsScreen — LIR-008', () {
@@ -19,14 +20,10 @@ void main() {
       List<WebViewModel> sites = const [],
       void Function(WebViewModel site)? onOpenSiteEditor,
     }) =>
-        tester.pumpWidget(MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: LinkHandlingSettingsScreen(
+        tester.pumpWidget(localizedApp(LinkHandlingSettingsScreen(
             sites: sites,
             onOpenSiteEditor: onOpenSiteEditor ?? (_) {},
-          ),
-        ));
+          )));
 
     bool switchAt(WidgetTester tester, {required int i}) =>
         tester.widget<Switch>(find.byType(Switch).at(i)).value;
@@ -109,17 +106,13 @@ void main() {
         (tester) async {
       final m = WebViewModel(initUrl: 'https://example.org/');
       List<DomainClaim>? lastChange;
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
+      await tester.pumpWidget(localizedApp(Scaffold(
           body: DomainClaimsEditor(
             model: m,
             otherSites: const [],
             onChanged: (next) => lastChange = next,
           ),
-        ),
-      ));
+        )));
       expect(find.text('Domain claims'), findsOneWidget);
       expect(find.text('example.org (base)'), findsOneWidget);
       // Editor opens with claims in the synthesized state — no onChanged
@@ -135,17 +128,13 @@ void main() {
           DomainClaim.exactHost('blog.example.org'),
         ];
       List<DomainClaim>? lastChange;
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
+      await tester.pumpWidget(localizedApp(Scaffold(
           body: DomainClaimsEditor(
             model: m,
             otherSites: const [],
             onChanged: (next) => lastChange = next,
           ),
-        ),
-      ));
+        )));
       await tester.tap(find.byIcon(Icons.delete_outline).last);
       await tester.pump();
       expect(lastChange, isNotNull);
@@ -159,17 +148,13 @@ void main() {
       final github = WebViewModel(initUrl: 'https://github.com/alice');
       final attacker = WebViewModel(initUrl: 'https://example.org/')
         ..domainClaims = [DomainClaim.exactHost('github.com')];
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
+      await tester.pumpWidget(localizedApp(Scaffold(
           body: DomainClaimsEditor(
             model: attacker,
             otherSites: [github],
             onChanged: (_) {},
           ),
-        ),
-      ));
+        )));
       expect(
         find.text('Conflict: another site already owns this base domain.'),
         findsOneWidget,

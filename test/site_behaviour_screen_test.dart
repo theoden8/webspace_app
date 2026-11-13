@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/screens/site_behaviour.dart';
 import 'package:webspace/services/domain_claim.dart';
@@ -16,6 +15,7 @@ import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/hint_button.dart';
 
 import 'helpers/no_shortcuts.dart';
+import 'helpers/localized.dart';
 
 SiteBehaviourValues _values({
   bool archived = false,
@@ -67,10 +67,7 @@ Future<void> _pump(
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
-  await tester.pumpWidget(MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: SiteBehaviourScreen(
+  await tester.pumpWidget(localizedApp(SiteBehaviourScreen(
       host: 'example.com',
       incognito: incognito,
       values: values,
@@ -81,8 +78,7 @@ Future<void> _pump(
       initUrl: initUrl,
       discoveredSearchAddress: discoveredSearchAddress,
       discoveredSearchesWeb: discoveredSearchesWeb,
-    ),
-  ));
+    )));
   await tester.pumpAndSettle();
 }
 
@@ -297,18 +293,13 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(MaterialApp(
-        locale: const Locale('el'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: SiteBehaviourScreen(
+      await tester.pumpWidget(localizedApp(SiteBehaviourScreen(
           host: 'example.com',
           incognito: false,
           containersActive: true,
           values: _values(externalLinkMode: ExternalLinkMode.browser),
           onChanged: (_) {},
-        ),
-      ));
+        ), locale: const Locale('el')));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       expect(_selectedMode(tester), ExternalLinkMode.browser);

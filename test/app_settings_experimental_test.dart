@@ -40,7 +40,9 @@ import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 import 'package:webspace/widgets/tor_status_card.dart';
+
 import 'helpers/fake_tor_runtime.dart';
+import 'helpers/localized.dart';
 
 final Uint8List _png64 =
     Uint8List.fromList(img.encodePng(img.Image(width: 64, height: 64)));
@@ -52,10 +54,7 @@ void main() {
     List<PickableSearchSite> webSearchSites =
         const [],
   }) =>
-      MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: AppSettingsScreen(
+      localizedApp(AppSettingsScreen(
           currentSettings: AppThemeSettings(),
           containersRunHere: true,
           externalTorRunsHere: externalTorRunsHere,
@@ -66,8 +65,7 @@ void main() {
           onOpenLinkHandlingSettings: () {},
           homeShortcuts: null,
           webSearchSites: webSearchSites,
-        ),
-      );
+        ));
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});

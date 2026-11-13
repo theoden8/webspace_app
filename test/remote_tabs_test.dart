@@ -4,7 +4,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/settings/tab_strip_edge.dart';
 import 'package:webspace/web_view_model.dart';
@@ -12,16 +11,15 @@ import 'package:webspace/widgets/remote_controls.dart';
 import 'package:webspace/widgets/site_tab_strip.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
 import 'helpers/model_fixture.dart';
+import 'helpers/localized.dart';
 
 Future<void> _pumpTv(WidgetTester tester, {required Widget body}) async {
   tester.view.physicalSize = const Size(1920, 1080);
   tester.view.devicePixelRatio = 2;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+  await tester.pumpWidget(localizedApp(
+    Scaffold(body: body),
     builder: (context, child) => RemoteControls(child: child!),
-    home: Scaffold(body: body),
   ));
   await tester.pumpAndSettle();
 }

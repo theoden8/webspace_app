@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/screens/site_permissions.dart';
 import 'package:webspace/settings/capture.dart';
@@ -8,6 +7,8 @@ import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/origin_choices.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/widgets/site_permission_chip.dart';
+
+import 'helpers/localized.dart';
 
 SitePermissionValues _values({
   bool archived = false,
@@ -43,10 +44,7 @@ Future<void> _pump(
   ValueChanged<SitePermissionValues>? onChanged,
   bool trackingProtection = false,
 }) async {
-  await tester.pumpWidget(MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: SitePermissionsScreen(
+  await tester.pumpWidget(localizedApp(SitePermissionsScreen(
       host: 'example.com',
       values: values,
       trackingProtectionEnabled: trackingProtection,
@@ -55,8 +53,7 @@ Future<void> _pump(
       onEnableNotifications: () async {},
       timezonePreview: () => 'Europe/Paris',
       coordinatesPreview: () => '48.8566, 2.3522',
-    ),
-  ));
+    )));
   await tester.pumpAndSettle();
 }
 
@@ -177,10 +174,7 @@ void main() {
 
   testWidgets('a capability another setting owns is inert and says why',
       (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: SitePermissionsScreen(
+    await tester.pumpWidget(localizedApp(SitePermissionsScreen(
         host: 'example.com',
         values: _values(),
         notificationsBlockedBySite: 'bank.example',
@@ -189,8 +183,7 @@ void main() {
         onEnableNotifications: () async {},
         timezonePreview: () => 'Europe/Paris',
         coordinatesPreview: () => '48.8566, 2.3522',
-      ),
-    ));
+      )));
     await tester.pumpAndSettle();
 
     final tile = tester.widget<ListTile>(
@@ -250,10 +243,7 @@ void main() {
 
   testWidgets('tracking protection forces the timezone to follow coordinates',
       (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: SitePermissionsScreen(
+    await tester.pumpWidget(localizedApp(SitePermissionsScreen(
         host: 'example.com',
         values: _values(location: LocationMode.spoof)
             .copyWith(hasStaticCoordinates: true),
@@ -263,8 +253,7 @@ void main() {
         onEnableNotifications: () async {},
         timezonePreview: () => 'Europe/Paris',
         coordinatesPreview: () => '48.8566, 2.3522',
-      ),
-    ));
+      )));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Geolocation'));

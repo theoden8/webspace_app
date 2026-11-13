@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/screens/app_behaviour.dart';
 import 'package:webspace/screens/app_settings.dart';
@@ -15,6 +14,7 @@ import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
 
 import 'helpers/no_shortcuts.dart';
+import 'helpers/localized.dart';
 
 void main() {
   setUp(() async {
@@ -51,11 +51,7 @@ void main() {
         homeShortcuts: null,
       );
 
-  Widget app(Widget home) => MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: home,
-      );
+  Widget app(Widget home) => localizedApp(home);
 
   Finder summaryOf(String title) => find.descendant(
         of: find.ancestor(of: find.text(title), matching: find.byType(ListTile)),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/proxy_ids.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/site_network.dart';
@@ -16,6 +15,7 @@ import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 import 'package:webspace/services/webview_proxy.dart';
 
 import 'helpers/isolations.dart';
+import 'helpers/localized.dart';
 
 /// Pushes site settings over a plain home route, so a back press is a real
 /// pop that the unsaved-changes guard can intercept.
@@ -24,10 +24,7 @@ Future<void> _pump(WidgetTester tester, {required WebViewModel model}) async {
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
-  await tester.pumpWidget(MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: Builder(
+  await tester.pumpWidget(localizedApp(Builder(
       builder: (context) => TextButton(
         onPressed: () => Navigator.push<void>(
           context,
@@ -40,8 +37,7 @@ Future<void> _pump(WidgetTester tester, {required WebViewModel model}) async {
         ),
         child: const Text('open'),
       ),
-    ),
-  ));
+    )));
   await tester.tap(find.text('open'));
   await tester.pumpAndSettle();
 }

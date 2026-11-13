@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/web_view_theme.dart';
@@ -9,6 +8,7 @@ import 'package:webspace/web_view_model.dart';
 
 import 'helpers/isolations.dart';
 import 'helpers/no_shortcuts.dart';
+import 'helpers/localized.dart';
 
 Future<void> _pump(WidgetTester tester, {required WebViewModel model}) async {
   tester.view.physicalSize = const Size(1000, 4000);
@@ -16,18 +16,14 @@ Future<void> _pump(WidgetTester tester, {required WebViewModel model}) async {
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   await tester.pumpWidget(
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: KeyedSubtree(
+    localizedApp(KeyedSubtree(
         key: UniqueKey(),
         child: SettingsScreen(
           webViewModel: model,
           appTheme: WebViewTheme.system,
           isolation: fakeSharedJar(),
         ),
-      ),
-    ),
+      )),
   );
   await tester.pumpAndSettle();
 }

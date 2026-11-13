@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/page_handlers.dart';
@@ -10,9 +9,11 @@ import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/web_view_model.dart';
+
 import 'helpers/isolations.dart';
 import 'helpers/user_script_bridge_fakes.dart';
 import 'helpers/host_hooks.dart';
+import 'helpers/localized.dart';
 
 const _home = 'https://chat.example/';
 
@@ -70,15 +71,11 @@ Future<void> _openPermissions(
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
-  await tester.pumpWidget(MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: SettingsScreen(
+  await tester.pumpWidget(localizedApp(SettingsScreen(
       webViewModel: WebViewModel(initUrl: _home),
       appTheme: WebViewTheme.system,
       isolation: isolation,
-    ),
-  ));
+    )));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Permissions'));
   await tester.pumpAndSettle();

@@ -9,11 +9,12 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/settings/demo_mode.dart';
-import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
+
+import 'helpers/localized.dart';
 
 Object _otherThan(Object fallback) => switch (fallback) {
       bool b => !b,
@@ -95,10 +96,7 @@ void main() {
       installerStore: null,
     );
     isDemoMode = true;
-    await tester.pumpWidget(MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: AppSettingsScreen(
+    await tester.pumpWidget(localizedApp(AppSettingsScreen(
         currentSettings: const AppThemeSettings(),
         containersRunHere: true,
         onSettingsChanged: (_) {},
@@ -106,8 +104,7 @@ void main() {
         onImportSettings: () {},
         onOpenLinkHandlingSettings: () {},
         homeShortcuts: null,
-      ),
-    ));
+      )));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Privacy'));
     await tester.pumpAndSettle();
