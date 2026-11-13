@@ -467,8 +467,9 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
   }
 
   /// The environment's action [s]: `Name ==`, on no flow, landing while no
-  /// flow is between two awaits (`Calm`), its pick and guard, then its one
-  /// arm's writes, recorded as flow 0's, every other variable, `fl` among
+  /// flow is between two awaits (`Calm`) and, where a lock grants it, once
+  /// the turn is flow 0's; its pick and guard, then its call's writes and
+  /// its one arm's, recorded as flow 0's, every other variable, `fl` among
   /// them, held.
   static ({String text, List<StepAlternative> alternatives})
   _environmentAction<W, P extends Enum>(
@@ -476,16 +477,26 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     required List<ModelVar> variables,
   }) {
     final arm = s.otherwise;
+    final callWrites = s.call?.writes ?? <Write<W>>[];
     final acts = [
       for (final e in arm.then)
         if (e is Act<W>) e,
     ];
-    final written = {ModelVar.last, for (final a in acts) ...a.writes};
+    final written = {
+      ModelVar.last,
+      for (final w in callWrites) w.variable,
+      for (final a in acts) ...a.writes,
+    };
     final held = [
       for (final v in variables)
         if (!written.contains(v)) v.name,
     ];
+    final turn = [
+      'Calm',
+      if (s.granted case final lock?) lock.grantedTo(flow: '0'),
+    ];
     final effects = [
+      for (final w in callWrites) w.tla,
       for (final a in acts) a.tla,
       'Did("${s.action}", 0, "${arm.outcome.tla}", ${(arm.site ?? s.site)?.tla ?? '0'})',
       if (held.isNotEmpty) 'UNCHANGED << ${held.join(', ')} >>',
@@ -499,10 +510,18 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
       final p => '\\E ${p.name} \\in ${p.from.tla} :\n         $guarded',
     };
     return (
-      text: ['${s.action} ==', '    /\\ Calm', '    /\\ $body', ''].join('\n'),
+      text: [
+        '${s.action} ==',
+        for (final g in turn) '    /\\ $g',
+        '    /\\ $body',
+        '',
+      ].join('\n'),
       alternatives: [
         (
-          tla: '(Calm) /\\ ($body)'.replaceAll(RegExp(r'\n\s*'), ' '),
+          tla: [
+            for (final g in turn) '($g)',
+            '($body)',
+          ].join(' /\\ ').replaceAll(RegExp(r'\n\s*'), ' '),
           spawns: false,
         ),
       ],

@@ -42,7 +42,11 @@ enum Lock {
       'queue <- ${queue.name}, Witness <- "$witness"';
 
   /// The model's guard for a flow `f` whose turn on the lock it is.
-  String get granted => '$tla!Granted(f)';
+  String get granted => grantedTo(flow: 'f');
+
+  /// The model's guard for [flow] whose turn on the lock it is: `f`, or
+  /// `0` for the environment's ([LaunchTurn]).
+  String grantedTo({required String flow}) => '$tla!Granted($flow)';
 
   /// What the guard reads of the shared state.
   Reads get grantedReads => Reads(vars: {holder, queue});
@@ -156,4 +160,29 @@ final class Turns<W> {
       "${lock.name}'s turn went to a flow out of the order asked",
     );
   }
+}
+
+/// The environment's turn on a lock where the code queues it at launch,
+/// before any input: the model's flow 0, in the lock's queue from `Init`
+/// (`Launched_<Lock>`, printed for a lock an environment step is granted
+/// on). Whether it still waits is kept by the code beside the queue that
+/// serialises the lock, so the frame check holds the step the turn grants
+/// to the pass it declares.
+final class LaunchTurn<W> {
+  const LaunchTurn(this.lock, {required this.waiting});
+
+  final Lock lock;
+  final Mutable<bool, W> waiting;
+
+  /// The environment passes the turn on at once (`PassTurn`): it waits no
+  /// more.
+  Act<W> get passTurn => lock.passTurn(
+    run: (c) {
+      assert(
+        waiting._read!(c._world),
+        "${lock.name}'s launch turn passed on where none was queued",
+      );
+      waiting._write!(c._world, to: false);
+    },
+  );
 }

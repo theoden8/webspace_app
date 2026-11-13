@@ -1464,13 +1464,18 @@ final class Step<W, P extends Enum> extends At<W, P> {
        refused = null;
 
   /// One of the environment's actions, run as the code does it
-  /// ([StepTable.runEnvironment]): in the model it lands while every flow
+  /// ([StepTable.runEnvironment], or [StepTable.awaitEnvironment] for one
+  /// that waits on its [call]): in the model it lands while every flow
   /// waits, as an event does, on no flow, where [enabled] holds (asserted on
-  /// the way in), its one arm going to the step's own place, since it moves
-  /// no flow; it starts none and sets no field of one.
+  /// the way in), and where it is [granted] the lock's turn queued for it at
+  /// launch ([LaunchTurn]); its one arm goes to the step's own place, since
+  /// it moves no flow; it starts none and sets no field of one. A call's
+  /// writes land with the arm's, at the reply, as one action.
   const Step.environment(
     this.name, {
     this.enabled,
+    this.granted,
+    this.call,
     this.pick,
     this.site,
     required this.otherwise,
@@ -1480,8 +1485,6 @@ final class Step<W, P extends Enum> extends At<W, P> {
        branches = const [],
        tab = null,
        holds = null,
-       granted = null,
-       call = null,
        refused = null;
 
   final ActivationStep name;
@@ -1536,6 +1539,8 @@ final class Step<W, P extends Enum> extends At<W, P> {
       ? Step.environment(
           name,
           enabled: enabled,
+          granted: granted,
+          call: call,
           pick: pick,
           site: site,
           otherwise: otherwise ?? this.otherwise,
@@ -1751,14 +1756,50 @@ final class StepTable<W, P extends Enum> {
   }
 
   void _runEnvironment(StepContext<W> c, {required P at}) {
-    final step = this.at(at);
+    final step = _environmentAt(at);
     assert(
-      step is Step<W, P> && step.environment,
-      '${at.name} is no environment action',
+      step.call == null,
+      '${step.name} waits on its call: awaitEnvironment runs it',
     );
-    step as Step<W, P>;
     _enter(step, on: c);
     _land(step, on: c);
+  }
+
+  /// Runs the environment's step at [at] on [c] that waits on its call, as
+  /// the model's one action, which lands at the reply: its pick made and
+  /// its guard asserted as the call is issued and again at the reply,
+  /// where its arm's effects are done and the step marked, in one turn. A
+  /// call that throws lands nothing.
+  Future<void> awaitEnvironment(StepContext<W> c, {required P at}) {
+    if (Planted._current?._table(this) case final StepTable<W, P> planted) {
+      return planted._awaitEnvironment(c, at: at);
+    }
+    return _awaitEnvironment(c, at: at);
+  }
+
+  Future<void> _awaitEnvironment(StepContext<W> c, {required P at}) async {
+    final step = _environmentAt(at);
+    final call = step.call;
+    assert(
+      call != null && call.reads.isEmpty,
+      '${step.name} waits on no call, or records a field no flow has',
+    );
+    _enter(step, on: c);
+    await _charged(step.name, run: (_) => call!._run(c));
+    assert(
+      _charged(step.name, run: (_) => step.enabled?.run(c) ?? true),
+      '${step.name} landed where ${step.enabled?.tla} does not hold',
+    );
+    _land(step, on: c);
+  }
+
+  Step<W, P> _environmentAt(P place) {
+    final step = at(place);
+    assert(
+      step is Step<W, P> && step.environment,
+      '${place.name} is no environment action',
+    );
+    return step as Step<W, P>;
   }
 
   /// [step]'s pick made and its guard asserted on [on], read as its action
