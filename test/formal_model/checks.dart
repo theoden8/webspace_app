@@ -1354,6 +1354,13 @@ enum Mutant {
         'queue but binds no tab: a loaded site with no webview shows a '
         'history (caught)',
   ),
+  letgobound(
+    world: ActivationWorld.tabsRebuild,
+    by: Inv.tabShown,
+    doc:
+        "a let-go that drops the webview's history but leaves its tab "
+        'bound: a site bound to a tab shows no history (caught)',
+  ),
   preloadbare(
     world: ActivationWorld.coldstart,
     by: Inv.noForeignSession,

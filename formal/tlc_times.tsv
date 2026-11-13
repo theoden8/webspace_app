@@ -131,6 +131,7 @@ activation_joinsloaded	8
 activation_keepturn	24
 activation_landinplace	8
 activation_lateclear	32
+activation_letgobound	4
 activation_markerbytarget	358
 activation_navtagatreply	58
 activation_nested	3710

@@ -458,6 +458,17 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [RendererGone(0)],
     breaks: 'changed built, which it does not write',
   ),
+  Mutant.letgobound => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      deletes: true,
+      tabbed: true,
+      declared: d,
+    ),
+    setup: const [Tap(0)],
+    script: const [RendererGone(0)],
+    breaks: 'letGo as  changed built, which it does not write',
+  ),
   Mutant.foldbeforelevel => _By(
     world: (d) => ActivationWorld(_mixed, dns: _dnsSites, declared: d),
     setup: const [Tap(0)],
