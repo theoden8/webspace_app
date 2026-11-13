@@ -1648,6 +1648,34 @@ void main() {
     });
   });
 
+  group('late view regressions', () {
+    // Site 2 is preloaded and unloaded before its webview reports its view
+    // built: the report finds its site no longer running, and the view is
+    // let go, kept and told by nothing (DNS-022).
+    _scheduleTest(
+        'a view reported after its site unloaded is let go (DNS-022)',
+        body: () async {
+      final worlds = <ActivationWorld>[];
+      await _expectEvery(
+        world: () {
+          final w = ActivationWorld(
+            _mixedContainers,
+            dns: _dnsSites,
+            lateViews: true,
+          );
+          worlds.add(w);
+          return w;
+        },
+        setup: const [Tap(0)],
+        script: const [Preload(1), UnloadSite(1)],
+        preemptions: _onePast,
+      );
+      expect(worlds.any((w) => w.viewsLetGo > 0), isTrue,
+          reason: 'no schedule unloaded a site between its build and its '
+              'view');
+    });
+  });
+
   group('launch regressions', () {
     final (:page, :launch) = _launches['mixed, shared jar, from launch']!;
     for (final MapEntry(key: name, value: script)
