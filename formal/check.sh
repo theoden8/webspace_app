@@ -573,50 +573,19 @@ if reporting && ! python3 footprint.py --model "$MODEL" --coverage "$COVERAGE_DI
   exit 1
 fi
 if reporting; then
-  for plant in listed unlisted; do
-    if ! python3 footprint.py --model "$MODEL" --coverage "$COVERAGE_DIR" \
-        --debt footprint_debt.tsv --plant "$plant" >/dev/null; then
-      echo "  OK   planted: a $plant pair is caught by the footprint gate"
-    elif [ "$plant" = listed ] || [ -n "$(grep -v '^#' footprint_debt.tsv)" ]; then
-      echo "FAIL: the footprint gate passed a $plant pair planted in its list" >&2
-      exit 1
-    fi
-  done
-  # A table action that declares less than its text reads.
-  if python3 footprint.py --model "$MODEL" --coverage "$COVERAGE_DIR" \
-      --debt footprint_debt.tsv --plant declared >/dev/null; then
-    echo "FAIL: the footprint gate passed a read dropped from a declaration" >&2
-    exit 1
-  fi
-  echo "  OK   planted: a read dropped from a declaration is caught by the footprint gate"
-  # An action no world takes, left off the list of those none can.
-  if python3 footprint.py --model "$MODEL" --coverage "$COVERAGE_DIR" \
-      --debt footprint_debt.tsv --plant untaken >/dev/null; then
-    echo "FAIL: the footprint gate passed an action no world takes" >&2
-    exit 1
-  fi
-  echo "  OK   planted: an action no world takes is caught by the footprint gate"
-  # A table action that reads other flows' rows and declares none.
-  if python3 footprint.py --model "$MODEL" --coverage "$COVERAGE_DIR" \
-      --debt footprint_debt.tsv --plant rows >/dev/null; then
-    echo "FAIL: the footprint gate passed a row read dropped from a declaration" >&2
-    exit 1
-  fi
-  echo "  OK   planted: a row read dropped from a declaration is caught by the footprint gate"
-  # An invariant that declares less than its text reads.
-  if python3 footprint.py --model "$MODEL" --coverage "$COVERAGE_DIR" \
-      --debt footprint_debt.tsv --plant invariant >/dev/null; then
-    echo "FAIL: the footprint gate passed a read dropped from an invariant's declaration" >&2
-    exit 1
-  fi
-  echo "  OK   planted: a read dropped from an invariant's declaration is caught by the footprint gate"
-  # A need a world that takes the action does not give.
-  if python3 footprint.py --model "$MODEL" --coverage "$COVERAGE_DIR" \
-      --debt footprint_debt.tsv --plant needs >/dev/null; then
-    echo "FAIL: the footprint gate passed a need a world that takes its action does not give" >&2
-    exit 1
-  fi
-  echo "  OK   planted: a need no world that takes its action gives is caught by the footprint gate"
+  # Every mistake footprint.py can plant (its --plants) fails the gate.
+  plants=$(python3 footprint.py --plants)
+  [ -n "$plants" ] || { echo "FAIL: footprint.py lists no plants" >&2; exit 1; }
+  while IFS=$'\t' read -r plant what; do
+    rc=0
+    python3 footprint.py --model "$MODEL" --coverage "$COVERAGE_DIR" \
+        --debt footprint_debt.tsv --plant "$plant" >/dev/null || rc=$?
+    case "$rc" in
+      10) echo "  OK   planted: $what is caught by the footprint gate" ;;
+      3) echo "  --   planted: $what: this model has nothing to plant it in" ;;
+      *) echo "FAIL: the footprint gate passed $what (exit $rc)" >&2; exit 1 ;;
+    esac
+  done <<< "$plants"
   # The world keys move for exactly the runs a change can reach.
   if ! activation_runs | cut -f1,4 | python3 world_key.py --spec activation.tla --self-test |
       sed 's/^/  /'; then
