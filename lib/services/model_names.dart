@@ -473,6 +473,10 @@ enum StepTurn {
   /// A reply (`Calm`): it lands only while no flow is between two awaits,
   /// the model's statement of Dart's run-to-completion.
   reply,
+
+  /// One of the environment's actions (`Calm`), on no flow: it lands as an
+  /// event does, while no flow is between two awaits.
+  environment,
 }
 
 /// One step's action as the composition reads it: the place it waits at,
