@@ -246,30 +246,6 @@ ClearJar ==
 \* (DnsBlockService.effectiveLevelFor).
 Eff(s) == ResolveLevel(SiteLevel[s], dns.lvl, dns.levels)
 
-\* A frame builds a loaded site's webview, and a wake's open a check of a
-\* site it lists, which attaches its native interceptor at the level its
-\* site resolves to now (ViewBlockers.built). A view goes at any moment: a
-\* frame drops one whose site has gone or lets one go while its site stays
-\* loaded, and a check goes at its dispose (ViewBlockers.gone). Only where
-\* DNS is in play: the other configs build no view.
-ViewBuilt(s) ==
-    /\ Calm
-    /\ DnsLevels # {}
-    /\ s \in loaded \cup headless
-    /\ told[s] = -1
-    /\ told' = [told EXCEPT ![s] = Eff(s)]
-    /\ Did("ViewBuilt", 0, "", s)
-    /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabVars, dns,
-                    archived >>
-
-ViewGone(s) ==
-    /\ Calm
-    /\ told[s] # -1
-    /\ told' = [told EXCEPT ![s] = -1]
-    /\ Did("ViewGone", 0, "", s)
-    /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabVars, dns,
-                    archived >>
-
 \* A frame mounts a loaded site's webview, which binds its container (the
 \* shared jar has none), and unmounts one whose site is no longer loaded
 \* (SiteWebviewStack). Only where a close or a delete can take a site
@@ -313,10 +289,10 @@ InputStep ==
 Next ==
     \/ InputStep
     \/ \E f \in Flows : FlowStep(f)
-    \/ \E s \in Sites : ViewBuilt(s) \/ ViewGone(s)
     \/ \E s \in Sites : Frame(s)
     \* The environment's actions the tables print: a loaded site's webview
-    \* let go of (LetGoTable) and its frame (FrameTable).
+    \* let go of (LetGoTable) and its frame (FrameTable), and a running
+    \* site's first view built and its last gone (ViewsTable).
     \/ EnvTableStep
     \/ ClearJar
     \/ Done
