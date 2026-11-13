@@ -17,6 +17,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { dartFilesUnder, read } = require('./helpers/source');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
 const scanRoots = ['lib/main.dart', 'lib/screens', 'lib/widgets'];
@@ -26,25 +27,6 @@ const arbDir = path.join(repoRoot, 'lib', 'l10n');
 // measurement of it: scripts differ, and the point is to catch the paragraph,
 // not to police the last character.
 const SUBTITLE_BUDGET = 90;
-
-function discoverDartFiles(roots) {
-  const out = [];
-  const walk = (abs, rel) => {
-    for (const e of fs.readdirSync(abs, { withFileTypes: true })) {
-      const childAbs = path.join(abs, e.name);
-      const childRel = `${rel}/${e.name}`;
-      if (e.isDirectory()) walk(childAbs, childRel);
-      else if (e.isFile() && e.name.endsWith('.dart')) out.push(childRel);
-    }
-  };
-  for (const root of roots) {
-    const abs = path.join(repoRoot, root);
-    if (!fs.existsSync(abs)) continue;
-    if (fs.statSync(abs).isDirectory()) walk(abs, root);
-    else if (root.endsWith('.dart')) out.push(root);
-  }
-  return out;
-}
 
 // The argument to `subtitle:`, read to the comma that closes it. Tracks
 // bracket depth and steps over string literals so a comma inside either one
@@ -86,8 +68,8 @@ function staticKeyOf(expr) {
 
 function collectStaticSubtitles() {
   const found = [];
-  for (const rel of discoverDartFiles(scanRoots)) {
-    const source = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+  for (const rel of dartFilesUnder(scanRoots)) {
+    const source = read(rel);
     for (const m of source.matchAll(/\bsubtitle:/g)) {
       const key = staticKeyOf(readArgument(source, m.index + 'subtitle:'.length));
       if (!key) continue;

@@ -11,6 +11,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
+const { dartFiles } = require('./helpers/source');
 
 const repo = path.resolve(__dirname, '..', '..');
 const read = (p) => fs.readFileSync(path.join(repo, p), 'utf8');
@@ -202,9 +203,7 @@ test('TOR-001: nothing hardcodes Tor\'s default SOCKS port', () => {
 test('TOR-007: every ProxyType dropdown handles TOR', () => {
   const screens = [];
   for (const dir of ['lib/screens', 'lib/widgets']) {
-    for (const file of fs.readdirSync(path.join(repo, dir))) {
-      const rel = `${dir}/${file}`;
-      if (!file.endsWith('.dart')) continue;
+    for (const rel of dartFiles(dir)) {
       const src = read(rel);
       const wholeEnum =
         /DropdownButton<ProxyType>/.test(src) && /ProxyType\.values/.test(src);
