@@ -118,18 +118,10 @@ LEMMA StepInd == Good /\ IndInv /\ [Next]_vars => IndInv'
       BY DEF Frame, turn
     <2> QED
       BY <2>1, KeepsTurns
-  <1>8. CASE \E s \in Sites : LetGo(s)
-    <2> PICK s \in Sites : LetGo(s)
-      BY <1>8
-    <2>1. inputs' = inputs /\ fl' = fl /\ holder' = holder
-          /\ dnsHolder' = dnsHolder
-      BY DEF LetGo, turn
-    <2> QED
-      BY <2>1, KeepsTurns
-  <1>9. CASE EnvTableStep
-    BY <1>9, EnvStepInd
+  <1>8. CASE EnvTableStep
+    BY <1>8, EnvStepInd
   <1> QED
-    BY <1>1, <1>2, <1>3, <1>4, <1>5, <1>6, <1>7, <1>8, <1>9 DEF Next
+    BY <1>1, <1>2, <1>3, <1>4, <1>5, <1>6, <1>7, <1>8 DEF Next
 
 THEOREM Turns == ASSUME Good PROVE Spec => []Inv_Places
   <1>1. Init => IndInv

@@ -288,23 +288,6 @@ Frame(s) ==
     /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabVars,
                     blocking, gone >>
 
-\* A loaded site's webview let go of, so the frame builds it afresh: a
-\* setting's rebuild, a reset, a renderer gone (BUG-002). Its history goes
-\* with it, and the site stays loaded; its view keeps its container and
-\* its DNS level, which the rebuilt one is told again.
-LetGo(s) ==
-    /\ Calm
-    /\ s \in Rebuilt
-    /\ s \in loaded
-    /\ s \in Tabbed
-    /\ built[s] # 0
-    /\ built' = [built EXCEPT ![s] = 0]
-    /\ hist' = [hist EXCEPT ![s] = 0]
-    /\ Did("LetGo", 0, "", s)
-    /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabs, active,
-                    queued, file, minted, host, link, opener, blocking,
-                    archived >>
-
 -----------------------------------------------------------------------------
 
 \* Every flow finished and the launch clear run: a behavior may end there,
@@ -332,9 +315,8 @@ Next ==
     \/ \E f \in Flows : FlowStep(f)
     \/ \E s \in Sites : ViewBuilt(s) \/ ViewGone(s)
     \/ \E s \in Sites : Frame(s)
-    \/ \E s \in Sites : LetGo(s)
-    \* The environment's actions the tables print: the frame of a let-go
-    \* site's webview (FrameTable).
+    \* The environment's actions the tables print: a loaded site's webview
+    \* let go of (LetGoTable) and its frame (FrameTable).
     \/ EnvTableStep
     \/ ClearJar
     \/ Done
