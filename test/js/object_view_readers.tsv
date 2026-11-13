@@ -1,0 +1,18 @@
+# The files that still read the runtime's variables as the sites themselves
+# (SiteRuntime.objectVars, or a RuntimeVars<WebViewModel> a host hands on),
+# and the table each serves. Each moves to the id view (SiteRuntime.vars) in
+# its own PR and leaves this list, which only shrinks; the last one deletes
+# objectVars and closes CONT-012 (docs/security/policy_debt.tsv).
+# file	what reads it
+lib/controllers/activation_flow.dart	the activation's world: its residency record and the operators it runs
+lib/controllers/activation_table.dart	the activation table's leaves
+lib/controllers/site_import.dart	the import table's leaves and its residency host
+lib/controllers/tab_table.dart	the tab tables' leaves
+lib/screens/webspace_page_residency.dart	the page's residency host for the unload engine
+lib/services/cookie_isolation.dart	the jar's unload and restore worlds
+lib/services/site_unload_engine.dart	the unload engine's residency host and leaves
+test/cookie_isolation_integration_test.dart	the jar harness's runtime variables
+test/formal_model/mutants.dart	the planted tables, which copy the code's leaves
+test/helpers/activation_page.dart	the activation fixture's residency host
+test/helpers/site_list_state.dart	the test site list's residency host
+test/helpers/walk/activation_world.dart	the walk's hosts for the activation and the wake

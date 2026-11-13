@@ -388,6 +388,24 @@ void main() {
     expect(shared.value, isNot(same(owner)), reason: 'a read is a fresh copy');
   });
 
+  test('a variable keyed by an id reads and writes the entry its key '
+      'resolves to, and prints as the variable (CONT-012)', () {
+    final held = {'a': 1, 'b': 2};
+    final cell = SharedAt<String, int>(
+      ModelVar.active,
+      read: (at) => held[at]!,
+      write: (at, {required to}) => held[at] = to,
+    );
+    final byId = Indexed<String, int, _World>.over(ModelVar.active, cell: cell)
+        .keyedBy<int>((_, {required key}) => key == 1 ? 'a' : 'b');
+    final c = StepContext(_World());
+    final one = Expr.constant<int, _World>(1, tla: '1');
+    expect(byId.at(one).run(c), 1);
+    expect(byId.at(one).tla, 'active[1]');
+    byId.except(one, to: Expr.constant<int, _World>(7, tla: '7')).stage(c)();
+    expect(held, {'a': 7, 'b': 2});
+  });
+
   test('a rearrangement keeps what the model holds, so it takes no step '
       '(TAB-015)', () {
     final lists = <int, List<int>>{0: [1, 2, 3]};

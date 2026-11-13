@@ -40,12 +40,12 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
   /// bumps as `SiteActivationController` does.
   @override
   late final RuntimeVars<WebViewModel> vars = RuntimeVars(
-    loaded: runtime.vars.loaded,
-    current: runtime.vars.current,
-    marker: runtime.vars.marker,
-    nested: runtime.vars.nested,
-    headless: runtime.vars.headless,
-    fore: runtime.vars.fore,
+    loaded: runtime.objectVars.loaded,
+    current: runtime.objectVars.current,
+    marker: runtime.objectVars.marker,
+    nested: runtime.objectVars.nested,
+    headless: runtime.objectVars.headless,
+    fore: runtime.objectVars.fore,
     version: Shared(ModelVar.version, read: () => version, write: (to) => version = to),
   );
 

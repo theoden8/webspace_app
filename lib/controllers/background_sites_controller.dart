@@ -68,7 +68,7 @@ class BackgroundSitesController {
 
   final SiteRuntime _sites;
   final BackgroundSitesHost _host;
-  final BackgroundWakeEngine<WebViewModel> _wakeEngine = BackgroundWakeEngine(
+  final BackgroundWakeEngine<SiteId> _wakeEngine = BackgroundWakeEngine(
       task: hostIsIOS ? WakeTask.iosRefresh : WakeTask.androidWorker);
   Timer? _foregroundPollTimer;
 
@@ -406,7 +406,7 @@ class BackgroundSitesController {
   }
 }
 
-class _WakeHost implements BackgroundWakeHost<WebViewModel> {
+class _WakeHost implements BackgroundWakeHost<SiteId> {
   _WakeHost(this._sites, {required BackgroundSitesHost host}) : _host = host;
 
   final SiteRuntime _sites;
@@ -416,14 +416,19 @@ class _WakeHost implements BackgroundWakeHost<WebViewModel> {
   /// themselves are the runtime's `headless`, which the table writes.
   final Map<SiteId, HeadlessSiteCheck> _headless = {};
 
-  @override
-  RuntimeVars<WebViewModel> get vars => _sites.vars;
+  /// The sites the wake was handed to plan, by id: what a check asks of a
+  /// site's route once a delete has taken it off the list (CONT-012).
+  Map<SiteId, WebViewModel> _planned = const {};
 
   @override
-  WebViewModel siteOf(SiteId siteId) => _sites.byId(siteId)!;
+  RuntimeVars<SiteId> get vars => _sites.vars;
 
   @override
-  bool routeFree(WebViewModel site) => _host.routeFree(site);
+  SiteId siteOf(SiteId siteId) => siteId;
+
+  @override
+  bool routeFree(SiteId site) =>
+      _host.routeFree(_planned[site] ?? _sites.byId(site)!);
 
   @override
   bool get nestedOpening => _host.nestedOpening;
@@ -439,6 +444,7 @@ class _WakeHost implements BackgroundWakeHost<WebViewModel> {
       torUp: TorService.instance.status.isUp,
     );
     final models = _sites.models;
+    _planned = {for (final m in models) m.siteId: m};
     return [
       for (var i = 0; i < models.length; i++)
         wakeCandidateFor(

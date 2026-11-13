@@ -12,6 +12,7 @@ import 'package:webspace/services/step_flow.dart';
 import 'package:webspace/services/step_table.dart';
 import 'package:webspace/controllers/tab_vars.dart';
 import 'package:webspace/services/tab_leaves.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// What a delete asks of the page beside its commit.
@@ -127,24 +128,24 @@ final _deleteRetirePort = Port<Future<void> Function(), DeleteFlow>(
 );
 
 final _deleteKind = Field<FlowKind, DeleteFlow>(FlowField.kind);
-final _deleteSite = Field<WebViewModel, DeleteFlow>(FlowField.site);
+final _deleteSite = Field<SiteId, DeleteFlow>(FlowField.site);
 
 /// The site a delete names, `s` in the model, from the listed sites a world
 /// lets it delete (`Deletable`).
-final _eachDeletable = Pick<WebViewModel, DeleteFlow>(
+final _eachDeletable = Pick<SiteId, DeleteFlow>(
   Expr.op(
     HandPaired.deletableSites,
     tla: r'Listed \cap Deletable',
-    run: (c) => [_deleteNamed.from(c).site], reads: const Reads(base: {BaseOp.listed}),
+    run: (c) => [_deleteNamed.from(c).site.siteId], reads: const Reads(base: {BaseOp.listed}),
     needs: const {(of: ModelConst.deletable, set: true)},
   ),
 );
 
-final _deleteLoaded = Mutable<Iterable<WebViewModel>, DeleteFlow>.over(
+final _deleteLoaded = Mutable<Iterable<SiteId>, DeleteFlow>.over(
   ModelVar.loaded,
   of: (w) => w._sites.vars.loaded,
 );
-final _deleteCurrent = Mutable<WebViewModel?, DeleteFlow>.over(
+final _deleteCurrent = Mutable<SiteId?, DeleteFlow>.over(
   ModelVar.current,
   of: (w) => w._sites.vars.current,
 );
@@ -152,16 +153,16 @@ final _deleteVersion = Mutable<int, DeleteFlow>.over(
   ModelVar.version,
   of: (w) => w._sites.vars.version,
 );
-final _deleteGone = Mutable<Iterable<WebViewModel>, DeleteFlow>.remote(
+final _deleteGone = Mutable<Iterable<SiteId>, DeleteFlow>.remote(
   ModelVar.gone,
 );
-final _deleteViews = Mutable<Iterable<WebViewModel>, DeleteFlow>.remote(
+final _deleteViews = Mutable<Iterable<SiteId>, DeleteFlow>.remote(
   ModelVar.views,
 );
-final _deleteBoxes = Mutable<Iterable<WebViewModel>, DeleteFlow>.remote(
+final _deleteBoxes = Mutable<Iterable<SiteId>, DeleteFlow>.remote(
   ModelVar.boxes,
 );
-final _deleteNoSite = Expr.constant<WebViewModel?, DeleteFlow>(null, tla: '0');
+final _deleteNoSite = Expr.constant<SiteId?, DeleteFlow>(null, tla: '0');
 
 /// Another delete of the site took it off the list first.
 final _deleteAlreadyGone = Expr.op<bool, DeleteFlow>(
@@ -173,7 +174,7 @@ final _deleteAlreadyGone = Expr.op<bool, DeleteFlow>(
 final _deleteDone = GoTo<DeleteFlow, DeletePlace>(to(DeletePlace.done));
 
 /// Its container, unless a mounted webview still binds it.
-final _deleteRetire = retireContainers<WebViewModel, DeleteFlow, DeletePlace>(
+final _deleteRetire = retireContainers<SiteId, DeleteFlow, DeletePlace>(
   ActivationStep.deleteRetireReply,
   at: DeletePlace.dRetire,
   port: _deleteRetirePort,
