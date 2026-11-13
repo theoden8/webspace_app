@@ -244,6 +244,7 @@ Tables _with({
   StepTable<DeleteFlow, DeletePlace>? delete,
   StepTable<ImportFlow, ImportPlace>? import,
   StepTable<ImportFlow, ImportPlace>? importTurn,
+  StepTable<FrameWorld, FramePlace>? frame,
   List<Def<Object?, Object?>>? ops,
 }) => (
   activation: activation ?? tables.activation,
@@ -258,6 +259,7 @@ Tables _with({
   delete: delete ?? tables.delete,
   import: import ?? tables.import,
   importTurn: importTurn ?? tables.importTurn,
+  frame: frame ?? tables.frame,
   ops: ops ?? tables.ops,
 );
 

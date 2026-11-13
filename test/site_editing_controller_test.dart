@@ -309,7 +309,7 @@ void main() {
   test('an edited URL rebuilds the webview at it (EDIT-004)', () async {
     site.webview = SizedBox.fromSize();
     site.controller = FakeWebViewController();
-    site.tabBinding.bind(site.activeTabId, commit: const Commit.fixture());
+    site.tabBinding.frame(site.activeTabId, commit: const Commit.fixture());
     await controller(_Prompts((
       name: 'Example',
       url: 'https://newsite.com/',

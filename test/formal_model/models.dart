@@ -16,6 +16,7 @@ import 'package:webspace/controllers/archive_controller.dart';
 import 'package:webspace/controllers/activation_place.dart';
 import 'package:webspace/controllers/activation_flow.dart';
 import 'package:webspace/controllers/activation_table.dart';
+import 'package:webspace/controllers/frame_table.dart';
 import 'package:webspace/controllers/site_deletion.dart';
 import 'package:webspace/controllers/site_import.dart';
 import 'package:webspace/controllers/tab_vars.dart';
@@ -53,6 +54,7 @@ typedef Tables = ({
   StepTable<DeleteFlow, DeletePlace> delete,
   StepTable<ImportFlow, ImportPlace> import,
   StepTable<ImportFlow, ImportPlace> importTurn,
+  StepTable<FrameWorld, FramePlace> frame,
   List<Def<Object?, Object?>> ops,
 });
 
@@ -114,6 +116,7 @@ final Tables tables = (
   delete: SiteDeletion.deleteTable,
   import: SiteImport.importTable,
   importTurn: SiteImport.turnTable,
+  frame: FrameTable.table,
   ops: definitions,
 );
 
@@ -132,6 +135,7 @@ enum ModelTable {
   delete,
   import,
   importTurn,
+  frame,
 }
 
 StepTable<Object?, Enum> _table(Tables t, {required ModelTable of}) =>
@@ -148,6 +152,7 @@ StepTable<Object?, Enum> _table(Tables t, {required ModelTable of}) =>
       ModelTable.delete => t.delete,
       ModelTable.import => t.import,
       ModelTable.importTurn => t.importTurn,
+      ModelTable.frame => t.frame,
     };
 
 List<StepTable<Object?, Enum>> _all(Tables t) => [

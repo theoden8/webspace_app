@@ -12,6 +12,7 @@ import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/activation_host.dart';
 import 'package:webspace/controllers/archive_controller.dart';
+import 'package:webspace/controllers/frame_table.dart';
 import 'package:webspace/controllers/site_activation_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/shell_store.dart';
@@ -1966,31 +1967,33 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// without a webview gets one, built as `WebViewModel.getWebView` builds
   /// it, for the active tab and from the back stack queued for that tab.
   /// A step's own rebuild is not a [frame]: a site let go of waits for the
-  /// frame, which builds it again as the environment's `Reframe`.
+  /// frame, which builds it again in the environment's step
+  /// (`FrameTable`, `Reframe`).
   void _buildWebViews({bool frame = true}) {
     for (final m in sites.loaded) {
       if (m.controller != null) continue;
       if (!_letGo.contains(m)) {
-        _buildWebView(m);
+        _buildWebView(m, commit: const Commit.environment(Environment.frame));
       } else if (frame) {
-        inFlow(flow: _frameFlow, () {
-          _buildWebView(m);
-          ActivationSteps.mark(ActivationStep.reframe, site: m);
-        });
+        inFlow(
+          flow: _frameFlow,
+          () => FrameTable.reframe(
+            sites,
+            site: m,
+            build: ({required commit}) => _buildWebView(m, commit: commit),
+          ),
+        );
       }
     }
     // One no longer loaded awaits no frame.
     if (frame) _letGo.clear();
   }
 
-  /// [m]'s webview, as `WebViewModel.getWebView` builds it.
-  void _buildWebView(WebViewModel m) {
+  /// [m]'s webview, as the platform builds it from what the frame hands it
+  /// in [commit] (`WebViewTabBinding.frame`).
+  void _buildWebView(WebViewModel m, {required Commit commit}) {
     final tab = m.activeTabId;
-    m.tabBinding.bind(tab, commit: const Commit.environment(Environment.frame));
-    final bytes = m.tabBinding.take(
-      tab: tab,
-      commit: const Commit.environment(Environment.frame),
-    );
+    final bytes = m.tabBinding.frame(tab, commit: commit);
     m.controller = FakeWebViewController()
       ..pace = _webViewPace
       ..history = bytes ?? _historyOf(tab);

@@ -116,15 +116,14 @@ void f(WebViewModel m) {
   m.activeTabId = m.activeTabId;
   m.lifecycleState = m.lifecycleState;
   m.tabBinding.queue(Uint8List(0), tab: m.activeTabId);
-  m.tabBinding.bind(m.activeTabId);
-  m.tabBinding.take(tab: m.activeTabId);
+  m.tabBinding.frame(m.activeTabId);
   m.tabBinding.unbind();
   m.disposeWebView();
 }
 ''');
     expect(errors, [
       ...List.filled(3, 'assignment_to_final_no_setter'),
-      ...List.filled(5, 'missing_required_argument'),
+      ...List.filled(4, 'missing_required_argument'),
     ], reason: 'tabs, active and tier have no setter outside a commit, and '
         'queued and built, which the frame and a dispose write, are written '
         'only with one');
@@ -148,7 +147,7 @@ void f(WebViewModel m) {
       at: m, to: m.tabs, commit: const Commit.environment(Environment.join));
   m.tabBinding.queue(Uint8List(0),
       tab: m.activeTabId, commit: const Commit.environment(Environment.frame));
-  m.tabBinding.bind(m.activeTabId,
+  m.tabBinding.frame(m.activeTabId,
       commit: const Commit.environment(Environment.frame));
   m.disposeWebView(commit: const Commit.environment(Environment.letGo));
 }

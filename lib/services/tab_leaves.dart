@@ -63,6 +63,12 @@ Def<bool, W> takesOf<W>() {
 Members<S, W> tabbedOf<S, W>() =>
     Members(ModelConst.tabbed, test: (_, {required member}) => true);
 
+/// The sites whose webview the environment may let go of and frame again
+/// (`Rebuilt`): every site's in the code, so a config picks the few it
+/// checks.
+Members<S, W> rebuiltOf<S, W>() =>
+    Members(ModelConst.rebuilt, test: (_, {required member}) => true);
+
 /// The webview went: nothing is built or shown for the site.
 List<Write<W>> webViewGone<S, W>(Expr<S, W> site) => [
   builtOf<S, W>().becomes(builtOf<S, W>().value.except(site, to: noTab())),
