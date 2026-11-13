@@ -38,6 +38,8 @@ import os
 import re
 import sys
 
+import tla_text
+
 IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 HEAD = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)(\([^)]*\))?\s*==")
 NAMES = re.compile(r"\b(?:EXTENDS|INSTANCE)\s+([A-Za-z0-9_]+(?:\s*,\s*[A-Za-z0-9_]+)*)")
@@ -49,33 +51,8 @@ class Unkeyed(Exception):
 
 def code(text):
     """The text with comments and strings blanked, so what is left names
-    only what the module refers to. Block comments nest."""
-    out, i, depth, n = [], 0, 0, len(text)
-    while i < n:
-        two = text[i:i + 2]
-        if depth:
-            if two == "(*":
-                depth, i = depth + 1, i + 2
-            elif two == "*)":
-                depth, i = depth - 1, i + 2
-            else:
-                i += 1
-            continue
-        if two == "(*":
-            depth, i = 1, i + 2
-        elif two == "\\*":
-            while i < n and text[i] != "\n":
-                i += 1
-        elif text[i] == '"':
-            i += 1
-            while i < n and text[i] != '"':
-                i += 2 if text[i] == "\\" else 1
-            i += 1
-            out.append('""')
-        else:
-            out.append(text[i])
-            i += 1
-    return "".join(out)
+    only what the module refers to."""
+    return tla_text.code(text, keep_strings=False)
 
 
 def idents(text):
