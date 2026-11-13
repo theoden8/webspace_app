@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 
+import 'package:webspace/controllers/let_go_table.dart';
 import 'package:webspace/controllers/app_lifecycle_controller.dart';
 import 'package:webspace/controllers/archive_controller.dart';
 import 'package:webspace/controllers/back_gesture_controller.dart';
@@ -369,6 +370,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             onScriptsChanged: _resets.resetShown,
             onClearCookies: () => _clearSiteData(model),
             onSettingsSaved: _resets.settingsSaved,
+            letGo: () => LetGoTable.letGo(_sites, site: model),
             onProxyChanging: () => _beforeProxyChange(model),
           ),
         ),
@@ -676,6 +678,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     routeOutbound: _links.routeOutbound,
     linkMenu: _showLinkLongPressMenu,
     firstPageLoaded: _editing.offerRedirectHome,
+    rendererGone: _lifecycle.rendererGone,
   );
 
   Future<void> launchUrl(
@@ -804,11 +807,11 @@ class _WebSpacePageState extends State<WebSpacePage>
       case Containers(:final engine):
         await engine.clearForSite(model.containerKey);
         setState(() {
-          model.disposeWebView(commit: const Commit.environment(Environment.letGo));
+          LetGoTable.letGo(_sites, site: model);
           // LIR-023: a slot running as this site binds the cleared container.
           for (final other in _sites.models) {
             if (other.activeTab.hostSiteId == model.siteId) {
-              other.disposeWebView(commit: const Commit.environment(Environment.letGo));
+              LetGoTable.letGo(_sites, site: other);
             }
           }
           // Until the new webview's first load reports its own.

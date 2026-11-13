@@ -36,7 +36,7 @@ void main() {
       write: () async {},
     );
 
-    a.disposeWebView(commit: const Commit.environment(Environment.letGo));
+    a.disposeWebView(commit: const Commit.fixture());
     expect(a.controller, isNull);
     ({bool blocked, bool stopped})? whenMoved;
     await rule.claim(
@@ -70,7 +70,7 @@ void main() {
       route: _route('a:8080'),
       write: () async {},
     );
-    a.disposeWebView(commit: const Commit.environment(Environment.letGo));
+    a.disposeWebView(commit: const Commit.fixture());
     expect(rule.occupants, isEmpty);
   });
 }

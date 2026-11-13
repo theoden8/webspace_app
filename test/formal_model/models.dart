@@ -17,6 +17,7 @@ import 'package:webspace/controllers/activation_place.dart';
 import 'package:webspace/controllers/activation_flow.dart';
 import 'package:webspace/controllers/activation_table.dart';
 import 'package:webspace/controllers/frame_table.dart';
+import 'package:webspace/controllers/let_go_table.dart';
 import 'package:webspace/controllers/site_deletion.dart';
 import 'package:webspace/controllers/site_import.dart';
 import 'package:webspace/controllers/tab_vars.dart';
@@ -55,6 +56,7 @@ typedef Tables = ({
   StepTable<ImportFlow, ImportPlace> import,
   StepTable<ImportFlow, ImportPlace> importTurn,
   StepTable<FrameWorld, FramePlace> frame,
+  StepTable<LetGoWorld, LetGoPlace> letGo,
   List<Def<Object?, Object?>> ops,
 });
 
@@ -117,6 +119,7 @@ final Tables tables = (
   import: SiteImport.importTable,
   importTurn: SiteImport.turnTable,
   frame: FrameTable.table,
+  letGo: LetGoTable.table,
   ops: definitions,
 );
 
@@ -136,6 +139,7 @@ enum ModelTable {
   import,
   importTurn,
   frame,
+  letGo,
 }
 
 StepTable<Object?, Enum> _table(Tables t, {required ModelTable of}) =>
@@ -153,6 +157,7 @@ StepTable<Object?, Enum> _table(Tables t, {required ModelTable of}) =>
       ModelTable.import => t.import,
       ModelTable.importTurn => t.importTurn,
       ModelTable.frame => t.frame,
+      ModelTable.letGo => t.letGo,
     };
 
 List<StepTable<Object?, Enum>> _all(Tables t) => [

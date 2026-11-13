@@ -314,7 +314,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         // BUG-002 gap #1: the OS can kill this nested webview's renderer
         // (memory reclaim while backgrounded, or a page-induced crash),
         // leaving a dead black surface. Destroy-and-rebuild on the event,
-        // mirroring the main screen's handleRendererGone.
+        // mirroring the page's rendererGone.
         onRendererGone: _handleRendererGone,
         // Ungated, unlike the commit-settled trigger below: this fires when
         // the WebView has pixels, and the 15s commit window can close before

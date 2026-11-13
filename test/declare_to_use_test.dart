@@ -149,7 +149,6 @@ void f(WebViewModel m) {
       tab: m.activeTabId, commit: const Commit.environment(Environment.frame));
   m.tabBinding.frame(m.activeTabId,
       commit: const Commit.environment(Environment.frame));
-  m.disposeWebView(commit: const Commit.environment(Environment.letGo));
 }
 ''');
     expect(errors, isEmpty, reason: 'the probe fails only for the commit');

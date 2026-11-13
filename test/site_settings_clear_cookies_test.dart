@@ -20,6 +20,7 @@ Future<void> _clear(WidgetTester tester,
       home: SettingsScreen(
         webViewModel: WebViewModel(initUrl: 'https://example.com/'),
         appTheme: WebViewTheme.system,
+        letGo: () {},
         isolation: fakeSharedJar(),
         onClearCookies: onClearCookies,
       ));

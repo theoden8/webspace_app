@@ -307,6 +307,8 @@ void main() {
   /// edit that only cleared the widget left the tab bound, the route held
   /// and the page's media controls up, with no webview behind them.
   test('an edited URL rebuilds the webview at it (EDIT-004)', () async {
+    // A built webview is a loaded site's.
+    sites.seed(loaded: [site], shown: site);
     site.webview = SizedBox.fromSize();
     site.controller = FakeWebViewController();
     site.tabBinding.frame(site.activeTabId, commit: const Commit.fixture());

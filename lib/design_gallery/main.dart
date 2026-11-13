@@ -1103,6 +1103,7 @@ Widget _siteSettings(BuildContext _) {
   return SettingsScreen(
     webViewModel: model,
     appTheme: WebViewTheme.system,
+    letGo: () {},
     isolation: Containers(
       engine: ContainerIsolationEngine(
         containerNative: ContainerNative.instance,

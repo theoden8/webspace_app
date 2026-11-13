@@ -96,6 +96,11 @@ abstract interface class SiteModels implements SitesById {
   WebViewModel siteOf(SiteId id);
 }
 
+/// How a webview ended: a live one quiets before it leaves the route it ran
+/// on; one whose renderer died (BUG-002) loads nothing more, so it leaves at
+/// once.
+enum WebViewEnd { live, rendererGone }
+
 class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, BackedUpSite, EngineSite {
   @override
   final SiteId siteId;
@@ -1101,8 +1106,8 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
 
   /// Where the store binds the proxy (iOS, macOS, Linux),
   /// it is sealed into the site's network store at WebView construction
-  /// time. To pick up the new value, the live WebView is discarded so the
-  /// next render reconstructs it with the new
+  /// time. To pick up the new value, the live WebView is let go of by
+  /// [letGo] so the next render reconstructs it with the new
   /// `inapp.InAppWebViewSettings.proxySettings` dictionary. The caller MUST
   /// trigger a rebuild (typically via `setState`) so the IndexedStack
   /// actually re-creates the slot.
@@ -1115,11 +1120,14 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
   /// Elsewhere only a live webview takes the new rule now; one built later
   /// takes it then, so a site with none never moves the process-wide rule
   /// under the sites that run (PROXY-008).
-  Future<void> updateProxySettings(UserProxySettings newSettings) async {
+  Future<void> updateProxySettings(
+    UserProxySettings newSettings, {
+    required void Function() letGo,
+  }) async {
     proxySettings = newSettings;
     switch (ProxyManager.binding) {
       case ProxyBinding.perSite || ProxyBinding.routed:
-        disposeWebView(commit: const Commit.environment(Environment.letGo));
+        letGo();
       case ProxyBinding.processWide:
         if (controller != null) await _applyProxySettings();
     }
@@ -1508,7 +1516,8 @@ bool dispatch(NavigationDecision decision,
           },
           cacheFirst: cacheFirst,
           initialHtml: initialHtml,
-          onRendererGone: handleRendererGone,
+          onRendererGone: ({required didCrash}) =>
+              hooks.rendererGone(this, didCrash: didCrash),
           onPageCommitVisible: () => onPageCommitVisible?.call(),
           passkeys: PasskeyAccess.forHost(
             enabled: posture.container.passkeys,
@@ -1631,33 +1640,25 @@ bool dispatch(NavigationDecision decision,
     cookies = [];
   }
 
-  /// Drop the cached webview widget and controller, then ask the host to
-  /// rebuild. Used when the renderer process is killed (Android `onRender-
-  /// ProcessGone`, iOS/macOS `onWebContentProcessDidTerminate`) — the view
-  /// is alive but has no renderer driving it, which paints as a black
-  /// surface on resume from background (issue #333). Recreation is the only
-  /// supported recovery per Android docs; the native WebView cannot recover
-  /// in place. The user loses the live JS heap and DOM, which is unavoidable
-  /// since the process holding them is gone — `currentUrl` is reloaded so
-  /// the back-/forward stack is the only thing dropped.
-  void handleRendererGone({required bool didCrash}) {
-    LogTag.webView.debug(
-        'Renderer gone for "$name" (siteId: $siteId, didCrash: $didCrash) — recreating');
-    // A dead renderer loads nothing more, so nothing is left to quiet.
-    _letGoOfWebView(
-      view: null,
-      commit: const Commit.environment(Environment.letGo),
-    );
-    stateSetterF?.call();
-  }
-
   /// Lets go of the webview, in [commit]: an unload's, the commit that takes
-  /// the site off the list, or a named rebuild.
-  void disposeWebView({required Commit commit}) {
+  /// the site off the list, or the environment's let-go (`LetGoTable`), as
+  /// [end] says it ended.
+  @override
+  void disposeWebView({
+    required Commit commit,
+    WebViewEnd end = WebViewEnd.live,
+  }) {
     LogTag.webView.debug(
-        'disposeWebView called for "$name" (siteId: $siteId)\n${StackTrace.current}',
+        'disposeWebView called for "$name" (siteId: $siteId, $end)\n${StackTrace.current}',
         sensitive: true);
-    _letGoOfWebView(view: controller, commit: commit);
+    _letGoOfWebView(
+      view: switch (end) {
+        WebViewEnd.live => controller,
+        // A dead renderer loads nothing more, so nothing is left to quiet.
+        WebViewEnd.rendererGone => null,
+      },
+      commit: commit,
+    );
   }
 
   /// The webview and its controller go, and with them what they held: the

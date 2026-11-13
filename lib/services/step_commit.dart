@@ -52,11 +52,6 @@ enum Environment {
   /// (`Join(s)`): an add, an archive's open.
   join,
 
-  /// A loaded site's webview let go of so the frame builds it afresh
-  /// (`LetGo(s)`): a changed posture, proxy, user script, Tor binding or
-  /// address, a data clear, a reset, a renderer gone (BUG-002), a move
-  /// into an archive or out, onto the other tier's container.
-  letGo,
 }
 
 /// An input the code marks by hand ([ActivationSteps.mark]) and what it

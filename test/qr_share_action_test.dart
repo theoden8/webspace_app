@@ -18,6 +18,7 @@ Future<void> _settings(WidgetTester tester, {required String url}) async {
   await tester.pumpWidget(localizedApp(SettingsScreen(
       webViewModel: WebViewModel(initUrl: url),
       appTheme: WebViewTheme.system,
+      letGo: () {},
       isolation: fakeContainers(),
     )));
   await tester.pumpAndSettle();
