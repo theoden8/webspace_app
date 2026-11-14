@@ -477,6 +477,42 @@ void main() {
         reason: 'the turn was let go');
   });
 
+  test('ARCH-016: a site listed between an archive\'s admission and its land '
+      'leaves the archive\'s site an id of its own, sealed and kept as before '
+      '(BUG-046)', () async {
+    final h = ArchiveHarness();
+    final id = SiteId.parse('shared')!;
+    final archived = _away(id);
+    h.load([archived]);
+    await h.archives.moveIn(archived);
+    final container = archived.archiveContainerKey;
+    await h.archives.closeArchiveOf(archived);
+    expect(h.runtime.models, isEmpty);
+
+    final held = h.holdOpenCommit();
+    final opening = h.archives.open(archivePassphrase);
+    await held.started;
+    // Another change of the lists lands between the open's admission and
+    // its commit, listing a site under the id the archive seals.
+    final listed = _away(id);
+    h.runtime.applied(SiteAdded(listed));
+    held.release();
+    expect(await opening, isNotNull);
+
+    final ids = [for (final m in h.runtime.models) m.siteId];
+    expect(ids.toSet(), hasLength(2),
+        reason: 'two listed sites never share an id');
+    final opened = h.runtime.models.singleWhere((m) => m.isArchiveTier);
+    expect(opened.siteId, isNot(id));
+    expect(opened.archiveContainerKey, container,
+        reason: 'its container is still the one sealed under its id');
+
+    await h.archives.closeArchiveOf(opened);
+    expect(h.runtime.models, [same(listed)]);
+    expect((await _sealedShapes(h)).keys, [id],
+        reason: 'sealed under the id it was archived under');
+  });
+
   test('ARCH-016: two sites an older build sealed under one id run under two, '
       'each with a container of its own, and seal apart', () async {
     final h = ArchiveHarness();

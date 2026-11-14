@@ -25,13 +25,6 @@ enum EnvAction {
     },
     writes: {ModelVar.rows},
   ),
-  join(
-    next: r'nested = 0 /\ fore /\ \E s \in Sites : Join(s)',
-    coverage: r'InputStep@nested = 0 /\ fore /\ \E s \in Sites : Join(s)',
-    reads: {ModelVar.fore, ModelVar.gone, ModelVar.ids, ModelVar.nested},
-    writes: {ModelVar.gone, ModelVar.ids},
-    needs: {(of: ModelConst.joining, set: true)},
-  ),
   login(
     next: r'\E s \in Sites : Login(s)',
     coverage: 'Login',
