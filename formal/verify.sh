@@ -16,10 +16,16 @@
 #   LEVELS   levels.py: no count of what was checked falls below
 #            formal/levels.tsv
 #
-# usage: verify.sh [--fast | --stage prepare|schedules|models|steps|proofs|finish]
+# usage: verify.sh [--fast | --resume | --stage prepare|schedules|models|steps|proofs|finish]
 #   --fast   PRINT without the traces, LEAN, then check.sh's ACTIVATION
 #            section: the step tables against the model and their mutants,
 #            in about four minutes on four cores
+#   --resume the whole run, keeping build/formal: the printed model and each
+#            schedule shard are kept while input_key.py's key (the files, the
+#            schedule and walk variables, the Flutter version) is the one they
+#            were made under, and MODELS, STEPS and PROOFS take what their
+#            memos hold. The memos live in FORMAL_CACHE and TLAPM_CACHE_DIR;
+#            point both at a path that outlives the machine to resume there.
 #
 # --stage runs the same phase independently for CI; finish requires the
 # complete prepared registry, all model shards, replay and proof summaries.
@@ -29,12 +35,14 @@
 set -euo pipefail
 
 FAST=0
+RESUME=0
 STAGE=all
 case "${1:-}" in
   --fast) FAST=1 ;;
+  --resume) RESUME=1 ;;
   --stage) STAGE="${2:-}" ;;
   "") ;;
-  *) echo "usage: $0 [--fast | --stage prepare|schedules|models|steps|proofs|finish]" >&2; exit 2 ;;
+  *) echo "usage: $0 [--fast | --resume | --stage prepare|schedules|models|steps|proofs|finish]" >&2; exit 2 ;;
 esac
 case "$STAGE" in
   all|prepare|schedules|models|steps|proofs|finish) ;;
@@ -51,9 +59,22 @@ if [ "$FAST" -eq 0 ] && { [ "$STAGE" = all ] || [ "$STAGE" = proofs ]; }; then
 fi
 cd "$ROOT"
 mkdir -p "$OUT"
+KEY=""
+if [ "$RESUME" -eq 1 ]; then
+  KEY="$(python3 -I "$ROOT/formal/input_key.py" "$ROOT" --tool "$($FLUTTER --version --machine 2>&1)")"
+fi
+
+# kept <stamp> <what>: the stamp names this run's key, so the stage it marks
+# is reused.
+kept() { [ "$RESUME" -eq 1 ] && [ -f "$1" ] && [ "$(cat "$1")" = "$KEY${2:+ $2}" ]; }
 
 prepare() {
   echo "══ PRINT: the modules the code defines ══"
+  if kept "$OUT/model/.key"; then
+    echo "  KEPT the printed model, made under this key"
+    return 0
+  fi
+  rm -rf "$OUT/model"
   local status=0 jar="${TLA2TOOLS_JAR:-$ROOT/formal/tla2tools.jar}"
   case "$jar" in /*) ;; *) jar="$ROOT/formal/$jar" ;; esac
   FORMAL_OUT="$OUT/model" $FLUTTER test test/formal_model/main.dart || status=$?
@@ -65,26 +86,60 @@ prepare() {
   fi
   FORMAL_MODEL="$OUT/model" FORMAL_MANIFEST="$OUT/model/checks_registry.tsv" \
     TLA2TOOLS_JAR="$OUT/model/tla2tools.jar" "$ROOT/formal/check.sh" --plan
+  if [ "$RESUME" -eq 1 ]; then echo "$KEY" >"$OUT/model/.key"; fi
+}
+
+# reap_shard: waits for the next schedule shard to end; stamps it under
+# --resume when it passed, and keeps the failure's status otherwise.
+reap_shard() {
+  local done="" rc=0
+  wait -n -p done || rc=$?
+  local i="${shard_of[$done]}"
+  unset "shard_of[$done]"
+  if [ "$rc" -ne 0 ]; then
+    status=$rc
+  elif [ "$RESUME" -eq 1 ]; then
+    mkdir -p "$OUT/steps/$i"
+    echo "$KEY $i/$shards" >"$OUT/steps/$i/.key"
+  fi
 }
 
 schedules() {
   echo "══ SCHEDULES: explore interleavings and record their traces ══"
-  rm -rf "$OUT/steps"
+  [ "$RESUME" -eq 1 ] || rm -rf "$OUT/steps"
   # The schedules record their traces in FORMAL_SLOTS shards side by side,
   # each into its own directory. The largest sweeps split their scripts
   # across shards; other tests run every nth test (SCHEDULE_SHARD).
   # The replay merges a configuration's shards into one trie, so what it
   # replays and counts is the same however many ran.
   shards="${FORMAL_SLOTS:-$(getconf _NPROCESSORS_ONLN)}"
-  pids=""
+  # At most FORMAL_PARALLEL shards run at once (default: all of them). Under
+  # --resume each shard is stamped as it ends, so more shards than run at
+  # once lose at most the ones under way when a run is stopped.
+  parallel="${FORMAL_PARALLEL:-$shards}"
+  declare -A shard_of=()
+  status=0
+  # A shard of a run split another way would join the replay's merge.
+  for dir in "$OUT"/steps/*/; do
+    [ -d "$dir" ] || continue
+    i="$(basename "$dir")"
+    case "$i" in *[!0-9]*) rm -rf "$dir"; continue ;; esac
+    [ "$i" -lt "$shards" ] || rm -rf "$dir"
+  done
   for i in $(seq 0 $((shards - 1))); do
+    if kept "$OUT/steps/$i/.key" "$i/$shards"; then
+      printf '  KEPT schedule shard %s/%s, recorded under this key\n' "$((i + 1))" "$shards"
+      continue
+    fi
+    while [ "${#shard_of[@]}" -ge "$parallel" ]; do reap_shard; done
+    rm -rf "$OUT/steps/$i"
     printf '  START schedule shard %s/%s\n' "$((i + 1))" "$shards"
     # GitHub's default reporter has no timestamped loading line for the
     # startup handshake below, so it would serialize the entire shards.
     MODEL_STEPS_DIR="$OUT/steps/$i" SCHEDULE_SHARD="$i/$shards" \
       $FLUTTER test --reporter expanded test/activation_schedules_test.dart >"$OUT/steps.$i.log" 2>&1 &
     pid=$!
-    pids="$pids $pid"
+    shard_of[$pid]=$i
     # Each flutter test copies the test assets under build/ as it starts,
     # and two starting together race on the copy, so the next starts once
     # this one is loading its tests, or has ended.
@@ -93,8 +148,7 @@ schedules() {
       sleep 1
     done
   done
-  status=0
-  for pid in $pids; do wait "$pid" || status=$?; done
+  while [ "${#shard_of[@]}" -gt 0 ]; do reap_shard; done
   if [ "$status" -ne 0 ]; then
     cat "$OUT"/steps.*.log
     exit "$status"
@@ -174,7 +228,7 @@ case "$STAGE" in
   proofs) proofs ;;
   finish) finish ;;
   all)
-    rm -rf "$OUT"
+    if [ "$RESUME" -eq 0 ]; then rm -rf "$OUT"; fi
     mkdir -p "$OUT"
     prepare
     if [ "$FAST" -eq 0 ]; then schedules; fi
