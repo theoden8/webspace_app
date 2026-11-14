@@ -203,6 +203,24 @@ class ArchiveController {
             in handle.state.appTierMembership.entries)
           ws: [for (final id in members) ids.listed(id)],
       },
+      rebuilt: (rebuilt) {
+        final slice = _slices[handle]!;
+        for (final (:was, :now) in rebuilt) {
+          now
+            ..archiveContainerKey = was.archiveContainerKey
+            ..spoofTimezone = was.spoofTimezone;
+          final cookieList = handle.state.cookies[ids.archived(now.siteId)];
+          if (cookieList != null && cookieList.isNotEmpty) {
+            now.setPendingArchiveCookies([
+              for (final c in cookieList)
+                cookieFromJson(Map<String, dynamic>.from(c)),
+            ]);
+          }
+          slice.siteIds
+            ..remove(was.siteId)
+            ..add(now.siteId);
+        }
+      },
     ));
   }
 

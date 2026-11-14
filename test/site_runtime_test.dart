@@ -348,6 +348,7 @@ void main() {
           appTierMembership: {
             WebspaceId('w'): [SiteId('x')],
           },
+          rebuilt: (_) {},
         ),
       );
       expect(r.models.last.siteId, 'x');
@@ -365,6 +366,7 @@ void main() {
         sites: opened,
         webspaces: const [],
         appTierMembership: const {},
+        rebuilt: (_) {},
       ));
       final ids = [for (final m in r.models) m.siteId];
       expect(ids.toSet(), hasLength(ids.length), reason: 'ids stay unique');
@@ -426,6 +428,7 @@ void main() {
               listed: const {}, build: (_) => throw StateError('none')),
           webspaces: const [],
           appTierMembership: const {},
+          rebuilt: (_) {},
         ),
         const ArchiveClosed(sites: [], webspaceIds: {}),
         SiteArchived(_site(SiteId('a')), into: into),

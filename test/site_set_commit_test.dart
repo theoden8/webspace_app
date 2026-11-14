@@ -134,6 +134,7 @@ void main() {
                 listed: const {}, build: (_) => throw StateError('none')),
             webspaces: const [],
             appTierMembership: const {},
+            rebuilt: (_) {},
           ),
       (a) => ArchiveClosed(sites: [a], webspaceIds: const {}),
       (a) => SiteArchived(a, into: into),

@@ -364,14 +364,28 @@ class SiteRuntime implements SiteModels {
         sites: final opened,
         webspaces: final spaces,
         :final appTierMembership,
+        :final rebuilt,
       ):
+        // Admitted again against the rows as they are now: a change that
+        // listed a site since the open read them lands no clash (BUG-046).
+        final again = opened.readmit(listed: {for (final m in models) m.siteId});
+        final renamed = {for (final r in again) r.was.siteId: r.now.siteId};
+        SiteId named(SiteId id) => renamed[id] ?? id;
+        for (final w in spaces) {
+          w.siteIds = [for (final id in w.siteIds) named(id)];
+        }
         _assertUnlisted(opened.sites);
         models.addAll(opened.sites);
         webspaces.addAll(spaces);
         ArchiveMembershipEngine.attach(
           webspaces,
-          membership: appTierMembership,
+          membership: {
+            for (final MapEntry(key: ws, value: ids)
+                in appTierMembership.entries)
+              ws: [for (final id in ids) named(id)],
+          },
         );
+        if (again.isNotEmpty) rebuilt(again);
       case ArchiveClosed(sites: final leaving, :final webspaceIds):
         final closing = [
           for (final m in models)
