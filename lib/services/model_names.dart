@@ -118,6 +118,10 @@ enum ModelVar {
     'queued[s]: the back stack queued for the next build: the tab it was read for and the tab whose history it is (WebViewTabBinding.queued)',
     type: r'queued \in [Sites -> [t : TabIds \cup {0}, h : TabIds \cup {0}]]',
   ),
+  held(
+    'held[s]: the back stack the live build took and no controller restored yet: the tab it was read for and the tab whose history it is (WebViewTabBinding.held)',
+    type: r'held \in [Sites -> [t : TabIds \cup {0}, h : TabIds \cup {0}]]',
+  ),
   file(
     "file[s][t][h]: the tab whose history t's saved file under h's key holds, 0 for no file (WebViewStateStorage, webViewStateKey)",
     type: r'file \in [Sites -> [TabIds -> [Sites -> TabIds \cup {0}]]]',
@@ -381,6 +385,7 @@ enum ModelDef {
   takes,
   shown,
   taken,
+  handed,
   staged,
   resolveLevel;
 
@@ -473,6 +478,10 @@ enum StepTurn {
   /// A reply (`Calm`): it lands only while no flow is between two awaits,
   /// the model's statement of Dart's run-to-completion.
   reply,
+
+  /// One of the environment's actions (`Calm`), on no flow: it lands as an
+  /// event does, while no flow is between two awaits.
+  environment,
 }
 
 /// One step's action as the composition reads it: the place it waits at,

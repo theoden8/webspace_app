@@ -87,9 +87,10 @@ operation reads the jar while another has it emptied.**
 
 ## Known open gaps
 
-`clearUnloaded`'s guard reads the loaded set, which is safe only while it is
-the jar's first turn (at launch): no type holds a caller to that, so a later
-caller would reopen attempt 4's race. None otherwise for the engine's own
+`clearUnloaded` is safe only as the jar's first turn (at launch): the model
+grants its step only the turn the launch queued (`Launched_Jar`), and the code
+asserts that no site is loaded when the turn comes, so a later caller fails in
+a debug build, but no type holds a caller to the launch. None otherwise for the engine's own
 operations. A page's own cookie write that lands
 between a snapshot and its nuke is lost: the shared jar cannot order the page
 against the engine, which is what per-site containers remove. The walk's

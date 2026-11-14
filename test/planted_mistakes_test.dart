@@ -161,6 +161,12 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [Tap(1)],
     breaks: "the jar holds another site's cookies under loaded",
   ),
+  Mutant.lateclear => _By(
+    world: (d) => ActivationWorld(_mixed, launch: _jarLaunch, declared: d),
+    setup: const [],
+    script: const [Preload(0)],
+    breaks: 'clearJar as  changed queue, which it does not write',
+  ),
   Mutant.preloadbare => _By(
     world: (d) => ActivationWorld(_mixed, launch: _jarLaunch, declared: d),
     setup: const [],
@@ -423,7 +429,8 @@ _Catch _catching(Mutant m) => switch (m) {
     world: (d) => ActivationWorld(_mixed, tabbed: true, declared: d),
     setup: const [Tap(0), Login(0), Tap(1)],
     script: const [Tap(0), CloseTab(0, tab: 0)],
-    breaks: "webview shows another tab's history",
+    // The binding's own assert catches it before the walk's invariant does.
+    breaks: 'a held back stack belongs to the live build',
   ),
   Mutant.tabgateopen => _By(
     world: (d) => ActivationWorld(_mixed, tabbed: true, declared: d),
@@ -447,10 +454,54 @@ _Catch _catching(Mutant m) => switch (m) {
     'describes as writes of `built`, `hist` and `queued` the platform holds: '
     'planting it changes no code',
   ),
+  Mutant.reframeunbound => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      deletes: true,
+      tabbed: true,
+      declared: d,
+    ),
+    setup: const [Tap(0)],
+    script: const [RendererGone(0)],
+    breaks: 'changed built, which it does not write',
+  ),
+  Mutant.letgobound => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      deletes: true,
+      tabbed: true,
+      declared: d,
+    ),
+    setup: const [Tap(0)],
+    script: const [RendererGone(0)],
+    breaks: 'letGo as  changed built, which it does not write',
+  ),
+  // Back on its first tab, site 1's rebuild takes the back stack its switch
+  // away saved; the renderer dies before that build's controller comes.
+  Mutant.letgodrops => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      deletes: true,
+      tabbed: true,
+      lateControllers: true,
+      declared: d,
+    ),
+    setup: const [Tap(0), OpenTab(0, tab: 1)],
+    script: const [OpenTab(0, tab: 0), RendererGone(0)],
+    breaks: 'letGo as  changed queued, which it does not write',
+  ),
   Mutant.foldbeforelevel => _By(
     world: (d) => ActivationWorld(_mixed, dns: _dnsSites, declared: d),
     setup: const [Tap(0)],
     script: const [DnsDownload(0)],
+    breaks: 'where its site resolves to',
+  ),
+  // Site 2's DNS blocking is off: once a download makes level 1 app-wide,
+  // its view built is told 1 where its site resolves to 0.
+  Mutant.builtatglobal => _By(
+    world: (d) => ActivationWorld(_mixed, dns: _dnsSites, declared: d),
+    setup: const [DnsDownload(0)],
+    script: const [Tap(2)],
     breaks: 'where its site resolves to',
   ),
   Mutant.pointerearly => _By(

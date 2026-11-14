@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:webspace/settings/site_ids.dart';
 
+import 'package:webspace/controllers/let_go_table.dart';
 import 'package:webspace/controllers/container_retire.dart';
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_runtime.dart';
@@ -376,7 +377,7 @@ class ArchiveController {
     // concurrent persist filters on `!isArchiveTier` when it rebuilds the
     // app-tier cookie and password maps, so one that read the site before
     // the flip and landed after the clears would re-persist it.
-    model.disposeWebView(commit: const Commit.environment(Environment.letGo));
+    LetGoTable.letGo(_sites, site: model);
     model.isArchiveTier = true;
     model.archiveContainerKey = archiveContainerKey;
     model.setPendingArchiveCookies(capturedCookies);
@@ -448,7 +449,7 @@ class ArchiveController {
     await _archive.save(handle);
 
     // Back on the standard `ws-<siteId>` container.
-    model.disposeWebView(commit: const Commit.environment(Environment.letGo));
+    LetGoTable.letGo(_sites, site: model);
     model.isArchiveTier = false;
     model.archiveContainerKey = null;
     model.cookies = capturedCookies;
@@ -709,6 +710,7 @@ final _closeDropPort = Port<SiteSetStage, CloseFlow>(
     ModelVar.version,
     ModelVar.built,
     ModelVar.hist,
+    ModelVar.held,
     ModelVar.opener,
     ModelVar.link,
   },

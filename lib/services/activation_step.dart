@@ -425,6 +425,11 @@ enum ActivationStep {
   letGo(),
   reframe(),
 
+  /// A built webview's controller restores the back stack its frame took
+  /// (`WebViewTabBinding.restore`): the environment's, as the platform
+  /// creates the controller.
+  restored(),
+
   /// An open archive closed (ArchiveController.close, ARCH-007, ARCH-014):
   /// refused with nothing changed when its sealed state does not fit its
   /// slot (ARCH-011), else sealed and saved with its key zeroed, its sites

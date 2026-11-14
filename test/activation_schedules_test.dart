@@ -1618,6 +1618,36 @@ void main() {
     }
   });
 
+  group('let-go regressions', () {
+    // Back on its first tab, site 1's rebuild takes the back stack its
+    // switch away saved, and its renderer dies before that build's
+    // controller comes: the let-go queues the stack again, and the frame
+    // that builds the webview anew shows it (TAB-003).
+    _scheduleTest(
+        "a let-go before its build's controller came queues the back stack "
+        'again for the next build (TAB-003)', body: () async {
+      final worlds = <ActivationWorld>[];
+      await _expectEvery(
+        world: () {
+          final w = ActivationWorld(
+            _mixedContainers,
+            deletes: true,
+            tabbed: true,
+            lateControllers: true,
+          );
+          worlds.add(w);
+          return w;
+        },
+        setup: const [Tap(0), OpenTab(0, tab: 1)],
+        script: const [OpenTab(0, tab: 0), RendererGone(0)],
+        preemptions: _onePast,
+      );
+      expect(worlds.any((w) => w.stacksReturned > 0), isTrue,
+          reason: 'no schedule let go of a webview between its build and '
+              'its controller');
+    });
+  });
+
   group('launch regressions', () {
     final (:page, :launch) = _launches['mixed, shared jar, from launch']!;
     for (final MapEntry(key: name, value: script)

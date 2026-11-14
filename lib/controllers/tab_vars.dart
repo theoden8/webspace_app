@@ -171,6 +171,22 @@ final class TabVars {
         read: (w, {required site}) => keys.site(w, key: site).tabBinding.built,
       );
 
+  /// `held[s]` as a guard reads it off the site's binding: the tab the
+  /// back stack it holds was read for, and that tab as its label, since
+  /// the code holds bytes; none where it holds nothing.
+  static Indexed<S, QueuedStack, W> heldAt<S, W>({
+    required SiteKeys<S, W> keys,
+  }) => Indexed.reported(
+    ModelVar.held,
+    read: (w, {required at}) => switch (keys
+        .site(w, key: at)
+        .tabBinding
+        .held) {
+      (:final tab, bytes: _) => (t: tab, h: tab),
+      null => (t: null, h: null),
+    },
+  );
+
   /// `built` whole, for the writes the frame does.
   static Mutable<Map<S, TabId?>, W> builtFn<S, W>() => builtOf<S, W>();
 
@@ -192,12 +208,7 @@ final class TabVars {
     required Bound<Iterable<S>, W> l,
   }) => tabbed<S, W>().has(s.it) & l.it.has(s.it);
 
-  static Expr<QueuedStack, W> noQueued<W>() => Expr.op(
-    HandPaired.noQueued,
-    tla: 'NoQueued',
-    run: (_) => (t: null, h: null),
-    reads: Reads.none,
-  );
+  static Mutable<Map<S, QueuedStack>, W> held<S, W>() => heldOf<S, W>();
 
   /// A capture's save stores the webview's bytes under the tab it was built
   /// for, [t], keyed by the site [a] that tab ran as, read as the capture
@@ -277,6 +288,39 @@ final class TabVars {
         when: builds(s, l: l),
         then: queued.except(s.it, to: noQueued()),
         otherwise: queued,
+      ),
+    );
+  }
+
+  /// What the build holds for its controller to restore: the back stack it
+  /// took, where a let-go may land before that controller comes
+  /// (`Rebuilt`), else nothing (`WebViewTabBinding.frame`). A frame over a
+  /// webview already built for the active tab builds none, and what its
+  /// build held waits on as before.
+  static Def<Map<S, QueuedStack>, W> handed<S, W>({
+    required SiteKeys<S, W> keys,
+  }) {
+    final s = Bound<S, W>('s');
+    final l = Bound<Iterable<S>, W>('l');
+    final held = TabVars.held<S, W>().value;
+    final queued = TabVars.queued<S, W>().value.at(s.it);
+    final target = active<S, W>(keys: keys).at(s.it);
+    return Def(
+      ModelDef.handed,
+      params: [s, l],
+      body: Expr.choose(
+        when: builds(s, l: l) & builtFn<S, W>().value.at(s.it).neq(target),
+        then: held.except(
+          s.it,
+          to: Expr.choose(
+            when:
+                rebuiltOf<S, W>().has(s.it) &
+                takesOf<W>().call([queued, target]),
+            then: queued,
+            otherwise: noQueued(),
+          ),
+        ),
+        otherwise: held,
       ),
     );
   }
@@ -401,6 +445,19 @@ final class TabVars {
           ),
         ),
       ),
+      held<S, W>().becomes(
+        held<S, W>().value.except(
+          site,
+          to: Expr.choose(
+            when: isLoaded & rebuiltOf<S, W>().has(site) & label.neq(noTab()),
+            then: record({
+              't': tab,
+              'h': label,
+            }, run: (_) => throw StateError('held is the platform\'s')),
+            otherwise: noQueued(),
+          ),
+        ),
+      ),
       queued<S, W>().becomes(
         Expr.choose(
           when: isLoaded,
@@ -422,15 +479,21 @@ final class TabVars {
   }
 
   /// The frame after a commit built the site's webview: bound to its
-  /// active tab, showing what was queued for that tab, the queue taken,
-  /// among the [loaded] sites the frame sees.
+  /// active tab, showing what was queued for that tab, the queue taken and
+  /// held for the controller to restore, among the [loaded] sites the
+  /// frame sees. The platform holds all three:
+  /// [build] is the code's half where the step itself builds the webview
+  /// (the environment's frame, `FrameTable`); a commit's frame builds it
+  /// later, in `getWebView`.
   static Act<W> framed<S, W>(
     Expr<S, W> site, {
     required SiteKeys<S, W> keys,
     required Expr<Iterable<S>, W> loaded,
+    void Function(CommitView<W> c)? build,
   }) => Act.of([
     builtFn<S, W>().becomes(bound<S, W>(keys: keys).call([site, loaded])),
     hist<S, W>().becomes(shown<S, W>(keys: keys).call([site, loaded])),
     queued<S, W>().becomes(taken<S, W>().call([site, loaded])),
-  ]);
+    held<S, W>().becomes(handed<S, W>(keys: keys).call([site, loaded])),
+  ], then: build);
 }

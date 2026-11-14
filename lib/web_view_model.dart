@@ -96,6 +96,11 @@ abstract interface class SiteModels implements SitesById {
   WebViewModel siteOf(SiteId id);
 }
 
+/// How a webview ended: a live one quiets before it leaves the route it ran
+/// on; one whose renderer died (BUG-002) loads nothing more, so it leaves at
+/// once.
+enum WebViewEnd { live, rendererGone }
+
 class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, BackedUpSite, EngineSite {
   @override
   final SiteId siteId;
@@ -1006,9 +1011,6 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
     if (controller == null) {
       return;
     }
-    // Read before the first await: onControllerCreated consumes the pending
-    // restore right after calling us, and that path issues its own load.
-    final restorePending = tabBinding.queuedFor == tabBinding.built;
     final ready = Completer<bool>();
     _proxyReady = ready;
     // Apply proxy settings first (before loading any URLs)
@@ -1016,7 +1018,7 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
     ready.complete(proxyApplied);
     if (_initialLoadDeferredForProxy) {
       _initialLoadDeferredForProxy = false;
-      if (proxyApplied && !restorePending) {
+      if (proxyApplied) {
         await controller?.loadUrl(currentUrl);
       }
     }
@@ -1104,8 +1106,8 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
 
   /// Where the store binds the proxy (iOS, macOS, Linux),
   /// it is sealed into the site's network store at WebView construction
-  /// time. To pick up the new value, the live WebView is discarded so the
-  /// next render reconstructs it with the new
+  /// time. To pick up the new value, the live WebView is let go of by
+  /// [letGo] so the next render reconstructs it with the new
   /// `inapp.InAppWebViewSettings.proxySettings` dictionary. The caller MUST
   /// trigger a rebuild (typically via `setState`) so the IndexedStack
   /// actually re-creates the slot.
@@ -1118,11 +1120,14 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
   /// Elsewhere only a live webview takes the new rule now; one built later
   /// takes it then, so a site with none never moves the process-wide rule
   /// under the sites that run (PROXY-008).
-  Future<void> updateProxySettings(UserProxySettings newSettings) async {
+  Future<void> updateProxySettings(
+    UserProxySettings newSettings, {
+    required void Function() letGo,
+  }) async {
     proxySettings = newSettings;
     switch (ProxyManager.binding) {
       case ProxyBinding.perSite || ProxyBinding.routed:
-        disposeWebView(commit: const Commit.environment(Environment.letGo));
+        letGo();
       case ProxyBinding.processWide:
         if (controller != null) await _applyProxySettings();
     }
@@ -1231,7 +1236,15 @@ bool dispatch(NavigationDecision decision,
     }
     if (webview == null) {
       final builtTab = activeTabId;
-      tabBinding.bind(builtTab, commit: const Commit.environment(Environment.frame));
+      // The frame's one turn (TabVars.framed): bound to the active tab and
+      // handed the back stack queued for it, which the binding holds until
+      // this build's first controller restores it, or a let-go queues it
+      // again (TAB-003).
+      final build = tabBinding.frame(
+        builtTab,
+        commit: const Commit.environment(Environment.frame),
+      );
+      final restoreQueued = build.restores;
       LogTag.webView.debug(
           'Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl'
           '${hosted ? ', running as ${id.siteId}' : ''})', sensitive: true);
@@ -1253,7 +1266,7 @@ bool dispatch(NavigationDecision decision,
           homeUrl: navHome,
           initialUrl: currentUrl,
           signInHosts: signInTab ? PopupKind.isSignInUrl : null);
-      if (tabBinding.queuedFor == builtTab) {
+      if (restoreQueued) {
         navigationBoundary.useExistingDocument();
       }
       // The URL we most recently fired the post-state-commit IPC chain
@@ -1271,7 +1284,7 @@ bool dispatch(NavigationDecision decision,
       // restored entry from onControllerCreated; iOS/macOS keep the
       // initialUrlRequest load and replace state in place via interactionState.
       final bool deferRestoreLoad = deferInitialLoadForRestore(
-        hasPendingRestoreState: tabBinding.queuedFor == builtTab,
+        hasPendingRestoreState: restoreQueued,
         isAndroid: hostIsAndroid,
         isFileImport: isFileImportUrl(currentUrl),
       );
@@ -1298,7 +1311,9 @@ bool dispatch(NavigationDecision decision,
         overrideActive: ProxyManager.overrideActive,
         releasesContainerProxy: storeBinding.releasesContainerProxy,
       );
-      _initialLoadDeferredForProxy = deferForProxy && !deferRestoreLoad;
+      // A restore issues its own load once the proxy is in.
+      _initialLoadDeferredForProxy =
+          deferForProxy && !deferRestoreLoad && !restoreQueued;
       final iconSiteUrl = id.initUrl;
       _liveExtensions = extensionHomeOf(
         posture.page.extensions,
@@ -1502,7 +1517,8 @@ bool dispatch(NavigationDecision decision,
           },
           cacheFirst: cacheFirst,
           initialHtml: initialHtml,
-          onRendererGone: handleRendererGone,
+          onRendererGone: ({required didCrash}) =>
+              hooks.rendererGone(this, didCrash: didCrash),
           onPageCommitVisible: () => onPageCommitVisible?.call(),
           passkeys: PasskeyAccess.forHost(
             enabled: posture.container.passkeys,
@@ -1555,14 +1571,15 @@ bool dispatch(NavigationDecision decision,
           // for the much-better re-activation UX.
           //
           // unawaited: subsequent webview-creation logic doesn't
-          // depend on the restore completing. Clear the field
-          // *before* awaiting so a back-to-back rebuild doesn't
-          // re-apply the same bytes.
-          final pending = tabBinding.take(
-            tab: builtTab,
-            commit: const Commit.environment(Environment.frame),
+          // depend on the restore completing. The binding hands the bytes
+          // over once, to this build, *before* awaiting, so a second
+          // controller of this build, or one of a build let go of since,
+          // restores nothing.
+          final restoring = tabBinding.restore(
+            build,
+            commit: const Commit.environment(Environment.restore),
           );
-          if (pending != null && restores) {
+          if (restoring != null && restores) {
             // On Android the webview was built with no initial load
             // (deferRestoreLoad), so restoreState applies to a pristine
             // back/forward list. Android does not restore display data, so
@@ -1578,7 +1595,7 @@ bool dispatch(NavigationDecision decision,
               // The override must land before the restored entry loads;
               // on a proxy failure stay blank (fail closed).
               if (!await proxyReady) return;
-              final ok = await ctrl.restoreState(pending);
+              final ok = await ctrl.restoreState(restoring);
               LogTag.webView.debug(
                   'restoreState for "$name" (siteId: $siteId): $ok',
                   sensitive: true);
@@ -1627,48 +1644,51 @@ bool dispatch(NavigationDecision decision,
     cookies = [];
   }
 
-  /// Drop the cached webview widget and controller, then ask the host to
-  /// rebuild. Used when the renderer process is killed (Android `onRender-
-  /// ProcessGone`, iOS/macOS `onWebContentProcessDidTerminate`) — the view
-  /// is alive but has no renderer driving it, which paints as a black
-  /// surface on resume from background (issue #333). Recreation is the only
-  /// supported recovery per Android docs; the native WebView cannot recover
-  /// in place. The user loses the live JS heap and DOM, which is unavoidable
-  /// since the process holding them is gone — `currentUrl` is reloaded so
-  /// the back-/forward stack is the only thing dropped.
-  void handleRendererGone({required bool didCrash}) {
+  /// Lets go of the webview for good or for another build, in [commit]: an
+  /// unload's, the commit that takes the site off the list, a tab's
+  /// rebind, as [end] says it ended. What its build held goes with it.
+  @override
+  void disposeWebView({
+    required Commit commit,
+    WebViewEnd end = WebViewEnd.live,
+  }) {
     LogTag.webView.debug(
-        'Renderer gone for "$name" (siteId: $siteId, didCrash: $didCrash) — recreating');
-    // A dead renderer loads nothing more, so nothing is left to quiet.
-    _letGoOfWebView(
-      view: null,
-      commit: const Commit.environment(Environment.letGo),
-    );
-    stateSetterF?.call();
+        'disposeWebView called for "$name" (siteId: $siteId, $end)\n${StackTrace.current}',
+        sensitive: true);
+    tabBinding.unbind(commit: commit);
+    _letGoOfWebView(view: _leaving(end));
   }
 
-  /// Lets go of the webview, in [commit]: an unload's, the commit that takes
-  /// the site off the list, or a named rebuild.
-  void disposeWebView({required Commit commit}) {
+  /// Lets go of the webview for the frame to build it again, in [commit]
+  /// (`LetGoTable`), as [end] says it ended: a back stack its build took
+  /// that no controller restored is queued again for the next build
+  /// (TAB-003).
+  void letGoWebView({
+    required Commit commit,
+    WebViewEnd end = WebViewEnd.live,
+  }) {
     LogTag.webView.debug(
-        'disposeWebView called for "$name" (siteId: $siteId)\n${StackTrace.current}',
+        'letGoWebView called for "$name" (siteId: $siteId, $end)',
         sensitive: true);
-    _letGoOfWebView(view: controller, commit: commit);
+    tabBinding.letGo(commit: commit);
+    _letGoOfWebView(view: _leaving(end));
   }
+
+  LeavingView? _leaving(WebViewEnd end) => switch (end) {
+        WebViewEnd.live => controller,
+        // A dead renderer loads nothing more, so nothing is left to quiet.
+        WebViewEnd.rendererGone => null,
+      };
 
   /// The webview and its controller go, and with them what they held: the
   /// route, once [view] is quiet and destroyed (at once with no view to
-  /// wait for), the tab the webview was built for, the resume reload, the
-  /// site's media session and its screen share.
-  void _letGoOfWebView({
-    required LeavingView? view,
-    required Commit commit,
-  }) {
+  /// wait for), the resume reload, the site's media session and its screen
+  /// share; the caller unbinds its tab first.
+  void _letGoOfWebView({required LeavingView? view}) {
     _webview = null;
     _liveExtensions = null;
     _controller = null;
     unawaited(ProcessRoute.instance.leave(routeClaim.occupant, view: view));
-    tabBinding.unbind(commit: commit);
     resumeReload.reset();
     // The player this site's media session was speaking for is gone with the
     // webview. Without this the OS transport controls outlive it and their
@@ -1821,7 +1841,8 @@ bool dispatch(NavigationDecision decision,
   /// The tab the webview was built for and the back stack queued for the
   /// next build. The activation and the tab switch queue the bytes before the
   /// rebuild, so the repaint and `restoreState` land in one render cycle;
-  /// [getWebView]'s `onControllerCreated` takes them.
+  /// [getWebView]'s frame takes them as it builds, and its
+  /// `onControllerCreated` restores them.
   final WebViewTabBinding tabBinding = WebViewTabBinding();
 
   /// Opaque per-site container key for archive-tier sites (ARCH-007).

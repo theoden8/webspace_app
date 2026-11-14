@@ -108,6 +108,7 @@ enum Inv {
   tabFilesHosted(atRest: true, reads: {ModelVar.file, ModelVar.host, ModelVar.tabs}),
   tabFilesListed(atRest: true, reads: {ModelVar.file, ModelVar.tabs}),
   tabBound(reads: {ModelVar.active, ModelVar.built}),
+  heldBuilt(reads: {ModelVar.built, ModelVar.held}),
   openerListed(reads: {ModelVar.gone, ModelVar.opener, ModelVar.tabs}),
   tabActive(
     atRest: true,
@@ -186,6 +187,7 @@ const _tabs = [
   Inv.tabFilesHosted,
   Inv.tabFilesListed,
   Inv.tabBound,
+  Inv.heldBuilt,
   Inv.tabActive,
 ];
 
@@ -247,6 +249,38 @@ enum ActivationWorld {
     holds:
         "site 1's tabs on the shared jar from launch: a preloaded webview "
         'shows its active tab (TAB-003)',
+  ),
+  // No input lands: a pair it takes is the environment's alone, so the
+  // printed worlds keep every input they allow.
+  tabsRebuild(
+    cookies: Cookies.sharedJar,
+    coldStart: false,
+    inputs: 1,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {Env.rebuildOne},
+    allowed: {},
+    invariants: [..._core, ..._jar, ..._tabs],
+    holds:
+        "site 1's tabs on the shared jar, its webview let go of and framed "
+        'again: the frame binds its active tab and shows its history '
+        '(TAB-003)',
+  ),
+  // Two tab switches and nothing else: the second's rebuild takes the back
+  // stack the first saved, which a let-go may meet before its controller.
+  tabsRebuildSwitch(
+    cookies: Cookies.sharedJar,
+    coldStart: false,
+    inputs: 2,
+    tabbed: {1},
+    maxTabs: 3,
+    env: {Env.rebuildOne},
+    allowed: {'OpenTab'},
+    invariants: [..._core, ..._jar, ..._tabs],
+    holds:
+        "site 1's tabs on the shared jar, switched and let go of: a back "
+        'stack a build took and no controller restored is queued again '
+        '(TAB-003)',
   ),
   coldstart(
     cookies: Cookies.sharedJar,
@@ -1322,6 +1356,14 @@ enum Mutant {
         'a fold that tells the views before the new app-wide level is in '
         'force (caught)',
   ),
+  builtatglobal(
+    world: ActivationWorld.dnsContainers,
+    by: Inv.told,
+    doc:
+        "a site's first view built told the app-wide level, not the one its "
+        'site resolves to: a site off, or asking for a level it holds, runs '
+        'another (caught)',
+  ),
   preloadunbound(
     world: ActivationWorld.tabsCold,
     slice: (allowed: {'Preload'}),
@@ -1329,6 +1371,37 @@ enum Mutant {
     doc:
         "a preload's frame that sees its site unloaded binds no tab, so the "
         'webview it builds shows none (caught)',
+  ),
+  reframeunbound(
+    world: ActivationWorld.tabsRebuild,
+    by: Inv.tabActive,
+    doc:
+        "a let-go webview's frame that shows the active tab and takes the "
+        'queue but binds no tab: a loaded site with no webview shows a '
+        'history (caught)',
+  ),
+  letgodrops(
+    world: ActivationWorld.tabsRebuildSwitch,
+    by: Inv.heldBuilt,
+    doc:
+        'a let-go before its build\'s controller came that leaves the back '
+        'stack the build took held for no build, queued for none: the '
+        'history is lost (caught)',
+  ),
+  letgobound(
+    world: ActivationWorld.tabsRebuild,
+    by: Inv.tabShown,
+    doc:
+        "a let-go that drops the webview's history but leaves its tab "
+        'bound: a site bound to a tab shows no history (caught)',
+  ),
+  lateclear(
+    world: ActivationWorld.coldstart,
+    by: Inv.noSessionLoss,
+    slice: (allowed: {'Preload'}),
+    doc:
+        "a launch clear outside the jar's turns empties a restored session "
+        '(ISO-012, caught)',
   ),
   preloadbare(
     world: ActivationWorld.coldstart,
@@ -1513,14 +1586,6 @@ enum HandMistake {
     doc:
         'a jar operation that keeps its turn leaves the flows behind it '
         'waiting forever (deadlock, caught)',
-  ),
-  lateclear(
-    world: ActivationWorld.coldstart,
-    slice: (allowed: {'Preload'}),
-    caught: Breaks(Inv.noSessionLoss),
-    doc:
-        "a launch clear outside the jar's turns empties a restored session "
-        '(ISO-012, caught)',
   ),
   joinsloaded(
     world: ActivationWorld.joins,

@@ -3,6 +3,87 @@
 // (`planted`).
 part of 'models.dart';
 
+/// The frame [framed] without its write of `built`: what it shows and takes
+/// stays, and the code it runs, its build, is the same.
+Act<FrameWorld> _unbound(
+  Act<FrameWorld> framed, {
+  required Expr<Object?, FrameWorld> site,
+}) {
+  final loaded = Mutable<Iterable<SiteId>, FrameWorld>.remote(
+    ModelVar.loaded,
+  ).value;
+  final keys = TabVars.ids<FrameWorld>();
+  final kept = Act.of([
+    TabVars.hist<SiteId, FrameWorld>().becomes(
+      TabVars.shown<SiteId, FrameWorld>(keys: keys).call([site, loaded]),
+    ),
+    TabVars.queued<SiteId, FrameWorld>().becomes(
+      TabVars.taken<SiteId, FrameWorld>().call([site, loaded]),
+    ),
+    TabVars.held<SiteId, FrameWorld>().becomes(
+      TabVars.handed<SiteId, FrameWorld>(keys: keys).call([site, loaded]),
+    ),
+  ]);
+  return Act(
+    writes: kept.writes,
+    tla: kept.tla,
+    reads: kept.reads,
+    run: framed.run,
+  );
+}
+
+/// The let-go [gone] with only the writes of [kept]: the code it runs,
+/// the webview's teardown, is the same.
+Act<LetGoWorld> _letGoKeeping(
+  Act<LetGoWorld> gone, {
+  required List<Write<LetGoWorld>> kept,
+}) {
+  final act = Act.of(kept);
+  return Act(
+    writes: act.writes,
+    tla: act.tla,
+    reads: act.reads,
+    run: gone.run,
+  );
+}
+
+/// The let-go [gone] without its write of `built`: the history goes and
+/// what its build held is queued again, and the code it runs, the
+/// webview's teardown, is the same.
+Act<LetGoWorld> _keepsBound(
+  Act<LetGoWorld> gone, {
+  required Expr<Object?, LetGoWorld> site,
+}) {
+  final hist = histOf<Object?, LetGoWorld>();
+  final held = heldOf<Object?, LetGoWorld>();
+  return _letGoKeeping(
+    gone,
+    kept: [
+      hist.becomes(hist.value.except(site, to: noTab())),
+      held.becomes(held.value.except(site, to: noQueued())),
+      LetGoTable.requeued,
+    ],
+  );
+}
+
+/// The let-go [gone] as it was before its build held what it took: the
+/// webview and its history go, and the back stack its build took and no
+/// controller restored goes with them, queued for no build (TAB-003).
+Act<LetGoWorld> _dropsHeld(
+  Act<LetGoWorld> gone, {
+  required Expr<Object?, LetGoWorld> site,
+}) {
+  final built = builtOf<Object?, LetGoWorld>();
+  final hist = histOf<Object?, LetGoWorld>();
+  return _letGoKeeping(
+    gone,
+    kept: [
+      built.becomes(built.value.except(site, to: noTab())),
+      hist.becomes(hist.value.except(site, to: noTab())),
+    ],
+  );
+}
+
 /// [ops] with the definition named as [def] replaced by it.
 List<Def<Object?, Object?>> _withDef(
   List<Def<Object?, Object?>> ops, {
@@ -244,6 +325,10 @@ Tables _with({
   StepTable<DeleteFlow, DeletePlace>? delete,
   StepTable<ImportFlow, ImportPlace>? import,
   StepTable<ImportFlow, ImportPlace>? importTurn,
+  StepTable<FrameWorld, FramePlace>? frame,
+  StepTable<LetGoWorld, LetGoPlace>? letGo,
+  StepTable<ViewsWorld, ViewsPlace>? views,
+  StepTable<ClearWorld, ClearPlace>? clear,
   List<Def<Object?, Object?>>? ops,
 }) => (
   activation: activation ?? tables.activation,
@@ -258,6 +343,10 @@ Tables _with({
   delete: delete ?? tables.delete,
   import: import ?? tables.import,
   importTurn: importTurn ?? tables.importTurn,
+  frame: frame ?? tables.frame,
+  letGo: letGo ?? tables.letGo,
+  views: views ?? tables.views,
+  clear: clear ?? tables.clear,
   ops: ops ?? tables.ops,
 );
 
@@ -727,6 +816,101 @@ Tables mutated(Mutant m) => switch (m) {
       ),
     ),
   ),
+  // The frame of a let-go webview shows its active tab and takes the queue
+  // but binds no tab: the code's build is the same, its declaration not.
+  Mutant.reframeunbound => _with(
+    frame: _withArms(
+      tables.frame,
+      step: ActivationStep.reframe,
+      arms: (s) => s.withArms(
+        otherwise: Otherwise(
+          s.otherwise.outcome,
+          site: s.otherwise.site,
+          then: [
+            for (final e in s.otherwise.then)
+              if (e is Act<FrameWorld> && e.writes.contains(ModelVar.built))
+                _unbound(e, site: s.site!)
+              else
+                e,
+          ],
+          next: s.otherwise.next,
+        ),
+      ),
+    ),
+  ),
+  // The let-go drops the history but leaves the tab bound: the code's
+  // teardown is the same, its declaration not.
+  Mutant.letgobound => _with(
+    letGo: _withArms(
+      tables.letGo,
+      step: ActivationStep.letGo,
+      arms: (s) => s.withArms(
+        otherwise: Otherwise(
+          s.otherwise.outcome,
+          site: s.otherwise.site,
+          then: [
+            for (final e in s.otherwise.then)
+              if (e is Act<LetGoWorld> && e.writes.contains(ModelVar.built))
+                _keepsBound(e, site: s.site!)
+              else
+                e,
+          ],
+          next: s.otherwise.next,
+        ),
+      ),
+    ),
+  ),
+  // The let-go drops the back stack its build held, as before the binding
+  // kept it: the code's teardown is the same, its declaration not.
+  Mutant.letgodrops => _with(
+    letGo: _withArms(
+      tables.letGo,
+      step: ActivationStep.letGo,
+      arms: (s) => s.withArms(
+        otherwise: Otherwise(
+          s.otherwise.outcome,
+          site: s.otherwise.site,
+          then: [
+            for (final e in s.otherwise.then)
+              if (e is Act<LetGoWorld> && e.writes.contains(ModelVar.built))
+                _dropsHeld(e, site: s.site!)
+              else
+                e,
+          ],
+          next: s.otherwise.next,
+        ),
+      ),
+    ),
+  ),
+  // The launch's clear outside the jar's turns, as the post-paint sweep
+  // once ran it: queued on none and granted none, it empties the jar
+  // whenever it lands. The code's pass of the launch's turn is the same,
+  // its declaration not.
+  Mutant.lateclear => _with(
+    clear: _withArms(
+      tables.clear,
+      step: ActivationStep.clearJar,
+      arms: (s) => Step.environment(
+        s.name,
+        enabled: s.enabled,
+        call: s.call,
+        pick: s.pick,
+        site: s.site,
+        otherwise: Otherwise(
+          s.otherwise.outcome,
+          site: s.otherwise.site,
+          then: [
+            for (final e in s.otherwise.then)
+              if (e is Act<ClearWorld> && e.writes.contains(ModelVar.queue))
+                Note<ClearWorld>(e.run)
+              else
+                e,
+          ],
+          next: s.otherwise.next,
+        ),
+      ),
+    ),
+  ),
   Mutant.preloadbare => _with(
     activation: _withArms(
       tables.activation,
@@ -995,6 +1179,22 @@ Tables mutated(Mutant m) => switch (m) {
             ]),
             ...s.otherwise.then.skip(1),
           ],
+          next: s.otherwise.next,
+        ),
+      ),
+    ),
+  ),
+  // A site's first view built is told the app-wide level, not the one its
+  // site resolves to: its attach runs at the level the write gives.
+  Mutant.builtatglobal => _with(
+    views: _withArms(
+      tables.views,
+      step: ActivationStep.viewBuilt,
+      arms: (s) => s.withArms(
+        otherwise: Otherwise(
+          s.otherwise.outcome,
+          site: s.otherwise.site,
+          then: [ViewsTable.told(to: ViewsTable.appWide)],
           next: s.otherwise.next,
         ),
       ),

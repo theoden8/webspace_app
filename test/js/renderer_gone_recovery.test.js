@@ -22,20 +22,41 @@ test('both platform renderer-death events route to onRendererGone', () => {
 });
 
 test('onRendererGone is wired to the destroy-and-rebuild recovery', () => {
-  const src = read('lib/web_view_model.dart');
+  // The site's webview hands a renderer death to its host, which lets the
+  // webview go through the one owner of a let-go (LetGoTable) and rebuilds.
   assert.match(
-    src,
-    /onRendererGone:\s*handleRendererGone,/,
-    'the config callback must invoke handleRendererGone',
+    read('lib/web_view_model.dart'),
+    /onRendererGone:\s*\(\{required didCrash\}\)\s*=>\s*hooks\.rendererGone\(this, didCrash: didCrash\),/,
+    'the config callback must hand the death to the host',
   );
-  // handleRendererGone must DISPOSE the dead instance (the fix), not just
-  // log, through the one teardown disposeWebView takes too, so what a
-  // webview holds goes with it on either path (BGAUDIO-010's controls).
+  assert.match(read('lib/screens/webspace_page.dart'),
+    /rendererGone:\s*_lifecycle\.rendererGone,/,
+    'the page must answer it with the lifecycle controller');
+  const lifecycle = 'lib/controllers/app_lifecycle_controller.dart';
+  const answer = methodBody('rendererGone', { file: lifecycle });
+  assert.match(answer,
+    /LetGoTable\.letGo\(_sites, site: model, end: WebViewEnd\.rendererGone\)/,
+    'the answer must let the dead webview go');
+  assert.match(answer, /_host\.rebuild\(\)/, 'and rebuild the page');
+  assert.match(methodBody('probeRenderer', { file: lifecycle }),
+    /rendererGone\(model, didCrash: false\)/,
+    'the probe must join the same recovery');
+  // The let-go must DISPOSE the dead instance (the fix), not just log, on
+  // either arm, through the one teardown, so what a webview holds goes with
+  // it (BGAUDIO-010's controls).
+  const letGo = methodBody('letGo', { file: 'lib/controllers/let_go_table.dart' });
+  assert.match(letGo, /table\.runEnvironment\(/, 'the let-go the model takes');
+  assert.match(letGo, /\.disposeWebView\(/, 'and the one it takes none of');
+  assert.match(read('lib/controllers/let_go_table.dart'),
+    /\.letGoWebView\(commit: c\.commit, end: _end\.from\(c\)\)/,
+    "the step's arm must let the webview go");
   const file = 'lib/web_view_model.dart';
-  for (const path of ['handleRendererGone', 'disposeWebView']) {
-    assert.match(methodBody(path, { file }), /\b_letGoOfWebView\(/,
-      `${path} must let go of the webview through _letGoOfWebView`);
+  for (const owner of ['disposeWebView', 'letGoWebView']) {
+    assert.match(methodBody(owner, { file }), /\b_letGoOfWebView\(view: _leaving\(end\)\)/,
+      `${owner} must let go of the webview through _letGoOfWebView`);
   }
+  assert.match(methodBody('_leaving', { file }), /WebViewEnd\.rendererGone => null/,
+    'a dead renderer is not waited on to quiet');
   const teardown = methodBody('_letGoOfWebView', { file });
   assert.match(teardown, /webview\s*=\s*null/, 'must drop the dead cached widget');
   assert.match(teardown, /controller\s*=\s*null/, 'must drop the dead controller');

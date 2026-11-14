@@ -118,7 +118,7 @@ ColdInit ==
     /\ signedIn \in IF Containers THEN {{}} ELSE SUBSET (Sites \ Incognito)
     /\ stored = [s \in Sites |-> IF s \in signedIn THEN {s} ELSE {}]
     /\ jar \in IF Containers THEN {{}} ELSE SUBSET Sites
-    /\ queue = IF Containers \/ Mistake = "lateclear" THEN << >> ELSE << 0 >>
+    /\ queue = IF Containers THEN << >> ELSE Launched_Jar
 
 Init ==
     /\ rows = [q \in Pos |-> q]
@@ -146,6 +146,7 @@ Init ==
     /\ built = [s \in Sites |-> IF s \in Tabbed /\ s \in loaded THEN 1 ELSE 0]
     /\ hist = built
     /\ queued = [s \in Sites |-> NoQueued]
+    /\ held = [s \in Sites |-> NoQueued]
     /\ file = [s \in Sites |-> [t \in TabIds |-> [h \in Sites |-> 0]]]
     /\ minted = [s \in Sites |-> IF s \in Tabbed THEN 2 ELSE 1]
     /\ host = [s \in Sites |-> [t \in TabIds |-> s]]
@@ -169,8 +170,8 @@ Init ==
 
 -----------------------------------------------------------------------------
 (* Inputs. The tables start the flows (InputTableStep, printed); the rest *)
-(* is the environment: a row move the user makes, a page signing in, and  *)
-(* the launch clear, flow 0.                                               *)
+(* is the environment: a row move the user makes, a site joining, a page  *)
+(* signing in. The launch clear, flow 0, is printed (EnvTableStep).       *)
 
 \* SitesMoved(from, to): models.insert(to, models.removeAt(from)).
 Moved(i, from, to) ==
@@ -225,50 +226,9 @@ Login(s) ==
     /\ UNCHANGED << ids, site, stored, turn, fl, ghosts, tabVars, blocking,
                     archived >>
 
-\* clearUnloaded at launch: the jar's first turn, emptied while nothing is
-\* loaded. "lateclear" runs it once whenever, outside the turns.
-ClearJar ==
-    /\ Calm
-    /\ ~Containers
-    /\ IF Mistake = "lateclear"
-       THEN /\ ColdStart /\ "lateclear" \notin seen
-            /\ seen' = seen \cup {"lateclear"}
-            /\ UNCHANGED queue
-       ELSE /\ holder = 0 /\ queue # << >> /\ Head(queue) = 0
-            /\ queue' = Tail(queue)
-            /\ UNCHANGED seen
-    /\ jar' = {}
-    /\ Did("ClearJar", 0, "", 0)
-    /\ UNCHANGED << ids, site, stored, signedIn, holder, dnsHolder, dnsQueue, fl,
-                    inputs, newest, evictedShown, tabVars, blocking, archived >>
-
 \* The level a site's webview runs at with the lists in force now
 \* (DnsBlockService.effectiveLevelFor).
 Eff(s) == ResolveLevel(SiteLevel[s], dns.lvl, dns.levels)
-
-\* A frame builds a loaded site's webview, and a wake's open a check of a
-\* site it lists, which attaches its native interceptor at the level its
-\* site resolves to now (ViewBlockers.built). A view goes at any moment: a
-\* frame drops one whose site has gone or lets one go while its site stays
-\* loaded, and a check goes at its dispose (ViewBlockers.gone). Only where
-\* DNS is in play: the other configs build no view.
-ViewBuilt(s) ==
-    /\ Calm
-    /\ DnsLevels # {}
-    /\ s \in loaded \cup headless
-    /\ told[s] = -1
-    /\ told' = [told EXCEPT ![s] = Eff(s)]
-    /\ Did("ViewBuilt", 0, "", s)
-    /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabVars, dns,
-                    archived >>
-
-ViewGone(s) ==
-    /\ Calm
-    /\ told[s] # -1
-    /\ told' = [told EXCEPT ![s] = -1]
-    /\ Did("ViewGone", 0, "", s)
-    /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabVars, dns,
-                    archived >>
 
 \* A frame mounts a loaded site's webview, which binds its container (the
 \* shared jar has none), and unmounts one whose site is no longer loaded
@@ -287,39 +247,6 @@ Frame(s) ==
     /\ Did("Frame", 0, "", s)
     /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabVars,
                     blocking, gone >>
-
-\* A loaded site's webview let go of, so the frame builds it afresh: a
-\* setting's rebuild, a reset, a renderer gone (BUG-002). Its history goes
-\* with it, and the site stays loaded; its view keeps its container and
-\* its DNS level, which the rebuilt one is told again.
-LetGo(s) ==
-    /\ Calm
-    /\ s \in Rebuilt
-    /\ s \in loaded
-    /\ s \in Tabbed
-    /\ built[s] # 0
-    /\ built' = [built EXCEPT ![s] = 0]
-    /\ hist' = [hist EXCEPT ![s] = 0]
-    /\ Did("LetGo", 0, "", s)
-    /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabs, active,
-                    queued, file, minted, host, link, opener, blocking,
-                    archived >>
-
-\* The frame builds a let-go site's webview again, for its active tab and
-\* from the back stack queued for it, as a commit's frame does
-\* (WebViewModel.getWebView).
-Reframe(s) ==
-    /\ Calm
-    /\ s \in Rebuilt
-    /\ s \in loaded
-    /\ s \in Tabbed
-    /\ built[s] = 0
-    /\ built' = Bound(s, loaded)
-    /\ hist' = Shown(s, loaded)
-    /\ queued' = Taken(s, loaded)
-    /\ Did("Reframe", 0, "", s)
-    /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabs, active,
-                    file, minted, host, link, opener, blocking, archived >>
 
 -----------------------------------------------------------------------------
 
@@ -346,11 +273,12 @@ InputStep ==
 Next ==
     \/ InputStep
     \/ \E f \in Flows : FlowStep(f)
-    \/ \E s \in Sites : ViewBuilt(s) \/ ViewGone(s)
     \/ \E s \in Sites : Frame(s)
-    \/ \E s \in Sites : LetGo(s)
-    \/ \E s \in Sites : Reframe(s)
-    \/ ClearJar
+    \* The environment's actions the tables print: a loaded site's webview
+    \* let go of (LetGoTable) and its frame (FrameTable), a running site's
+    \* first view built and its last gone (ViewsTable), and the launch's
+    \* clear of the jar in its first turn (CookieIsolationEngine.clearSteps).
+    \/ EnvTableStep
     \/ Done
 
 Spec == Init /\ [][Next]_vars
@@ -543,6 +471,10 @@ Inv_TabFilesHosted == Idle => \A s \in Tabbed : \A t \in tabs[s] : \A h \in Site
 Inv_TabFilesListed == Idle => \A s \in Tabbed : \A t \in TabIds \ tabs[s] :
     \A h \in Sites : file[s][t][h] = 0
 Inv_TabBound == \A s \in Tabbed : built[s] \in {0, active[s]}
+\* TAB-003: a back stack a build took that no controller restored is held
+\* only for that live build, so a let-go before its controller comes
+\* leaves none behind: it queues it again for the next build.
+Inv_HeldBuilt == \A s \in Tabbed : held[s] # NoQueued => held[s].t = built[s]
 \* LIR-034: a tab follows a listed opener or none, so a site that leaves
 \* the list stops being one in the step that takes it.
 Inv_OpenerListed == \A s \in Tabbed : \A t \in tabs[s] : opener[s][t] \in Listed \cup {0}

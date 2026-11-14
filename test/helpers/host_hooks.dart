@@ -3,8 +3,10 @@ import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/network_sign_in.dart';
 import 'package:webspace/services/popup_webview.dart' show PopupKind;
+import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'capture_fakes.dart';
 import 'isolations.dart';
@@ -13,6 +15,7 @@ import 'isolations.dart';
 /// a test names only the answers it watches.
 WebViewHostHooks inertHostHooks({
   Isolation Function() isolation = fakeSharedJar,
+  RuntimeVars<SiteId>? vars,
   Future<void> Function(int windowId,
           {required String url, required PopupKind kind})?
       showPopup,
@@ -26,6 +29,7 @@ WebViewHostHooks inertHostHooks({
 }) =>
     WebViewHostHooks(
       isolation: isolation,
+      vars: vars ?? RuntimeVars.ofSet({}),
       globalUserScripts: () => const [],
       save: () async {},
       rebuild: () {},

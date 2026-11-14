@@ -39,61 +39,12 @@ enum EnvAction {
     writes: {ModelVar.jar, ModelVar.signedIn},
     needs: {(of: ModelConst.containers, set: false)},
   ),
-  clearJar(
-    next: 'ClearJar',
-    coverage: 'ClearJar',
-    reads: {ModelVar.holder, ModelVar.queue},
-    writes: {ModelVar.jar, ModelVar.queue},
-    needs: {(of: ModelConst.containers, set: false)},
-  ),
-  viewBuilt(
-    next: r'\E s \in Sites : ViewBuilt(s)',
-    coverage: 'ViewBuilt',
-    reads: {ModelVar.dns, ModelVar.headless, ModelVar.loaded, ModelVar.told},
-    writes: {ModelVar.told},
-    needs: {(of: ModelConst.dnsLevels, set: true)},
-  ),
-  // A view is told a level only where a download can pick one, so one
-  // goes only there.
-  viewGone(
-    next: r'\E s \in Sites : ViewGone(s)',
-    coverage: 'ViewGone',
-    reads: {ModelVar.told},
-    writes: {ModelVar.told},
-    needs: {(of: ModelConst.dnsLevels, set: true)},
-  ),
   frame(
     next: r'\E s \in Sites : Frame(s)',
     coverage: 'Frame',
     reads: {ModelVar.boxes, ModelVar.loaded, ModelVar.views},
     writes: {ModelVar.boxes, ModelVar.views},
     needs: {(of: ModelConst.boxed, set: true)},
-  ),
-  letGo(
-    next: r'\E s \in Sites : LetGo(s)',
-    coverage: 'LetGo',
-    reads: {ModelVar.built, ModelVar.hist, ModelVar.loaded},
-    writes: {ModelVar.built, ModelVar.hist},
-    needs: {
-      (of: ModelConst.tabbed, set: true),
-      (of: ModelConst.rebuilt, set: true),
-    },
-  ),
-  reframe(
-    next: r'\E s \in Sites : Reframe(s)',
-    coverage: 'Reframe',
-    reads: {
-      ModelVar.active,
-      ModelVar.built,
-      ModelVar.hist,
-      ModelVar.loaded,
-      ModelVar.queued,
-    },
-    writes: {ModelVar.built, ModelVar.hist, ModelVar.queued},
-    needs: {
-      (of: ModelConst.tabbed, set: true),
-      (of: ModelConst.rebuilt, set: true),
-    },
   );
 
   const EnvAction({

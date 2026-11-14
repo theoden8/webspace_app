@@ -99,7 +99,9 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
 
   /// The one rule for [StepTurn]: the printed guard and the footprint read it.
   static StepTurn _turnOf(Step<Object?, Enum> s, {required bool awaited}) =>
-      s.input
+      s.environment
+          ? StepTurn.environment
+          : s.input
           ? StepTurn.input
           : s.granted != null
           ? StepTurn.granted
@@ -161,8 +163,9 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
       ],
     ]);
     // A refusal is the call's reply not coming, so it writes none of it.
+    // The environment's action moves no flow, so it writes no row of `fl`.
     Set<ModelVar> armWrites(Arm<W, P> arm) => {
-      ModelVar.fl,
+      if (!s.environment) ModelVar.fl,
       ModelVar.last,
       if (s.input) ModelVar.inputs,
       if (arm is! Refused)
@@ -181,9 +184,13 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
       for (final b in s.branches.take(i)) ...b.when.unless,
     };
     ArmRow row(Arm<W, P> arm, {required int at}) {
-      // Each place the arm may go to, with what going there needs.
+      // Each place the arm may go to, with what going there needs: none for
+      // the environment's, which moves no flow.
       final next = <String, Set<Need>>{};
-      for (final (:needs, :tla) in arm.next.cases) {
+      final cases = s.environment
+          ? const <({Set<Need> needs, String tla})>[]
+          : arm.next.cases;
+      for (final (:needs, :tla) in cases) {
         for (final p in places) {
           if (!tla.contains('"${p.name}"')) continue;
           next[p.name] = switch (next[p.name]) {
@@ -192,7 +199,10 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
           };
         }
       }
-      assert(next.isNotEmpty, '${s.name} goes to no place: ${arm.next.tla}');
+      assert(
+        next.isNotEmpty || s.environment,
+        '${s.name} goes to no place: ${arm.next.tla}',
+      );
       final kinds = _kindsSet(arm, by: s.name);
       final ends = ending.any((p) => arm.next.tla == '"${p.name}"');
       return (
@@ -208,6 +218,8 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
         writes: armWrites(arm),
         fields: ends
             ? FlowField.values.toSet()
+            : s.environment
+            ? const {}
             : {
                 FlowField.pc,
                 if (arm is! Refused) ?call?.keeps?.field,
@@ -308,6 +320,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     required _ActionContext<P> context,
   }) {
     final (:variables, :ending, :awaited, :entered, :starts, :guardOrder) = context;
+    if (s.environment) return _environmentAction(s, variables: variables);
     final guard = guardOrder.arrange([
       if (s.input) ...[
         'Input',
@@ -453,6 +466,68 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     );
   }
 
+  /// The environment's action [s]: `Name ==`, on no flow, landing while no
+  /// flow is between two awaits (`Calm`) and, where a lock grants it, once
+  /// the turn is flow 0's; its pick and guard, then its call's writes and
+  /// its one arm's, recorded as flow 0's, every other variable, `fl` among
+  /// them, held.
+  static ({String text, List<StepAlternative> alternatives})
+  _environmentAction<W, P extends Enum>(
+    Step<W, P> s, {
+    required List<ModelVar> variables,
+  }) {
+    final arm = s.otherwise;
+    final callWrites = s.call?.writes ?? <Write<W>>[];
+    final acts = [
+      for (final e in arm.then)
+        if (e is Act<W>) e,
+    ];
+    final written = {
+      ModelVar.last,
+      for (final w in callWrites) w.variable,
+      for (final a in acts) ...a.writes,
+    };
+    final held = [
+      for (final v in variables)
+        if (!written.contains(v)) v.name,
+    ];
+    final turn = [
+      'Calm',
+      if (s.granted case final lock?) lock.grantedTo(flow: '0'),
+    ];
+    final effects = [
+      for (final w in callWrites) w.tla,
+      for (final a in acts) a.tla,
+      'Did("${s.action}", 0, "${arm.outcome.tla}", ${(arm.site ?? s.site)?.tla ?? '0'})',
+      if (held.isNotEmpty) 'UNCHANGED << ${held.join(', ')} >>',
+    ].map((c) => '($c)').join(' /\\ ');
+    final guarded = switch (s.enabled) {
+      null => effects,
+      final e => '(${e.tla})\n         /\\ ($effects)',
+    };
+    final body = switch (s.pick) {
+      null => guarded,
+      final p => '\\E ${p.name} \\in ${p.from.tla} :\n         $guarded',
+    };
+    return (
+      text: [
+        '${s.action} ==',
+        for (final g in turn) '    /\\ $g',
+        '    /\\ $body',
+        '',
+      ].join('\n'),
+      alternatives: [
+        (
+          tla: [
+            for (final g in turn) '($g)',
+            '($body)',
+          ].join(' /\\ ').replaceAll(RegExp(r'\n\s*'), ' '),
+          spawns: false,
+        ),
+      ],
+    );
+  }
+
   /// The branches before arm [at] of [s], which it is taken only once they
   /// did not hold. A refused reply takes its arm whatever the branches say.
   static List<Branch<W, P>> _passed<W, P extends Enum>(Step<W, P> s, {required int at}) =>
@@ -497,7 +572,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
     Map<ActivationStep, Step<Object?, Enum>> starts = const {},
   }) => [
     for (final (:place, :step) in steps)
-      if (!step.spawned)
+      if (!step.spawned && !step.environment)
         _flStep(
           step,
           place: place.name,

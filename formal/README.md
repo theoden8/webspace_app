@@ -136,7 +136,7 @@ class.
   jar holding whatever the last session left, any site's, and the jar's clear queued for its
   first turn; notification sites load there as preloads, activations that do not show. Eleven
   planted mistakes, each a bug the code once had or would deadlock, are each caught (the cold
-  start's `lateclear`, a clear outside the jar's turns, and `preloadbare`, a site loaded with
+  start's `lateclear`, a clear queued on no turn of the jar, and `preloadbare`, a site loaded with
   no restore, among them; `keepturn`, a jar operation that ends holding its turn, is a
   deadlock, which every config here checks for: a behavior may end only in `Done`); six
   witnesses show the interleavings are reached. The same code under
@@ -178,11 +178,12 @@ class.
   (`told`, `ViewBlockers`). Each is asked for as it lands and joins the lists' queue (the `Dns`
   instance of `activation_lock`, the code's `_mutations`), and its turn decides it: a level
   held by then is not fetched again, a prune drops of what it asked only what is still held
-  and not the app-wide level, an import of the level in force changes nothing; a frame builds
-  and drops the views (`ViewBuilt`, `ViewGone`, hand-written), and `activation_dns*.cfg` hold
-  `Inv_Told` with the sites' levels (`SiteLevel`) and the levels a download picks
-  (`DnsLevels`); `foldbeforelevel` (the views told with the level the fold replaces) is a
-  printed mutant. A webspace chosen on the list is an input of the activation table too
+  and not the app-wide level, an import of the level in force changes nothing; a running
+  site's first view built and its last gone are the views' table (`ViewBuilt`, `ViewGone`,
+  `ViewsTable`), and `activation_dns*.cfg` hold `Inv_Told` with the sites' levels
+  (`SiteLevel`) and the levels a download picks (`DnsLevels`); `foldbeforelevel` (the views
+  told with the level the fold replaces) and `builtatglobal` (a view built told the
+  app-wide level) are printed mutants. A webspace chosen on the list is an input of the activation table too
   (WEBSPACE-013): it supersedes an activation in flight, waits for the device's online
   answer, and unloads, as choices, the loaded sites it stops showing (`Away`); the
   `activation_spaces*.cfg` hold the activation's invariants across it and `Inv_LeftHidden`
@@ -209,7 +210,20 @@ class.
   `SiteActivationController`, `SiteUnloadEngine` and `CookieIsolationEngine`, and
   `activation_steps` (`Outcomes`) from `ActivationStep`. The inputs that start a flow (a tap,
   home, a preload, memory pressure) are steps of the activation table too (`Step.input`),
-  printed as `InputTableStep`. A step that starts another table's input in its own turn
+  printed as `InputTableStep`. An environment action the code runs as a step
+  (`Step.environment`: a loaded site's webview let go of, `LetGoTable`, and its frame,
+  `FrameTable`; a running site's first view attaching its DNS level and its last going,
+  `ViewsTable`; the launch's clear of the shared jar, `CookieIsolationEngine.clearSteps`)
+  lands as an event does, on no flow, and prints as `EnvTableStep`, which `Next` takes
+  beside the actions `activation.tla` still writes by hand. One a lock grants (the clear,
+  `granted: Lock.jar`) waits for the turn the launch queued for it, flow 0, before any
+  input (`Launched_Jar`, which `Init` starts a cold launch from), and passes it on
+  (`LaunchTurn`); one that waits on a call (`StepTable.awaitEnvironment`) lands at the reply,
+  its call's writes and its arm's one action. A let-go its guard
+  does not admit (a site not loaded, or no webview built) takes no step: its teardown runs
+  in `Commit.none()`, which fails on a write of the model. So does another view of a site
+  that has one (a popup, a nested screen beside the site's own), which leaves the site's
+  `told` as it was; a view whose site no longer runs attaches untold, outside the table. A step that starts another table's input in its own turn
   declares it, a `Spawn` (a reroute or a tab rebind that moves a slot to another site
   opens it again, LIR-024):
   the runner starts it after the arm's other effects and its mark and asserts the input
@@ -437,9 +451,10 @@ world takes from TLC's coverage of the world's holding check, which `check.sh` r
   names its own, and then hosts only the pairs whose inputs it allows). One world per
   setting takes every pair that needs it, and holds every invariant. The pairs the
   printer computes from the declarations (`activation_pairs.tsv`) are the gate's: the gate
-  fails where they differ from what the text shares. The environment's actions declare
-  their footprints (`EnvAction`) and the base's operators theirs (`BaseOp`), each held
-  to its text.
+  fails where they differ from what the text shares. The environment's actions written
+  by hand declare their footprints (`EnvAction`), the printed ones' come from their
+  steps as a table action's do, and the base's operators declare theirs (`BaseOp`),
+  each held to its text.
 - **Unreached actions are named:** a table action no world takes is checked by nothing,
   so it is taken in some world or listed in `untaken.tsv` with why none can; an
   unlisted one is planted on every run.

@@ -84,12 +84,6 @@ LEMMA StepInd == Good /\ IndInv /\ [Next]_vars => IndInv'
       BY <2>1, TableStepInd
     <2> QED
       BY <2>1 DEF FlowStep
-  <1>3. CASE ClearJar
-    <2>1. inputs' = inputs /\ fl' = fl /\ holder' = holder
-          /\ dnsHolder' = dnsHolder
-      BY <1>3 DEF ClearJar
-    <2> QED
-      BY <2>1, KeepsTurns
   <1>5. CASE Done
     <2>1. inputs' = inputs /\ fl' = fl /\ holder' = holder
           /\ dnsHolder' = dnsHolder
@@ -102,40 +96,18 @@ LEMMA StepInd == Good /\ IndInv /\ [Next]_vars => IndInv'
       BY <1>4 DEF vars, turn
     <2> QED
       BY <2>1, KeepsTurns
-  <1>6. CASE \E s \in Sites : ViewBuilt(s) \/ ViewGone(s)
-    <2> PICK s \in Sites : ViewBuilt(s) \/ ViewGone(s)
-      BY <1>6
-    <2>1. inputs' = inputs /\ fl' = fl /\ holder' = holder
-          /\ dnsHolder' = dnsHolder
-      BY DEF ViewBuilt, ViewGone, turn
-    <2> QED
-      BY <2>1, KeepsTurns
-  <1>7. CASE \E s \in Sites : Frame(s)
+  <1>6. CASE \E s \in Sites : Frame(s)
     <2> PICK s \in Sites : Frame(s)
-      BY <1>7
+      BY <1>6
     <2>1. inputs' = inputs /\ fl' = fl /\ holder' = holder
           /\ dnsHolder' = dnsHolder
       BY DEF Frame, turn
     <2> QED
       BY <2>1, KeepsTurns
-  <1>8. CASE \E s \in Sites : LetGo(s)
-    <2> PICK s \in Sites : LetGo(s)
-      BY <1>8
-    <2>1. inputs' = inputs /\ fl' = fl /\ holder' = holder
-          /\ dnsHolder' = dnsHolder
-      BY DEF LetGo, turn
-    <2> QED
-      BY <2>1, KeepsTurns
-  <1>9. CASE \E s \in Sites : Reframe(s)
-    <2> PICK s \in Sites : Reframe(s)
-      BY <1>9
-    <2>1. inputs' = inputs /\ fl' = fl /\ holder' = holder
-          /\ dnsHolder' = dnsHolder
-      BY DEF Reframe, turn
-    <2> QED
-      BY <2>1, KeepsTurns
+  <1>7. CASE EnvTableStep
+    BY <1>7, EnvStepInd
   <1> QED
-    BY <1>1, <1>2, <1>3, <1>4, <1>5, <1>6, <1>7, <1>8, <1>9 DEF Next
+    BY <1>1, <1>2, <1>4, <1>5, <1>6, <1>7 DEF Next
 
 THEOREM Turns == ASSUME Good PROVE Spec => []Inv_Places
   <1>1. Init => IndInv

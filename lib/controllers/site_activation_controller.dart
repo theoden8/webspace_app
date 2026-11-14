@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:webspace/settings/site_ids.dart';
 
+import 'package:webspace/controllers/let_go_table.dart';
 import 'package:webspace/controllers/activation_flow.dart';
 import 'package:webspace/controllers/activation_host.dart';
 import 'package:webspace/controllers/activation_place.dart';
@@ -304,7 +305,7 @@ class SiteActivationController {
     assert(reason.chosen, 'the unload input picks its site ($reason)');
     if (!_sites.models.holdsObject(site)) return;
     if (identical(site, _sites.shown)) {
-      site.disposeWebView(commit: const Commit.environment(Environment.letGo));
+      LetGoTable.letGo(_sites, site: site);
       return;
     }
     final flow = _flow(target: site);
