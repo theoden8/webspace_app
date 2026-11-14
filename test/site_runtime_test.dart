@@ -400,10 +400,15 @@ void main() {
         r.apply(change, commit: SiteSetCommit.commitOf(change));
       }
       expect(
-        () => r.apply(const SitesMoved(0, to: 1), commit: const Commit.none()),
+        () => _runtime([]).apply(SitesLoaded([_site(SiteId('d'))]),
+            commit: const Commit.none()),
         throwsA(isA<AssertionError>()),
-        reason: 'a change that moves the list writes rows',
+        reason: 'the startup load writes the list Init starts from',
       );
+      r.apply(const SitesMoved(0, to: 1), commit: const Commit.none());
+      expect(r.models.map((m) => m.siteId), [SiteId('b'), SiteId('a')],
+          reason: 'a move writes in its own step (MoveTable), not the '
+              "change's commit");
       r.apply(SiteAdded(_site(SiteId('c'))), commit: const Commit.none());
       expect(r.models.map((m) => m.siteId), contains(SiteId('c')),
           reason: 'a join writes in its own step (JoinTable), not the '
