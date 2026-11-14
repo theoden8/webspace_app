@@ -121,3 +121,12 @@ Act<W> modelOnly<W>(
   required Set<ModelVar> writes,
   required Reads reads,
 }) => Act(writes: writes, tla: tla, reads: reads, run: (_) {});
+
+/// A witness only the model keeps: [witness] met by a step that lands while
+/// a flow is out. `Idle` is how the model schedules, which a footprint
+/// leaves out (`formal/footprint.py`), so the witness reads only `seen`.
+Act<W> midFlight<W>(String witness) => modelOnly<W>(
+  "seen' = seen \\cup (IF Idle THEN {} ELSE {\"$witness\"})",
+  writes: {ModelVar.seen},
+  reads: const Reads(vars: {ModelVar.seen}),
+);

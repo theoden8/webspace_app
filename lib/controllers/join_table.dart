@@ -62,7 +62,7 @@ abstract final class JoinTable {
               ],
               then: (c) => _land.from(c)(commit: c.commit),
             ),
-            _joinedMidFlight,
+            midFlight('joinedMidFlight'),
           ],
           next: to(JoinPlace.done),
         ),
@@ -142,11 +142,4 @@ final _admittedAs = Expr.choose<SiteId, JoinWorld>(
     },
   ),
   otherwise: _ids.at(_each.it),
-);
-
-/// A witness only the model keeps: a site joined while a flow was out.
-final _joinedMidFlight = modelOnly<JoinWorld>(
-  "seen' = seen \\cup (IF Idle THEN {} ELSE {\"joinedMidFlight\"})",
-  writes: {ModelVar.seen},
-  reads: const Reads(vars: {ModelVar.seen, ModelVar.fl}),
 );
