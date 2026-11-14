@@ -180,3 +180,28 @@ test('LICENSE-001 an owed package\'s refusals are owed, not errors, and the list
     "a package another architecture's bundle carries");
   assert.deepEqual(owing('libowed\nlibnew\tnot read\n').errors, ['libowed: listed as owed with no reason']);
 });
+
+// PLATFORM-013 bundles Ubuntu packages whose copyright files name a licence
+// in a phrase (GStreamer's "MIT/X11 (BSD like)") or are not machine-readable.
+test('LICENSE-001 a row naming a whole phrase reads it as one licence', (t) => {
+  const root = pkg(t, { 'usr/share/doc/libgst/copyright': dep5(['*', 'LGPL-2+'], ['ext/x.c', 'MIT/X11 (BSD like)']) });
+  assert.deepEqual(B.refusals(root, { table: B.names('LGPL-2+\tLGPL-2.0-or-later\n') }), [
+    'usr/share/doc/libgst/copyright: MIT/X11 is a name openspec/specs/legal/debian_licences.tsv does not read',
+    'usr/share/doc/libgst/copyright: (BSD is a name openspec/specs/legal/debian_licences.tsv does not read',
+    'usr/share/doc/libgst/copyright: like) is a name openspec/specs/legal/debian_licences.tsv does not read',
+  ], 'the words of a phrase no row names');
+  assert.deepEqual(B.refusals(root, { table: B.names('LGPL-2+\tLGPL-2.0-or-later\nMIT/X11 (BSD like)\tMIT\n') }), []);
+});
+
+test("LICENSE-001 a file that is not machine-readable passes only as the bytes a reading pinned", (t) => {
+  const text = 'This package was debianized by someone.\nIt is under the MIT licence.\n';
+  const root = pkg(t, { 'usr/share/doc/libold/copyright': text });
+  const sha256 = require('node:crypto').createHash('sha256').update(text).digest('hex');
+  const unread = ['usr/share/doc/libold/copyright: (not a machine-readable copyright file) is a name openspec/specs/legal/debian_licences.tsv does not read'];
+  assert.deepEqual(B.refusals(root, { held: [] }), unread);
+  assert.deepEqual(B.refusals(root, { held: [{ pkg: 'libold', sha256, spdx: 'MIT' }] }), []);
+  assert.deepEqual(B.refusals(root, { held: [{ pkg: 'libother', sha256, spdx: 'MIT' }] }), unread, "another package's reading");
+  assert.deepEqual(B.refusals(root, { held: [{ pkg: 'libold', sha256: '0'.repeat(64), spdx: 'MIT' }] }), unread, 'a reading of other bytes');
+  assert.deepEqual(B.refusals(root, { held: [{ pkg: 'libold', sha256, spdx: 'GPL-2.0-or-later' }] }),
+    ['usr/share/doc/libold/copyright: GPL-2.0-or-later'], 'a reading the policy refuses');
+});

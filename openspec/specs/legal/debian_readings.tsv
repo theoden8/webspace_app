@@ -1,0 +1,6 @@
+# A person's reading of a Debian copyright file that is not machine-readable
+# (LICENSE-001), which tool/check_bundle_licences.js cannot read itself: the
+# package, the SHA-256 of the file as read, the SPDX expression of what the
+# package ships, as licences.tsv reads it, and what the reading found. A file
+# whose bytes differ is unread again, so a package update that changes its
+# notices fails until it is read anew.

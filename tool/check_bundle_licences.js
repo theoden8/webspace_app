@@ -15,12 +15,14 @@
 // (linux/appimage/licences_owed.tsv): their refusals are reported, not
 // failed, and a package the list names that no longer needs it fails.
 
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const L = require('../test/js/helpers/licences');
 const { read } = require('../test/js/helpers/source');
 
 const NAMES = 'openspec/specs/legal/debian_licences.tsv';
+const READINGS = 'openspec/specs/legal/debian_readings.tsv';
 
 // The notices in lib/tor/docs of the programs there rather than of a library
 // tor links: tor's LICENSE (linux/tor_build.sh), and lyrebird's, the licence
@@ -33,6 +35,14 @@ function names(text = read(NAMES)) {
   return L.rows(text).map(([name, spdx, pkg = '', files = '']) => ({
     name: name.trim(), spdx: spdx.trim(), pkg: pkg.trim(), files: files.trim().split(/\s+/).filter(Boolean),
   }));
+}
+
+/**
+ * The rows of debian_readings.tsv: { pkg, sha256, spdx }, a person's reading
+ * of a copyright file no machine can, pinned to the file's bytes.
+ */
+function readings(text = read(READINGS)) {
+  return L.rows(text).map(([pkg, sha256, spdx]) => ({ pkg: pkg.trim(), sha256: sha256.trim(), spdx: spdx.trim() }));
 }
 
 /**
@@ -49,10 +59,19 @@ function spdxOf(name, { pkg, files, table }) {
 /**
  * The licence expressions a DEP-5 copyright file's stanzas name, each in SPDX
  * ids, or the names no row reads. A stanza's commas group alternatives, so
- * each group is held on its own: "A or B, and C" is (A or B) and C.
+ * each group is held on its own: "A or B, and C" is (A or B) and C. A group a
+ * row names whole ("MIT/X11 (BSD like)") reads as that row's id; otherwise
+ * each of its words is read. A file that is not machine-readable reads as
+ * the reading of it debian_readings.tsv holds for exactly its bytes.
  */
-function licencesOf(text, { pkg, table = names() }) {
-  if (!/^Format(-Specification)?:\s*\S/m.test(text)) return { expressions: [], unknown: ['(not a machine-readable copyright file)'] };
+function licencesOf(text, { pkg, table = names(), read: held = readings() }) {
+  if (!/^Format(-Specification)?:\s*\S/m.test(text)) {
+    const sha256 = crypto.createHash('sha256').update(text).digest('hex');
+    const reading = held.find((r) => r.pkg === pkg && r.sha256 === sha256);
+    return reading
+      ? { expressions: [reading.spdx], unknown: [] }
+      : { expressions: [], unknown: ['(not a machine-readable copyright file)'] };
+  }
   const expressions = [];
   const unknown = [];
   for (const para of text.split(/\n[ \t]*\n/)) {
@@ -61,7 +80,13 @@ function licencesOf(text, { pkg, table = names() }) {
     if (!licence || (!filesField && !/^Format/m.test(para))) continue;
     const files = filesField ? filesField.split(/\s+/).filter(Boolean) : ['*'];
     for (const group of licence.split(',')) {
-      const words = group.trim().replace(/^(and|or)\s+/i, '').split(/\s+/).filter(Boolean);
+      const phrase = group.trim().replace(/^(and|or)\s+/i, '');
+      const whole = /\s/.test(phrase) ? spdxOf(phrase, { pkg, files, table }) : null;
+      if (whole) {
+        expressions.push(whole);
+        continue;
+      }
+      const words = phrase.split(/\s+/).filter(Boolean);
       const spdx = words.map((w) => {
         if (/^(and|or)$/i.test(w)) return w.toUpperCase();
         const id = spdxOf(w, { pkg, files, table });
@@ -101,14 +126,14 @@ const DEBUG_SOURCE = /^lib\/debug\/source\/([^/]+)\//;
 const copyrightsOf = (pkg) => [`share/doc/${pkg}/copyright`, `usr/share/doc/${pkg}/copyright`];
 
 /** What [root] ships that LICENSE-001 refuses, one line each. */
-function refusals(root, { table = names(), licences = L.policy() } = {}) {
+function refusals(root, { table = names(), held = readings(), licences = L.policy() } = {}) {
   const out = [];
   const files = copyrightFiles(root);
   if (files.length === 0) out.push(`${root}: no copyright file at all`);
   const lgpl = new Set();
   for (const { file, pkg } of files) {
     const rel = path.relative(root, file);
-    const { expressions, unknown } = licencesOf(fs.readFileSync(file, 'utf8'), { pkg, table });
+    const { expressions, unknown } = licencesOf(fs.readFileSync(file, 'utf8'), { pkg, table, read: held });
     for (const name of unknown) out.push(`${rel}: ${name} is a name ${NAMES} does not read`);
     for (const e of expressions) {
       if (!unknown.length && !L.allows(e, { ships: 'shared', component: `deb:${pkg}`, licences })) {
@@ -160,7 +185,7 @@ function owing(found, { root, owed }) {
   return { errors, owes };
 }
 
-module.exports = { names, spdxOf, licencesOf, copyrightFiles, refusals, owing, NAMES };
+module.exports = { names, readings, spdxOf, licencesOf, copyrightFiles, refusals, owing, NAMES };
 
 if (require.main === module) {
   const args = process.argv.slice(2);
