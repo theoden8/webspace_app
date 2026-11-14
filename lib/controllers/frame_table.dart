@@ -96,19 +96,24 @@ abstract final class FrameTable {
         ActivationStep.restored,
         pick: _each,
         site: _each.it,
+        // A site whose tabs the model does not follow holds nothing there,
+        // and its controller's restore changes none of the model.
         enabled:
             rebuiltOf<SiteId, FrameWorld>().has(_each.it) &
-            TabVars.tabbed<SiteId, FrameWorld>().has(_each.it) &
-            _heldAt.neq(noQueued()),
+            (~_followed | _heldAt.neq(noQueued())),
         otherwise: Otherwise(
           StepOutcome.none,
           then: [
             Act.of(
               [
                 TabVars.held<SiteId, FrameWorld>().becomes(
-                  TabVars.held<SiteId, FrameWorld>().value.except(
-                    _each.it,
-                    to: noQueued(),
+                  Expr.choose(
+                    when: _followed,
+                    then: TabVars.held<SiteId, FrameWorld>().value.except(
+                      _each.it,
+                      to: noQueued(),
+                    ),
+                    otherwise: TabVars.held<SiteId, FrameWorld>().value,
                   ),
                 ),
               ],
@@ -155,6 +160,9 @@ final _restore = Port<void Function({required Commit commit}), FrameWorld>(
   changes: {ModelVar.held},
   of: (w) => w.platform,
 );
+
+/// Whether the model follows the tabs of the site the step names.
+final _followed = TabVars.tabbed<SiteId, FrameWorld>().has(_each.it);
 
 /// `held[s]`: what the site's live build took that no controller restored.
 final _heldAt = TabVars.heldAt<SiteId, FrameWorld>(

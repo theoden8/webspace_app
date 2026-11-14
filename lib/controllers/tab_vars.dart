@@ -294,7 +294,9 @@ final class TabVars {
 
   /// What the build holds for its controller to restore: the back stack it
   /// took, where a let-go may land before that controller comes
-  /// (`Rebuilt`), else nothing (`WebViewTabBinding.frame`).
+  /// (`Rebuilt`), else nothing (`WebViewTabBinding.frame`). A frame over a
+  /// webview already built for the active tab builds none, and what its
+  /// build held waits on as before.
   static Def<Map<S, QueuedStack>, W> handed<S, W>({
     required SiteKeys<S, W> keys,
   }) {
@@ -302,17 +304,18 @@ final class TabVars {
     final l = Bound<Iterable<S>, W>('l');
     final held = TabVars.held<S, W>().value;
     final queued = TabVars.queued<S, W>().value.at(s.it);
+    final target = active<S, W>(keys: keys).at(s.it);
     return Def(
       ModelDef.handed,
       params: [s, l],
       body: Expr.choose(
-        when: builds(s, l: l),
+        when: builds(s, l: l) & builtFn<S, W>().value.at(s.it).neq(target),
         then: held.except(
           s.it,
           to: Expr.choose(
             when:
                 rebuiltOf<S, W>().has(s.it) &
-                takesOf<W>().call([queued, active<S, W>(keys: keys).at(s.it)]),
+                takesOf<W>().call([queued, target]),
             then: queued,
             otherwise: noQueued(),
           ),
