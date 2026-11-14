@@ -1026,6 +1026,13 @@ Test: `test/webview_controller_lifetime_test.dart` ("Android holds the first loa
 
 Tests: `test/webview_controller_lifetime_test.dart` ("a level that lands later reaches the attached view", "a level that lands later reaches the site's popup").
 
+**Known limit:** a webview whose build reply lands after its site was
+unloaded attaches untracked, so a later level change does not reach it. The
+frame that no longer builds it unmounts it, so its native view goes; its site
+keeps the controller that reply handed it until the site's next build. Closing
+this keys the attach by the slot whose frame builds the view, since a hosted
+tab (LIR-018) builds with a posture whose site is not its slot's.
+
 #### Scenario: The app-wide level moves while a webview is attached
 
 **Given** an attached interceptor for a site that follows the app-wide level, at Light
