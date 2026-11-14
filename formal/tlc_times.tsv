@@ -199,7 +199,8 @@ activation_spaces_offline	460
 activation_staleplan	74
 activation_subtreekeepsslot	16
 activation_tabgateopen	2
-activation_tabs	2500
+activation_tabs	5256
+activation_tabs_cap_two	1896
 activation_tabs_child	1820
 activation_tabs_child_containers	880
 activation_tabs_child_delete_containers	1224
@@ -218,6 +219,7 @@ activation_tabs_reroute_tor_containers	3598
 activation_tabs_reset_containers	136
 activation_tabs_router_containers	224
 activation_tabs_spaces	36
+activation_tabs_warm_one	1026
 activation_takeany	194
 activation_tierearly	202
 activation_tor_containers	80

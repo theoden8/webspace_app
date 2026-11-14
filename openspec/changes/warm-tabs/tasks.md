@@ -21,13 +21,13 @@ CONT-003. Design: `design.md`.
 
 - [x] 3.1 `SiteViews` (`lib/web_view_model_site_views.dart`) owns the shown view and the warm ones; `WebViewTabBinding.built` stays the shown view's tab, bytes tagged as before (TAB-003, BUG-036). Verify: `test/warm_tabs_test.dart`; the tab schedules.
 - [x] 3.2 `TabTable`'s `tRebind`: the tab left goes warm unless the limit, the cap or a joining site's plan needs its room (`WarmOver`, `KeepsWarm` with the pick on its arm); a warm target shown as it is. Verify: the tab schedules, `check_steps.sh`.
-- [ ] 3.3 The costliest tab world after: 10,419 s wall on two local workers; the CI figure goes in the PR beside 1.2's.
+- [ ] 3.3 The costliest tab world after: 3 h 01 min on three CI workers (about 32,600 worker-seconds, 41,235,526 distinct states), about twice 1.2's 15,094. Every tab world runs the shipped limits, which in a three-tab world let both inactive tabs be warm; the next step is the printed worlds at a limit of one, the shipped limits kept in `tabs_cap_two`.
 
 ## 4. A warm tab acts as nothing
 
 - [x] 4.1 Going warm pauses the view itself, not through `pauseWebView`, so a notification or background-audio site's warm view pauses too (design D6). Verify: `test/warm_tabs_test.dart`, TAB-025.
 - [x] 4.2 Going warm ends the page's camera and microphone (`stopCaptureScript`), its media, and the screen share and player the shown view spoke for (`_shownGone`). Verify: `test/warm_tabs_test.dart`, TAB-025.
-- [ ] 4.3 The notification bridge drops a post from a view that is not shown (`WebViewConfig.speaksForSite`). No test yet.
+- [x] 4.3 The notification bridge drops a post from a view that is not shown (`WebViewConfig.speaksForSite`). Verify: `test/warm_tab_notification_test.dart`, TAB-025.
 
 ## 5. Running identity and unloads
 
