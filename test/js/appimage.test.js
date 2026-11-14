@@ -54,3 +54,17 @@ test('PLATFORM-013 the Snap workflow keeps no AppDir while a bundled package is 
   }
   assert.match(read('scripts/release_appimage.sh'), /grep -qv '\^#' "\$owed"/, 'the release script publishes while packages are owed');
 });
+
+// A GStreamer stanza reads as build-only when its plugin is not bundled
+// (mpegpsmux's GPL-2+ header among them); bundling the plugin makes the row
+// false, and only this gate would notice.
+test('PLATFORM-013 no plugin a licence row reads as left out is bundled', () => {
+  const bundled = new Set(read('linux/appimage/build_appdir.sh')
+    .match(/^gst_plugins=\(([^)]*)\)/m)[1].split(/\s+/).filter(Boolean));
+  assert.ok(bundled.has('playback'), 'the plugin list was not read');
+  const named = L.rows(read('openspec/specs/legal/debian_licences.tsv'))
+    .flatMap(([, , , , why = '']) => [...why.matchAll(/plugin (\w+)[^;]*?, not in the AppImage/g)].map((m) => m[1]));
+  assert.ok(named.length > 0, 'no row names a plugin left out');
+  assert.deepEqual([...new Set(named)].filter((p) => bundled.has(p)), [],
+    'bundled now: read those stanzas again before the rows call them build-only');
+});
