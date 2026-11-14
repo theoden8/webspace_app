@@ -94,7 +94,11 @@ def tlc(lib, world, *, formal, jar):
     if "No error has been found" in r.stdout:
         return "held", time.time() - t0
     if "Parsing or semantic analysis failed" in r.stdout:
-        raise RuntimeError(f"{lib} does not parse in {world}: a tool fault, not a catch")
+        raise RuntimeError(f"{lib} does not parse in {world}: a tool fault, not a catch\n"
+                           f"{r.stdout[-1500:]}")
+    if "TLC threw an unexpected exception" in r.stdout:
+        raise RuntimeError(f"TLC threw in {world} for {lib}: a tool fault, not a catch\n"
+                           f"{r.stdout[-1500:]}")
     m = re.search(r"Invariant (\S+) is violated|(Deadlock reached)|Error: (.*)", r.stdout)
     if not m:
         raise RuntimeError(f"TLC gave no verdict for {lib} in {world}: a tool fault, "
