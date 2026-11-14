@@ -295,6 +295,15 @@ const _regressions =
         setup: _slot2Behind,
         script: [Pressure(), Pressure(), Tap(1)],
       ),
+      // The second pressure picks the incognito site behind while a tap's
+      // restore holds the jar, and a tap that opens the victim before its
+      // turn makes it unevictable, so the turn spares it rather than
+      // disposing the site on screen.
+      'an incognito victim opened before its turn is spared': (
+        page: _mixedIncognito,
+        setup: _slot2Behind,
+        script: [Pressure(), Tap(1), Pressure(), Tap(2)],
+      ),
       'an incognito target has nothing to restore (INC-001)': (
         page: _mixedIncognito,
         setup: _oneSignedIn,
