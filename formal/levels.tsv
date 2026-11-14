@@ -2,6 +2,9 @@ holds	198
 caught	86
 reached	59
 traces	48
-steps	3297748
+ends	174
+states	294
 modules	274
 obligations	36099
+steps	3297748
+footprints	e7b797a0c274b965

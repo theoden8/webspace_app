@@ -99,6 +99,10 @@ schedules() {
     cat "$OUT"/steps.*.log
     exit "$status"
   fi
+  # What the full search reaches from each sample world, which the levels
+  # gate floors: one line per sample, whichever shard ran it.
+  grep -ohE 'REACHED .*' "$OUT"/steps.*.log >"$OUT/reached.log" || true
+  echo "  $(wc -l <"$OUT/reached.log") sample worlds reached (reached.log)"
 }
 
 lean() {
@@ -155,7 +159,8 @@ finish() {
       --proofs "$ROOT/formal/proofs" "$OUT"/proof-shards/*/proofs.log | tee -a "$OUT/proofs.log"
   fi
   echo "══ LEVELS: verification only grows (formal/levels.tsv) ══"
-  logs=(--models "$OUT/models.log" --steps "$OUT/steps.log" --proofs "$OUT/proofs.log")
+  logs=(--models "$OUT/models.log" --steps "$OUT/steps.log" --proofs "$OUT/proofs.log"
+    --reached "$OUT/reached.log" --footprints "$OUT/model/activation_footprints.tsv")
   python3 -I "$ROOT/formal/levels.py" "$ROOT/formal/levels.tsv" "${logs[@]}" --out "$OUT/levels.tsv"
   # Raise the measured counts: the committed floors may all have been exceeded.
   if python3 -I "$ROOT/formal/levels.py" "$OUT/levels.tsv" "${logs[@]}" \

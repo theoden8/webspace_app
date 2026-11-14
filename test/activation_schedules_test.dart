@@ -884,19 +884,18 @@ void _scheduleTest(
   );
 }
 
-/// One world of each kind with its setup and inputs, and the length of
-/// script whose every schedule within two preemptions runs in seconds:
-/// where the reduced search is held to the full one.
-final _samples =
-    <
-      String,
-      ({
-        ActivationWorld Function() world,
-        List<SiteAction> setup,
-        List<SiteAction> alphabet,
-        int length,
-      })
-    >{
+/// A world with its setup and inputs, and the length of script whose every
+/// schedule within two preemptions runs in seconds.
+typedef _Sample = ({
+  ActivationWorld Function() world,
+  List<SiteAction> setup,
+  List<SiteAction> alphabet,
+  int length,
+});
+
+/// One world of each kind: where the reduced search is held to the full
+/// one, and where formal/levels.py reads what the full search reaches.
+final _samples = <String, _Sample>{
       'one base domain, shared jar, one site signed in': (
         world: () => ActivationWorld(_oneDomain),
         setup: _oneSignedIn,
@@ -953,6 +952,35 @@ final _samples =
         length: 2,
       ),
     };
+
+/// What the full search reaches from [sample] over all its scripts: the end
+/// states and every state a schedule passes through. Neither depends on the
+/// reduction, which only prunes schedules ending where a kept one does, so
+/// formal/levels.py floors both; [runs] is how many schedules it took.
+Future<({Set<String> ends, Set<String> visited, int runs})> _reach(
+  _Sample sample,
+) async {
+  final ends = <String>{};
+  final visited = <String>{};
+  var runs = 0;
+  for (var n = 1; n <= sample.length; n++) {
+    for (final script in _scripts(n, alphabet: sample.alphabet)) {
+      final all = await exploreSchedules(
+        world: sample.world,
+        setup: sample.setup,
+        script: script,
+        preemptions: 2,
+        commutes: null,
+        toTheEnd: true,
+        visits: true,
+      );
+      ends.addAll(all.ends);
+      visited.addAll(all.visited);
+      runs += all.runs;
+    }
+  }
+  return (ends: ends, visited: visited, runs: runs);
+}
 
 void main() {
   setUpAll(
@@ -1666,6 +1694,8 @@ void main() {
           body: () async {
         var every = 0;
         var reduced = 0;
+        final ends = <String>{};
+        final visited = <String>{};
         for (var n = 1; n <= length; n++) {
           for (final script in _scripts(n, alphabet: alphabet)) {
             Future<ScheduleSearch> search(Commutes? commutes) =>
@@ -1676,6 +1706,7 @@ void main() {
                   preemptions: 2,
                   commutes: commutes,
                   toTheEnd: true,
+                  visits: commutes == null,
                 );
             final all = await search(null);
             final pruned = await search(tableCommutes);
@@ -1687,10 +1718,65 @@ void main() {
             );
             every += all.runs;
             reduced += pruned.runs + pruned.stopped;
+            ends.addAll(all.ends);
+            visited.addAll(all.visited);
           }
         }
         expect(reduced, lessThanOrEqualTo(every));
+        // formal/levels.py floors the sums of these over the samples.
+        // ignore: avoid_print
+        print(
+          'REACHED $name\tends=${ends.length}\tstates=${visited.length}'
+          '\truns=$every',
+        );
       });
     }
+  });
+
+  // The floor's two plants (CLAUDE.md: a check counts once it has caught a
+  // planted mistake). What the full search reaches falls when the code
+  // stops taking an input the samples give it, and stays where it is when
+  // only the reduction changes, where the replayed steps fall.
+  group('what formal/levels.py floors', () {
+    final sample = _samples['mixed, containers, small caps']!;
+    _scheduleTest('falls when the code drops an input the samples take',
+        body: () async {
+      final whole = await _reach(sample);
+      final dropped = await _reach((
+        world: sample.world,
+        setup: sample.setup,
+        alphabet: [
+          for (final a in sample.alphabet)
+            if (a is! Pressure) a,
+        ],
+        length: sample.length,
+      ));
+      expect(dropped.ends.length, lessThan(whole.ends.length));
+      expect(dropped.visited.length, lessThan(whole.visited.length));
+    });
+    _scheduleTest('stays when only the reduction changes', body: () async {
+      var pruned = 0;
+      var unpruned = 0;
+      for (var n = 1; n <= sample.length; n++) {
+        for (final script in _scripts(n, alphabet: sample.alphabet)) {
+          Future<ScheduleSearch> search(Commutes? commutes) => exploreSchedules(
+            world: sample.world,
+            setup: sample.setup,
+            script: script,
+            preemptions: 2,
+            commutes: commutes,
+            toTheEnd: true,
+          );
+          final reduced = await search(tableCommutes);
+          final every = await search((_, {required other}) => false);
+          expect(reduced.ends, every.ends, reason: '$script');
+          pruned += reduced.runs;
+          unpruned += every.runs;
+        }
+      }
+      expect(pruned, lessThan(unpruned),
+          reason: 'the reduction prunes, so the replayed steps it leaves '
+              'move with it');
+    });
   });
 }

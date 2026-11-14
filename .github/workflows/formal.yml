@@ -42,6 +42,11 @@ jobs:
           path: build/formal/steps
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
+        with:
+          name: formal-reached
+          path: build/formal/reached.log
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: formal-schedule-failure
@@ -362,6 +367,10 @@ jobs:
           path: build/formal
       - uses: actions/download-artifact@v4
         with:
+          name: formal-reached
+          path: build/formal
+      - uses: actions/download-artifact@v4
+        with:
           pattern: formal-proofs-*
           path: build/formal/proof-shards
       - run: ./formal/verify.sh --stage finish
@@ -373,4 +382,5 @@ jobs:
             build/formal/models.log
             build/formal/steps.log
             build/formal/proofs.log
+            build/formal/reached.log
             build/formal/levels.tsv
