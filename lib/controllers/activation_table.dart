@@ -471,7 +471,7 @@ abstract final class ActivationTable {
     Expr.ofConstant(
       ModelConst.away,
       run: (c) => [
-        [for (final m in ActivationFlow.state.from(c).leaving!) m.siteId],
+        [...ActivationFlow.state.from(c).leaving!],
       ],
     ),
   );

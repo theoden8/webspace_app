@@ -194,8 +194,8 @@ class WebspacesController {
     _switchCompleter = completer;
 
     try {
-      Set<WebViewModel> shown() =>
-          {for (final i in _sites.filteredIndices()) _sites.models[i]};
+      Set<SiteId> shown() =>
+          {for (final i in _sites.filteredIndices()) _sites.models[i].siteId};
       final previous = shown();
 
       _sites.selectedWebspaceId = webspace.id;
