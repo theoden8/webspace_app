@@ -529,9 +529,9 @@ A page's first paint after a rebuild comes from the engine's own cache when the 
 
 The system SHALL recover from renderer-process termination by destroying and rebuilding the affected webview at its `currentUrl`. When the OS kills the WebView's renderer (Android `onRenderProcessGone`, iOS/macOS `onWebContentProcessDidTerminate`) — typically to reclaim memory after the app has been backgrounded for a while — the native WebView is alive but has no renderer driving it. Visually this paints as a **black surface** that does not recover on its own; per Android docs the WebView object is unusable and must be destroyed.
 
-Recovery runs entirely in the host (`WebViewModel`), not in the engine:
+Recovery runs entirely in the host, not in the engine:
 
-- `WebViewModel.handleRendererGone({required bool didCrash})` drops the cached widget (`webview = null`) and controller (`controller = null`), then invokes `stateSetterF`.
+- The site's webview hands the death to its host (`SiteHooks.rendererGone`), which the page answers with `AppLifecycleController.rendererGone(model, didCrash:)`: it lets the webview go through the one owner of a let-go, `LetGoTable.letGo(sites, site:, end: WebViewEnd.rendererGone)`, which drops the cached widget (`webview = null`) and controller (`controller = null`) without waiting on the dead view to quiet, then rebuilds the page.
 - The host `setState` rebuild calls `getWebView()`, which sees `webview == null` and constructs a fresh `InAppWebView` with `initialUrlRequest` pointing at `currentUrl`.
 - The live JS heap and DOM are unavoidably lost — the process holding them is gone. Back/forward stack is dropped too (no `saveState()` is possible after the renderer is dead); the user lands on the URL they were on.
 
@@ -546,7 +546,7 @@ The wrapper exposes a single `WebViewConfig.onRendererGone(bool didCrash)` callb
 **Then** `WebView.onRenderProcessGone` fires with `didCrash=false`
 **And** `WebViewConfig.onRendererGone(false)` is invoked on the owning model
 **And** `model.webview` and `model.controller` are set to null
-**And** `stateSetterF` is called, triggering a parent rebuild
+**And** the page rebuilds
 **And** the IndexedStack child reconstructs the `InAppWebView` at `currentUrl`
 **And** the user sees the page reload instead of a stuck black screen
 
@@ -568,13 +568,13 @@ The wrapper exposes a single `WebViewConfig.onRendererGone(bool didCrash)` callb
 
 Test: `test/page_phase_test.dart`.
 
-#### Scenario: Recovery is safe when `stateSetterF` is unset
+#### Scenario: Recovery is safe for a site the model lets go of none of
 
-**Given** a `WebViewModel` constructed without a `stateSetterF` (e.g. test fixtures, pre-mount initialisation)
-**When** `handleRendererGone` runs
+**Given** a site that is not loaded, or whose webview was never bound to a tab (e.g. test fixtures, pre-mount initialisation)
+**When** its renderer-gone reaches `LetGoTable.letGo`
 **Then** `webview` and `controller` are cleared
-**And** no exception is thrown
-**Because** the null-aware `stateSetterF?.call()` makes the host hook optional. The next time the model is wired into a tree, the caller assigns `stateSetterF` and any subsequent rebuild reconstructs the WebView.
+**And** nothing the model holds is written: the teardown runs in `Commit.none()`, which fails on a write, and no `LetGo` step is taken
+**Because** the model lets go only of a loaded site's built webview; anywhere else the teardown changes nothing it holds. Test: `test/webview_renderer_gone_test.dart`.
 
 ---
 
@@ -590,7 +590,7 @@ The host runs the probe `AppLifecycleController.probeRenderer(model)`:
 - After resuming the active site on app resume (`AppLifecycleController._resumeAfterPause`).
 - After resuming the newly-activated site on every site switch (`activate`), which is the path a pinned-shortcut tap funnels through.
 
-The probe evaluates `document.body ? document.body.offsetHeight : -1` via `evaluateJavascriptReturning`. A live renderer returns a number; a dead renderer (whose `evaluateJavascript` throws) is surfaced as a `null` result. `rendererProbeIndicatesGone(result)` returns true only for `null` — every numeric value (`0`, `-1`, positive height) is treated as alive, so a healthy or still-loading page is never recreated. When the probe indicates gone, the host calls `handleRendererGone(didCrash: false)`, joining the same destroy-and-rebuild path as PAUSE-013. The probe is fire-and-forget and a no-op when the model has no controller (a fresh first-load).
+The probe evaluates `document.body ? document.body.offsetHeight : -1` via `evaluateJavascriptReturning`. A live renderer returns a number; a dead renderer (whose `evaluateJavascript` throws) is surfaced as a `null` result. `rendererProbeIndicatesGone(result)` returns true only for `null` — every numeric value (`0`, `-1`, positive height) is treated as alive, so a healthy or still-loading page is never recreated. When the probe indicates gone, the host calls `rendererGone(model, didCrash: false)`, joining the same destroy-and-rebuild path as PAUSE-013. The probe is fire-and-forget and a no-op when the model has no controller (a fresh first-load).
 
 On Android the probe doubles as the surface paint nudge: reading `offsetHeight` forces a synchronous layout that schedules the missing paint, so a blank-but-alive surface is fixed by the probe itself without a recreate.
 
@@ -603,7 +603,7 @@ On Android the probe doubles as the surface paint nudge: reading `offsetHeight` 
 **Then** `AppLifecycleController.probeRenderer` evaluates the probe against the dead content process
 **And** `evaluateJavascriptReturning` returns null (the call threw on the dead process)
 **And** `rendererProbeIndicatesGone(null)` is true
-**And** `handleRendererGone(didCrash: false)` recreates the webview at `currentUrl`
+**And** `rendererGone(model, didCrash: false)` recreates the webview at `currentUrl`
 **And** the user sees the page reload instead of a blank screen
 
 #### Scenario: Live renderer is not recreated

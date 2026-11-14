@@ -21,6 +21,7 @@ Future<void> _pump(WidgetTester tester, {required WebViewModel model}) async {
         child: SettingsScreen(
           webViewModel: model,
           appTheme: WebViewTheme.system,
+          letGo: () {},
           isolation: fakeSharedJar(),
         ),
       )),

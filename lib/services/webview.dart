@@ -869,6 +869,7 @@ class WebViewFactory {
                   siteLevel: config.siteDnsAsk,
                   localCdn: config.posture.blocking.localCdn,
                   contentBlock: config.posture.blocking.contentBlock,
+                  vars: config.hooks.vars,
                 ),
               )
             : Future.value(!holdsFirstLoad);

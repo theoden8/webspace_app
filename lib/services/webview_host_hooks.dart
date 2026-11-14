@@ -12,6 +12,7 @@ import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/origin_choices.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/services/isolation.dart';
+import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/services/site_posture.dart';
 
@@ -21,6 +22,7 @@ import 'package:webspace/services/site_posture.dart';
 final class WebViewHostHooks {
   const WebViewHostHooks({
     required this.isolation,
+    required this.vars,
     required this.globalUserScripts,
     required this.save,
     required this.rebuild,
@@ -39,6 +41,10 @@ final class WebViewHostHooks {
   /// How the sites' cookies are kept apart, and the jars that go with it;
   /// read when a webview is built, which is after the restore decides it.
   final Isolation Function() isolation;
+
+  /// The page's runtime: the sites that run, which a webview attaching its
+  /// blockers is built for (DNS-022).
+  final RuntimeVars<SiteId> vars;
 
   /// Takes [blocked] out of the jar of [controller]'s webview after a load
   /// (ISO-011, CONT-006). A delete the jar refuses leaves that cookie for the
@@ -99,6 +105,7 @@ final class WebViewHostHooks {
   /// host would put to the user is declined.
   WebViewHostHooks unattended() => WebViewHostHooks(
         isolation: isolation,
+        vars: vars,
         globalUserScripts: globalUserScripts,
         save: save,
         rebuild: rebuild,

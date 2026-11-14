@@ -11,6 +11,7 @@ export 'package:webspace/services/model_names.dart';
 export 'package:webspace/services/step_print.dart';
 
 part 'model_exprs.dart';
+part 'step_commit.dart';
 part 'step_lock.dart';
 part 'step_reads.dart';
 
@@ -669,35 +670,6 @@ final class Shared<T> {
       'the cell, or the engine reaching it, its type arguments';
 }
 
-/// A turn in which the model's state may be written: the runner makes one
-/// for each arm it applies, and [commitInput] for an input the code marks
-/// by hand. A cell the code shares ([SharedAt]) writes only with one in
-/// hand, so a write outside them does not compile.
-final class Commit {
-  const Commit._() : environment = null, _none = false;
-
-  /// A write of one of the environment's actions `activation.tla` states by
-  /// hand: the model takes it there, not in a table's step.
-  const Commit.environment(Environment this.environment) : _none = false;
-
-  /// A turn that writes none of the model's state: a change to what the
-  /// model does not hold, such as a site's name or its settings. A write in
-  /// it fails at once.
-  const Commit.none() : environment = null, _none = true;
-
-  /// A model a test builds before any step runs.
-  @visibleForTesting
-  const Commit.fixture() : environment = null, _none = false;
-
-  final Environment? environment;
-  final bool _none;
-
-  /// This commit wrote [variable].
-  void wrote(ModelVar variable) {
-    assert(!_none, 'a turn that writes none of the model wrote $variable');
-  }
-}
-
 /// A planted mistake run as code: the tables and definitions the runner
 /// takes in place of the code's own while [run]'s body runs, so a test
 /// holds the code to a mistake the model's mutants plant (`mutated`,
@@ -730,88 +702,6 @@ final class Planted {
     final Planted p => p,
     _ => null,
   };
-}
-
-/// The environment's actions of `activation.tla` the code writes the
-/// model's variables in, hand-written there until the tables print them.
-enum Environment {
-  /// The sites the last session saved, read into an empty list before any
-  /// flow runs: the list `Init` starts from.
-  init,
-
-  /// The frame that builds a loaded site's webview for its active tab and
-  /// hands it the back stack queued for that tab (`Frame(s)`).
-  frame,
-
-  /// A row moved to another place in the list (`Move(from, to)`).
-  move,
-
-  /// A site joining the list at its end, where the model kept its row
-  /// (`Join(s)`): an add, an archive's open.
-  join,
-
-  /// A loaded site's webview let go of so the frame builds it afresh
-  /// (`LetGo(s)`): a changed posture, proxy, user script, Tor binding or
-  /// address, a data clear, a reset, a renderer gone (BUG-002), a move
-  /// into an archive or out, onto the other tier's container.
-  letGo,
-}
-
-/// An input the code marks by hand ([ActivationSteps.mark]) and what it
-/// writes of the model, in one synchronous turn: [writes] runs with the
-/// input's [Commit], then the step is marked.
-void commitInput(
-  ActivationStep step, {
-  required StepOutcome outcome,
-  required Object? site,
-  required void Function(Commit commit) writes,
-}) {
-  writes(const Commit._());
-  ActivationSteps.mark(step, outcome: outcome, site: site);
-}
-
-/// A variable of the model that is a function of a key (`tabs[s]`), as
-/// the state that owns it keeps it: read anywhere, written only with a
-/// [Commit], which a table's arm ([Indexed.over]) or a hand-marked input
-/// ([commitInput]) gives; or, where
-/// the model holds only a value's [members], rearranged without one.
-final class SharedAt<K, V> {
-  SharedAt(
-    this.variable, {
-    required V Function(K at) read,
-    required void Function(K at, {required V to}) write,
-    this.members,
-  }) : _read = read,
-       _write = write;
-
-  final ModelVar variable;
-  final V Function(K at) _read;
-  final void Function(K at, {required V to}) _write;
-
-  /// What the model holds of a value when it holds a set of it: `tabs[s]`
-  /// is the ids of the tabs, not their order or their tree.
-  final Set<Object?> Function(V value)? members;
-
-  V of(K at) => _read(at);
-
-  void write({required K at, required V to, required Commit commit}) {
-    _write(at, to: to);
-    commit.wrote(variable);
-  }
-
-  /// A write the model cannot see, so no step takes it: [to] holds the
-  /// members the value holds now (a tab dragged within its tree, TAB-015).
-  void rearrange({required K at, required V to}) {
-    final held = members;
-    assert(held != null, '${variable.name}: the model holds all of it');
-    if (held != null) {
-      final now = held(of(at));
-      final then = held(to);
-      assert(now.length == then.length && now.containsAll(then),
-          '${variable.name}: a rearrangement changed what the model holds');
-    }
-    _write(at, to: to);
-  }
 }
 
 /// A variable of the model that is a function, `name[k]`, read and
@@ -1531,6 +1421,7 @@ final class Step<W, P extends Enum> extends At<W, P> {
     this.refused,
   }) : input = false,
        spawned = false,
+       environment = false,
        enabled = null;
 
   /// An input's own step, the first of the flow it starts, run before any
@@ -1547,6 +1438,7 @@ final class Step<W, P extends Enum> extends At<W, P> {
     required this.otherwise,
   }) : input = true,
        spawned = false,
+       environment = false,
        holds = null,
        granted = null,
        call = null,
@@ -1564,15 +1456,41 @@ final class Step<W, P extends Enum> extends At<W, P> {
     required this.otherwise,
   }) : input = true,
        spawned = true,
+       environment = false,
        enabled = null,
        holds = null,
        granted = null,
        call = null,
        refused = null;
 
+  /// One of the environment's actions, run as the code does it
+  /// ([StepTable.runEnvironment], or [StepTable.awaitEnvironment] for one
+  /// that waits on its [call]): in the model it lands while every flow
+  /// waits, as an event does, on no flow, where [enabled] holds (asserted on
+  /// the way in), and where it is [granted] the lock's turn queued for it at
+  /// launch ([LaunchTurn]); its one arm goes to the step's own place, since
+  /// it moves no flow; it starts none and sets no field of one. A call's
+  /// writes land with the arm's, at the reply, as one action.
+  const Step.environment(
+    this.name, {
+    this.enabled,
+    this.granted,
+    this.call,
+    this.pick,
+    this.site,
+    required this.otherwise,
+  }) : input = false,
+       spawned = false,
+       environment = true,
+       branches = const [],
+       tab = null,
+       holds = null,
+       refused = null;
+
   final ActivationStep name;
   final bool input;
   final bool spawned;
+  final bool environment;
   final Expr<bool, W>? enabled;
 
   /// What a flow at the step's place needs: asserted as it moves in and
@@ -1610,13 +1528,24 @@ final class Step<W, P extends Enum> extends At<W, P> {
   }
 
   /// Whether the step runs between two awaits: nothing lands before it.
-  bool get internal => call == null && granted == null && !input;
+  bool get internal =>
+      call == null && granted == null && !input && !environment;
 
   Step<W, P> withArms({
     List<Branch<W, P>>? branches,
     Otherwise<W, P>? otherwise,
     Refused<W, P>? refused,
-  }) => spawned
+  }) => environment
+      ? Step.environment(
+          name,
+          enabled: enabled,
+          granted: granted,
+          call: call,
+          pick: pick,
+          site: site,
+          otherwise: otherwise ?? this.otherwise,
+        )
+      : spawned
       ? Step.spawned(
           name,
           pick: pick,
@@ -1675,6 +1604,16 @@ final class StepTable<W, P extends Enum> {
           '${step.name} at ${place.name} cannot end as ${arm.outcome}',
         );
       }
+      assert(
+        !step.environment ||
+            step.allArms.every(
+              (a) =>
+                  a.next.tla == '"${place.name}"' &&
+                  a.then.every((e) => e is Act<W> || e is Note<W>),
+            ),
+        '${step.name} is the environment\'s: its arm moves no flow, so it '
+        'goes to ${place.name} and sets no field and starts no input',
+      );
     }
   }
 
@@ -1806,6 +1745,63 @@ final class StepTable<W, P extends Enum> {
     return _land(step, on: c);
   }
 
+  /// Runs the environment's step at [at] on [c], as an event lands: its
+  /// pick made, its guard asserted, its arm's effects done and the step
+  /// marked, all in one turn.
+  void runEnvironment(StepContext<W> c, {required P at}) {
+    if (Planted._current?._table(this) case final StepTable<W, P> planted) {
+      return planted._runEnvironment(c, at: at);
+    }
+    _runEnvironment(c, at: at);
+  }
+
+  void _runEnvironment(StepContext<W> c, {required P at}) {
+    final step = _environmentAt(at);
+    assert(
+      step.call == null,
+      '${step.name} waits on its call: awaitEnvironment runs it',
+    );
+    _enter(step, on: c);
+    _land(step, on: c);
+  }
+
+  /// Runs the environment's step at [at] on [c] that waits on its call, as
+  /// the model's one action, which lands at the reply: its pick made and
+  /// its guard asserted as the call is issued and again at the reply,
+  /// where its arm's effects are done and the step marked, in one turn. A
+  /// call that throws lands nothing.
+  Future<void> awaitEnvironment(StepContext<W> c, {required P at}) {
+    if (Planted._current?._table(this) case final StepTable<W, P> planted) {
+      return planted._awaitEnvironment(c, at: at);
+    }
+    return _awaitEnvironment(c, at: at);
+  }
+
+  Future<void> _awaitEnvironment(StepContext<W> c, {required P at}) async {
+    final step = _environmentAt(at);
+    final call = step.call;
+    assert(
+      call != null && call.reads.isEmpty,
+      '${step.name} waits on no call, or records a field no flow has',
+    );
+    _enter(step, on: c);
+    await _charged(step.name, run: (_) => call!._run(c));
+    assert(
+      _charged(step.name, run: (_) => step.enabled?.run(c) ?? true),
+      '${step.name} landed where ${step.enabled?.tla} does not hold',
+    );
+    _land(step, on: c);
+  }
+
+  Step<W, P> _environmentAt(P place) {
+    final step = at(place);
+    assert(
+      step is Step<W, P> && step.environment,
+      '${place.name} is no environment action',
+    );
+    return step as Step<W, P>;
+  }
+
   /// [step]'s pick made and its guard asserted on [on], read as its action
   /// reads them. A spawned input's are its spawner's, whose spawn binds the
   /// pick (`_spawned`, printed as the spawn's `site`), so what the set it
@@ -1900,14 +1896,17 @@ final class StepTable<W, P extends Enum> {
     return next;
   }
 
-  /// Whether the input step at [place] would run on [c]: its pick made and
-  /// its [Step.enabled] holding, read as its action reads them. The caller
-  /// of an input that is not decides what to answer; the step asserts it
-  /// again on the way in.
+  /// Whether the input or environment step at [place] would run on [c]:
+  /// its pick made and its [Step.enabled] holding, read as its action reads
+  /// them. The caller of one that is not decides what to answer; the step
+  /// asserts it again on the way in.
   bool admits(P place, {required StepContext<W> on}) {
     final c = on;
     final step = at(place);
-    assert(step is Step<W, P> && step.input, '${place.name} is no input');
+    assert(
+      step is Step<W, P> && (step.input || step.environment),
+      '${place.name} is no input or environment action',
+    );
     step as Step<W, P>;
     return _charged(
       step.name,

@@ -54,7 +54,6 @@ import 'package:webspace/services/isolation.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
-import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/html_source.dart';
 
 const List<MapEntry<String?, String>> _languages = [
@@ -101,6 +100,10 @@ class SettingsScreen extends StatefulWidget {
   /// Callback when settings are saved (to trigger webview reload)
   final VoidCallback? onSettingsSaved;
 
+  /// Lets go of the site's webview, so the frame builds it afresh with
+  /// what was saved (`LetGoTable`).
+  final void Function() letGo;
+
   /// Run before a changed proxy takes effect: the sites the site now
   /// contends with go first (PROXY-008).
   final Future<void> Function()? onProxyChanging;
@@ -141,6 +144,7 @@ class SettingsScreen extends StatefulWidget {
   SettingsScreen({
     required this.webViewModel,
     required this.appTheme,
+    required this.letGo,
     this.onSettingsSaved,
     this.onProxyChanging,
     this.onClearCookies,
@@ -452,14 +456,14 @@ class _SettingsScreenState extends State<SettingsScreen>
           'Saving per-site proxy for siteId=${m.siteId}: '
           '${proxy.describeForLogs()}', sensitive: true);
       await widget.onProxyChanging?.call();
-      await m.updateProxySettings(proxy);
+      await m.updateProxySettings(proxy, letGo: widget.letGo);
     } else {
       final defaultProxy = UserProxySettings(type: ProxyType.DEFAULT);
       m.proxySettings = defaultProxy;
       LogTag.proxy.debug(
           'Per-site proxy unsupported on this platform; forcing DEFAULT for '
           'siteId=${m.siteId}', sensitive: true);
-      await m.updateProxySettings(defaultProxy);
+      await m.updateProxySettings(defaultProxy, letGo: widget.letGo);
     }
 
     // Unconditional: an empty field clears the override (previously it
@@ -511,7 +515,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     // Dispose the webview so it gets recreated with the new settings, at
     // the URL it was showing.
     final currentUrl = m.currentUrl;
-    m.disposeWebView(commit: const Commit.environment(Environment.letGo));
+    widget.letGo();
     m.currentUrl = currentUrl;
 
     // Pop first so the Settings route leaves the tree before the parent

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:webspace/controllers/let_go_table.dart';
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_activation_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
@@ -105,7 +106,7 @@ class SiteNetworkController {
       anyTorSite = true;
       // A site with no webview shows the placeholder; the rebuild below
       // builds the real one.
-      if (m.webview != null) m.disposeWebView(commit: const Commit.environment(Environment.letGo));
+      if (m.webview != null) LetGoTable.letGo(_sites, site: m);
     }
     if (!anyTorSite) return;
     // Router mode encodes a Tor route against the endpoint it saw last
@@ -400,7 +401,7 @@ class SiteNetworkController {
               ProxyType.DEFAULT) {
         continue;
       }
-      m.disposeWebView(commit: const Commit.environment(Environment.letGo));
+      LetGoTable.letGo(_sites, site: m);
       rebuilt = true;
     }
     if (rebuilt) _host.rebuild();

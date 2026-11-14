@@ -138,6 +138,7 @@ Future<void> tapTile(WidgetTester tester,
     await pump(tester, home: SettingsScreen(
         webViewModel: freshModel(),
         appTheme: WebViewTheme.system,
+        letGo: () {},
         isolation: _sharedJar()));
     await openPrivacy(tester);
     expect(warnIcon, findsNothing);
@@ -158,6 +159,7 @@ Future<void> tapTile(WidgetTester tester,
     await pump(tester, home: SettingsScreen(
         webViewModel: freshModel(),
         appTheme: WebViewTheme.system,
+        letGo: () {},
         isolation: _sharedJar()));
     await openPrivacy(tester);
 
@@ -174,6 +176,7 @@ Future<void> tapTile(WidgetTester tester,
     await pump(tester, home: SettingsScreen(
         webViewModel: freshModel(),
         appTheme: WebViewTheme.system,
+        letGo: () {},
         isolation: _sharedJar()));
     await openPrivacy(tester);
 

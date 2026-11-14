@@ -6,6 +6,7 @@ import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/headless_site_check.dart';
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/runtime_vars.dart';
 import 'package:webspace/services/view_blockers.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/web_view_model.dart';
@@ -57,8 +58,10 @@ void main() {
       ..resetForTest()
       ..store = MemoryFileStore();
     sent = [];
-    dns.views = ViewBlockers(send: sent.add, resolve: dns.effectiveLevelFor);
-    final list = [for (var i = 0; i < 1200; i++) 'filler-$i.example'].join('\n');
+    dns.views = ViewBlockers(send: sent.add, inForce: dns.levelsInForce);
+    final list = [
+      for (var i = 0; i < 1200; i++) 'filler-$i.example',
+    ].join('\n');
     outboundHttp = FakeOutbound(responder: (_) => http.Response(list, 200));
   });
 
@@ -77,7 +80,8 @@ void main() {
   test('a check is told its level as the lists move, until it is disposed '
       '(DNS-022)', () async {
     final c = check();
-    await c.follow(site.headlessCheckConfig(inertHostHooks()), headlessId: 'check-1');
+    await c.follow(site.headlessCheckConfig(
+        inertHostHooks(vars: RuntimeVars.ofSet({}, checked: {site.siteId}))), headlessId: 'check-1');
     expect(dns.views.told, {site.siteId: 0}, reason: 'attached at its level');
 
     expect(await dns.downloadList(1), isTrue);

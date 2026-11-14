@@ -74,6 +74,7 @@ Future<void> _openPermissions(
   await tester.pumpWidget(localizedApp(SettingsScreen(
       webViewModel: WebViewModel(initUrl: _home),
       appTheme: WebViewTheme.system,
+      letGo: () {},
       isolation: isolation,
     )));
   await tester.pumpAndSettle();

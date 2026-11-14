@@ -400,6 +400,7 @@ void main() {
           SettingsScreen(
             webViewModel: site,
             appTheme: WebViewTheme.system,
+            letGo: () {},
             isolation: fakeContainers(),
           ),
         ),
@@ -476,6 +477,7 @@ void main() {
           SettingsScreen(
             webViewModel: site,
             appTheme: WebViewTheme.system,
+            letGo: () {},
             isolation: fakeContainers(),
           ),
         ),
@@ -797,7 +799,7 @@ void main() {
       site.webview = const SizedBox.shrink();
       site.liveExtensions = site.extensionHome(fakeContainers());
       expect(siteMenuExtensions(site), hasLength(1));
-      site.disposeWebView(commit: const Commit.environment(Environment.letGo));
+      site.disposeWebView(commit: const Commit.fixture());
       expect(siteMenuExtensions(site), isEmpty);
     });
 

@@ -567,7 +567,7 @@ and gave a transport tap no route into the page. Consequences of owning it:
   .nowPlayingInfo != nil` (an OS read, not a local flag), keeping
   BGAUDIO-007's `notificationPosted()` meaningful on iOS.
 - A webview that goes SHALL call `stopForSite`, disposed (`disposeWebView`)
-  or with its renderer dead (`handleRendererGone`), through the one teardown
+  or with its renderer dead (`WebViewEnd.rendererGone`), through the one teardown
   both take: the player the session spoke for is gone with the webview, and
   stale controls whose buttons reach nothing are exactly the symptom this
   requirement exists to remove.
