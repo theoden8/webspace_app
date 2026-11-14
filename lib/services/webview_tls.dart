@@ -16,11 +16,14 @@ import 'package:webspace/services/url_host.dart';
 /// How a site webview answers a certificate the OS rejected: the user's
 /// trust prompt, the pinned exceptions, and the reload after a refused load.
 abstract final class WebViewTls {
-  /// Cert objects observed via [handleServerTrust], keyed by host:port.
-  /// On iOS/macOS the post-failure prompt fires from `onReceivedError`,
-  /// which doesn't carry the cert; we stash whatever the trust callback
-  /// saw so the prompt can show subject/issuer/dates.
-  static final Map<String, inapp.SslCertificate> _sslCertificateCache = {};
+  /// Cert objects observed via [handleServerTrust], per view and then by
+  /// host:port. On iOS/macOS the post-failure prompt fires from
+  /// `onReceivedError`, which doesn't carry the cert; we stash whatever the
+  /// trust callback saw so the prompt can show subject/issuer/dates. Per
+  /// view, so a prompt shows, and an Accept pins, only a certificate its own
+  /// view met (SEC-054).
+  static final Expando<Map<String, inapp.SslCertificate>> _certsSeen =
+      Expando('certificates a view met');
 
   /// Routes a TLS server-trust challenge.
   ///
@@ -64,8 +67,10 @@ abstract final class WebViewTls {
         : (space.protocol?.toLowerCase() == 'https' ? 443 : 80);
     final cert = space.sslCertificate;
     final fingerprint = TrustedHostsService.fingerprintFromInappCertificate(cert);
-    if (cert != null) {
-      _sslCertificateCache[_certCacheKey(host, port: port)] = cert;
+    // Only a view that can prompt keeps what it met: a popup or a headless
+    // check never reaches the load error path's prompt.
+    if (cert != null && view != null && hooks != null) {
+      (_certsSeen[view] ??= {})[_certCacheKey(host, port: port)] = cert;
     }
     // Apple: defer to OS unconditionally. The pin store doesn't help
     // here — modern macOS/iOS reject self-signed at the BoringSSL layer
@@ -81,7 +86,7 @@ abstract final class WebViewTls {
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.CANCEL);
     }
-    if (TrustedHostsService.instance.isTrusted(
+    if (TrustedHostsService.instance.honours(
       host: host,
       port: port,
       fingerprint: fingerprint,
@@ -140,7 +145,10 @@ abstract final class WebViewTls {
     }
     final approved = await _ask(host,
         port: port, cert: cert, fingerprint: fingerprint, hooks: hooks);
-    if (!approved) {
+    // The verdict is read again as the answer lands: a portal reported while
+    // the prompt was open is the network's certificate, not the site's.
+    if (!approved ||
+        await _heldForSignIn(host, port: port, cert: cert, hooks: hooks)) {
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.CANCEL);
     }
@@ -366,13 +374,13 @@ abstract final class WebViewTls {
     final host = uri.host;
     final port = uri.hasPort ? uri.port : (uri.scheme == 'https' ? 443 : 80);
     final key = _certCacheKey(host, port: port);
-    final cert = _sslCertificateCache[key];
+    final cert = view == null ? null : _certsSeen[view]?[key];
     final fingerprint =
         TrustedHostsService.fingerprintFromInappCertificate(cert);
     if (await _heldForSignIn(host, port: port, cert: cert, hooks: hooks)) {
       return false;
     }
-    if (TrustedHostsService.instance.isTrusted(
+    if (TrustedHostsService.instance.honours(
       host: host,
       port: port,
       fingerprint: fingerprint,
@@ -392,12 +400,17 @@ abstract final class WebViewTls {
       }));
       return true;
     }
-    if (hooks == null) return false;
+    // Nothing of this view's own to show or pin: asking would put a
+    // certificate it never met, or none, to the user (SEC-054).
+    if (hooks == null || cert == null) return false;
     if (!_inflightSslPrompts.add(key)) return true;
     try {
       final approved = await _ask(host,
           port: port, cert: cert, fingerprint: fingerprint, hooks: hooks);
-      if (!approved) return false;
+      if (!approved ||
+          await _heldForSignIn(host, port: port, cert: cert, hooks: hooks)) {
+        return false;
+      }
       if (fingerprint == null) {
         LogTag.tls.debug(
             'user trusted cert for $host:$port but DER missing — cannot pin, load will fail again',

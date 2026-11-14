@@ -346,7 +346,7 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
 
   static bool _isTrustedBadCert(X509Certificate cert,
       {required String host, required int port}) {
-    return TrustedHostsService.instance.isTrusted(
+    return TrustedHostsService.instance.honours(
       host: host,
       port: port,
       fingerprint: fingerprintFromX509(cert),
@@ -379,7 +379,7 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
           via: via,
           host: uri.host,
           port: uri.port,
-          onBadCertificate: (cert) => TrustedHostsService.instance.isTrusted(
+          onBadCertificate: (cert) => TrustedHostsService.instance.honours(
             host: uri.host,
             port: uri.port,
             fingerprint: fingerprintFromX509(cert),

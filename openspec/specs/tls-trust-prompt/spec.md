@@ -152,7 +152,7 @@ late; the redundant prompt MUST NOT be re-shown.
 
 **Given** the trust callback saw the certificate for `self-signed.example.com:443`, which the user pinned
 **When** the platform delivers a late load error for the original failed navigation, once or several times
-**Then** `WebViewTls.handleSslLoadError` reads the certificate the trust callback cached, finds the pin matches, and does not prompt
+**Then** `WebViewTls.handleSslLoadError` reads the certificate that view's trust callback met, finds the pin matches, and does not prompt
 **And** it reloads the page once for the burst (`_claimReloadGuard`, 10 s), not once an error
 
 iOS and macOS never reach this path (TLS-009).
@@ -160,6 +160,13 @@ iOS and macOS never reach this path (TLS-009).
 Test: `test/webview_tls_test.dart` ("TLS-003").
 
 ---
+
+#### Scenario: A load error asks only about a certificate its own view met
+
+**Given** one view's trust callback met a certificate for a host, and another view of the same host met none
+**When** the second view's load fails with a certificate error
+**Then** it asks nothing and pins nothing: the certificates a view met are kept per view, so another view's is never shown or pinned (SEC-054)
+**And** `test/webview_tls_test.dart` ("a load error asks about, and pins, only a certificate its own view met") and `formal/tls_trust.tla`'s `Inv_ShownOwn`, with the planted mistake `sharedcache`, hold it
 
 ### Requirement: TLS-004 - Dart-side HTTP client honors the same pin list
 
@@ -406,6 +413,28 @@ the OS's own (Android's `NET_CAPABILITY_CAPTIVE_PORTAL`, NetworkManager's
 **Then** it cancels without telling the user
 **And** the first site webview that does tells them once, with a button to the OS's Wi-Fi settings where it has them
 **And** after a reconnect, which is a new network, it tells them again
+
+#### Scenario: A Dart client and a pin while a portal is reported
+
+**Given** the user pinned a self-signed certificate for a host
+**When** the OS last reported a captive portal and a favicon, download or user-script fetch meets that host's certificate
+**Then** the pin is not honoured and the handshake fails: every client that honours a pin asks `TrustedHostsService.honours`, which owns "a pin is honoured unless the OS last reported a portal" (SEC-055)
+**And** once a verdict reports the portal gone, the pin is honoured again
+**And** `test/outbound_pin_portal_test.dart` and `formal/tls_trust.tla`'s `Inv_NoDartPinOnPortal`, with the planted mistake `dartnoverdict`, hold it, and `test/js/pin_honour_owner.test.js` refuses a client that calls the bare pin lookup
+
+#### Scenario: No verdict yet, and how fresh the last one is
+
+**Given** no verdict has been read in this run (at startup, or on a platform that reports none)
+**When** a Dart client meets a pinned certificate
+**Then** the pin is honoured: no portal has been reported, and refusing would break pinned hosts with no evidence of interception
+**And** the verdict a Dart client goes by is the last one a webview read as a certificate was rejected; a portal the OS starts reporting after that read lets a pinned request through until the next read, a known limit `formal/tls_trust_gap_dartpininportal.cfg` reproduces, not a proved property
+
+#### Scenario: A portal reported while the prompt is open
+
+**Given** a rejected certificate's prompt is open, the OS having reported no portal when it was asked
+**When** the OS starts reporting a portal and the user then taps "Trust"
+**Then** the verdict is read again as the answer lands: nothing is pinned, the load is cancelled, and the user is told to sign in
+**And** `test/tls_network_sign_in_test.dart` ("a portal reported while the prompt is open pins nothing and lets nothing through", and the load error path's) and `formal/tls_trust.tla`'s `Inv_NoPinInPortal`, with the planted mistake `answerunread`, hold it
 
 Lineage: [BUG-043](../../../docs/bugs/043-certificate-prompt-flood.md).
 
