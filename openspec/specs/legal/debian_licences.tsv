@@ -48,3 +48,281 @@ GPL-2+	LicenseRef-build-only	libevent-2.1-7t64	m4/libtool.m4	libtool's macros
 GPL-3+	LicenseRef-build-only	libevent-2.1-7t64	m4/acx_pthread.m4	an autoconf macro
 Artistic	LicenseRef-build-only	libssl3t64	external/perl/Text-Template-1.56/*	a Perl module OpenSSL's build runs
 GPL-1+	LicenseRef-build-only	libssl3t64	external/perl/Text-Template-1.56/*	a Perl module OpenSSL's build runs
+# The Ubuntu 24.04 packages the AppImage bundles (PLATFORM-013), each read against
+# the files its binary package ships and, for GStreamer, the plugins the AppImage takes.
+BSD (2 clause)	BSD-2-Clause			licensecheck's name for the two-clause BSD licence
+BSD (3 clause)	BSD-3-Clause			licensecheck's name for the three-clause BSD licence
+TCL	TCL			the Tcl/Tk licence (Regents of the University of California, Sun Microsystems); the name means nothing else
+AFL-2.1	AFL-2.1			the Academic Free License 2.1; the name means nothing else
+0BSD	0BSD			the Zero-Clause BSD licence; DEP-5 and SPDX share the name
+Unlicense	Unlicense			the Unlicense; DEP-5 and SPDX share the name
+MPL-2.0	MPL-2.0			the Mozilla Public License 2.0; DEP-5 and SPDX share the name
+Boost-1.0	BSL-1.0			the Boost Software License 1.0 under its other DEP-5 name
+MPL-1.1+	MPL-1.1+			the Mozilla Public License 1.1 or any later version; the name means nothing else
+expat	MIT			the Expat text, the same licence as the Expat row
+IJG	IJG			the Independent JPEG Group's README terms
+GPL-2 with Linux-syscall-note exception	GPL-2.0-only WITH Linux-syscall-note			Linux uapi headers a library includes; the note keeps their use by a program from being a derived work
+LGPL-2.0+	LGPL-2.0-or-later			another spelling of LGPL-2+
+LGPL-3.0+	LGPL-3.0-or-later			another spelling of LGPL-3+
+Unicode-DFS-2016	Unicode-DFS-2016			the SPDX id itself
+Apache-2.0 with LLVM exception	Apache-2.0 WITH LLVM-exception			the SPDX expression in words
+AFL-2.0	AFL-2.0			the Academic Free License 2.0, the SPDX id itself
+bzip2-1.0.6	bzip2-1.0.6			the SPDX id itself (valgrind.h's licence)
+Public-domain	LicenseRef-public-domain			public domain, capitalised
+GPL-1+	GPL-1.0-or-later			GPL version 1 or later; the name means nothing else
+BSD (2 clause)	BSD-3-Clause	gstreamer1.0-alsa	gst-libs/gst/fft/_kiss_fft_guts_f32.h gst-libs/gst/fft/_kiss_fft_guts_f64.h gst-libs/gst/fft/_kiss_fft_guts_s16.h gst-libs/gst/fft/_kiss_fft_guts_s32.h gst-libs/gst/fft/kiss_fft_f32.c gst-libs/gst/fft/kiss_fft_f64.c gst-libs/gst/fft/kiss_fft_s16.c gst-libs/gst/fft/kiss_fft_s32.c gst-libs/gst/fft/kiss_fftr_f32.c gst-libs/gst/fft/kiss_fftr_f64.c gst-libs/gst/fft/kiss_fftr_s16.c gst-libs/gst/fft/kiss_fftr_s32.c	KISS FFT in libgstfft-1.0, whose files in 1.24.2 say SPDX-License-Identifier: BSD-3-Clause
+GPL-2+	LicenseRef-build-only	gstreamer1.0-alsa	common/coverage/coverage-report-entry.pl common/coverage/coverage-report.pl common/coverage/coverage-report.xsl	coverage report scripts of the old autotools build, absent from the 1.24.2 source; nothing is built from them
+GPL-2+	LicenseRef-build-only	gstreamer1.0-alsa	ltmain.sh	libtool's script of the old autotools build, absent from the 1.24.2 meson source
+MIT/X11 (BSD like) LGPL-2+	MIT AND LGPL-2.0-or-later	gstreamer1.0-alsa		licensecheck's name for a file with both the LGPL-2+ notice and the Expat text (rtsp, sdp, isomp4, ...), read in the 1.24.2 source: Expat, no X11 clause
+BSD (2 clause)	BSD-3-Clause	gstreamer1.0-gl	gst-libs/gst/fft/_kiss_fft_guts_f32.h gst-libs/gst/fft/_kiss_fft_guts_f64.h gst-libs/gst/fft/_kiss_fft_guts_s16.h gst-libs/gst/fft/_kiss_fft_guts_s32.h gst-libs/gst/fft/kiss_fft_f32.c gst-libs/gst/fft/kiss_fft_f64.c gst-libs/gst/fft/kiss_fft_s16.c gst-libs/gst/fft/kiss_fft_s32.c gst-libs/gst/fft/kiss_fftr_f32.c gst-libs/gst/fft/kiss_fftr_f64.c gst-libs/gst/fft/kiss_fftr_s16.c gst-libs/gst/fft/kiss_fftr_s32.c	KISS FFT in libgstfft-1.0, whose files in 1.24.2 say SPDX-License-Identifier: BSD-3-Clause
+GPL-2+	LicenseRef-build-only	gstreamer1.0-gl	common/coverage/coverage-report-entry.pl common/coverage/coverage-report.pl common/coverage/coverage-report.xsl	coverage report scripts of the old autotools build, absent from the 1.24.2 source; nothing is built from them
+GPL-2+	LicenseRef-build-only	gstreamer1.0-gl	ltmain.sh	libtool's script of the old autotools build, absent from the 1.24.2 meson source
+MIT/X11 (BSD like) LGPL-2+	MIT AND LGPL-2.0-or-later	gstreamer1.0-gl		licensecheck's name for a file with both the LGPL-2+ notice and the Expat text (rtsp, sdp, isomp4, ...), read in the 1.24.2 source: Expat, no X11 clause
+BZIP2	LicenseRef-build-only	gstreamer1.0-pipewire	include/*	Valgrind's client headers, included by libpipewire's pipewire.c, not by the gst plugin (src/gst), the one file this package ships; libpipewire is not bundled
+FFTPACK	LicenseRef-build-only	gstreamer1.0-pipewire	src/modules/module-filter-chain/pffft.*	the filter-chain module, not compiled into the gst plugin
+GPL-2	LicenseRef-build-only	gstreamer1.0-pipewire	pipewire-jack/jack/control.h	JACK's control API header, used by pipewire-jack only, not by the gst plugin
+GPL-2+	LicenseRef-build-only	gstreamer1.0-plugins-bad	common/coverage/coverage-report-entry.pl common/coverage/coverage-report.pl common/coverage/coverage-report.xsl	coverage report scripts of the old autotools build, absent from the 1.24.2 source; nothing is built from them
+GPL-2+	LicenseRef-build-only	gstreamer1.0-plugins-bad	ltmain.sh	libtool's script of the old autotools build, absent from the 1.24.2 meson source
+GPL-2+	LicenseRef-build-only	gstreamer1.0-plugins-bad	gst/audiovisualizers/gstbaseaudiovisualizer.c gst/audiovisualizers/gstbaseaudiovisualizer.h gst/audiovisualizers/gstspacescope.c gst/audiovisualizers/gstspacescope.h gst/audiovisualizers/gstspectrascope.c gst/audiovisualizers/gstspectrascope.h gst/audiovisualizers/gstsynaescope.c gst/audiovisualizers/gstsynaescope.h gst/audiovisualizers/gstwavescope.c gst/audiovisualizers/gstwavescope.h gst/audiovisualizers/plugin.c	plugin audiovisualizers, not in the AppImage
+GPL-2+	LicenseRef-build-only	gstreamer1.0-plugins-bad	gst/librfb/vncauth.c gst/librfb/vncauth.h	absent from the 1.24.2 source; plugin rfbsrc, not in the AppImage
+GPL-2+	LicenseRef-build-only	gstreamer1.0-plugins-bad	sys/dvb/camconditionalaccess.c sys/dvb/camconditionalaccess.h	plugin dvb, not in the AppImage
+GPL-2+	LicenseRef-build-only	gstreamer1.0-plugins-bad	gst/audiovisualizers/gstdrawhelpers.h	plugin audiovisualizers, not in the AppImage
+GPL-2+	LicenseRef-build-only	gstreamer1.0-plugins-bad	gst/tta/filters.h	plugin tta, absent from the 1.24.2 source
+GPL-2+	LicenseRef-build-only	gstreamer1.0-plugins-bad	gst/mpegpsmux/bits.h	VideoLAN's GPL-2+ header, in plugin mpegpsmux only, not in the AppImage; no bundled file includes it
+GPL-3+	LicenseRef-build-only	gstreamer1.0-plugins-bad	tests/examples/scaletempo/demo-gui.c tests/examples/scaletempo/demo-main.c tests/examples/scaletempo/demo-player.c	an example program, absent from the 1.24.2 source and never shipped
+GPL-3+	LicenseRef-build-only	gstreamer1.0-plugins-bad	tests/examples/opencv/gstmotioncells_dynamic_test.c tests/examples/opencv/gstmotioncells_dynamic_test.h	an example program, not shipped
+GPL-3+	LicenseRef-build-only	gstreamer1.0-plugins-bad	tests/examples/opencv/gst_element_print_properties.c tests/examples/opencv/gst_element_print_properties.h	an example program, absent from the 1.24.2 source and never shipped
+GPL-3+	LicenseRef-build-only	gstreamer1.0-plugins-bad	tests/examples/scaletempo/demo-gui.h	an example program, absent from the 1.24.2 source and never shipped
+GPL-3+	LicenseRef-build-only	gstreamer1.0-plugins-bad	tests/examples/scaletempo/demo-player.h	an example program, absent from the 1.24.2 source and never shipped
+LGPL	LicenseRef-build-only	gstreamer1.0-plugins-bad	gst/legacyresample/functable.c gst/legacyresample/resample.c gst/legacyresample/resample_functable.c gst/legacyresample/resample_ref.c	plugin legacyresample, absent from the 1.24.2 source
+LGPL	LicenseRef-build-only	gstreamer1.0-plugins-bad	gst/legacyresample/functable.h gst/legacyresample/resample.h	plugin legacyresample, absent from the 1.24.2 source
+LGPL	LicenseRef-build-only	gstreamer1.0-plugins-bad	sys/pvr2d/gstpvr.c sys/pvr2d/gstpvr.h	plugin pvr2d, absent from the 1.24.2 source
+LGPL	LicenseRef-build-only	gstreamer1.0-plugins-bad	sys/pvr2d/gstpvrbufferpool.c	plugin pvr2d, absent from the 1.24.2 source
+LGPL	LicenseRef-build-only	gstreamer1.0-plugins-bad	sys/pvr2d/gstpvrbufferpool.h	plugin pvr2d, absent from the 1.24.2 source
+MIT/X11 (BSD like)	MIT	gstreamer1.0-plugins-bad	sys/shm/shmalloc.c sys/shm/shmalloc.h sys/shm/shmpipe.c sys/shm/shmpipe.h	licensecheck's name; the files carry the Expat text
+MIT/X11 (BSD like)	LicenseRef-build-only	gstreamer1.0-plugins-bad	gst/librfb/d3des.c gst/librfb/d3des.h	plugin rfbsrc, not in the AppImage
+MIT/X11 (BSD like)	MIT	gstreamer1.0-plugins-bad	tests/examples/directfb/gstdfb.c	licensecheck's name; the file carries the Expat text
+MIT/X11 (BSD like) LGPL-2+	MIT AND LGPL-2.0-or-later	gstreamer1.0-plugins-bad		licensecheck's name for a file with both the LGPL-2+ notice and the Expat text (rtsp, sdp, isomp4, ...), read in the 1.24.2 source: Expat, no X11 clause
+MPL-1.1	LicenseRef-build-only	gstreamer1.0-plugins-bad	ext/resindvd/gstmpegdefs.h ext/resindvd/gstmpegdemux.c ext/resindvd/gstmpegdemux.h ext/resindvd/gstmpegdesc.c ext/resindvd/gstmpegdesc.h ext/resindvd/gstpesfilter.c ext/resindvd/gstpesfilter.h	plugin resindvd, not in the AppImage
+MPL-1.1 GPL	LicenseRef-build-only	gstreamer1.0-plugins-bad	gst/mpegdemux/gstmpegdesc.h	absent from the 1.24.2 source; plugin mpegpsdemux, not in the AppImage
+MPL-1.1 GPL GPL-2+ LGPL (v2 or later) (with incorrect FSF address)	MPL-1.1 OR MIT OR LGPL-2.0-or-later	gstreamer1.0-plugins-bad	gst/mpegtsmux/tsmux/tsmux.c gst/mpegtsmux/tsmux/tsmux.h gst/mpegtsmux/tsmux/tsmuxcommon.h gst/mpegtsmux/tsmux/tsmuxstream.c gst/mpegtsmux/tsmux/tsmuxstream.h	each file says SPDX-License-Identifier: MPL-1.1 OR MIT OR LGPL-2.0-or-later; plugin mpegtsmux, not in the AppImage
+MPL-1.1 GPL GPL-2+ LGPL (v2 or later) (with incorrect FSF address)	LicenseRef-build-only	gstreamer1.0-plugins-bad	gst/mpegtsmux/mpegtsmux.h gst/mpegtsmux/mpegtsmux_aac.c gst/mpegtsmux/mpegtsmux_aac.h gst/mpegtsmux/mpegtsmux_h264.c gst/mpegtsmux/mpegtsmux_h264.h	absent from the 1.24.2 source; plugin mpegtsmux, not in the AppImage
+MPL-1.1 GPL GPL-2+ LGPL (v2 or later) (with incorrect FSF address)	MPL-1.1 OR MIT OR LGPL-2.0-or-later	gstreamer1.0-plugins-bad	gst/mpegpsmux/mpegpsmux_aac.c gst/mpegpsmux/mpegpsmux_aac.h gst/mpegpsmux/mpegpsmux_h264.c gst/mpegpsmux/mpegpsmux_h264.h	each file says SPDX-License-Identifier: MPL-1.1 OR MIT OR LGPL-2.0-or-later; plugin mpegpsmux, not in the AppImage
+MPL-1.1 GPL GPL-2+ LGPL (v2 or later) (with incorrect FSF address)	LicenseRef-build-only	gstreamer1.0-plugins-bad	gst/mpegtsmux/mpegtsmux.c	absent from the 1.24.2 source; plugin mpegtsmux, not in the AppImage
+MPL-1.1 LGPL-2+	MPL-1.1 OR LGPL-2.0-or-later	gstreamer1.0-plugins-bad	gst/mpegdemux/flumpegdemux.c gst/mpegdemux/flutspatinfo.h gst/mpegdemux/flutspmtinfo.h gst/mpegdemux/flutspmtstreaminfo.h gst/mpegdemux/gstmpegdefs.h gst/mpegdemux/gstmpegdemux.c gst/mpegdemux/gstmpegdemux.h gst/mpegdemux/gstmpegtsdemux.h gst/mpegdemux/gstpesfilter.c gst/mpegdemux/gstpesfilter.h gst/mpegdemux/gstsectionfilter.h	Fluendo's demuxer, offered under MPL 1.1 or the LGPL 2+ at the user's choice; plugin mpegpsdemux, not in the AppImage
+UNKNOWN	LicenseRef-build-only	gstreamer1.0-plugins-bad	sys/decklink/capture.cpp sys/decklink/linux/DeckLinkAPI.h sys/decklink/linux/DeckLinkAPIDispatch.cpp sys/decklink/linux/LinuxCOM.h sys/decklink/osx/DeckLinkAPI.h sys/decklink/osx/DeckLinkAPIConfiguration.h sys/decklink/osx/DeckLinkAPIDeckControl.h sys/decklink/osx/DeckLinkAPIDiscovery.h sys/decklink/osx/DeckLinkAPIDispatch-osx.cpp sys/decklink/osx/DeckLinkAPIModes.h sys/decklink/osx/DeckLinkAPIStreaming.h sys/decklink/osx/DeckLinkAPITypes.h sys/decklink/osx/DeckLinkAPIVersion.h sys/decklink/win/DeckLinkAPIDispatch.cpp	plugin decklink (Blackmagic's SDK headers under their own terms), not in the AppImage
+BSD (2 clause)	BSD-3-Clause	gstreamer1.0-plugins-base	gst-libs/gst/fft/_kiss_fft_guts_f32.h gst-libs/gst/fft/_kiss_fft_guts_f64.h gst-libs/gst/fft/_kiss_fft_guts_s16.h gst-libs/gst/fft/_kiss_fft_guts_s32.h gst-libs/gst/fft/kiss_fft_f32.c gst-libs/gst/fft/kiss_fft_f64.c gst-libs/gst/fft/kiss_fft_s16.c gst-libs/gst/fft/kiss_fft_s32.c gst-libs/gst/fft/kiss_fftr_f32.c gst-libs/gst/fft/kiss_fftr_f64.c gst-libs/gst/fft/kiss_fftr_s16.c gst-libs/gst/fft/kiss_fftr_s32.c	KISS FFT in libgstfft-1.0, whose files in 1.24.2 say SPDX-License-Identifier: BSD-3-Clause
+GPL-2+	LicenseRef-build-only	gstreamer1.0-plugins-base	common/coverage/coverage-report-entry.pl common/coverage/coverage-report.pl common/coverage/coverage-report.xsl	coverage report scripts of the old autotools build, absent from the 1.24.2 source; nothing is built from them
+GPL-2+	LicenseRef-build-only	gstreamer1.0-plugins-base	ltmain.sh	libtool's script of the old autotools build, absent from the 1.24.2 meson source
+MIT/X11 (BSD like) LGPL-2+	MIT AND LGPL-2.0-or-later	gstreamer1.0-plugins-base		licensecheck's name for a file with both the LGPL-2+ notice and the Expat text (rtsp, sdp, isomp4, ...), read in the 1.24.2 source: Expat, no X11 clause
+BSD	LicenseRef-build-only	gstreamer1.0-plugins-good	sys/oss4/oss4-soundcard.h	plugin oss4, not in the AppImage; no bundled file includes the header
+GPL-2+	LicenseRef-build-only	gstreamer1.0-plugins-good	common/coverage/coverage-report-entry.pl common/coverage/coverage-report.pl common/coverage/coverage-report.xsl	coverage report scripts of the old autotools build, absent from the 1.24.2 source; nothing is built from them
+GPL-2+	LicenseRef-build-only	gstreamer1.0-plugins-good	ltmain.sh	libtool's script of the old autotools build, absent from the 1.24.2 meson source
+LGPL	LGPL-2.0-or-later	gstreamer1.0-plugins-good	gst/effectv/gstradioac.c gst/effectv/gstradioac.h	the notice is the GNU Library GPL version 2 or later
+MIT/X11 (BSD like) LGPL-2+	MIT AND LGPL-2.0-or-later	gstreamer1.0-plugins-good		licensecheck's name for a file with both the LGPL-2+ notice and the Expat text (rtsp, sdp, isomp4, ...), read in the 1.24.2 source: Expat, no X11 clause
+GPL-2	LicenseRef-build-only	libatk-bridge2.0-0t64	debian/*	Debian packaging
+GPL-2	LicenseRef-build-only	libatk1.0-0t64	debian/*	Debian packaging
+GPL-2	LicenseRef-build-only	libatspi2.0-0t64	debian/*	Debian packaging
+BSD-4-clause	LicenseRef-build-only	libblkid1	login-utils/vipw.c misc-utils/cal.c misc-utils/kill.c misc-utils/logger.c misc-utils/look.c misc-utils/whereis.c sys-utils/renice.c term-utils/mesg.c term-utils/script.c term-utils/ttymsg.c term-utils/wall.c term-utils/write.c text-utils/col.c text-utils/colcrt.c text-utils/colrm.c text-utils/column.c text-utils/hexdump.c text-utils/hexdump.h text-utils/hexdump-conv.c text-utils/hexdump-display.c text-utils/hexdump-parse.c text-utils/rev.c text-utils/ul.c	programs in other binary packages
+BSLA	LicenseRef-build-only	libblkid1	login-utils/login.c	login, a program in another binary package
+GPL-2	LicenseRef-build-only	libblkid1	schedutils/ionice.c schedutils/chrt.c schedutils/taskset.c disk-utils/raw.c sys-utils/nsenter.c disk-utils/mkfs.minix.c disk-utils/mkswap.c	programs (ionice, chrt, taskset, raw, nsenter, mkfs.minix, mkswap) in other binary packages
+GPL-2+	LGPL-2.1-or-later AND LGPL-2.0-or-later AND LicenseRef-public-domain AND BSD-2-Clause AND MIT	libblkid1	*	the files of the catch-all stanza the library compiles (lib/*.c, include/*.h; listed from its debug info) carry their own notices: public domain, LGPL-2.1+, LGPL-2+, BSD-2-Clause (xxhash), MIT (crc64), Gary S. Brown's unrestricted CRC32 read as public domain; the rest are programs
+GPL-2+	LicenseRef-build-only	libblkid1	debian/* debian/po/*	Debian packaging
+GPL-3+	LicenseRef-build-only	libblkid1	sys-utils/hwclock-parse-date.y	hwclock's date parser, a program in another binary package
+LGPL	LGPL-2.0-or-later	libblkid1		"the GNU Lesser General Public License" with no version, so any version
+BSD-variant	bzip2-1.0.6	libbz2-1.0		bzip2's own licence (BSD-like: origin not misrepresented, altered source marked, author's name not used), SPDX bzip2-1.0.6
+GPL-2	LicenseRef-build-only	libbz2-1.0	debian/*	Debian's packaging, which is not in the binary package
+GPL-2+	LicenseRef-build-only	libdatrie1	debian/*	Debian packaging
+BSD-3-clause-generic	BSD-3-Clause	libdbus-1-3		BSD-3-Clause naming "the author"
+FSF-unlimited-permission	LicenseRef-build-only	libdbus-1-3	m4/ld-version-script.m4 m4/libtool.m4 m4/ltoptions.m4 m4/ltsugar.m4 m4/ltversion.m4 m4/lt~obsolete.m4 m4/visibility.m4	libtool and gnulib m4 macros
+GPL-2+	LicenseRef-build-only	libdbus-1-3	doc/dbus-test-tool.1.xml.in tools/dbus-cleanup-sockets.c tools/dbus-monitor.c tools/dbus-send.c tools/dbus-print-message.? tools/dbus-uuidgen.c tools/test-tool.c tools/tool-common.?	dbus-send, dbus-monitor and the other tools, in dbus-bin; not in libdbus
+Tcl-BSDish	TCL	libdbus-1-3		the Tcl licence, which dbus/dbus-hash.c (compiled into libdbus) carries for the code taken from tclHash.c
+autoconf-archive-permissive	LicenseRef-build-only	libdbus-1-3	m4/as-ac-expand.m4 m4/ax_ac_append_to_file.m4 m4/ax_ac_print_to_file.m4 m4/ax_add_am_macro_static.m4 m4/ax_am_macros_static.m4 m4/ax_file_escapes.m4	autoconf macros
+g10-permissive	LicenseRef-build-only	libdbus-1-3	dbus/versioninfo.rc.in	a Windows resource template, not used on Linux
+GFDL-NIV-1.3	LicenseRef-build-only	libdw1t64	doc/readelf.1	a manual page
+GPL-3+	LicenseRef-build-only	libdw1t64	* debian/po/de.po debian/po/es.po debian/po/fr.po debian/po/nl.po debian/po/pt_BR.po debian/po/pt.po	the catch-all stanza: the programs (src/), tests and Debian translations; every file libdw and libelf compile is under backends/* or lib* (from their debug info)
+GPL-3+ with Bison exception	LicenseRef-build-only	libdw1t64	libcpu/i386_parse.*	the parser of i386_gendis, a program run at build time to write i386_dis.h; not in libdw (checked against its debug info)
+GFDL-NIV-1.3	LicenseRef-build-only	libelf1t64	doc/readelf.1	a manual page
+GPL-3+	LicenseRef-build-only	libelf1t64	* debian/po/de.po debian/po/es.po debian/po/fr.po debian/po/nl.po debian/po/pt_BR.po debian/po/pt.po	the catch-all stanza: the programs (src/), tests and Debian translations; every file libdw and libelf compile is under backends/* or lib* (from their debug info)
+GPL-3+ with Bison exception	LicenseRef-build-only	libelf1t64	libcpu/i386_parse.*	the parser of i386_gendis, a program run at build time to write i386_dis.h; not in libdw (checked against its debug info)
+FSFAP	LicenseRef-build-only	libenchant-2-2	./m4/ax_cxx_compile_stdcxx.m4 ./m4/ax_require_defined.m4	autoconf macros
+GPL-2.0+	LicenseRef-build-only	libenchant-2-2	./providers/applespell_checker.mm	the macOS AppleSpell provider, not built here
+GPL-3.0+	LicenseRef-build-only	libenchant-2-2	build-aux/snippet/arg-nonnull.h build-aux/snippet/c++defs.h build-aux/snippet/unused-parameter.h build-aux/snippet/warn-on-use.h lib/Makefile.gnulib lib/Makefile.in m4/gnulib-cache.m4 m4/gnulib-comp.m4 tests/arg-nonnull.h tests/c++defs.h tests/unused-parameter.h tests/warn-on-use.h	gnulib's makefiles and m4 state, and build snippets
+BSD-3	BSD-3-Clause	libevdev2		the text Debian gives is BSD-3-Clause with <organization> left unfilled (doc/style/doxy-boot.js, a documentation asset this package does not ship)
+GPL-2	GPL-2.0-only WITH Linux-syscall-note	libevdev2	include/linux/input.h	the kernel's UAPI input.h, whose copy libevdev compiles in (include/linux/linux/input.h) carries SPDX GPL-2.0 WITH Linux-syscall-note; the event-name tables are generated from it
+GPL-2+	GPL-2.0-or-later WITH Linux-syscall-note	libevdev2	include/linux/uinput.h	the kernel's UAPI uinput.h (the kernel tags it GPL-2.0+ WITH Linux-syscall-note; libevdev's copy has no SPDX line), compiled into libevdev's uinput functions
+GPL	LicenseRef-build-only	libffi8	debian/*	Debian packaging
+GPL-2+	LicenseRef-build-only	libffi8	libtool-ldflags msvcc.sh testsuite/libffi.bhaible/alignof.h	build scripts and a test header
+GPL-3+	LicenseRef-build-only	libffi8	make_sunver.pl testsuite/* testsuite/libffi.closures/* testsuite/libffi.bhaible/*	the test suite and a Solaris symbol-version script
+MPL-1.1	LicenseRef-build-only	libffi8	msvcc.sh	the MSVC compiler wrapper script
+X11	LicenseRef-build-only	libffi8	install-sh	the install script
+GPL-2+	LicenseRef-build-only	libgdk-pixbuf-2.0-0	tests/* gdk-pixbuf/test-gdk-pixbuf.c thumbnailer/*	tests, and the thumbnailer whose binary is in libgdk-pixbuf2.0-bin
+CC-BY-SA-3.0	LicenseRef-build-only	libglib2.0-0t64	docs/reference/gio/menu-model.png docs/reference/glib/gvariant-*.svg	documentation images
+FSFULLR	LicenseRef-build-only	libglib2.0-0t64	glib/gnulib/gl_cv_cc_double_expbit0/meson.build glib/gnulib/gl_cv_func_frexp_works/meson.build glib/gnulib/gl_cv_func_frexpl_works/meson.build glib/gnulib/gl_cv_func_ldexpl_works/meson.build glib/gnulib/gl_cv_func_printf_directive_a/meson.build glib/gnulib/gl_cv_func_printf_directive_f/meson.build glib/gnulib/gl_cv_func_printf_directive_ls/meson.build glib/gnulib/gl_cv_func_printf_enomem/meson.build glib/gnulib/gl_cv_func_printf_flag_grouping/meson.build glib/gnulib/gl_cv_func_printf_flag_leftadjust/meson.build glib/gnulib/gl_cv_func_printf_flag_zero/meson.build glib/gnulib/gl_cv_func_printf_infinite/meson.build glib/gnulib/gl_cv_func_printf_infinite_long_double/meson.build glib/gnulib/gl_cv_func_printf_long_double/meson.build glib/gnulib/gl_cv_func_printf_precision/meson.build glib/gnulib/gl_cv_long_double_equals_double/meson.build glib/gnulib/gl_extern_inline/meson.build glib/libcharset/codeset.m4 glib/libcharset/glibc21.m4	meson configure checks and m4 macros that build the library and are not in it
+GPL-2+	LicenseRef-build-only	libglib2.0-0t64	glib/gen-unicode-tables.pl glib/tests/gen-casefold-txt.py glib/tests/gen-casemap-txt.py po/po2tbl.sed.in tools/glib-gettextize.in	generator and gettext scripts run at build time; their output tables carry the Unicode data, not the scripts
+Iconv-PD	LicenseRef-build-only	libglib2.0-0t64	glib/win_iconv.c	the Windows iconv, not compiled on Linux
+Janik-permissive	LicenseRef-build-only	libglib2.0-0t64	gobject/tests/closure-refcount.c	a test program, not built into the libraries
+Janik-permissive	LicenseRef-Janik-permissive	libglib2.0-0t64		glib/gbsearcharray.h, compiled into libgobject: redistribution and modification permitted if the disclaimer is retained; no SPDX id
+Kuchling-PD	LicenseRef-public-domain	libglib2.0-0t64	glib/gchecksum.c	A.M. Kuchling's SHA code in gchecksum.c: use and distribute freely, no restrictions
+Mingw-PD	LicenseRef-build-only	libglib2.0-0t64	gio/gwin32api-application-activation-manager.h gio/gwin32api-iterator.h gio/gwin32api-misc.h gio/gwin32api-package.h gio/gwin32api-storage.h glib/dirent/dirent.c glib/dirent/dirent.h	Windows-only headers, not compiled on Linux
+Plumb-PD	LicenseRef-public-domain	libglib2.0-0t64	glib/gchecksum.c	Colin Plumb's MD5 in gchecksum.c, placed in the public domain
+cmph	LicenseRef-build-only	libglib2.0-0t64	girepository/cmph/*	built into libgirepository-2.0, a separate binary package this one does not ship
+old-glib-tests	LicenseRef-build-only	libglib2.0-0t64	gio/tests/async-close-output-stream.c gio/tests/async-splice-output-stream.c gio/tests/buffered-input-stream.c gio/tests/converter-stream.c gio/tests/credentials.c gio/tests/data-input-stream.c gio/tests/data-output-stream.c gio/tests/g-file-info-filesystem-readonly.c gio/tests/g-file-info.c gio/tests/g-file.c gio/tests/g-icon.c gio/tests/giomodule.c gio/tests/inet-address.c gio/tests/io-stream.c gio/tests/live-g-file.c gio/tests/memory-input-stream.c gio/tests/memory-output-stream.c gio/tests/modules/test-module-a.c gio/tests/modules/test-module-b.c gio/tests/permission.c gio/tests/srvtarget.c gio/tests/thumbnail-verification.c gio/tests/unix-streams.c gio/tests/vfs.c gio/tests/win32-appinfo.c gio/tests/win32-streams.c glib/tests/asyncqueue.c glib/tests/cond.c glib/tests/fileutils.c glib/tests/hook.c glib/tests/mainloop.c glib/tests/markup.c glib/tests/mem-overflow.c glib/tests/mutex.c glib/tests/once.c glib/tests/onceinit.c glib/tests/option-argv0.c glib/tests/option-context.c glib/tests/private.c glib/tests/protocol.c glib/tests/rand.c glib/tests/rec-mutex.c glib/tests/rwlock.c glib/tests/spawn-multithreaded.c glib/tests/spawn-singlethread.c glib/tests/strfuncs.c glib/tests/string.c glib/tests/strvbuilder.c glib/tests/test-printf.c glib/tests/test-spawn-echo.c glib/tests/test-spawn-sleep.c glib/tests/testing.c glib/tests/testutils.h glib/tests/thread-pool.c glib/tests/thread.c glib/tests/timer.c glib/tests/unicode.c glib/tests/unix.c glib/tests/utf8-misc.c glib/tests/utils.c glib/tests/win32.c gobject/tests/autoptr.c gobject/tests/custom-dispatch.c gobject/tests/dynamictests.c gobject/tests/notify-init.c gobject/tests/notify-init2.c gobject/tests/threadtests.c gobject/tests/closure-refcount.c	GLib's old test programs, not built into the libraries
+BSD (2 clause)	BSD-3-Clause	libgstreamer-gl1.0-0	gst-libs/gst/fft/_kiss_fft_guts_f32.h gst-libs/gst/fft/_kiss_fft_guts_f64.h gst-libs/gst/fft/_kiss_fft_guts_s16.h gst-libs/gst/fft/_kiss_fft_guts_s32.h gst-libs/gst/fft/kiss_fft_f32.c gst-libs/gst/fft/kiss_fft_f64.c gst-libs/gst/fft/kiss_fft_s16.c gst-libs/gst/fft/kiss_fft_s32.c gst-libs/gst/fft/kiss_fftr_f32.c gst-libs/gst/fft/kiss_fftr_f64.c gst-libs/gst/fft/kiss_fftr_s16.c gst-libs/gst/fft/kiss_fftr_s32.c	KISS FFT in libgstfft-1.0, whose files in 1.24.2 say SPDX-License-Identifier: BSD-3-Clause
+GPL-2+	LicenseRef-build-only	libgstreamer-gl1.0-0	common/coverage/coverage-report-entry.pl common/coverage/coverage-report.pl common/coverage/coverage-report.xsl	coverage report scripts of the old autotools build, absent from the 1.24.2 source; nothing is built from them
+GPL-2+	LicenseRef-build-only	libgstreamer-gl1.0-0	ltmain.sh	libtool's script of the old autotools build, absent from the 1.24.2 meson source
+MIT/X11 (BSD like) LGPL-2+	MIT AND LGPL-2.0-or-later	libgstreamer-gl1.0-0		licensecheck's name for a file with both the LGPL-2+ notice and the Expat text (rtsp, sdp, isomp4, ...), read in the 1.24.2 source: Expat, no X11 clause
+GPL-2+	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	common/coverage/coverage-report-entry.pl common/coverage/coverage-report.pl common/coverage/coverage-report.xsl	coverage report scripts of the old autotools build, absent from the 1.24.2 source; nothing is built from them
+GPL-2+	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	ltmain.sh	libtool's script of the old autotools build, absent from the 1.24.2 meson source
+GPL-2+	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	gst/audiovisualizers/gstbaseaudiovisualizer.c gst/audiovisualizers/gstbaseaudiovisualizer.h gst/audiovisualizers/gstspacescope.c gst/audiovisualizers/gstspacescope.h gst/audiovisualizers/gstspectrascope.c gst/audiovisualizers/gstspectrascope.h gst/audiovisualizers/gstsynaescope.c gst/audiovisualizers/gstsynaescope.h gst/audiovisualizers/gstwavescope.c gst/audiovisualizers/gstwavescope.h gst/audiovisualizers/plugin.c	plugin audiovisualizers, not in the AppImage
+GPL-2+	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	gst/librfb/vncauth.c gst/librfb/vncauth.h	absent from the 1.24.2 source; plugin rfbsrc, not in the AppImage
+GPL-2+	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	sys/dvb/camconditionalaccess.c sys/dvb/camconditionalaccess.h	plugin dvb, not in the AppImage
+GPL-2+	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	gst/audiovisualizers/gstdrawhelpers.h	plugin audiovisualizers, not in the AppImage
+GPL-2+	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	gst/tta/filters.h	plugin tta, absent from the 1.24.2 source
+GPL-2+	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	gst/mpegpsmux/bits.h	VideoLAN's GPL-2+ header, in plugin mpegpsmux only, not in the AppImage; no bundled file includes it
+GPL-3+	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	tests/examples/scaletempo/demo-gui.c tests/examples/scaletempo/demo-main.c tests/examples/scaletempo/demo-player.c	an example program, absent from the 1.24.2 source and never shipped
+GPL-3+	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	tests/examples/opencv/gstmotioncells_dynamic_test.c tests/examples/opencv/gstmotioncells_dynamic_test.h	an example program, not shipped
+GPL-3+	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	tests/examples/opencv/gst_element_print_properties.c tests/examples/opencv/gst_element_print_properties.h	an example program, absent from the 1.24.2 source and never shipped
+GPL-3+	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	tests/examples/scaletempo/demo-gui.h	an example program, absent from the 1.24.2 source and never shipped
+GPL-3+	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	tests/examples/scaletempo/demo-player.h	an example program, absent from the 1.24.2 source and never shipped
+LGPL	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	gst/legacyresample/functable.c gst/legacyresample/resample.c gst/legacyresample/resample_functable.c gst/legacyresample/resample_ref.c	plugin legacyresample, absent from the 1.24.2 source
+LGPL	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	gst/legacyresample/functable.h gst/legacyresample/resample.h	plugin legacyresample, absent from the 1.24.2 source
+LGPL	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	sys/pvr2d/gstpvr.c sys/pvr2d/gstpvr.h	plugin pvr2d, absent from the 1.24.2 source
+LGPL	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	sys/pvr2d/gstpvrbufferpool.c	plugin pvr2d, absent from the 1.24.2 source
+LGPL	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	sys/pvr2d/gstpvrbufferpool.h	plugin pvr2d, absent from the 1.24.2 source
+MIT/X11 (BSD like)	MIT	libgstreamer-plugins-bad1.0-0	sys/shm/shmalloc.c sys/shm/shmalloc.h sys/shm/shmpipe.c sys/shm/shmpipe.h	licensecheck's name; the files carry the Expat text
+MIT/X11 (BSD like)	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	gst/librfb/d3des.c gst/librfb/d3des.h	plugin rfbsrc, not in the AppImage
+MIT/X11 (BSD like)	MIT	libgstreamer-plugins-bad1.0-0	tests/examples/directfb/gstdfb.c	licensecheck's name; the file carries the Expat text
+MIT/X11 (BSD like) LGPL-2+	MIT AND LGPL-2.0-or-later	libgstreamer-plugins-bad1.0-0		licensecheck's name for a file with both the LGPL-2+ notice and the Expat text (rtsp, sdp, isomp4, ...), read in the 1.24.2 source: Expat, no X11 clause
+MPL-1.1	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	ext/resindvd/gstmpegdefs.h ext/resindvd/gstmpegdemux.c ext/resindvd/gstmpegdemux.h ext/resindvd/gstmpegdesc.c ext/resindvd/gstmpegdesc.h ext/resindvd/gstpesfilter.c ext/resindvd/gstpesfilter.h	plugin resindvd, not in the AppImage
+MPL-1.1 GPL	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	gst/mpegdemux/gstmpegdesc.h	absent from the 1.24.2 source; plugin mpegpsdemux, not in the AppImage
+MPL-1.1 GPL GPL-2+ LGPL (v2 or later) (with incorrect FSF address)	MPL-1.1 OR MIT OR LGPL-2.0-or-later	libgstreamer-plugins-bad1.0-0	gst/mpegtsmux/tsmux/tsmux.c gst/mpegtsmux/tsmux/tsmux.h gst/mpegtsmux/tsmux/tsmuxcommon.h gst/mpegtsmux/tsmux/tsmuxstream.c gst/mpegtsmux/tsmux/tsmuxstream.h	each file says SPDX-License-Identifier: MPL-1.1 OR MIT OR LGPL-2.0-or-later; plugin mpegtsmux, not in the AppImage
+MPL-1.1 GPL GPL-2+ LGPL (v2 or later) (with incorrect FSF address)	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	gst/mpegtsmux/mpegtsmux.h gst/mpegtsmux/mpegtsmux_aac.c gst/mpegtsmux/mpegtsmux_aac.h gst/mpegtsmux/mpegtsmux_h264.c gst/mpegtsmux/mpegtsmux_h264.h	absent from the 1.24.2 source; plugin mpegtsmux, not in the AppImage
+MPL-1.1 GPL GPL-2+ LGPL (v2 or later) (with incorrect FSF address)	MPL-1.1 OR MIT OR LGPL-2.0-or-later	libgstreamer-plugins-bad1.0-0	gst/mpegpsmux/mpegpsmux_aac.c gst/mpegpsmux/mpegpsmux_aac.h gst/mpegpsmux/mpegpsmux_h264.c gst/mpegpsmux/mpegpsmux_h264.h	each file says SPDX-License-Identifier: MPL-1.1 OR MIT OR LGPL-2.0-or-later; plugin mpegpsmux, not in the AppImage
+MPL-1.1 GPL GPL-2+ LGPL (v2 or later) (with incorrect FSF address)	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	gst/mpegtsmux/mpegtsmux.c	absent from the 1.24.2 source; plugin mpegtsmux, not in the AppImage
+MPL-1.1 LGPL-2+	MPL-1.1 OR LGPL-2.0-or-later	libgstreamer-plugins-bad1.0-0	gst/mpegdemux/flumpegdemux.c gst/mpegdemux/flutspatinfo.h gst/mpegdemux/flutspmtinfo.h gst/mpegdemux/flutspmtstreaminfo.h gst/mpegdemux/gstmpegdefs.h gst/mpegdemux/gstmpegdemux.c gst/mpegdemux/gstmpegdemux.h gst/mpegdemux/gstmpegtsdemux.h gst/mpegdemux/gstpesfilter.c gst/mpegdemux/gstpesfilter.h gst/mpegdemux/gstsectionfilter.h	Fluendo's demuxer, offered under MPL 1.1 or the LGPL 2+ at the user's choice; plugin mpegpsdemux, not in the AppImage
+UNKNOWN	LicenseRef-build-only	libgstreamer-plugins-bad1.0-0	sys/decklink/capture.cpp sys/decklink/linux/DeckLinkAPI.h sys/decklink/linux/DeckLinkAPIDispatch.cpp sys/decklink/linux/LinuxCOM.h sys/decklink/osx/DeckLinkAPI.h sys/decklink/osx/DeckLinkAPIConfiguration.h sys/decklink/osx/DeckLinkAPIDeckControl.h sys/decklink/osx/DeckLinkAPIDiscovery.h sys/decklink/osx/DeckLinkAPIDispatch-osx.cpp sys/decklink/osx/DeckLinkAPIModes.h sys/decklink/osx/DeckLinkAPIStreaming.h sys/decklink/osx/DeckLinkAPITypes.h sys/decklink/osx/DeckLinkAPIVersion.h sys/decklink/win/DeckLinkAPIDispatch.cpp	plugin decklink (Blackmagic's SDK headers under their own terms), not in the AppImage
+BSD (2 clause)	BSD-3-Clause	libgstreamer-plugins-base1.0-0	gst-libs/gst/fft/_kiss_fft_guts_f32.h gst-libs/gst/fft/_kiss_fft_guts_f64.h gst-libs/gst/fft/_kiss_fft_guts_s16.h gst-libs/gst/fft/_kiss_fft_guts_s32.h gst-libs/gst/fft/kiss_fft_f32.c gst-libs/gst/fft/kiss_fft_f64.c gst-libs/gst/fft/kiss_fft_s16.c gst-libs/gst/fft/kiss_fft_s32.c gst-libs/gst/fft/kiss_fftr_f32.c gst-libs/gst/fft/kiss_fftr_f64.c gst-libs/gst/fft/kiss_fftr_s16.c gst-libs/gst/fft/kiss_fftr_s32.c	KISS FFT in libgstfft-1.0, whose files in 1.24.2 say SPDX-License-Identifier: BSD-3-Clause
+GPL-2+	LicenseRef-build-only	libgstreamer-plugins-base1.0-0	common/coverage/coverage-report-entry.pl common/coverage/coverage-report.pl common/coverage/coverage-report.xsl	coverage report scripts of the old autotools build, absent from the 1.24.2 source; nothing is built from them
+GPL-2+	LicenseRef-build-only	libgstreamer-plugins-base1.0-0	ltmain.sh	libtool's script of the old autotools build, absent from the 1.24.2 meson source
+MIT/X11 (BSD like) LGPL-2+	MIT AND LGPL-2.0-or-later	libgstreamer-plugins-base1.0-0		licensecheck's name for a file with both the LGPL-2+ notice and the Expat text (rtsp, sdp, isomp4, ...), read in the 1.24.2 source: Expat, no X11 clause
+GPL-2+	LicenseRef-build-only	libgstreamer1.0-0	common/coverage/coverage-report-entry.pl common/coverage/coverage-report.pl common/coverage/coverage-report.xsl	coverage report scripts of the old autotools build, absent from the 1.24.2 source; nothing is built from them
+GPL-2+	LicenseRef-build-only	libgstreamer1.0-0	ltmain.sh	libtool's script of the old autotools build, absent from the 1.24.2 meson source
+GPL-3+	GPL-3.0-or-later WITH Bison-exception-2.2	libgstreamer1.0-0	gst/parse/grammar.tab.h	the pipeline parser Bison generates from gst/parse/grammar.y.in at build time, compiled into libgstreamer-1.0; Bison output carries its 2.2 exception, which the stanza leaves out
+CC-BY-SA-4.0	LicenseRef-build-only	libgtk-3-0t64	gtk/icons/scalable/status/*.svg	scalable icons neither the library's compiled resources (gresource list) nor the package carry
+GPL-3+	LicenseRef-build-only	libgtk-3-0t64	debian/tests/run-with-display	an autopkgtest script, not in the package
+LGPL-2+ and ZPL-2.1	LicenseRef-build-only	libgtk-3-0t64	gdk/win32/winpointer.h	a Windows backend header, not built on Linux
+SWL	TCL	libgtk-3-0t64		GTK's text widget files from Tk, under the Tcl/Tk licence; compiled into libgtk-3
+X11R5-permissive	HPND-sell-variant	libgtk-3-0t64		the Wayland text-input-v3 protocol's notice (permission to use, copy, modify, distribute, and sell); compiled only into im-wayland.so
+check-gdk-cairo-permissive	LicenseRef-build-only	libgtk-3-0t64	testsuite/gdk/check-gdk-cairo.c	a test
+other	LicenseRef-build-only	libgtk-3-0t64	gdk/win32/wintab.h gdk/win32/pktdef.h	Windows backend headers, not built on Linux
+unencumbered	LicenseRef-build-only	libgtk-3-0t64	gdk/win32/cursor.bdf	the Windows backend, not built on Linux
+CC-BY-SA-4.0	LicenseRef-build-only	libgtk-3-common	gtk/icons/scalable/status/*.svg	scalable icons neither the library's compiled resources (gresource list) nor the package carry
+GPL-3+	LicenseRef-build-only	libgtk-3-common	debian/tests/run-with-display	an autopkgtest script, not in the package
+LGPL-2+ and ZPL-2.1	LicenseRef-build-only	libgtk-3-common	gdk/win32/winpointer.h	a Windows backend header, not built on Linux
+SWL	TCL	libgtk-3-common		GTK's text widget files from Tk, under the Tcl/Tk licence; compiled into libgtk-3
+X11R5-permissive	HPND-sell-variant	libgtk-3-common		the Wayland text-input-v3 protocol's notice (permission to use, copy, modify, distribute, and sell); compiled only into im-wayland.so
+check-gdk-cairo-permissive	LicenseRef-build-only	libgtk-3-common	testsuite/gdk/check-gdk-cairo.c	a test
+other	LicenseRef-build-only	libgtk-3-common	gdk/win32/wintab.h gdk/win32/pktdef.h	Windows backend headers, not built on Linux
+unencumbered	LicenseRef-build-only	libgtk-3-common	gdk/win32/cursor.bdf	the Windows backend, not built on Linux
+FSFAP	LicenseRef-build-only	libharfbuzz-icu0	m4/ax_cxx_compile_stdcxx.m4 INSTALL	an autoconf macro and install notes
+FSFUL	LicenseRef-build-only	libharfbuzz-icu0	configure	the generated configure script
+FSFULLR	LicenseRef-build-only	libharfbuzz-icu0	aclocal.m4 Makefile.in m4/* docs/Makefile.in perf/Makefile.in src/Makefile.in test/Makefile.in test/api/Makefile.in test/fuzzing/Makefile.in test/shape/Makefile.in test/shape/data/Makefile.in test/shape/data/aots/Makefile.in test/shape/data/in-house/Makefile.in test/shape/data/text-rendering-tests/Makefile.in test/subset/Makefile.in test/subset/data/Makefile.in test/subset/data/repack_tests/Makefile.in test/threads/Makefile.in util/Makefile.in	generated build files and autoconf macros
+GPL-2+ with AutoConf exception	LicenseRef-build-only	libharfbuzz-icu0	ar-lib compile depcomp missing test-driver	automake helper scripts
+GPL-2+ with Font exception	LicenseRef-build-only	libharfbuzz-icu0	test/shape/data/in-house/fonts/b895f8ff06493cc893ec44de380690ca0074edfa.ttf	a test font
+GPL-2+ with LibTool exception	LicenseRef-build-only	libharfbuzz-icu0	ltmain.sh	libtool's script
+GPL-3+	LicenseRef-build-only	libharfbuzz-icu0	test/shape/data/in-house/fonts/b722a7d09e60421f3efbc706ad348ab47b88567b.ttf gtk-doc.make m4/gtk-doc.m4	a test font and gtk-doc's build files
+GPL-3+ with AutoConf exception	LicenseRef-build-only	libharfbuzz-icu0	config.guess config.sub m4/ax_check_link_flag.m4 m4/ax_pthread.m4	autoconf scripts and macros
+Monotype	LicenseRef-build-only	libharfbuzz-icu0	test/api/fonts/TestGVAROne.ttf test/api/fonts/TestGVARThree.ttf test/api/fonts/TestGVARTwo.ttf test/shape/data/text-rendering-tests/fonts/TestGVAROne.ttf test/shape/data/text-rendering-tests/fonts/TestGVARThree.ttf test/shape/data/text-rendering-tests/fonts/TestGVARTwo.ttf	test fonts
+UFL-1.0	LicenseRef-build-only	libharfbuzz-icu0	test/subset/data/expected/glyph_names/* test/subset/data/fonts/Ubuntu-Regular.ttf	test data
+Unicode	Unicode-DFS-2016	libharfbuzz-icu0		the Unicode data files and software licence with clauses (a) and (b) only
+GAP	LicenseRef-build-only	libhogweed6t64	debian/pkcs1-conv.1 debian/nettle-lfib-stream.1	manual pages the nettle-bin package installs
+GPL-2	LicenseRef-build-only	libhogweed6t64	debian/sexp-conv.1	a manual page the nettle-bin package installs
+GPL-2+	LicenseRef-build-only	libhogweed6t64	getopt*	GNU getopt, compiled only into the nettle-bin programs (sexp-conv, nettle-hash, pkcs1-conv); the library's sources do not include it and the stripped library has no getopt code
+GPL-3+ with Autoconf exception	LicenseRef-build-only	libhogweed6t64	config.guess config.sub	autoconf's host-detection scripts
+GPL-2+	LicenseRef-build-only	libhyphen0	debian/*	Debian's packaging, which is not in the binary package
+GPL-3	LicenseRef-build-only	libicu74	debian/*	Debian packaging
+GPL-3+	LicenseRef-build-only	libidn2-0	* doc/gdoc	the files the catch-all stanza leaves (every .c and .h is in the next stanza): configure, makefiles, docs, tests, m4; and the doc generator
+GPL-3+	(LGPL-3.0-or-later OR GPL-2.0-or-later) AND Unicode-DFS-2016	libidn2-0	build-aux/* lib/* GNUmakefile maint.mk	the stanza predates lib/ holding the library: every lib/*.c and lib/*.h libidn2 compiles (from its debug info) says LGPL-3+ or GPL-2+, data.c and tr46map_data.c are generated from Unicode 15.0 data files in lib/; build-aux and the makefiles build it
+Unicode	Unicode-DFS-2016	libidn2-0		Unicode 15.0 (2022) data files, under the Unicode terms of use of that year, which name Unicode-DFS-2016
+BSD-3-clause-Google	BSD-3-Clause	libjxl0.7		BSD-3-Clause naming Google Inc. in its third clause
+ISC-License	ISC	libjxl0.7		the ISC text (tools/ssimulacra.cc, a tool not in libjxl0.7)
+GPL-2+	LicenseRef-build-only	libkeyutils1	*	what keyutils.* and debian/* leave: the keyctl, request-key and key.dns_resolver programs (package keyutils), tests, manual pages, Makefile and version.lds; libkeyutils.so is compiled from keyutils.c and keyutils.h alone (LGPL-2+)
+GPL-2+	LicenseRef-build-only	liblcms2-2	debian/*	Debian's packaging, which is not in the binary package
+GPL-3	LicenseRef-build-only	liblcms2-2	plugins/fast_float/* plugins/threaded/*	the fast-float and threaded plugins, separate libraries not built into liblcms2.so.2 (no cmsFastFloatExtensions or cmsThreadedExtensions in it) and not shipped
+GPL-2+	LicenseRef-build-only	liblz4-1	programs/bench.c programs/bench.h programs/datagen.c programs/datagen.h tests/datagencli.c tests/fullbench.c tests/fuzzer.c examples/Makefile programs/Makefile programs/lz4cli.c programs/lz4io.c programs/lz4io.h tests/Makefile ossfuzz/Makefile lib/dll/example/Makefile tests/checkTag.c	the lz4 command-line program (package lz4), its tests and their Makefiles; liblz4 is lib/*, BSD-2-Clause
+GPL-2+	LicenseRef-build-only	liblz4-1	programs/platform.h programs/util.h	headers of the lz4 command-line program, not of lib/
+GPL-2+	LicenseRef-build-only	liblz4-1	tests/checkFrame.c tests/frametest.c	test programs
+GPL-2+	LicenseRef-build-only	liblz4-1	debian/*	Debian's packaging, which is not in the binary package
+Autoconf	LicenseRef-build-only	liblzma5	m4/acx_pthread.m4	an autoconf macro (GPL-3+ with the Autoconf exception)
+GPL-2	LicenseRef-build-only	liblzma5	Doxyfile.in	Doxygen's configuration for the API docs
+GPL-2+	LicenseRef-build-only	liblzma5	src/scripts/* lib/* extra/scanlzma/scanlzma.c	the xzgrep/xzdiff/xzless scripts (xz-utils), gnulib getopt for the xz tools, an extra tool; none in liblzma.so (no getopt symbols)
+PD	LicenseRef-public-domain	liblzma5		"This file has been put in the public domain"
+PD-debian	LicenseRef-public-domain	liblzma5		Debian's packaging, "in the public domain"
+config-h	LicenseRef-build-only	liblzma5	dos/config.h	the DOS build's config.h
+noderivs	LicenseRef-build-only	liblzma5	COPYING.GPLv2 COPYING.GPLv3 COPYING.LGPLv2.1	the GNU licence texts, verbatim, not in the binary package
+none	LicenseRef-public-domain	liblzma5		"No copyright to license": generated CRC, fastpos and price tables compiled into liblzma, and short lists of names
+permissive-fsf	LicenseRef-build-only	liblzma5	m4/getopt.m4 m4/posix-shell.m4	autoconf macros
+permissive-nowarranty	LicenseRef-build-only	liblzma5	INSTALL.generic	autoconf's generic install notes
+probably-PD	LicenseRef-public-domain	liblzma5	INSTALL NEWS PACKAGERS windows/README-Windows.txt windows/INSTALL-MinGW.txt	documentation, which upstream's COPYING puts in the public domain; NEWS ships in the package's doc directory
+BSD-4-clause	LicenseRef-build-only	libmount1	login-utils/vipw.c misc-utils/cal.c misc-utils/kill.c misc-utils/logger.c misc-utils/look.c misc-utils/whereis.c sys-utils/renice.c term-utils/mesg.c term-utils/script.c term-utils/ttymsg.c term-utils/wall.c term-utils/write.c text-utils/col.c text-utils/colcrt.c text-utils/colrm.c text-utils/column.c text-utils/hexdump.c text-utils/hexdump.h text-utils/hexdump-conv.c text-utils/hexdump-display.c text-utils/hexdump-parse.c text-utils/rev.c text-utils/ul.c	programs in other binary packages
+BSLA	LicenseRef-build-only	libmount1	login-utils/login.c	login, a program in another binary package
+GPL-2	LicenseRef-build-only	libmount1	schedutils/ionice.c schedutils/chrt.c schedutils/taskset.c disk-utils/raw.c sys-utils/nsenter.c disk-utils/mkfs.minix.c disk-utils/mkswap.c	programs (ionice, chrt, taskset, raw, nsenter, mkfs.minix, mkswap) in other binary packages
+GPL-2+	LGPL-2.1-or-later AND LGPL-2.0-or-later AND LicenseRef-public-domain AND BSD-2-Clause AND MIT	libmount1	*	the files of the catch-all stanza the library compiles (lib/*.c, include/*.h; listed from its debug info) carry their own notices: public domain, LGPL-2.1+, LGPL-2+, BSD-2-Clause (xxhash), MIT (crc64), Gary S. Brown's unrestricted CRC32 read as public domain; the rest are programs
+GPL-2+	LicenseRef-build-only	libmount1	debian/* debian/po/*	Debian packaging
+GPL-3+	LicenseRef-build-only	libmount1	sys-utils/hwclock-parse-date.y	hwclock's date parser, a program in another binary package
+LGPL	LGPL-2.0-or-later	libmount1		"the GNU Lesser General Public License" with no version, so any version
+GAP	LicenseRef-build-only	libnettle8t64	debian/pkcs1-conv.1 debian/nettle-lfib-stream.1	manual pages the nettle-bin package installs
+GPL-2	LicenseRef-build-only	libnettle8t64	debian/sexp-conv.1	a manual page the nettle-bin package installs
+GPL-2+	LicenseRef-build-only	libnettle8t64	getopt*	GNU getopt, compiled only into the nettle-bin programs (sexp-conv, nettle-hash, pkcs1-conv); the library's sources do not include it and the stripped library has no getopt code
+GPL-3+ with Autoconf exception	LicenseRef-build-only	libnettle8t64	config.guess config.sub	autoconf's host-detection scripts
+GPL-3+ with autoconf exception	LicenseRef-build-only	libnghttp2-14	m4/ax_python_devel.m4	an autoconf macro
+all-permissive	LicenseRef-build-only	libnghttp2-14	m4/ax_cxx_compile_stdcxx.m4	an autoconf macro
+rfc3533-license	LicenseRef-build-only	libogg0	doc/rfc3533.txt	the RFC's text in doc/, not in the package
+rfc5334-license	LicenseRef-build-only	libogg0	doc/rfc5334.txt	the RFC's text in doc/, not in the package
+Apache-2 and Bitstream-Vera and OFL-1.1	LicenseRef-build-only	libpango-1.0-0	tests/fonts/*.otf tests/fonts/*.ttf	test fonts
+Chromium-BSD-style	BSD-3-Clause	libpango-1.0-0		the three-clause BSD text, Google as the named holder
+Example	LicenseRef-build-only	libpango-1.0-0	examples/cairoshape.c examples/cairotwisted.c	example programs, not in the package
+ICU	ICU	libpango-1.0-0		the old ICU licence (IBM); pango-script.c compiled into libpango
+Unicode	Unicode-DFS-2016	libpango-1.0-0		the Unicode data files and software licence with clauses (a) and (b) only; break and emoji tables compiled into libpango
+Apache-2 and Bitstream-Vera and OFL-1.1	LicenseRef-build-only	libpangocairo-1.0-0	tests/fonts/*.otf tests/fonts/*.ttf	test fonts
+Chromium-BSD-style	BSD-3-Clause	libpangocairo-1.0-0		the three-clause BSD text, Google as the named holder
+Example	LicenseRef-build-only	libpangocairo-1.0-0	examples/cairoshape.c examples/cairotwisted.c	example programs, not in the package
+ICU	ICU	libpangocairo-1.0-0		the old ICU licence (IBM); pango-script.c compiled into libpango
+Unicode	Unicode-DFS-2016	libpangocairo-1.0-0		the Unicode data files and software licence with clauses (a) and (b) only; break and emoji tables compiled into libpango
+Apache-2 and Bitstream-Vera and OFL-1.1	LicenseRef-build-only	libpangoft2-1.0-0	tests/fonts/*.otf tests/fonts/*.ttf	test fonts
+Chromium-BSD-style	BSD-3-Clause	libpangoft2-1.0-0		the three-clause BSD text, Google as the named holder
+Example	LicenseRef-build-only	libpangoft2-1.0-0	examples/cairoshape.c examples/cairotwisted.c	example programs, not in the package
+ICU	ICU	libpangoft2-1.0-0		the old ICU licence (IBM); pango-script.c compiled into libpango
+Unicode	Unicode-DFS-2016	libpangoft2-1.0-0		the Unicode data files and software licence with clauses (a) and (b) only; break and emoji tables compiled into libpango
+BSD-3-clause-Cambridge with BINARY LIBRARY-LIKE PACKAGES exception	BSD-3-Clause	libpcre2-8-0		BSD-3-Clause with an exemption that only relaxes condition 2 for software that includes a package including PCRE2 (SPDX: BSD-3-Clause WITH PCRE2-exception)
+X11	LicenseRef-build-only	libpcre2-8-0	install-sh	the install script
+BSD-like-with-advertising-clause	LicenseRef-build-only	libpng16-16t64	contrib/gregbook/* contrib/visupng/resource.h contrib/visupng/cexcept.h	the book's demo programs (rpng, wpng) and VisualPng, which are not in libpng16.so
+GPL-2+	LicenseRef-build-only	libpng16-16t64	contrib/gregbook/* contrib/visupng/resource.h contrib/visupng/cexcept.h	the book's demo programs (rpng, wpng) and VisualPng, which are not in libpng16.so
+GPL-2+	LicenseRef-build-only	libpng16-16t64	debian/*	Debian's packaging, which is not in the binary package
+libpng	Libpng	libpng16-16t64		the libpng licence (versions through 1.6.35, Group 42 and the Contributing Authors), SPDX Libpng
+Chromium	BSD-3-Clause	libpsl5t64		Chromium's BSD-3-Clause; lookup_string_in_fixed_set.c is compiled in
+gnulib	LicenseRef-build-only	libpsl5t64	debian/patches/0003-Add-m4-visibility.m4-from-gnulib-20230113-stable-1.patch	a patch adding an m4 macro
+CC-zero-waive-1.0-us	LicenseRef-build-only	librsvg2-2	rsvg/tests/resources/Ahem.ttf	a test font
+FSFAP	LicenseRef-build-only	librsvg2-2	m4/ax_compare_version.m4	an autoconf macro
+Sun-permissive	SunPro	librsvg2-2		fdlibm's notice (permission to use, copy, modify, and distribute, notice preserved), from the vendored Rust crates
+CC-zero-waive-1.0-us	LicenseRef-build-only	librsvg2-common	rsvg/tests/resources/Ahem.ttf	a test font
+FSFAP	LicenseRef-build-only	librsvg2-common	m4/ax_compare_version.m4	an autoconf macro
+Sun-permissive	SunPro	librsvg2-common		fdlibm's notice (permission to use, copy, modify, and distribute, notice preserved), from the vendored Rust crates
+GPL-2+	LicenseRef-build-only	libsecret-1-0	libsecret/mock/hkdf.py	a Python mock service for the tests
+GPL-2	LicenseRef-build-only	libselinux1	utils/avcstat.c debian/*	avcstat, a program in selinux-utils, and Debian packaging
+RSA-Other	LicenseRef-build-only	libsoup-3.0-0	tests/pkcs11/pkcs11t.h	the RSA PKCS #11 header only the tests use; its other alternative, MPL-2.0, is allowed anyway
+GPL-2+	LicenseRef-build-only	libsqlite3-0	debian/*	Debian packaging
+GPL-2+	LicenseRef-build-only	libsystemd0	src/udev/ata_id/ata_id.c src/udev/cdrom_id/cdrom_id.c src/udev/dmi_memory_id/dmi_memory_id.c src/udev/mtd_probe/mtd_probe.c src/udev/mtd_probe/mtd_probe.h src/udev/mtd_probe/probe_smartmedia.c src/udev/scsi_id/scsi.h src/udev/scsi_id/scsi_id.c src/udev/scsi_id/scsi_id.h src/udev/scsi_id/scsi_serial.c src/udev/udevadm.c src/udev/udevadm-control.c src/udev/udevadm.h src/udev/udevadm-info.c src/udev/udevadm-monitor.c src/udev/udevadm-settle.c src/udev/udevadm-test-builtin.c src/udev/udevadm-test.c src/udev/udevadm-trigger.c src/udev/udevadm-util.c src/udev/udevadm-util.h src/udev/udev-builtin-blkid.c src/udev/udev-builtin.h src/udev/udev-builtin-input_id.c src/udev/udev-builtin-kmod.c src/udev/udev-builtin-path_id.c src/udev/udev-builtin-uaccess.c src/udev/udev-builtin-usb_id.c src/udev/udev-ctrl.h src/udev/udevd.c src/udev/udevd.h src/udev/udev-event.c src/udev/udev-event.h src/udev/udev-node.c src/udev/udev-node.h src/udev/udev-rules.c src/udev/udev-rules.h src/udev/udev-watch.c src/udev/udev-watch.h src/udev/v4l_id/v4l_id.c	udevd, udevadm and their builtins, in the udev package; not in libsystemd or libudev (checked against the libraries' debug info)
+GPL-2+	LicenseRef-build-only	libthai0	debian/*	Debian packaging
+GPL-2+	LicenseRef-build-only	libudev1	src/udev/ata_id/ata_id.c src/udev/cdrom_id/cdrom_id.c src/udev/dmi_memory_id/dmi_memory_id.c src/udev/mtd_probe/mtd_probe.c src/udev/mtd_probe/mtd_probe.h src/udev/mtd_probe/probe_smartmedia.c src/udev/scsi_id/scsi.h src/udev/scsi_id/scsi_id.c src/udev/scsi_id/scsi_id.h src/udev/scsi_id/scsi_serial.c src/udev/udevadm.c src/udev/udevadm-control.c src/udev/udevadm.h src/udev/udevadm-info.c src/udev/udevadm-monitor.c src/udev/udevadm-settle.c src/udev/udevadm-test-builtin.c src/udev/udevadm-test.c src/udev/udevadm-trigger.c src/udev/udevadm-util.c src/udev/udevadm-util.h src/udev/udev-builtin-blkid.c src/udev/udev-builtin.h src/udev/udev-builtin-input_id.c src/udev/udev-builtin-kmod.c src/udev/udev-builtin-path_id.c src/udev/udev-builtin-uaccess.c src/udev/udev-builtin-usb_id.c src/udev/udev-ctrl.h src/udev/udevd.c src/udev/udevd.h src/udev/udev-event.c src/udev/udev-event.h src/udev/udev-node.c src/udev/udev-node.h src/udev/udev-rules.c src/udev/udev-rules.h src/udev/udev-watch.c src/udev/udev-watch.h src/udev/v4l_id/v4l_id.c	udevd, udevadm and their builtins, in the udev package; not in libsystemd or libudev (checked against the libraries' debug info)
+FreeSoftware	LicenseRef-build-only	libunistring5	gnulib-m4/* m4/*.m4	gnulib m4 macros
+GFDL-NIV-1.2+	LicenseRef-build-only	libunistring5	doc/*	the manual
+GPL-2+	LicenseRef-build-only	libunistring5	build-aux/* build-aux/texi2html build-aux/ltmain.sh	build-aux scripts
+GPL-2+ with distribution exception	LicenseRef-build-only	libunistring5	m4/init-package-version.m4 build-aux/ltmain.sh	an m4 macro and ltmain.sh
+GPL-3+	LicenseRef-build-only	libunistring5	doc/* tests/* woe32dll/* autogen.sh debian/*	the manual, tests, Windows DLL helpers, autogen.sh and Debian packaging
+X11	LicenseRef-build-only	libunistring5	build-aux/install-sh	the install script
+GPL-2+	LicenseRef-build-only	libunwind8	debian/*	Debian packaging
+RFC-special	LicenseRef-build-only	libvorbis0a	doc/rfc5215.*	the RFC's text in doc/, not in the package
+RFC-special	LicenseRef-build-only	libvorbisenc2	doc/rfc5215.*	the RFC's text in doc/, not in the package
+MIT-1	X11	libxml2		the X11 licence with Daniel Veillard for the X Consortium (MIT's grant, then "the name of Daniel Veillard shall not be used in advertising"); Debian's own comment: not Expat
