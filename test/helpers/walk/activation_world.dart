@@ -2387,7 +2387,6 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       case JoinSite():
         if (_joining case final j? when _gone(j)) {
           _editRows(SiteAdded(j));
-          ActivationSteps.mark(ActivationStep.join, site: j);
         }
       case Move(:final from, :final to):
         if (n > 0) {

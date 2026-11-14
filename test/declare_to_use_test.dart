@@ -144,7 +144,7 @@ void f(WebViewModel m) =>
 $_site
 void f(WebViewModel m) {
   WebViewModel.tabsCell.write(
-      at: m, to: m.tabs, commit: const Commit.environment(Environment.join));
+      at: m, to: m.tabs, commit: const Commit.environment(Environment.move));
   m.tabBinding.queue(Uint8List(0),
       tab: m.activeTabId, commit: const Commit.environment(Environment.frame));
   m.tabBinding.frame(m.activeTabId,

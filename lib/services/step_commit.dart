@@ -54,10 +54,6 @@ enum Environment {
   /// A row moved to another place in the list (`Move(from, to)`).
   move,
 
-  /// A site joining the list at its end, where the model kept its row
-  /// (`Join(s)`): an add, an archive's open.
-  join,
-
 }
 
 /// An input the code marks by hand ([ActivationSteps.mark]) and what it

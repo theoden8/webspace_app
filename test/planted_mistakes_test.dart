@@ -161,6 +161,11 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [Tap(1)],
     breaks: "the jar holds another site's cookies under loaded",
   ),
+  Mutant.joinkeepsid => const _Owed(
+    "the walk's joining site never holds a listed site's id (its worlds "
+    'leave Clashing empty), so its land renames none; TLC catches it in the '
+    'joins world, where ClashOne does',
+  ),
   Mutant.lateclear => _By(
     world: (d) => ActivationWorld(_mixed, launch: _jarLaunch, declared: d),
     setup: const [],

@@ -329,6 +329,7 @@ Tables _with({
   StepTable<LetGoWorld, LetGoPlace>? letGo,
   StepTable<ViewsWorld, ViewsPlace>? views,
   StepTable<ClearWorld, ClearPlace>? clear,
+  StepTable<JoinWorld, JoinPlace>? join,
   List<Def<Object?, Object?>>? ops,
 }) => (
   activation: activation ?? tables.activation,
@@ -347,6 +348,7 @@ Tables _with({
   letGo: letGo ?? tables.letGo,
   views: views ?? tables.views,
   clear: clear ?? tables.clear,
+  join: join ?? tables.join,
   ops: ops ?? tables.ops,
 );
 
@@ -874,6 +876,30 @@ Tables mutated(Mutant m) => switch (m) {
             for (final e in s.otherwise.then)
               if (e is Act<LetGoWorld> && e.writes.contains(ModelVar.built))
                 _dropsHeld(e, site: s.site!)
+              else
+                e,
+          ],
+          next: s.otherwise.next,
+        ),
+      ),
+    ),
+  ),
+  // The join keeps the id the site arrived with, as before ARCH-016: the
+  // code's land is the same, its declaration not.
+  Mutant.joinkeepsid => _with(
+    join: _withArms(
+      tables.join,
+      step: ActivationStep.join,
+      arms: (s) => s.withArms(
+        otherwise: Otherwise(
+          s.otherwise.outcome,
+          site: s.otherwise.site,
+          then: [
+            for (final e in s.otherwise.then)
+              if (e is Act<JoinWorld> &&
+                  e.writes.length == 1 &&
+                  e.writes.contains(ModelVar.ids))
+                Note<JoinWorld>(e.run)
               else
                 e,
           ],

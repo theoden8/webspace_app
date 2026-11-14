@@ -400,10 +400,14 @@ void main() {
         r.apply(change, commit: SiteSetCommit.commitOf(change));
       }
       expect(
-        () => r.apply(SiteAdded(_site(SiteId('c'))), commit: const Commit.none()),
+        () => r.apply(const SitesMoved(0, to: 1), commit: const Commit.none()),
         throwsA(isA<AssertionError>()),
         reason: 'a change that moves the list writes rows',
       );
+      r.apply(SiteAdded(_site(SiteId('c'))), commit: const Commit.none());
+      expect(r.models.map((m) => m.siteId), contains(SiteId('c')),
+          reason: 'a join writes in its own step (JoinTable), not the '
+              "change's commit");
     });
   });
 
