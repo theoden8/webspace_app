@@ -1057,17 +1057,23 @@ class TabsController {
     // the one shown now among them, and the one the limit lets go of.
     final warm = TabTable.warmAfterNow.run(c).toSet()
       ..remove(TabTable.warmVictim.it.run(c));
+    final targetWarm = model.warmViews.containsKey(tab);
     final shownTab = model.tabBinding.built;
     for (final t in model.tabs) {
       if (t.id == shownTab) t.lastActiveAt = now;
     }
+    // The target is shown, not kept: it is never among those staying warm.
     for (final t in [...model.warmViews.keys]) {
-      if (!warm.contains(t)) model.dropWarm(tab: t, commit: c.commit);
+      if (t != tab && !warm.contains(t)) {
+        model.dropWarm(tab: t, commit: c.commit);
+      }
     }
     if (shownTab != null && warm.contains(shownTab)) {
       model.keepShownWarm(tab: shownTab, commit: c.commit);
     }
-    if (model.warmViews.containsKey(tab)) {
+    assert(model.warmViews.containsKey(tab) == targetWarm,
+        'a warm target is shown as it is, never rebuilt (TAB-023)');
+    if (targetWarm) {
       model.showWarm(tab: tab, commit: c.commit);
       _host.rebuild();
       flow
