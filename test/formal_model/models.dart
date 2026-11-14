@@ -99,6 +99,9 @@ Def<Object?, Object?> definition(ModelDef d) => switch (d) {
     keys: TabVars.ids<SiteModels>(),
   ),
   ModelDef.taken => TabVars.taken<SiteId, SiteModels>(),
+  ModelDef.handed => TabVars.handed<SiteId, SiteModels>(
+    keys: TabVars.ids<SiteModels>(),
+  ),
   ModelDef.staged => TabVars.staged<SiteId, SiteModels>(),
   ModelDef.resolveLevel => resolveLevelDef<Object?>(),
 };

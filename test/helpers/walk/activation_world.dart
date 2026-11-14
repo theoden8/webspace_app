@@ -42,6 +42,7 @@ import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/view_blockers.dart';
+import 'package:webspace/services/webview_tab_binding.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
@@ -570,9 +571,14 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     this.joins = false,
     this.imports = false,
     this.rehosts = false,
+    this.lateControllers = false,
     this.declared,
   }) {
     assert(!archived || page.containers, 'an archive needs containers');
+    assert(
+      !lateControllers || archived || deletes || imports || rehosts,
+      'a controller comes late only where a webview is let go of',
+    );
     assert(!deletes || page.containers, 'the delete world runs on containers');
     assert(
       !imports || joins,
@@ -757,6 +763,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// domain, which [Reroute] runs as site 3 or as site 1.
   final bool rehosts;
 
+  /// A built webview's controller comes a frame later than it would, so an
+  /// input lands between the build's take and its restore (TAB-003).
+  final bool lateControllers;
+
   /// The link tab's number in site 1's list, as the model numbers its tabs
   /// by first sight in list order: the record `Links` holds.
   int? _linkTab;
@@ -833,6 +843,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// A frame's mounts and unmounts: a loaded site's webview mounts and binds
   /// its container, one no longer loaded unmounts (`Frame`).
   void _frameMounts() {
+    _restoreHeld(all: false);
     // A reroute lets go of the slot's webview; the next frame builds it as
     // the site it now runs as. A reset of the site on screen lets go of its
     // webview in place, and the page's stack builds it again.
@@ -1323,6 +1334,12 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           null => null,
         },
       ),
+      ModelVar.held => each(
+        (m) => switch (m.tabBinding.held) {
+          (:final tab, :final bytes) => (tab, _labelOf(bytes)),
+          null => null,
+        },
+      ),
       ModelVar.file => FrameValues([
         for (final key in navStates.files.keys.toList()..sort())
           (key, _labelOf(navStates.files[key]!)),
@@ -1466,6 +1483,20 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       'queued': [
         for (final m in bySite)
           switch (m.tabBinding.queued) {
+            (:final tab, :final bytes) => [
+              _tabNumber(m.siteId, tab: tab),
+              _labelNumber(
+                '${m.siteId}.$tab',
+                owner: m.siteId,
+                label: _labelOf(bytes),
+              ),
+            ],
+            null => [0, 0],
+          },
+      ],
+      'held': [
+        for (final m in bySite)
+          switch (m.tabBinding.held) {
             (:final tab, :final bytes) => [
               _tabNumber(m.siteId, tab: tab),
               _labelNumber(
@@ -1987,14 +2018,76 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   }
 
   /// [m]'s webview, as the platform builds it from what the frame hands it
-  /// in [commit] (`WebViewTabBinding.frame`).
+  /// in [commit] (`WebViewTabBinding.frame`). Its controller restores what
+  /// the build took at once where no let-go can land between, else as the
+  /// next frame comes, the environment's `Restored` ([_restoreHeld]).
   void _buildWebView(WebViewModel m, {required Commit commit}) {
     final tab = m.activeTabId;
-    final bytes = m.tabBinding.frame(tab, commit: commit);
+    final build = m.tabBinding.frame(tab, commit: commit);
+    final shows = m.tabBinding.held?.bytes ?? _historyOf(tab);
     m.controller = FakeWebViewController()
       ..pace = _webViewPace
-      ..history = bytes ?? _historyOf(tab);
+      ..history = shows;
     _claimRoute(m);
+    if (_requeued.remove(m) case final lost?) {
+      if (lost.tab == tab && _labelOf(shows) != _labelOf(lost.bytes)) {
+        _violations.add('${m.siteId} was built for $tab without the back '
+            'stack its last build took and lost to a let-go (TAB-003)');
+      } else if (lost.tab == tab) {
+        stacksReturned++;
+      }
+    }
+    if (!build.restores) return;
+    if (_rebuilds) {
+      _restoring[m] = (build: build, frames: 0);
+    } else {
+      m.tabBinding.restore(
+        build,
+        commit: const Commit.environment(Environment.restore),
+      );
+    }
+  }
+
+  /// The back stack each let-go webview's build took that no controller
+  /// restored, which the site's next build must show (TAB-003).
+  final Map<WebViewModel, CapturedNavState> _requeued = {};
+
+  /// How many builds showed a back stack a let-go met before its
+  /// controller came, queued again for them (TAB-003).
+  int stacksReturned = 0;
+
+  /// Where the environment may let go of a loaded site's webview
+  /// (`Rebuilt`): a world that follows the webviews it builds.
+  bool get _rebuilds => _boxed || rehosts;
+
+  /// The builds whose controller has not restored what its frame took, and
+  /// how many frames have passed since.
+  final Map<WebViewModel, ({FramedBuild build, int frames})> _restoring = {};
+
+  /// Each build's controller restores what its frame took, the
+  /// environment's `Restored`: as the next frame comes, or with
+  /// [lateControllers] one frame later, so an input lands between; [all]
+  /// at once, as the script settles. A build let go of since restores
+  /// nothing.
+  void _restoreHeld({required bool all}) {
+    for (final MapEntry(key: m, value: (:build, :frames))
+        in [..._restoring.entries]) {
+      if (!all && lateControllers && frames == 0) {
+        _restoring[m] = (build: build, frames: frames + 1);
+        continue;
+      }
+      _restoring.remove(m);
+      if (m.tabBinding.held == null) continue;
+      inFlow(
+        flow: _frameFlow,
+        () => FrameTable.restored(
+          sites,
+          site: m,
+          restore: ({required commit}) =>
+              m.tabBinding.restore(build, commit: commit),
+        ),
+      );
+    }
   }
 
   /// A built webview's first act, as `WebViewModel.setController` does it:
@@ -2308,10 +2401,12 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           final m = at(slot);
           _letGoInPlace = true;
           // The environment's (`LetGo`), as a frame's view builds are.
+          final held = m.tabBinding.held;
           inFlow(flow: _frameFlow, () {
             LetGoTable.letGo(sites, site: m, end: WebViewEnd.rendererGone);
             _letGo.add(m);
           });
+          if (held != null) _requeued[m] = held;
         }
       case OpenTab(:final slot, :final tab):
         if (n > 0) {
@@ -2692,6 +2787,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       await Future.wait(finished);
       _frameViews();
       _frameMounts();
+      _restoreHeld(all: true);
     } while (_inFlight.isNotEmpty);
     _checkSettled();
   }

@@ -33,7 +33,7 @@ abstract final class TabTable {
   static final _page = Port<TabCalls, TabFlow>(
     'page',
     reads: const {},
-    changes: {ModelVar.built, ModelVar.hist, ModelVar.queued},
+    changes: {ModelVar.built, ModelVar.hist, ModelVar.queued, ModelVar.held},
     of: (w) => TabCalls(w._c, sites: w),
   );
 

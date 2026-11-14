@@ -423,7 +423,8 @@ _Catch _catching(Mutant m) => switch (m) {
     world: (d) => ActivationWorld(_mixed, tabbed: true, declared: d),
     setup: const [Tap(0), Login(0), Tap(1)],
     script: const [Tap(0), CloseTab(0, tab: 0)],
-    breaks: "webview shows another tab's history",
+    // The binding's own assert catches it before the walk's invariant does.
+    breaks: 'a held back stack belongs to the live build',
   ),
   Mutant.tabgateopen => _By(
     world: (d) => ActivationWorld(_mixed, tabbed: true, declared: d),
@@ -468,6 +469,20 @@ _Catch _catching(Mutant m) => switch (m) {
     setup: const [Tap(0)],
     script: const [RendererGone(0)],
     breaks: 'letGo as  changed built, which it does not write',
+  ),
+  // Back on its first tab, site 1's rebuild takes the back stack its switch
+  // away saved; the renderer dies before that build's controller comes.
+  Mutant.letgodrops => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      deletes: true,
+      tabbed: true,
+      lateControllers: true,
+      declared: d,
+    ),
+    setup: const [Tap(0), OpenTab(0, tab: 1)],
+    script: const [OpenTab(0, tab: 0), RendererGone(0)],
+    breaks: 'letGo as  changed queued, which it does not write',
   ),
   Mutant.foldbeforelevel => _By(
     world: (d) => ActivationWorld(_mixed, dns: _dnsSites, declared: d),

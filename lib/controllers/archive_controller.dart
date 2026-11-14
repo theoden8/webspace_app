@@ -710,6 +710,7 @@ final _closeDropPort = Port<SiteSetStage, CloseFlow>(
     ModelVar.version,
     ModelVar.built,
     ModelVar.hist,
+    ModelVar.held,
     ModelVar.opener,
     ModelVar.link,
   },

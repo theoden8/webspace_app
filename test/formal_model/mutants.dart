@@ -20,6 +20,9 @@ Act<FrameWorld> _unbound(
     TabVars.queued<SiteId, FrameWorld>().becomes(
       TabVars.taken<SiteId, FrameWorld>().call([site, loaded]),
     ),
+    TabVars.held<SiteId, FrameWorld>().becomes(
+      TabVars.handed<SiteId, FrameWorld>(keys: keys).call([site, loaded]),
+    ),
   ]);
   return Act(
     writes: kept.writes,
@@ -29,19 +32,55 @@ Act<FrameWorld> _unbound(
   );
 }
 
-/// The let-go [gone] without its write of `built`: the history goes, and
-/// the code it runs, the webview's teardown, is the same.
+/// The let-go [gone] with only the writes of [kept]: the code it runs,
+/// the webview's teardown, is the same.
+Act<LetGoWorld> _letGoKeeping(
+  Act<LetGoWorld> gone, {
+  required List<Write<LetGoWorld>> kept,
+}) {
+  final act = Act.of(kept);
+  return Act(
+    writes: act.writes,
+    tla: act.tla,
+    reads: act.reads,
+    run: gone.run,
+  );
+}
+
+/// The let-go [gone] without its write of `built`: the history goes and
+/// what its build held is queued again, and the code it runs, the
+/// webview's teardown, is the same.
 Act<LetGoWorld> _keepsBound(
   Act<LetGoWorld> gone, {
   required Expr<Object?, LetGoWorld> site,
 }) {
   final hist = histOf<Object?, LetGoWorld>();
-  final kept = Act.of([hist.becomes(hist.value.except(site, to: noTab()))]);
-  return Act(
-    writes: kept.writes,
-    tla: kept.tla,
-    reads: kept.reads,
-    run: gone.run,
+  final held = heldOf<Object?, LetGoWorld>();
+  return _letGoKeeping(
+    gone,
+    kept: [
+      hist.becomes(hist.value.except(site, to: noTab())),
+      held.becomes(held.value.except(site, to: noQueued())),
+      LetGoTable.requeued,
+    ],
+  );
+}
+
+/// The let-go [gone] as it was before its build held what it took: the
+/// webview and its history go, and the back stack its build took and no
+/// controller restored goes with them, queued for no build (TAB-003).
+Act<LetGoWorld> _dropsHeld(
+  Act<LetGoWorld> gone, {
+  required Expr<Object?, LetGoWorld> site,
+}) {
+  final built = builtOf<Object?, LetGoWorld>();
+  final hist = histOf<Object?, LetGoWorld>();
+  return _letGoKeeping(
+    gone,
+    kept: [
+      built.becomes(built.value.except(site, to: noTab())),
+      hist.becomes(hist.value.except(site, to: noTab())),
+    ],
   );
 }
 
@@ -811,6 +850,28 @@ Tables mutated(Mutant m) => switch (m) {
             for (final e in s.otherwise.then)
               if (e is Act<LetGoWorld> && e.writes.contains(ModelVar.built))
                 _keepsBound(e, site: s.site!)
+              else
+                e,
+          ],
+          next: s.otherwise.next,
+        ),
+      ),
+    ),
+  ),
+  // The let-go drops the back stack its build held, as before the binding
+  // kept it: the code's teardown is the same, its declaration not.
+  Mutant.letgodrops => _with(
+    letGo: _withArms(
+      tables.letGo,
+      step: ActivationStep.letGo,
+      arms: (s) => s.withArms(
+        otherwise: Otherwise(
+          s.otherwise.outcome,
+          site: s.otherwise.site,
+          then: [
+            for (final e in s.otherwise.then)
+              if (e is Act<LetGoWorld> && e.writes.contains(ModelVar.built))
+                _dropsHeld(e, site: s.site!)
               else
                 e,
           ],
