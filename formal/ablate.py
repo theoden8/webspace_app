@@ -35,32 +35,69 @@ CONJUNCT = re.compile(r"^    /\\ (.*)$", re.M)
 FRAMEWORK = ("fl[f].pc", "Calm", "Input", "f = inputs", "Jar!", "((", "\\E ")
 
 
+PICK = re.compile(r"^    /\\ \\E (\w+) \\in (.+) :$")
+GUARD = re.compile(r"^         \(([^()]*)\)$")
+
+
 def mutants(tables, writes):
-    """Each mutant as (id, action, operator, the conjunct, its replacement)."""
+    """Each mutant as (id, action, operator, the line, its replacement): a
+    branch forced TRUE or FALSE, or a guard dropped, of an action that writes
+    the security state; a pick's bound widened by an operand of its
+    intersection left out, in any action; a guard heading a pick's body
+    forced TRUE. An id numbers its action's mutants, so a new kind in
+    one action moves no other's."""
     out = []
     for action, body in ACTION.findall(tables):
-        if not writes.get(action, set()) & SECURITY:
-            continue
-        for line in CONJUNCT.findall(body):
-            branch = re.match(r"(\(?IF )(.*)$", line)
+        # A pick decides which site a flow acts on, so its bound is
+        # mutated whatever the action itself writes.
+        secure = bool(writes.get(action, set()) & SECURITY)
+        mine = []
+
+        def add(kind, op, line, replacement):
+            mine.append((f"{action}.{len(mine)}.{kind}", action, op, line, replacement))
+
+        lines = body.split("\n")
+        for i, line in enumerate(lines):
+            conjunct = re.match(r"^    /\\ (.*)$", line)
+            if not conjunct:
+                continue
+            text = conjunct.group(1)
+            pick = PICK.match(line)
+            if not secure and not pick:
+                continue
+            if pick:
+                var, bound = pick.groups()
+                # Only a plain intersection of names: splitting a set
+                # builder or a SUBSET at its \\cap would not parse.
+                operands = [o.strip() for o in bound.split(" \\cap ")]
+                if len(operands) > 1 and all(re.fullmatch(r"\w+", o) for o in operands):
+                    for o in operands:
+                        rest = " \\cap ".join(x for x in operands if x != o)
+                        add("bound", f"bound {bound} -> {rest}", line,
+                            f"    /\\ \\E {var} \\in {rest} :")
+                if secure and i + 1 < len(lines) and GUARD.match(lines[i + 1]):
+                    add("pickguard", f"force TRUE ({GUARD.match(lines[i + 1]).group(1)})",
+                        lines[i + 1], "         (TRUE)")
+                continue
+            branch = re.match(r"(\(?IF )(.*)$", text)
             if branch:
                 head, cond = branch.groups()
                 if cond in ("ProxyRefused", "FALSE"):
                     continue
                 for value in ("TRUE", "FALSE"):
-                    out.append((f"{action}.{len(out)}.{value.lower()}", action,
-                                f"force {value}", line, f"{head}{value}"))
-            elif not line.startswith(FRAMEWORK):
-                out.append((f"{action}.{len(out)}.drop", action, "drop", line, "TRUE"))
+                    add(value.lower(), f"force {value}", line, f"    /\\ {head}{value}")
+            elif not text.startswith(FRAMEWORK):
+                add("drop", "drop", line, "    /\\ TRUE")
+        out.extend(mine)
     return out
 
 
 def apply(tables, action, line, replacement):
     m = next(m for m in ACTION.finditer(tables) if m.group(1) == action)
     block = m.group(0)
-    old = f"    /\\ {line}\n"
+    old = line + "\n"
     assert block.count(old) == 1, (action, line)
-    return tables[:m.start()] + block.replace(old, f"    /\\ {replacement}\n") + tables[m.end():]
+    return tables[:m.start()] + block.replace(old, replacement + "\n") + tables[m.end():]
 
 
 def worlds_taking(action, *, model, keys):
@@ -126,7 +163,7 @@ def main():
     all_mutants = [m for m in mutants(tables, writes) if not a.only or m[1] in a.only]
     if a.list:
         for mid, action, op, line, _ in all_mutants:
-            print(f"{mid}\t{op}\t{line[:100]}\t{len(worlds_taking(action, model=model, keys=keys))} worlds")
+            print(f"{mid}\t{op}\t{line.strip()[:100]}\t{len(worlds_taking(action, model=model, keys=keys))} worlds")
         return 0
     spent = 0.0
     done = set()
