@@ -166,7 +166,7 @@ class SiteActivationController {
   /// site goes on loading behind the list, and once the device is online
   /// unloads what it leaves on the shared jar, as choices that spare the
   /// site on screen and the one kept loading (PAUSE-006).
-  Future<void> switchWebspace({required Set<WebViewModel> leaving}) =>
+  Future<void> switchWebspace({required Set<SiteId> leaving}) =>
       _runFlow(_flow(target: null, leaving: leaving), from: ActivationPlace.space);
 
   /// The flow from [from] to its end. Every way out runs the exit step, a
@@ -207,7 +207,7 @@ class SiteActivationController {
     required WebViewModel? target,
     Reached<Launched>? launch,
     NestedRequest? opening,
-    Set<WebViewModel>? leaving,
+    Set<SiteId>? leaving,
   }) {
     final flow = StepContext(ActivationFlow(_reach,
         target: target, launch: launch, opening: opening, leaving: leaving));
