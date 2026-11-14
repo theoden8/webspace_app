@@ -422,7 +422,18 @@ enum BaseOp {
   /// land minted as it admitted the site (`Admitted.readmit`), distinct
   /// from every listed id, which `SiteRuntime.apply` asserts as it lists
   /// it.
-  freshId(arity: 1);
+  freshId(arity: 1),
+
+  /// The moves the user makes (`MovePairs`): a listed site from its place
+  /// among the listed to another's, each a pair of places counted from 1.
+  /// The code's value is the move it makes, `SitesMoved(from, to)` shifted
+  /// by one.
+  movePairs(reads: {ModelVar.rows, ModelVar.gone}),
+
+  /// The rows once a move is made (`MovedRows`): the listed rows permuted
+  /// as the code's list is, a row off the list kept in place. Written only
+  /// through the land, which makes the move in the code.
+  movedRows(reads: {ModelVar.rows, ModelVar.gone}, arity: 1);
 
   const BaseOp({this.reads = const {}, this.rows = const {}, this.arity = 0});
 

@@ -133,6 +133,35 @@ NoNavState == Incognito
 \* The sites on the list, the only ones an input can name.
 Listed == Sites \ gone
 
+\* SitesMoved(from, to): models.insert(to, models.removeAt(from)), over
+\* places 1..n.
+Moved(i, from, to) ==
+    CASE i = 0 -> 0
+      [] i = from -> to
+      [] from < to /\ from < i /\ i <= to -> i - 1
+      [] to < from /\ to <= i /\ i < from -> i + 1
+      [] OTHER -> i
+
+\* The rows holding a listed site, and a listed row's place among them: the
+\* code's list holds the listed sites alone, in the model's row order.
+ListedPos == {q \in Pos : rows[q] \notin gone}
+PlaceOf(q) == Cardinality({p \in ListedPos : p <= q})
+
+\* The moves the user makes: a listed site from its place among the listed
+\* to another's (SitesMoved(from, to), counted from 1).
+MovePairs ==
+    {mv \in (1..Cardinality(ListedPos)) \X (1..Cardinality(ListedPos)) :
+        mv[1] # mv[2]}
+
+\* The rows once the move [mv] is made: each listed row takes the site the
+\* move brings to its place, and a row off the list keeps its site.
+MovedRows(mv) ==
+    [q \in Pos |->
+        IF q \in ListedPos
+        THEN rows[CHOOSE p \in ListedPos :
+                    Moved(PlaceOf(p), mv[1], mv[2]) = PlaceOf(q)]
+        ELSE rows[q]]
+
 \* The variables are activation_vars, printed from ModelVar, grouped here.
 site == << rows, loaded, current, version, marker, tier, nested, headless, fore >>
 sessions == << jar, stored, signedIn >>

@@ -831,7 +831,19 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   List<int>? _rowsAtDrop;
 
   /// The model's rows: the list, or as it stood at a drop.
-  List<int> get _rows => _rowsAtDrop ?? _listedRows;
+  /// The rows as the model keeps them: after a drop, its rows in place and
+  /// the listed sites, in the list's order, in the rows still listed (a
+  /// move after a close permutes those alone, `MovedRows`).
+  List<int> get _rows {
+    final dropped = _rowsAtDrop;
+    if (dropped == null) return _listedRows;
+    final listed = _listedRows.iterator;
+    final kept = {..._listedRows};
+    return [
+      for (final r in dropped)
+        if (kept.contains(r) && listed.moveNext()) listed.current else r,
+    ];
+  }
 
   /// The rows as the list stands: the listed sites, then the one yet to
   /// join, whose row the model keeps.
@@ -2406,7 +2418,6 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       case Move(:final from, :final to):
         if (n > 0) {
           _editRows(SitesMoved(from % n, to: to % n));
-          ActivationSteps.mark(ActivationStep.move);
         }
       case RendererGone(:final slot):
         assert(_boxed || rehosts, 'a renderer dies under a webview, which only '

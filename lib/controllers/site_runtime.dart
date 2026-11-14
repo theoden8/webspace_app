@@ -4,6 +4,7 @@ import 'package:webspace/services/step_table.dart';
 import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/controllers/join_table.dart';
+import 'package:webspace/controllers/move_table.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/services/archive_membership_engine.dart';
 import 'package:webspace/services/isolation.dart';
@@ -354,7 +355,16 @@ class SiteRuntime implements SiteModels {
           ws.siteIds.remove(site.siteId);
         }
       case SitesMoved(:final from, :final to):
-        models.insert(to, models.removeAt(from));
+        if (from != to) {
+          MoveTable.move(
+            this,
+            move: (from: from, to: to),
+            land: ({required commit}) {
+              models.insert(to, models.removeAt(from));
+              commit.wrote(ModelVar.rows);
+            },
+          );
+        }
       case SitesReplaced(
         sites: final replacement,
         webspaces: final spaces,
@@ -430,11 +440,13 @@ class SiteRuntime implements SiteModels {
       SiteAdded() || ArchiveOpened() => true,
       _ => false,
     };
-    final moved = (!joined && before.length != models.length) ||
-        [
-          for (var i = 0; i < before.length; i++)
-            i < models.length && identical(before[i], models[i]),
-        ].contains(false);
+    // A row's move is its own step too (`MoveTable`).
+    final moved = change is! SitesMoved &&
+        ((!joined && before.length != models.length) ||
+            [
+              for (var i = 0; i < before.length; i++)
+                i < models.length && identical(before[i], models[i]),
+            ].contains(false));
     if (moved) {
       commit.wrote(ModelVar.rows);
       if (before.any((m) => !models.hasKey(m))) commit.wrote(ModelVar.gone);

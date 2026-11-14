@@ -51,8 +51,6 @@ enum Environment {
   /// mark (`FrameTable`).
   restore,
 
-  /// A row moved to another place in the list (`Move(from, to)`).
-  move,
 
 }
 
