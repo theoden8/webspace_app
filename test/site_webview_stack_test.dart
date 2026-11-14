@@ -43,6 +43,7 @@ void main() {
           current: models.length - 1,
           hooks: hooks,
           showStatsBanner: showStatsBanner,
+          onFrame: (_) {},
         ),
       );
 

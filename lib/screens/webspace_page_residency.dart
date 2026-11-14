@@ -47,3 +47,13 @@ class _ResidencyHost implements ResidencyHost {
   @override
   bool get torAvailable => TorService.instance.isAvailable;
 }
+
+/// The frame mounting or unmounting a site's webview, as the widget tree
+/// reports it (`FrameTable.mount`, the model's `Frame`).
+extension on _WebSpacePageState {
+  void _frameSite(WebViewModel site) => FrameTable.mount(
+    _sites,
+    site: site,
+    platform: ({required commit}) {},
+  );
+}
