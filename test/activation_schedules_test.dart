@@ -1649,24 +1649,26 @@ void main() {
   });
 
   group('late view regressions', () {
-    // Site 2 is preloaded and unloaded before its webview reports its view
-    // built: the report finds its site no longer running, and the view is
-    // let go, kept and told by nothing (DNS-022).
+    // At launch site 2 is preloaded and unloaded before its webview reports
+    // its view built: the report finds its site no longer running, and the
+    // view is let go, kept and told by nothing (DNS-022).
     _scheduleTest(
         'a view reported after its site unloaded is let go (DNS-022)',
         body: () async {
+      final (:page, :launch) = _launches['mixed, containers, from launch']!;
       final worlds = <ActivationWorld>[];
       await _expectEvery(
         world: () {
           final w = ActivationWorld(
-            _mixedContainers,
+            page,
+            launch: launch,
             dns: _dnsSites,
             lateViews: true,
           );
           worlds.add(w);
           return w;
         },
-        setup: const [Tap(0)],
+        setup: const [],
         script: const [Preload(1), UnloadSite(1)],
         preemptions: _onePast,
       );
