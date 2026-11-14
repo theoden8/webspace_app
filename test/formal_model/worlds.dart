@@ -31,14 +31,8 @@ enum EnvAction {
     reads: {ModelVar.jar, ModelVar.loaded, ModelVar.signedIn},
     writes: {ModelVar.jar, ModelVar.signedIn},
     needs: {(of: ModelConst.containers, set: false)},
-  ),
-  frame(
-    next: r'\E s \in Sites : Frame(s)',
-    coverage: 'Frame',
-    reads: {ModelVar.boxes, ModelVar.loaded, ModelVar.views},
-    writes: {ModelVar.boxes, ModelVar.views},
-    needs: {(of: ModelConst.boxed, set: true)},
   );
+
 
   const EnvAction({
     required this.next,

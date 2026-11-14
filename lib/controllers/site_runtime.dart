@@ -51,6 +51,14 @@ class SiteRuntime implements SiteModels {
     _shown = site;
   }
 
+  /// The sites whose webview the frame has mounted (`views`): written only
+  /// by the frame's step (`FrameTable.mount`, the model's `Frame`).
+  late final Shared<Iterable<SiteId>> views = Shared.ofSet(
+    _mountedViews,
+    variable: ModelVar.views,
+  );
+  final Set<SiteId> _mountedViews = {};
+
   /// The model's variables this runtime owns, as the model knows them, by
   /// id (CONT-012), and as the tables write them (`Mutable.over`): what a
   /// step declares it writes is all it can write. Read off the sites held
