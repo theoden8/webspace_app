@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/controllers/archive_controller.dart';
 import 'package:webspace/controllers/site_import.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
@@ -83,6 +84,7 @@ void main() {
         sites: [_site('a', cookie: 'backup'), _site('c', cookie: 'seed')],
         webspaces: const [],
         selectedWebspaceId: null,
+        closed: ArchivesClosed.inTest(),
       ),
     );
 

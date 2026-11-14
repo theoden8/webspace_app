@@ -349,7 +349,13 @@ class SiteRuntime implements SiteModels {
         sites: final replacement,
         webspaces: final spaces,
         :final selectedWebspaceId,
+        :final closed,
       ):
+        assert(
+          closed.held,
+          'the sites are replaced only in the archives\' turn, every archive '
+          'closed, so none opens against the rows being replaced (SEC-044)',
+        );
         models
           ..clear()
           ..addAll(replacement);

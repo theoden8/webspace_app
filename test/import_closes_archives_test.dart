@@ -29,15 +29,21 @@ void main() {
     expect(applied, isNot(contains('backup.')));
   });
 
+  // That the replace lands in the archives' turn, every archive closed, is
+  // `SitesReplaced.closed` (SEC-044); what rung 5 still holds is that the
+  // rest of what the import applies runs in that turn too.
   test('an archive that cannot be sealed stops the import first (ARCH-011)',
       () {
     final import = body('Future<void> import() async {');
-    final seal = import.indexOf('if (!await _archives.closeAll()) {');
+    final seal = import.indexOf('await _archives.closeAllThen((closed) async {');
     expect(seal, greaterThan(import.indexOf('planSettingsImport(')));
     expect(seal, lessThan(import.indexOf('writeExportedAppPrefs(')),
         reason: 'nothing of the import is applied while an archive stays '
             'open');
-    expect(import.substring(seal, import.indexOf('}', seal)),
+    final turn = import.indexOf('\n    });\n', seal);
+    expect(turn, greaterThan(import.indexOf('await _imports.replace(')),
+        reason: 'the replace lands in the turn that sealed the archives');
+    expect(import.substring(turn, import.indexOf('}', turn + 8)),
         contains('return;'));
   });
 
