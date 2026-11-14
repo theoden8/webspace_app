@@ -1535,11 +1535,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         current: _sites.current,
                         hooks: _siteHooks,
                         showStatsBanner: AppPref.showStatsBanner.value,
-                        onFrame: (site) => FrameTable.mount(
-                          _sites,
-                          site: site,
-                          platform: ({required commit}) {},
-                        ),
+                        onFrame: _frameSite,
                       ),
                     ),
                     ),
