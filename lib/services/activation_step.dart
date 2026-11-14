@@ -151,7 +151,12 @@ enum ActivationStep {
   /// launch: what the last session left there is no site's (ISO-003).
   clearJar(calls: {PlatformCall.cookiesDeleteAll}),
   pressurePlan(
-    outcomes: {StepOutcome.empty, StepOutcome.clear, StepOutcome.unload},
+    outcomes: {
+      StepOutcome.empty,
+      StepOutcome.disposed,
+      StepOutcome.clear,
+      StepOutcome.unload,
+    },
   ),
   navReply(
     outcomes: {StepOutcome.go, StepOutcome.bail},
@@ -523,8 +528,17 @@ enum ActivationStep {
 
   /// List, pointer and webview move in one turn; a target that runs as
   /// another site under one process-wide proxy takes the slot out of the
-  /// loaded sites in it (LIR-024).
-  tabRebind(outcomes: {StepOutcome.none, StepOutcome.unload}),
+  /// loaded sites in it (LIR-024). The view left warm is paused and a warm
+  /// one shown resumes, unawaited (TAB-025).
+  tabRebind(
+    outcomes: {StepOutcome.none, StepOutcome.unload},
+    calls: {
+      PlatformCall.webViewEvaluateJavascript,
+      PlatformCall.webViewPause,
+      PlatformCall.webViewResume,
+    },
+    severalAwaits: _pauses,
+  ),
 
   /// A close decided: the list installed, or a rebind to the tab that
   /// takes over.

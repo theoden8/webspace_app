@@ -93,6 +93,25 @@ Def<Object?, Object?> definition(ModelDef d) => switch (d) {
     keys: TabVars.ids<SiteModels>(),
   ),
   ModelDef.taken => TabVars.taken<SiteId, SiteModels>(),
+  ModelDef.warmAfter => TabVars.warmAfter<SiteId, SiteModels>(
+    keys: TabVars.ids<SiteModels>(),
+  ),
+  ModelDef.warmOver => TabVars.warmOver<SiteId, SiteModels>(
+    keys: TabVars.ids<SiteModels>(),
+  ),
+  ModelDef.warmed => TabVars.warmed<SiteId, SiteModels>(
+    keys: TabVars.ids<SiteModels>(),
+  ),
+  ModelDef.warmGone => TabVars.warmGoneDef<SiteId, SiteModels>(
+    keys: TabVars.ids<SiteModels>(),
+  ),
+  ModelDef.warmTabs => TabVars.warmTabs<SiteId, SiteModels>(
+    keys: TabVars.ids<SiteModels>(),
+  ),
+  ModelDef.warmUnits => TabVars.warmUnits<SiteId, SiteModels>(
+    keys: TabVars.ids<SiteModels>(),
+  ),
+  ModelDef.unwarmed => unwarmedOf<SiteId, SiteModels>(),
   ModelDef.staged => TabVars.staged<SiteId, SiteModels>(),
   ModelDef.resolveLevel => resolveLevelDef<Object?>(),
 };

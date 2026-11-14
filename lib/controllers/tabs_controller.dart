@@ -423,6 +423,7 @@ class TabsController {
           sensitive: true);
       if (tab.id == owner.activeTabId) _host.cancelPendingCapture(owner.siteId);
       SiteTab.hostCell.write(at: tab, to: host, commit: commit);
+      owner.dropWarm(tab: tab.id, commit: commit);
       if (!identical(identityBefore, owner.runningIdentity)) {
         movedFrom.putIfAbsent(owner, () => identityBefore);
       }
@@ -1037,15 +1038,61 @@ class TabsController {
   void _rebind(CommitView<TabFlow> c) {
     final flow = TabTable._flow.from(c);
     final model = flow.site;
-    model.activeTab.lastActiveAt = DateTime.now();
+    final tab = TabTable._tab.of(c);
+    final now = DateTime.now();
+    model.activeTab.lastActiveAt = now;
+    if (!_sites.loaded.hasKey(model)) {
+      // Out of the loaded sites: no view of it stays (TAB-026).
+      if (TabTable._label.of(c) case final bytes?) {
+        model.tabBinding.queue(bytes, tab: tab, commit: c.commit);
+      }
+      model.disposeWebView(commit: c.commit);
+      _host.rebuild();
+      flow
+        ..rebound = true
+        ..commitAfter = true;
+      return;
+    }
+    // What the table's turn decided (TAB-023): the views that stay warm,
+    // the one shown now among them, and the one the limit lets go of.
+    final warm = TabTable.warmAfterNow.run(c).toSet()
+      ..remove(TabTable.warmVictim.it.run(c));
+    final shownTab = model.tabBinding.built;
+    for (final t in model.tabs) {
+      if (t.id == shownTab) t.lastActiveAt = now;
+    }
+    for (final t in [...model.warmViews.keys]) {
+      if (!warm.contains(t)) model.dropWarm(tab: t, commit: c.commit);
+    }
+    if (shownTab != null && warm.contains(shownTab)) {
+      model.keepShownWarm(tab: shownTab, commit: c.commit);
+    }
+    if (model.warmViews.containsKey(tab)) {
+      model.showWarm(tab: tab, commit: c.commit);
+      _host.rebuild();
+      flow
+        ..rebound = true
+        ..commitAfter = true;
+      return;
+    }
+    _rebuildFor(model, tab: tab, c: c);
+  }
+
+  /// [model]'s view built afresh for [tab] from the bytes the switch read.
+  void _rebuildFor(
+    WebViewModel model, {
+    required TabId tab,
+    required CommitView<TabFlow> c,
+  }) {
+    final flow = TabTable._flow.from(c);
     // Queued before the dispose: `restoreState` only applies to a freshly
     // created controller, and the dispose is what makes the next build create
     // one. Nothing queued means the rebuild loads the tab's URL with an empty
     // history, which is what a brand-new tab wants.
     if (TabTable._label.of(c) case final bytes?) {
-      model.tabBinding.queue(bytes, tab: TabTable._tab.of(c), commit: c.commit);
+      model.tabBinding.queue(bytes, tab: tab, commit: c.commit);
     }
-    model.disposeWebView(commit: c.commit);
+    model.dropShown(commit: c.commit);
     _host.rebuild();
     flow
       ..rebound = true
@@ -1060,8 +1107,16 @@ class TabsController {
   }
 
   /// A close that re-bound nothing: the list is in, the page redraws.
-  void _closed(StepView<TabFlow> c) {
+  void _closed(CommitView<TabFlow> c) {
     final flow = TabTable._flow.from(c);
+    // The warm views the table's close keeps (`WarmGone`); a closed tab's
+    // goes (TAB-023).
+    final kept = TabVars.warmGoneDef<SiteId, TabFlow>(keys: TabVars.ids<TabFlow>())
+        .call([TabTable._site.value, TabTable._closing.value])
+        .run(c);
+    for (final id in [...flow.site.warmViews.keys]) {
+      if (kept[id] == null) flow.site.dropWarm(tab: id, commit: c.commit);
+    }
     LogTag.tabs.debug(
         'Closed ${TabTable._closing.of(c).length} tab(s) in "${flow.site.name}"; '
         '${flow.site.tabs.length} left',

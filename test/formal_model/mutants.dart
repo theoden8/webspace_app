@@ -229,6 +229,67 @@ Def<bool, Object?> _takesAny() {
   );
 }
 
+/// `WarmOver` letting no view go.
+Def<Iterable<TabId?>, SiteModels> _warmOverNone() {
+  final s = Bound<SiteId, SiteModels>('s');
+  final w = Bound<Iterable<TabId>, SiteModels>('w');
+  final ls = Bound<Iterable<SiteId>, SiteModels>('ls');
+  final m = Bound<int, SiteModels>('m');
+  final j = Bound<bool, SiteModels>('j');
+  final own = Bound<int, SiteModels>('wo');
+  final more = Bound<int, SiteModels>('wh');
+  return Def(
+    ModelDef.warmOver,
+    params: [s, w, ls, m, j, own, more],
+    body: Expr.constant(const [null], tla: '{0}'),
+  );
+}
+
+/// `WarmUnits` naming no warm view.
+Def<List<(SiteId, TabId)>, SiteModels> _warmUnitsNone() {
+  final ss = Bound<Iterable<SiteId>, SiteModels>('ss');
+  return Def(
+    ModelDef.warmUnits,
+    params: [ss],
+    body: Expr.constant(const [], tla: '{}'),
+  );
+}
+
+/// `WarmAfter` keeping a view whatever site it runs as.
+Def<Iterable<TabId>, SiteModels> _warmAfterAnySite() {
+  final s = Bound<SiteId, SiteModels>('s');
+  final n = Bound<TabId, SiteModels>('n');
+  final k = Bound<Iterable<TabId>, SiteModels>('k');
+  final t = Bound<TabId, SiteModels>('t');
+  final live =
+      TabVars.warmViews<SiteId, SiteModels>(
+        keys: TabVars.ids<SiteModels>(),
+      ).at(s.it).at(t.it).neq(noTab()) |
+      TabVars.built<SiteId, SiteModels>(
+        keys: TabVars.ids<SiteModels>(),
+      ).at(s.it).eq(t.it);
+  return Def(
+    ModelDef.warmAfter,
+    params: [s, n, k],
+    body: TabVars.tabs<SiteId, SiteModels>(
+      keys: TabVars.ids<SiteModels>(),
+    ).at(s.it).where(t, holds: live & t.it.neq(n.it) & k.it.has(t.it)),
+  );
+}
+
+/// `WarmGone` taking no view away.
+Def<Map<TabId, TabId?>, SiteModels> _warmGoneNone() {
+  final s = Bound<SiteId, SiteModels>('s');
+  final g = Bound<Iterable<TabId>, SiteModels>('g');
+  return Def(
+    ModelDef.warmGone,
+    params: [s, g],
+    body: TabVars.warmViews<SiteId, SiteModels>(
+      keys: TabVars.ids<SiteModels>(),
+    ).at(s.it),
+  );
+}
+
 /// The tables with those named replaced: a mistake names only what it
 /// changes, and a new table fails to compile here until it is given one.
 Tables _with({
@@ -551,6 +612,17 @@ Tables mutated(Mutant m) => switch (m) {
   ),
   // The build takes whatever back stack is queued, read for any tab.
   Mutant.takeany => _with(ops: _withDef(tables.ops, def: _takesAny())),
+  // A switch lets no view go over the limit.
+  Mutant.warmnolimit => _with(ops: _withDef(tables.ops, def: _warmOverNone())),
+  // The cap and the switch count no warm views.
+  Mutant.capignoreswarm =>
+    _with(ops: _withDef(tables.ops, def: _warmUnitsNone())),
+  // A switch keeps warm a view that runs as another site than the slot.
+  Mutant.warmanysite =>
+    _with(ops: _withDef(tables.ops, def: _warmAfterAnySite())),
+  // A close leaves its closed tabs' warm views.
+  Mutant.closekeepswarm =>
+    _with(ops: _withDef(tables.ops, def: _warmGoneNone())),
   // An activation queues the back stack it read for the tab active at the
   // read's reply, not the one it began on: a landing between moves it.
   // A close that does not wait for the tab gate: it starts while a switch

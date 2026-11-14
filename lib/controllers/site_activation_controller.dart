@@ -447,6 +447,9 @@ class SiteActivationController {
   /// its pop may bring a site back on another route (BUG-037).
   bool get opensNested => _kindsInFlight.contains(FlowKind.nested);
 
+  /// Whether a flow of [kind] is in flight (`"kind" \in Kinds`).
+  bool inFlight(FlowKind kind) => _kindsInFlight.contains(kind);
+
   /// [ActivationTable.routeFree] for a page running as [site] beside what runs now, with
   /// no flow in hand: a wake's check, which runs as its own site, asks it before it
   /// claims its place (NOTIF-016).

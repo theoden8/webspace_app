@@ -60,6 +60,10 @@ TorRuntime == FALSE
 \* reach neither of.
 MaxLoaded == 20
 MaxResident == 10
+\* The warm tabs a slot keeps (TAB-023): its own, and the most its hosted
+\* ones add (kWarmLimits).
+WarmOwn == 3
+WarmHosted == 2
 \* The sites a link opens nested (LIR-011); the pages open none. A nested
 \* open's proxy always applies in the model's environment.
 Linked == {}
@@ -138,8 +142,8 @@ site == << rows, loaded, current, version, marker, tier, nested, headless, fore 
 sessions == << jar, stored, signedIn >>
 turn == << holder, queue, dnsHolder, dnsQueue >>
 ghosts == << newest, evictedShown, seen >>
-tabVars == << tabs, active, built, hist, queued, file, minted, host, link,
-             opener >>
+tabVars == << tabs, active, built, hist, warm, queued, file, minted, host,
+             link, opener >>
 blocking == << dns, told >>
 archived == << gone, views, boxes >>
 vars == << site, sessions, turn, fl, inputs, ghosts, last, tabVars, blocking,

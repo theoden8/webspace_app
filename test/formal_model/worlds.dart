@@ -72,8 +72,8 @@ enum EnvAction {
   letGo(
     next: r'\E s \in Sites : LetGo(s)',
     coverage: 'LetGo',
-    reads: {ModelVar.built, ModelVar.hist, ModelVar.loaded},
-    writes: {ModelVar.built, ModelVar.hist},
+    reads: {ModelVar.built, ModelVar.hist, ModelVar.loaded, ModelVar.warm},
+    writes: {ModelVar.built, ModelVar.hist, ModelVar.warm},
     needs: {
       (of: ModelConst.tabbed, set: true),
       (of: ModelConst.rebuilt, set: true),
@@ -229,6 +229,7 @@ Set<Env> _with(Env e) => switch (e) {
   Env.importOne => {Env.importOne, Env.joinOne},
   Env.importKeep => {Env.importKeep, Env.archiveOne},
   Env.routeSplit ||
+  Env.warmOne ||
   Env.awaySpaces ||
   Env.linkAny ||
   Env.linkTab ||
@@ -265,6 +266,8 @@ Env? _setting(ModelConst c, {required Set<Need> needs}) => switch (c) {
   ModelConst.dnsLevels => Env.dnsTwo,
   ModelConst.maxResident => Env.residentOne,
   ModelConst.maxLoaded => Env.capTwo,
+  ModelConst.warmOwn => Env.warmOne,
+  ModelConst.warmHosted => null,
   ModelConst.archive || ModelConst.noNavState || ModelConst.boxed =>
     Env.archiveOne,
   ModelConst.deletable => Env.deleteOne,

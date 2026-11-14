@@ -53,6 +53,16 @@ const WalkProxies _mismatched = (
   defaultSession: [],
 );
 
+/// Every site on a route of its own, through the router, none sharing its
+/// default session: a slot running as another site moves no rule
+/// (PROXY-013), so its tab switch keeps views warm (TAB-023).
+const WalkProxies _ownRoutes = (
+  routes: ['p1', 'p2', 'p3'],
+  exits: [null, null, null],
+  scope: WalkScope.router,
+  defaultSession: [],
+);
+
 /// Sites 0 and 1 on one Tor exit and site 2 on another (TOR-014).
 const WalkProxies _exitPair = (
   routes: [null, null, null],
@@ -436,6 +446,45 @@ _Catch _catching(Mutant m) => switch (m) {
     setup: const [Tap(0), OpenTab(0, tab: 1), Tap(1)],
     script: const [Tap(0), HomeLand(0)],
     breaks: "webview shows another tab's history",
+  ),
+  Mutant.warmnolimit => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      tabbed: true,
+      warmLimits: (own: 1, hosted: 0),
+      declared: d,
+    ),
+    setup: const [Tap(0), OpenTab(0, tab: 1)],
+    script: const [ChildTab(0)],
+    breaks: 'more warm views than the limit',
+  ),
+  Mutant.capignoreswarm => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      tabbed: true,
+      caps: (loaded: 2, resident: 1),
+      declared: d,
+    ),
+    setup: const [Tap(0), OpenTab(0, tab: 1)],
+    script: const [Tap(1)],
+    breaks: 'does not offer',
+  ),
+  Mutant.warmanysite => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      proxies: _ownRoutes,
+      rehosts: true,
+      declared: d,
+    ),
+    setup: const [Tap(0)],
+    script: const [ChildTab(0, host: 2)],
+    breaks: 'running as another site',
+  ),
+  Mutant.closekeepswarm => _By(
+    world: (d) => ActivationWorld(_mixedContainers, tabbed: true, declared: d),
+    setup: const [Tap(0), OpenTab(0, tab: 1)],
+    script: const [CloseTab(0, tab: 0)],
+    breaks: 'a tab it closed',
   ),
   Mutant.captureatreply => const _Owed(
     "the capture's key is the binding's own (NavCapture), which `Capture` "

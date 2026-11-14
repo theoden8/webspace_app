@@ -90,6 +90,7 @@ final class TabCalls {
     return topology.contends(from) || topology.contends(to) || torRuntime;
   }
   bool isShown(SiteId site) => _c._sites.vars.current.value == site;
+  bool flowInFlight(FlowKind kind) => _c.residency.flowInFlight(kind);
   bool isLoaded(SiteId site) => _c._sites.vars.loaded.value.contains(site);
 
   NavCapture? beginCapture(SiteId site) {
@@ -107,7 +108,7 @@ final class TabCalls {
   /// An activation of [site], its input run before this returns.
   void activate(SiteId site) =>
       unawaited(_c._host.activate(_sites.siteOf(site)));
-  void closed(StepView<TabFlow> c) => _c._closed(c);
+  void closed(CommitView<TabFlow> c) => _c._closed(c);
   void duplicated(StepView<TabFlow> c) => _c._duplicated(c);
   void parked(StepView<TabFlow> c) => _c._parked(c);
   void reopened(StepView<TabFlow> c) => _c._reopened(c);

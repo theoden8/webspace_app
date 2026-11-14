@@ -79,16 +79,27 @@ class _SiteWebView extends StatelessWidget {
               dnsBlockEnabled: site.dnsBlockEnabled,
             ),
           Expanded(
-            child: _withInterstitial(site.getWebView(
-              hooks,
-              cacheFirst: loadsCacheFirst(htmlSource,
-                  htmlCaching: site.htmlCachingEnabled,
-                  online: ConnectivityService.instance.lastKnownOnline,
-                  engineCan: engineLoadsCacheFirst),
-              initialHtml: htmlSource == HtmlSource.import
-                  ? _importedHtml(context)
-                  : null,
-            )),
+            // The site's warm views stay mounted, hidden and paused, so a
+            // switch back shows one as it was (TAB-023). Each is globally
+            // keyed, so it moves between here and the shown place whole.
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                for (final warm in site.warmViews.values)
+                  if (warm.webview case final view?)
+                    Offstage(child: TickerMode(enabled: false, child: view)),
+                _withInterstitial(site.getWebView(
+                  hooks,
+                  cacheFirst: loadsCacheFirst(htmlSource,
+                      htmlCaching: site.htmlCachingEnabled,
+                      online: ConnectivityService.instance.lastKnownOnline,
+                      engineCan: engineLoadsCacheFirst),
+                  initialHtml: htmlSource == HtmlSource.import
+                      ? _importedHtml(context)
+                      : null,
+                )),
+              ],
+            ),
           ),
         ],
       ),

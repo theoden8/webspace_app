@@ -168,6 +168,7 @@ final _landPort = Port<ImportLanding, ImportFlow>(
     ModelVar.signedIn,
     ModelVar.built,
     ModelVar.hist,
+    ModelVar.warm,
     ModelVar.opener,
     ModelVar.link,
   },

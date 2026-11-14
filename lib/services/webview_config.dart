@@ -23,6 +23,8 @@ class FindMatchesResult {
   int numberOfMatches = 0;
 }
 
+bool _always() => true;
+
 class WebViewConfig {
   /// Unique key to force widget recreation when settings change.
   final Key? key;
@@ -171,9 +173,14 @@ class WebViewConfig {
   /// off, which is the WebView's default: no shim, no handler, and the
   /// engine's own `navigator.credentials` refuses a `publicKey` request.
   final PasskeyAccess? passkeys;
+  /// Whether this webview speaks for its site now: false for a warm view,
+  /// whose page may not post the site's notifications (TAB-025). Every
+  /// other surface always does.
+  final bool Function() speaksForSite;
 
   WebViewConfig({
     this.key,
+    this.speaksForSite = _always,
     required this.posture,
     required this.hooks,
     required this.initialUrl,

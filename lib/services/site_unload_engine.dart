@@ -11,6 +11,9 @@ import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_conflict_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_retention_priority.dart';
+import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/services/warm_tabs.dart';
+export 'package:webspace/services/warm_tabs.dart' show WarmLimits, kWarmLimits;
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/site_ids.dart';
 
@@ -136,6 +139,13 @@ extension type const SlotIdentities._(List<EngineSite> _slots)
 abstract interface class ResidencyHost implements SiteUnloadHost {
   ResidencyCaps get caps;
 
+  /// Whether an activation flow of [kind] is in flight: a tap or a preload
+  /// is about to add a site to the loaded ones (TAB-024).
+  bool flowInFlight(FlowKind kind);
+
+  /// How many warm tabs a slot keeps (TAB-023); a test runs smaller ones.
+  WarmLimits get warmLimits;
+
   SlotIdentities identities();
 
   ProxyTopology get proxyTopology;
@@ -198,7 +208,11 @@ final class SlotIdentityChanged extends ResidencyEvent {
 /// What a [ResidencyEvent] does to the loaded sites. Sites rather than
 /// positions: a delete can shift the list while the plan runs.
 final class ResidencyPlan {
-  const ResidencyPlan({this.unloads = const [], this.cacheClears = const []});
+  const ResidencyPlan({
+    this.unloads = const [],
+    this.cacheClears = const [],
+    this.warmDrops = const [],
+  });
 
   /// In the order they run.
   final List<({EngineSite site, UnloadReason reason})> unloads;
@@ -206,8 +220,15 @@ final class ResidencyPlan {
   /// Resident sites whose cache is cleared once the unloads ran.
   final List<EngineSite> cacheClears;
 
-  bool get isEmpty => unloads.isEmpty && cacheClears.isEmpty;
+  /// Warm views the loaded-site cap lets go of before any site, in the plan's
+  /// own turn (TAB-024).
+  final List<WarmUnit> warmDrops;
+
+  bool get isEmpty => unloads.isEmpty && cacheClears.isEmpty && warmDrops.isEmpty;
 }
+
+/// A warm view, by its site and its tab (TAB-023).
+typedef WarmUnit = (EngineSite, TabId);
 
 /// How the host scopes a proxy, which decides who contends for it when a
 /// site with another proxy activates (PROXY-008, PROXY-013). Built only by
@@ -351,6 +372,11 @@ class SiteUnloadEngine {
           torDissenters(runsAs: identityOf(target)),
           reason: UnloadReason.torExitMismatch,
         );
+        final warmDrops = warmToDropForCap(
+          target: models[target],
+          sites: [for (final i in {...loaded, target}) models[i]],
+          maxLoaded: host.caps.loaded,
+        );
         unload(
           indicesToEvictForLruCap(
             targetIndex: target,
@@ -370,6 +396,7 @@ class SiteUnloadEngine {
         return ResidencyPlan(
           unloads: unloads,
           cacheClears: [for (final i in cacheClears) models[i]],
+          warmDrops: warmDrops,
         );
       case WebspaceSwitched(:final leaving):
         unload(
@@ -1237,6 +1264,45 @@ class SiteUnloadEngine {
     );
     if (effective.type != ProxyType.TOR) return null;
     return effective.exitNodesValue ?? _torUnpinned;
+  }
+
+  /// The warm views the loaded-site cap lets go of before any site: as many
+  /// as [sites]' views, each site's own and its warm ones, exceed
+  /// [maxLoaded], at most every one (TAB-024). Those of sites other than
+  /// [target] first, then [target]'s, hosted before own in each, least
+  /// recently used first within each.
+  static List<WarmUnit> warmToDropForCap({
+    required EngineSite target,
+    required List<EngineSite> sites,
+    required int maxLoaded,
+  }) {
+    final units = [
+      for (final s in sites)
+        for (final t in s.warmViews.keys) (s, t),
+    ];
+    final over = sites.length + units.length - maxLoaded;
+    if (over <= 0) return const [];
+    return inDropOrder(units, onScreen: target).take(over).toList();
+  }
+
+  /// [units] in the order warm views go (TAB-024): those of sites other
+  /// than [onScreen] first, then its own, hosted before own in each, least
+  /// recently used first within each.
+  static List<WarmUnit> inDropOrder(
+    Iterable<WarmUnit> units, {
+    required EngineSite? onScreen,
+  }) {
+    int rank(WarmUnit u) {
+      final (site, tab) = u;
+      final hosted = site.tabs.any((t) => t.id == tab && t.hostSiteId != null);
+      return (identical(site, onScreen) ? 2 : 0) + (hosted ? 0 : 1);
+    }
+    DateTime used(WarmUnit u) =>
+        u.$1.tabs.firstWhere((t) => t.id == u.$2).lastActiveAt;
+    return [...units]..sort((a, b) {
+      final byRank = rank(a).compareTo(rank(b));
+      return byRank != 0 ? byRank : used(a).compareTo(used(b));
+    });
   }
 
   /// LRU eviction set. Returns the indices to evict (oldest first) so that

@@ -52,8 +52,8 @@ def tla_seq(xs):
     return "<<" + ", ".join(xs) + ">>"
 
 
-TAB_VARS = ["tabs", "active", "built", "hist", "queued", "file", "minted",
-            "host", "link", "opener"]
+TAB_VARS = ["tabs", "active", "built", "hist", "warm", "queued", "file",
+            "minted", "host", "link", "opener"]
 ARCHIVE_VARS = ["gone", "views", "boxes"]
 
 
@@ -87,12 +87,13 @@ def tla_state(s, max_tabs=1):
         # A tab not yet made has no file, runs as its own site and follows
         # no link and no opener.
         core += (", tabs |-> %s, active |-> %s, built |-> %s, hist |-> %s, "
-                 "queued |-> %s, file |-> %s, minted |-> %s, host |-> %s, "
-                 "link |-> %s, opener |-> %s") % (
+                 "warm |-> %s, queued |-> %s, file |-> %s, minted |-> %s, "
+                 "host |-> %s, link |-> %s, opener |-> %s") % (
             tla_seq(tla_set(x) for x in s["tabs"]),
             tla_seq(str(x) for x in s["active"]),
             tla_seq(str(x) for x in s["built"]),
             tla_seq(str(x) for x in s["hist"]),
+            tla_seq(tla_seq(str(v) for v in padded(w, 0)) for w in s["warm"]),
             tla_seq("[t |-> %d, h |-> %d]" % (q[0], q[1]) for q in s["queued"]),
             tla_seq(tla_seq(tla_seq(str(v) for v in by)
                             for by in padded(f, [0] * sites))
@@ -184,6 +185,7 @@ def module(name, trace, variables):
           if trace.get("tabbed") else [
             "        /\\ tabs = [s \\in Sites |-> {1}] /\\ active = [s \\in Sites |-> 1]",
             "        /\\ built = [s \\in Sites |-> 0] /\\ hist = built",
+            "        /\\ warm = [s \\in Sites |-> [t \\in TabIds |-> 0]]",
             "        /\\ queued = [s \\in Sites |-> NoQueued]",
             "        /\\ file = [s \\in Sites |-> [t \\in TabIds |-> [h \\in Sites |-> 0]]]",
             "        /\\ minted = [s \\in Sites |-> 1]",

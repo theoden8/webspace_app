@@ -89,8 +89,9 @@ class.
   and when, is the app's.
 - **`retention.tla`** + `retention*.cfg` — memory-pressure cascade picker (PAUSE-006).
   `Inv_CurrentKept` (the active site is never evicted) + `Inv_NotifLast` (higher-retention /
-  notification sites are evicted last); the `starve` demonstrator evicts a retained site early
-  and is caught. Standalone (one monotone pressure episode).
+  notification sites are evicted last) + `Inv_WarmFirst` (no active view goes while a warm
+  tab is loaded, TAB-024); the `starve` and `activeFirst` demonstrators evict a retained view
+  early and are caught. Standalone (one monotone pressure episode).
 - **`containers.tla`** + `containers*.cfg` — per-site container keyspace disjointness (spec:
   `per-site-containers`). `Inv_Disjoint` (the site → container binding is injective, so no two
   sites share storage); the `alias` demonstrator binds two sites to one container and is

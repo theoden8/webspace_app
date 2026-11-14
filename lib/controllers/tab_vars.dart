@@ -1,6 +1,7 @@
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/tab_leaves.dart';
+import 'package:webspace/services/warm_tabs.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -180,6 +181,175 @@ final class TabVars {
 
   static Mutable<Map<S, Map<TabId, Map<S, TabId?>>>, W> file<S, W>() =>
       fileOf<S, W>();
+
+  /// `warm[s][t]`: the history tab t's warm webview shows (TAB-023).
+  static Mutable<Map<S, Map<TabId, TabId?>>, W> warm<S, W>() => warmOf<S, W>();
+
+  /// `warm[s]` as the code reads it: the tabs with a warm view.
+  static Indexed<S, Map<TabId, TabId?>, W> warmViews<S, W>({
+    required SiteKeys<S, W> keys,
+  }) => warmReported<S, W>(
+    read: (w, {required site}) => keys.site(w, key: site).warmViews.keys,
+  );
+
+  /// The tabs of [s] with a warm view (TAB-023).
+  static Def<List<TabId>, W> warmTabs<S, W>({required SiteKeys<S, W> keys}) {
+    final s = Bound<S, W>('s');
+    final t = Bound<TabId, W>('t');
+    final row = warmViews<S, W>(keys: keys).at(s.it);
+    return Def(
+      ModelDef.warmTabs,
+      params: [s],
+      body: row.keysWhere(t, holds: row.at(t.it).neq(noTab())),
+    );
+  }
+
+  /// The warm views of the sites [ss], each its site and its tab: what the
+  /// loaded-site cap counts beside the sites and takes first (TAB-024).
+  static Def<List<(S, TabId)>, W> warmUnits<S, W>({
+    required SiteKeys<S, W> keys,
+  }) {
+    final ss = Bound<Iterable<S>, W>('ss');
+    final s = Bound<S, W>('s');
+    final t = Bound<TabId, W>('t');
+    return Def(
+      ModelDef.warmUnits,
+      params: [ss],
+      body: ss.it.unionOver(
+        s,
+        to: warmTabs<S, W>(
+          keys: keys,
+        ).call([s.it]).image(t, to: pairOf(s.it, and: t.it)),
+      ),
+    );
+  }
+
+  /// [warm] less the warm views [units] names (TAB-024).
+  static Write<W> warmDropped<S, W>(Expr<Iterable<(S, TabId)>, W> units) {
+    final o = Bound<S, W>('wo');
+    final t = Bound<TabId, W>('wt');
+    final row = warm<S, W>().value;
+    return warm<S, W>().becomes(
+      row.remap(
+        o,
+        j: t,
+        to: Expr.choose(
+          when: units.has(pairOf(o.it, and: t.it)),
+          then: noTab(),
+          otherwise: row.at(o.it).at(t.it),
+        ),
+      ),
+    );
+  }
+
+  /// The tabs of [s] whose views are warm once [n] is shown: those warm now
+  /// and the one shown now, less [n], each a tab the list keeps ([k]) that
+  /// runs as [n] runs, so a slot's views run as one site (TAB-026).
+  static Def<Iterable<TabId>, W> warmAfter<S, W>({
+    required SiteKeys<S, W> keys,
+  }) {
+    final s = Bound<S, W>('s');
+    final n = Bound<TabId, W>('n');
+    final k = Bound<Iterable<TabId>, W>('k');
+    final t = Bound<TabId, W>('t');
+    final hosts = host<S, W>(keys: keys).at(s.it);
+    final live =
+        warmViews<S, W>(keys: keys).at(s.it).at(t.it).neq(noTab()) |
+        built<S, W>(keys: keys).at(s.it).eq(t.it);
+    return Def(
+      ModelDef.warmAfter,
+      params: [s, n, k],
+      body: tabs<S, W>(keys: keys)
+          .at(s.it)
+          .where(
+            t,
+            holds:
+                live &
+                t.it.neq(n.it) &
+                k.it.has(t.it) &
+                hosts.at(t.it).eq(hosts.at(n.it)),
+          ),
+    );
+  }
+
+  /// The tab of [w], the warm tabs of [s], that goes: over the slot's
+  /// limit (TAB-023), over the loaded-site cap [m] the views of the loaded
+  /// sites [ls] count against, or while [j], a site about to join them
+  /// that its plan counted without this view (TAB-024); hosted ones first,
+  /// or none (`0`) while [w] is within both.
+  static Def<Iterable<TabId?>, W> warmOver<S, W>({
+    required SiteKeys<S, W> keys,
+  }) {
+    final s = Bound<S, W>('s');
+    final w = Bound<Iterable<TabId>, W>('w');
+    final ls = Bound<Iterable<S>, W>('ls');
+    final m = Bound<int, W>('m');
+    final j = Bound<bool, W>('j');
+    final own = Bound<int, W>('wo');
+    final more = Bound<int, W>('wh');
+    final t = Bound<TabId, W>('t');
+    final hosted = w.it.where(
+      t,
+      holds: host<S, W>(keys: keys).at(s.it).at(t.it).neq(s.it),
+    );
+    final others = ls.it.without(s.it);
+    final overLimit = w.it.size
+        .over(own.it)
+        .exceeds(hosted.size.atMost(more.it));
+    final overCap =
+        j.it |
+        others.size
+            .add(warmUnits<S, W>(keys: keys).call([others]).size)
+            .add(w.it.size)
+            .plus(1)
+            .exceeds(m.it);
+    return Def(
+      ModelDef.warmOver,
+      params: [s, w, ls, m, j, own, more],
+      body: Expr.choose<Iterable<TabId?>, W>(
+        when: (overLimit | overCap) & w.it.isNotEmpty,
+        then: Expr.choose<Iterable<TabId?>, W>(
+          when: hosted.isEmpty,
+          then: w.it,
+          otherwise: hosted,
+        ),
+        otherwise: Expr.constant(const [null], tla: '{0}'),
+      ),
+    );
+  }
+
+  /// [s]'s warm row once [n] is shown, [w] are its warm tabs and [x] went
+  /// over the limit: the view shown now keeps the history it showed
+  /// (TAB-023).
+  static Def<Map<TabId, TabId?>, W> warmed<S, W>({
+    required SiteKeys<S, W> keys,
+  }) {
+    final s = Bound<S, W>('s');
+    final n = Bound<TabId, W>('n');
+    final w = Bound<Iterable<TabId>, W>('w');
+    final x = Bound<TabId?, W>('x');
+    final t = Bound<TabId, W>('t');
+    final u = Bound<TabId, W>('u');
+    final kept = w.it.where(u, holds: x.it.neq(u.it));
+    final row = warm<S, W>().value
+        .at(s.it)
+        .exceptEach(
+          tabs<S, W>(keys: keys).at(s.it).less(kept),
+          x: t,
+          to: noTab(),
+        )
+        .except(n.it, to: noTab());
+    final old = built<S, W>(keys: keys).at(s.it);
+    return Def(
+      ModelDef.warmed,
+      params: [s, n, w, x],
+      body: Expr.choose(
+        when: old.neq(noTab()) & kept.has(old),
+        then: row.except(old.unwrapped, to: hist<S, W>().value.at(s.it)),
+        otherwise: row,
+      ),
+    );
+  }
 
   /// The sites whose tabs the model follows; every site's in the code.
   static Members<S, W> tabbed<S, W>() => tabbedOf<S, W>();
@@ -370,16 +540,45 @@ final class TabVars {
   );
 
   /// A tab switch's one turn, after the bytes it read for [tab] ([label]):
-  /// the old webview goes and the rebuild frame builds one for [tab] from
-  /// them, when the site is loaded; else they stay queued for its next
-  /// build.
+  /// when the site is loaded, [tab]'s warm view is shown as it is, or the
+  /// rebuild frame builds one for [tab] from the bytes; the view shown
+  /// before stays warm as [warmth] lets it (TAB-023). Else the bytes stay
+  /// queued for its next build and no view is warm.
   static List<Write<W>> rebound<S, W>(
     Expr<S, W> site, {
+    required SiteKeys<S, W> keys,
     required Expr<TabId, W> tab,
     required Expr<TabId?, W> label,
     required Expr<Iterable<S>, W> loaded,
+    required WarmMove<W> warmth,
   }) {
     final isLoaded = loaded.has(site);
+    final warmView = warm<S, W>().value.at(site).at(tab);
+    final shows = switch (warmth) {
+      KeepsWarm() => Expr.choose(
+        when: warmView.neq(noTab()),
+        then: warmView,
+        otherwise: Expr.choose(
+          when: label.neq(noTab()),
+          then: label,
+          otherwise: tab,
+        ),
+      ),
+      DropsWarm() => Expr.choose(
+        when: label.neq(noTab()),
+        then: label,
+        otherwise: tab,
+      ),
+    };
+    final warmRow = switch (warmth) {
+      KeepsWarm(:final kept, :final victim) => warmed<S, W>(keys: keys).call([
+        site,
+        tab,
+        warmAfter<S, W>(keys: keys).call([site, tab, kept]),
+        victim,
+      ]),
+      DropsWarm() => noWarm<W>(),
+    };
     return [
       builtFn<S, W>().becomes(
         builtFn<S, W>().value.except(
@@ -390,15 +589,13 @@ final class TabVars {
       hist<S, W>().becomes(
         hist<S, W>().value.except(
           site,
-          to: Expr.choose(
-            when: ~isLoaded,
-            then: noTab(),
-            otherwise: Expr.choose(
-              when: label.neq(noTab()),
-              then: label,
-              otherwise: tab,
-            ),
-          ),
+          to: Expr.choose(when: ~isLoaded, then: noTab(), otherwise: shows),
+        ),
+      ),
+      warm<S, W>().becomes(
+        warm<S, W>().value.except(
+          site,
+          to: Expr.choose(when: ~isLoaded, then: noWarm(), otherwise: warmRow),
         ),
       ),
       queued<S, W>().becomes(
@@ -421,6 +618,64 @@ final class TabVars {
     ];
   }
 
+  /// [s]'s warm row with the views of [g] gone: closed, or running as
+  /// another site than the slot (TAB-026).
+  static Def<Map<TabId, TabId?>, W> warmGoneDef<S, W>({
+    required SiteKeys<S, W> keys,
+  }) {
+    final s = Bound<S, W>('s');
+    final g = Bound<Iterable<TabId>, W>('g');
+    final t = Bound<TabId, W>('t');
+    return Def(
+      ModelDef.warmGone,
+      params: [s, g],
+      body: warmViews<S, W>(
+        keys: keys,
+      ).at(s.it).exceptEach(g.it, x: t, to: noTab()),
+    );
+  }
+
+  /// [warmGoneDef] written for [site]'s [tabs].
+  static Write<W> warmGone<S, W>(
+    Expr<S, W> site, {
+    required SiteKeys<S, W> keys,
+    required Expr<Iterable<TabId>, W> tabs,
+  }) => warm<S, W>().becomes(
+    warm<S, W>().value.except(
+      site,
+      to: warmGoneDef<S, W>(keys: keys).call([site, tabs]),
+    ),
+  );
+
+  /// The view the limit lets go of in a switch to [tab] of [site], keeping
+  /// the tabs [kept] lists, or none (`0`); the code takes the one used
+  /// longest ago (TAB-023).
+  static Pick<TabId?, W> warmVictim<S, W>(
+    Expr<S, W> site, {
+    required SiteKeys<S, W> keys,
+    required Expr<TabId, W> tab,
+    required Expr<Iterable<TabId>, W> kept,
+    required Expr<Iterable<S>, W> loaded,
+    required Expr<int, W> maxLoaded,
+    required Expr<bool, W> joining,
+    required ({Expr<int, W> own, Expr<int, W> hosted}) limits,
+    required List<SiteTab> Function(StepView<W> c) tabsOf,
+    required TabId? Function(StepView<W> c) shownOf,
+  }) => Pick(
+    warmOver<S, W>(keys: keys).call([
+      site,
+      warmAfter<S, W>(keys: keys).call([site, tab, kept]),
+      loaded,
+      maxLoaded,
+      joining,
+      limits.own,
+      limits.hosted,
+    ]),
+    name: 'wx',
+    first: (c, {required among}) =>
+        leastRecentlyUsed(among, tabs: tabsOf(c), inUse: shownOf(c)),
+  );
+
   /// The frame after a commit built the site's webview: bound to its
   /// active tab, showing what was queued for that tab, the queue taken,
   /// among the [loaded] sites the frame sees.
@@ -433,4 +688,23 @@ final class TabVars {
     hist<S, W>().becomes(shown<S, W>(keys: keys).call([site, loaded])),
     queued<S, W>().becomes(taken<S, W>().call([site, loaded])),
   ]);
+}
+
+/// What a rebind does with the site's warm views (TAB-023).
+sealed class WarmMove<W> {
+  const WarmMove();
+}
+
+/// A switch: the tabs [kept] the list keeps may stay warm, and [victim]
+/// goes over the limit.
+final class KeepsWarm<W> extends WarmMove<W> {
+  const KeepsWarm({required this.kept, required this.victim});
+
+  final Expr<Iterable<TabId>, W> kept;
+  final Expr<TabId?, W> victim;
+}
+
+/// A rebind that runs the slot as another site: every warm view goes.
+final class DropsWarm<W> extends WarmMove<W> {
+  const DropsWarm();
 }
