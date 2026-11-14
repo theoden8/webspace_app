@@ -214,24 +214,6 @@ Login(s) ==
 \* (DnsBlockService.effectiveLevelFor).
 Eff(s) == ResolveLevel(SiteLevel[s], dns.lvl, dns.levels)
 
-\* A frame mounts a loaded site's webview, which binds its container (the
-\* shared jar has none), and unmounts one whose site is no longer loaded
-\* (SiteWebviewStack). Only where a close or a delete can take a site
-\* away: the other configs follow no view's mount.
-Frame(s) ==
-    /\ Calm
-    /\ Boxed # {}
-    /\ (s \in loaded) # (s \in views)
-    /\ IF s \in loaded
-       THEN /\ views' = views \cup {s}
-            /\ boxes' = IF Containers /\ s \in Boxed
-                        THEN boxes \cup {s} ELSE boxes
-       ELSE /\ views' = views \ {s}
-            /\ UNCHANGED boxes
-    /\ Did("Frame", 0, "", s)
-    /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabVars,
-                    blocking, gone >>
-
 -----------------------------------------------------------------------------
 
 \* Every flow finished and the launch clear run: a behavior may end there,
@@ -256,9 +238,8 @@ InputStep ==
 Next ==
     \/ InputStep
     \/ \E f \in Flows : FlowStep(f)
-    \/ \E s \in Sites : Frame(s)
     \* The environment's actions the tables print: a loaded site's webview
-    \* let go of (LetGoTable) and its frame (FrameTable), a running site's
+    \* let go of (LetGoTable), its frame and a webview's mount (FrameTable), a running site's
     \* first view built and its last gone (ViewsTable), and the launch's
     \* clear of the jar in its first turn (CookieIsolationEngine.clearSteps).
     \/ EnvTableStep

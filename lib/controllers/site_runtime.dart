@@ -55,6 +55,15 @@ class SiteRuntime implements SiteModels {
   /// gives that id once, as the model has it. A write keeps the site a
   /// variable already holds under an id, the one whose webview it is, and
   /// otherwise names the listed site.
+  final Set<SiteId> _mountedViews = {};
+
+  /// The sites whose webview the frame has mounted (`views`): written only
+  /// by the frame's step (`FrameTable.mount`, the model's `Frame`).
+  late final Shared<Iterable<SiteId>> views = Shared.ofSet(
+    _mountedViews,
+    variable: ModelVar.views,
+  );
+
   late final RuntimeVars<SiteId> vars = RuntimeVars(
     loaded: Shared(
       ModelVar.loaded,

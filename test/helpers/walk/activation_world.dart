@@ -856,19 +856,19 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         final bound = _mounted[m.siteId];
         if (live && bound == m.containerKey) continue;
         if (!live && bound == null) continue;
-        if (bound != null && page.containers) native.unbind(bound);
-        if (live) {
+        if (live && bound != null) {
           // A webview let go and built again on another container (a move
           // into an archive) remounts: the model starts after that, so only
-          // a first mount or an unmount is a step of it. The shared jar
-          // has no container to bind.
+          // a first mount or an unmount is a step of it.
+          if (page.containers) {
+            native
+              ..unbind(bound)
+              ..bind(m.containerKey);
+          }
           _mounted[m.siteId] = m.containerKey;
-          if (page.containers) native.bind(m.containerKey);
-          if (bound != null) continue;
-        } else {
-          _mounted.remove(m.siteId);
+          continue;
         }
-        ActivationSteps.mark(ActivationStep.frame, site: m);
+        _frame(m);
       }
     });
   }
@@ -876,12 +876,27 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// The frame a close waits for (`endOfFrame`): the webviews of sites no
   /// longer loaded unmount, which is all the close's step writes.
   void _unmountGone() {
-    for (final MapEntry(key: id, value: key) in [..._mounted.entries]) {
-      if (sites.loaded.any((m) => m.siteId == id)) continue;
-      _mounted.remove(id);
-      if (page.containers) native.unbind(key);
+    for (final m in _bySite) {
+      if (!_mounted.containsKey(m.siteId) || sites.loaded.hasKey(m)) continue;
+      inFlow(flow: _frameFlow, () => _frame(m));
     }
   }
+
+  /// The frame mounts [m]'s webview, binding its container (the shared jar
+  /// has none), or unmounts it, as the widget tree does (`FrameTable.mount`,
+  /// the model's `Frame`).
+  void _frame(WebViewModel m) => FrameTable.mount(
+    sites,
+    site: m,
+    platform: ({required commit}) {
+      if (sites.loaded.hasKey(m)) {
+        _mounted[m.siteId] = m.containerKey;
+        if (page.containers) native.bind(m.containerKey);
+      } else if (_mounted.remove(m.siteId) case final key?) {
+        if (page.containers) native.unbind(key);
+      }
+    },
+  );
 
   /// The sites' DNS levels and the levels a download picks, or no DNS: the
   /// lists come from a mirror whose answer waits on [gate], and a frame
@@ -1378,7 +1393,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       // A site's id never changes once it is made; a join that re-mints one
       // makes a new model (Admitted.of), so only Join writes it.
       ModelVar.ids => each((m) => m.siteId),
-      ModelVar.views => FrameValues([..._mounted.keys]..sort()),
+      ModelVar.views => FrameValues([...sites.views.value]..sort()),
       ModelVar.boxes => ids([
         for (final m in _followed)
           if (native.profiles.containsKey(m.containerKey)) m,
@@ -1662,7 +1677,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       if (_boxed || joins) ...{
         'gone': [for (final m in _offList) _siteNumber(m)]
           ..sort(),
-        'views': [for (final id in _mounted.keys) _siteNumberOf(id)]..sort(),
+        'views': [for (final id in sites.views.value) _siteNumberOf(id)]..sort(),
         'boxes': [
           for (final m in _followed)
             if (native.profiles.containsKey(m.containerKey)) _siteNumber(m),
@@ -2875,6 +2890,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           if (sites.loaded.hasKey(m) ||
               sites.shown?.siteId == m.siteId ||
               _mounted.containsKey(m.siteId) ||
+              sites.views.value.contains(m.siteId) ||
               native.profiles.containsKey(m.containerKey))
             m.siteId,
       ],

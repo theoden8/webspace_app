@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 
+import 'package:webspace/controllers/frame_table.dart';
 import 'package:webspace/controllers/let_go_table.dart';
 import 'package:webspace/controllers/app_lifecycle_controller.dart';
 import 'package:webspace/controllers/archive_controller.dart';
@@ -1534,6 +1535,11 @@ class _WebSpacePageState extends State<WebSpacePage>
                         current: _sites.current,
                         hooks: _siteHooks,
                         showStatsBanner: AppPref.showStatsBanner.value,
+                        onFrame: (site) => FrameTable.mount(
+                          _sites,
+                          site: site,
+                          platform: ({required commit}) {},
+                        ),
                       ),
                     ),
                     ),

@@ -20,6 +20,7 @@ class SiteWebViewStack extends StatelessWidget {
     required this.current,
     required this.hooks,
     required this.showStatsBanner,
+    required this.onFrame,
   });
 
   final List<WebViewModel> models;
@@ -27,6 +28,10 @@ class SiteWebViewStack extends StatelessWidget {
   final int? current;
   final SiteHooks hooks;
   final bool showStatsBanner;
+
+  /// Told as a site's webview mounts and as it unmounts, the frame's step
+  /// (`Frame`).
+  final void Function(WebViewModel site) onFrame;
 
   @override
   Widget build(BuildContext context) => IndexedStack(
@@ -38,6 +43,7 @@ class SiteWebViewStack extends StatelessWidget {
             site: site,
             hooks: hooks,
             showStatsBanner: showStatsBanner,
+            onFrame: onFrame,
           )
         else
           const SizedBox.shrink(),
@@ -45,7 +51,7 @@ class SiteWebViewStack extends StatelessWidget {
   );
 }
 
-class _SiteWebView extends StatelessWidget {
+class _SiteWebView extends StatefulWidget {
   // Keyed globally, so a delete or move that shifts this site's row takes its
   // webview along: IndexedStack wraps each child in an unkeyed Visibility, so
   // a local key never meets its old element (ISO-009).
@@ -53,11 +59,35 @@ class _SiteWebView extends StatelessWidget {
     required this.site,
     required this.hooks,
     required this.showStatsBanner,
+    required this.onFrame,
   }) : super(key: GlobalObjectKey(site));
 
   final WebViewModel site;
   final SiteHooks hooks;
   final bool showStatsBanner;
+  final void Function(WebViewModel site) onFrame;
+
+  @override
+  State<_SiteWebView> createState() => _SiteWebViewState();
+}
+
+/// A site's slot as the frame mounts and unmounts it: each tells the frame's
+/// step (`Frame`).
+class _SiteWebViewState extends State<_SiteWebView> {
+  @override
+  void initState() {
+    super.initState();
+    widget.onFrame(widget.site);
+  }
+
+  @override
+  void dispose() {
+    widget.onFrame(widget.site);
+    super.dispose();
+  }
+
+  WebViewModel get site => widget.site;
+  SiteHooks get hooks => widget.hooks;
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +103,7 @@ class _SiteWebView extends StatelessWidget {
     return SizedBox.expand(
       child: Column(
         children: [
-          if (showStatsBanner)
+          if (widget.showStatsBanner)
             StatsBanner(
               siteId: site.siteId,
               dnsBlockEnabled: site.dnsBlockEnabled,
