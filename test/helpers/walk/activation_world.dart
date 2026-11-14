@@ -561,6 +561,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     this.proxies,
     this.caps = kResidencyCaps,
     this.warmLimits = kWarmLimits,
+    this.dropsWarmTarget = false,
     this.nestedOpens = false,
     this.wakes = false,
     this.dns,
@@ -695,6 +696,11 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// How many warm tabs a slot keeps; a world runs smaller ones so its
   /// three tabs reach the limit (TAB-023).
   final WarmLimits warmLimits;
+
+  /// A planted mistake (TAB-023): a switch lets go of its target's warm
+  /// view before it shows it, so it builds another. [_checkWarmSwitch]
+  /// must catch it.
+  final bool dropsWarmTarget;
 
   /// Links may open any site nested (`Linked`).
   final bool nestedOpens;
@@ -1181,6 +1187,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     required Set<ModelVar> keys,
     required bool closes,
   }) {
+    _checkWarmSwitch(flow);
     if (flow == null) return;
     final pending = (_changed[flow] ??= {})..addAll(keys);
     if (!closes) return;
@@ -1190,6 +1197,40 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       }
       pending.clear();
     }
+  }
+
+  /// Each tab switch's site and target, by its flow.
+  final Map<int, ({WebViewModel site, TabId tab})> _tabSwitches = {};
+
+  /// Each site's warm views by tab, as the last stretch left them: the
+  /// controllers themselves, which the model's labels cannot tell apart.
+  Map<SiteId, Map<TabId, Object>> _warmAtBoundary = {};
+
+  /// TAB-023: a switch to a tab that is warm as its stretch begins shows
+  /// that very view, so a stretch of the switch's own flow that takes the
+  /// target out of the warm views leaves its controller on screen. The
+  /// model knows a view only by the history it shows, which a rebuild
+  /// shows too, so this compares the objects. Another flow's let-go of the
+  /// view runs in a stretch of its own, after which the target is no
+  /// longer warm.
+  void _checkWarmSwitch(int? flow) {
+    final now = {
+      for (final m in sites.models)
+        m.siteId: {
+          for (final MapEntry(key: t, value: v) in m.warmViews.entries)
+            t: v.controller as Object,
+        },
+    };
+    if (_tabSwitches[flow] case (:final site, :final tab)?) {
+      final warm = _warmAtBoundary[site.siteId]?[tab];
+      if (warm != null &&
+          !(now[site.siteId]?.containsKey(tab) ?? false) &&
+          !identical(site.controller, warm)) {
+        _violations.add('flow $flow switched ${site.siteId} to its warm tab '
+            '$tab and did not show that view (TAB-023)');
+      }
+    }
+    _warmAtBoundary = now;
   }
 
   /// What a flow changed is what the step it belongs to declares, its
@@ -2345,8 +2386,16 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       case OpenTab(:final slot, :final tab):
         if (n > 0) {
           final m = at(slot);
+          final target = tabAt(m, tab: tab);
           _offScreenTabInput(m);
-          _track(tabs.openTab(m, tabId: tabAt(m, tab: tab)));
+          _tabSwitches[currentFlow()!] = (site: m, tab: target);
+          if (dropsWarmTarget) {
+            m.dropWarm(
+              tab: target,
+              commit: const Commit.environment(Environment.frame),
+            );
+          }
+          _track(tabs.openTab(m, tabId: target));
         }
       case NewTab(:final slot):
         if (n > 0) {
