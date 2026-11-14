@@ -516,11 +516,20 @@ breaks `Inv_Retired`, and the other two replies hold without it in all 21 worlds
 ## Verification only grows
 
 `levels.tsv` is the floor of what `verify.sh` checks: TLC configs that hold, planted
-mistakes caught, witnesses reached, traces and steps replayed, proof obligations
+mistakes caught, witnesses reached, traces replayed, the end states and states the full
+schedule search reaches in the sample worlds (`ends`, `states`), proof obligations
 discharged. `verify.sh` counts each in the run and fails when one falls below its line,
 and prints the new count when one rises, to be committed as the new floor. A refactor
 therefore cannot quietly check less: a flow rewritten in another form prints the same
 model, and a check is retired only when its replacement has caught the same mistakes.
+
+The replayed steps are printed beside the floors, not floored: they count the reduced
+search's schedules, which fall whenever the reduction learns a footprint (a step moved
+into a table). `ends` and `states` replaced them as the floor; the full search never
+prunes, so the reduction cannot move them, and `activation_schedules_test.dart` holds both
+plants (an input the code drops lowers them; a change to the reduction alone does not).
+A fall of the steps by more than 3% under the same printed footprints warns, since only
+the code's own schedules shrinking explains it.
 
 ### Remembered runs
 

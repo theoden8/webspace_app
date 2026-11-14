@@ -137,12 +137,15 @@ Future<ScheduleSearch> expectEveryScheduleHolds<A>({
 /// What a search of the schedules met: how many it ran to their end and how
 /// many it stopped with every option left asleep ([exploreSchedules]); the
 /// world's state at the end of each it ran to its end
-/// ([WalkWorld.snapshot]); and each way one broke, with the first schedule
-/// that broke so.
+/// ([WalkWorld.snapshot]); every state a schedule passed through on its
+/// way, the end states among them, where the search was asked to record
+/// them ([exploreSchedules]' `visits`); and each way one broke, with the first
+/// schedule that broke so.
 typedef ScheduleSearch = ({
   int runs,
   int stopped,
   Set<String> ends,
+  Set<String> visited,
   Map<String, String> failures,
 });
 
@@ -172,11 +175,13 @@ Future<ScheduleSearch> exploreSchedules<A>({
   required int preemptions,
   required Commutes? commutes,
   required bool toTheEnd,
+  bool visits = false,
 }) async {
   final search = _Search(bound: preemptions, commutes: commutes);
   var runs = 0;
   var stopped = 0;
   final ends = <String>{};
+  final visited = <String>{};
   final failures = <String, String>{};
   do {
     final run = await _runSchedule(
@@ -184,6 +189,7 @@ Future<ScheduleSearch> exploreSchedules<A>({
       setup: setup,
       script: script,
       chooser: search,
+      visited: visits ? visited : null,
     );
     if (search.diverged case final diverged?) {
       fail(
@@ -204,13 +210,25 @@ Future<ScheduleSearch> exploreSchedules<A>({
               'the script\'s action n): ${run.trace.join(' | ')}',
         );
         if (!toTheEnd) {
-          return (runs: runs, stopped: stopped, ends: ends, failures: failures);
+          return (
+            runs: runs,
+            stopped: stopped,
+            ends: ends,
+            visited: visited,
+            failures: failures,
+          );
         }
       case _Stopped():
         stopped++;
     }
   } while (search.advance());
-  return (runs: runs, stopped: stopped, ends: ends, failures: failures);
+  return (
+    runs: runs,
+    stopped: stopped,
+    ends: ends,
+    visited: visited,
+    failures: failures,
+  );
 }
 
 /// What one choice ran: every flow whose code ran in it, and the steps
@@ -445,6 +463,7 @@ Future<({List<String> trace, _Outcome outcome})> _runSchedule<A>({
   required List<A> setup,
   required List<A> script,
   required _Chooser chooser,
+  required Set<String>? visited,
 }) {
   final result = Completer<({List<String> trace, _Outcome outcome})>();
   final trace = <String>[];
@@ -492,6 +511,7 @@ Future<({List<String> trace, _Outcome outcome})> _runSchedule<A>({
       var next = 0;
       int? last;
       await quiesce(w);
+      visited?.add(w.snapshot());
       for (var at = 0;; at++) {
         if (ended == null && escaped.isNotEmpty) {
           ended = _Broke('${escaped.first}');
@@ -552,6 +572,7 @@ Future<({List<String> trace, _Outcome outcome})> _runSchedule<A>({
         _running = null;
         _log = null;
         if (ended != null) continue;
+        visited?.add(w.snapshot());
         chooser.ran(
           at: at,
           ran: _ranOf(
@@ -581,6 +602,7 @@ Future<({List<String> trace, _Outcome outcome})> _runSchedule<A>({
       await quiesce(w);
       if (ended case final outcome?) return finish(outcome);
       if (escaped.isEmpty) w.endScript();
+      if (escaped.isEmpty) visited?.add(w.snapshot());
       finish(
         escaped.isEmpty ? _Reached(w.snapshot()) : _Broke('${escaped.first}'),
       );

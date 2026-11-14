@@ -28,7 +28,10 @@ function verify(t, floor) {
     if (process.env.FORMAL_OUT) {
       fs.mkdirSync(process.env.FORMAL_OUT, { recursive: true });
       fs.writeFileSync(path.join(process.env.FORMAL_OUT, 'models.json'), '{}');
-    } else console.log('00:00 +0: loading schedules');
+    } else {
+      console.log('00:00 +0: loading schedules');
+      console.log('REACHED sample\tends=3\tstates=5\truns=7');
+    }
   }), { mode: 0o755 });
   // Stub the expensive stages, keeping the real verification and levels gate.
   const stages = {
@@ -69,19 +72,46 @@ function verify(t, floor) {
   return { result, out: path.join(dir, 'build/formal') };
 }
 
-const measured = { holds: 2, caught: 2, reached: 2, traces: 2, steps: 4, modules: 2, obligations: 4 };
+const measured = {
+  holds: 2, caught: 2, reached: 2, traces: 2, ends: 3, states: 5, modules: 2, obligations: 4,
+};
+// Printed and committed, never floored: the replayed steps and the
+// footprints they were counted under (none in this stubbed model).
+const soft = { steps: 4, footprints: 'none' };
 
 test('verification accepts growth in every count while catching a floor above the measured run', (t) => {
-  const { result, out } = verify(t, Object.fromEntries(Object.keys(measured).map((k) => [k, 1])));
+  const { result, out } = verify(t, {
+    ...Object.fromEntries(Object.keys(measured).map((k) => [k, 1])), ...soft,
+  });
   assert.equal(result.status, 0, result.stdout + result.stderr);
   assert.match(result.stdout, /OK {3}planted: a floor above the run is caught/);
   assert.match(result.stdout, /Every formal check passed\./);
   const levels = fs.readFileSync(path.join(out, 'levels.tsv'), 'utf8');
-  assert.equal(levels, Object.entries(measured).map(([k, v]) => `${k}\t${v}\n`).join(''));
+  assert.equal(levels, Object.entries({ ...measured, ...soft })
+    .map(([k, v]) => `${k}\t${v}\n`).join(''));
+});
+
+test('a fall of the replayed steps under the same footprints warns and passes', (t) => {
+  const { result } = verify(t, { ...measured, ...soft, steps: 100 });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /WARN steps fell 96\.0% under the same footprints/);
+  assert.match(result.stdout, /Every formal check passed\./);
+});
+
+test('a fall of the replayed steps under changed footprints passes quietly', (t) => {
+  const { result } = verify(t, { ...measured, ...soft, steps: 100, footprints: 'other' });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.doesNotMatch(result.stdout, /WARN/);
+});
+
+test('verification rejects fewer states reached in the sample worlds', (t) => {
+  const { result } = verify(t, { ...measured, ...soft, states: 6 });
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(result.stderr, /levels: states fell below formal\/levels.tsv/);
 });
 
 test('verification still rejects a measured count below the committed floor', (t) => {
-  const { result } = verify(t, { ...measured, holds: 3 });
+  const { result } = verify(t, { ...measured, ...soft, holds: 3 });
   assert.equal(result.status, 1, result.stdout + result.stderr);
   assert.match(result.stderr, /levels: holds fell below formal\/levels.tsv/);
   assert.doesNotMatch(result.stdout, /Every formal check passed\./);
