@@ -71,7 +71,7 @@ abstract final class MoveTable {
               ],
               then: (c) => _land.from(c)(commit: c.commit),
             ),
-            _movedMidFlight,
+            midFlight('movedMidFlight'),
           ],
           next: to(MovePlace.done),
         ),
@@ -110,11 +110,4 @@ final _land = Port<void Function({required Commit commit}), MoveWorld>(
   reads: const {},
   changes: {ModelVar.rows},
   of: (w) => w.land,
-);
-
-/// A witness only the model keeps: a row moved while a flow was out.
-final _movedMidFlight = modelOnly<MoveWorld>(
-  "seen' = seen \\cup (IF Idle THEN {} ELSE {\"movedMidFlight\"})",
-  writes: {ModelVar.seen},
-  reads: const Reads(vars: {ModelVar.seen, ModelVar.fl}),
 );
