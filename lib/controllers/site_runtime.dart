@@ -30,8 +30,12 @@ class SiteRuntime implements SiteModels {
   /// re-adds its target at the end. Written by a table's step through
   /// [vars], and by [apply] and [retired] with a [Commit].
   @Modeled(ModelVar.loaded)
-  Iterable<WebViewModel> get loaded => _loaded;
-  final Set<WebViewModel> _loaded = {};
+  Iterable<WebViewModel> get loaded => [for (final id in _loaded) byId(id)!];
+
+  /// By id (CONT-012): a loaded site is always a listed one ([apply]), and
+  /// a listed id names one site, so the id finds the site whose webview it
+  /// is, and a site a carrying import replaced is not kept under it.
+  final Set<SiteId> _loaded = {};
 
   /// The site on screen, or null on the webspace list.
   @Modeled(ModelVar.current)
@@ -53,16 +57,19 @@ class SiteRuntime implements SiteModels {
   /// import a departed site and its replacement share an id, and a read
   /// gives that id once, as the model has it. A write keeps the site a
   /// variable already holds under an id, the one whose webview it is, and
-  /// otherwise names the listed site.
+  /// otherwise names the listed site; the loaded sites are kept by id.
   late final RuntimeVars<SiteId> vars = RuntimeVars(
     loaded: Shared(
       ModelVar.loaded,
-      read: () => _idsOf(_loaded),
+      read: () => {..._loaded},
       write: (to) {
-        final held = [..._loaded];
+        assert(
+          to.every((id) => byId(id) != null),
+          'every loaded id names a listed site',
+        );
         _loaded
           ..clear()
-          ..addAll([for (final id in to) _site(id, held: held)]);
+          ..addAll(to);
       },
     ),
     current: Shared(
@@ -105,12 +112,12 @@ class SiteRuntime implements SiteModels {
     ),
     headless: Shared(
       ModelVar.headless,
-      read: () => _idsOf(_headless),
+      read: () => {..._headless.keys},
       write: (to) {
-        final held = [..._headless];
+        final held = [..._headless.values];
         _headless
           ..clear()
-          ..addAll([for (final id in to) _site(id, held: held)]);
+          ..addAll({for (final id in to) id: _site(id, held: held)});
         _pin();
       },
     ),
@@ -120,8 +127,6 @@ class SiteRuntime implements SiteModels {
   /// Ids read off the sites outside the cells' `read:` closures, which
   /// name only the fields that hold each variable (`test/port_reads_test`).
   static SiteId? _idOf(WebViewModel? site) => site?.siteId;
-  static Set<SiteId> _idsOf(Iterable<WebViewModel> sites) =>
-      {for (final m in sites) m.siteId};
 
   /// The site [id] names for a write through [vars]: the one [held] has
   /// under it, else the listed one.
@@ -163,7 +168,7 @@ class SiteRuntime implements SiteModels {
   void _pin() => _pinned
     ..clear()
     ..addAll({
-      for (final m in [?_nested, ..._headless, ?_activating?.target])
+      for (final m in [?_nested, ..._headless.values, ?_activating?.target])
         m.siteId: m,
     });
 
@@ -174,8 +179,10 @@ class SiteRuntime implements SiteModels {
 
   /// The sites a background wake checks in a headless webview: each runs
   /// as its site beside the loaded ones. Written by the wake's table steps.
-  Set<WebViewModel> get headless => Set.unmodifiable(_headless);
-  final Set<WebViewModel> _headless = {};
+  /// Kept by id, each with the site its check runs as, which may have left
+  /// the list since.
+  Iterable<WebViewModel> get headless => List.unmodifiable(_headless.values);
+  final Map<SiteId, WebViewModel> _headless = {};
 
   /// Whether the app is on screen, as the wake's table last heard.
   bool get fore => _fore;
@@ -185,9 +192,7 @@ class SiteRuntime implements SiteModels {
   /// identity changed. Named here so that is the only writer beside the
   /// tables and [apply].
   bool retired(WebViewModel site, {required Commit commit}) {
-    final before = _loaded.length;
-    _loaded.removeWhere((m) => m.modelKey == site.modelKey);
-    final went = _loaded.length != before;
+    final went = _loaded.remove(site.siteId);
     if (went) commit.wrote(ModelVar.loaded);
     return went;
   }
@@ -198,7 +203,7 @@ class SiteRuntime implements SiteModels {
     if (loaded != null) {
       _loaded
         ..clear()
-        ..addAll(loaded);
+        ..addAll([for (final m in loaded) m.siteId]);
     }
     _show(shown);
   }
@@ -216,7 +221,7 @@ class SiteRuntime implements SiteModels {
 
   /// Whether the site at [row] has a built webview.
   bool isLoadedAt(int row) =>
-      row >= 0 && row < models.length && _loaded.hasKey(models[row]);
+      row >= 0 && row < models.length && _loaded.contains(models[row].siteId);
 
   /// Bumped by every activation and by every change that shifts positions,
   /// so an activation suspended across an await bails instead of resuming
@@ -414,7 +419,7 @@ class SiteRuntime implements SiteModels {
     if (was.version != _version) commit.wrote(ModelVar.version);
     resolveWebspaceIndices();
     assert(
-      _loaded.every(models.holdsObject) &&
+      _loaded.every((id) => byId(id) != null) &&
           (_shown == null || models.holdsObject(_shown!)),
       'a site that left the list is still loaded or shown',
     );
@@ -423,7 +428,7 @@ class SiteRuntime implements SiteModels {
   /// [sites] left the list: they leave [loaded] and [shown] too, and an
   /// activation suspended meanwhile bails.
   void _drop(List<WebViewModel> sites) {
-    _loaded.removeAll(sites);
+    _loaded.removeAll([for (final s in sites) s.siteId]);
     if (sites.any((s) => identical(s, _shown))) _shown = null;
     _version++;
   }

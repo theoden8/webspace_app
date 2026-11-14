@@ -47,7 +47,7 @@ abstract interface class ActivationState {
   WebViewModel? get target;
   Reached<Launched>? get launch;
   NestedRequest? get opening;
-  Set<WebViewModel>? get leaving;
+  Set<SiteId>? get leaving;
   abstract ResidencyPlan? plan;
   abstract Uint8List? navBytes;
   abstract bool committed;
@@ -257,7 +257,7 @@ final class ActivationFlow implements Capturing, ActivationState, SiteModels {
 
   /// What a webspace switch stops showing; no other input carries it.
   @override
-  final Set<WebViewModel>? leaving;
+  final Set<SiteId>? leaving;
 
   /// Whether the device answered that it is online, at a switch.
   @override
