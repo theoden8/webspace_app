@@ -408,6 +408,7 @@ Tables _with({
   StepTable<ViewsWorld, ViewsPlace>? views,
   StepTable<ClearWorld, ClearPlace>? clear,
   StepTable<JoinWorld, JoinPlace>? join,
+  StepTable<MoveWorld, MovePlace>? move,
   List<Def<Object?, Object?>>? ops,
 }) => (
   activation: activation ?? tables.activation,
@@ -427,6 +428,7 @@ Tables _with({
   views: views ?? tables.views,
   clear: clear ?? tables.clear,
   join: join ?? tables.join,
+  move: move ?? tables.move,
   ops: ops ?? tables.ops,
 );
 
