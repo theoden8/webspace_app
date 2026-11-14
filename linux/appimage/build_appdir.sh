@@ -22,7 +22,7 @@ here="$(cd "$(dirname "$0")" && pwd)"
 module_packages=(
   glib-networking libgtk-3-common libgdk-pixbuf-2.0-0 librsvg2-common
   libgstreamer1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good
-  gstreamer1.0-plugins-bad gstreamer1.0-gl gstreamer1.0-pipewire
+  gstreamer1.0-plugins-bad gstreamer1.0-gl gstreamer1.0-pipewire gstreamer1.0-alsa
 )
 # What builds the AppDir.
 tool_packages=(patchelf libglib2.0-bin)
@@ -53,12 +53,15 @@ triplet="$(basename "$(dirname "$webkit")")"
 gio_modules=(libgiognutls.so)
 # The GStreamer plugins WebKit's media players and capture use, by plugin
 # name. None is GPL: Ubuntu builds gst-libav's FFmpeg under the GPL, so
-# H.264 and AAC do not play; VP8, VP9, AV1, Opus and Vorbis do.
+# H.264 and AAC do not play; VP8, VP9, AV1, Opus and Vorbis do. Sound goes
+# out through ALSA, the machine's libasound, which hands it to PipeWire or
+# PulseAudio; not through the pulseaudio plugin, whose libpulse links
+# libapparmor, part of which is GPL-2.0-only (PLATFORM-013).
 gst_plugins=(
-  coreelements app audioconvert audiomixer audioparsers audiorate audioresample
+  alsa coreelements app audioconvert audiomixer audioparsers audiorate audioresample
   autodetect codecalpha codectimestamper debugutilsbad encoding inter
   interleave isomp4 matroska ogg opengl opus opusparse pbtypes pipewire
-  playback pulseaudio rawparse subparse typefindfunctions videoconvertscale
+  playback rawparse subparse typefindfunctions videoconvertscale
   videofilter videoparsersbad videorate volume vorbis vpx aom wavparse
 )
 # gdk-pixbuf has PNG and JPEG built in; GTK's symbolic icons are SVG.

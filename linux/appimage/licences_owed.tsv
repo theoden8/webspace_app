@@ -9,12 +9,12 @@
 # row of that package marking them LicenseRef-build-only, as libevent's are.
 # While it holds a row, the Snap workflow keeps the AppImage to itself and
 # scripts/release_appimage.sh refuses to publish one.
+gstreamer1.0-alsa	names debian_licences.tsv does not read: (2 (3 (BSD BSD MIT/X11 clause) like)
 gstreamer1.0-gl	names debian_licences.tsv does not read: (2 (3 (BSD BSD MIT/X11 clause) like)
 gstreamer1.0-pipewire	names debian_licences.tsv does not read: BZIP2 FFTPACK
 gstreamer1.0-plugins-bad	names debian_licences.tsv does not read: (2 (3 (BSD (v2 (with BSD FSF GPL LGPL MIT/X11 MPL-1.1 UNKNOWN address) clause) incorrect later) like)
 gstreamer1.0-plugins-base	names debian_licences.tsv does not read: (2 (3 (BSD BSD MIT/X11 clause) like)
 gstreamer1.0-plugins-good	names debian_licences.tsv does not read: (3 (BSD BSD LGPL MIT/X11 clause) like)
-libapparmor1	a stanza under GPL-2.0-only, GPL-2.0-or-later: which files it covers, and whether the package ships any
 libatk-bridge2.0-0t64	names debian_licences.tsv does not read: AFL-2.1
 libatk1.0-0t64	names debian_licences.tsv does not read: AFL-2.1
 libatomic1	its copyright file is not machine-readable
@@ -30,7 +30,6 @@ libelf1t64	names debian_licences.tsv does not read: Bison GFDL-NIV-1.3 exception
 libenchant-2-2	names debian_licences.tsv does not read: FSFAP GPL-2.0+ GPL-3.0+ LGPL-2.0+ LGPL-3.0+
 libevdev2	names debian_licences.tsv does not read: BSD-3
 libffi8	names debian_licences.tsv does not read: GPL MPL-1.1 X11
-libflac12t64	names debian_licences.tsv does not read: GFDL-1.1+ Public-domain
 libgcrypt20	its copyright file is not machine-readable
 libgdk-pixbuf-2.0-0	a stanza under GPL-2.0-or-later: which files it covers, and whether the package ships any
 libglib2.0-0t64	names debian_licences.tsv does not read: AFL-2.0 CC-BY-SA-3.0 FSFULLR Iconv-PD Janik-permissive Kuchling-PD LLVM Mingw-PD Plumb-PD Unicode-DFS-2016 bzip2-1.0.6 cmph exception old-glib-tests with
@@ -56,7 +55,6 @@ liblcms2-2	names debian_licences.tsv does not read: IJG
 liblz4-1	a stanza under GPL-2.0-or-later: which files it covers, and whether the package ships any
 liblzma5	names debian_licences.tsv does not read: Autoconf PD PD-debian config-h noderivs none permissive-fsf permissive-nowarranty probably-PD
 libmount1	names debian_licences.tsv does not read: BSD-4-clause BSLA LGPL
-libmp3lame0	names debian_licences.tsv does not read: GPL-1+ zlib/libpng
 libnettle8t64	names debian_licences.tsv does not read: Autoconf GAP exception with
 libnghttp2-14	names debian_licences.tsv does not read: all-permissive autoconf exception with
 libogg0	names debian_licences.tsv does not read: rfc3533-license rfc5334-license
@@ -68,12 +66,10 @@ libpcre2-8-0	names debian_licences.tsv does not read: BINARY BSD-3-clause-Cambri
 libpixman-1-0	its copyright file is not machine-readable
 libpng16-16t64	names debian_licences.tsv does not read: BSD-like-with-advertising-clause expat libpng
 libpsl5t64	names debian_licences.tsv does not read: Chromium gnulib
-libpulse0	names debian_licences.tsv does not read: other
 librsvg2-2	names debian_licences.tsv does not read: 0BSD Boost-1.0 CC-zero-waive-1.0-us FSFAP MPL-2.0 Sun-permissive Unlicense
 librsvg2-common	names debian_licences.tsv does not read: 0BSD Boost-1.0 CC-zero-waive-1.0-us FSFAP MPL-2.0 Sun-permissive Unlicense
 libsecret-1-0	a stanza under GPL-2.0-or-later: which files it covers, and whether the package ships any
 libselinux1	a stanza under GPL-2.0-only: which files it covers, and whether the package ships any
-libsndfile1	names debian_licences.tsv does not read: FSFAP gsm sun
 libsoup-3.0-0	names debian_licences.tsv does not read: MPL-2.0 RSA-Other
 libsqlite3-0	a stanza under GPL-2.0-or-later: which files it covers, and whether the package ships any
 libsystemd0	names debian_licences.tsv does not read: Linux-syscall-note exception with
