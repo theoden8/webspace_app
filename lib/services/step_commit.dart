@@ -112,3 +112,12 @@ final class SharedAt<K, V> {
     _write(at, to: to);
   }
 }
+
+/// What the model does that the code leaves to its structure: the jar's
+/// turn is the SerialQueue's, held while a flow runs in the table and
+/// passed on when it leaves; a witness only the model keeps.
+Act<W> modelOnly<W>(
+  String tla, {
+  required Set<ModelVar> writes,
+  required Reads reads,
+}) => Act(writes: writes, tla: tla, reads: reads, run: (_) {});

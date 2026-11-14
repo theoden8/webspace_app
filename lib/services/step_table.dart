@@ -1133,15 +1133,6 @@ final class Act<W> extends Effect<W> {
   final Reads reads;
 }
 
-/// What the model does that the code leaves to its structure: the jar's
-/// turn is the SerialQueue's, held while a flow runs in the table and
-/// passed on when it leaves; a witness only the model keeps.
-Act<W> modelOnly<W>(
-  String tla, {
-  required Set<ModelVar> writes,
-  required Reads reads,
-}) => Act(writes: writes, tla: tla, reads: reads, run: (_) {});
-
 /// `![f].<field> = <to>` in the model; made by [Field.becomes].
 final class Assign<W> extends Effect<W> {
   const Assign._({
