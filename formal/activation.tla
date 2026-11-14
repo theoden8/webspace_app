@@ -170,32 +170,9 @@ Init ==
 
 -----------------------------------------------------------------------------
 (* Inputs. The tables start the flows (InputTableStep, printed), a site   *)
-(* joining among them (JoinTable); the rest is the environment: a row     *)
-(* move the user makes, a page signing in. The launch clear, flow 0, is   *)
+(* joining and a row moving among them (JoinTable, MoveTable); the rest   *)
+(* is the environment: a page signing in. The launch clear, flow 0, is    *)
 (* printed (EnvTableStep).                                                *)
-
-\* SitesMoved(from, to): models.insert(to, models.removeAt(from)).
-Moved(i, from, to) ==
-    CASE i = 0 -> 0
-      [] i = from -> to
-      [] from < to /\ from < i /\ i <= to -> i - 1
-      [] to < from /\ to <= i /\ i < from -> i + 1
-      [] OTHER -> i
-
-\* What the runtime and every flow hold names sites, so a move changes
-\* nothing else and supersedes no flow in flight (BUG-029).
-Move(from, to) ==
-    /\ Input
-    /\ from # to
-    \* The model keeps every row; once a close took some off the list it
-    \* moves none (the archive configs).
-    /\ gone = {}
-    /\ rows' = [q \in Pos |-> rows[CHOOSE j \in Pos : Moved(j, from, to) = q]]
-    /\ seen' = seen \cup (IF Idle THEN {} ELSE {"movedMidFlight"})
-    /\ Did("Move", inputs + 1, "", 0)
-    /\ UNCHANGED << ids, loaded, current, version, marker, tier, nested, headless, fore,
-                    sessions, turn, fl, newest, evictedShown, tabVars,
-                    blocking, archived >>
 
 \* A loaded site's page signs in. Only at rest: a page write inside another
 \* site's capture-nuke-restore is lost by design of the shared jar.
@@ -232,7 +209,6 @@ FlowStep(f) == TableStep(f)
 \* Where a table's input may land is Lands, in activation_base.
 InputStep ==
     \/ \E f \in Flows : InputTableStep(f)
-    \/ nested = 0 /\ fore /\ \E from, to \in Pos : Move(from, to)
     \/ \E s \in Sites : Login(s)
 
 Next ==

@@ -13,18 +13,6 @@ import 'package:webspace/services/model_names.dart';
 /// are printed: what each reads and writes and needs of the constants, as
 /// TLC's coverage names it, which the footprint gate holds to its text.
 enum EnvAction {
-  move(
-    next: r'nested = 0 /\ fore /\ \E from, to \in Pos : Move(from, to)',
-    coverage:
-        r'InputStep@nested = 0 /\ fore /\ \E from, to \in Pos : Move(from, to)',
-    reads: {
-      ModelVar.fore,
-      ModelVar.gone,
-      ModelVar.nested,
-      ModelVar.rows,
-    },
-    writes: {ModelVar.rows},
-  ),
   login(
     next: r'\E s \in Sites : Login(s)',
     coverage: 'Login',
