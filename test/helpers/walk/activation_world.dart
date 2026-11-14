@@ -572,6 +572,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     this.imports = false,
     this.rehosts = false,
     this.lateControllers = false,
+    this.lateViews = false,
     this.declared,
   }) {
     assert(!archived || page.containers, 'an archive needs containers');
@@ -579,6 +580,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       !lateControllers || archived || deletes || imports || rehosts,
       'a controller comes late only where a webview is let go of',
     );
+    assert(!lateViews || dns != null, 'a view is built only with DNS lists');
     assert(!deletes || page.containers, 'the delete world runs on containers');
     assert(
       !imports || joins,
@@ -767,6 +769,11 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// input lands between the build's take and its restore (TAB-003).
   final bool lateControllers;
 
+  /// A site's webview reports its view built a frame later than it would,
+  /// and a frame comes as each input lands, so its site may have stopped
+  /// running by the report (DNS-022).
+  final bool lateViews;
+
   /// The link tab's number in site 1's list, as the model numbers its tabs
   /// by first sight in list order: the record `Links` holds.
   int? _linkTab;
@@ -909,13 +916,34 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   /// The frame between two events, as far as DNS sees it: a loaded site's
   /// webview attaches at its site's level, and one whose site has gone is
-  /// dropped.
-  void _frameViews() {
+  /// dropped. With [lateViews] a build reports its view a frame later, or
+  /// at once when [all], as the script settles; a view reported where its
+  /// site no longer runs is let go and kept by none (DNS-022).
+  void _frameViews({bool all = false}) {
     if (dns == null) return;
+    for (final m in [..._unreported]) {
+      _unreported.remove(m);
+      switch (_view(OnPlatformView(m), of: m, up: true)) {
+        case AttachView():
+          _framed.add(m);
+        case LetViewGo():
+          if (sites.loaded.contains(m)) {
+            _violations.add('${m.siteId} runs and its view was let go '
+                '(DNS-022)');
+          }
+          viewsLetGo++;
+        case null:
+          break;
+      }
+    }
     for (final m in _bySite) {
       final live = sites.loaded.contains(m);
-      if (live && _framed.add(m)) {
-        _view(OnPlatformView(m), of: m, up: true);
+      if (live && !_framed.contains(m)) {
+        if (lateViews && !all) {
+          _unreported.add(m);
+        } else if (_view(OnPlatformView(m), of: m, up: true) is AttachView) {
+          _framed.add(m);
+        }
       } else if (!live && _framed.remove(m)) {
         _view(OnPlatformView(m), of: m, up: false);
       }
@@ -925,16 +953,28 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// The sites whose webview a frame attached.
   final Set<WebViewModel> _framed = {};
 
+  /// With [lateViews], the sites whose webview was built and not yet
+  /// reported.
+  final Set<WebViewModel> _unreported = {};
+
+  /// How many views were reported after their site stopped running and
+  /// let go (DNS-022).
+  int viewsLetGo = 0;
+
   /// [view] of site [of] attaches ([up]) or goes, as the platform reports
   /// it: a frame's webview, or a wake's check as its open and its dispose
   /// do, through the views' own steps (`ViewsTable`).
-  void _view(InterceptedView view, {required WebViewModel of, required bool up}) {
+  ViewBuild? _view(
+    InterceptedView view, {
+    required WebViewModel of,
+    required bool up,
+  }) {
     final levels = dns?.siteLevels;
-    if (levels == null) return;
+    if (levels == null) return null;
     final views = DnsBlockService.instance.views;
-    inFlow(flow: _frameFlow, () {
+    return inFlow(flow: _frameFlow, () {
       if (up) {
-        views.built(
+        return views.built(
           view,
           site: of.siteId,
           siteLevel: levels[_siteNumber(of) - 1],
@@ -942,9 +982,9 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           contentBlock: false,
           vars: sites.vars,
         );
-      } else {
-        views.gone(view);
       }
+      views.gone(view);
+      return null;
     });
   }
 
@@ -2328,6 +2368,9 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   @override
   void start(SiteAction action) {
+    // With late views a frame also comes as each input lands, so a view
+    // reported a frame late can land after an input that unloaded its site.
+    if (lateViews) _frameViews();
     _flowActions[_nextFlow] = action;
     final flow = _nextFlow++;
     // A nested screen covers the page: only the launch's preloads and the
@@ -2785,7 +2828,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       final finished = [..._inFlight];
       _inFlight.clear();
       await Future.wait(finished);
-      _frameViews();
+      _frameViews(all: true);
       _frameMounts();
       _restoreHeld(all: true);
     } while (_inFlight.isNotEmpty);

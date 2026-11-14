@@ -100,18 +100,35 @@ void main() {
   });
 
   test('a build attaches with the blockers its view is told again with', () {
-    final attach = dns.views.built(const OnPlatformView(#cdn),
+    final build = dns.views.built(const OnPlatformView(#cdn),
         site: follows, siteLevel: null, localCdn: true, contentBlock: false,
         vars: running);
-    expect(attach, (
-      view: const OnPlatformView(#cdn),
-      blockers: (
-        site: follows,
-        dnsLevel: 0,
-        localCdn: true,
-        contentBlock: false,
-      ),
-    ));
+    expect(
+      build,
+      isA<AttachView>().having((b) => b.attach, 'attach', (
+        view: const OnPlatformView(#cdn),
+        blockers: (
+          site: follows,
+          dnsLevel: 0,
+          localCdn: true,
+          contentBlock: false,
+        ),
+      )),
+    );
+  });
+
+  // A build that outlived its site's unload: nothing would tell its view
+  // again, so it attaches nothing and its build lets it go, and the views
+  // keep none of it as the lists move.
+  test('a view built where its site no longer runs is let go (DNS-022)',
+      () async {
+    final build = dns.views.built(const OnPlatformView(#late),
+        site: follows, siteLevel: null, localCdn: false, contentBlock: true,
+        vars: RuntimeVars.ofSet({asksTwo}));
+    expect(build, isA<LetViewGo>());
+    expect(dns.views.told, isEmpty, reason: 'no view the views keep');
+    await dns.downloadList(1);
+    expect(sent, isEmpty, reason: 'a view let go of is told nothing');
   });
 
   test('a view keeps its LocalCDN and filter-list flags when it is told again',

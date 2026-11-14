@@ -161,13 +161,20 @@ abstract final class HeadlessSiteChecks {
     // Android blocks sub-resources in a native interceptor. Without one a
     // site that blocks would load the page's trackers unfiltered, so its
     // load never starts.
-    final attached = await check.follow(config, headlessId: headless.id);
-    if (!attached &&
-        (posture.blocking.dns ||
-            posture.blocking.contentBlock ||
-            posture.blocking.localCdn)) {
-      await check.dispose();
-      return (null, WakeSkip.blockersNotAttached);
+    switch (await check.follow(config, headlessId: headless.id)) {
+      case CheckView.letGo:
+        // The wake stopped checking the site while its webview was built:
+        // the app came back to the screen (NOTIF-016, DNS-022).
+        await check.dispose();
+        return (null, WakeSkip.appInForeground);
+      case CheckView.unattached
+          when posture.blocking.dns ||
+              posture.blocking.contentBlock ||
+              posture.blocking.localCdn:
+        await check.dispose();
+        return (null, WakeSkip.blockersNotAttached);
+      case CheckView.attached || CheckView.unattached:
+        break;
     }
     final home = Uri.tryParse(config.initialUrl);
     final url = posture.blocking.httpsUpgrade &&
@@ -193,6 +200,11 @@ abstract final class HeadlessSiteChecks {
 
   static const Duration _headlessCreateTimeout = Duration(seconds: 10);
 }
+
+/// How a check's webview joined the blockers ([HeadlessSiteCheck.follow]):
+/// its interceptor attached, or failed to, or its site no longer ran when
+/// the view came, so it was let go (DNS-022).
+enum CheckView { attached, unattached, letGo }
 
 /// A site's page loaded with no view, for one background wake (NOTIF-016).
 /// Built by [HeadlessSiteChecks.openHeadlessCheck].
@@ -226,9 +238,15 @@ class HeadlessSiteCheck {
   /// does ([followBlockerData]). On Android its interceptor is
   /// attached by its headless id, so it carries this site's id and level
   /// rather than those of whichever site next asks to attach, and is one of
-  /// [ViewBlockers]', told its site's level as the lists move (DNS-022). True
-  /// once attached, or where no interceptor attaches.
-  Future<bool> follow(WebViewConfig config, {required String headlessId}) {
+  /// [ViewBlockers]', told its site's level as the lists move (DNS-022).
+  /// Where no interceptor attaches it is [CheckView.attached] too; where its
+  /// site no longer runs, the wake having let go of it while it was being
+  /// built, it attaches nothing and is [CheckView.letGo], for the opener to
+  /// dispose.
+  Future<CheckView> follow(
+    WebViewConfig config, {
+    required String headlessId,
+  }) async {
     final view = OnHeadless(headlessId);
     _unfollow = followBlockerData(
       config,
@@ -236,18 +254,23 @@ class HeadlessSiteCheck {
       evaluate: (js) async => _controller?.evaluateJavascript(source: js),
       live: () => isLoading != null,
     );
-    if (!WebInterceptNative.isSupported) return Future.value(true);
+    if (!WebInterceptNative.isSupported) return CheckView.attached;
     final posture = config.posture;
-    return WebInterceptNative.attach(
-      DnsBlockService.instance.views.built(
-        view,
-        site: posture.siteId,
-        siteLevel: config.siteDnsAsk,
-        localCdn: posture.blocking.localCdn,
-        contentBlock: posture.blocking.contentBlock,
-        vars: config.hooks.vars,
-      ),
-    );
+    switch (DnsBlockService.instance.views.built(
+      view,
+      site: posture.siteId,
+      siteLevel: config.siteDnsAsk,
+      localCdn: posture.blocking.localCdn,
+      contentBlock: posture.blocking.contentBlock,
+      vars: config.hooks.vars,
+    )) {
+      case AttachView(:final attach):
+        return await WebInterceptNative.attach(attach)
+            ? CheckView.attached
+            : CheckView.unattached;
+      case LetViewGo():
+        return CheckView.letGo;
+    }
   }
 
   Future<String?> title() async {

@@ -857,18 +857,33 @@ class WebViewFactory {
           final Object id => OnPlatformView(id),
           null => null,
         };
-        final attached = holdsFirstLoad && viewId != null
-            ? WebInterceptNative.attach(
-                DnsBlockService.instance.views.built(
-                  viewId,
-                  site: config.posture.siteId,
-                  siteLevel: config.siteDnsAsk,
-                  localCdn: config.posture.blocking.localCdn,
-                  contentBlock: config.posture.blocking.contentBlock,
-                  vars: config.hooks.vars,
-                ),
+        final build = holdsFirstLoad && viewId != null
+            ? DnsBlockService.instance.views.built(
+                viewId,
+                site: config.posture.siteId,
+                siteLevel: config.siteDnsAsk,
+                localCdn: config.posture.blocking.localCdn,
+                contentBlock: config.posture.blocking.contentBlock,
+                vars: config.hooks.vars,
               )
-            : Future.value(!holdsFirstLoad);
+            : null;
+        final Future<bool> attached;
+        switch (build) {
+          case AttachView(:final attach):
+            attached = WebInterceptNative.attach(attach);
+          case null:
+            attached = Future.value(!holdsFirstLoad);
+          case LetViewGo():
+            // Its site stopped running before the view came (DNS-022): no
+            // interceptor attaches, the first load it holds is never
+            // issued and no one is handed its controller; the frame that
+            // no longer builds it unmounts it.
+            LogTag.webView.debug(
+                'A webview of ${config.posture.siteId} came after its site '
+                'stopped running; let go',
+                sensitive: true);
+            return;
+        }
         final wrappedController = view = PlatformWebViewController(
           controller,
           pauseHack: pauseHack,

@@ -59,6 +59,27 @@ final class OnHeadless extends InterceptedView {
 /// A live site webview and its blockers.
 typedef ViewAttach = ({InterceptedView view, SiteBlockers blockers});
 
+/// What a view's build is answered (DNS-022): attach its interceptor, a
+/// view the views keep and tell again as the lists move, or let it go,
+/// its site no longer running.
+sealed class ViewBuild {
+  const ViewBuild();
+}
+
+/// The view attaches with [attach]; the views keep it.
+final class AttachView extends ViewBuild {
+  const AttachView(this.attach);
+
+  final ViewAttach attach;
+}
+
+/// The view was built for a site that no longer runs (a build that outlived
+/// its site's unload): nothing would tell it again, so it attaches nothing
+/// and its build lets it go, loading nothing.
+final class LetViewGo extends ViewBuild {
+  const LetViewGo();
+}
+
 /// The partition and the app-wide level in force, as the model's `dns`:
 /// the app-wide level and the levels downloaded.
 typedef LevelsInForce = ({int level, Set<int> levels});
@@ -114,11 +135,11 @@ final class ViewBlockers {
 
   /// [view] is built for [site] while the sites [vars] names run: it
   /// attaches at the level its site resolves to now, and is told again
-  /// whenever that moves. Returns the attach its build sends. A view whose
-  /// site no longer runs, a build that outlived its site's unload, attaches
-  /// at that level and is told nothing more: the model builds no view for a
-  /// site that does not run.
-  ViewAttach built(
+  /// whenever that moves ([AttachView]). A view whose site no longer runs,
+  /// a build that outlived its site's unload, would be told nothing more,
+  /// so it attaches nothing and its build lets it go ([LetViewGo]): the
+  /// model builds no view for a site that does not run.
+  ViewBuild built(
     InterceptedView view, {
     required SiteId site,
     required int? siteLevel,
@@ -144,13 +165,21 @@ final class ViewBlockers {
       ViewsTable.table.runEnvironment(c, at: ViewsPlace.built);
     } else {
       LogTag.dnsBlock.debug(
-        'A view of $site attaches where its site no longer runs; nothing '
-        'tells it again',
+        'A view of $site was built where its site no longer runs; it is '
+        'let go',
         sensitive: true,
       );
-      return _attachOf(w, level: resolve(siteLevel));
+      assert(
+        !_views.containsKey(view),
+        'a view let go of is none the views keep (DNS-022)',
+      );
+      return const LetViewGo();
     }
-    return w._attached!;
+    assert(
+      _views.containsKey(view),
+      'a view attaches only as one the views keep and tell again (DNS-022)',
+    );
+    return AttachView(w._attached!);
   }
 
   /// [view] has left the tree: nothing tells it any more.
