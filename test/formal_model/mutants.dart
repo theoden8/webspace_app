@@ -32,6 +32,23 @@ Act<FrameWorld> _unbound(
   );
 }
 
+/// The join [joined] without its write of `ids`: the site leaves `gone`
+/// under the id it arrived with, and the code it runs, the land, is the
+/// same.
+Act<JoinWorld> _joinKeepingId(
+  Act<JoinWorld> joined, {
+  required Expr<Object?, JoinWorld> site,
+}) {
+  final gone = Mutable<Iterable<Object?>, JoinWorld>.remote(ModelVar.gone);
+  final kept = Act.of([gone.becomes(gone.value.less(site.asSet))]);
+  return Act(
+    writes: kept.writes,
+    tla: kept.tla,
+    reads: kept.reads,
+    run: joined.run,
+  );
+}
+
 /// The let-go [gone] with only the writes of [kept]: the code it runs,
 /// the webview's teardown, is the same.
 Act<LetGoWorld> _letGoKeeping(
@@ -896,10 +913,8 @@ Tables mutated(Mutant m) => switch (m) {
           site: s.otherwise.site,
           then: [
             for (final e in s.otherwise.then)
-              if (e is Act<JoinWorld> &&
-                  e.writes.length == 1 &&
-                  e.writes.contains(ModelVar.ids))
-                Note<JoinWorld>(e.run)
+              if (e is Act<JoinWorld> && e.writes.contains(ModelVar.ids))
+                _joinKeepingId(e, site: s.site!)
               else
                 e,
           ],

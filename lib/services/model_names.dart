@@ -415,9 +415,19 @@ enum BaseOp {
   mint(reads: {ModelVar.minted}),
   /// An input, which lands only where `Lands` lets it: on the page when no
   /// nested screen covers it, and on screen unless the OS made it.
-  input(reads: {ModelVar.fore, ModelVar.nested});
+  input(reads: {ModelVar.fore, ModelVar.nested}),
 
-  const BaseOp({this.reads = const {}, this.rows = const {}});
+  /// The id site `s` runs under where a listed site holds its own (`FreshId`,
+  /// `N + s`): pure, so it reads nothing. The code's value is the id the
+  /// land minted as it admitted the site (`Admitted.readmit`), distinct
+  /// from every listed id, which `SiteRuntime.apply` asserts as it lists
+  /// it.
+  freshId(arity: 1);
+
+  const BaseOp({this.reads = const {}, this.rows = const {}, this.arity = 0});
+
+  /// How many arguments `activation_base.tla` defines it over.
+  final int arity;
 
   /// The model's variables its definition reads, apart from the checkers'
   /// own (`last`, `inputs`, `seen`).

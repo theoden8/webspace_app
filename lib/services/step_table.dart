@@ -245,6 +245,25 @@ final class Expr<T, W> {
     required V Function(StepView<W> c) run,
   }) => Expr._(run: run, tla: among.tla, reads: among.reads);
 
+  /// The base operator [op] over [args], as `activation_base.tla` defines
+  /// it: printed as its name and its arguments' text and nothing else, so it
+  /// carries no TLA+ of its own; [run] is the code's value for it, which the
+  /// entry of [op] names.
+  static Expr<V, W> base<V, W>(
+    BaseOp op, {
+    required List<Expr<Object?, W>> args,
+    required V Function(StepView<W> c) run,
+  }) {
+    assert(args.length == op.arity, '${op.tla} takes ${op.arity} arguments');
+    return Expr._(
+      run: run,
+      tla: args.isEmpty
+          ? op.tla
+          : '${op.tla}(${[for (final a in args) a.tla].join(', ')})',
+      reads: Reads.of([Reads(base: {op}), for (final a in args) a.reads]),
+    );
+  }
+
   /// The model's constant [of], as the code knows it through what [run]
   /// reads: printed by its name, needing what reading it whole needs.
   static Expr<V, W> ofConstant<V, W>(

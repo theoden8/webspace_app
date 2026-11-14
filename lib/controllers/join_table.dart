@@ -56,10 +56,12 @@ abstract final class JoinTable {
           StepOutcome.none,
           then: [
             Act.of(
-              [_gone.becomes(_offList.value.less(_each.it.asSet))],
+              [
+                _gone.becomes(_offList.value.less(_each.it.asSet)),
+                _ids.except(_each.it, to: _admittedAs),
+              ],
               then: (c) => _land.from(c)(commit: c.commit),
             ),
-            _admitted,
             _joinedMidFlight,
           ],
           next: to(JoinPlace.done),
@@ -99,13 +101,47 @@ final _land = Port<void Function({required Commit commit}), JoinWorld>(
   of: (w) => w.land,
 );
 
-/// The id it runs under, which the land chose as it admitted it against the
-/// rows then: its own, or a fresh one where a listed site holds it.
-final _admitted = modelOnly<JoinWorld>(
-  "ids' = [ids EXCEPT ![s] = IF \\E t \\in Sites \\ gone : ids[t] = ids[s] "
-  'THEN FreshId(s) ELSE ids[s]]',
-  writes: {ModelVar.ids},
-  reads: const Reads(vars: {ModelVar.ids, ModelVar.gone}),
+/// `ids`, which the land's admission writes: a site's id, its own or the
+/// fresh one the land gave it ([_admittedAs]).
+final _ids = Indexed<SiteId, SiteId, JoinWorld>.remote(ModelVar.ids);
+
+/// The listed sites, `Sites \ gone`, as the land read them.
+final _listed = Mutable<Iterable<SiteId>, JoinWorld>.remote(ModelVar.gone);
+final _t = Bound<SiteId, JoinWorld>('t');
+
+/// The ids of the listed sites, as the code holds them.
+final _listedIds = Port<Set<SiteId>, JoinWorld>(
+  'listed',
+  reads: {ModelVar.gone, ModelVar.ids},
+  changes: const {},
+  of: (w) => {for (final m in w._sites.models) m.siteId},
+);
+
+/// The id the joining site runs under: its own, unless a listed site holds
+/// it, then a fresh one (ARCH-016, SEC-044), which the land chose as it
+/// admitted it against the rows then (`Admitted.readmit`). The write goes
+/// through the land, so the model's rename and the code's are one act.
+final _admittedAs = Expr.choose<SiteId, JoinWorld>(
+  when: Expr.ofConstant<Iterable<SiteId>, JoinWorld>(
+    ModelConst.sites,
+    run: (c) => _listedIds.from(c),
+  ).less(_listed.value).exists(
+    _t,
+    holds: _ids.at(_t.it).eq(_ids.at(_each.it)),
+  ),
+  then: Expr.base(
+    BaseOp.freshId,
+    args: [_each.it],
+    run: (c) {
+      final id = _named.from(c);
+      assert(
+        !_listedIds.from(c).contains(id),
+        'a fresh id is one no listed site holds (ARCH-016)',
+      );
+      return id;
+    },
+  ),
+  otherwise: _ids.at(_each.it),
 );
 
 /// A witness only the model keeps: a site joined while a flow was out.
