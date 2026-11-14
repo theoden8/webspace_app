@@ -17,6 +17,7 @@ import 'package:webspace/controllers/activation_place.dart';
 import 'package:webspace/controllers/activation_flow.dart';
 import 'package:webspace/controllers/activation_table.dart';
 import 'package:webspace/controllers/frame_table.dart';
+import 'package:webspace/controllers/join_table.dart';
 import 'package:webspace/controllers/let_go_table.dart';
 import 'package:webspace/controllers/site_deletion.dart';
 import 'package:webspace/controllers/site_import.dart';
@@ -60,6 +61,7 @@ typedef Tables = ({
   StepTable<LetGoWorld, LetGoPlace> letGo,
   StepTable<ViewsWorld, ViewsPlace> views,
   StepTable<ClearWorld, ClearPlace> clear,
+  StepTable<JoinWorld, JoinPlace> join,
   List<Def<Object?, Object?>> ops,
 });
 
@@ -128,6 +130,7 @@ final Tables tables = (
   letGo: LetGoTable.table,
   views: ViewsTable.table,
   clear: CookieIsolationEngine.clearSteps,
+  join: JoinTable.table,
   ops: definitions,
 );
 
@@ -150,6 +153,7 @@ enum ModelTable {
   letGo,
   views,
   clear,
+  join,
 }
 
 StepTable<Object?, Enum> _table(Tables t, {required ModelTable of}) =>
@@ -170,6 +174,7 @@ StepTable<Object?, Enum> _table(Tables t, {required ModelTable of}) =>
       ModelTable.letGo => t.letGo,
       ModelTable.views => t.views,
       ModelTable.clear => t.clear,
+      ModelTable.join => t.join,
     };
 
 List<StepTable<Object?, Enum>> _all(Tables t) => [

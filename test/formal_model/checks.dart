@@ -1395,6 +1395,14 @@ enum Mutant {
         "a let-go that drops the webview's history but leaves its tab "
         'bound: a site bound to a tab shows no history (caught)',
   ),
+  joinkeepsid(
+    world: ActivationWorld.joins,
+    by: Inv.idsUnique,
+    slice: (allowed: {'Join'}),
+    doc:
+        'a site that joins under the id a listed site holds shares it, so a '
+        'lookup by id names two sites (ARCH-016, SEC-044, caught)',
+  ),
   lateclear(
     world: ActivationWorld.coldstart,
     by: Inv.noSessionLoss,
@@ -1594,14 +1602,6 @@ enum HandMistake {
     doc:
         'a site whose webview is built before it joins the list is a loaded '
         'site off it (caught)',
-  ),
-  joinkeepsid(
-    world: ActivationWorld.joins,
-    slice: (allowed: {'GoHome'}),
-    caught: Breaks(Inv.idsUnique),
-    doc:
-        'a site that joins under the id a listed site holds shares it, so a '
-        'lookup by id names two sites (ARCH-016, SEC-044, caught)',
   );
 
   const HandMistake({

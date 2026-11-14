@@ -169,9 +169,10 @@ Init ==
     /\ boxes = IF Containers THEN Boxed \cap loaded ELSE {}
 
 -----------------------------------------------------------------------------
-(* Inputs. The tables start the flows (InputTableStep, printed); the rest *)
-(* is the environment: a row move the user makes, a site joining, a page  *)
-(* signing in. The launch clear, flow 0, is printed (EnvTableStep).       *)
+(* Inputs. The tables start the flows (InputTableStep, printed), a site   *)
+(* joining among them (JoinTable); the rest is the environment: a row     *)
+(* move the user makes, a page signing in. The launch clear, flow 0, is   *)
+(* printed (EnvTableStep).                                                *)
 
 \* SitesMoved(from, to): models.insert(to, models.removeAt(from)).
 Moved(i, from, to) ==
@@ -195,23 +196,6 @@ Move(from, to) ==
     /\ UNCHANGED << ids, loaded, current, version, marker, tier, nested, headless, fore,
                     sessions, turn, fl, newest, evictedShown, tabVars,
                     blocking, archived >>
-
-\* SiteAdded, ArchiveOpened: a site joins the list, at its end, where the
-\* model kept its row. Nothing a flow holds names it yet, so the join
-\* supersedes no flow in flight.
-Join(s) ==
-    /\ Input
-    /\ s \in Joining \cap gone
-    /\ gone' = gone \ {s}
-    \* A site whose id a listed one holds runs under a fresh one (ARCH-016,
-    \* SEC-044); "joinkeepsid" joins it under the id it arrived with.
-    /\ ids' = [ids EXCEPT ![s] =
-                IF Mistake # "joinkeepsid" /\ \E t \in Sites \ gone : ids[t] = ids[s]
-                THEN FreshId(s) ELSE ids[s]]
-    /\ seen' = seen \cup (IF Idle THEN {} ELSE {"joinedMidFlight"})
-    /\ Did("Join", inputs + 1, "", s)
-    /\ UNCHANGED << site, sessions, turn, fl, newest, evictedShown, tabVars,
-                    blocking, views, boxes >>
 
 \* A loaded site's page signs in. Only at rest: a page write inside another
 \* site's capture-nuke-restore is lost by design of the shared jar.
@@ -267,7 +251,6 @@ FlowStep(f) == TableStep(f)
 InputStep ==
     \/ \E f \in Flows : InputTableStep(f)
     \/ nested = 0 /\ fore /\ \E from, to \in Pos : Move(from, to)
-    \/ nested = 0 /\ fore /\ \E s \in Sites : Join(s)
     \/ \E s \in Sites : Login(s)
 
 Next ==

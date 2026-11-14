@@ -67,16 +67,8 @@ LEMMA StepInd == Good /\ IndInv /\ [Next]_vars => IndInv'
         BY DEF Login, Input, Starts, turn
       <3> QED
         BY <3>1, KeepsTurns
-    <2>4. CASE \E s \in Sites : Join(s)
-      <3> PICK s \in Sites : Join(s)
-        BY <2>4
-      <3>1. inputs' = inputs + 1 /\ fl' = fl /\ holder' = holder
-            /\ dnsHolder' = dnsHolder
-        BY DEF Join, Input, Starts, turn
-      <3> QED
-        BY <3>1, KeepsTurns
     <2> QED
-      BY <1>1, <2>1, <2>2, <2>3, <2>4 DEF InputStep
+      BY <1>1, <2>1, <2>2, <2>3 DEF InputStep
   <1>2. CASE \E f \in Flows : FlowStep(f)
     <2> PICK f \in Flows : FlowStep(f)
       BY <1>2

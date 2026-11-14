@@ -54,10 +54,6 @@ enum Environment {
   /// A row moved to another place in the list (`Move(from, to)`).
   move,
 
-  /// A site joining the list at its end, where the model kept its row
-  /// (`Join(s)`): an add, an archive's open.
-  join,
-
 }
 
 /// An input the code marks by hand ([ActivationSteps.mark]) and what it
@@ -116,3 +112,21 @@ final class SharedAt<K, V> {
     _write(at, to: to);
   }
 }
+
+/// What the model does that the code leaves to its structure: the jar's
+/// turn is the SerialQueue's, held while a flow runs in the table and
+/// passed on when it leaves; a witness only the model keeps.
+Act<W> modelOnly<W>(
+  String tla, {
+  required Set<ModelVar> writes,
+  required Reads reads,
+}) => Act(writes: writes, tla: tla, reads: reads, run: (_) {});
+
+/// A witness only the model keeps: [witness] met by a step that lands while
+/// a flow is out. `Idle` is how the model schedules, which a footprint
+/// leaves out (`formal/footprint.py`), so the witness reads only `seen`.
+Act<W> midFlight<W>(String witness) => modelOnly<W>(
+  "seen' = seen \\cup (IF Idle THEN {} ELSE {\"$witness\"})",
+  writes: {ModelVar.seen},
+  reads: const Reads(vars: {ModelVar.seen}),
+);

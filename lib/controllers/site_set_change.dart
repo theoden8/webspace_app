@@ -235,13 +235,19 @@ final class ArchiveOpened extends FunnelChange {
     required this.sites,
     required this.webspaces,
     required this.appTierMembership,
+    required this.rebuilt,
   });
 
   /// Only an admission makes these, so none joins under a listed site's id
-  /// (SEC-044).
+  /// (SEC-044); they are admitted again as they land (BUG-046).
   final Admitted<WebViewModel> sites;
   final List<Webspace> webspaces;
   final Map<WebspaceId, List<SiteId>> appTierMembership;
+
+  /// Told, in the land's turn, of each site the land rebuilt under a fresh
+  /// id beside the one it replaces, so what the opener keeps of it follows.
+  final void Function(List<({WebViewModel was, WebViewModel now})> rebuilt)
+  rebuilt;
 }
 
 /// A sealed archive's rows leave the lists.

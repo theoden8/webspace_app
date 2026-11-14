@@ -5,10 +5,25 @@ import 'package:webspace/settings/site_ids.dart';
 /// records under the ids [ids] names them by: the one way an archive's
 /// sites reach the lists, so none joins under an id a listed site holds.
 final class Admitted<S> {
-  Admitted._(this.sites, {required this.ids});
+  Admitted._(
+    this.sites, {
+    required this.ids,
+    required List<Map<String, dynamic>> records,
+    required List<SiteId?> runsAs,
+    required S Function(Map<String, dynamic> record) build,
+  }) : _records = records,
+       _runsAs = runsAs,
+       _build = build;
 
+  /// The sites, one per record, in order; [readmit] replaces the ones it
+  /// renames.
   final List<S> sites;
   final ArchiveIds ids;
+  final List<Map<String, dynamic>> _records;
+
+  /// The id each record's site runs under, null for a record with none.
+  final List<SiteId?> _runsAs;
+  final S Function(Map<String, dynamic> record) _build;
 
   /// [records] as [build] makes them, each under its listed id, admitted
   /// against [listed].
@@ -24,17 +39,56 @@ final class Admitted<S> {
       listed: listed,
       mint: mint,
     );
-    final runsAs = ids.admitted.iterator;
+    final admitted = ids.admitted.iterator;
     final sites = <S>[];
+    final runsAs = <SiteId?>[];
     for (final r in records) {
       final sealed = SiteId.parse(r[key]);
-      if (sealed != null && runsAs.moveNext() && runsAs.current != sealed) {
-        sites.add(build({...r, key: runsAs.current}));
+      if (sealed != null && admitted.moveNext()) {
+        final id = admitted.current;
+        runsAs.add(id);
+        sites.add(id != sealed ? build({...r, key: id}) : build(r));
       } else {
+        runsAs.add(null);
         sites.add(build(r));
       }
     }
-    return Admitted._(sites, ids: ids);
+    return Admitted._(
+      sites,
+      ids: ids,
+      records: records,
+      runsAs: runsAs,
+      build: build,
+    );
+  }
+
+  /// Admits again, as the sites land, against the ids [listed] then: a site
+  /// whose id a site listed since the admission holds runs under a fresh
+  /// one, rebuilt from its record and renamed in [ids], its archived id and
+  /// so its container, cookies and sealed record unchanged (ARCH-016,
+  /// BUG-046). Returns each rebuilt site beside the one it replaces.
+  List<({S was, S now})> readmit({
+    required Set<SiteId> listed,
+    SiteId Function() mint = SiteId.mint,
+  }) {
+    final key = SiteField.siteId.key;
+    final rebuilt = <({S was, S now})>[];
+    final taken = {
+      ...listed,
+      for (final id in _runsAs) ?id,
+      ...ids._sealedAs.values,
+    };
+    for (var i = 0; i < sites.length; i++) {
+      final id = _runsAs[i];
+      if (id == null || !listed.contains(id)) continue;
+      final fresh = ArchiveIds._fresh(taken, mint: mint);
+      ids._rename(id, to: fresh);
+      _runsAs[i] = fresh;
+      final now = _build({..._records[i], key: fresh});
+      rebuilt.add((was: sites[i], now: now));
+      sites[i] = now;
+    }
+    return rebuilt;
   }
 }
 
@@ -116,4 +170,13 @@ final class ArchiveIds {
 
   /// A site moves back out: the archive no longer names it.
   void forget(SiteId listed) => _sealedAs.remove(listed);
+
+  /// The site that ran under [listed] runs under [to], sealed as before.
+  void _rename(SiteId listed, {required SiteId to}) {
+    final sealed = _sealedAs.remove(listed);
+    assert(sealed != null, 'only an admitted site is renamed');
+    _sealedAs[to] = sealed!;
+    final i = admitted.indexOf(listed);
+    if (i >= 0) admitted[i] = to;
+  }
 }

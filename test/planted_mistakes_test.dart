@@ -161,6 +161,11 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [Tap(1)],
     breaks: "the jar holds another site's cookies under loaded",
   ),
+  Mutant.joinkeepsid => const _Owed(
+    "the walk's joining site never holds a listed site's id (its worlds "
+    'leave Clashing empty), so its land renames none; TLC catches it in the '
+    'joins world, where ClashOne does',
+  ),
   Mutant.lateclear => _By(
     world: (d) => ActivationWorld(_mixed, launch: _jarLaunch, declared: d),
     setup: const [],
@@ -547,8 +552,12 @@ ActivationWorld _wakeWorld({
 );
 
 /// The mutants no script reaches yet; one more fails, one fewer is to be
-/// written down here.
-const _owedAtMost = 2;
+/// written down here. Three since `joinkeepsid` moved from a hand mistake,
+/// which no code ran at all, to a mutant of `JoinTable`: the sum of hand
+/// mistakes and owed mutants did not rise. What closes it: the walk driving
+/// an archive open with a clash that lands between its admission and its
+/// land, which is also the only walk coverage `Admitted.readmit` would get.
+const _owedAtMost = 3;
 
 void main() {
   setUpAll(

@@ -32,6 +32,23 @@ Act<FrameWorld> _unbound(
   );
 }
 
+/// The join [joined] without its write of `ids`: the site leaves `gone`
+/// under the id it arrived with, and the code it runs, the land, is the
+/// same.
+Act<JoinWorld> _joinKeepingId(
+  Act<JoinWorld> joined, {
+  required Expr<Object?, JoinWorld> site,
+}) {
+  final gone = Mutable<Iterable<Object?>, JoinWorld>.remote(ModelVar.gone);
+  final kept = Act.of([gone.becomes(gone.value.less(site.asSet))]);
+  return Act(
+    writes: kept.writes,
+    tla: kept.tla,
+    reads: kept.reads,
+    run: joined.run,
+  );
+}
+
 /// The let-go [gone] with only the writes of [kept]: the code it runs,
 /// the webview's teardown, is the same.
 Act<LetGoWorld> _letGoKeeping(
@@ -329,6 +346,7 @@ Tables _with({
   StepTable<LetGoWorld, LetGoPlace>? letGo,
   StepTable<ViewsWorld, ViewsPlace>? views,
   StepTable<ClearWorld, ClearPlace>? clear,
+  StepTable<JoinWorld, JoinPlace>? join,
   List<Def<Object?, Object?>>? ops,
 }) => (
   activation: activation ?? tables.activation,
@@ -347,6 +365,7 @@ Tables _with({
   letGo: letGo ?? tables.letGo,
   views: views ?? tables.views,
   clear: clear ?? tables.clear,
+  join: join ?? tables.join,
   ops: ops ?? tables.ops,
 );
 
@@ -874,6 +893,28 @@ Tables mutated(Mutant m) => switch (m) {
             for (final e in s.otherwise.then)
               if (e is Act<LetGoWorld> && e.writes.contains(ModelVar.built))
                 _dropsHeld(e, site: s.site!)
+              else
+                e,
+          ],
+          next: s.otherwise.next,
+        ),
+      ),
+    ),
+  ),
+  // The join keeps the id the site arrived with, as before ARCH-016: the
+  // code's land is the same, its declaration not.
+  Mutant.joinkeepsid => _with(
+    join: _withArms(
+      tables.join,
+      step: ActivationStep.join,
+      arms: (s) => s.withArms(
+        otherwise: Otherwise(
+          s.otherwise.outcome,
+          site: s.otherwise.site,
+          then: [
+            for (final e in s.otherwise.then)
+              if (e is Act<JoinWorld> && e.writes.contains(ModelVar.ids))
+                _joinKeepingId(e, site: s.site!)
               else
                 e,
           ],
