@@ -124,8 +124,8 @@ its build provenance, as the `webspace-appdir-amd64` and
 yours, on your own machine; CI never holds the key.
 
 It keeps no AppDir while `linux/appimage/licences_owed.tsv` lists a bundled
-package whose copyright file is not read yet, and the script below refuses
-to publish then too.
+package LICENSE-001 does not yet let ship, and the script below refuses to
+publish then too. Each row says what it waits on.
 
 Once, make the release key and commit its public half. gpg asks for the
 passphrase; back the key up as the script says. Every AppImage is signed by

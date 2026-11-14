@@ -43,7 +43,7 @@ test('PLATFORM-013 every tool that packs the AppImage is a fixed release downloa
   }
 });
 
-test('PLATFORM-013 the Snap workflow keeps no AppDir while a bundled package is owed a reading', () => {
+test('PLATFORM-013 the Snap workflow keeps no AppDir while a bundled package is owed', () => {
   const workflow = read('.github/workflows/snap.yml');
   assert.match(workflow, /node tool\/check_bundle_licences\.js AppDir --owed linux\/appimage\/licences_owed\.tsv/);
   for (const step of ['Keep the AppDir for the release', "Attest the AppDir's provenance", 'Upload the AppDir']) {

@@ -64,7 +64,7 @@ publish() {
   need gh gpg node curl tar zstd sha256sum
   [ -f "$pub" ] || fail "no $pub: run \`$0 key\` first"
   if grep -qv '^#' "$owed"; then
-    fail "$(grep -cv '^#' "$owed") bundled packages' copyright files are still owed a reading ($owed)"
+    fail "$(grep -cv '^#' "$owed") bundled packages are still owed, each waiting on what $owed says"
   fi
   fpr="$(gpg --with-colons --show-keys "$pub" | awk -F: '$1 == "fpr" { print $10; exit }')"
   gpg --list-secret-keys "$fpr" >/dev/null 2>&1 || fail "this machine holds no secret key for $fpr"

@@ -407,8 +407,10 @@ keeps them. It runs as `org.codeberg.theoden8.webspace` (PLATFORM-009).
   `AppRun` names the bundle to WebKit (`WEBSPACE_WPE_ROOT`), GIO, gdk-pixbuf
   and GStreamer.
 - **Licences (LICENSE-001):** each bundled package's copyright file goes with
-  it and `tool/check_bundle_licences.js` reads them all. A package whose file
-  is not read yet is listed, with what the reading must settle, in
+  it and `tool/check_bundle_licences.js` reads them all, through
+  `debian_licences.tsv` and, for a file that is not machine-readable, a
+  reading pinned to its bytes (`debian_readings.tsv`). A package the policy
+  does not yet let ship is listed, with what it waits on, in
   `linux/appimage/licences_owed.tsv`, a list that only shrinks; while it holds
   a row the workflow keeps no AppDir and nothing publishes one. No GStreamer
   plugin under the GPL ships, so H.264 and AAC do not play.

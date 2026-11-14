@@ -193,7 +193,7 @@ jobs:
           sudo chown -R "$USER" AppDir
 
       # LICENSE-001 over what the AppImage carries. Until no bundled package is
-      # owed a reading, the AppDir is not kept and nothing can publish it.
+      # owed, the AppDir is not kept and nothing can publish it.
       - name: Check the AppImage's licences
         id: appimage-licences
         run: |

@@ -11,7 +11,7 @@
 //
 //   node tool/check_bundle_licences.js <unpacked package or bundle directory> [--owed <list>]
 //
-// --owed names a list of packages whose copyright files are not read yet
+// --owed names a list of packages the policy does not yet let ship
 // (linux/appimage/licences_owed.tsv): their refusals are reported, not
 // failed, and a package the list names that no longer needs it fails.
 
@@ -161,8 +161,8 @@ function refusals(root, { table = names(), held = readings(), licences = L.polic
 }
 
 /**
- * [found] split by a list of packages whose copyright files are owed a
- * reading (a TSV of a package and why): a refusal of a listed package's file
+ * [found] split by a list of packages the policy does not yet let ship (a
+ * TSV of a package and what it waits on): a refusal of a listed package's file
  * is owed, not an error; a listed package [root] carries with nothing
  * refused is an error, so the list only shrinks. One list serves every
  * architecture, so a package [root] does not carry (libatomic1 links only
@@ -202,7 +202,7 @@ if (require.main === module) {
     : { errors: found, owes: new Map() };
   for (const line of errors) console.error(`::error::${line}`);
   if (owes.size) {
-    console.log(`::warning::${owes.size} packages' copyright files are owed a reading (${owedFile}): `
+    console.log(`::warning::${owes.size} bundled packages are owed (${owedFile}): `
       + [...owes].map(([pkg, n]) => `${pkg} (${n})`).join(', '));
   }
   if (errors.length) process.exit(1);
