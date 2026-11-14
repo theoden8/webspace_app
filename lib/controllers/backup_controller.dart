@@ -224,52 +224,59 @@ class BackupController {
 
     // ARCH-010 seals open archives before the rows they were materialised
     // into are replaced; one that does not fit its slot stays open, and the
-    // import waits for it rather than replacing its rows (ARCH-011).
-    if (!await _archives.closeAll()) {
+    // import waits for it rather than replacing its rows (ARCH-011). The
+    // import applies in the same archives' turn, so no archive opens against
+    // the rows it is about to replace (SEC-044).
+    var replaced = false;
+    var extensionsMissing = 0;
+    final sealed = await _archives.closeAllThen((closed) async {
+      if (!_host.mounted) return;
+
+      // Applied and persisted in one step, before any site activates, so a pref
+      // the backup does not name reads the same before and after a restart.
+      // Per PWD-005 the backup carries no proxy password: the user re-enters
+      // it on the proxy settings screen, as they re-log into sites whose secure
+      // cookies were stripped.
+      await writeExportedAppPrefs(
+          await SharedPreferences.getInstance(), values: plan.appPrefs);
+      if (!_host.mounted) return;
+      // Every service that reads those prefs reloads before the sites commit,
+      // so the Tor refcount and a DEFAULT site's first load see the imported
+      // app-wide proxy, not the one it replaces.
+      await DeveloperModeService.instance.reload();
+      await TorService.instance.externalAddressChanged();
+      await TorService.instance.runtimeChoiceChanged();
+      // The imported value is password-less; the in-memory proxy follows it
+      // without an app restart.
+      final reloadedPrefs = await SharedPreferences.getInstance();
+      await GlobalOutboundProxy.update(readGlobalOutboundProxy(reloadedPrefs));
+      await ProxyLibrary.reloadAfterImport();
+      // The downloaded-data blockers' user intent: the selection only, never
+      // the blob, which the user re-downloads from App Settings.
+      if (plan.dnsBlockLevel != null) {
+        await DnsBlockService.instance.applyImportedLevel(plan.dnsBlockLevel!);
+      }
+      if (plan.contentBlockerLists != null) {
+        await ContentBlockerService.instance
+            .importListSelection(plan.contentBlockerLists!);
+      }
+      if (!_host.mounted) return;
+      extensionsMissing = await _restoreExtensions(plan);
+      if (!_host.mounted) return;
+      _shell.theme = AppThemeSettings.fromStorageIndex(plan.themeStorageIndex);
+      // On the shared jar the import empties the jar in its own turn, after
+      // saving the share of each loaded site it carries again (ISO-015).
+      replaced = await _imports.replace(SitesReplaced(
+        sites: plan.sites,
+        webspaces: plan.webspaces,
+        selectedWebspaceId: plan.selectedWebspaceId,
+        closed: closed,
+      ));
+    });
+    if (!sealed) {
       _host.toast((loc) => loc.homeArchiveFull);
       return;
     }
-    if (!_host.mounted) return;
-
-    // Applied and persisted in one step, before any site activates, so a pref
-    // the backup does not name reads the same before and after a restart.
-    // Per PWD-005 the backup carries no proxy password: the user re-enters
-    // it on the proxy settings screen, as they re-log into sites whose secure
-    // cookies were stripped.
-    await writeExportedAppPrefs(
-        await SharedPreferences.getInstance(), values: plan.appPrefs);
-    if (!_host.mounted) return;
-    // Every service that reads those prefs reloads before the sites commit,
-    // so the Tor refcount and a DEFAULT site's first load see the imported
-    // app-wide proxy, not the one it replaces.
-    await DeveloperModeService.instance.reload();
-    await TorService.instance.externalAddressChanged();
-    await TorService.instance.runtimeChoiceChanged();
-    // The imported value is password-less; the in-memory proxy follows it
-    // without an app restart.
-    final reloadedPrefs = await SharedPreferences.getInstance();
-    await GlobalOutboundProxy.update(readGlobalOutboundProxy(reloadedPrefs));
-    await ProxyLibrary.reloadAfterImport();
-    // The downloaded-data blockers' user intent: the selection only, never
-    // the blob, which the user re-downloads from App Settings.
-    if (plan.dnsBlockLevel != null) {
-      await DnsBlockService.instance.applyImportedLevel(plan.dnsBlockLevel!);
-    }
-    if (plan.contentBlockerLists != null) {
-      await ContentBlockerService.instance
-          .importListSelection(plan.contentBlockerLists!);
-    }
-    if (!_host.mounted) return;
-    final extensionsMissing = await _restoreExtensions(plan);
-    if (!_host.mounted) return;
-    _shell.theme = AppThemeSettings.fromStorageIndex(plan.themeStorageIndex);
-    // On the shared jar the import empties the jar in its own turn, after
-    // saving the share of each loaded site it carries again (ISO-015).
-    final replaced = await _imports.replace(SitesReplaced(
-      sites: plan.sites,
-      webspaces: plan.webspaces,
-      selectedWebspaceId: plan.selectedWebspaceId,
-    ));
     if (!replaced || !_host.mounted) return;
 
     final restore = switch (plan.currentIndex) {

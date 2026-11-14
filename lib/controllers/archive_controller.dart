@@ -27,6 +27,7 @@ import 'package:webspace/settings/site_field.dart';
 import 'package:webspace/settings_import_engine.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/utils/concurrency.dart';
+import 'package:meta/meta.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/services/cookie_manager.dart';
 
@@ -282,13 +283,28 @@ class ArchiveController {
 
   /// Closes every open archive; false when one stayed open because it did
   /// not fit its slot (ARCH-011).
-  Future<bool> closeAll() => _ops.run(() async {
-        var all = true;
-        for (final h in List<ArchiveHandle>.from(_slices.keys)) {
-          if (!await _closeHeld(h)) all = false;
-        }
-        return all;
+  Future<bool> closeAll() => _ops.run(_closeAllHeld);
+
+  /// Closes every open archive and, when all closed, runs [then] in the
+  /// same turn, so no archive opens before [then] has replaced the rows the
+  /// closed ones were materialised into (ARCH-010, SEC-044): an open waits
+  /// for it and admits its sites against the rows [then] leaves. False,
+  /// with [then] not run, when one stayed open (ARCH-011).
+  Future<bool> closeAllThen(Future<void> Function(ArchivesClosed closed) then) =>
+      _ops.run(() async {
+        if (!await _closeAllHeld()) return false;
+        await then(ArchivesClosed._(_ops));
+        return true;
       });
+
+  @Held(#_ops)
+  Future<bool> _closeAllHeld() async {
+    var all = true;
+    for (final h in List<ArchiveHandle>.from(_slices.keys)) {
+      if (!await _closeHeld(h)) all = false;
+    }
+    return all;
+  }
 
   /// "Close this archive" on one of its sites.
   Future<void> closeArchiveOf(WebViewModel site) async {
@@ -908,3 +924,20 @@ final StepTable<CloseFlow, ClosePlace> _closeTable = StepTable(
     ClosePlace.done => const Leaves(),
   },
 );
+
+/// That every archive is closed and stays closed: made only inside the
+/// archives' turn by [ArchiveController.closeAllThen], and true only while
+/// that turn runs, so a replace of the rows that holds one lands where no
+/// archive can open (ARCH-010, SEC-044).
+final class ArchivesClosed {
+  ArchivesClosed._(SerialQueue turn) : _turn = turn;
+
+  /// A test's replace, with no archives around it.
+  @visibleForTesting
+  ArchivesClosed.inTest() : _turn = null;
+
+  final SerialQueue? _turn;
+
+  /// Whether the turn that closed them still runs.
+  bool get held => _turn?.isHeld ?? true;
+}
