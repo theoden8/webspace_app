@@ -96,7 +96,10 @@ def tlc(lib, world, *, formal, jar):
     if "Parsing or semantic analysis failed" in r.stdout:
         raise RuntimeError(f"{lib} does not parse in {world}: a tool fault, not a catch")
     m = re.search(r"Invariant (\S+) is violated|(Deadlock reached)|Error: (.*)", r.stdout)
-    return (next(g for g in m.groups() if g) if m else "error"), time.time() - t0
+    if not m:
+        raise RuntimeError(f"TLC gave no verdict for {lib} in {world}: a tool fault, "
+                           f"not a catch\n{r.stdout[-400:]}{r.stderr[-400:]}")
+    return next(g for g in m.groups() if g), time.time() - t0
 
 
 def main():
@@ -109,8 +112,10 @@ def main():
     ap.add_argument("--budget", type=int, default=36000)
     ap.add_argument("--work", default="states/ablate")
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--resume", help="a tsv of verdicts already found; its mutants are skipped")
     a = ap.parse_args()
     model = os.path.abspath(a.model)
+    a.jar = os.path.abspath(a.jar)
     tables = open(os.path.join(model, "activation_tables.tla")).read()
     writes = {r[0]: set(r[2].split()) for r in tsv(os.path.join(model, "activation_footprints.tsv")) or ()}
     keys = Keys(os.path.join(a.formal, "activation.tla"))
@@ -120,8 +125,14 @@ def main():
             print(f"{mid}\t{op}\t{line[:100]}\t{len(worlds_taking(action, model=model, keys=keys))} worlds")
         return 0
     spent = 0.0
-    print("# mutant\toperator\tverdict\tworld\tseconds")
+    done = set()
+    if a.resume and os.path.exists(a.resume):
+        done = {r[0] for r in tsv(a.resume) or () if not r[2].startswith("not run")}
+    else:
+        print("# mutant\toperator\tverdict\tworld\tseconds")
     for mid, action, op, line, replacement in all_mutants:
+        if mid in done:
+            continue
         if spent > a.budget:
             print(f"{mid}\t{op}\tnot run: budget\t-\t0", flush=True)
             continue
