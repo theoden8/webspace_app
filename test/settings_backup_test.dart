@@ -59,6 +59,22 @@ Map<String, dynamic> _siteEntry(String? url, {required String name,
 
 void main() {
   group('SettingsBackup Model', () {
+    test('scoped backup preserves omitted categories across JSON round trip', () {
+      final site = WebViewModel(initUrl: 'https://example.com', name: 'Example');
+      site.userScripts = [
+        UserScriptConfig(id: UserScriptId('test'), name: 'Test', source: '1'),
+      ];
+      final scoped = SettingsBackupService.createBackup(
+        webViewModels: [site], webspaces: [Webspace.all()], themeMode: 0,
+        includesAppSettings: false, includeSiteScripts: false,
+      );
+      final restored = _reimport(scoped);
+      expect(restored.includesSites, isTrue);
+      expect(restored.includesAppSettings, isFalse);
+      expect(restored.sites.single.containsKey('userScripts'), isFalse);
+      expect(_reimport(_backupOf()).includesAppSettings, isTrue);
+    });
+
     test('should serialize to JSON correctly', () {
       final backup = SettingsBackup(
         version: 1,

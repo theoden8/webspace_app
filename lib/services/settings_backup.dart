@@ -25,6 +25,10 @@ abstract interface class BackedUpSite {
 /// are kept as getters so older backup files still deserialize.
 class SettingsBackup {
   final int version;
+
+  /// Explicit scope; old backups always included both categories.
+  final bool includesSites;
+  final bool includesAppSettings;
   final List<Map<String, dynamic>> sites;
   final List<Map<String, dynamic>> webspaces;
   final int themeMode;
@@ -34,6 +38,7 @@ class SettingsBackup {
   final DateTime exportedAt;
   final List<Map<String, dynamic>>? suggestedSites;
   final List<Map<String, dynamic>>? globalUserScripts;
+
   /// Optional opaque encrypted sections the user chose to bundle into
   /// the backup. Each entry is a base64 self-decrypting blob; only
   /// present when the user opted in at export time. Omitted entirely
@@ -58,6 +63,8 @@ class SettingsBackup {
 
   SettingsBackup({
     required this.version,
+    this.includesSites = true,
+    this.includesAppSettings = true,
     required this.sites,
     required this.webspaces,
     required this.themeMode,
@@ -75,31 +82,31 @@ class SettingsBackup {
     this.extraSections,
     this.webExtensions,
   }) : globalPrefs = _normalizePrefs(
-          globalPrefs,
-          showUrlBar: showUrlBar,
-          showTabStrip: showTabStrip,
-          showStatsBanner: showStatsBanner,
-        );
+         globalPrefs,
+         showUrlBar: showUrlBar,
+         showTabStrip: showTabStrip,
+         showStatsBanner: showStatsBanner,
+       );
 
   Map<String, dynamic> toJson() => {
-        'version': version,
-        'sites': sites,
-        'webspaces': webspaces,
-        'themeMode': themeMode,
-        'globalPrefs': globalPrefs,
-        'selectedWebspaceId': selectedWebspaceId,
-        'currentIndex': currentIndex,
-        'exportedAt': exportedAt.toIso8601String(),
-        if (suggestedSites != null) 'suggestedSites': suggestedSites,
-        if (globalUserScripts != null) 'globalUserScripts': globalUserScripts,
-        if (dnsBlockLevel != null) 'dnsBlockLevel': dnsBlockLevel,
-        if (contentBlockerLists != null)
-          'contentBlockerLists': contentBlockerLists,
-        if (extraSections != null && extraSections!.isNotEmpty)
-          'extraSections': extraSections,
-        if (webExtensions case final section?)
-          'webExtensions': section.toJson(),
-      };
+    'version': version,
+    if (!includesSites) 'includesSites': false,
+    if (!includesAppSettings) 'includesAppSettings': false,
+    'sites': sites,
+    'webspaces': webspaces,
+    'themeMode': themeMode,
+    'globalPrefs': globalPrefs,
+    'selectedWebspaceId': selectedWebspaceId,
+    'currentIndex': currentIndex,
+    'exportedAt': exportedAt.toIso8601String(),
+    if (suggestedSites != null) 'suggestedSites': suggestedSites,
+    if (globalUserScripts != null) 'globalUserScripts': globalUserScripts,
+    if (dnsBlockLevel != null) 'dnsBlockLevel': dnsBlockLevel,
+    if (contentBlockerLists != null) 'contentBlockerLists': contentBlockerLists,
+    if (extraSections != null && extraSections!.isNotEmpty)
+      'extraSections': extraSections,
+    if (webExtensions case final section?) 'webExtensions': section.toJson(),
+  };
 
   /// `sites` and `webspaces` are the backup; a malformed entry in either
   /// throws and the file is rejected whole. Everything else is optional and
@@ -117,29 +124,37 @@ class SettingsBackup {
       }
     }
     List<Map<String, dynamic>>? optionalMaps(Object? raw) => raw is List
-        ? [for (final e in raw) if (e is Map) Map<String, dynamic>.from(e)]
+        ? [
+            for (final e in raw)
+              if (e is Map) Map<String, dynamic>.from(e),
+          ]
         : null;
     // A backup without these, or with an entry that is no object, is not one.
     List<Map<String, dynamic>> requiredMaps(String key) => switch (json[key]) {
-          final List raw when raw.every((e) => e is Map) => optionalMaps(raw)!,
-          _ => throw FormatException('a backup needs a list of $key'),
-        };
+      final List raw when raw.every((e) => e is Map) => optionalMaps(raw)!,
+      _ => throw FormatException('a backup needs a list of $key'),
+    };
     final exportedAt = json['exportedAt'];
     return SettingsBackup(
       version: json['version'] is int ? json['version'] as int : 1,
+      includesSites: json['includesSites'] != false,
+      includesAppSettings: json['includesAppSettings'] != false,
       sites: requiredMaps('sites'),
       webspaces: requiredMaps('webspaces'),
       themeMode: json['themeMode'] is int ? json['themeMode'] as int : 0,
       globalPrefs: prefs,
       selectedWebspaceId: WebspaceId.parse(json['selectedWebspaceId']),
-      currentIndex:
-          json['currentIndex'] is int ? json['currentIndex'] as int : null,
-      exportedAt: (exportedAt is String ? DateTime.tryParse(exportedAt) : null) ??
+      currentIndex: json['currentIndex'] is int
+          ? json['currentIndex'] as int
+          : null,
+      exportedAt:
+          (exportedAt is String ? DateTime.tryParse(exportedAt) : null) ??
           DateTime.now(),
       suggestedSites: optionalMaps(json['suggestedSites']),
       globalUserScripts: optionalMaps(json['globalUserScripts']),
-      dnsBlockLevel:
-          json['dnsBlockLevel'] is int ? json['dnsBlockLevel'] as int : null,
+      dnsBlockLevel: json['dnsBlockLevel'] is int
+          ? json['dnsBlockLevel'] as int
+          : null,
       contentBlockerLists: optionalMaps(json['contentBlockerLists']),
       webExtensions: BackupExtensions.fromJson(json['webExtensions']),
       extraSections: json['extraSections'] is List
@@ -180,6 +195,11 @@ class SettingsBackupService {
   /// stripped, and re-enters proxy passwords on the proxy settings screen.
   /// Both losses are explicit; both are the same UX contract.
   static SettingsBackup createBackup({
+    bool includesSites = true,
+    bool includesAppSettings = true,
+    bool includeSiteScripts = true,
+    Set<String>? siteScriptIds,
+    bool includeGlobalScriptChoices = true,
     required List<BackedUpSite> webViewModels,
     required List<Webspace> webspaces,
     required int themeMode,
@@ -200,13 +220,20 @@ class SettingsBackupService {
     // password (per PWD-005); we still need to strip secure cookies here.
     final sitesJson = webViewModels.map((model) {
       final json = model.toJson();
+      if (!includeSiteScripts ||
+          (siteScriptIds != null && !siteScriptIds.contains(json['siteId']))) {
+        json.remove('userScripts');
+      }
+      if (!includeGlobalScriptChoices) {
+        json.remove('enabledGlobalScriptIds');
+      }
       for (final field in SiteField.values) {
-        if (field.backup == BackupShare.withheld) field.keys.forEach(json.remove);
+        if (field.backup == BackupShare.withheld) {
+          field.keys.forEach(json.remove);
+        }
       }
       final cookies = json['cookies'] as List<dynamic>;
-      json['cookies'] = cookies
-          .where((c) => c['isSecure'] != true)
-          .toList();
+      json['cookies'] = cookies.where((c) => c['isSecure'] != true).toList();
       return json;
     }).toList();
 
@@ -217,6 +244,8 @@ class SettingsBackupService {
 
     return SettingsBackup(
       version: kBackupVersion,
+      includesSites: includesSites,
+      includesAppSettings: includesAppSettings,
       sites: sitesJson,
       webspaces: webspacesJson,
       themeMode: themeMode,
@@ -257,7 +286,10 @@ class SettingsBackupService {
       final jsonString = exportToJson(backup);
       final bytes = utf8.encode(jsonString);
 
-      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
+      final timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')[0];
       final defaultFileName = 'webspace_backup_$timestamp.json';
 
       // On mobile (iOS/Android): bytes parameter is required
@@ -272,7 +304,9 @@ class SettingsBackupService {
       if (outputPath == null) return const SaveCancelled();
 
       if (!isMobile) {
-        final filePath = outputPath.endsWith('.json') ? outputPath : '$outputPath.json';
+        final filePath = outputPath.endsWith('.json')
+            ? outputPath
+            : '$outputPath.json';
         await hostWriteFileText(filePath, contents: jsonString);
       }
       return const Saved();

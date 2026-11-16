@@ -112,6 +112,7 @@ class SettingsScreen extends StatefulWidget {
   /// [CookieJarFailure] when the jar refuses, which the screen reports
   /// instead of saying it is done.
   final Future<void> Function()? onClearCookies;
+  final Future<void> Function()? onExportSite;
   final List<UserScriptConfig> globalUserScripts;
   final void Function(List<UserScriptConfig>)? onGlobalUserScriptsChanged;
   /// Fired when the user toggles / edits / adds / deletes / opts in to a
@@ -148,6 +149,7 @@ class SettingsScreen extends StatefulWidget {
     this.onSettingsSaved,
     this.onProxyChanging,
     this.onClearCookies,
+    this.onExportSite,
     this.globalUserScripts = const [],
     this.onGlobalUserScriptsChanged,
     this.onScriptsChanged,
@@ -1108,6 +1110,15 @@ IconButton zoomStep(IconData icon,
                   context,
                   model: widget.webViewModel,
                 ),
+              ),
+            ),
+          if (widget.onExportSite != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.backup_outlined),
+                label: Text(loc.backupSiteAction),
+                onPressed: widget.onExportSite,
               ),
             ),
           Padding(

@@ -6113,6 +6113,18 @@
       }
     }
   },
+  "backupSiteAction": "Back up this site",
+  "backupConfigureTitle": "Create backup",
+  "backupAllSites": "Sites",
+  "backupAllSitesDetail": "Select all sites, or choose them below.",
+  "backupSiteScripts": "Site user scripts",
+  "backupChooseAppSettings": "Choose app settings",
+  "backupAppSettings": "App settings",
+  "backupGlobalScripts": "Global user scripts",
+  "backupCreateAction": "Create backup",
+  "backupRestoreTitle": "Restore backup",
+  "backupTurnOnScripts": "Turn previously enabled user scripts back on",
+  "backupRestoreExtensions": "Restore and turn on extensions",
   "backupExtensionsTitle": "Extensions in the backup",
   "@backupExtensionsTitle": {
     "description": "Title of the dialog, shown while exporting settings, that asks how the backup carries the browser extensions imported on this device."

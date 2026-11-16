@@ -361,6 +361,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             },
             onScriptsChanged: _resets.resetShown,
             onClearCookies: () => _clearSiteData(model),
+            onExportSite: () => _backup.export(onlySite: model.siteId),
             onSettingsSaved: _resets.settingsSaved,
             letGo: () => LetGoTable.letGo(_sites, site: model),
             onProxyChanging: () => _beforeProxyChange(model),
