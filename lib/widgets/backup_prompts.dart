@@ -74,14 +74,22 @@ class DialogBackupPrompts implements BackupPrompts {
                     if (section == 0) ...[
                       ListTile(
                         title: Text(loc.backupAllSites),
-                        subtitle: Text('${selected.length} / ${sites.length}'),
+                        subtitle: Text(
+                          loc.backupSelectionCount(
+                            selected.length,
+                            sites.length,
+                          ),
+                        ),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () => refresh(() => section = 1),
                       ),
                       ListTile(
                         title: Text(loc.backupAppSettings),
                         subtitle: Text(
-                          '${appSettings ? appPrefKeys.length : 0} / ${AppPref.values.length}',
+                          loc.backupSelectionCount(
+                            appSettings ? appPrefKeys.length : 0,
+                            AppPref.values.length,
+                          ),
                         ),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () => refresh(() => section = 2),
@@ -195,27 +203,32 @@ class DialogBackupPrompts implements BackupPrompts {
                             refresh(() => appSettings = v ?? false),
                       ),
                       if (appSettings) ...[
-                        for (final pref in AppPref.values)
-                          CheckboxListTile(
-                            title: Text(
-                              pref.key
-                                  .replaceAllMapped(
-                                    RegExp(r'(?<=[a-z])(?=[A-Z])'),
-                                    (match) => ' ',
-                                  )
-                                  .replaceFirstMapped(
-                                    RegExp(r'^.'),
-                                    (match) => match[0]!.toUpperCase(),
-                                  ),
+                        for (final group in _backupPrefGroups(
+                          AppPref.values.map((pref) => pref.key),
+                          loc,
+                        ).entries)
+                          ExpansionTile(
+                            title: Text(group.key),
+                            subtitle: Text(
+                              loc.backupSelectionCount(
+                                group.value.where(appPrefKeys.contains).length,
+                                group.value.length,
+                              ),
                             ),
-                            value: appPrefKeys.contains(pref.key),
-                            onChanged: (v) => refresh(() {
-                              if (v == true) {
-                                appPrefKeys.add(pref.key);
-                              } else {
-                                appPrefKeys.remove(pref.key);
-                              }
-                            }),
+                            children: [
+                              for (final key in group.value)
+                                CheckboxListTile(
+                                  title: Text(_backupPrefLabel(key)),
+                                  value: appPrefKeys.contains(key),
+                                  onChanged: (v) => refresh(() {
+                                    if (v == true) {
+                                      appPrefKeys.add(key);
+                                    } else {
+                                      appPrefKeys.remove(key);
+                                    }
+                                  }),
+                                ),
+                            ],
                           ),
                       ],
                     ],
@@ -297,10 +310,43 @@ class DialogBackupPrompts implements BackupPrompts {
     var sites = backup.includesSites;
     var appSettings = backup.includesAppSettings;
     var globalScripts = backup.globalUserScripts != null;
-    var scripts = false;
     var extensions = backup.webExtensions != null;
-    var extensionsOn = false;
+    final selectedSites = {
+      if (backup.includesSites)
+        for (var i = 0; i < backup.sites.length; i++) i,
+    };
+    final selectedSiteScripts = Set<int>.of(selectedSites);
+    final selectedSiteCookies = Set<int>.of(selectedSites);
+    final selectedSiteExtensions = Set<int>.of(selectedSites);
+    final appPrefKeys = Set<String>.of(backup.globalPrefs.keys);
+    final scriptSites = <int>{};
+    final extensionSites = <int>{};
     var section = 0;
+    bool hasScripts(int index) {
+      if (!selectedSites.contains(index) ||
+          !selectedSiteScripts.contains(index)) {
+        return false;
+      }
+      final raw = backup.sites[index];
+      final own = raw['userScripts'];
+      final enabledOwn =
+          own is List &&
+          own.any((script) => script is Map && script['enabled'] != false);
+      final optedIn = raw['enabledGlobalScriptIds'];
+      return enabledOwn ||
+          (globalScripts && optedIn is List && optedIn.isNotEmpty);
+    }
+
+    bool hasExtensions(int index) {
+      if (!selectedSites.contains(index) ||
+          !selectedSiteExtensions.contains(index) ||
+          !extensions) {
+        return false;
+      }
+      final choices = backup.sites[index]['webExtensionChoices'];
+      return choices is Map && choices.values.any((on) => on == true);
+    }
+
     return showDialog<BackupRestoreChoices>(
       context: context,
       builder: (dialog) => StatefulBuilder(
@@ -318,11 +364,13 @@ class DialogBackupPrompts implements BackupPrompts {
                         icon: const Icon(Icons.arrow_back),
                         onPressed: () => refresh(() => section = 0),
                       ),
-                title: Text(
-                  section == 0
-                      ? loc.backupRestoreTitle
-                      : loc.backupRestoreContents,
-                ),
+                title: Text(switch (section) {
+                  1 => loc.backupRestoreContents,
+                  2 => loc.backupChooseSiteActivation,
+                  3 => loc.backupChooseImportSites,
+                  4 => loc.backupChooseAppSettings,
+                  _ => loc.backupRestoreTitle,
+                }),
                 actions: section == 0
                     ? [
                         TextButton(
@@ -349,54 +397,63 @@ class DialogBackupPrompts implements BackupPrompts {
                     ListTile(
                       title: Text(loc.backupRestoreContents),
                       subtitle: Text(
-                        '${sites ? backup.sites.length : 0} ${loc.backupAllSites.toLowerCase()}',
+                        loc.webspacesListSiteCount(selectedSites.length),
                       ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => refresh(() => section = 1),
                     ),
                     const Divider(),
                     ListTile(title: Text(loc.backupAfterRestore)),
-                    if (backup.globalUserScripts?.isNotEmpty == true ||
-                        backup.sites.any(
-                          (s) =>
-                              (s['userScripts'] as List?)?.isNotEmpty == true,
-                        ))
-                      CheckboxListTile(
-                        title: Text(loc.backupTurnOnScripts),
+                    if (List.generate(
+                      backup.sites.length,
+                      (i) => i,
+                    ).any((i) => hasScripts(i) || hasExtensions(i)))
+                      ListTile(
+                        title: Text(loc.backupChooseSiteActivation),
                         subtitle: Text(
-                          '${backupUserScriptCount(backup)} · '
-                          '${loc.backupReviewScripts}',
+                          loc.backupSelectionCount(
+                            {...scriptSites, ...extensionSites}.length,
+                            backup.sites.length,
+                          ),
                         ),
-                        value: scripts,
-                        onChanged: sites
-                            ? (v) => refresh(() => scripts = v ?? false)
-                            : null,
+                        trailing: const Icon(Icons.chevron_right),
+                        enabled: sites,
+                        onTap: () => refresh(() => section = 2),
                       ),
-                    if (backup.webExtensions != null)
-                      CheckboxListTile(
-                        title: Text(loc.backupTurnOnExtensions),
-                        value: extensionsOn,
-                        onChanged: extensions && sites
-                            ? (v) => refresh(() => extensionsOn = v ?? false)
-                            : null,
+                    ListTile(
+                      title: Text(
+                        selectedSiteCookies
+                                .intersection(selectedSites)
+                                .isNotEmpty
+                            ? loc.backupCookiesSessionNote
+                            : loc.homeImportSettingsSessionsNote,
                       ),
-                    ListTile(title: Text(loc.homeImportSettingsSessionsNote)),
+                    ),
                   ],
                   if (section == 1) ...[
-                    CheckboxListTile(
+                    ListTile(
                       title: Text(loc.backupAllSites),
-                      subtitle: Text('${backup.sites.length}'),
-                      value: sites,
-                      onChanged: backup.includesSites
-                          ? (v) => refresh(() => sites = v ?? false)
-                          : null,
+                      subtitle: Text(
+                        loc.backupSelectionCount(
+                          selectedSites.length,
+                          backup.sites.length,
+                        ),
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      enabled: backup.includesSites,
+                      onTap: () => refresh(() => section = 3),
                     ),
-                    CheckboxListTile(
+                    ListTile(
                       title: Text(loc.backupAppSettings),
-                      value: appSettings,
-                      onChanged: backup.includesAppSettings
-                          ? (v) => refresh(() => appSettings = v ?? false)
-                          : null,
+                      subtitle: Text(
+                        loc.backupSelectionCount(
+                          appSettings ? appPrefKeys.length : 0,
+                          backup.globalPrefs.length,
+                        ),
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      enabled: backup.includesAppSettings,
+                      onTap: () => refresh(() => section = 4),
                     ),
                     if (backup.globalUserScripts != null)
                       CheckboxListTile(
@@ -411,7 +468,7 @@ class DialogBackupPrompts implements BackupPrompts {
                         value: extensions,
                         onChanged: (v) => refresh(() {
                           extensions = v ?? false;
-                          if (!extensions) extensionsOn = false;
+                          if (!extensions) extensionSites.clear();
                         }),
                       ),
                     if (appSettings)
@@ -431,6 +488,166 @@ class DialogBackupPrompts implements BackupPrompts {
                         ],
                       ),
                   ],
+                  if (section == 2) ...[
+                    ListTile(title: Text(loc.backupActivationNote)),
+                    for (var i = 0; i < backup.sites.length; i++)
+                      if (hasScripts(i) || hasExtensions(i))
+                        ExpansionTile(
+                          title: Text(
+                            backup.sites[i]['name'] is String
+                                ? backup.sites[i]['name'] as String
+                                : loc.backupUnnamedSite(i + 1),
+                          ),
+                          children: [
+                            if (hasScripts(i))
+                              CheckboxListTile(
+                                title: Text(loc.backupRunSiteScripts),
+                                value: scriptSites.contains(i),
+                                onChanged: (v) => refresh(() {
+                                  if (v == true) {
+                                    scriptSites.add(i);
+                                  } else {
+                                    scriptSites.remove(i);
+                                  }
+                                }),
+                              ),
+                            if (hasExtensions(i) &&
+                                backup.webExtensions != null)
+                              CheckboxListTile(
+                                title: Text(loc.backupRunSiteExtensions),
+                                value: extensionSites.contains(i),
+                                onChanged: extensions
+                                    ? (v) => refresh(() {
+                                        if (v == true) {
+                                          extensionSites.add(i);
+                                        } else {
+                                          extensionSites.remove(i);
+                                        }
+                                      })
+                                    : null,
+                              ),
+                          ],
+                        ),
+                  ],
+                  if (section == 3) ...[
+                    CheckboxListTile(
+                      title: Text(loc.backupAllSites),
+                      value:
+                          selectedSites.length == backup.sites.length &&
+                          backup.sites.isNotEmpty,
+                      onChanged: (v) => refresh(() {
+                        selectedSites.clear();
+                        if (v == true) {
+                          selectedSites.addAll(
+                            List.generate(
+                              backup.sites.length,
+                              (index) => index,
+                            ),
+                          );
+                        } else {
+                          scriptSites.clear();
+                          extensionSites.clear();
+                        }
+                        sites = selectedSites.isNotEmpty;
+                      }),
+                    ),
+                    for (var i = 0; i < backup.sites.length; i++)
+                      ExpansionTile(
+                        leading: Checkbox(
+                          value: selectedSites.contains(i),
+                          onChanged: (v) => refresh(() {
+                            if (v == true) {
+                              selectedSites.add(i);
+                            } else {
+                              selectedSites.remove(i);
+                              scriptSites.remove(i);
+                              extensionSites.remove(i);
+                            }
+                            sites = selectedSites.isNotEmpty;
+                          }),
+                        ),
+                        title: Text(
+                          backup.sites[i]['name'] is String
+                              ? backup.sites[i]['name'] as String
+                              : loc.backupUnnamedSite(i + 1),
+                        ),
+                        children: selectedSites.contains(i)
+                            ? [
+                                CheckboxListTile(
+                                  title: Text(loc.backupSiteScripts),
+                                  value: selectedSiteScripts.contains(i),
+                                  onChanged: (v) => refresh(() {
+                                    if (v == true) {
+                                      selectedSiteScripts.add(i);
+                                    } else {
+                                      selectedSiteScripts.remove(i);
+                                      scriptSites.remove(i);
+                                    }
+                                  }),
+                                ),
+                                CheckboxListTile(
+                                  title: Text(loc.backupSiteCookies),
+                                  value: selectedSiteCookies.contains(i),
+                                  onChanged: (v) => refresh(() {
+                                    if (v == true) {
+                                      selectedSiteCookies.add(i);
+                                    } else {
+                                      selectedSiteCookies.remove(i);
+                                    }
+                                  }),
+                                ),
+                                if (backup.webExtensions != null)
+                                  CheckboxListTile(
+                                    title: Text(loc.backupSiteExtensions),
+                                    value: selectedSiteExtensions.contains(i),
+                                    onChanged: (v) => refresh(() {
+                                      if (v == true) {
+                                        selectedSiteExtensions.add(i);
+                                      } else {
+                                        selectedSiteExtensions.remove(i);
+                                        extensionSites.remove(i);
+                                      }
+                                    }),
+                                  ),
+                              ]
+                            : const [],
+                      ),
+                  ],
+                  if (section == 4) ...[
+                    CheckboxListTile(
+                      title: Text(loc.backupAppSettings),
+                      value: appSettings,
+                      onChanged: (v) => refresh(() => appSettings = v ?? false),
+                    ),
+                    if (appSettings)
+                      for (final group in _backupPrefGroups(
+                        backup.globalPrefs.keys,
+                        loc,
+                      ).entries)
+                        ExpansionTile(
+                          title: Text(group.key),
+                          subtitle: Text(
+                            loc.backupSelectionCount(
+                              group.value.where(appPrefKeys.contains).length,
+                              group.value.length,
+                            ),
+                          ),
+                          children: [
+                            for (final key in group.value)
+                              CheckboxListTile(
+                                title: Text(_backupPrefLabel(key)),
+                                value: appPrefKeys.contains(key),
+                                onChanged: (v) => refresh(() {
+                                  if (v == true) {
+                                    appPrefKeys.add(key);
+                                  } else {
+                                    appPrefKeys.remove(key);
+                                  }
+                                }),
+                              ),
+                          ],
+                        ),
+                  ],
                 ],
               ),
               bottomNavigationBar: SafeArea(
@@ -446,9 +663,18 @@ class DialogBackupPrompts implements BackupPrompts {
                               restoreAppSettings: appSettings,
                               restoreGlobalScripts: globalScripts,
                               restoreExtensions: extensions,
-                              turnOnScripts: sites && scripts,
-                              turnOnExtensions:
-                                  sites && extensions && extensionsOn,
+                              siteIndices: selectedSites,
+                              siteScriptIndices: selectedSiteScripts
+                                  .intersection(selectedSites),
+                              siteCookieIndices: selectedSiteCookies
+                                  .intersection(selectedSites),
+                              siteExtensionIndices: selectedSiteExtensions
+                                  .intersection(selectedSites),
+                              appPrefKeys: appPrefKeys,
+                              scriptSiteIndices: sites ? scriptSites : const {},
+                              extensionSiteIndices: sites && extensions
+                                  ? extensionSites
+                                  : const {},
                             ),
                           ),
                     child: Text(
@@ -676,4 +902,67 @@ class DialogBackupPrompts implements BackupPrompts {
       destructive: false,
     );
   }
+}
+
+String _backupPrefLabel(String key) => key
+    .replaceAllMapped(RegExp(r'(?<=[a-z])(?=[A-Z])'), (_) => ' ')
+    .replaceFirstMapped(RegExp(r'^.'), (match) => match[0]!.toUpperCase());
+
+Map<String, List<String>> _backupPrefGroups(
+  Iterable<String> keys,
+  AppLocalizations loc,
+) {
+  final groups = <String, List<String>>{
+    loc.appSettingsAppearance: [],
+    loc.appSettingsBehaviour: [],
+    loc.appSettingsPrivacy: [],
+    loc.appSettingsNetwork: [],
+    loc.appSettingsExtensions: [],
+    loc.appSettingsExperimental: [],
+  };
+  for (final key in keys) {
+    final group = switch (key) {
+      'showUrlBar' ||
+      'showTabStrip' ||
+      'tabStripInFullscreen' ||
+      'tabStripEdge' ||
+      'tabBarButton' ||
+      'tabBarButtonOnRight' ||
+      'fullscreenOnShortcut' ||
+      'tabMaxWidth' ||
+      'legacyDesign' ||
+      'libraryLayout' ||
+      'libraryWebspaceLayout' ||
+      'libraryIconSize' ||
+      'appLocaleOverride' => loc.appSettingsAppearance,
+      'tabsEnabled' ||
+      'externalLinkMode' ||
+      'routeOutboundLinks' ||
+      'signInPopups' ||
+      'backOpensMenu' ||
+      'backForwardCacheEnabled' ||
+      'keepRunningWhenClosed' ||
+      'topSitesKeepFilters' ||
+      'topSitesOffer' ||
+      'webSearchDefaultSite' => loc.appSettingsBehaviour,
+      'globalOutboundProxy' ||
+      'proxyLibrary' ||
+      'externalTorAddress' ||
+      'externalTorControl' ||
+      'experimentalExternalTor' ||
+      'osmTileUrl' => loc.appSettingsNetwork,
+      'webExtensionsCheckUpdates' ||
+      'webExtensionsAutoUpdate' => loc.appSettingsExtensions,
+      'developerMode' ||
+      'experimentalTextureRendering' ||
+      'experimentalWebExtensions' ||
+      'experimentalExtensionSearch' ||
+      'experimentalNetworkInterface' ||
+      'experimentalWebKitBlockReports' => loc.appSettingsExperimental,
+      _ => loc.appSettingsPrivacy,
+    };
+    groups[group]!.add(key);
+  }
+  groups.removeWhere((_, entries) => entries.isEmpty);
+  return groups;
 }

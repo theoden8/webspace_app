@@ -70,10 +70,19 @@ void main() {
           'userScripts': [
             {'name': 'Sample'},
           ],
+          'webExtensionChoices': {'reader': true},
+        },
+        {
+          'name': 'Other',
+          'userScripts': [
+            {'name': 'Other script'},
+          ],
+          'webExtensionChoices': {'reader': true},
         },
       ],
       webspaces: const [],
       themeMode: 0,
+      globalPrefs: const {'showUrlBar': true, 'blockScreenshots': true},
       webExtensions: const BackupExtensions(
         carry: ExtensionCarry.references,
         extensions: [],
@@ -82,34 +91,46 @@ void main() {
     );
     final answer = DialogBackupPrompts(context).reviewImport(backup);
     await tester.pumpAndSettle();
-    expect(
-      find.text('Turn previously enabled user scripts back on'),
-      findsOneWidget,
-    );
-    await tester.drag(find.byType(ListView).last, const Offset(0, -500));
+    await tester.tap(find.text('Choose what to restore'));
     await tester.pumpAndSettle();
-    expect(
-      find.text('Turn previously enabled extensions back on'),
-      findsOneWidget,
-    );
-    expect(
-      tester
-          .widget<CheckboxListTile>(
-            find.ancestor(
-              of: find.text('Turn previously enabled extensions back on'),
-              matching: find.byType(CheckboxListTile),
-            ),
-          )
-          .value,
-      isFalse,
-    );
-    await tester.tap(find.text('Turn previously enabled extensions back on'));
+    await tester.tap(find.text('Sites'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(Checkbox).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Example'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Site cookies'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Choose what to restore'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('App settings'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Privacy'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Block Screenshots'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Choose where scripts and extensions run'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Example'));
+    await tester.pumpAndSettle();
+    expect(find.text('Reenable user scripts'), findsOneWidget);
+    await tester.tap(find.text('Reenable user scripts'));
+    await tester.tap(find.text('Reenable extensions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Import').last);
     await tester.pumpAndSettle();
     final choices = (await answer)!;
-    expect(choices.turnOnScripts, isFalse);
+    expect(choices.siteIndices, {0});
+    expect(choices.siteCookieIndices, isEmpty);
+    expect(choices.appPrefKeys, {'showUrlBar'});
+    expect(choices.scriptSiteIndices, {0});
     expect(choices.restoreExtensions, isTrue);
-    expect(choices.turnOnExtensions, isTrue);
+    expect(choices.extensionSiteIndices, {0});
   });
 }

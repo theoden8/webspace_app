@@ -234,6 +234,7 @@ final class SitesReplaced extends SiteDrop {
     required this.webspaces,
     required this.selectedWebspaceId,
     required this.closed,
+    this.restoreCookiesForSiteIds = const {},
   });
   final List<WebViewModel> sites;
 
@@ -241,6 +242,9 @@ final class SitesReplaced extends SiteDrop {
   final ArchivesClosed closed;
   final List<Webspace> webspaces;
   final WebspaceId? selectedWebspaceId;
+
+  /// Explicit opt-in to replace a matching site's non-secure cookies.
+  final Set<SiteId> restoreCookiesForSiteIds;
 }
 
 /// An open archive's sites and collections, materialised at the end of the

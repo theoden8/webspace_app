@@ -21,7 +21,7 @@ void main() {
     // while live state is intact, so after the clear only the plan is read.
     final import = body('Future<void> import() async {');
     final plan = import.indexOf('planSettingsImport(');
-    final clear = import.indexOf('await _imports.replace(SitesReplaced(');
+    final clear = import.indexOf('await _imports.replace(');
     expect(plan, greaterThan(-1), reason: 'the import no longer plans');
     expect(plan, lessThan(clear));
     final applied = import.substring(clear);

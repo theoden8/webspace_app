@@ -63,15 +63,25 @@ class BackupRestoreChoices {
     required this.restoreAppSettings,
     required this.restoreGlobalScripts,
     required this.restoreExtensions,
-    required this.turnOnScripts,
-    required this.turnOnExtensions,
+    required this.siteIndices,
+    required this.siteScriptIndices,
+    required this.siteCookieIndices,
+    required this.siteExtensionIndices,
+    required this.appPrefKeys,
+    required this.scriptSiteIndices,
+    required this.extensionSiteIndices,
   });
   final bool restoreSites;
   final bool restoreAppSettings;
   final bool restoreGlobalScripts;
   final bool restoreExtensions;
-  final bool turnOnScripts;
-  final bool turnOnExtensions;
+  final Set<int> siteIndices;
+  final Set<int> siteScriptIndices;
+  final Set<int> siteCookieIndices;
+  final Set<int> siteExtensionIndices;
+  final Set<String> appPrefKeys;
+  final Set<int> scriptSiteIndices;
+  final Set<int> extensionSiteIndices;
 }
 
 /// What a settings backup asks the user.
@@ -241,7 +251,7 @@ class BackupController {
   /// how many it could neither link nor add.
   Future<int> _restoreExtensions(
     SettingsImportPlan plan, {
-    required bool turnOn,
+    required Set<SiteId> enableSiteIds,
   }) async {
     final incoming = plan.webExtensions;
     if (incoming == null) return 0;
@@ -254,7 +264,7 @@ class BackupController {
       final linked = relinkChoices(choices, links: restored.links);
       site.webExtensionChoices = {
         for (final MapEntry(key: id, value: wasOn) in linked.entries)
-          id: turnOn && wasOn,
+          id: enableSiteIds.contains(site.siteId) && wasOn,
       };
     }
     return restored.missing;
@@ -309,30 +319,108 @@ class BackupController {
     // restore half-done.
     final SettingsImportPlan plan;
     try {
-      plan = planSettingsImport(backup, stateSetterF: _host.rebuild);
+      plan = planSettingsImport(
+        backup,
+        stateSetterF: _host.rebuild,
+        selectedSiteIndices: restoreChoices.siteIndices,
+        siteScriptIndices: restoreChoices.siteScriptIndices,
+        siteCookieIndices: restoreChoices.siteCookieIndices,
+        siteExtensionIndices: restoreChoices.siteExtensionIndices,
+      );
     } on FormatException catch (e) {
       LogTag.import.error('Aborted import; live state left intact: $e');
       _host.toast((loc) => loc.homeImportInvalidBackup);
       return;
     }
 
-    // ARCH-010 seals open archives before the rows they were materialised
-    // into are replaced; one that does not fit its slot stays open, and the
-    // import waits for it rather than replacing its rows (ARCH-011). The
-    // import applies in the same archives' turn, so no archive opens against
-    // the rows it is about to replace (SEC-044).
+    final selectedSourceIndices =
+        restoreChoices.siteIndices
+            .where((index) => index >= 0 && index < backup.sites.length)
+            .toList()
+          ..sort();
+    final importedBySource = <int, WebViewModel>{
+      for (
+        var row = 0;
+        row < selectedSourceIndices.length && row < plan.sites.length;
+        row++
+      )
+        selectedSourceIndices[row]: plan.sites[row],
+    };
+    final enableScriptSiteIds = {
+      for (final index in restoreChoices.scriptSiteIndices)
+        if (importedBySource[index] case final site?) site.siteId,
+    };
+    final enableExtensionSiteIds = {
+      for (final index in restoreChoices.extensionSiteIndices)
+        if (importedBySource[index] case final site?) site.siteId,
+    };
+
+    final partialSiteImport =
+        restoreChoices.restoreSites &&
+        restoreChoices.siteIndices.length < backup.sites.length;
+
+    // Seal archives and apply the import in the same turn, so none opens
+    // against the site rows this import is replacing (SEC-044).
     var replaced = false;
     var extensionsMissing = 0;
     final sealed = await _archives.closeAllThen((closed) async {
       if (!_host.mounted) return;
+      final currentSites = _sites.models
+          .where((site) => !site.isArchiveTier)
+          .toList();
+      final currentById = {for (final site in currentSites) site.siteId: site};
+      final selectedWebspaceBefore = _sites.selectedWebspaceId;
+      for (final MapEntry(key: index, value: site) in importedBySource.entries) {
+        final current = currentById[site.siteId];
+        if (current == null) continue;
+        if (!restoreChoices.siteScriptIndices.contains(index)) {
+          site.userScripts = List.of(current.userScripts);
+        }
+        if (!restoreChoices.restoreGlobalScripts) {
+          site.enabledGlobalScriptIds = Set.of(current.enabledGlobalScriptIds);
+        }
+        if (!restoreChoices.siteCookieIndices.contains(index)) {
+          site.cookies = List.of(current.cookies);
+        }
+        if (!restoreChoices.restoreExtensions ||
+            !restoreChoices.siteExtensionIndices.contains(index)) {
+          site.webExtensionChoices = Map.of(current.webExtensionChoices);
+        }
+      }
+      final importedIds = {for (final site in plan.sites) site.siteId};
+      final replacementSites = partialSiteImport
+          ? [
+              for (final site in currentSites)
+                if (!importedIds.contains(site.siteId)) site,
+              ...plan.sites,
+            ]
+          : plan.sites;
+      final replacementWebspaces = partialSiteImport
+          ? mergeBackupWebspaces(_sites.webspaces, imported: plan.webspaces)
+          : plan.webspaces;
 
       // Applied and persisted in one step, before any site activates, so a pref
       // the backup does not name reads the same before and after a restart.
       // Per PWD-005 the backup carries no proxy password: the user re-enters
       // it on the proxy settings screen, as they re-log into sites whose secure
       // cookies were stripped.
-      await writeExportedAppPrefs(
-          await SharedPreferences.getInstance(), values: plan.appPrefs);
+      if (restoreChoices.restoreAppSettings) {
+        final currentPrefs = readExportedAppPrefs(
+          await SharedPreferences.getInstance(),
+        );
+        for (final key in backup.globalPrefs.keys) {
+          if (!restoreChoices.restoreSites &&
+              key == AppPref.webSearchDefaultSite.key) {
+            continue;
+          }
+          if (!restoreChoices.appPrefKeys.contains(key)) continue;
+          if (plan.appPrefs[key] case final value?) currentPrefs[key] = value;
+        }
+        await writeExportedAppPrefs(
+          await SharedPreferences.getInstance(),
+          values: resolveExportedAppPrefs(currentPrefs),
+        );
+      }
       if (!_host.mounted) return;
       // Every service that reads those prefs reloads before the sites commit,
       // so the Tor refcount and a DEFAULT site's first load see the imported
@@ -347,25 +435,40 @@ class BackupController {
       await ProxyLibrary.reloadAfterImport();
       // The downloaded-data blockers' user intent: the selection only, never
       // the blob, which the user re-downloads from App Settings.
-      if (plan.dnsBlockLevel != null) {
+      if (restoreChoices.restoreAppSettings && plan.dnsBlockLevel != null) {
         await DnsBlockService.instance.applyImportedLevel(plan.dnsBlockLevel!);
       }
-      if (plan.contentBlockerLists != null) {
-        await ContentBlockerService.instance
-            .importListSelection(plan.contentBlockerLists!);
+      if (restoreChoices.restoreAppSettings && plan.contentBlockerLists != null) {
+        await ContentBlockerService.instance.importListSelection(
+          plan.contentBlockerLists!,
+        );
       }
       if (!_host.mounted) return;
-      extensionsMissing = await _restoreExtensions(plan);
+      extensionsMissing = restoreChoices.restoreExtensions
+          ? await _restoreExtensions(plan, enableSiteIds: enableExtensionSiteIds)
+          : 0;
       if (!_host.mounted) return;
-      _shell.theme = AppThemeSettings.fromStorageIndex(plan.themeStorageIndex);
+      if (restoreChoices.restoreAppSettings) {
+        _shell.theme = AppThemeSettings.fromStorageIndex(plan.themeStorageIndex);
+      }
       // On the shared jar the import empties the jar in its own turn, after
       // saving the share of each loaded site it carries again (ISO-015).
-      replaced = await _imports.replace(SitesReplaced(
-        sites: plan.sites,
-        webspaces: plan.webspaces,
-        selectedWebspaceId: plan.selectedWebspaceId,
-        closed: closed,
-      ));
+      replaced =
+          !restoreChoices.restoreSites ||
+          await _imports.replace(
+            SitesReplaced(
+              sites: replacementSites,
+              webspaces: replacementWebspaces,
+              selectedWebspaceId: partialSiteImport
+                  ? selectedWebspaceBefore
+                  : plan.selectedWebspaceId,
+              closed: closed,
+              restoreCookiesForSiteIds: {
+                for (final index in restoreChoices.siteCookieIndices)
+                  if (importedBySource[index] case final site?) site.siteId,
+              },
+            ),
+          );
     });
     if (!sealed) {
       _host.toast((loc) => loc.homeArchiveFull);
@@ -373,10 +476,11 @@ class BackupController {
     }
     if (!replaced || !_host.mounted) return;
 
-    final restore = switch (plan.currentIndex) {
+    WebViewModel? restore = switch (plan.currentIndex) {
       final i? when i >= 0 && i < _sites.models.length => _sites.models[i],
       _ => null,
     };
+    if (partialSiteImport) restore = null;
     if (restoreChoices.restoreSites) await _host.activate(restore);
     if (!_host.mounted) return;
     _host.rebuild();
@@ -433,13 +537,12 @@ class BackupController {
 
     // BACKUP-015: the scripts the backup ran come back as they were, but
     // only once the user has seen them named and said yes.
-    final heldScripts = [
-      for (final script in plan.heldScripts)
-        if (restoreChoices.restoreGlobalScripts || script is HeldSiteScript)
-          script,
-    ];
-    if (restoreChoices.turnOnScripts &&
-        heldScripts.isNotEmpty &&
+    final heldScripts = heldScriptsForSites(
+      plan.heldScripts,
+      siteIds: enableScriptSiteIds,
+      includeGlobalScripts: restoreChoices.restoreGlobalScripts,
+    );
+    if (heldScripts.isNotEmpty &&
         _host.mounted &&
         await _prompts.confirmRestoreScripts(heldScripts) &&
         _host.mounted) {

@@ -13,7 +13,11 @@ import 'helpers/localized.dart';
 // the ones the backup ran, so the user can turn them back on as they were.
 
 UserScriptConfig _script(String id, {bool enabled = true}) => UserScriptConfig(
-    id: UserScriptId(id), name: 'script $id', source: '/* $id */', enabled: enabled);
+  id: UserScriptId(id),
+  name: 'script $id',
+  source: '/* $id */',
+  enabled: enabled,
+);
 
 /// Two sites as a device had them: A runs its own `s1` (its `s2` is off)
 /// and the global `g1`; B runs `g1` and names a global the library lost.
@@ -36,16 +40,18 @@ SettingsImportPlan _planOfDevice() {
     themeMode: 0,
     globalUserScripts: [_script('g1').toJson(), _script('g2').toJson()],
   );
-  return planSettingsImport(SettingsBackupService.importFromJson(
-      SettingsBackupService.exportToJson(backup))!);
+  return planSettingsImport(
+    SettingsBackupService.importFromJson(
+      SettingsBackupService.exportToJson(backup),
+    )!,
+  );
 }
 
 /// The ids of the scripts [site] injects.
-Set<String> _running(WebViewModel site, {required SettingsImportPlan plan}) =>
-    {
-      for (final s in site.combineUserScripts(plan.globalUserScripts!))
-        if (s.enabled) s.id,
-    };
+Set<String> _running(WebViewModel site, {required SettingsImportPlan plan}) => {
+  for (final s in site.combineUserScripts(plan.globalUserScripts!))
+    if (s.enabled) s.id,
+};
 
 void main() {
   group('planSettingsImport holds what the backup ran', () {
@@ -80,6 +86,37 @@ void main() {
       expect(a.userScripts.singleWhere((s) => s.id == 's2').enabled, isFalse);
     });
 
+    test('releasing scripts for one site leaves the other site off', () {
+      final plan = _planOfDevice();
+      final [a, b] = plan.sites;
+      final selected = heldScriptsForSites(
+        plan.heldScripts,
+        siteIds: {a.siteId},
+        includeGlobalScripts: true,
+      );
+      for (final script in selected) {
+        script.release();
+      }
+      expect(_running(a, plan: plan), {'g1', 's1'});
+      expect(_running(b, plan: plan), isEmpty);
+      expect(selected.whereType<HeldGlobalScript>().single.sites, [a]);
+    });
+
+    test('omitted global scripts stay off even on a selected site', () {
+      final plan = _planOfDevice();
+      final [a, b] = plan.sites;
+      final selected = heldScriptsForSites(
+        plan.heldScripts,
+        siteIds: {a.siteId},
+        includeGlobalScripts: false,
+      );
+      for (final script in selected) {
+        script.release();
+      }
+      expect(_running(a, plan: plan), {'s1'});
+      expect(_running(b, plan: plan), isEmpty);
+    });
+
     test('a backup that ran no script holds none', () {
       final backup = SettingsBackupService.createBackup(
         webViewModels: [
@@ -99,13 +136,20 @@ void main() {
   group('DialogBackupPrompts.confirmRestoreScripts', () {
     /// Opens the prompt over a bare page; the future completes with the
     /// answer.
-    Future<Future<bool>> open(WidgetTester tester,
-        {required List<HeldScript> held}) async {
+    Future<Future<bool>> open(
+      WidgetTester tester, {
+      required List<HeldScript> held,
+    }) async {
       late BuildContext context;
-      await pumpLocalized(tester, home: Builder(builder: (c) {
-        context = c;
-        return const SizedBox();
-      }));
+      await pumpLocalized(
+        tester,
+        home: Builder(
+          builder: (c) {
+            context = c;
+            return const SizedBox();
+          },
+        ),
+      );
       final answer = DialogBackupPrompts(context).confirmRestoreScripts(held);
       await tester.pumpAndSettle();
       return answer;

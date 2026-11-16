@@ -91,7 +91,7 @@ void main() {
       final backup =
           File('lib/controllers/backup_controller.dart').readAsStringSync();
       expect(backup.substring(backup.indexOf('Future<void> import() async {')),
-          contains('await _imports.replace(SitesReplaced('));
+          contains('await _imports.replace('));
       expect(File('lib/controllers/site_import.dart').readAsStringSync(),
           contains('await _stage.follow();'));
       final editing =

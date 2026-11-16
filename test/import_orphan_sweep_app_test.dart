@@ -70,7 +70,7 @@ void main() {
         .widget<AppSettingsScreen>(find.byType(AppSettingsScreen))
         .onImportSettings();
     await settleRealApp(tester);
-    await tester.tap(find.widgetWithText(TextButton, 'Import'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Import'));
     await settleRealApp(tester);
 
     expect(debugWebViewModels!.map((m) => m.name), ['Kept']);

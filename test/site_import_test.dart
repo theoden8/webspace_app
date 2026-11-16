@@ -15,10 +15,9 @@ import 'package:webspace/web_view_model.dart';
 import 'helpers/mock_container_native.dart';
 import 'helpers/model_fixture.dart';
 
-WebViewModel _site(String id, {required String cookie}) => WebViewModel(
-  siteId: SiteId(id),
-  initUrl: 'https://$id.test/',
-)..cookies = [Cookie(name: cookie, value: id, domain: '$id.test')];
+WebViewModel _site(String id, {required String cookie}) =>
+    WebViewModel(siteId: SiteId(id), initUrl: 'https://$id.test/')
+      ..cookies = [Cookie(name: cookie, value: id, domain: '$id.test')];
 
 /// The page's commit as the funnel lands it, and a frame that comes at once.
 final class _Host implements SiteImportHost {
@@ -67,6 +66,40 @@ final class _Stage implements SiteSetStage {
 }
 
 void main() {
+  test(
+    'opted-in backup cookies replace non-secure cookies and keep secure sessions',
+    () async {
+      final native = MockContainerNative();
+      final sites = SiteRuntime()
+        ..isolation = Containers(
+          engine: ContainerIsolationEngine(containerNative: native),
+        );
+      final kept = _site('a', cookie: 'old');
+      kept.cookies.add(
+        Cookie(
+          name: 'secure',
+          value: 'session',
+          domain: 'a.test',
+          isSecure: true,
+        ),
+      );
+      sites.applied(SitesLoaded([kept]));
+      final replaced = await SiteImport(sites, host: _Host(sites)).replace(
+        SitesReplaced(
+          sites: [_site('a', cookie: 'backup')],
+          webspaces: const [],
+          selectedWebspaceId: null,
+          restoreCookiesForSiteIds: {SiteId('a')},
+        ),
+      );
+      expect(replaced, isTrue);
+      expect(sites.models.single.cookies.map((cookie) => cookie.name), [
+        'secure',
+        'backup',
+      ]);
+    },
+  );
+
   test("a site the backup carries again keeps its own session, and one it "
       "brings takes the backup's cookies (BACKUP-003)", () async {
     final native = MockContainerNative();
@@ -81,7 +114,10 @@ void main() {
 
     final replaced = await SiteImport(sites, host: _Host(sites)).replace(
       SitesReplaced(
-        sites: [_site('a', cookie: 'backup'), _site('c', cookie: 'seed')],
+        sites: [
+          _site('a', cookie: 'backup'),
+          _site('c', cookie: 'seed'),
+        ],
         webspaces: const [],
         selectedWebspaceId: null,
         closed: ArchivesClosed.inTest(),
@@ -93,8 +129,12 @@ void main() {
       {for (final m in sites.models) '${m.siteId}': m.cookies.single.name},
       {'a': 'own', 'c': 'seed'},
     );
-    expect(native.profiles.keys, [kept.containerKey],
-        reason: 'the site it drops takes its container with it, and the one '
-            'it carries keeps its own (CONT-010)');
+    expect(
+      native.profiles.keys,
+      [kept.containerKey],
+      reason:
+          'the site it drops takes its container with it, and the one '
+          'it carries keeps its own (CONT-010)',
+    );
   });
 }

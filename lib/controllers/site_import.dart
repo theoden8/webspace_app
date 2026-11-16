@@ -129,7 +129,15 @@ final class ImportFlow extends JarWorld implements SiteModels {
     ];
     for (final m in replacement.sites) {
       final row = _replaced.indexOfKey(m);
-      if (row >= 0) m.cookies = List.of(_replaced[row].cookies);
+      if (row >= 0) {
+        final current = _replaced[row].cookies;
+        m.cookies = replacement.restoreCookiesForSiteIds.contains(m.siteId)
+            ? [
+                ...current.where((cookie) => cookie.isSecure == true),
+                ...m.cookies,
+              ]
+            : List.of(current);
+      }
     }
     _stage.land(commit: commit);
   }
