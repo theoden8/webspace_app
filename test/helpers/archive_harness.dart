@@ -108,6 +108,14 @@ class ArchiveHarness implements ArchiveHost, ArchivePrompts {
   /// moved site's archived copy is written.
   @override
   Future<void> commitSites(SiteSetChange change) async {
+    if (change is ArchiveOpened) {
+      final held = _openCommit;
+      _openCommit = null;
+      if (held != null) {
+        held._started.complete();
+        await held._released.future;
+      }
+    }
     runtime.applied(change);
     if (change case SiteArchived(:final site, :final into)) {
       await archives.recordIn(site, into: into);
@@ -117,6 +125,12 @@ class ArchiveHarness implements ArchiveHost, ArchivePrompts {
   @override
   SiteSetStage stageSites(SiteSetChange change) =>
       AppliedStage((commit) => runtime.apply(change, commit: commit));
+
+  HeldRead? _openCommit;
+
+  /// The next archive open's commit waits until released, so a test can
+  /// land another change of the lists between its admission and its land.
+  HeldRead holdOpenCommit() => _openCommit = HeldRead();
 
   HeldRead? _cookieRead;
 

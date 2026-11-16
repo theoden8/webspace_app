@@ -690,6 +690,30 @@ archived site: one such leak would link that open to every later one.
 **When** the archive opens, its site gets a new session and page, the page saves its lists and sweeps orphaned state, and the archive closes and the page saves and sweeps again
 **Then** the app tier's preferences, keychain and back stacks are byte-identical to before the open, both while the archive is open and after it closes, and every store's sweep counts `shared` live
 
+### Requirement: ARCH-017 — A settings import replaces the sites in the archives' turn
+
+A settings import SHALL seal every open archive (ARCH-010) and apply what it
+imports, up to and including the replace of the sites, in one turn of the
+archives' queue (`ArchiveController.closeAllThen`), so no archive opens
+between the seal and the replace. An archive open the user starts meanwhile
+SHALL wait for that turn and admit its sites (ARCH-016) against the rows the
+import leaves. The replace SHALL carry the `ArchivesClosed` that turn makes,
+which `SiteRuntime.apply` asserts is still held. An import that fails in the
+turn SHALL let go of it with the archives closed and the rows as they were.
+Lineage: [BUG-046](../../../docs/bugs/046-archive-admitted-against-stale-rows.md).
+
+#### Scenario: An archive opened while an import applies
+
+**Given** an archive that seals a site under `shared`, and a settings import applying a backup with an app-tier site under `shared`
+**When** the user opens the archive before the import's replace lands
+**Then** the open waits for the import, the archive keeps its row beside the imported one, and the two sites have different ids
+
+#### Scenario: An import fails in the archives' turn
+
+**Given** an open archive and a settings import
+**When** the import fails after sealing the archive and before its replace
+**Then** the archive is closed, the rows are as they were, and the next open goes ahead
+
 ## Implementation Details
 
 ### Crypto primitives

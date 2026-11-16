@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/controllers/archive_controller.dart';
 import 'package:webspace/services/archive_ids.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/site_ids.dart';
@@ -279,6 +280,7 @@ void main() {
             Webspace(id: WebspaceId('w'), name: 'w', siteIds: [SiteId('c')]),
           ],
           selectedWebspaceId: WebspaceId('w'),
+          closed: ArchivesClosed.inTest(),
         ),
       );
       expect(r.loaded, isEmpty);
@@ -301,6 +303,7 @@ void main() {
           sites: [_site(SiteId('b'))],
           webspaces: const [],
           selectedWebspaceId: null,
+          closed: ArchivesClosed.inTest(),
         ),
       );
       expect(ProcessRoute.instance.occupants, isNot(contains(occupant)),
@@ -420,7 +423,7 @@ void main() {
         SiteAdded(_site(SiteId('a'))),
         SiteRemoved(_site(SiteId('a'))),
         const SitesMoved(0, to: 1),
-        const SitesReplaced(sites: [], webspaces: [], selectedWebspaceId: null),
+        SitesReplaced(sites: [], webspaces: [], selectedWebspaceId: null, closed: ArchivesClosed.inTest()),
         ArchiveOpened(
           sites: Admitted.of(const [],
               listed: const {}, build: (_) => throw StateError('none')),

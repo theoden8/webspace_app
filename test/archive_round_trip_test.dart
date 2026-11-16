@@ -3,6 +3,7 @@
 @Timeout(Duration(minutes: 2))
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
@@ -10,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/archive_controller.dart';
+import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
@@ -224,6 +226,66 @@ void main() {
       expect((await _sealedShapes(h)).keys, [id],
           reason: 'sealed under the id it was archived under');
     }
+  });
+
+  test('ARCH-017, SEC-044: an archive opened while an import applies waits '
+      'for it, keeps its rows, and its site runs under an id no imported site '
+      'holds (BUG-046)', () async {
+    final h = ArchiveHarness();
+    final id = SiteId.parse('shared')!;
+    final archived = _away(id);
+    h.load([archived]);
+    await h.archives.moveIn(archived);
+    await h.archives.closeArchiveOf(archived);
+    expect(h.runtime.models, isEmpty);
+
+    // The import seals the archives and applies in their turn; an open the
+    // user starts meanwhile admits its sites against the rows it leaves.
+    final applying = Completer<void>();
+    final importing = h.archives.closeAllThen((closed) async {
+      await applying.future;
+      h.runtime.applied(SitesReplaced(
+        sites: [_away(id)],
+        webspaces: const [],
+        selectedWebspaceId: null,
+        closed: closed,
+      ));
+    });
+    final opening = h.archives.open(archivePassphrase);
+    await pumpEventQueue();
+    expect(h.runtime.models, isEmpty, reason: 'the open waits for the import');
+
+    applying.complete();
+    expect(await importing, isTrue);
+    expect(await opening, isNotNull);
+
+    expect(h.archives.anyOpen, isTrue);
+    final ids = [for (final m in h.runtime.models) m.siteId];
+    expect(ids, hasLength(2),
+        reason: 'the open archive keeps its row beside the imported one');
+    expect(ids.toSet(), hasLength(2),
+        reason: 'two listed sites never share an id');
+    expect(h.runtime.models.singleWhere((m) => m.isArchiveTier).siteId,
+        isNot(id));
+  });
+
+  test('ARCH-017: an import that fails in the archives\' turn lets go of it, '
+      'the archives closed and the rows as they were', () async {
+    final h = ArchiveHarness();
+    final archived = _away(SiteId.parse('kept')!);
+    final listed = _away(SiteId.parse('listed')!);
+    h.load([archived, listed]);
+    await h.archives.moveIn(archived);
+    expect(h.archives.anyOpen, isTrue);
+
+    await expectLater(
+      h.archives.closeAllThen((_) async => throw StateError('import failed')),
+      throwsStateError,
+    );
+    expect(h.archives.anyOpen, isFalse);
+    expect(h.runtime.models, [same(listed)]);
+    expect(await h.archives.open(archivePassphrase), isNotNull,
+        reason: 'the turn was let go');
   });
 
   test('ARCH-016: two sites an older build sealed under one id run under two, '

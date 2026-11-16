@@ -1,3 +1,4 @@
+import 'package:webspace/controllers/archive_controller.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/archive_ids.dart';
@@ -222,8 +223,12 @@ final class SitesReplaced extends SiteDrop {
     required this.sites,
     required this.webspaces,
     required this.selectedWebspaceId,
+    required this.closed,
   });
   final List<WebViewModel> sites;
+
+  /// The archives' turn the replace lands in, every archive closed.
+  final ArchivesClosed closed;
   final List<Webspace> webspaces;
   final WebspaceId? selectedWebspaceId;
 }

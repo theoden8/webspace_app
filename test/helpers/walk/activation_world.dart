@@ -2017,6 +2017,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         ],
         webspaces: [...sites.webspaces],
         selectedWebspaceId: sites.selectedWebspaceId,
+        closed: ArchivesClosed.inTest(),
       ),
     );
   }

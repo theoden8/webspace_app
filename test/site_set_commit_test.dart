@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/controllers/archive_controller.dart';
 import 'package:webspace/services/archive_ids.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
@@ -128,6 +129,7 @@ void main() {
         sites: [_site('c')],
         webspaces: [Webspace(id: WebspaceId('w'), name: 'w', siteIds: [SiteId('c')])],
         selectedWebspaceId: WebspaceId('w'),
+        closed: ArchivesClosed.inTest(),
       ),
       (_) => ArchiveOpened(
             sites: Admitted.of(const [],
@@ -161,7 +163,7 @@ void main() {
   test('the reconcile (LIR-034) runs before ineligible hosted tabs close',
       () async {
     await commit.landed(
-      SitesReplaced(sites: [_site('a')], webspaces: const [], selectedWebspaceId: null),
+      SitesReplaced(sites: [_site('a')], webspaces: const [], selectedWebspaceId: null, closed: ArchivesClosed.inTest()),
     );
     expect(host.calls.indexOf('reconcile'), greaterThan(-1));
     expect(host.calls.indexOf('reconcile'),
@@ -193,7 +195,7 @@ void main() {
     expect(host.calls, contains('sweep'));
     host.calls.clear();
     await commit.landed(
-      SitesReplaced(sites: [_site('c')], webspaces: const [], selectedWebspaceId: null),
+      SitesReplaced(sites: [_site('c')], webspaces: const [], selectedWebspaceId: null, closed: ArchivesClosed.inTest()),
     );
     expect(host.calls, contains('sweep'));
   });
