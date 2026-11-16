@@ -302,6 +302,17 @@ class Archive {
     handle._zeroizeAndMarkClosed();
   }
 
+  /// Replaces an open archive with indistinguishable slot padding.
+  Future<void> remove(ArchiveHandle handle) async {
+    if (handle.isClosed || !_openHandles.contains(handle)) {
+      throw StateError('archive handle is not open');
+    }
+    await _storage.clearSlot(handle.slotIndex);
+    _openHandles.remove(handle);
+    _knownOccupied.remove(handle.slotIndex);
+    handle._zeroizeAndMarkClosed();
+  }
+
   /// Restores self-contained sections produced by [exportSection] into
   /// the slot pool. Tries [passphrase] against each base64 blob; a blob
   /// that decrypts is written to its archive's slot (existing slot for

@@ -328,7 +328,8 @@ class SiteRuntime implements SiteModels {
           SiteSettingsSaved() ||
           SiteSettingsClosed() ||
           SiteArchived() ||
-          SiteUnarchived():
+          SiteUnarchived() ||
+          ArchiveCollectionsKept():
         break;
       case SitesLoaded(:final sites):
         assert(models.isEmpty, 'the startup load fills the empty list');

@@ -3735,7 +3735,7 @@ final class _WalkArchivePrompts implements ArchivePrompts {
   Future<String?> passphrase(PassphrasePurpose purpose) async => 'walk';
 
   @override
-  Future<bool> createArchive(PassphrasePurpose purpose) async => true;
+  Future<bool> createArchive() async => true;
 
   @override
   Future<bool> includeOpenArchives(int count) async => false;

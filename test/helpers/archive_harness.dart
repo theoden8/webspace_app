@@ -15,6 +15,7 @@ import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/webspace_model.dart';
 
 import 'isolations.dart';
 import 'mock_secure_storage.dart';
@@ -87,6 +88,15 @@ class ArchiveHarness implements ArchiveHost, ArchivePrompts {
     await raw.close(handle);
   }
 
+  Future<void> sealWebspace(Webspace space) async {
+    final raw =
+        Archive(storage: ArchiveStorage(secureStorage: slots), deriveKey: _derive);
+    final handle = await raw.tryOpen(archivePassphrase);
+    handle!.state.webspaces.add(space.toJson());
+    await raw.save(handle);
+    await raw.close(handle);
+  }
+
   @override
   bool get mounted => true;
 
@@ -154,7 +164,7 @@ class ArchiveHarness implements ArchiveHost, ArchivePrompts {
       archivePassphrase;
 
   @override
-  Future<bool> createArchive(PassphrasePurpose purpose) async => true;
+  Future<bool> createArchive() async => true;
 
   @override
   Future<bool> includeOpenArchives(int count) async => false;

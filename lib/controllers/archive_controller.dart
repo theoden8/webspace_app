@@ -38,9 +38,8 @@ enum PassphrasePurpose { moveSite, openArchive, restoreSections }
 abstract interface class ArchivePrompts {
   Future<String?> passphrase(PassphrasePurpose purpose);
 
-  /// No archive matched the passphrase given for [purpose]; whether to
-  /// create one with it.
-  Future<bool> createArchive(PassphrasePurpose purpose);
+  /// Whether to create an archive while moving a site into it.
+  Future<bool> createArchive();
 
   /// Whether an export bundles the [count] open archives.
   Future<bool> includeOpenArchives(int count);
@@ -67,6 +66,7 @@ class _ArchiveSlice {
   _ArchiveSlice({
     required this.siteIds,
     required this.webspaceIds,
+    required this.webspaces,
     required this.containerKeys,
     required this.ids,
   });
@@ -74,6 +74,7 @@ class _ArchiveSlice {
   /// The ids its sites run under in the lists.
   final Set<SiteId> siteIds;
   final Set<WebspaceId> webspaceIds;
+  final Set<Webspace> webspaces;
 
   /// Which of them its sealed state names otherwise (SEC-044).
   final ArchiveIds ids;
@@ -119,6 +120,19 @@ class ArchiveController {
 
   bool get anyOpen => _slices.isNotEmpty;
 
+  List<ArchiveHandle> get openArchives => List.unmodifiable(_slices.keys);
+
+  List<WebViewModel> sitesIn(ArchiveHandle handle) {
+    final slice = _slices[handle];
+    if (slice == null) return const [];
+    return [
+      for (final site in _sites.models)
+        if (site.archiveContainerKey case final key?
+            when slice.containerKeys.contains(key))
+          site,
+    ];
+  }
+
   /// The open archive [m] belongs to, or null for an app-tier site. Read
   /// off its opaque container key, which only an archive-tier model has: an
   /// app-tier site a backup brought back under the same id is not the
@@ -136,9 +150,6 @@ class ArchiveController {
   /// and its slice right after.
   Future<ArchiveHandle?> open(String passphrase) =>
       _ops.run(() => _openHeld(passphrase));
-
-  Future<ArchiveHandle> create(String passphrase) =>
-      _ops.run(() => _createHeld(passphrase));
 
   @Held(#_ops)
   Future<ArchiveHandle?> _openHeld(String passphrase) async {
@@ -192,6 +203,7 @@ class ArchiveController {
     _slices[handle] = _ArchiveSlice(
       siteIds: {for (final m in admitted.sites) m.siteId},
       webspaceIds: {for (final w in webspaces) w.id},
+      webspaces: webspaces.toSet(),
       containerKeys: {for (final m in admitted.sites) m.archiveContainerKey!},
       ids: ids,
     );
@@ -345,11 +357,15 @@ class ArchiveController {
     }
     if (found != null) return;
     if (!_host.mounted) return;
-    if (!await _prompts.createArchive(PassphrasePurpose.moveSite)) return;
+    if (!await _prompts.createArchive()) return;
     try {
       await _ops.run(() async {
         final target = await _createHeld(passphrase);
-        await _moveInHeld(model, into: target);
+        try {
+          await _moveInHeld(model, into: target);
+        } finally {
+          if (!model.isArchiveTier) await _removeEmptyHeld(target);
+        }
       });
     } on StateError catch (e) {
       _host.toast((loc) => loc.homeCouldNotCreateArchive(e.message));
@@ -453,15 +469,40 @@ class ArchiveController {
       await engine.containerNative.deleteContainer(key);
     }
     final archived = slice.ids.archived(model.siteId);
+    final oldSites = List<Map<String, dynamic>>.of(handle.state.sites);
+    final oldCookies = Map<String, List<Map<String, dynamic>>>.of(
+        handle.state.cookies);
+    final oldMembership = <WebspaceId, List<SiteId>>{
+      for (final e in handle.state.appTierMembership.entries)
+        e.key: List<SiteId>.of(e.value),
+    };
     handle.state.sites
         .removeWhere((s) => s[SiteField.siteId.key] == archived);
     handle.state.cookies.remove(archived);
     ArchiveMembershipEngine.forget(handle.state.appTierMembership,
         siteId: archived);
     slice.siteIds.remove(model.siteId);
-    slice.ids.forget(model.siteId);
     if (containerKey != null) slice.containerKeys.remove(containerKey);
-    await _archive.save(handle);
+    var saved = false;
+    try {
+      await _archive.save(handle);
+      saved = true;
+    } finally {
+      if (!saved) {
+        handle.state.sites
+          ..clear()
+          ..addAll(oldSites);
+        handle.state.cookies
+          ..clear()
+          ..addAll(oldCookies);
+        handle.state.appTierMembership
+          ..clear()
+          ..addAll(oldMembership);
+        slice.siteIds.add(model.siteId);
+        if (containerKey != null) slice.containerKeys.add(containerKey);
+      }
+    }
+    slice.ids.forget(model.siteId);
 
     // Back on the standard `ws-<siteId>` container.
     model.disposeWebView(commit: const Commit.environment(Environment.letGo));
@@ -479,11 +520,43 @@ class ArchiveController {
       ],
     ).single;
     await _host.commitSites(SiteUnarchived(model));
+    await _removeEmptyHeld(handle);
     _host.toast((loc) => loc.homeSiteMovedOutOfArchive);
   }
 
-  /// Settings entry point: open the archive a passphrase names, or offer to
-  /// create one. The toasts never reveal whether other archives exist.
+  @Held(#_ops)
+  Future<void> _removeEmptyHeld(ArchiveHandle handle) async {
+    final slice = _slices[handle];
+    if (slice == null || slice.siteIds.isNotEmpty ||
+        slice.webspaceIds.isNotEmpty) return;
+    await _archive.remove(handle);
+    _slices.remove(handle);
+  }
+
+  Future<bool> removeKeepingSites(ArchiveHandle handle) => _ops.run(() async {
+        final slice = _slices[handle];
+        if (slice == null || !_host.mounted) return false;
+        for (final site in sitesIn(handle)) {
+          await _moveOutHeld(site);
+        }
+        if (!_slices.containsKey(handle)) return true;
+        final heldIds = {
+          for (final w in _sites.webspaces)
+            if (!w.isArchiveTier) w.id,
+        };
+        for (final ws in _sites.webspaces) {
+          if (!slice.webspaces.contains(ws)) continue;
+          if (heldIds.contains(ws.id)) ws.id = WebspaceId.mint();
+          heldIds.add(ws.id);
+          ws.isArchiveTier = false;
+        }
+        await _host.commitSites(const ArchiveCollectionsKept());
+        await _archive.remove(handle);
+        _slices.remove(handle);
+        return true;
+      });
+
+  /// Settings entry point: open the archive a passphrase names.
   Future<void> promptRestore() async {
     final passphrase =
         await _prompts.passphrase(PassphrasePurpose.openArchive);
@@ -495,10 +568,9 @@ class ArchiveController {
             handle.state.sites.length, handle.state.webspaces.length));
         return;
       }
-      if (!_host.mounted) return;
-      if (!await _prompts.createArchive(PassphrasePurpose.openArchive)) return;
-      await create(passphrase);
-      _host.toast((loc) => loc.homeNewArchiveCreated);
+      if (_host.mounted) {
+        _host.toast((loc) => loc.homeNoMatchingArchiveTitle);
+      }
     } on StateError catch (e) {
       _host.toast((loc) => loc.homeCouldNotOpen(e.message));
     }
