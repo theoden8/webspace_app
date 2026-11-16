@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Restaurar arquivo",
   "homePassphraseHint": "Frase-passe",
   "homeArchiveOpened": "Arquivo aberto ({sites} sites, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "Não existe nenhum arquivo para esta frase-passe. Criar um novo arquivo com ela?",
-  "homeNewArchiveCreated": "Novo arquivo criado",
   "homeCouldNotOpen": "Não foi possível abrir: {message}",
   "homeVerificationTitle": "Verificação",
   "homeSignInTitle": "Iniciar sessão",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Menu",
   "siteExtensionsPageFailed": "Não foi possível abrir {name} aqui",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Arquivos abertos",
+  "archiveManagementArchive": "Arquivo {index}",
+  "archiveManagementRemove": "Remover arquivo e manter sites",
+  "archiveManagementRemoveBody": "Mover todos os sites e coleções para a biblioteca normal e remover este arquivo?"
 }

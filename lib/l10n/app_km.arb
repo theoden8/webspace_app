@@ -633,8 +633,6 @@
   "homeRestoreArchiveTitle": "ស្ដារ archive",
   "homePassphraseHint": "Passphrase",
   "homeArchiveOpened": "Archive បានបើក ({sites} sites, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "គ្មាន archive សម្រាប់ passphrase នេះ។ បង្កើត archive ថ្មីជាមួយវា?",
-  "homeNewArchiveCreated": "Archive ថ្មីត្រូវបានបង្កើត",
   "homeCouldNotOpen": "មិនអាចបើក: {message}",
   "homeVerificationTitle": "ការផ្ទៀងផ្ទាត់",
   "homeSignInTitle": "ចូល",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "ម៉ឺនុយ",
   "siteExtensionsPageFailed": "មិនអាចបើក {name} នៅទីនេះបានទេ",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "បើកបណ្ណសារ",
+  "archiveManagementArchive": "បណ្ណសារ {index}",
+  "archiveManagementRemove": "លុប​បណ្ណសារ និង​រក្សា​គេហទំព័រ",
+  "archiveManagementRemoveBody": "ផ្លាស់ទីគេហទំព័រ និងបណ្តុំទាំងអស់ទៅបណ្ណាល័យធម្មតា បន្ទាប់មកលុបបណ្ណសារនេះចេញ?"
 }

@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Възстановяване на архив",
   "homePassphraseHint": "Парола",
   "homeArchiveOpened": "Архивът е отворен ({sites} сайта, {webspaces} webspace-а)",
-  "homeNoMatchingArchiveCreateBody": "Не съществува архив за тази парола. Да се създаде ли нов архив с нея?",
-  "homeNewArchiveCreated": "Създаден е нов архив",
   "homeCouldNotOpen": "Не можа да се отвори: {message}",
   "homeVerificationTitle": "Проверка",
   "homeSignInTitle": "Вход",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Меню",
   "siteExtensionsPageFailed": "{name} не можа да се отвори тук",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Отворени архиви",
+  "archiveManagementArchive": "Архив {index}",
+  "archiveManagementRemove": "Премахнете архива и запазете сайтовете",
+  "archiveManagementRemoveBody": "Да се ​​преместят ли всички сайтове и колекции в обикновената библиотека и след това да се премахне ли този архив?"
 }

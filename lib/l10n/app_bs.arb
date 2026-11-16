@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Vrati arhivu",
   "homePassphraseHint": "Lozinka",
   "homeArchiveOpened": "Arhiva otvorena ({sites} stranica, {webspaces} webspaceova)",
-  "homeNoMatchingArchiveCreateBody": "Ne postoji arhiva za ovu lozinku. Kreirati novu arhivu s njom?",
-  "homeNewArchiveCreated": "Nova arhiva kreirana",
   "homeCouldNotOpen": "Nije moguće otvoriti: {message}",
   "homeVerificationTitle": "Provjera",
   "homeSignInTitle": "Prijavi se",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Meni",
   "siteExtensionsPageFailed": "{name} nije moguće otvoriti ovdje",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Otvorite arhive",
+  "archiveManagementArchive": "Arhiva {index}",
+  "archiveManagementRemove": "Uklonite arhivu i zadržite stranice",
+  "archiveManagementRemoveBody": "Premjestiti sve lokacije i kolekcije u redovnu biblioteku, a zatim ukloniti ovu arhivu?"
 }

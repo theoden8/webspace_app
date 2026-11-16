@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Restaura l'arxiu",
   "homePassphraseHint": "Frase de pas",
   "homeArchiveOpened": "Arxiu obert ({sites} llocs, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "No existeix cap arxiu per a aquesta frase de pas. Voleu crear-ne un de nou?",
-  "homeNewArchiveCreated": "S'ha creat un arxiu nou",
   "homeCouldNotOpen": "No s'ha pogut obrir: {message}",
   "homeVerificationTitle": "Verificació",
   "homeSignInTitle": "Inicia la sessió",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Menú",
   "siteExtensionsPageFailed": "No s'ha pogut obrir {name} aquí",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Arxius oberts",
+  "archiveManagementArchive": "Arxiu {index}",
+  "archiveManagementRemove": "Elimina l'arxiu i conserva els llocs",
+  "archiveManagementRemoveBody": "Voleu moure tots els llocs i col·leccions a la biblioteca normal i després suprimir aquest arxiu?"
 }

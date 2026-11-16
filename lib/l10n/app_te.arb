@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "ఆర్కైవ్ పునరుద్ధరించు",
   "homePassphraseHint": "పాస్‌ఫ్రేజ్",
   "homeArchiveOpened": "ఆర్కైవ్ తెరవబడింది ({sites} సైట్‌లు, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "ఈ పాస్‌ఫ్రేజ్ కోసం ఆర్కైవ్ లేదు. దీనితో కొత్త ఆర్కైవ్‌ను సృష్టించాలా?",
-  "homeNewArchiveCreated": "కొత్త ఆర్కైవ్ సృష్టించబడింది",
   "homeCouldNotOpen": "తెరవడం సాధ్యం కాలేదు: {message}",
   "homeVerificationTitle": "ధృవీకరణ",
   "homeSignInTitle": "సైన్ ఇన్ చేయి",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "మెనూ",
   "siteExtensionsPageFailed": "{name} ను ఇక్కడ తెరవడం సాధ్యం కాలేదు",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "ఆర్కైవ్‌లను తెరవండి",
+  "archiveManagementArchive": "ఆర్కైవ్ {index}",
+  "archiveManagementRemove": "ఆర్కైవ్‌ను తీసివేసి, సైట్‌లను ఉంచండి",
+  "archiveManagementRemoveBody": "అన్ని సైట్‌లు మరియు సేకరణలను సాధారణ లైబ్రరీకి తరలించి, ఆపై ఈ ఆర్కైవ్‌ను తీసివేయాలా?"
 }

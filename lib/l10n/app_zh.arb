@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "還原封存",
   "homePassphraseHint": "通行密語",
   "homeArchiveOpened": "封存已開啟（{sites} 個網站，{webspaces} 個 webspace）",
-  "homeNoMatchingArchiveCreateBody": "此通行密語沒有對應的封存。要以它建立新封存嗎？",
-  "homeNewArchiveCreated": "已建立新封存",
   "homeCouldNotOpen": "無法開啟：{message}",
   "homeVerificationTitle": "驗證",
   "homeSignInTitle": "登入",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "選單",
   "siteExtensionsPageFailed": "無法在此開啟 {name}",
   "termAndMeaning": "{term}：{meaning}",
-  "twoSentences": "{first}{second}"
+  "twoSentences": "{first}{second}",
+  "archiveManagementOpen": "打开档案",
+  "archiveManagementArchive": "档案 {index}",
+  "archiveManagementRemove": "删除存档并保留站点",
+  "archiveManagementRemoveBody": "将所有网站和馆藏移至常规图书馆，然后删除此存档？"
 }

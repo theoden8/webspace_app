@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "संग्रहण पुनर्संचयित करा",
   "homePassphraseHint": "पासफ्रेझ",
   "homeArchiveOpened": "संग्रहण उघडले ({sites} साइट, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "या पासफ्रेझसाठी कोणतेही संग्रहण अस्तित्वात नाही. त्याद्वारे नवीन संग्रहण तयार करायचे?",
-  "homeNewArchiveCreated": "नवीन संग्रहण तयार केले",
   "homeCouldNotOpen": "उघडता आले नाही: {message}",
   "homeVerificationTitle": "पडताळणी",
   "homeSignInTitle": "साइन इन करा",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "मेनू",
   "siteExtensionsPageFailed": "{name} येथे उघडता आले नाही",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "संग्रह उघडा",
+  "archiveManagementArchive": "संग्रहण {index}",
+  "archiveManagementRemove": "संग्रहण काढा आणि साइट ठेवा",
+  "archiveManagementRemoveBody": "सर्व साइट आणि संग्रह नियमित लायब्ररीमध्ये हलवायचे, नंतर हे संग्रहण काढायचे?"
 }

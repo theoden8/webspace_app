@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "ആർക്കൈവ് പുനഃസ്ഥാപിക്കുക",
   "homePassphraseHint": "പാസ്‌ഫ്രെയ്സ്",
   "homeArchiveOpened": "ആർക്കൈവ് തുറന്നു ({sites} സൈറ്റുകൾ, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "ഈ പാസ്‌ഫ്രെയ്സിനായി ആർക്കൈവ് ഒന്നുമില്ല. ഇത് ഉപയോഗിച്ച് ഒരു പുതിയ ആർക്കൈവ് സൃഷ്ടിക്കണോ?",
-  "homeNewArchiveCreated": "പുതിയ ആർക്കൈവ് സൃഷ്ടിച്ചു",
   "homeCouldNotOpen": "തുറക്കാൻ കഴിഞ്ഞില്ല: {message}",
   "homeVerificationTitle": "സ്ഥിരീകരണം",
   "homeSignInTitle": "സൈൻ ഇൻ ചെയ്യുക",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "മെനു",
   "siteExtensionsPageFailed": "{name} ഇവിടെ തുറക്കാനായില്ല",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "ആർക്കൈവുകൾ തുറക്കുക",
+  "archiveManagementArchive": "ആർക്കൈവ് {index}",
+  "archiveManagementRemove": "ആർക്കൈവ് നീക്കം ചെയ്‌ത് സൈറ്റുകൾ സൂക്ഷിക്കുക",
+  "archiveManagementRemoveBody": "എല്ലാ സൈറ്റുകളും ശേഖരങ്ങളും സാധാരണ ലൈബ്രറിയിലേക്ക് നീക്കുക, തുടർന്ന് ഈ ആർക്കൈവ് നീക്കം ചെയ്യണോ?"
 }

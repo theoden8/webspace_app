@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Pulihkan arsip",
   "homePassphraseHint": "Frasa sandi",
   "homeArchiveOpened": "Arsip dibuka ({sites} situs, {webspaces} webspace)",
-  "homeNoMatchingArchiveCreateBody": "Tidak ada arsip untuk frasa sandi ini. Buat arsip baru dengannya?",
-  "homeNewArchiveCreated": "Arsip baru dibuat",
   "homeCouldNotOpen": "Tidak dapat membuka: {message}",
   "homeVerificationTitle": "Verifikasi",
   "homeSignInTitle": "Masuk",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Menu",
   "siteExtensionsPageFailed": "{name} tidak dapat dibuka di sini",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Buka arsip",
+  "archiveManagementArchive": "Arsip {index}",
+  "archiveManagementRemove": "Hapus arsip dan simpan situs",
+  "archiveManagementRemoveBody": "Pindahkan semua situs dan koleksi ke perpustakaan biasa, lalu hapus arsip ini?"
 }

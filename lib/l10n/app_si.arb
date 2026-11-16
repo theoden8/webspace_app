@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "සංරක්ෂිතය ප්‍රතිස්ථාපනය කරන්න",
   "homePassphraseHint": "මුරපදය",
   "homeArchiveOpened": "සංරක්ෂිතය විවෘත විය (අඩවි {sites}ක්, webspaces {webspaces}ක්)",
-  "homeNoMatchingArchiveCreateBody": "මෙම මුරපදය සඳහා සංරක්ෂිතයක් නැත. එයින් නව සංරක්ෂිතයක් සාදන්නද?",
-  "homeNewArchiveCreated": "නව සංරක්ෂිතය සාදන ලදී",
   "homeCouldNotOpen": "විවෘත කළ නොහැකි විය: {message}",
   "homeVerificationTitle": "සත්‍යාපනය",
   "homeSignInTitle": "පිවිසෙන්න",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "මෙනුව",
   "siteExtensionsPageFailed": "{name} මෙහි විවෘත කළ නොහැකි විය",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "ලේඛනාගාරය විවෘත කරන්න",
+  "archiveManagementArchive": "ලේඛනාගාරය {index}",
+  "archiveManagementRemove": "සංරක්ෂිතය ඉවත් කර අඩවි තබා ගන්න",
+  "archiveManagementRemoveBody": "සියලුම අඩවි සහ එකතු කිරීම් සාමාන්‍ය පුස්තකාලයට ගෙන යන්න, ඉන්පසු මෙම සංරක්ෂිතය ඉවත් කරන්නද?"
 }

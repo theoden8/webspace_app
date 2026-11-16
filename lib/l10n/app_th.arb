@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "กู้คืนคลังเก็บ",
   "homePassphraseHint": "วลีรหัสผ่าน",
   "homeArchiveOpened": "เปิดคลังเก็บแล้ว ({sites} เว็บไซต์, {webspaces} Webspace)",
-  "homeNoMatchingArchiveCreateBody": "ไม่มีคลังเก็บสำหรับวลีรหัสผ่านนี้ สร้างคลังเก็บใหม่ด้วยวลีนี้หรือไม่?",
-  "homeNewArchiveCreated": "สร้างคลังเก็บใหม่แล้ว",
   "homeCouldNotOpen": "ไม่สามารถเปิด: {message}",
   "homeVerificationTitle": "การยืนยัน",
   "homeSignInTitle": "ลงชื่อเข้าใช้",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "เมนู",
   "siteExtensionsPageFailed": "ไม่สามารถเปิด {name} ที่นี่ได้",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "เปิดเอกสารสำคัญ",
+  "archiveManagementArchive": "เอกสารเก่า {index}",
+  "archiveManagementRemove": "ลบไฟล์เก็บถาวรและเก็บไซต์ไว้",
+  "archiveManagementRemoveBody": "ย้ายไซต์และคอลเลกชันทั้งหมดไปยังไลบรารีปกติ แล้วลบไฟล์เก็บถาวรนี้หรือไม่"
 }

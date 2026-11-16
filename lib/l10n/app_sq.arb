@@ -633,8 +633,6 @@
   "homeRestoreArchiveTitle": "Rikthe arkivin",
   "homePassphraseHint": "Frazëkalimi",
   "homeArchiveOpened": "Arkivi u hap ({sites} faqe, {webspaces} webspace)",
-  "homeNoMatchingArchiveCreateBody": "Nuk ekziston asnjë arkiv për këtë frazëkalim. Të krijohet një arkiv i ri me të?",
-  "homeNewArchiveCreated": "Arkivi i ri u krijua",
   "homeCouldNotOpen": "Nuk u hap dot: {message}",
   "homeVerificationTitle": "Verifikim",
   "homeSignInTitle": "Hyr",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Menyja",
   "siteExtensionsPageFailed": "{name} nuk mund të hapej këtu",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Hapni arkivat",
+  "archiveManagementArchive": "Arkivi {index}",
+  "archiveManagementRemove": "Hiqni arkivin dhe mbani sajtet",
+  "archiveManagementRemoveBody": "Të zhvendosen të gjitha sajtet dhe koleksionet në bibliotekën e zakonshme, më pas të hiqet ky arkiv?"
 }

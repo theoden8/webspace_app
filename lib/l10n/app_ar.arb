@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "استعادة الأرشيف",
   "homePassphraseHint": "عبارة المرور",
   "homeArchiveOpened": "تم فتح الأرشيف ({sites} مواقع، {webspaces} مساحات ويب)",
-  "homeNoMatchingArchiveCreateBody": "لا يوجد أرشيف لهذه العبارة المرورية. هل تنشئ أرشيفًا جديدًا بها؟",
-  "homeNewArchiveCreated": "تم إنشاء أرشيف جديد",
   "homeCouldNotOpen": "تعذّر الفتح: {message}",
   "homeVerificationTitle": "التحقق",
   "homeSignInTitle": "تسجيل الدخول",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "القائمة",
   "siteExtensionsPageFailed": "تعذّر فتح {name} هنا",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "فتح المحفوظات",
+  "archiveManagementArchive": "أرشيف {index}",
+  "archiveManagementRemove": "إزالة الأرشيف والاحتفاظ بالمواقع",
+  "archiveManagementRemoveBody": "نقل كافة المواقع والمجموعات إلى المكتبة العادية، ثم إزالة هذا الأرشيف؟"
 }

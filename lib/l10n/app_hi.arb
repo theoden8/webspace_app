@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "संग्रह पुनर्स्थापित करें",
   "homePassphraseHint": "पासफ़्रेज़",
   "homeArchiveOpened": "संग्रह खोला गया ({sites} साइटें, {webspaces} webspace)",
-  "homeNoMatchingArchiveCreateBody": "इस पासफ़्रेज़ के लिए कोई संग्रह मौजूद नहीं है। इसके साथ एक नया संग्रह बनाएँ?",
-  "homeNewArchiveCreated": "नया संग्रह बनाया गया",
   "homeCouldNotOpen": "खोला नहीं जा सका: {message}",
   "homeVerificationTitle": "सत्यापन",
   "homeSignInTitle": "साइन इन करें",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "मेनू",
   "siteExtensionsPageFailed": "{name} यहाँ नहीं खुल सका",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "पुरालेख खोलें",
+  "archiveManagementArchive": "पुरालेख {index}",
+  "archiveManagementRemove": "संग्रह हटाएँ और साइटें रखें",
+  "archiveManagementRemoveBody": "सभी साइटों और संग्रहों को नियमित लाइब्रेरी में ले जाएँ, फिर इस संग्रह को हटा दें?"
 }

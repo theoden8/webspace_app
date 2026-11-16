@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Врати архива",
   "homePassphraseHint": "Лозинка",
   "homeArchiveOpened": "Архивата е отворена ({sites} страници, {webspaces} webspace-ови)",
-  "homeNoMatchingArchiveCreateBody": "Не постои архива за оваа лозинка. Да се создаде нова архива со неа?",
-  "homeNewArchiveCreated": "Создадена е нова архива",
   "homeCouldNotOpen": "Не можеше да се отвори: {message}",
   "homeVerificationTitle": "Потврда",
   "homeSignInTitle": "Најави се",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Мени",
   "siteExtensionsPageFailed": "{name} не можеше да се отвори тука",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Отворете ги архивите",
+  "archiveManagementArchive": "Архива {index}",
+  "archiveManagementRemove": "Отстранете ја архивата и чувајте ги страниците",
+  "archiveManagementRemoveBody": "Да се ​​преместат сите локации и збирки во редовната библиотека, а потоа да се отстрани оваа архива?"
 }

@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Irrestawra l-arkivju",
   "homePassphraseHint": "Passphrase",
   "homeArchiveOpened": "Arkivju miftuħ ({sites} siti, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "L-ebda arkivju ma jeżisti għal din il-passphrase. Toħloq arkivju ġdid biha?",
-  "homeNewArchiveCreated": "Inħoloq arkivju ġdid",
   "homeCouldNotOpen": "Ma setax jinfetaħ: {message}",
   "homeVerificationTitle": "Verifika",
   "homeSignInTitle": "Idħol",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Menu",
   "siteExtensionsPageFailed": "{name} ma setgħetx tinfetaħ hawn",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Iftaħ arkivji",
+  "archiveManagementArchive": "Arkivju {index}",
+  "archiveManagementRemove": "Neħħi l-arkivju u żomm is-siti",
+  "archiveManagementRemoveBody": "Iċċaqlaq is-siti u l-kollezzjonijiet kollha għal-librerija regolari, imbagħad tneħħi dan l-arkivju?"
 }

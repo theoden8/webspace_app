@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Archief herstellen",
   "homePassphraseHint": "Wachtwoordzin",
   "homeArchiveOpened": "Archief geopend ({sites} sites, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "Er bestaat geen archief voor deze wachtwoordzin. Een nieuw archief ermee maken?",
-  "homeNewArchiveCreated": "Nieuw archief gemaakt",
   "homeCouldNotOpen": "Kon niet openen: {message}",
   "homeVerificationTitle": "Verificatie",
   "homeSignInTitle": "Inloggen",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Menu",
   "siteExtensionsPageFailed": "{name} kon hier niet worden geopend",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Archieven openen",
+  "archiveManagementArchive": "Archief {index}",
+  "archiveManagementRemove": "Archief verwijderen en sites behouden",
+  "archiveManagementRemoveBody": "Alle sites en collecties naar de reguliere bibliotheek verplaatsen en vervolgens dit archief verwijderen?"
 }

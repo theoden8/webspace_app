@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Archiv wiederherstellen",
   "homePassphraseHint": "Passphrase",
   "homeArchiveOpened": "Archiv geöffnet ({sites} Seiten, {webspaces} Webspaces)",
-  "homeNoMatchingArchiveCreateBody": "Für diese Passphrase existiert kein Archiv. Ein neues Archiv damit erstellen?",
-  "homeNewArchiveCreated": "Neues Archiv erstellt",
   "homeCouldNotOpen": "Konnte nicht geöffnet werden: {message}",
   "homeVerificationTitle": "Verifizierung",
   "homeSignInTitle": "Anmelden",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Menü",
   "siteExtensionsPageFailed": "{name} konnte hier nicht geöffnet werden",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Archive öffnen",
+  "archiveManagementArchive": "Archiv {index}",
+  "archiveManagementRemove": "Archiv entfernen und Websites behalten",
+  "archiveManagementRemoveBody": "Alle Websites und Sammlungen in die reguläre Bibliothek verschieben und dann dieses Archiv entfernen?"
 }

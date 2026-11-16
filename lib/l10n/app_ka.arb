@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "არქივის აღდგენა",
   "homePassphraseHint": "საიდუმლო ფრაზა",
   "homeArchiveOpened": "არქივი გაიხსნა ({sites} საიტი, {webspaces} webspace)",
-  "homeNoMatchingArchiveCreateBody": "ამ საიდუმლო ფრაზისთვის არქივი არ არსებობს. შეიქმნას მისით ახალი არქივი?",
-  "homeNewArchiveCreated": "ახალი არქივი შეიქმნა",
   "homeCouldNotOpen": "ვერ გაიხსნა: {message}",
   "homeVerificationTitle": "დადასტურება",
   "homeSignInTitle": "შესვლა",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "მენიუ",
   "siteExtensionsPageFailed": "{name} აქ ვერ გაიხსნა",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "გახსენით არქივები",
+  "archiveManagementArchive": "არქივი {index}",
+  "archiveManagementRemove": "წაშალეთ არქივი და შეინახეთ საიტები",
+  "archiveManagementRemoveBody": "გადაიტანოთ ყველა საიტი და კოლექცია ჩვეულებრივ ბიბლიოთეკაში, შემდეგ წაშალოთ ეს არქივი?"
 }

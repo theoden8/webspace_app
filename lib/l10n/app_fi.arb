@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Palauta arkisto",
   "homePassphraseHint": "Tunnuslause",
   "homeArchiveOpened": "Arkisto avattu ({sites} sivustoa, {webspaces} webspacea)",
-  "homeNoMatchingArchiveCreateBody": "Tälle tunnuslauseelle ei ole arkistoa. Luodaanko sillä uusi arkisto?",
-  "homeNewArchiveCreated": "Uusi arkisto luotu",
   "homeCouldNotOpen": "Ei voitu avata: {message}",
   "homeVerificationTitle": "Vahvistus",
   "homeSignInTitle": "Kirjaudu sisään",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Valikko",
   "siteExtensionsPageFailed": "{name} ei auennut tässä",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Avaa arkistot",
+  "archiveManagementArchive": "Arkisto {index}",
+  "archiveManagementRemove": "Poista arkisto ja säilytä sivustot",
+  "archiveManagementRemoveBody": "Siirretäänkö kaikki sivustot ja kokoelmat tavalliseen kirjastoon ja poistetaanko tämä arkisto?"
 }

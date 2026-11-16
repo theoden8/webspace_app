@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Rejesha kumbukumbu",
   "homePassphraseHint": "Nenosiri",
   "homeArchiveOpened": "Kumbukumbu imefunguliwa (tovuti {sites}, webspaces {webspaces})",
-  "homeNoMatchingArchiveCreateBody": "Hakuna kumbukumbu iliyopo kwa nenosiri hili. Unda kumbukumbu mpya nayo?",
-  "homeNewArchiveCreated": "Kumbukumbu mpya imeundwa",
   "homeCouldNotOpen": "Haikuweza kufungua: {message}",
   "homeVerificationTitle": "Uthibitishaji",
   "homeSignInTitle": "Ingia",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Menyu",
   "siteExtensionsPageFailed": "{name} hakikuweza kufunguka hapa",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Fungua kumbukumbu",
+  "archiveManagementArchive": "Hifadhi ya kumbukumbu {index}",
+  "archiveManagementRemove": "Ondoa kumbukumbu na uhifadhi tovuti",
+  "archiveManagementRemoveBody": "Hamisha tovuti na mikusanyiko yote hadi kwenye maktaba ya kawaida, kisha uondoe kumbukumbu hii?"
 }

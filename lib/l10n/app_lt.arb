@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Atkurti archyvą",
   "homePassphraseHint": "Slaptafrazė",
   "homeArchiveOpened": "Archyvas atidarytas ({sites} svetainių, {webspaces} webspace)",
-  "homeNoMatchingArchiveCreateBody": "Šiai slaptafrazei archyvo nėra. Sukurti naują archyvą su ja?",
-  "homeNewArchiveCreated": "Sukurtas naujas archyvas",
   "homeCouldNotOpen": "Nepavyko atidaryti: {message}",
   "homeVerificationTitle": "Patvirtinimas",
   "homeSignInTitle": "Prisijungti",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Meniu",
   "siteExtensionsPageFailed": "Nepavyko čia atidaryti {name}",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Atidaryti archyvus",
+  "archiveManagementArchive": "Archyvas {index}",
+  "archiveManagementRemove": "Pašalinkite archyvą ir palikite svetaines",
+  "archiveManagementRemoveBody": "Perkelti visas svetaines ir kolekcijas į įprastą biblioteką, tada pašalinti šį archyvą?"
 }

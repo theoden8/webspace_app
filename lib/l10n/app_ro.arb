@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Restaurează arhiva",
   "homePassphraseHint": "Frază de acces",
   "homeArchiveOpened": "Arhivă deschisă ({sites} site-uri, {webspaces} webspace-uri)",
-  "homeNoMatchingArchiveCreateBody": "Nu există nicio arhivă pentru această frază de acces. Creezi o arhivă nouă cu ea?",
-  "homeNewArchiveCreated": "Arhivă nouă creată",
   "homeCouldNotOpen": "Nu s-a putut deschide: {message}",
   "homeVerificationTitle": "Verificare",
   "homeSignInTitle": "Autentifică-te",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Meniu",
   "siteExtensionsPageFailed": "{name} nu a putut fi deschisă aici",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Deschide arhivele",
+  "archiveManagementArchive": "Arhiva {index}",
+  "archiveManagementRemove": "Eliminați arhiva și păstrați site-urile",
+  "archiveManagementRemoveBody": "Mutați toate site-urile și colecțiile în biblioteca obișnuită, apoi eliminați această arhivă?"
 }

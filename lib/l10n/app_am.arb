@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "ማህደር እነበረበት መልስ",
   "homePassphraseHint": "የይለፍ ሐረግ",
   "homeArchiveOpened": "ማህደር ተከፍቷል ({sites} ጣቢያዎች፣ {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "ለዚህ የይለፍ ሐረግ ምንም ማህደር የለም። በእሱ አዲስ ማህደር ፍጠር?",
-  "homeNewArchiveCreated": "አዲስ ማህደር ተፈጥሯል",
   "homeCouldNotOpen": "መክፈት አልተቻለም: {message}",
   "homeVerificationTitle": "ማረጋገጫ",
   "homeSignInTitle": "ግባ",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "ምናሌ",
   "siteExtensionsPageFailed": "{name} እዚህ ሊከፈት አልቻለም",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "ማህደሮችን ክፈት",
+  "archiveManagementArchive": "ማህደር {index}",
+  "archiveManagementRemove": "ማህደሩን ያስወግዱ እና ጣቢያዎችን ያስቀምጡ",
+  "archiveManagementRemoveBody": "ሁሉንም ጣቢያዎች እና ስብስቦች ወደ መደበኛው ቤተ-መጽሐፍት ይውሰዱ፣ ከዚያ ይህን ማህደር ይወገድ?"
 }

@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Архив сэргээх",
   "homePassphraseHint": "Нууц үг",
   "homeArchiveOpened": "Архив нээгдлээ ({sites} сайт, {webspaces} webspace)",
-  "homeNoMatchingArchiveCreateBody": "Энэ нууц үгэнд тохирох архив байхгүй. Үүгээр шинэ архив үүсгэх үү?",
-  "homeNewArchiveCreated": "Шинэ архив үүслээ",
   "homeCouldNotOpen": "Нээж чадсангүй: {message}",
   "homeVerificationTitle": "Баталгаажуулалт",
   "homeSignInTitle": "Нэвтрэх",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Цэс",
   "siteExtensionsPageFailed": "{name}-г энд нээж чадсангүй",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Архивыг нээх",
+  "archiveManagementArchive": "Архив {index}",
+  "archiveManagementRemove": "Архивыг устгаж, сайтуудыг хадгалах",
+  "archiveManagementRemoveBody": "Бүх сайт, цуглуулгыг энгийн номын сан руу зөөж, дараа нь энэ архивыг устгах уу?"
 }

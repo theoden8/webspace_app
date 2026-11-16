@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Վերականգնել արխիվը",
   "homePassphraseHint": "Գաղտնաբառ",
   "homeArchiveOpened": "Արխիվը բացվեց ({sites} կայք, {webspaces} webspace)",
-  "homeNoMatchingArchiveCreateBody": "Այս գաղտնաբառի համար արխիվ գոյություն չունի։ Ստեղծե՞լ նոր արխիվ դրանով։",
-  "homeNewArchiveCreated": "Նոր արխիվ ստեղծվեց",
   "homeCouldNotOpen": "Չհաջողվեց բացել՝ {message}",
   "homeVerificationTitle": "Հաստատում",
   "homeSignInTitle": "Մուտք գործել",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Ընտրացանկ",
   "siteExtensionsPageFailed": "{name}-ը չհաջողվեց բացել այստեղ",
   "termAndMeaning": "{term}՝ {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Բացել արխիվները",
+  "archiveManagementArchive": "Արխիվ {index}",
+  "archiveManagementRemove": "Հեռացրեք արխիվը և պահեք կայքերը",
+  "archiveManagementRemoveBody": "Տեղափոխե՞լ բոլոր կայքերն ու հավաքածուները սովորական գրադարան, ապա հեռացնել այս արխիվը:"
 }

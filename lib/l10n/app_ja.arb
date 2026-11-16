@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "アーカイブを復元",
   "homePassphraseHint": "パスフレーズ",
   "homeArchiveOpened": "アーカイブを開きました（{sites} サイト、{webspaces} webspace）",
-  "homeNoMatchingArchiveCreateBody": "このパスフレーズに対応するアーカイブはありません。これで新しいアーカイブを作成しますか？",
-  "homeNewArchiveCreated": "新しいアーカイブを作成しました",
   "homeCouldNotOpen": "開けませんでした: {message}",
   "homeVerificationTitle": "確認",
   "homeSignInTitle": "サインイン",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "メニュー",
   "siteExtensionsPageFailed": "{name} をここで開けませんでした",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first}{second}"
+  "twoSentences": "{first}{second}",
+  "archiveManagementOpen": "アーカイブを開く",
+  "archiveManagementArchive": "アーカイブ {index}",
+  "archiveManagementRemove": "アーカイブを削除してサイトを保持する",
+  "archiveManagementRemoveBody": "すべてのサイトとコレクションを通常のライブラリに移動してから、このアーカイブを削除しますか?"
 }

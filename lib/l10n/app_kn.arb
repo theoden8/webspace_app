@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "ಆರ್ಕೈವ್ ಮರುಸ್ಥಾಪಿಸಿ",
   "homePassphraseHint": "ಪಾಸ್‌ಫ್ರೇಸ್",
   "homeArchiveOpened": "ಆರ್ಕೈವ್ ತೆರೆಯಲಾಗಿದೆ ({sites} ಸೈಟ್‌ಗಳು, {webspaces} webspace‌ಗಳು)",
-  "homeNoMatchingArchiveCreateBody": "ಈ ಪಾಸ್‌ಫ್ರೇಸ್‌ಗೆ ಯಾವುದೇ ಆರ್ಕೈವ್ ಇಲ್ಲ. ಅದರೊಂದಿಗೆ ಹೊಸ ಆರ್ಕೈವ್ ರಚಿಸಬೇಕೆ?",
-  "homeNewArchiveCreated": "ಹೊಸ ಆರ್ಕೈವ್ ರಚಿಸಲಾಗಿದೆ",
   "homeCouldNotOpen": "ತೆರೆಯಲಾಗಲಿಲ್ಲ: {message}",
   "homeVerificationTitle": "ಪರಿಶೀಲನೆ",
   "homeSignInTitle": "ಸೈನ್ ಇನ್ ಮಾಡಿ",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "ಮೆನು",
   "siteExtensionsPageFailed": "{name} ಅನ್ನು ಇಲ್ಲಿ ತೆರೆಯಲಾಗಲಿಲ್ಲ",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "ಆರ್ಕೈವ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ",
+  "archiveManagementArchive": "ಆರ್ಕೈವ್ {index}",
+  "archiveManagementRemove": "ಆರ್ಕೈವ್ ತೆಗೆದುಹಾಕಿ ಮತ್ತು ಸೈಟ್‌ಗಳನ್ನು ಇರಿಸಿ",
+  "archiveManagementRemoveBody": "ಎಲ್ಲಾ ಸೈಟ್‌ಗಳು ಮತ್ತು ಸಂಗ್ರಹಣೆಗಳನ್ನು ಸಾಮಾನ್ಯ ಲೈಬ್ರರಿಗೆ ಸರಿಸಿ, ನಂತರ ಈ ಆರ್ಕೈವ್ ಅನ್ನು ತೆಗೆದುಹಾಕುವುದೇ?"
 }

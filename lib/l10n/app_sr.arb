@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Врати архиву",
   "homePassphraseHint": "Лозинка",
   "homeArchiveOpened": "Архива отворена ({sites} сајтова, {webspaces} webspace-ова)",
-  "homeNoMatchingArchiveCreateBody": "За ову лозинку не постоји архива. Креирати нову архиву са њом?",
-  "homeNewArchiveCreated": "Нова архива креирана",
   "homeCouldNotOpen": "Није могуће отворити: {message}",
   "homeVerificationTitle": "Верификација",
   "homeSignInTitle": "Пријави се",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Мени",
   "siteExtensionsPageFailed": "{name} није могуће отворити овде",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Отворите архиве",
+  "archiveManagementArchive": "Архива {index}",
+  "archiveManagementRemove": "Уклоните архиву и сачувајте сајтове",
+  "archiveManagementRemoveBody": "Желите ли да преместите све локације и колекције у редовну библиотеку, а затим да уклоните ову архиву?"
 }

@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "שחזר ארכיון",
   "homePassphraseHint": "משפט סיסמה",
   "homeArchiveOpened": "הארכיון נפתח ({sites} אתרים, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "אין ארכיון עבור משפט סיסמה זה. ליצור ארכיון חדש איתו?",
-  "homeNewArchiveCreated": "נוצר ארכיון חדש",
   "homeCouldNotOpen": "לא ניתן היה לפתוח: {message}",
   "homeVerificationTitle": "אימות",
   "homeSignInTitle": "התחבר",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "תפריט",
   "siteExtensionsPageFailed": "לא ניתן לפתוח את {name} כאן",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "פתח ארכיון",
+  "archiveManagementArchive": "ארכיון {index}",
+  "archiveManagementRemove": "הסר ארכיון ושמור אתרים",
+  "archiveManagementRemoveBody": "להעביר את כל האתרים והאוספים לספרייה הרגילה, ואז להסיר את הארכיון הזה?"
 }

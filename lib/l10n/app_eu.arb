@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Berreskuratu artxiboa",
   "homePassphraseHint": "Pasaesaldia",
   "homeArchiveOpened": "Artxiboa irekita ({sites} gune, {webspaces} webspace)",
-  "homeNoMatchingArchiveCreateBody": "Ez dago artxiborik pasaesaldi honetarako. Sortu artxibo berri bat horrekin?",
-  "homeNewArchiveCreated": "Artxibo berria sortuta",
   "homeCouldNotOpen": "Ezin izan da ireki: {message}",
   "homeVerificationTitle": "Egiaztapena",
   "homeSignInTitle": "Hasi saioa",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Menua",
   "siteExtensionsPageFailed": "Ezin izan da {name} hemen ireki",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Ireki artxiboak",
+  "archiveManagementArchive": "{index} artxiboa",
+  "archiveManagementRemove": "Kendu artxiboa eta gorde guneak",
+  "archiveManagementRemoveBody": "Gune eta bilduma guztiak ohiko liburutegira eraman eta artxibo hau kendu?"
 }

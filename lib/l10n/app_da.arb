@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Gendan arkiv",
   "homePassphraseHint": "Adgangssætning",
   "homeArchiveOpened": "Arkiv åbnet ({sites} sider, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "Der findes intet arkiv for denne adgangssætning. Opret et nyt arkiv med den?",
-  "homeNewArchiveCreated": "Nyt arkiv oprettet",
   "homeCouldNotOpen": "Kunne ikke åbne: {message}",
   "homeVerificationTitle": "Verifikation",
   "homeSignInTitle": "Log ind",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Menu",
   "siteExtensionsPageFailed": "{name} kunne ikke åbnes her",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Åbne arkiver",
+  "archiveManagementArchive": "Arkiv {index}",
+  "archiveManagementRemove": "Fjern arkiv og behold websteder",
+  "archiveManagementRemoveBody": "Vil du flytte alle websteder og samlinger til det almindelige bibliotek, og derefter fjerne dette arkiv?"
 }

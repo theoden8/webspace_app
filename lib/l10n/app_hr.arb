@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Vrati arhivu",
   "homePassphraseHint": "Zaporka",
   "homeArchiveOpened": "Arhiva otvorena ({sites} stranica, {webspaces} webspaceova)",
-  "homeNoMatchingArchiveCreateBody": "Za ovu zaporku ne postoji arhiva. Stvoriti novu arhivu s njom?",
-  "homeNewArchiveCreated": "Nova arhiva stvorena",
   "homeCouldNotOpen": "Nije moguće otvoriti: {message}",
   "homeVerificationTitle": "Provjera",
   "homeSignInTitle": "Prijavi se",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Izbornik",
   "siteExtensionsPageFailed": "{name} nije moguće otvoriti ovdje",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Otvorite arhive",
+  "archiveManagementArchive": "Arhiva {index}",
+  "archiveManagementRemove": "Ukloni arhivu i zadrži stranice",
+  "archiveManagementRemoveBody": "Premjestiti sva mjesta i zbirke u običnu knjižnicu, a zatim ukloniti ovu arhivu?"
 }

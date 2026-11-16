@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Athchóirigh cartlann",
   "homePassphraseHint": "Pasfhrása",
   "homeArchiveOpened": "Cartlann oscailte ({sites} suíomh, {webspaces} webspace)",
-  "homeNoMatchingArchiveCreateBody": "Níl aon chartlann ann don phasfhrása seo. Cruthaigh cartlann nua leis?",
-  "homeNewArchiveCreated": "Cruthaíodh cartlann nua",
   "homeCouldNotOpen": "Níorbh fhéidir oscailt: {message}",
   "homeVerificationTitle": "Fíorú",
   "homeSignInTitle": "Sínigh isteach",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Roghchlár",
   "siteExtensionsPageFailed": "Níorbh fhéidir {name} a oscailt anseo",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Oscail cartlanna",
+  "archiveManagementArchive": "Cartlann {index}",
+  "archiveManagementRemove": "Bain cartlann agus coinnigh suíomhanna",
+  "archiveManagementRemoveBody": "Bog gach suíomh agus bailiúchán go dtí an ghnáthleabharlann, ansin bain an chartlann seo?"
 }

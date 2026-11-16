@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Przywróć archiwum",
   "homePassphraseHint": "Hasło",
   "homeArchiveOpened": "Archiwum otwarte ({sites} stron, {webspaces} webspace'ów)",
-  "homeNoMatchingArchiveCreateBody": "Dla tego hasła nie istnieje żadne archiwum. Utworzyć nowe archiwum z tym hasłem?",
-  "homeNewArchiveCreated": "Utworzono nowe archiwum",
   "homeCouldNotOpen": "Nie udało się otworzyć: {message}",
   "homeVerificationTitle": "Weryfikacja",
   "homeSignInTitle": "Zaloguj się",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Menu",
   "siteExtensionsPageFailed": "Nie udało się tu otworzyć {name}",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Otwórz archiwa",
+  "archiveManagementArchive": "Archiwum {index}",
+  "archiveManagementRemove": "Usuń archiwum i zachowaj witryny",
+  "archiveManagementRemoveBody": "Przenieść wszystkie witryny i zbiory do zwykłej biblioteki, a następnie usunąć to archiwum?"
 }
