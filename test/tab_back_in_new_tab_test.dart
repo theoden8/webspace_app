@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/controllers/site_runtime.dart';
@@ -16,6 +18,8 @@ import 'helpers/model_fixture.dart';
 class _Page extends Fake implements TabsHost {
   final offered = <TabId>[];
   var commits = 0;
+  Completer<void>? commitGate;
+  final commitStarted = Completer<void>();
 
   @override
   bool get mounted => true;
@@ -24,7 +28,11 @@ class _Page extends Fake implements TabsHost {
   void rebuild() {}
 
   @override
-  Future<void> commitSites(SiteSetChange change) async => commits++;
+  Future<void> commitSites(SiteSetChange change) async {
+    commits++;
+    if (!commitStarted.isCompleted) commitStarted.complete();
+    if (commitGate case final gate?) await gate.future;
+  }
 
   @override
   void offerOpenTab(WebViewModel model, {required TabId tabId}) =>
@@ -40,7 +48,7 @@ class _NoResidency extends Fake implements ResidencyHost {}
 void main() {
   tearDown(() => WebViewModel.siteLookup = null);
 
-  ({WebViewModel site, FakeWebViewController webview, _Page page,
+  ({WebViewModel site, SiteRuntime sites, FakeWebViewController webview, _Page page,
       TabsController tabs}) githubOnScreen({bool tabsEnabled = true}) {
     final site = WebViewModel(
         initUrl: 'https://github.com/', tabsEnabled: tabsEnabled)
@@ -52,7 +60,7 @@ void main() {
     final page = _Page();
     final tabs = TabsController(sites,
         host: page, navStates: _NavStates(), residency: _NoResidency());
-    return (site: site, webview: webview, page: page, tabs: tabs);
+    return (site: site, sites: sites, webview: webview, page: page, tabs: tabs);
   }
 
   test('the page Back would go to opens parked under the tab on screen',
@@ -141,6 +149,32 @@ void main() {
     await s.tabs.openBackInNewTab(s.site);
 
     expect(s.site.tabs, hasLength(2));
+    expect(s.page.offered, isEmpty);
+  });
+
+  test('a late background-tab confirmation stays off another site', () async {
+    final s = githubOnScreen();
+    s.page.commitGate = Completer<void>();
+    final pending = s.tabs.openLinkInNewTab(s.site,
+        url: 'https://github.com/next', hostSiteId: null);
+    await s.page.commitStarted.future;
+    s.sites.seed(shown: null);
+    s.page.commitGate!.complete();
+    await pending;
+    expect(s.page.offered, isEmpty);
+  });
+
+  test('a late background-tab confirmation stays off another tab', () async {
+    final s = githubOnScreen();
+    s.page.commitGate = Completer<void>();
+    final pending = s.tabs.openLinkInNewTab(s.site,
+        url: 'https://github.com/next', hostSiteId: null);
+    await s.page.commitStarted.future;
+    final other = SiteTab(url: 'https://github.com/other');
+    s.site.setTabs([...s.site.tabs, other]);
+    s.site.setActiveTab(other.id);
+    s.page.commitGate!.complete();
+    await pending;
     expect(s.page.offered, isEmpty);
   });
 
