@@ -111,9 +111,13 @@ final class ArchiveIds {
         ? _fresh({..._sealedAs.keys, ..._sealedAs.values, listed}, mint: mint)
         : listed;
     _sealedAs[listed] = sealed;
+    admitted.add(listed);
     return sealed;
   }
 
   /// A site moves back out: the archive no longer names it.
-  void forget(SiteId listed) => _sealedAs.remove(listed);
+  void forget(SiteId listed) {
+    _sealedAs.remove(listed);
+    admitted.remove(listed);
+  }
 }

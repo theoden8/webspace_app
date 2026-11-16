@@ -340,6 +340,8 @@ List<HeldScript> sanitizeImportedSites(
 /// consent given on the exporting device. A local close and reopen never
 /// comes this way, so consent given here stays.
 ArchiveState sanitizeImportedArchive(ArchiveState section) {
+  section.pendingOut = null;
+  section.pendingRemoval = null;
   final sites = [
     for (final json in section.sites)
       WebViewModel.fromJson(

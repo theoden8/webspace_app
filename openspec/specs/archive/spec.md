@@ -474,6 +474,14 @@ The user-facing entry point for opening an archive SHALL live inside the existin
 **And** the user can remove an archive while keeping its sites and collections in the regular library
 **And** no index of closed archives is persisted
 
+#### Scenario: Interrupted removal resumes on the next open
+
+**Given** an archive removal was interrupted between writing the regular library and clearing its slot
+**When** that archive is next opened
+**Then** an encrypted transfer marker is compared with the regular library
+**And** a transferred site or collection is not added a second time
+**And** an item whose regular-library write did not land remains in the archive
+
 #### Scenario: Empty archive is reclaimed
 
 **Given** an open archive with no sites or collections

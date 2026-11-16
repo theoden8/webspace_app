@@ -37,7 +37,8 @@ Future<Uint8List> _derive(String passphrase, {required Uint8List? salt}) {
 /// [ArchiveController] on the real slot pool, with the page's archive steps
 /// and stores; only the platform (keychain, native containers) is faked.
 class ArchiveHarness implements ArchiveHost, ArchivePrompts {
-  ArchiveHarness() {
+  ArchiveHarness({MockFlutterSecureStorage? archiveSlots})
+      : slots = archiveSlots ?? MockFlutterSecureStorage() {
     archives = ArchiveController(
       runtime,
       host: this,
@@ -58,7 +59,10 @@ class ArchiveHarness implements ArchiveHost, ArchivePrompts {
   // Archives exist for their containers' sake: each site's opaque one is
   // deleted on close (ARCH-007).
   final runtime = SiteRuntime()..isolation = fakeContainers();
-  final slots = MockFlutterSecureStorage();
+  final MockFlutterSecureStorage slots;
+  bool failUnarchiveCommit = false;
+  bool failArchiveWriteAfterUnarchive = false;
+  bool failArchiveWriteAfterCollections = false;
   late final ArchiveController archives;
   final toasts = <String Function(AppLocalizations)>[];
 
@@ -126,7 +130,16 @@ class ArchiveHarness implements ArchiveHost, ArchivePrompts {
         await held._released.future;
       }
     }
+    if (change is SiteUnarchived && failUnarchiveCommit) {
+      throw StateError('app-tier write failed');
+    }
     runtime.applied(change);
+    if (change is SiteUnarchived && failArchiveWriteAfterUnarchive) {
+      slots.throwOnWrite = true;
+    }
+    if (change is ArchiveCollectionsKept && failArchiveWriteAfterCollections) {
+      slots.throwOnWrite = true;
+    }
     if (change case SiteArchived(:final site, :final into)) {
       await archives.recordIn(site, into: into);
     }

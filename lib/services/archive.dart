@@ -9,6 +9,13 @@ import 'archive_storage.dart';
 
 const int kArchiveStateVersion = 1;
 
+/// A site being copied from an archive into the regular library.
+final class ArchivePendingOut {
+  const ArchivePendingOut({required this.index, required this.siteId});
+  final int index;
+  final SiteId siteId;
+}
+
 class ArchiveState {
   ArchiveState({
     this.version = kArchiveStateVersion,
@@ -17,6 +24,8 @@ class ArchiveState {
     List<Map<String, dynamic>>? sites,
     Map<String, List<Map<String, dynamic>>>? cookies,
     Map<WebspaceId, List<SiteId>>? appTierMembership,
+    this.pendingOut,
+    this.pendingRemoval,
     this.selectedWebspaceId,
   })  : createdAt = createdAt ?? DateTime.now().toUtc(),
         webspaces = webspaces ?? <Map<String, dynamic>>[],
@@ -35,6 +44,8 @@ class ArchiveState {
   /// `webspaces` pref, so a closed archive leaves no dangling ids behind
   /// (ARCH-001); reopening re-attaches the sites to their collections.
   final Map<WebspaceId, List<SiteId>> appTierMembership;
+  ArchivePendingOut? pendingOut;
+  List<WebspaceId>? pendingRemoval;
   WebspaceId? selectedWebspaceId;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -47,6 +58,10 @@ class ArchiveState {
           'appTierMembership': appTierMembership,
         if (selectedWebspaceId != null)
           'selectedWebspaceId': selectedWebspaceId,
+        if (pendingOut case final move?)
+          'pendingOut': {'index': move.index, 'siteId': move.siteId},
+        if (pendingRemoval case final ids?)
+          'pendingRemoval': ids,
       };
 
   /// This state with the given parts in place of its own.
@@ -64,6 +79,8 @@ class ArchiveState {
         cookies: cookies ?? this.cookies,
         webspaces: webspaces ?? this.webspaces,
         appTierMembership: appTierMembership ?? this.appTierMembership,
+        pendingOut: pendingOut,
+        pendingRemoval: pendingRemoval,
       );
 
   factory ArchiveState.fromJson(Map<String, dynamic> json) {
@@ -101,6 +118,16 @@ class ArchiveState {
             id: ids.map(SiteId.parse).nonNulls.toList(),
       },
       selectedWebspaceId: WebspaceId.parse(json['selectedWebspaceId']),
+      pendingOut: switch (json['pendingOut']) {
+        {'index': final int index, 'siteId': final String id}
+            when index >= 0 && SiteId.parse(id) != null =>
+          ArchivePendingOut(index: index, siteId: SiteId(id)),
+        _ => null,
+      },
+      pendingRemoval: switch (json['pendingRemoval']) {
+        final List values => values.map(WebspaceId.parse).nonNulls.toList(),
+        _ => null,
+      },
     );
   }
 }
