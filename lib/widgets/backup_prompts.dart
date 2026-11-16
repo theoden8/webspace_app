@@ -35,103 +35,166 @@ class DialogBackupPrompts implements BackupPrompts {
     final appPrefKeys = {for (final pref in AppPref.values) pref.key};
     var globalScripts = !siteOnly;
     var carry = ExtensionCarry.files;
+    var section = 0; // Summary, sites, app settings, extensions.
     return showDialog<BackupExportChoices>(
       context: context,
       builder: (dialog) => StatefulBuilder(
         builder: (dialog, refresh) {
-          return Dialog.fullscreen(
-            child: Scaffold(
-              appBar: AppBar(
-                title: Text(loc.backupConfigureTitle),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(dialog),
-                    child: Text(loc.commonCancel),
-                  ),
-                ],
-              ),
-              body: ListView(
-                children: [
-                  CheckboxListTile(
-                    title: Text(loc.backupAllSites),
-                    subtitle: Text(loc.backupAllSitesDetail),
-                    value: selected.length == sites.length && sites.isNotEmpty,
-                    onChanged: (value) => refresh(() {
-                      selected.clear();
-                      if (value == true) {
-                        selected.addAll(sites.map((s) => s.siteId.toString()));
-                      }
-                    }),
-                  ),
-                  for (final site in sites)
-                    ExpansionTile(
-                      leading: Checkbox(
-                        value: selected.contains(site.siteId.toString()),
+          return PopScope(
+            canPop: section == 0,
+            onPopInvokedWithResult: (didPop, _) {
+              if (!didPop) refresh(() => section = 0);
+            },
+            child: Dialog.fullscreen(
+              child: Scaffold(
+                appBar: AppBar(
+                  leading: section == 0
+                      ? null
+                      : IconButton(
+                          icon: const Icon(Icons.arrow_back),
+                          onPressed: () => refresh(() => section = 0),
+                        ),
+                  title: Text(switch (section) {
+                    1 => loc.backupAllSites,
+                    2 => loc.backupChooseAppSettings,
+                    3 => loc.backupExtensionsTitle,
+                    _ => loc.backupConfigureTitle,
+                  }),
+                  actions: section == 0
+                      ? [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialog),
+                            child: Text(loc.commonCancel),
+                          ),
+                        ]
+                      : null,
+                ),
+                body: ListView(
+                  children: [
+                    if (section == 0) ...[
+                      ListTile(
+                        title: Text(loc.backupAllSites),
+                        subtitle: Text('${selected.length} / ${sites.length}'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => refresh(() => section = 1),
+                      ),
+                      ListTile(
+                        title: Text(loc.backupAppSettings),
+                        subtitle: Text(
+                          '${appSettings ? appPrefKeys.length : 0} / ${AppPref.values.length}',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => refresh(() => section = 2),
+                      ),
+                      CheckboxListTile(
+                        title: Text(loc.backupGlobalScripts),
+                        value: globalScripts,
+                        onChanged: (v) =>
+                            refresh(() => globalScripts = v ?? false),
+                      ),
+                      if (extensions != null)
+                        ListTile(
+                          title: Text(loc.backupExtensionsTitle),
+                          subtitle: Text(switch (carry) {
+                            ExtensionCarry.leaveOut =>
+                              loc.backupExtensionsLeaveOut,
+                            ExtensionCarry.references =>
+                              loc.backupExtensionsReferences,
+                            ExtensionCarry.files => loc.backupExtensionsFiles,
+                          }),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => refresh(() => section = 3),
+                        ),
+                    ],
+                    if (section == 1) ...[
+                      CheckboxListTile(
+                        title: Text(loc.backupAllSites),
+                        subtitle: Text(loc.backupAllSitesDetail),
+                        value:
+                            selected.length == sites.length && sites.isNotEmpty,
                         onChanged: (value) => refresh(() {
+                          selected.clear();
                           if (value == true) {
-                            selected.add(site.siteId.toString());
-                          } else {
-                            selected.remove(site.siteId.toString());
+                            selected.addAll(
+                              sites.map((s) => s.siteId.toString()),
+                            );
                           }
                         }),
                       ),
-                      title: Text(site.getDisplayName()),
-                      children: selected.contains(site.siteId.toString())
-                          ? [
-                              CheckboxListTile(
-                                title: Text(loc.backupSiteScripts),
-                                value: scriptSites.contains(
-                                  site.siteId.toString(),
-                                ),
-                                onChanged: (v) => refresh(() {
-                                  if (v == true) {
-                                    scriptSites.add(site.siteId.toString());
-                                  } else {
-                                    scriptSites.remove(site.siteId.toString());
-                                  }
-                                }),
-                              ),
-                              CheckboxListTile(
-                                title: Text(loc.backupSiteCookies),
-                                value: cookieSites.contains(
-                                  site.siteId.toString(),
-                                ),
-                                onChanged: (v) => refresh(() {
-                                  if (v == true) {
-                                    cookieSites.add(site.siteId.toString());
-                                  } else {
-                                    cookieSites.remove(site.siteId.toString());
-                                  }
-                                }),
-                              ),
-                              CheckboxListTile(
-                                title: Text(loc.backupSiteExtensions),
-                                value: extensionSites.contains(
-                                  site.siteId.toString(),
-                                ),
-                                onChanged: (v) => refresh(() {
-                                  if (v == true) {
-                                    extensionSites.add(site.siteId.toString());
-                                  } else {
-                                    extensionSites.remove(
+                      for (final site in sites)
+                        ExpansionTile(
+                          leading: Checkbox(
+                            value: selected.contains(site.siteId.toString()),
+                            onChanged: (value) => refresh(() {
+                              if (value == true) {
+                                selected.add(site.siteId.toString());
+                              } else {
+                                selected.remove(site.siteId.toString());
+                              }
+                            }),
+                          ),
+                          title: Text(site.getDisplayName()),
+                          children: selected.contains(site.siteId.toString())
+                              ? [
+                                  CheckboxListTile(
+                                    title: Text(loc.backupSiteScripts),
+                                    value: scriptSites.contains(
                                       site.siteId.toString(),
-                                    );
-                                  }
-                                }),
-                              ),
-                            ]
-                          : const [],
-                    ),
-                  const Divider(),
-                  CheckboxListTile(
-                    title: Text(loc.backupAppSettings),
-                    value: appSettings,
-                    onChanged: (v) => refresh(() => appSettings = v ?? false),
-                  ),
-                  if (appSettings)
-                    ExpansionTile(
-                      title: Text(loc.backupChooseAppSettings),
-                      children: [
+                                    ),
+                                    onChanged: (v) => refresh(() {
+                                      if (v == true) {
+                                        scriptSites.add(site.siteId.toString());
+                                      } else {
+                                        scriptSites.remove(
+                                          site.siteId.toString(),
+                                        );
+                                      }
+                                    }),
+                                  ),
+                                  CheckboxListTile(
+                                    title: Text(loc.backupSiteCookies),
+                                    value: cookieSites.contains(
+                                      site.siteId.toString(),
+                                    ),
+                                    onChanged: (v) => refresh(() {
+                                      if (v == true) {
+                                        cookieSites.add(site.siteId.toString());
+                                      } else {
+                                        cookieSites.remove(
+                                          site.siteId.toString(),
+                                        );
+                                      }
+                                    }),
+                                  ),
+                                  CheckboxListTile(
+                                    title: Text(loc.backupSiteExtensions),
+                                    value: extensionSites.contains(
+                                      site.siteId.toString(),
+                                    ),
+                                    onChanged: (v) => refresh(() {
+                                      if (v == true) {
+                                        extensionSites.add(
+                                          site.siteId.toString(),
+                                        );
+                                      } else {
+                                        extensionSites.remove(
+                                          site.siteId.toString(),
+                                        );
+                                      }
+                                    }),
+                                  ),
+                                ]
+                              : const [],
+                        ),
+                    ],
+                    if (section == 2) ...[
+                      CheckboxListTile(
+                        title: Text(loc.backupAppSettings),
+                        value: appSettings,
+                        onChanged: (v) =>
+                            refresh(() => appSettings = v ?? false),
+                      ),
+                      if (appSettings) ...[
                         for (final pref in AppPref.values)
                           CheckboxListTile(
                             title: Text(
@@ -155,70 +218,69 @@ class DialogBackupPrompts implements BackupPrompts {
                             }),
                           ),
                       ],
-                    ),
-                  CheckboxListTile(
-                    title: Text(loc.backupGlobalScripts),
-                    value: globalScripts,
-                    onChanged: (v) => refresh(() => globalScripts = v ?? false),
-                  ),
-                  if (extensions != null) ...[
-                    const Divider(),
-                    ListTile(title: Text(loc.backupExtensionsTitle)),
-                    ListTile(
-                      title: Text(loc.backupExtensionsLeaveOut),
-                      leading: Icon(
-                        carry == ExtensionCarry.leaveOut
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_unchecked,
+                    ],
+                    if (section == 3 && extensions != null) ...[
+                      ListTile(
+                        title: Text(loc.backupExtensionsLeaveOut),
+                        leading: Icon(
+                          carry == ExtensionCarry.leaveOut
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                        ),
+                        onTap: () =>
+                            refresh(() => carry = ExtensionCarry.leaveOut),
                       ),
-                      onTap: () =>
-                          refresh(() => carry = ExtensionCarry.leaveOut),
-                    ),
-                    ListTile(
-                      title: Text(loc.backupExtensionsReferences),
-                      subtitle: Text(
-                        formatByteSize(extensions.referencesBytes),
+                      ListTile(
+                        title: Text(loc.backupExtensionsReferences),
+                        subtitle: Text(
+                          formatByteSize(extensions.referencesBytes),
+                        ),
+                        leading: Icon(
+                          carry == ExtensionCarry.references
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                        ),
+                        onTap: () =>
+                            refresh(() => carry = ExtensionCarry.references),
                       ),
-                      leading: Icon(
-                        carry == ExtensionCarry.references
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_unchecked,
+                      ListTile(
+                        title: Text(loc.backupExtensionsFiles),
+                        subtitle: Text(formatByteSize(extensions.filesBytes)),
+                        leading: Icon(
+                          carry == ExtensionCarry.files
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                        ),
+                        onTap: () =>
+                            refresh(() => carry = ExtensionCarry.files),
                       ),
-                      onTap: () =>
-                          refresh(() => carry = ExtensionCarry.references),
-                    ),
-                    ListTile(
-                      title: Text(loc.backupExtensionsFiles),
-                      subtitle: Text(formatByteSize(extensions.filesBytes)),
-                      leading: Icon(
-                        carry == ExtensionCarry.files
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_unchecked,
-                      ),
-                      onTap: () => refresh(() => carry = ExtensionCarry.files),
-                    ),
+                    ],
                   ],
-                ],
-              ),
-              bottomNavigationBar: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(Spacing.md),
-                  child: FilledButton(
-                    onPressed: () => Navigator.pop(
-                      dialog,
-                      BackupExportChoices(
-                        siteIds: selected,
-                        siteScriptIds: scriptSites,
-                        siteCookieIds: cookieSites,
-                        siteExtensionIds: extensionSites,
-                        appSettings: appSettings,
-                        appPrefKeys: appPrefKeys,
-                        siteScripts: true,
-                        globalScripts: globalScripts,
-                        extensionCarry: carry,
+                ),
+                bottomNavigationBar: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(Spacing.md),
+                    child: FilledButton(
+                      onPressed: section != 0
+                          ? () => refresh(() => section = 0)
+                          : () => Navigator.pop(
+                              dialog,
+                              BackupExportChoices(
+                                siteIds: selected,
+                                siteScriptIds: scriptSites,
+                                siteCookieIds: cookieSites,
+                                siteExtensionIds: extensionSites,
+                                appSettings: appSettings,
+                                appPrefKeys: appPrefKeys,
+                                siteScripts: true,
+                                globalScripts: globalScripts,
+                                extensionCarry: carry,
+                              ),
+                            ),
+                      child: Text(
+                        section == 0 ? loc.backupCreateAction : loc.commonDone,
                       ),
                     ),
-                    child: Text(loc.backupCreateAction),
                   ),
                 ),
               ),

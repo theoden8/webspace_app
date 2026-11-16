@@ -22,13 +22,27 @@ void main() {
     final site = WebViewModel(initUrl: 'https://example.com', name: 'Example');
     final answer = DialogBackupPrompts(context).configureExport([site], null);
     await tester.pumpAndSettle();
+    expect(find.text('Example'), findsNothing);
+    await tester.tap(find.text('Sites'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Example'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Site cookies'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('App settings'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('App settings'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Create backup').last);
     await tester.pumpAndSettle();
     final choices = await answer;
     expect(choices, isA<BackupExportChoices>());
     expect(choices!.siteIds, contains(site.siteId));
+    expect(choices.siteCookieIds, isEmpty);
     expect(choices.appSettings, isFalse);
   });
 
