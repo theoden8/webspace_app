@@ -1804,6 +1804,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   void beginScript() {
     _nextFlow = 0;
     // The model starts from the state the setup left.
+    // Setup flow numbers are reused by the script, so their tab switches
+    // cannot describe a script flow with the same number.
+    _tabSwitches.clear();
+    _checkWarmSwitch(null);
     _changed.clear();
     _lastMark.clear();
     _unmodeled.clear();
