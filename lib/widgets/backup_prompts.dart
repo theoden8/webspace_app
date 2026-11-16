@@ -299,105 +299,162 @@ class DialogBackupPrompts implements BackupPrompts {
     var globalScripts = backup.globalUserScripts != null;
     var scripts = false;
     var extensions = backup.webExtensions != null;
+    var extensionsOn = false;
+    var section = 0;
     return showDialog<BackupRestoreChoices>(
       context: context,
       builder: (dialog) => StatefulBuilder(
-        builder: (dialog, refresh) => Dialog.fullscreen(
-          child: Scaffold(
-            appBar: AppBar(
-              title: Text(loc.backupRestoreTitle),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialog),
-                  child: Text(loc.commonCancel),
+        builder: (dialog, refresh) => PopScope(
+          canPop: section == 0,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) refresh(() => section = 0);
+          },
+          child: Dialog.fullscreen(
+            child: Scaffold(
+              appBar: AppBar(
+                leading: section == 0
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () => refresh(() => section = 0),
+                      ),
+                title: Text(
+                  section == 0
+                      ? loc.backupRestoreTitle
+                      : loc.backupRestoreContents,
                 ),
-              ],
-            ),
-            body: ListView(
-              children: [
-                ListTile(
-                  title: Text(
-                    loc.homeImportExportedLabel(
-                      backup.exportedAt.toLocal().toString().split('.').first,
-                    ),
-                  ),
-                ),
-                CheckboxListTile(
-                  title: Text(loc.backupAllSites),
-                  subtitle: Text('${backup.sites.length}'),
-                  value: sites,
-                  onChanged: backup.includesSites
-                      ? (v) => refresh(() => sites = v ?? false)
-                      : null,
-                ),
-                CheckboxListTile(
-                  title: Text(loc.backupAppSettings),
-                  value: appSettings,
-                  onChanged: backup.includesAppSettings
-                      ? (v) => refresh(() => appSettings = v ?? false)
-                      : null,
-                ),
-                if (backup.globalUserScripts != null)
-                  CheckboxListTile(
-                    title: Text(loc.backupGlobalScripts),
-                    value: globalScripts,
-                    onChanged: (v) => refresh(() => globalScripts = v ?? false),
-                  ),
-                if (appSettings)
-                  if (backupGlobalProxyAddress(backup) case final proxy?)
+                actions: section == 0
+                    ? [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialog),
+                          child: Text(loc.commonCancel),
+                        ),
+                      ]
+                    : null,
+              ),
+              body: ListView(
+                children: [
+                  if (section == 0) ...[
                     ListTile(
-                      title: Text(loc.homeImportGlobalProxyWarning(proxy)),
-                    ),
-                if (backupUserScriptCount(backup) > 0)
-                  ListTile(
-                    title: Text(
-                      loc.homeImportUserScriptsWarning(
-                        backupUserScriptCount(backup),
+                      title: Text(
+                        loc.homeImportExportedLabel(
+                          backup.exportedAt
+                              .toLocal()
+                              .toString()
+                              .split('.')
+                              .first,
+                        ),
                       ),
                     ),
-                  ),
-                if (backup.globalUserScripts?.isNotEmpty == true ||
-                    backup.sites.any(
-                      (s) => (s['userScripts'] as List?)?.isNotEmpty == true,
-                    ))
-                  CheckboxListTile(
-                    title: Text(loc.backupTurnOnScripts),
-                    subtitle: Text(loc.homeImportHeldScriptsBody),
-                    value: scripts,
-                    onChanged: sites
-                        ? (v) => refresh(() => scripts = v ?? false)
-                        : null,
-                  ),
-                if (backup.webExtensions != null)
-                  CheckboxListTile(
-                    title: Text(loc.backupRestoreExtensions),
-                    value: extensions,
-                    onChanged: (v) => refresh(() => extensions = v ?? false),
-                  ),
-                if (backup.webExtensions case final carried?)
-                  for (final extension in carried.extensions)
                     ListTile(
-                      title: Text(extension.name),
-                      subtitle: Text(extension.version),
+                      title: Text(loc.backupRestoreContents),
+                      subtitle: Text(
+                        '${sites ? backup.sites.length : 0} ${loc.backupAllSites.toLowerCase()}',
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => refresh(() => section = 1),
                     ),
-                ListTile(title: Text(loc.homeImportSettingsSessionsNote)),
-              ],
-            ),
-            bottomNavigationBar: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(Spacing.md),
-                child: FilledButton(
-                  onPressed: () => Navigator.pop(
-                    dialog,
-                    BackupRestoreChoices(
-                      restoreSites: sites,
-                      restoreAppSettings: appSettings,
-                      restoreGlobalScripts: globalScripts,
-                      turnOnScripts: sites && scripts,
-                      turnOnExtensions: extensions,
+                    const Divider(),
+                    ListTile(title: Text(loc.backupAfterRestore)),
+                    if (backup.globalUserScripts?.isNotEmpty == true ||
+                        backup.sites.any(
+                          (s) =>
+                              (s['userScripts'] as List?)?.isNotEmpty == true,
+                        ))
+                      CheckboxListTile(
+                        title: Text(loc.backupTurnOnScripts),
+                        subtitle: Text(
+                          '${backupUserScriptCount(backup)} · '
+                          '${loc.backupReviewScripts}',
+                        ),
+                        value: scripts,
+                        onChanged: sites
+                            ? (v) => refresh(() => scripts = v ?? false)
+                            : null,
+                      ),
+                    if (backup.webExtensions != null)
+                      CheckboxListTile(
+                        title: Text(loc.backupTurnOnExtensions),
+                        value: extensionsOn,
+                        onChanged: extensions && sites
+                            ? (v) => refresh(() => extensionsOn = v ?? false)
+                            : null,
+                      ),
+                    ListTile(title: Text(loc.homeImportSettingsSessionsNote)),
+                  ],
+                  if (section == 1) ...[
+                    CheckboxListTile(
+                      title: Text(loc.backupAllSites),
+                      subtitle: Text('${backup.sites.length}'),
+                      value: sites,
+                      onChanged: backup.includesSites
+                          ? (v) => refresh(() => sites = v ?? false)
+                          : null,
+                    ),
+                    CheckboxListTile(
+                      title: Text(loc.backupAppSettings),
+                      value: appSettings,
+                      onChanged: backup.includesAppSettings
+                          ? (v) => refresh(() => appSettings = v ?? false)
+                          : null,
+                    ),
+                    if (backup.globalUserScripts != null)
+                      CheckboxListTile(
+                        title: Text(loc.backupGlobalScripts),
+                        value: globalScripts,
+                        onChanged: (v) =>
+                            refresh(() => globalScripts = v ?? false),
+                      ),
+                    if (backup.webExtensions != null)
+                      CheckboxListTile(
+                        title: Text(loc.backupRestoreExtensions),
+                        value: extensions,
+                        onChanged: (v) => refresh(() {
+                          extensions = v ?? false;
+                          if (!extensions) extensionsOn = false;
+                        }),
+                      ),
+                    if (appSettings)
+                      if (backupGlobalProxyAddress(backup) case final proxy?)
+                        ListTile(
+                          title: Text(loc.homeImportGlobalProxyWarning(proxy)),
+                        ),
+                    if (backup.webExtensions case final carried?)
+                      ExpansionTile(
+                        title: Text(loc.backupExtensionsTitle),
+                        children: [
+                          for (final extension in carried.extensions)
+                            ListTile(
+                              title: Text(extension.name),
+                              subtitle: Text(extension.version),
+                            ),
+                        ],
+                      ),
+                  ],
+                ],
+              ),
+              bottomNavigationBar: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(Spacing.md),
+                  child: FilledButton(
+                    onPressed: section != 0
+                        ? () => refresh(() => section = 0)
+                        : () => Navigator.pop(
+                            dialog,
+                            BackupRestoreChoices(
+                              restoreSites: sites,
+                              restoreAppSettings: appSettings,
+                              restoreGlobalScripts: globalScripts,
+                              restoreExtensions: extensions,
+                              turnOnScripts: sites && scripts,
+                              turnOnExtensions:
+                                  sites && extensions && extensionsOn,
+                            ),
+                          ),
+                    child: Text(
+                      section == 0 ? loc.homeImportAction : loc.commonDone,
                     ),
                   ),
-                  child: Text(loc.homeImportAction),
                 ),
               ),
             ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/controllers/backup_controller.dart';
 import 'package:webspace/services/settings_backup.dart';
+import 'package:webspace/settings/web_extension_backup.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/backup_prompts.dart';
 
@@ -73,6 +74,10 @@ void main() {
       ],
       webspaces: const [],
       themeMode: 0,
+      webExtensions: const BackupExtensions(
+        carry: ExtensionCarry.references,
+        extensions: [],
+      ),
       exportedAt: DateTime(2026),
     );
     final answer = DialogBackupPrompts(context).reviewImport(backup);
@@ -81,8 +86,30 @@ void main() {
       find.text('Turn previously enabled user scripts back on'),
       findsOneWidget,
     );
+    await tester.drag(find.byType(ListView).last, const Offset(0, -500));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Turn previously enabled extensions back on'),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<CheckboxListTile>(
+            find.ancestor(
+              of: find.text('Turn previously enabled extensions back on'),
+              matching: find.byType(CheckboxListTile),
+            ),
+          )
+          .value,
+      isFalse,
+    );
+    await tester.tap(find.text('Turn previously enabled extensions back on'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Import').last);
     await tester.pumpAndSettle();
-    expect((await answer)!.turnOnScripts, isFalse);
+    final choices = (await answer)!;
+    expect(choices.turnOnScripts, isFalse);
+    expect(choices.restoreExtensions, isTrue);
+    expect(choices.turnOnExtensions, isTrue);
   });
 }

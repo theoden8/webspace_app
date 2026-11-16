@@ -62,12 +62,14 @@ class BackupRestoreChoices {
     required this.restoreSites,
     required this.restoreAppSettings,
     required this.restoreGlobalScripts,
+    required this.restoreExtensions,
     required this.turnOnScripts,
     required this.turnOnExtensions,
   });
   final bool restoreSites;
   final bool restoreAppSettings;
   final bool restoreGlobalScripts;
+  final bool restoreExtensions;
   final bool turnOnScripts;
   final bool turnOnExtensions;
 }
@@ -237,7 +239,10 @@ class BackupController {
   /// Gives each restored site back its choices for the backup's extensions
   /// this device has, or adds once the user accepts (WEBEXT-011). Returns
   /// how many it could neither link nor add.
-  Future<int> _restoreExtensions(SettingsImportPlan plan) async {
+  Future<int> _restoreExtensions(
+    SettingsImportPlan plan, {
+    required bool turnOn,
+  }) async {
     final incoming = plan.webExtensions;
     if (incoming == null) return 0;
     final restored = await WebExtensionLibrary.instance.restoreFromBackup(
@@ -246,7 +251,11 @@ class BackupController {
           _host.mounted && await _prompts.confirmAddExtensions(packages),
     );
     for (final (:site, :choices) in plan.heldExtensionChoices) {
-      site.webExtensionChoices = relinkChoices(choices, links: restored.links);
+      final linked = relinkChoices(choices, links: restored.links);
+      site.webExtensionChoices = {
+        for (final MapEntry(key: id, value: wasOn) in linked.entries)
+          id: turnOn && wasOn,
+      };
     }
     return restored.missing;
   }
