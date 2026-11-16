@@ -143,6 +143,7 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
       for (final b in s.branches) b.when.reads,
       ?s.refused?.when.reads,
       if (call != null) ...[
+        Reads(vars: call.reaches),
         for (final w in call.writes) w.reads,
         ?call.keeps?.reads,
       ],
@@ -317,6 +318,11 @@ extension TablePrint<W, P extends Enum> on StepTable<W, P> {
         'fl[f].pc = "${place.name}"',
         if (s.granted case final lock?) lock.granted,
       ],
+    ]);
+    // The platform can read these variables while the call is out. Name
+    // them in the reply action so its printed footprint includes that read.
+    guard.addAll([
+      for (final v in s.call?.reaches ?? <ModelVar>{}) '${v.name} = ${v.name}',
     ]);
     // The reply lands before the arms run, so within the step a read of
     // the field that keeps it is the reply; outside, the field. A refused
