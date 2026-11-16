@@ -743,8 +743,18 @@ const _openerRegressions =
     };
 
 /// A tab race the code once lost, at two preemptions.
+/// Tab 0 kept warm by a switch to tab 1, then shown again by the switch
+/// back.
+const _warmSwitchBack = (
+  setup: <SiteAction>[Tap(0)],
+  script: <SiteAction>[OpenTab(0, tab: 1), OpenTab(0, tab: 0)],
+);
+
 const _tabRegressions =
     <String, ({List<SiteAction> setup, List<SiteAction> script})>{
+      // The switch to tab 1 keeps tab 0 warm, and the switch back shows
+      // that view, never a rebuild (TAB-023).
+      'a switch back to a warm tab shows the view it kept': _warmSwitchBack,
       'an activation restores the state of a tab closed meanwhile': (
         setup: [Tap(0), Login(0), Tap(1)],
         script: [Tap(0), CloseTab(0, tab: 0)],
@@ -1529,6 +1539,29 @@ void main() {
 
   // The frame check holds what a step's code changes to what its table
   // declares; each mistake a table that declares less than its code does.
+  // A check counts once it has caught a planted mistake (CLAUDE.md): a
+  // switch that lets go of its warm target before the show rebuilds it,
+  // which the model's history labels cannot tell from the warm show.
+  _scheduleTest('a switch that drops its warm target is caught (TAB-023)',
+      body: () async {
+    await expectLater(
+      expectEveryScheduleHolds(
+        world: () => ActivationWorld(_mixed, tabbed: true, dropsWarmTarget: true),
+        setup: _warmSwitchBack.setup,
+        script: _warmSwitchBack.script,
+        preemptions: 0,
+        commutes: null,
+      ),
+      throwsA(
+        isA<TestFailure>().having(
+          (e) => e.message,
+          'message',
+          contains('did not show that view (TAB-023)'),
+        ),
+      ),
+    );
+  });
+
   group('planted frame mistakes', () {
     for (final m in FrameMistake.values) {
       final (:setup, :script, :undeclared) = switch (m) {
