@@ -38,6 +38,8 @@ class BackupExportChoices {
   const BackupExportChoices({
     required this.siteIds,
     required this.siteScriptIds,
+    required this.siteCookieIds,
+    required this.siteExtensionIds,
     required this.appSettings,
     required this.appPrefKeys,
     required this.siteScripts,
@@ -46,6 +48,8 @@ class BackupExportChoices {
   });
   final Set<String> siteIds;
   final Set<String> siteScriptIds;
+  final Set<String> siteCookieIds;
+  final Set<String> siteExtensionIds;
   final bool appSettings;
   final Set<String> appPrefKeys;
   final bool siteScripts;
@@ -184,6 +188,8 @@ class BackupController {
         includesAppSettings: choices.appSettings,
         includeSiteScripts: choices.siteScripts,
         siteScriptIds: choices.siteScriptIds,
+        siteCookieIds: choices.siteCookieIds,
+        siteExtensionIds: choices.siteExtensionIds,
         includeGlobalScriptChoices: choices.globalScripts,
         webViewModels: selected,
         webspaces: ArchiveMembershipEngine.persistable(

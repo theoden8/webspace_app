@@ -64,14 +64,18 @@ void main() {
       site.userScripts = [
         UserScriptConfig(id: UserScriptId('test'), name: 'Test', source: '1'),
       ];
+      site.webExtensionChoices = {WebExtensionId('ext'): true};
       final scoped = SettingsBackupService.createBackup(
         webViewModels: [site], webspaces: [Webspace.all()], themeMode: 0,
         includesAppSettings: false, includeSiteScripts: false,
+        siteExtensionIds: const {}, siteCookieIds: const {},
       );
       final restored = _reimport(scoped);
       expect(restored.includesSites, isTrue);
       expect(restored.includesAppSettings, isFalse);
       expect(restored.sites.single.containsKey('userScripts'), isFalse);
+      expect(restored.sites.single.containsKey('webExtensionChoices'), isFalse);
+      expect(restored.sites.single['cookies'], isEmpty);
       expect(_reimport(_backupOf()).includesAppSettings, isTrue);
     });
 

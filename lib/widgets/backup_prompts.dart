@@ -29,9 +29,10 @@ class DialogBackupPrompts implements BackupPrompts {
     final loc = AppLocalizations.of(context);
     final selected = {for (final site in sites) site.siteId.toString()};
     final scriptSites = {for (final site in sites) site.siteId.toString()};
+    final cookieSites = {for (final site in sites) site.siteId.toString()};
+    final extensionSites = {for (final site in sites) site.siteId.toString()};
     var appSettings = !siteOnly;
     final appPrefKeys = {for (final pref in AppPref.values) pref.key};
-    var siteScripts = true;
     var globalScripts = !siteOnly;
     var carry = ExtensionCarry.files;
     return showDialog<BackupExportChoices>(
@@ -63,41 +64,64 @@ class DialogBackupPrompts implements BackupPrompts {
                     }),
                   ),
                   for (final site in sites)
-                    CheckboxListTile(
+                    ExpansionTile(
+                      leading: Checkbox(
+                        value: selected.contains(site.siteId.toString()),
+                        onChanged: (value) => refresh(() {
+                          if (value == true) {
+                            selected.add(site.siteId.toString());
+                          } else {
+                            selected.remove(site.siteId.toString());
+                          }
+                        }),
+                      ),
                       title: Text(site.getDisplayName()),
-                      value: selected.contains(site.siteId.toString()),
-                      onChanged: (value) => refresh(() {
-                        if (value == true) {
-                          selected.add(site.siteId.toString());
-                        } else {
-                          selected.remove(site.siteId.toString());
-                        }
-                      }),
+                      children: selected.contains(site.siteId.toString())
+                          ? [
+                              CheckboxListTile(
+                                title: Text(loc.backupSiteScripts),
+                                value: scriptSites.contains(
+                                  site.siteId.toString(),
+                                ),
+                                onChanged: (v) => refresh(() {
+                                  if (v == true) {
+                                    scriptSites.add(site.siteId.toString());
+                                  } else {
+                                    scriptSites.remove(site.siteId.toString());
+                                  }
+                                }),
+                              ),
+                              CheckboxListTile(
+                                title: Text(loc.backupSiteCookies),
+                                value: cookieSites.contains(
+                                  site.siteId.toString(),
+                                ),
+                                onChanged: (v) => refresh(() {
+                                  if (v == true) {
+                                    cookieSites.add(site.siteId.toString());
+                                  } else {
+                                    cookieSites.remove(site.siteId.toString());
+                                  }
+                                }),
+                              ),
+                              CheckboxListTile(
+                                title: Text(loc.backupSiteExtensions),
+                                value: extensionSites.contains(
+                                  site.siteId.toString(),
+                                ),
+                                onChanged: (v) => refresh(() {
+                                  if (v == true) {
+                                    extensionSites.add(site.siteId.toString());
+                                  } else {
+                                    extensionSites.remove(
+                                      site.siteId.toString(),
+                                    );
+                                  }
+                                }),
+                              ),
+                            ]
+                          : const [],
                     ),
-                  if (selected.isNotEmpty)
-                    CheckboxListTile(
-                      title: Text(loc.backupSiteScripts),
-                      value: siteScripts,
-                      onChanged: (v) => refresh(() => siteScripts = v ?? false),
-                    ),
-                  if (siteScripts)
-                    for (final site in sites)
-                      if (selected.contains(site.siteId.toString()))
-                        CheckboxListTile(
-                          contentPadding: const EdgeInsets.only(
-                            left: Spacing.xl,
-                          ),
-                          title: Text(site.getDisplayName()),
-                          subtitle: Text(loc.backupSiteScripts),
-                          value: scriptSites.contains(site.siteId.toString()),
-                          onChanged: (v) => refresh(() {
-                            if (v == true) {
-                              scriptSites.add(site.siteId.toString());
-                            } else {
-                              scriptSites.remove(site.siteId.toString());
-                            }
-                          }),
-                        ),
                   const Divider(),
                   CheckboxListTile(
                     title: Text(loc.backupAppSettings),
@@ -185,9 +209,11 @@ class DialogBackupPrompts implements BackupPrompts {
                       BackupExportChoices(
                         siteIds: selected,
                         siteScriptIds: scriptSites,
+                        siteCookieIds: cookieSites,
+                        siteExtensionIds: extensionSites,
                         appSettings: appSettings,
                         appPrefKeys: appPrefKeys,
-                        siteScripts: siteScripts,
+                        siteScripts: true,
                         globalScripts: globalScripts,
                         extensionCarry: carry,
                       ),

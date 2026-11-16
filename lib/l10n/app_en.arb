@@ -6117,6 +6117,8 @@
   "backupConfigureTitle": "Create backup",
   "backupAllSites": "Sites",
   "backupAllSitesDetail": "Select all sites, or choose them below.",
+  "backupSiteCookies": "Site cookies",
+  "backupSiteExtensions": "Site extension choices",
   "backupSiteScripts": "Site user scripts",
   "backupChooseAppSettings": "Choose app settings",
   "backupAppSettings": "App settings",

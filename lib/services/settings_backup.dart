@@ -199,6 +199,8 @@ class SettingsBackupService {
     bool includesAppSettings = true,
     bool includeSiteScripts = true,
     Set<String>? siteScriptIds,
+    Set<String>? siteCookieIds,
+    Set<String>? siteExtensionIds,
     bool includeGlobalScriptChoices = true,
     required List<BackedUpSite> webViewModels,
     required List<Webspace> webspaces,
@@ -227,13 +229,20 @@ class SettingsBackupService {
       if (!includeGlobalScriptChoices) {
         json.remove('enabledGlobalScriptIds');
       }
+      if (siteExtensionIds != null &&
+          !siteExtensionIds.contains(json['siteId'])) {
+        json.remove('webExtensionChoices');
+      }
       for (final field in SiteField.values) {
         if (field.backup == BackupShare.withheld) {
           field.keys.forEach(json.remove);
         }
       }
       final cookies = json['cookies'] as List<dynamic>;
-      json['cookies'] = cookies.where((c) => c['isSecure'] != true).toList();
+      json['cookies'] =
+          siteCookieIds != null && !siteCookieIds.contains(json['siteId'])
+          ? <dynamic>[]
+          : cookies.where((c) => c['isSecure'] != true).toList();
       return json;
     }).toList();
 
