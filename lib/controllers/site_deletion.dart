@@ -117,7 +117,7 @@ final _deleteDropPort = Port<SiteSetStage, DeleteFlow>(
 );
 final _deleteFramePort = Port<Future<void> Function(), DeleteFlow>(
   'frame',
-  reads: const {},
+  reads: {ModelVar.current, ModelVar.version},
   changes: {ModelVar.views},
   of: (w) => w.frame,
 );
