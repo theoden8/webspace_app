@@ -6145,6 +6145,8 @@
   "@backupCookiesSessionNote": {"description": "Label or explanation in the backup creation and restore flow."},
   "backupChooseImportSites": "Choose sites and contents",
   "@backupChooseImportSites": {"description": "Label or explanation in the backup creation and restore flow."},
+  "backupReplaceSitesNote": "Importing all backup sites replaces your current sites. Choosing fewer keeps your other sites.",
+  "@backupReplaceSitesNote": {"description": "Import summary warning: choosing all backup sites replaces the current site list; a partial selection preserves other current sites."},
   "backupRestoreContents": "Choose what to restore",
   "@backupRestoreContents": {"description": "Label or explanation in the backup creation and restore flow."},
   "backupChooseSiteActivation": "Choose where scripts and extensions run",

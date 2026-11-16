@@ -1272,6 +1272,7 @@
   "backupRestoreTitle": "Restaurar copia de seguridade",
   "backupCookiesSessionNote": "A restauración das cookies pode substituír as sesións actuais do sitio. É posible que teñas que iniciar sesión de novo.",
   "backupChooseImportSites": "Escolle sitios e contidos",
+  "backupReplaceSitesNote": "Ao importar todos os sitios de copia de seguranza substitúe os teus sitios actuais. Escollendo menos mantén os teus outros sitios.",
   "backupRestoreContents": "Escolle o que queres restaurar",
   "backupChooseSiteActivation": "Escolla onde se executan os scripts e as extensións",
   "backupActivationNote": "Só os sitios seleccionados executarán scripts ou extensións activados previamente.",

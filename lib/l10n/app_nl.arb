@@ -1272,6 +1272,7 @@
   "backupRestoreTitle": "Back-up herstellen",
   "backupCookiesSessionNote": "Het herstellen van cookies kan huidige sitesessies vervangen. Mogelijk moet u zich opnieuw aanmelden.",
   "backupChooseImportSites": "Kies sites en inhoud",
+  "backupReplaceSitesNote": "Als u alle back-upsites importeert, worden uw huidige sites vervangen. Als u minder kiest, blijven uw andere sites behouden.",
   "backupRestoreContents": "Kies wat u wilt herstellen",
   "backupChooseSiteActivation": "Kies waar scripts en extensies worden uitgevoerd",
   "backupActivationNote": "Alleen geselecteerde sites voeren eerder ingeschakelde scripts of extensies uit.",

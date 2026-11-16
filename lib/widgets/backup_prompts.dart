@@ -402,6 +402,8 @@ class DialogBackupPrompts implements BackupPrompts {
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => refresh(() => section = 1),
                     ),
+                    if (sites && backup.sites.isNotEmpty)
+                      ListTile(title: Text(loc.backupReplaceSitesNote)),
                     const Divider(),
                     ListTile(title: Text(loc.backupAfterRestore)),
                     if (List.generate(
@@ -420,15 +422,11 @@ class DialogBackupPrompts implements BackupPrompts {
                         enabled: sites,
                         onTap: () => refresh(() => section = 2),
                       ),
-                    ListTile(
-                      title: Text(
-                        selectedSiteCookies
-                                .intersection(selectedSites)
-                                .isNotEmpty
-                            ? loc.backupCookiesSessionNote
-                            : loc.homeImportSettingsSessionsNote,
-                      ),
-                    ),
+                    ListTile(title: Text(loc.homeImportSettingsSessionsNote)),
+                    if (selectedSiteCookies
+                        .intersection(selectedSites)
+                        .isNotEmpty)
+                      ListTile(title: Text(loc.backupCookiesSessionNote)),
                   ],
                   if (section == 1) ...[
                     ListTile(

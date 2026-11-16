@@ -1272,6 +1272,7 @@
   "backupRestoreTitle": "Vrati rezervnu kopiju",
   "backupCookiesSessionNote": "Vraćanje kolačića može zamijeniti trenutne sesije web stranice. Možda ćete se morati ponovo prijaviti.",
   "backupChooseImportSites": "Odaberite stranice i sadržaje",
+  "backupReplaceSitesNote": "Uvoz svih rezervnih lokacija zamjenjuje vaše trenutne web lokacije. Odabirom manjeg broja zadržavate svoje druge web stranice.",
   "backupRestoreContents": "Odaberite šta želite vratiti",
   "backupChooseSiteActivation": "Odaberite gdje se izvršavaju skripte i ekstenzije",
   "backupActivationNote": "Samo odabrane stranice će pokretati prethodno omogućene skripte ili ekstenzije.",

@@ -1272,6 +1272,7 @@
   "backupRestoreTitle": "Endurheimta öryggisafrit",
   "backupCookiesSessionNote": "Endurheimt fótspor getur komið í stað núverandi síðulotu. Þú gætir þurft að skrá þig inn aftur.",
   "backupChooseImportSites": "Veldu síður og innihald",
+  "backupReplaceSitesNote": "Innflutningur á öllum varasíðum kemur í stað núverandi vefsvæða. Að velja færri heldur öðrum síðum þínum.",
   "backupRestoreContents": "Veldu hvað á að endurheimta",
   "backupChooseSiteActivation": "Veldu hvar forskriftir og viðbætur keyra",
   "backupActivationNote": "Aðeins valdar síður munu keyra áður virkjuð forskriftir eða viðbætur.",

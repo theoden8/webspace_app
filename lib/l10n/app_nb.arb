@@ -1272,6 +1272,7 @@
   "backupRestoreTitle": "Gjenopprett sikkerhetskopi",
   "backupCookiesSessionNote": "Gjenoppretting av informasjonskapsler kan erstatte gjeldende nettstedsøkter. Du må kanskje logge på igjen.",
   "backupChooseImportSites": "Velg nettsteder og innhold",
+  "backupReplaceSitesNote": "Import av alle sikkerhetskopier erstatter de nåværende nettstedene. Hvis du velger færre, beholder du de andre nettstedene dine.",
   "backupRestoreContents": "Velg hva du vil gjenopprette",
   "backupChooseSiteActivation": "Velg hvor skript og utvidelser kjøres",
   "backupActivationNote": "Bare utvalgte nettsteder vil kjøre tidligere aktiverte skript eller utvidelser.",

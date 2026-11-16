@@ -1272,6 +1272,7 @@
   "backupRestoreTitle": "Restaurați backupul",
   "backupCookiesSessionNote": "Restaurarea cookie-urilor poate înlocui sesiunile curente ale site-ului. Poate fi necesar să vă conectați din nou.",
   "backupChooseImportSites": "Alegeți site-uri și conținut",
+  "backupReplaceSitesNote": "Importul tuturor site-urilor de rezervă înlocuiește site-urile dvs. actuale. Dacă alegeți mai puține, celelalte site-uri sunt păstrate.",
   "backupRestoreContents": "Alegeți ce să restaurați",
   "backupChooseSiteActivation": "Alegeți unde rulează scripturile și extensiile",
   "backupActivationNote": "Numai site-urile selectate vor rula scripturi sau extensii activate anterior.",

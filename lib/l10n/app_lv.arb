@@ -1272,6 +1272,7 @@
   "backupRestoreTitle": "Atjaunot dublējumu",
   "backupCookiesSessionNote": "Sīkfailu atjaunošana var aizstāt pašreizējās vietnes sesijas. Iespējams, jums būs jāpierakstās vēlreiz.",
   "backupChooseImportSites": "Izvēlieties vietnes un saturu",
+  "backupReplaceSitesNote": "Importējot visas rezerves vietnes, tiek aizstātas pašreizējās vietnes. Izvēloties mazāk, tiek saglabātas citas vietnes.",
   "backupRestoreContents": "Izvēlieties, ko atjaunot",
   "backupChooseSiteActivation": "Izvēlieties, kur darbojas skripti un paplašinājumi",
   "backupActivationNote": "Tikai atlasītajās vietnēs tiks izpildīti iepriekš iespējoti skripti vai paplašinājumi.",

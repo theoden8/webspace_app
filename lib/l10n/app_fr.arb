@@ -1272,6 +1272,7 @@
   "backupRestoreTitle": "Restaurer la sauvegarde",
   "backupCookiesSessionNote": "La restauration des cookies peut remplacer les sessions actuelles du site. Vous devrez peut-être vous reconnecter.",
   "backupChooseImportSites": "Choisissez des sites et des contenus",
+  "backupReplaceSitesNote": "L'importation de tous les sites de sauvegarde remplace vos sites actuels. En choisissant moins, vous conservez vos autres sites.",
   "backupRestoreContents": "Choisissez ce que vous souhaitez restaurer",
   "backupChooseSiteActivation": "Choisissez où les scripts et les extensions s'exécutent",
   "backupActivationNote": "Seuls les sites sélectionnés exécuteront des scripts ou des extensions précédemment activés.",

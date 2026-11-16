@@ -1272,6 +1272,7 @@
   "backupRestoreTitle": "백업 복원",
   "backupCookiesSessionNote": "쿠키를 복원하면 현재 사이트 세션을 대체할 수 있습니다. 다시 로그인해야 할 수도 있습니다.",
   "backupChooseImportSites": "사이트 및 콘텐츠 선택",
+  "backupReplaceSitesNote": "모든 백업 사이트를 가져오면 현재 사이트가 대체됩니다. 더 적은 수를 선택하면 다른 사이트가 유지됩니다.",
   "backupRestoreContents": "복원할 항목 선택",
   "backupChooseSiteActivation": "스크립트 및 확장 프로그램이 실행되는 위치 선택",
   "backupActivationNote": "선택한 사이트만 이전에 활성화된 스크립트 또는 확장 프로그램을 실행합니다.",

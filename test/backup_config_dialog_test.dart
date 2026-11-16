@@ -91,6 +91,12 @@ void main() {
     );
     final answer = DialogBackupPrompts(context).reviewImport(backup);
     await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Importing all backup sites replaces your current sites. Choosing fewer keeps your other sites.',
+      ),
+      findsOneWidget,
+    );
     await tester.tap(find.text('Choose what to restore'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sites'));

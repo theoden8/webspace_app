@@ -1272,6 +1272,7 @@
   "backupRestoreTitle": "Pulihkan sandaran",
   "backupCookiesSessionNote": "Memulihkan kuki boleh menggantikan sesi tapak semasa. Anda mungkin perlu log masuk semula.",
   "backupChooseImportSites": "Pilih tapak dan kandungan",
+  "backupReplaceSitesNote": "Mengimport semua tapak sandaran menggantikan tapak semasa anda. Memilih lebih sedikit mengekalkan tapak anda yang lain.",
   "backupRestoreContents": "Pilih perkara yang hendak dipulihkan",
   "backupChooseSiteActivation": "Pilih tempat skrip dan sambungan dijalankan",
   "backupActivationNote": "Hanya tapak terpilih akan menjalankan skrip atau sambungan yang didayakan sebelum ini.",

@@ -1272,6 +1272,7 @@
   "backupRestoreTitle": "Irrestawra l-backup",
   "backupCookiesSessionNote": "Ir-restawr tal-cookies jista' jissostitwixxi s-sessjonijiet attwali tas-sit. Jista' jkollok bżonn terġa' tidħol.",
   "backupChooseImportSites": "Agħżel is-siti u l-kontenut",
+  "backupReplaceSitesNote": "L-importazzjoni tas-siti kollha tal-backup tissostitwixxi s-siti attwali tiegħek. L-għażla ta' inqas iżżomm is-siti l-oħra tiegħek.",
   "backupRestoreContents": "Agħżel dak li tirrestawra",
   "backupChooseSiteActivation": "Agħżel fejn jimxu l-iskripts u l-estensjonijiet",
   "backupActivationNote": "Is-siti magħżula biss se jmexxu skripts jew estensjonijiet li kienu ppermettew qabel.",

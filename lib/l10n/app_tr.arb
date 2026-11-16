@@ -1272,6 +1272,7 @@
   "backupRestoreTitle": "Yedeği geri yükle",
   "backupCookiesSessionNote": "Çerezlerin geri yüklenmesi mevcut site oturumlarının yerini alabilir. Tekrar oturum açmanız gerekebilir.",
   "backupChooseImportSites": "Siteleri ve içerikleri seçin",
+  "backupReplaceSitesNote": "Tüm yedek sitelerin içe aktarılması mevcut sitelerinizin yerini alır. Daha azını seçmek diğer sitelerinizi korur.",
   "backupRestoreContents": "Neyin geri yükleneceğini seçin",
   "backupChooseSiteActivation": "Komut dosyalarının ve uzantıların nerede çalışacağını seçin",
   "backupActivationNote": "Yalnızca seçilen siteler önceden etkinleştirilen komut dosyalarını veya uzantıları çalıştırır.",

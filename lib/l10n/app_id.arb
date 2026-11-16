@@ -1272,6 +1272,7 @@
   "backupRestoreTitle": "Pulihkan cadangan",
   "backupCookiesSessionNote": "Memulihkan cookie dapat menggantikan sesi situs saat ini. Anda mungkin perlu masuk lagi.",
   "backupChooseImportSites": "Pilih situs dan konten",
+  "backupReplaceSitesNote": "Mengimpor semua situs cadangan akan menggantikan situs Anda saat ini. Memilih lebih sedikit akan mempertahankan situs Anda yang lain.",
   "backupRestoreContents": "Pilih apa yang ingin dipulihkan",
   "backupChooseSiteActivation": "Pilih tempat skrip dan ekstensi dijalankan",
   "backupActivationNote": "Hanya situs terpilih yang akan menjalankan skrip atau ekstensi yang diaktifkan sebelumnya.",

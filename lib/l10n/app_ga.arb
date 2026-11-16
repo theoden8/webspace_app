@@ -1272,6 +1272,7 @@
   "backupRestoreTitle": "Athchóirigh cúltaca",
   "backupCookiesSessionNote": "Is féidir le fianáin a athchóiriú ionad na seisiún suímh reatha. Seans go mbeidh ort síniú isteach arís.",
   "backupChooseImportSites": "Roghnaigh suíomhanna agus inneachar",
+  "backupReplaceSitesNote": "Nuair a dhéantar gach láithreán cúltaca a iompórtáil, cuirtear do shuímh reatha in ionad do shuímh reatha. Nuair a roghnaíonn tú níos lú coinnítear do shuíomhanna eile.",
   "backupRestoreContents": "Roghnaigh cad atá le cur ar ais",
   "backupChooseSiteActivation": "Roghnaigh an áit a ritheann scripteanna agus síntí",
   "backupActivationNote": "Ní rithfidh ach suíomhanna roghnaithe scripteanna nó síntí a cumasaíodh roimhe seo.",

@@ -1272,6 +1272,7 @@
   "backupRestoreTitle": "Restaura la còpia de seguretat",
   "backupCookiesSessionNote": "La restauració de les galetes pot substituir les sessions actuals del lloc. És possible que hàgiu de tornar a iniciar la sessió.",
   "backupChooseImportSites": "Trieu llocs i continguts",
+  "backupReplaceSitesNote": "La importació de tots els llocs de còpia de seguretat substitueix els llocs actuals. En triar-ne menys, es mantindran els altres llocs.",
   "backupRestoreContents": "Trieu què voleu restaurar",
   "backupChooseSiteActivation": "Trieu on s'executen els scripts i les extensions",
   "backupActivationNote": "Només els llocs seleccionats executaran scripts o extensions habilitats anteriorment.",

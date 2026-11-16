@@ -1272,6 +1272,7 @@
   "backupRestoreTitle": "Rivendos kopjen rezervë",
   "backupCookiesSessionNote": "Rivendosja e kukit mund të zëvendësojë sesionet aktuale të sajtit. Mund t'ju duhet të identifikoheni përsëri.",
   "backupChooseImportSites": "Zgjidhni faqet dhe përmbajtjet",
+  "backupReplaceSitesNote": "Importimi i të gjitha faqeve rezervë zëvendëson faqet tuaja aktuale. Zgjedhja e më pak i mban faqet tuaja të tjera.",
   "backupRestoreContents": "Zgjidhni çfarë të rivendosni",
   "backupChooseSiteActivation": "Zgjidhni ku funksionojnë skriptet dhe shtesat",
   "backupActivationNote": "Vetëm sajtet e zgjedhura do të ekzekutojnë skriptet ose shtesat e aktivizuara më parë.",
