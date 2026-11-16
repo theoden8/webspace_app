@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "სარეზერვო ასლის აღდგენა",
   "backupCookiesSessionNote": "ქუქიების აღდგენამ შეიძლება შეცვალოს საიტის მიმდინარე სესიები. შეიძლება დაგჭირდეთ ხელახლა შესვლა.",
   "backupChooseImportSites": "აირჩიეთ საიტები და შინაარსი",
+  "backupWholeWebspaces": "აირჩიეთ მთელი ვებ სივრცეები",
+  "backupIndividualSites": "ინდივიდუალური საიტები",
   "backupReplaceSitesNote": "ყველა სარეზერვო საიტის იმპორტი ცვლის თქვენს ამჟამინდელ საიტებს. ნაკლების არჩევა ინახავს თქვენს სხვა საიტებს.",
   "backupRestoreContents": "აირჩიეთ რა უნდა აღადგინოთ",
   "backupChooseSiteActivation": "აირჩიეთ სად მუშაობს სკრიპტები და გაფართოებები",

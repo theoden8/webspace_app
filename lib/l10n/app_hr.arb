@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "Vrati sigurnosnu kopiju",
   "backupCookiesSessionNote": "Vraćanje kolačića može zamijeniti trenutne sesije stranice. Možda ćete se morati ponovno prijaviti.",
   "backupChooseImportSites": "Odaberite stranice i sadržaje",
+  "backupWholeWebspaces": "Odaberite cijele web prostore",
+  "backupIndividualSites": "Pojedinačna mjesta",
   "backupReplaceSitesNote": "Uvoz svih rezervnih web stranica zamjenjuje vaše trenutne web stranice. Odabir manjeg broja zadržava vaša druga mjesta.",
   "backupRestoreContents": "Odaberite što želite vratiti",
   "backupChooseSiteActivation": "Odaberite gdje se izvode skripte i proširenja",

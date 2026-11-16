@@ -139,4 +139,53 @@ void main() {
     expect(choices.restoreExtensions, isTrue);
     expect(choices.extensionSiteIndices, {0});
   });
+
+  testWidgets('a webspace checkbox selects all its sites for import', (
+    tester,
+  ) async {
+    late BuildContext context;
+    await pumpLocalized(
+      tester,
+      home: Builder(
+        builder: (c) {
+          context = c;
+          return const SizedBox();
+        },
+      ),
+    );
+    final backup = SettingsBackup(
+      version: 1,
+      sites: const [
+        {'siteId': 'a', 'name': 'Alpha'},
+        {'siteId': 'b', 'name': 'Beta'},
+        {'siteId': 'c', 'name': 'Gamma'},
+      ],
+      webspaces: const [
+        {
+          'id': 'work',
+          'name': 'Work',
+          'siteIds': ['a', 'b'],
+        },
+        {'id': 'empty', 'name': 'Empty', 'siteIds': []},
+      ],
+      themeMode: 0,
+      exportedAt: DateTime(2026),
+    );
+    final answer = DialogBackupPrompts(context).reviewImport(backup);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Choose what to restore'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sites'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(CheckboxListTile, 'Sites'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(CheckboxListTile, 'Work'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Import').last);
+    final choices = (await answer)!;
+    expect(choices.siteIndices, {0, 1});
+    expect(choices.webspaceIndices, {0});
+  });
 }

@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "Rejesha nakala rudufu",
   "backupCookiesSessionNote": "Kurejesha vidakuzi kunaweza kuchukua nafasi ya vipindi vya sasa vya tovuti. Huenda ukahitaji kuingia tena.",
   "backupChooseImportSites": "Chagua tovuti na yaliyomo",
+  "backupWholeWebspaces": "Chagua nafasi nzima za wavuti",
+  "backupIndividualSites": "Tovuti za mtu binafsi",
   "backupReplaceSitesNote": "Kuleta tovuti zote mbadala kunachukua nafasi ya tovuti zako za sasa. Kuchagua chache huhifadhi tovuti zako zingine.",
   "backupRestoreContents": "Chagua cha kurejesha",
   "backupChooseSiteActivation": "Chagua mahali hati na viendelezi vinaendeshwa",

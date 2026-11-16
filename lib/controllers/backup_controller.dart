@@ -64,6 +64,7 @@ class BackupRestoreChoices {
     required this.restoreGlobalScripts,
     required this.restoreExtensions,
     required this.siteIndices,
+    required this.webspaceIndices,
     required this.siteScriptIndices,
     required this.siteCookieIndices,
     required this.siteExtensionIndices,
@@ -76,6 +77,7 @@ class BackupRestoreChoices {
   final bool restoreGlobalScripts;
   final bool restoreExtensions;
   final Set<int> siteIndices;
+  final Set<int> webspaceIndices;
   final Set<int> siteScriptIndices;
   final Set<int> siteCookieIndices;
   final Set<int> siteExtensionIndices;
@@ -323,6 +325,7 @@ class BackupController {
         backup,
         stateSetterF: _host.rebuild,
         selectedSiteIndices: restoreChoices.siteIndices,
+        selectedWebspaceIndices: restoreChoices.webspaceIndices,
         siteScriptIndices: restoreChoices.siteScriptIndices,
         siteCookieIndices: restoreChoices.siteCookieIndices,
         siteExtensionIndices: restoreChoices.siteExtensionIndices,
@@ -357,7 +360,9 @@ class BackupController {
 
     final partialSiteImport =
         restoreChoices.restoreSites &&
-        restoreChoices.siteIndices.length < backup.sites.length;
+        (restoreChoices.siteIndices.length < backup.sites.length ||
+            (backup.sites.isEmpty &&
+                restoreChoices.webspaceIndices.isNotEmpty));
 
     // Seal archives and apply the import in the same turn, so none opens
     // against the site rows this import is replacing (SEC-044).
@@ -370,7 +375,8 @@ class BackupController {
           .toList();
       final currentById = {for (final site in currentSites) site.siteId: site};
       final selectedWebspaceBefore = _sites.selectedWebspaceId;
-      for (final MapEntry(key: index, value: site) in importedBySource.entries) {
+      for (final MapEntry(key: index, value: site)
+          in importedBySource.entries) {
         final current = currentById[site.siteId];
         if (current == null) continue;
         if (!restoreChoices.siteScriptIndices.contains(index)) {
@@ -438,18 +444,24 @@ class BackupController {
       if (restoreChoices.restoreAppSettings && plan.dnsBlockLevel != null) {
         await DnsBlockService.instance.applyImportedLevel(plan.dnsBlockLevel!);
       }
-      if (restoreChoices.restoreAppSettings && plan.contentBlockerLists != null) {
+      if (restoreChoices.restoreAppSettings &&
+          plan.contentBlockerLists != null) {
         await ContentBlockerService.instance.importListSelection(
           plan.contentBlockerLists!,
         );
       }
       if (!_host.mounted) return;
       extensionsMissing = restoreChoices.restoreExtensions
-          ? await _restoreExtensions(plan, enableSiteIds: enableExtensionSiteIds)
+          ? await _restoreExtensions(
+              plan,
+              enableSiteIds: enableExtensionSiteIds,
+            )
           : 0;
       if (!_host.mounted) return;
       if (restoreChoices.restoreAppSettings) {
-        _shell.theme = AppThemeSettings.fromStorageIndex(plan.themeStorageIndex);
+        _shell.theme = AppThemeSettings.fromStorageIndex(
+          plan.themeStorageIndex,
+        );
       }
       // On the shared jar the import empties the jar in its own turn, after
       // saving the share of each loaded site it carries again (ISO-015).

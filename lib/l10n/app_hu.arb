@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "Biztonsági másolat visszaállítása",
   "backupCookiesSessionNote": "A cookie-k visszaállítása helyettesítheti a webhely jelenlegi munkameneteit. Lehet, hogy újra be kell jelentkeznie.",
   "backupChooseImportSites": "Válasszon webhelyeket és tartalmakat",
+  "backupWholeWebspaces": "Válassza ki a teljes webtereket",
+  "backupIndividualSites": "Egyedi oldalak",
   "backupReplaceSitesNote": "Az összes biztonsági mentési webhely importálása lecseréli a jelenlegi webhelyeket. Ha kevesebbet választ, a többi webhely megmarad.",
   "backupRestoreContents": "Válassza ki, hogy mit szeretne visszaállítani",
   "backupChooseSiteActivation": "Válassza ki, hol fussanak a szkriptek és a bővítmények",

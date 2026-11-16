@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "Ibalik ang backup",
   "backupCookiesSessionNote": "Maaaring palitan ng pagpapanumbalik ng cookies ang mga kasalukuyang session ng site. Maaaring kailanganin mong mag-sign in muli.",
   "backupChooseImportSites": "Pumili ng mga site at nilalaman",
+  "backupWholeWebspaces": "Piliin ang buong webspace",
+  "backupIndividualSites": "Mga indibidwal na site",
   "backupReplaceSitesNote": "Pinapalitan ng pag-import ng lahat ng backup na site ang iyong kasalukuyang mga site. Ang pagpili ng mas kaunti ay nagpapanatili sa iyong iba pang mga site.",
   "backupRestoreContents": "Piliin kung ano ang ire-restore",
   "backupChooseSiteActivation": "Piliin kung saan tatakbo ang mga script at extension",

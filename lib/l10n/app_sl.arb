@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "Obnovi varnostno kopijo",
   "backupCookiesSessionNote": "Obnovitev piškotkov lahko nadomesti trenutne seje spletnega mesta. Morda se boste morali znova prijaviti.",
   "backupChooseImportSites": "Izberite spletna mesta in vsebine",
+  "backupWholeWebspaces": "Izberite celotne spletne prostore",
+  "backupIndividualSites": "Posamezna spletna mesta",
   "backupReplaceSitesNote": "Uvoz vseh rezervnih spletnih mest nadomesti vaša trenutna spletna mesta. Če izberete manj, ohranite vaša druga spletna mesta.",
   "backupRestoreContents": "Izberite, kaj želite obnoviti",
   "backupChooseSiteActivation": "Izberite, kje se izvajajo skripti in razširitve",

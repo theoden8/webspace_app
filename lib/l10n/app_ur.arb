@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "بیک اپ بحال کریں۔",
   "backupCookiesSessionNote": "کوکیز کو بحال کرنا موجودہ سائٹ کے سیشنز کی جگہ لے سکتا ہے۔ آپ کو دوبارہ سائن ان کرنے کی ضرورت پڑ سکتی ہے۔",
   "backupChooseImportSites": "سائٹس اور مواد کا انتخاب کریں۔",
+  "backupWholeWebspaces": "پوری ویب اسپیسز کو منتخب کریں۔",
+  "backupIndividualSites": "انفرادی سائٹس",
   "backupReplaceSitesNote": "تمام بیک اپ سائٹس کو درآمد کرنا آپ کی موجودہ سائٹس کی جگہ لے لیتا ہے۔ کم کا انتخاب آپ کی دوسری سائٹوں کو برقرار رکھتا ہے۔",
   "backupRestoreContents": "منتخب کریں کہ کیا بحال کرنا ہے۔",
   "backupChooseSiteActivation": "منتخب کریں کہ اسکرپٹس اور ایکسٹینشنز کہاں چلتی ہیں۔",

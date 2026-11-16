@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "恢復備份",
   "backupCookiesSessionNote": "恢復 cookie 可以取代目前網站會話。您可能需要重新登入。",
   "backupChooseImportSites": "選擇網站和內容",
+  "backupWholeWebspaces": "選擇整個網站空間",
+  "backupIndividualSites": "個別站點",
   "backupReplaceSitesNote": "匯入所有備份網站將取代您目前的網站。選擇較少的會保留您的其他網站。",
   "backupRestoreContents": "選擇要恢復的內容",
   "backupChooseSiteActivation": "選擇腳本和擴展運行的位置",

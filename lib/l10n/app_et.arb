@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "Taasta varukoopia",
   "backupCookiesSessionNote": "Küpsiste taastamine võib asendada praegused saidi seansid. Võimalik, et peate uuesti sisse logima.",
   "backupChooseImportSites": "Valige saidid ja sisu",
+  "backupWholeWebspaces": "Valige terved veebiruumid",
+  "backupIndividualSites": "Üksikud saidid",
   "backupReplaceSitesNote": "Kõigi varundussaitide importimine asendab teie praegused saidid. Kui valite vähem, jäävad teised saidid alles.",
   "backupRestoreContents": "Valige, mida taastada",
   "backupChooseSiteActivation": "Valige, kus skriptid ja laiendused käitatakse",

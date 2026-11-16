@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "คืนค่าการสำรองข้อมูล",
   "backupCookiesSessionNote": "การกู้คืนคุกกี้สามารถแทนที่เซสชันของไซต์ปัจจุบันได้ คุณอาจต้องลงชื่อเข้าใช้อีกครั้ง",
   "backupChooseImportSites": "เลือกไซต์และเนื้อหา",
+  "backupWholeWebspaces": "เลือกพื้นที่เว็บทั้งหมด",
+  "backupIndividualSites": "แต่ละไซต์",
   "backupReplaceSitesNote": "การนำเข้าไซต์สำรองทั้งหมดจะแทนที่ไซต์ปัจจุบันของคุณ การเลือกน้อยลงจะทำให้ไซต์อื่นๆ ของคุณ",
   "backupRestoreContents": "เลือกสิ่งที่จะกู้คืน",
   "backupChooseSiteActivation": "เลือกตำแหน่งที่สคริปต์และส่วนขยายทำงาน",

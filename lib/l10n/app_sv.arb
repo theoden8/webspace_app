@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "Återställ säkerhetskopia",
   "backupCookiesSessionNote": "Återställning av cookies kan ersätta nuvarande webbplatssessioner. Du kan behöva logga in igen.",
   "backupChooseImportSites": "Välj webbplatser och innehåll",
+  "backupWholeWebspaces": "Välj hela webbutrymmen",
+  "backupIndividualSites": "Enskilda webbplatser",
   "backupReplaceSitesNote": "Genom att importera alla säkerhetskopieringswebbplatser ersätts dina nuvarande webbplatser. Att välja färre behåller dina andra webbplatser.",
   "backupRestoreContents": "Välj vad som ska återställas",
   "backupChooseSiteActivation": "Välj var skript och tillägg körs",

@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "Adfer copi wrth gefn",
   "backupCookiesSessionNote": "Gall adfer cwcis gymryd lle sesiynau safle presennol. Efallai y bydd angen i chi fewngofnodi eto.",
   "backupChooseImportSites": "Dewiswch wefannau a chynnwys",
+  "backupWholeWebspaces": "Dewiswch ofodau gwe cyfan",
+  "backupIndividualSites": "Safleoedd unigol",
   "backupReplaceSitesNote": "Mae mewnforio pob safle wrth gefn yn disodli'ch gwefannau presennol. Mae dewis llai yn cadw'ch gwefannau eraill.",
   "backupRestoreContents": "Dewiswch beth i'w adfer",
   "backupChooseSiteActivation": "Dewiswch ble mae sgriptiau ac estyniadau yn rhedeg",

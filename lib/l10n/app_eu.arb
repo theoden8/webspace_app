@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "Berrezarri babeskopia",
   "backupCookiesSessionNote": "Cookieak leheneratzeak uneko guneko saioak ordezka ditzake. Baliteke berriro saioa hasi behar izatea.",
   "backupChooseImportSites": "Aukeratu guneak eta edukiak",
+  "backupWholeWebspaces": "Hautatu webgune osoak",
+  "backupIndividualSites": "Banakako guneak",
   "backupReplaceSitesNote": "Babeskopia-gune guztiak inportatzeak zure uneko guneak ordezkatzen ditu. Gutxiago aukeratzeak zure gainerako guneak mantentzen ditu.",
   "backupRestoreContents": "Aukeratu zer leheneratu",
   "backupChooseSiteActivation": "Aukeratu non exekutatzen diren scriptak eta luzapenak",

@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "Вратите резервну копију",
   "backupCookiesSessionNote": "Враћање колачића може заменити тренутне сесије сајта. Можда ћете морати поново да се пријавите.",
   "backupChooseImportSites": "Изаберите сајтове и садржаје",
+  "backupWholeWebspaces": "Изаберите читаве веб просторе",
+  "backupIndividualSites": "Индивидуални сајтови",
   "backupReplaceSitesNote": "Увоз свих резервних локација замењује ваше тренутне локације. Ако изаберете мање, задржаћете друге сајтове.",
   "backupRestoreContents": "Изаберите шта желите да вратите",
   "backupChooseSiteActivation": "Одаберите где ће се покретати скрипте и екстензије",

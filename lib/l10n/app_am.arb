@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "ምትኬን ወደነበረበት መልስ",
   "backupCookiesSessionNote": "ኩኪዎችን ወደነበረበት መመለስ የአሁኑን የጣቢያ ክፍለ ጊዜዎችን ሊተካ ይችላል። እንደገና መግባት ሊኖርብህ ይችላል።",
   "backupChooseImportSites": "ጣቢያዎችን እና ይዘቶችን ይምረጡ",
+  "backupWholeWebspaces": "ሙሉ የድር ቦታዎችን ይምረጡ",
+  "backupIndividualSites": "የግለሰብ ጣቢያዎች",
   "backupReplaceSitesNote": "ሁሉንም የመጠባበቂያ ጣቢያዎች ማስመጣት የአሁኑን ጣቢያዎችዎን ይተካል። ጥቂት መምረጥ ሌሎች ጣቢያዎችዎን ያቆያል።",
   "backupRestoreContents": "ወደነበረበት መመለስ ምን ይምረጡ",
   "backupChooseSiteActivation": "ስክሪፕቶች እና ቅጥያዎች የት እንደሚሄዱ ይምረጡ",

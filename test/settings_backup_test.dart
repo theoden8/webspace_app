@@ -86,8 +86,39 @@ void main() {
           SiteId('imported'),
         ]);
         expect(current.siteIds, [SiteId('current')]);
+        expect(
+          mergeBackupWebspaces(
+            [Webspace.all(), current],
+            imported: [
+              Webspace.all(),
+              Webspace(id: WebspaceId('empty'), name: 'Empty'),
+            ],
+          ).where((space) => space.id == WebspaceId('empty')),
+          hasLength(1),
+        );
       },
     );
+
+    test('import includes only chosen webspaces, including an empty one', () {
+      final backup = _backupOf(
+        sites: [_siteEntry('https://example.com', name: 'Example')],
+        webspaces: [
+          {
+            'id': 'work',
+            'name': 'Work',
+            'siteIndices': [0],
+          },
+          {'id': 'empty', 'name': 'Empty', 'siteIds': <String>[]},
+        ],
+      );
+      final plan = planSettingsImport(
+        backup,
+        selectedSiteIndices: <int>{},
+        selectedWebspaceIndices: {1},
+      );
+      expect(plan.sites, isEmpty);
+      expect(plan.webspaces.map((space) => space.name), ['All', 'Empty']);
+    });
 
     test('granular import keeps only chosen sites and contents', () {
       final first = WebViewModel(

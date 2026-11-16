@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "Gendan backup",
   "backupCookiesSessionNote": "Gendannelse af cookies kan erstatte aktuelle webstedssessioner. Du skal muligvis logge ind igen.",
   "backupChooseImportSites": "Vælg websteder og indhold",
+  "backupWholeWebspaces": "Vælg hele webområder",
+  "backupIndividualSites": "Individuelle websteder",
   "backupReplaceSitesNote": "Import af alle backup-websteder erstatter dine nuværende websteder. Hvis du vælger færre, bevarer du dine andre websteder.",
   "backupRestoreContents": "Vælg, hvad du vil gendanne",
   "backupChooseSiteActivation": "Vælg, hvor scripts og udvidelser skal køre",

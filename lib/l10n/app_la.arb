@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "Restitue tergum",
   "backupCookiesSessionNote": "Crustula restituendi sessiones currentes locum reponere possunt. Iterum subscribere debes.",
   "backupChooseImportSites": "Elige situs et contenta",
+  "backupWholeWebspaces": "Totum eligere webspaces",
+  "backupIndividualSites": "Singulae sites",
   "backupReplaceSitesNote": "Omnes tergum sites inferentes reponit vestri venas sites. Eligens pauciores tuos alias sites servat.",
   "backupRestoreContents": "Elige quod restituet",
   "backupChooseSiteActivation": "Elige ubi scripta et extensiones currunt",

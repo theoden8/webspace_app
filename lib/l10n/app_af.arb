@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "Herstel rugsteun",
   "backupCookiesSessionNote": "Die herstel van koekies kan huidige werfsessies vervang. Jy sal dalk weer moet aanmeld.",
   "backupChooseImportSites": "Kies werwe en inhoud",
+  "backupWholeWebspaces": "Kies hele webruimtes",
+  "backupIndividualSites": "Individuele webwerwe",
   "backupReplaceSitesNote": "Die invoer van alle rugsteunwerwe vervang jou huidige werwe. Om minder te kies, hou jou ander werwe.",
   "backupRestoreContents": "Kies wat om te herstel",
   "backupChooseSiteActivation": "Kies waar skrifte en uitbreidings loop",

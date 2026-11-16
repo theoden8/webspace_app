@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "Obnovit zálohu",
   "backupCookiesSessionNote": "Obnovení souborů cookie může nahradit aktuální relace webu. Možná se budete muset znovu přihlásit.",
   "backupChooseImportSites": "Vyberte stránky a obsah",
+  "backupWholeWebspaces": "Vyberte celé webové prostory",
+  "backupIndividualSites": "Jednotlivá místa",
   "backupReplaceSitesNote": "Import všech záložních webů nahradí vaše aktuální weby. Výběrem menšího počtu zůstanou vaše ostatní weby.",
   "backupRestoreContents": "Vyberte, co chcete obnovit",
   "backupChooseSiteActivation": "Vyberte, kde se spouštějí skripty a rozšíření",

@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "Ripristina il backup",
   "backupCookiesSessionNote": "Il ripristino dei cookie può sostituire le sessioni attuali del sito. Potrebbe essere necessario effettuare nuovamente l'accesso.",
   "backupChooseImportSites": "Scegli siti e contenuti",
+  "backupWholeWebspaces": "Seleziona interi spazi web",
+  "backupIndividualSites": "Siti individuali",
   "backupReplaceSitesNote": "L'importazione di tutti i siti di backup sostituisce i siti attuali. Scegliendo meno mantieni gli altri tuoi siti.",
   "backupRestoreContents": "Scegli cosa ripristinare",
   "backupChooseSiteActivation": "Scegli dove eseguire gli script e le estensioni",

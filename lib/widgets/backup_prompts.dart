@@ -12,6 +12,7 @@ import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/webspace_model.dart';
 
 /// [BackupPrompts] as a file picker and dialogs over the page that owns
 /// [context].
@@ -205,7 +206,7 @@ class DialogBackupPrompts implements BackupPrompts {
                       if (appSettings) ...[
                         for (final group in _backupPrefGroups(
                           AppPref.values.map((pref) => pref.key),
-                          loc,
+                          loc: loc,
                         ).entries)
                           ExpansionTile(
                             title: Text(group.key),
@@ -345,6 +346,34 @@ class DialogBackupPrompts implements BackupPrompts {
       }
       final choices = backup.sites[index]['webExtensionChoices'];
       return choices is Map && choices.values.any((on) => on == true);
+    }
+
+    final backupWebspaces = <({int sourceIndex, Webspace space})>[];
+    for (var i = 0; i < backup.webspaces.length; i++) {
+      final space = Webspace.fromJson(backup.webspaces[i]);
+      if (!space.isAll) backupWebspaces.add((sourceIndex: i, space: space));
+    }
+    final selectedWebspaceIndices = {
+      if (backup.includesSites)
+        for (final entry in backupWebspaces) entry.sourceIndex,
+    };
+    bool hasSiteScope() =>
+        selectedSites.isNotEmpty || selectedWebspaceIndices.isNotEmpty;
+    final siteIndexById = <String, int>{};
+    for (var i = 0; i < backup.sites.length; i++) {
+      final id = backup.sites[i]['siteId'];
+      if (id is String) siteIndexById.putIfAbsent(id, () => i);
+    }
+    final webspaceSiteIndices = <List<int>>[];
+    for (final entry in backupWebspaces) {
+      final space = entry.space;
+      final members = <int>{
+        for (final index in space.siteIndices)
+          if (index >= 0 && index < backup.sites.length) index,
+        for (final id in space.siteIds)
+          if (siteIndexById[id] case final index?) index,
+      };
+      webspaceSiteIndices.add(members.toList()..sort());
     }
 
     return showDialog<BackupRestoreChoices>(
@@ -535,6 +564,7 @@ class DialogBackupPrompts implements BackupPrompts {
                           backup.sites.isNotEmpty,
                       onChanged: (v) => refresh(() {
                         selectedSites.clear();
+                        selectedWebspaceIndices.clear();
                         if (v == true) {
                           selectedSites.addAll(
                             List.generate(
@@ -542,13 +572,52 @@ class DialogBackupPrompts implements BackupPrompts {
                               (index) => index,
                             ),
                           );
+                          selectedWebspaceIndices.addAll(
+                            backupWebspaces.map((entry) => entry.sourceIndex),
+                          );
                         } else {
                           scriptSites.clear();
                           extensionSites.clear();
                         }
-                        sites = selectedSites.isNotEmpty;
+                        sites = hasSiteScope();
                       }),
                     ),
+                    if (backupWebspaces.isNotEmpty) ...[
+                      ListTile(title: Text(loc.backupWholeWebspaces)),
+                      for (var w = 0; w < backupWebspaces.length; w++)
+                        CheckboxListTile(
+                          title: Text(backupWebspaces[w].space.name),
+                          subtitle: Text(
+                            loc.backupSelectionCount(
+                              webspaceSiteIndices[w]
+                                  .where(selectedSites.contains)
+                                  .length,
+                              webspaceSiteIndices[w].length,
+                            ),
+                          ),
+                          value: selectedWebspaceIndices.contains(
+                            backupWebspaces[w].sourceIndex,
+                          ),
+                          onChanged: (v) => refresh(() {
+                            if (v == true) {
+                              selectedWebspaceIndices.add(
+                                backupWebspaces[w].sourceIndex,
+                              );
+                              selectedSites.addAll(webspaceSiteIndices[w]);
+                            } else {
+                              selectedWebspaceIndices.remove(
+                                backupWebspaces[w].sourceIndex,
+                              );
+                              selectedSites.removeAll(webspaceSiteIndices[w]);
+                              scriptSites.removeAll(webspaceSiteIndices[w]);
+                              extensionSites.removeAll(webspaceSiteIndices[w]);
+                            }
+                            sites = hasSiteScope();
+                          }),
+                        ),
+                      const Divider(),
+                    ],
+                    ListTile(title: Text(loc.backupIndividualSites)),
                     for (var i = 0; i < backup.sites.length; i++)
                       ExpansionTile(
                         leading: Checkbox(
@@ -561,7 +630,7 @@ class DialogBackupPrompts implements BackupPrompts {
                               scriptSites.remove(i);
                               extensionSites.remove(i);
                             }
-                            sites = selectedSites.isNotEmpty;
+                            sites = hasSiteScope();
                           }),
                         ),
                         title: Text(
@@ -620,7 +689,7 @@ class DialogBackupPrompts implements BackupPrompts {
                     if (appSettings)
                       for (final group in _backupPrefGroups(
                         backup.globalPrefs.keys,
-                        loc,
+                        loc: loc,
                       ).entries)
                         ExpansionTile(
                           title: Text(group.key),
@@ -662,6 +731,9 @@ class DialogBackupPrompts implements BackupPrompts {
                               restoreGlobalScripts: globalScripts,
                               restoreExtensions: extensions,
                               siteIndices: selectedSites,
+                              webspaceIndices: sites
+                                  ? selectedWebspaceIndices
+                                  : const {},
                               siteScriptIndices: selectedSiteScripts
                                   .intersection(selectedSites),
                               siteCookieIndices: selectedSiteCookies
@@ -907,9 +979,9 @@ String _backupPrefLabel(String key) => key
     .replaceFirstMapped(RegExp(r'^.'), (match) => match[0]!.toUpperCase());
 
 Map<String, List<String>> _backupPrefGroups(
-  Iterable<String> keys,
-  AppLocalizations loc,
-) {
+  Iterable<String> keys, {
+  required AppLocalizations loc,
+}) {
   final groups = <String, List<String>>{
     loc.appSettingsAppearance: [],
     loc.appSettingsBehaviour: [],

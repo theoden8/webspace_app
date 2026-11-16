@@ -89,6 +89,7 @@ void main() {
           sites: [_site('a', cookie: 'backup')],
           webspaces: const [],
           selectedWebspaceId: null,
+          closed: ArchivesClosed.inTest(),
           restoreCookiesForSiteIds: {SiteId('a')},
         ),
       );

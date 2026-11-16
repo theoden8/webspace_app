@@ -107,7 +107,7 @@ List<HeldScript> heldScriptsForSites(
 ];
 
 /// Partial imports retain existing collections and add selected backup
-/// memberships to matching collection ids.
+/// memberships to matching collection ids, including chosen empty folders.
 List<Webspace> mergeBackupWebspaces(
   List<Webspace> current, {
   required List<Webspace> imported,
@@ -200,6 +200,7 @@ SettingsImportPlan planSettingsImport(
   SettingsBackup backup, {
   Function? stateSetterF,
   Set<int>? selectedSiteIndices,
+  Set<int>? selectedWebspaceIndices,
   Set<int>? siteScriptIndices,
   Set<int>? siteCookieIndices,
   Set<int>? siteExtensionIndices,
@@ -249,7 +250,10 @@ SettingsImportPlan planSettingsImport(
     sites[i].containerColor = colours[i];
   }
 
-  final webspaces = SettingsBackupService.restoreWebspaces(backup);
+  final webspaces = SettingsBackupService.restoreWebspaces(
+    backup,
+    selectedIndices: selectedWebspaceIndices,
+  );
   _dedupeWebspaceIds(webspaces);
   promoteLegacySiteIndices(webspaces, sites: sites);
   final allSites = List<WebViewModel>.of(sites);

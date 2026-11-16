@@ -374,9 +374,14 @@ class SettingsBackupService {
     }
   }
 
-  static List<Webspace> restoreWebspaces(SettingsBackup backup) {
+  static List<Webspace> restoreWebspaces(
+    SettingsBackup backup, {
+    Set<int>? selectedIndices,
+  }) {
     final webspaces = <Webspace>[Webspace.all()];
-    for (final json in backup.webspaces) {
+    for (var index = 0; index < backup.webspaces.length; index++) {
+      if (selectedIndices != null && !selectedIndices.contains(index)) continue;
+      final json = backup.webspaces[index];
       final ws = Webspace.fromJson(json);
       if (ws.id != WebspaceId.all) {
         webspaces.add(ws);

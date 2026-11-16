@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "Sicherung wiederherstellen",
   "backupCookiesSessionNote": "Das Wiederherstellen von Cookies kann aktuelle Site-Sitzungen ersetzen. Möglicherweise müssen Sie sich erneut anmelden.",
   "backupChooseImportSites": "Wählen Sie Websites und Inhalte aus",
+  "backupWholeWebspaces": "Wählen Sie ganze Webspaces aus",
+  "backupIndividualSites": "Einzelne Websites",
   "backupReplaceSitesNote": "Durch den Import aller Backup-Sites werden Ihre aktuellen Sites ersetzt. Wenn Sie weniger auswählen, bleiben Ihre anderen Websites erhalten.",
   "backupRestoreContents": "Wählen Sie aus, was wiederhergestellt werden soll",
   "backupChooseSiteActivation": "Wählen Sie aus, wo Skripte und Erweiterungen ausgeführt werden",

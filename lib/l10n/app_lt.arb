@@ -1272,6 +1272,8 @@
   "backupRestoreTitle": "Atkurti atsarginę kopiją",
   "backupCookiesSessionNote": "Slapukų atkūrimas gali pakeisti dabartines svetainės sesijas. Gali tekti prisijungti dar kartą.",
   "backupChooseImportSites": "Pasirinkite svetaines ir turinį",
+  "backupWholeWebspaces": "Pasirinkite visas žiniatinklio erdves",
+  "backupIndividualSites": "Atskiros svetainės",
   "backupReplaceSitesNote": "Importuojant visas atsargines svetaines pakeičiamos esamos svetainės. Pasirinkus mažiau, išliks kitos svetainės.",
   "backupRestoreContents": "Pasirinkite, ką atkurti",
   "backupChooseSiteActivation": "Pasirinkite, kur bus vykdomi scenarijai ir plėtiniai",
