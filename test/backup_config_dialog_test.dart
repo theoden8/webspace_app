@@ -20,7 +20,9 @@ void main() {
       ),
     );
     final site = WebViewModel(initUrl: 'https://example.com', name: 'Example');
-    final answer = DialogBackupPrompts(context).configureExport([site], null);
+    final answer = DialogBackupPrompts(
+      context,
+    ).configureExport([site], extensions: null);
     await tester.pumpAndSettle();
     expect(find.text('Example'), findsNothing);
     await tester.tap(find.text('Sites'));

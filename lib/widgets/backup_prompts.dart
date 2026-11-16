@@ -22,8 +22,8 @@ class DialogBackupPrompts implements BackupPrompts {
 
   @override
   Future<BackupExportChoices?> configureExport(
-    List<WebViewModel> sites,
-    ExtensionCarryOffer? extensions, {
+    List<WebViewModel> sites, {
+    required ExtensionCarryOffer? extensions,
     bool siteOnly = false,
   }) {
     final loc = AppLocalizations.of(context);

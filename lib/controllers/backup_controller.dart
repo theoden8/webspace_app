@@ -75,8 +75,8 @@ class BackupRestoreChoices {
 /// What a settings backup asks the user.
 abstract interface class BackupPrompts {
   Future<BackupExportChoices?> configureExport(
-    List<WebViewModel> sites,
-    ExtensionCarryOffer? extensions, {
+    List<WebViewModel> sites, {
+    required ExtensionCarryOffer? extensions,
     bool siteOnly = false,
   });
   Future<BackupRestoreChoices?> reviewImport(SettingsBackup backup);
@@ -171,7 +171,7 @@ class BackupController {
     if (!_host.mounted) return;
     final choices = await _prompts.configureExport(
       appTierModels,
-      offer,
+      extensions: offer,
       siteOnly: onlySite != null,
     );
     if (choices == null || !_host.mounted) return;
