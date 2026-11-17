@@ -1,15 +1,1 @@
-# The Ubuntu packages the AppImage bundles that LICENSE-001 does not yet let
-# ship (PLATFORM-013): a package, a tab, and what it waits on. Each was read
-# against what its binary package ships (openspec/specs/legal/debian_licences.tsv,
-# debian_readings.tsv); what is left is the policy's (licences.tsv): a licence
-# it does not list, or LicenseRef-build-only for a package its row does not
-# name yet. tool/check_bundle_licences.js --owed reports their refusals
-# instead of failing on them, and fails on a package listed here, in a bundle
-# that carries it, that no longer needs to be; the list only shrinks. While it
-# holds a row, the Snap workflow keeps the AppImage to itself and
-# scripts/release_appimage.sh refuses to publish one.
-libatomic1	GCC's atomic runtime, GPL-3.0-or-later WITH GCC-exception-3.1, the exception every program compiled by GCC relies on; the policy lists no GPL with an exception but desugar_jdk_libs's Classpath one
-libevdev2	the Linux UAPI headers input.h and uinput.h, GPL-2.0 WITH Linux-syscall-note, compiled in as struct layouts, ioctls and event-name tables
-libgstreamer1.0-0	gst/parse/grammar.tab.h, the pipeline parser Bison generates into libgstreamer, GPL-3.0-or-later WITH Bison-exception-2.2 (Debian's file names plain GPL-3+)
-libsystemd0	20 Linux UAPI headers from src/basic/linux, GPL-2.0-only WITH Linux-syscall-note, compiled into libsystemd
-libudev1	4 Linux UAPI headers from src/basic/linux, GPL-2.0-only WITH Linux-syscall-note, compiled into libudev
+

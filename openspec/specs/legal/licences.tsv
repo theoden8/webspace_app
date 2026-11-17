@@ -57,3 +57,11 @@ LGPL-2.1-or-later	shared
 LGPL-3.0-only	shared
 LGPL-3.0-or-later	shared
 GPL-2.0-only WITH Classpath-exception-2.0	linked	gradle:com.android.tools:desugar_jdk_libs
+# GPL with an exception that lets the code it covers ship in any program, in
+# the Ubuntu libraries the AppImage bundles as separate shared libraries
+# (PLATFORM-013): Bison's parser skeleton, the Linux UAPI headers' syscall
+# note, and GCC's runtime library exception.
+GPL-3.0-or-later WITH Bison-exception-2.2	shared	deb:libgstreamer1.0-0
+GPL-2.0-only WITH Linux-syscall-note	shared	deb:libsystemd0 deb:libudev1 deb:libevdev2
+GPL-2.0-or-later WITH Linux-syscall-note	shared	deb:libevdev2
+GPL-3.0-or-later WITH GCC-exception-3.1	shared	deb:libatomic1
