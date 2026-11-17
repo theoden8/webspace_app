@@ -63,9 +63,8 @@ publish() {
   [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "publish takes a release tag, vX.Y.Z"
   need gh gpg node curl tar zstd sha256sum
   [ -f "$pub" ] || fail "no $pub: run \`$0 key\` first"
-  if grep -qv '^#' "$owed"; then
-    fail "$(grep -cv '^#' "$owed") bundled packages are still owed, each waiting on what $owed says"
-  fi
+  owing="$(node "$root/tool/check_bundle_licences.js" --count-owed "$owed")"
+  [ "$owing" -eq 0 ] || fail "$owing bundled packages are still owed, each waiting on what $owed says"
   fpr="$(gpg --with-colons --show-keys "$pub" | awk -F: '$1 == "fpr" { print $10; exit }')"
   gpg --list-secret-keys "$fpr" >/dev/null 2>&1 || fail "this machine holds no secret key for $fpr"
   gh auth status >/dev/null 2>&1 || fail "gh is not signed in: gh auth login"

@@ -205,3 +205,12 @@ test("LICENSE-001 a file that is not machine-readable passes only as the bytes a
   assert.deepEqual(B.refusals(root, { held: [{ pkg: 'libold', sha256, spdx: 'GPL-2.0-or-later' }] }),
     ['usr/share/doc/libold/copyright: GPL-2.0-or-later'], 'a reading the policy refuses');
 });
+
+// The Snap workflow and scripts/release_appimage.sh ask the gate how many
+// packages are owed; a grep of their own once counted a blank line as one,
+// and the AppDir was never kept.
+test('LICENSE-001 an owed list of comments and blank lines owes nothing', () => {
+  assert.equal(B.owedCount('# header\n\n'), 0);
+  assert.equal(B.owedCount('# header\nlibx\twhat it waits on\n\n'), 1);
+  assert.equal(B.owedCount(read('linux/appimage/licences_owed.tsv')), 0, 'the committed list');
+});

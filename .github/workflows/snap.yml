@@ -198,10 +198,11 @@ jobs:
         id: appimage-licences
         run: |
           node tool/check_bundle_licences.js AppDir --owed linux/appimage/licences_owed.tsv
-          if grep -qv '^#' linux/appimage/licences_owed.tsv; then
-            echo "clear=false" >> "$GITHUB_OUTPUT"
-          else
+          owed="$(node tool/check_bundle_licences.js --count-owed linux/appimage/licences_owed.tsv)"
+          if [ "$owed" -eq 0 ]; then
             echo "clear=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "clear=false" >> "$GITHUB_OUTPUT"
           fi
 
       # Packed as the release packs it, signed by a key made for this run, so

@@ -10,6 +10,7 @@
 // library whose copyright file names the LGPL, under the LGPL alone.
 //
 //   node tool/check_bundle_licences.js <unpacked package or bundle directory> [--owed <list>]
+//   node tool/check_bundle_licences.js --count-owed <list>
 //
 // --owed names a list of packages the policy does not yet let ship
 // (linux/appimage/licences_owed.tsv): their refusals are reported, not
@@ -185,10 +186,23 @@ function owing(found, { root, owed }) {
   return { errors, owes };
 }
 
-module.exports = { names, readings, spdxOf, licencesOf, copyrightFiles, refusals, owing, NAMES };
+module.exports = { names, readings, spdxOf, licencesOf, copyrightFiles, refusals, owing, owedCount, NAMES };
+
+/** How many packages the owed list [owed] holds: its rows, as owing() reads them. */
+function owedCount(owed) {
+  return L.rows(owed).length;
+}
 
 if (require.main === module) {
   const args = process.argv.slice(2);
+  if (args[0] === '--count-owed') {
+    if (!args[1]) {
+      console.error('usage: node tool/check_bundle_licences.js --count-owed <list>');
+      process.exit(2);
+    }
+    console.log(owedCount(fs.readFileSync(args[1], 'utf8')));
+    process.exit(0);
+  }
   const at = args.indexOf('--owed');
   const owedFile = at >= 0 ? args.splice(at, 2)[1] : null;
   const root = args[0];

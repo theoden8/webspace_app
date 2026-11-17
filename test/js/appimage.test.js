@@ -52,7 +52,10 @@ test('PLATFORM-013 the Snap workflow keeps no AppDir while a bundled package is 
     assert.match(workflow.slice(at, workflow.indexOf('\n      - name:', at + 1)),
       /if: steps\.appimage-licences\.outputs\.clear == 'true'/, `${step} runs while packages are owed`);
   }
-  assert.match(read('scripts/release_appimage.sh'), /grep -qv '\^#' "\$owed"/, 'the release script publishes while packages are owed');
+  assert.match(workflow, /node tool\/check_bundle_licences\.js --count-owed linux\/appimage\/licences_owed\.tsv/,
+    'the workflow counts the owed list some way the gate does not');
+  assert.match(read('scripts/release_appimage.sh'), /check_bundle_licences\.js" --count-owed "\$owed"/,
+    'the release script counts the owed list some way the gate does not');
 });
 
 // A GStreamer stanza reads as build-only when its plugin is not bundled
