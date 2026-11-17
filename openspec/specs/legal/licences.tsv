@@ -63,5 +63,5 @@ GPL-2.0-only WITH Classpath-exception-2.0	linked	gradle:com.android.tools:desuga
 # note, and GCC's runtime library exception.
 GPL-3.0-or-later WITH Bison-exception-2.2	shared	deb:libgstreamer1.0-0
 GPL-2.0-only WITH Linux-syscall-note	shared	deb:libsystemd0 deb:libudev1 deb:libevdev2
-GPL-2.0-or-later WITH Linux-syscall-note	shared	deb:libevdev2
+GPL-2.0-or-later WITH Linux-syscall-note	shared	deb:libsystemd0 deb:libevdev2
 GPL-3.0-or-later WITH GCC-exception-3.1	shared	deb:libatomic1
