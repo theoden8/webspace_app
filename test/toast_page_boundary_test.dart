@@ -111,7 +111,7 @@ void main() {
       expect(find.text('first'), findsOneWidget);
 
       follow(siteA, tab: 'tab 2');
-      await tester.pumpAndSettle();
+      await tester.pump();
       expect(find.byType(SnackBar), findsNothing);
 
       follow(siteA, tab: 'tab 2', tabs: const ['tab 1', 'tab 2', 'tab 3']);
@@ -119,20 +119,20 @@ void main() {
       await tester.pump();
       expect(find.text('opened tab 3'), findsOneWidget);
       follow(siteA, tab: 'tab 2'); // The background tab was closed.
-      await tester.pumpAndSettle();
+      await tester.pump();
       expect(find.byType(SnackBar), findsNothing);
 
       show('second site');
       await tester.pump();
       follow(siteB, tab: 'tab 1');
-      await tester.pumpAndSettle();
+      await tester.pump();
       expect(find.byType(SnackBar), findsNothing);
 
       follow(siteB, tab: 'tab 1', scope: 'one');
       show('first webspace');
       await tester.pump();
       follow(siteB, tab: 'tab 1', scope: 'two');
-      await tester.pumpAndSettle();
+      await tester.pump();
       expect(find.byType(SnackBar), findsNothing);
     },
   );
