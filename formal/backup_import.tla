@@ -1,47 +1,51 @@
 --------------------------- MODULE backup_import ---------------------------
 (***************************************************************************)
-(* Bounded import-selection model. Sites 1 and 2 are in the backup; site 3  *)
-(* is already on the device. Folder 10 contains both backup sites, folder  *)
-(* 11 is empty, and folder 12 is already on the device. Each selector is    *)
-(* chosen independently, including stale choices from a deselected site.   *)
+(* Bounded import-selection model. Sites 1 and 2 may be in the backup; site  *)
+(* 3 is already on the device. The empty-backup branch has no backup sites. *)
+(* Folder 10 contains both backup sites when present, folder 11 is empty,  *)
+(* and folder 12 is already on the device. Each selector is chosen          *)
+(* independently, including stale choices from a deselected site.          *)
 (* The Apply step abstracts planSettingsImport and BackupController.import. *)
 (* This is a specification of their intended effects, not a refinement    *)
 (* proof of Dart code.                                                     *)
 (***************************************************************************)
 EXTENDS Naturals, FiniteSets
 
-CONSTANT Conflict \* "none" | "runall" | "allfolders"
+CONSTANT Conflict \* "none" | "runall" | "allfolders" | "emptyReplace"
 
 BackupSites == {1, 2}
 CurrentSites == {3}
 BackupFolders == {10, 11}
 CurrentFolders == {12}
-Members(w) == IF w = 10 THEN {1, 2} ELSE {}
 
 VARIABLES phase, pickedSites, pickedFolders, pickedScripts, pickedCookies,
           pickedExtensions, runScripts, runExtensions, restoreExtensions,
-          approveScripts, restoreApp, finalSites, finalFolders,
+          approveScripts, restoreApp, emptyBackup, finalSites, finalFolders,
           importedFolders, importedMembers, activeScripts, activeExtensions,
           importedCookies, appliedApp
 
 vars == <<phase, pickedSites, pickedFolders, pickedScripts, pickedCookies,
           pickedExtensions, runScripts, runExtensions, restoreExtensions,
-          approveScripts, restoreApp, finalSites, finalFolders,
+          approveScripts, restoreApp, emptyBackup, finalSites, finalFolders,
           importedFolders, importedMembers, activeScripts, activeExtensions,
           importedCookies, appliedApp>>
 
+EffectiveBackupSites == IF emptyBackup THEN {} ELSE BackupSites
+Members(w) == IF emptyBackup THEN {} ELSE IF w = 10 THEN {1, 2} ELSE {}
 HasSiteScope == pickedSites # {} \/ pickedFolders # {}
-Partial == pickedSites # BackupSites
+Partial == pickedSites # EffectiveBackupSites \/
+           (emptyBackup /\ pickedFolders # {})
 
 Init ==
     /\ phase = "review"
-    /\ pickedSites \in SUBSET BackupSites
+    /\ emptyBackup \in BOOLEAN
+    /\ pickedSites \in SUBSET EffectiveBackupSites
     /\ pickedFolders \in SUBSET BackupFolders
-    /\ pickedScripts \in SUBSET BackupSites
-    /\ pickedCookies \in SUBSET BackupSites
-    /\ pickedExtensions \in SUBSET BackupSites
-    /\ runScripts \in SUBSET BackupSites
-    /\ runExtensions \in SUBSET BackupSites
+    /\ pickedScripts \in SUBSET EffectiveBackupSites
+    /\ pickedCookies \in SUBSET EffectiveBackupSites
+    /\ pickedExtensions \in SUBSET EffectiveBackupSites
+    /\ runScripts \in SUBSET EffectiveBackupSites
+    /\ runExtensions \in SUBSET EffectiveBackupSites
     /\ restoreExtensions \in BOOLEAN
     /\ approveScripts \in BOOLEAN
     /\ restoreApp \in BOOLEAN
@@ -57,7 +61,9 @@ Init ==
 Apply ==
     /\ phase = "review"
     /\ phase' = "applied"
-    /\ finalSites' = IF ~HasSiteScope THEN CurrentSites
+    /\ finalSites' = IF Conflict = "emptyReplace" /\ emptyBackup
+                        /\ pickedFolders # {} THEN {}
+                     ELSE IF ~HasSiteScope THEN CurrentSites
                      ELSE IF Partial THEN CurrentSites \cup pickedSites
                      ELSE pickedSites
     /\ finalFolders' = IF ~HasSiteScope THEN CurrentFolders
@@ -78,7 +84,7 @@ Apply ==
     /\ appliedApp' = restoreApp
     /\ UNCHANGED <<pickedSites, pickedFolders, pickedScripts, pickedCookies,
                    pickedExtensions, runScripts, runExtensions,
-                   restoreExtensions, approveScripts, restoreApp>>
+                   restoreExtensions, approveScripts, restoreApp, emptyBackup>>
 
 Next == Apply
 Spec == Init /\ [][Next]_vars
@@ -98,7 +104,8 @@ Inv_SiteScope == phase # "applied" \/
                    ELSE pickedSites))
 Inv_FolderScope == phase # "applied" \/
     ( /\ importedFolders = pickedFolders
-      /\ finalFolders = (IF Partial THEN CurrentFolders \cup pickedFolders
+      /\ finalFolders = (IF ~HasSiteScope THEN CurrentFolders
+                          ELSE IF Partial THEN CurrentFolders \cup pickedFolders
                           ELSE pickedFolders)
       /\ \A w \in BackupFolders :
            importedMembers[w] = (IF w \in pickedFolders
@@ -122,4 +129,10 @@ Inv_AppScope == phase # "applied" \/ appliedApp = restoreApp
 Reach_EmptyFolder == ~(phase = "applied" /\ pickedSites = {}
                         /\ pickedFolders = {11} /\ 11 \in finalFolders)
 Reach_EnabledScript == ~(phase = "applied" /\ activeScripts = {1})
+Reach_EmptyBackupFolder == ~(phase = "applied" /\ emptyBackup
+    /\ pickedFolders = {11} /\ finalSites = CurrentSites
+    /\ 11 \in finalFolders)
+Reach_EmptyBackupNoScope == ~(phase = "applied" /\ emptyBackup
+    /\ pickedFolders = {} /\ finalSites = CurrentSites
+    /\ finalFolders = CurrentFolders)
 =============================================================================

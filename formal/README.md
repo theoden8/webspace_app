@@ -148,15 +148,26 @@ class.
   activates the wrong site (the legacy-mode cross-site cookie exposure). Standalone (a UI
   orchestration state machine; no shared kernel state).
 - **`backup_import.tla`** + `backup_import*.cfg` — bounded granular settings import.
-  Exhausts independent selections for two backup sites, a populated and an empty backup
+  Exhausts independent selections for two backup sites (also the empty-backup case), a populated and an empty backup
   webspace, site scripts, cookies, extensions, per-site reactivation, script confirmation,
   and app settings. Checks partial imports retain existing sites and folders, only chosen
   folders and their chosen members arrive, and content and reactivation obey their own
-  selectors. Two mutants catch unchosen folders and scripts reactivated without consent;
-  two witnesses reach an empty-folder import and a consented script reactivation. This is
-  a hand-written abstraction of the intended effects. It does not prove that the Dart UI
-  and controller implement the abstraction for every input; Dart import tests exercise
-  those paths separately.
+  selectors. Mutants catch unchosen folders, scripts reactivated without consent, and an
+  empty backup clearing current sites. Witnesses reach an empty-folder import, a consented
+  script reactivation, an empty-backup folder import, and an empty backup with no site scope.
+- **`backup_review.tla`** + `backup_review*.cfg` — the review screen's group and individual
+  selection transitions for overlapping and empty webspaces. A group deselection retains
+  a site shared with another selected group; the `dropShared` mutant is caught. Reactivation
+  choices stay within selected sites. Witnesses reach shared-site retention and an empty
+  webspace selected on its own.
+- **`backup_settings.tla`** + `backup_settings*.cfg` — independent app preference keys,
+  site restoration, global script library, per-site run choices, and script confirmation.
+  Checks the search default is skipped without a site import and global scripts run only
+  after every required choice. Both skipped search and approved global runs are reachable;
+  mutants break preference scope and global script consent.
+  These three models are hand-written abstractions of intended effects. They do not prove
+  the Dart UI and controller implement the abstraction for every input; Dart widget and
+  import tests exercise those paths separately.
 - **`jar_nonempty.tla`** + `jar_nonempty*.cfg` — legacy cookie engine: the shared jar is never
   left empty across a superseded restore (spec: `per-site-cookie-isolation`).
   `Inv_JarRepopulated` (once nuked, the jar is always repopulated before the engine returns to

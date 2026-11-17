@@ -359,6 +359,7 @@ class DialogBackupPrompts implements BackupPrompts {
     };
     bool hasSiteScope() =>
         selectedSites.isNotEmpty || selectedWebspaceIndices.isNotEmpty;
+    sites = backup.includesSites && hasSiteScope();
     final siteIndexById = <String, int>{};
     for (var i = 0; i < backup.sites.length; i++) {
       final id = backup.sites[i]['siteId'];
@@ -608,9 +609,26 @@ class DialogBackupPrompts implements BackupPrompts {
                               selectedWebspaceIndices.remove(
                                 backupWebspaces[w].sourceIndex,
                               );
-                              selectedSites.removeAll(webspaceSiteIndices[w]);
-                              scriptSites.removeAll(webspaceSiteIndices[w]);
-                              extensionSites.removeAll(webspaceSiteIndices[w]);
+                              final sitesInOtherSelectedWebspaces = <int>{
+                                for (
+                                  var other = 0;
+                                  other < backupWebspaces.length;
+                                  other++
+                                )
+                                  if (selectedWebspaceIndices.contains(
+                                    backupWebspaces[other].sourceIndex,
+                                  ))
+                                    ...webspaceSiteIndices[other],
+                              };
+                              final removedSites = webspaceSiteIndices[w]
+                                  .where(
+                                    (index) => !sitesInOtherSelectedWebspaces
+                                        .contains(index),
+                                  )
+                                  .toSet();
+                              selectedSites.removeAll(removedSites);
+                              scriptSites.removeAll(removedSites);
+                              extensionSites.removeAll(removedSites);
                             }
                             sites = hasSiteScope();
                           }),
