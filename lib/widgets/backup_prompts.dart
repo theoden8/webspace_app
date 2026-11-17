@@ -212,20 +212,20 @@ class DialogBackupPrompts implements BackupPrompts {
                             title: Text(group.key),
                             subtitle: Text(
                               loc.backupSelectionCount(
-                                group.value.where(appPrefKeys.contains).length,
+                                group.value.where((p) => appPrefKeys.contains(p.key)).length,
                                 group.value.length,
                               ),
                             ),
                             children: [
-                              for (final key in group.value)
+                              for (final pref in group.value)
                                 CheckboxListTile(
-                                  title: Text(_backupPrefLabel(key)),
-                                  value: appPrefKeys.contains(key),
+                                  title: Text(_prefTitle(pref, loc: loc)),
+                                  value: appPrefKeys.contains(pref.key),
                                   onChanged: (v) => refresh(() {
                                     if (v == true) {
-                                      appPrefKeys.add(key);
+                                      appPrefKeys.add(pref.key);
                                     } else {
-                                      appPrefKeys.remove(key);
+                                      appPrefKeys.remove(pref.key);
                                     }
                                   }),
                                 ),
@@ -714,20 +714,20 @@ class DialogBackupPrompts implements BackupPrompts {
                           title: Text(group.key),
                           subtitle: Text(
                             loc.backupSelectionCount(
-                              group.value.where(appPrefKeys.contains).length,
+                              group.value.where((p) => appPrefKeys.contains(p.key)).length,
                               group.value.length,
                             ),
                           ),
                           children: [
-                            for (final key in group.value)
+                            for (final pref in group.value)
                               CheckboxListTile(
-                                title: Text(_backupPrefLabel(key)),
-                                value: appPrefKeys.contains(key),
+                                title: Text(_prefTitle(pref, loc: loc)),
+                                value: appPrefKeys.contains(pref.key),
                                 onChanged: (v) => refresh(() {
                                   if (v == true) {
-                                    appPrefKeys.add(key);
+                                    appPrefKeys.add(pref.key);
                                   } else {
-                                    appPrefKeys.remove(key);
+                                    appPrefKeys.remove(pref.key);
                                   }
                                 }),
                               ),
@@ -993,9 +993,61 @@ class DialogBackupPrompts implements BackupPrompts {
   }
 }
 
-String _backupPrefLabel(String key) => key
-    .replaceAllMapped(RegExp(r'(?<=[a-z])(?=[A-Z])'), (_) => ' ')
-    .replaceFirstMapped(RegExp(r'^.'), (match) => match[0]!.toUpperCase());
+/// [pref]'s title as its settings row shows it, or as the backup review
+/// names a pref no row sets.
+String _prefTitle(AppPref pref, {required AppLocalizations loc}) =>
+    switch (pref) {
+      AppPref.showUrlBar => loc.homeShowUrlBarMenu,
+      AppPref.tabsEnabled => loc.siteSettingsTabs,
+      AppPref.externalLinkMode => loc.siteSettingsExternalLinks,
+      AppPref.routeOutboundLinks => loc.siteSettingsRouteOutboundLinks,
+      AppPref.signInPopups => loc.siteSettingsSignInPopups,
+      AppPref.showTabStrip => loc.appSettingsSiteTabStrip,
+      AppPref.tabStripInFullscreen => loc.appSettingsFullscreenTabStrip,
+      AppPref.tabStripEdge => loc.appSettingsTabStripPosition,
+      AppPref.tabBarButton => loc.appSettingsFullscreenTabStripButton,
+      AppPref.tabBarButtonOnRight => loc.backupPrefTabButtonCorner,
+      AppPref.fullscreenOnShortcut => loc.appSettingsFullscreenOnShortcut,
+      AppPref.tabMaxWidth => loc.appSettingsTabMaxWidth,
+      AppPref.showStatsBanner => loc.appSettingsStatsBar,
+      AppPref.osmTileUrl => loc.appSettingsTileUrl,
+      AppPref.globalOutboundProxy => loc.appSettingsOutboundProxy,
+      AppPref.proxyLibrary => loc.savedProxiesTitle,
+      AppPref.developerMode => loc.appSettingsDeveloperMode,
+      AppPref.experimentalTextureRendering =>
+        loc.appSettingsExperimentalTextureRendering,
+      AppPref.experimentalWebExtensions =>
+        loc.appSettingsExperimentalWebExtensions,
+      AppPref.experimentalExtensionSearch =>
+        loc.appSettingsExperimentalExtensionSearch,
+      AppPref.webExtensionsCheckUpdates => loc.extensionsCheckDaily,
+      AppPref.webExtensionsAutoUpdate => loc.extensionsAutoUpdate,
+      AppPref.experimentalNetworkInterface =>
+        loc.appSettingsExperimentalNetworkInterface,
+      AppPref.experimentalWebKitBlockReports =>
+        loc.appSettingsExperimentalWebKitBlockReports,
+      AppPref.externalTor => loc.externalTor,
+      AppPref.externalTorAddress => loc.externalTorAddress,
+      AppPref.externalTorControl => loc.externalTorControl,
+      AppPref.linkHandlingEnabled => loc.appSettingsLinkHandling,
+      AppPref.linkHandlingClaimDomains =>
+        loc.linkHandlingClaimDomainsToggleTitle,
+      AppPref.webSearchDefaultSite => loc.webSearchDefaultTitle,
+      AppPref.useUboResources => loc.appSettingsUboRedirectStubs,
+      AppPref.appLocaleOverride => loc.appSettingsLanguageTitle,
+      AppPref.firefoxUaAutoRefresh => loc.appSettingsFirefoxAutoUpdate,
+      AppPref.backForwardCacheEnabled => loc.backupPrefBackForwardCache,
+      AppPref.backOpensMenu => loc.appSettingsBackOpensMenu,
+      AppPref.httpsUpgradeEnabled => loc.siteSettingsHttpsUpgrade,
+      AppPref.blockScreenshots => loc.siteSettingsBlockScreenshots,
+      AppPref.legacyDesign => loc.appSettingsLegacyDesign,
+      AppPref.libraryLayout => loc.backupPrefFolderLayout,
+      AppPref.libraryWebspaceLayout => loc.backupPrefWebspacesLayout,
+      AppPref.libraryIconSize => loc.appSettingsLibraryIconSize,
+      AppPref.keepRunningWhenClosed => loc.appSettingsKeepRunningWhenClosed,
+      AppPref.topSitesKeepFilters => loc.topSitesKeepFilters,
+      AppPref.topSitesOffer => loc.topSitesOffer,
+    };
 
 /// The prefs [backup] names, under their key or the one an older build
 /// wrote them under.
@@ -1006,9 +1058,9 @@ List<AppPref> _carriedPrefs(SettingsBackup backup) => [
       p,
 ];
 
-/// [prefs]' keys under the title of the App Settings screen each belongs
+/// [prefs] under the title of the App Settings screen each belongs
 /// to ([AppPref.section]), in the screens' order.
-Map<String, List<String>> _backupPrefGroups(
+Map<String, List<AppPref>> _backupPrefGroups(
   Iterable<AppPref> prefs, {
   required AppLocalizations loc,
 }) {
@@ -1025,7 +1077,7 @@ Map<String, List<String>> _backupPrefGroups(
       if (prefs.any((p) => p.section == section))
         title(section): [
           for (final p in prefs)
-            if (p.section == section) p.key,
+            if (p.section == section) p,
         ],
   };
 }

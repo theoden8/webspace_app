@@ -115,7 +115,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Privacy'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Block Screenshots'));
+    await tester.tap(find.text('Block screenshots'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
