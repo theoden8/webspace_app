@@ -93,7 +93,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       find.text(
-        'Importing all backup sites replaces your current sites. Choosing fewer keeps your other sites.',
+        'Selected backup sites replace their matching current sites. Uncheck one to keep its current version. Importing every backup site also replaces the site list.',
       ),
       findsOneWidget,
     );

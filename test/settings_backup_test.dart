@@ -74,7 +74,7 @@ void main() {
         );
         final incoming = Webspace(
           id: WebspaceId('work'),
-          name: 'Work',
+          name: 'Backup Work',
           siteIds: [SiteId('imported')],
         );
         final merged = mergeBackupWebspaces(
@@ -85,6 +85,10 @@ void main() {
           SiteId('current'),
           SiteId('imported'),
         ]);
+        expect(
+          merged.firstWhere((space) => space.id == current.id).name,
+          'Work',
+        );
         expect(current.siteIds, [SiteId('current')]);
         expect(
           mergeBackupWebspaces(

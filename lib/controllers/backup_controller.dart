@@ -335,6 +335,10 @@ class BackupController {
       _host.toast((loc) => loc.homeImportInvalidBackup);
       return;
     }
+    final remintedGlobals =
+        restoreChoices.restoreGlobalScripts && plan.globalUserScripts != null
+        ? remintImportedGlobalScripts(plan.globalUserScripts!, plan.heldScripts)
+        : null;
 
     final selectedSourceIndices =
         restoreChoices.siteIndices
@@ -512,8 +516,18 @@ class BackupController {
     await _shell.saveSelectedWebspaceId();
     await _shell.saveCurrentIndex();
 
-    if (restoreChoices.restoreGlobalScripts && plan.globalUserScripts != null) {
-      _shell.globalUserScripts = plan.globalUserScripts!;
+    if (remintedGlobals != null) {
+      final cleared = clearRetainedGlobalScriptOptIns(
+        _sites.models.where(
+          (site) =>
+              !site.isArchiveTier &&
+              !plan.sites.any((imported) => identical(imported, site)),
+        ),
+      );
+      if (cleared.isNotEmpty) {
+        await _host.commitSites(const SitesEdited());
+      }
+      _shell.globalUserScripts = remintedGlobals.scripts;
     }
     await _shell.saveGlobalUserScripts();
 
@@ -550,7 +564,7 @@ class BackupController {
     // BACKUP-015: the scripts the backup ran come back as they were, but
     // only once the user has seen them named and said yes.
     final heldScripts = heldScriptsForSites(
-      plan.heldScripts,
+      remintedGlobals?.held ?? plan.heldScripts,
       siteIds: enableScriptSiteIds,
       includeGlobalScripts: restoreChoices.restoreGlobalScripts,
     );

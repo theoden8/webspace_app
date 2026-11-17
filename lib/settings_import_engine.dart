@@ -106,6 +106,61 @@ List<HeldScript> heldScriptsForSites(
         ),
 ];
 
+/// The parsed backup keeps its original ids for compatibility checks. When
+/// installing its globals, give each a fresh local id and move the backup's
+/// held per-site opt-ins to that id. A retained site or closed archive can
+/// therefore never opt into newly imported code through an old id.
+({List<UserScriptConfig> scripts, List<HeldScript> held})
+remintImportedGlobalScripts(
+  List<UserScriptConfig> scripts,
+  List<HeldScript> held,
+) {
+  final firstByBackupId = <UserScriptId, UserScriptConfig>{};
+  final localScripts = <UserScriptConfig>[];
+  final usedIds = {for (final script in scripts) script.id};
+  for (final script in scripts) {
+    late UserScriptId localId;
+    do {
+      localId = UserScriptId.mint();
+    } while (!usedIds.add(localId));
+    final local = UserScriptConfig.fromJson({
+      ...script.toJson(),
+      'id': localId,
+    });
+    firstByBackupId.putIfAbsent(script.id, () => local);
+    localScripts.add(local);
+  }
+  return (
+    scripts: localScripts,
+    held: [
+      for (final script in held)
+        if (script is HeldGlobalScript)
+          HeldGlobalScript(
+            firstByBackupId[script.script.id]!,
+            sites: script.sites,
+          )
+        else
+          script,
+    ],
+  );
+}
+
+/// Replacing the global script library invalidates opt-ins on sites retained
+/// from this device. A backup script can reuse an old id with different code;
+/// leaving an opt-in set would run that code without the site's review choice.
+/// Imported sites were already sanitized and are reenabled only after review.
+List<WebViewModel> clearRetainedGlobalScriptOptIns(
+  Iterable<WebViewModel> retainedSites,
+) {
+  final changed = <WebViewModel>[];
+  for (final site in retainedSites) {
+    if (site.enabledGlobalScriptIds.isEmpty) continue;
+    site.enabledGlobalScriptIds.clear();
+    changed.add(site);
+  }
+  return changed;
+}
+
 /// Partial imports retain existing collections and add selected backup
 /// memberships to matching collection ids, including chosen empty folders.
 List<Webspace> mergeBackupWebspaces(

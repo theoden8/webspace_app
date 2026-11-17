@@ -165,7 +165,23 @@ class.
   Checks the search default is skipped without a site import and global scripts run only
   after every required choice. Both skipped search and approved global runs are reachable;
   mutants break preference scope and global script consent.
-  These three models are hand-written abstractions of intended effects. They do not prove
+- **`backup_conflicts.tla`** + `backup_conflicts*.cfg` — a current and a backup site with
+  the same ID, plus a matching webspace ID. Partial imports keep unselected current sites,
+  preserve unchecked content on a matching site, and merge the chosen folder's membership
+  under its current title. A full import replaces the site and folder lists. Restored
+  cookies combine current secure cookies with backup non-secure cookies. Replacing the
+  global script library clears old opt-ins on retained sites and gives the imported
+  scripts fresh local IDs, so an old opt-in in a retained site or closed archive cannot
+  run backup code without review. Two sites with the same URL but different IDs stay
+  separate containers; the identity collision model concerns matching IDs. Mutants and
+  witnesses exercise each case.
+- **`backup_extension_conflicts.tla`** + `backup_extension_conflicts*.cfg` — extension
+  files are linked by fingerprint even when backup and local IDs match; unmatched carried
+  packages require approval and receive a fresh local ID. A missing reference stays off,
+  and per-site activation still requires the site's content and run selections. Mutants
+  catch linking by ID, adding without approval, running without consent, and overwriting
+  an installed extension.
+  These five models are hand-written abstractions of intended effects. They do not prove
   the Dart UI and controller implement the abstraction for every input; Dart widget and
   import tests exercise those paths separately.
 - **`jar_nonempty.tla`** + `jar_nonempty*.cfg` — legacy cookie engine: the shared jar is never

@@ -55,6 +55,59 @@ Set<String> _running(WebViewModel site, {required SettingsImportPlan plan}) => {
 
 void main() {
   group('planSettingsImport holds what the backup ran', () {
+    test(
+      'installed global scripts get fresh ids and keep reviewed opt-ins',
+      () {
+        final plan = _planOfDevice();
+        final originalId = plan.globalUserScripts!.first.id;
+        final archived = WebViewModel(
+          initUrl: 'https://archived.example',
+          enabledGlobalScriptIds: {originalId},
+        );
+        final local = remintImportedGlobalScripts(
+          plan.globalUserScripts!,
+          plan.heldScripts,
+        );
+        expect(local.scripts.first.id, isNot(originalId));
+        expect(archived.combineUserScripts(local.scripts), isEmpty);
+        expect(
+          local.held.whereType<HeldGlobalScript>().single.script,
+          same(local.scripts.first),
+        );
+        for (final held in heldScriptsForSites(
+          local.held,
+          siteIds: {plan.sites.first.siteId},
+          includeGlobalScripts: true,
+        )) {
+          held.release();
+        }
+        expect(
+          plan.sites.first
+              .combineUserScripts(local.scripts)
+              .where((script) => script.enabled)
+              .map((script) => script.id),
+          contains(local.scripts.first.id),
+        );
+        expect(plan.sites.last.combineUserScripts(local.scripts), isEmpty);
+      },
+    );
+
+    test('replacing the global library clears retained sites opt-ins', () {
+      final retained = WebViewModel(
+        initUrl: 'https://retained.example',
+        enabledGlobalScriptIds: {UserScriptId('same-id')},
+      );
+      final alreadyOff = WebViewModel(initUrl: 'https://off.example');
+      final replacement = _script('same-id');
+      expect(retained.combineUserScripts([replacement]), hasLength(1));
+      expect(clearRetainedGlobalScriptOptIns([retained, alreadyOff]), [
+        retained,
+      ]);
+      expect(retained.enabledGlobalScriptIds, isEmpty);
+      expect(retained.combineUserScripts([replacement]), isEmpty);
+      expect(alreadyOff.enabledGlobalScriptIds, isEmpty);
+    });
+
     test('nothing runs until a held script is released', () {
       final plan = _planOfDevice();
       for (final site in plan.sites) {
