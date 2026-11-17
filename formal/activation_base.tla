@@ -173,9 +173,9 @@ MovedRows(mv) ==
 site == << rows, loaded, current, version, marker, tier, nested, headless, fore >>
 sessions == << jar, stored, signedIn >>
 turn == << holder, queue, dnsHolder, dnsQueue >>
-ghosts == << newest, evictedShown, seen >>
-tabVars == << tabs, active, built, hist, warm, queued, held, file, minted, host,
-             link, opener >>
+ghosts == << newest, evictedShown, rebuiltWarm, seen >>
+tabVars == << tabs, active, built, hist, warm, queued, held, epoch, file, minted,
+             host, link, opener >>
 blocking == << dns, told >>
 archived == << gone, views, boxes >>
 vars == << site, sessions, turn, fl, inputs, ghosts, last, tabVars, blocking,

@@ -1452,6 +1452,9 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           null => null,
         },
       ),
+      ModelVar.epoch => each(
+        (m) => FrameValues(m.tabBinding.stamped.toList()..sort()),
+      ),
       ModelVar.file => FrameValues([
         for (final key in navStates.files.keys.toList()..sort())
           (key, _labelOf(navStates.files[key]!)),
@@ -1507,6 +1510,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       ModelVar.inputs ||
       ModelVar.newest ||
       ModelVar.evictedShown ||
+      ModelVar.rebuiltWarm ||
       ModelVar.seen ||
       ModelVar.last => null,
     };
@@ -1678,6 +1682,13 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
               ),
               null => 0,
             },
+        ],
+    ];
+    out['epoch'] = [
+      for (final m in bySite)
+        [
+          for (final n in numbers)
+            m.tabBinding.epochOf(_tabWithNumber(m.siteId, n: n)),
         ],
     ];
     out['host'] = [

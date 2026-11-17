@@ -919,6 +919,7 @@ final _closeDropPort = Port<SiteSetStage, CloseFlow>(
     ModelVar.hist,
     ModelVar.warm,
     ModelVar.held,
+    ModelVar.epoch,
     ModelVar.opener,
     ModelVar.link,
   },

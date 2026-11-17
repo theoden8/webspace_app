@@ -111,6 +111,7 @@ enum Inv {
   tabFilesListed(atRest: true, reads: {ModelVar.file, ModelVar.tabs}),
   tabBound(reads: {ModelVar.active, ModelVar.built}),
   heldBuilt(reads: {ModelVar.built, ModelVar.held}),
+  warmNotRebuilt(reads: {ModelVar.rebuiltWarm}),
   openerListed(reads: {ModelVar.gone, ModelVar.opener, ModelVar.tabs}),
   tabActive(
     atRest: true,
@@ -196,6 +197,7 @@ const _tabs = [
   Inv.tabFilesListed,
   Inv.tabBound,
   Inv.heldBuilt,
+  Inv.warmNotRebuilt,
   Inv.tabActive,
   Inv.warmShown,
   Inv.warmListed,
@@ -1465,6 +1467,13 @@ enum Mutant {
         "a let-go webview's frame that shows the active tab and takes the "
         'queue but binds no tab: a loaded site with no webview shows a '
         'history (caught)',
+  ),
+  rebuildwarm(
+    world: ActivationWorld.tabsRebuildSwitch,
+    by: Inv.warmNotRebuilt,
+    doc:
+        'a switch back to a tab that kept a warm view that builds the tab '
+        'a new one, as the switch did before TAB-023 showed it (caught)',
   ),
   letgodrops(
     world: ActivationWorld.tabsRebuildSwitch,

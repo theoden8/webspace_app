@@ -90,6 +90,10 @@ enum ModelVar {
     'a priority-picked unload disposed a protected site (ghost)',
     type: r'evictedShown \in BOOLEAN',
   ),
+  rebuiltWarm(
+    'a switch built a new webview for a target that kept a warm one (ghost, TAB-023)',
+    type: r'rebuiltWarm \in BOOLEAN',
+  ),
   seen(
     'the reachability witnesses met (ghost)',
     type: r'seen \subseteq STRING',
@@ -121,6 +125,10 @@ enum ModelVar {
   queued(
     'queued[s]: the back stack queued for the next build: the tab it was read for and the tab whose history it is (WebViewTabBinding.queued)',
     type: r'queued \in [Sites -> [t : TabIds \cup {0}, h : TabIds \cup {0}]]',
+  ),
+  epoch(
+    "epoch[s][t]: the bit tab t's latest webview was built under, flipped by each build for t, so a warm view shown again is told from a new build (WebViewTabBinding.epochOf, TAB-023)",
+    type: r'epoch \in [Sites -> [TabIds -> BOOLEAN]]',
   ),
   held(
     'held[s]: the back stack the live build took and no controller restored yet: the tab it was read for and the tab whose history it is (WebViewTabBinding.held)',
@@ -400,6 +408,7 @@ enum ModelDef {
   warmGone,
   unwarmed,
   handed,
+  stamped,
   staged,
   resolveLevel;
 

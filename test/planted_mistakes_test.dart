@@ -542,6 +542,19 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [RendererGone(0)],
     breaks: 'letGo as  changed built, which it does not write',
   ),
+  // Back on its first tab, which kept its view warm: the mutant's switch
+  // gives it the other epoch, which the ghost's assert refuses.
+  Mutant.rebuildwarm => _By(
+    world: (d) => ActivationWorld(
+      _mixedContainers,
+      deletes: true,
+      tabbed: true,
+      declared: d,
+    ),
+    setup: const [Tap(0), OpenTab(0, tab: 1)],
+    script: const [OpenTab(0, tab: 0)],
+    breaks: 'a switch built a new webview for a target that kept a warm one',
+  ),
   // Back on its first tab, site 1's rebuild takes the back stack its switch
   // away saved; the renderer dies before that build's controller comes. No
   // view stays warm, so the switch back rebuilds (TAB-023).

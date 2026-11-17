@@ -24,6 +24,7 @@ extension WebViewModelViews on WebViewModel {
   /// resume reload, the site's media session and its screen share.
   void letGoOfViews({required LeavingView? view, required Commit commit}) {
     final leaving = views.letGoOfAll(shown: view, commit: commit);
+    tabBinding.clearEpochs(commit: commit);
     unawaited(ProcessRoute.instance.leave(routeClaim.occupant, view: leaving));
     _shownGone(commit: commit);
   }
