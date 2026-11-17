@@ -222,6 +222,16 @@ activation_tabs_spaces	36
 activation_tabs_warm_one	1026
 activation_takeany	194
 activation_tierearly	202
+activation_toast	104
+activation_toast_ignoretab	10
+activation_toast_ignoreversion	4
+activation_toast_keepqueue	6
+activation_toast_keepvisible	4
+activation_toast_reachdropped	8
+activation_toast_reachqueue	6
+activation_toast_reachsite	12
+activation_toast_reachtab	10
+activation_toast_staleoffer	6
 activation_tor_containers	80
 activation_torkeepsslot	90
 activation_torkeepsslot_tabs_reroute_tor_containers	226

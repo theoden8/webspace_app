@@ -119,6 +119,8 @@ ToastFinishOffer ==
 ToastNext == ActivationWithToast \/ ToastShow \/ ToastDismiss
              \/ ToastRequestOffer \/ ToastFinishOffer
 ToastSpec == ToastInit /\ [][ToastNext]_allVars
+\* What two states must agree on to be one: activation's View and the toasts.
+ToastView == << View, toastVars >>
 
 Inv_ToastOwned ==
     /\ (toastShown = NoToast \/ toastShown.owner = PageKey)
