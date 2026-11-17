@@ -408,22 +408,26 @@ expect archive_transfer_drop_collection.cfg archive_transfer.tla "NoLostCollecti
   "dropping a collection before the app write is caught"
 expect archive_transfer_touch_other.cfg archive_transfer.tla "OtherArchiveIntact is violated" \
   "wiping another archive's slot is caught"
-expect archive_transfer_reach_partial.cfg archive_transfer.tla "ReachPartial is violated" \
+expect archive_transfer_refuse_pending.cfg archive_transfer.tla "OpenCanEnd is violated" \
+  "a close that refuses a move out whose save failed, never settling it, is caught"
+expect archive_transfer_reach_partial.cfg archive_transfer.tla "Reach_Partial is violated" \
   "a partially transferred archive is reachable"
-expect archive_transfer_reach_recovery.cfg archive_transfer.tla "ReachSiteRecovery is violated" \
+expect archive_transfer_reach_recovery.cfg archive_transfer.tla "Reach_SiteRecovery is violated" \
   "a site transfer can recover after a crash"
-expect archive_transfer_reach_site_before_write.cfg archive_transfer.tla "ReachSiteBeforeWrite is violated" \
+expect archive_transfer_reach_site_before_write.cfg archive_transfer.tla "Reach_SiteBeforeWrite is violated" \
   "a site transfer can recover before the app write"
-expect archive_transfer_reach_removal_recovery.cfg archive_transfer.tla "ReachRemovalRecovery is violated" \
+expect archive_transfer_reach_removal_recovery.cfg archive_transfer.tla "Reach_RemovalRecovery is violated" \
   "a collection transfer can recover after the app write"
-expect archive_transfer_reach_removal_before_write.cfg archive_transfer.tla "ReachRemovalBeforeWrite is violated" \
+expect archive_transfer_reach_removal_before_write.cfg archive_transfer.tla "Reach_RemovalBeforeWrite is violated" \
   "a collection transfer can recover before the app write"
-expect archive_transfer_reach_removed.cfg archive_transfer.tla "ReachRemoved is violated" \
+expect archive_transfer_reach_removed.cfg archive_transfer.tla "Reach_Removed is violated" \
   "sites and collections can be transferred before slot removal"
-expect archive_transfer_reach_empty_wiped.cfg archive_transfer.tla "ReachEmptyWiped is violated" \
+expect archive_transfer_reach_empty_wiped.cfg archive_transfer.tla "Reach_EmptyWiped is violated" \
   "the final site can cause immediate empty-slot cleanup"
-expect archive_transfer_reach_empty_reclaimed.cfg archive_transfer.tla "ReachEmptyReclaimed is violated" \
+expect archive_transfer_reach_empty_reclaimed.cfg archive_transfer.tla "Reach_EmptyReclaimed is violated" \
   "opening an empty slot after a crash can reclaim it"
+expect archive_transfer_reach_stalled.cfg archive_transfer.tla "Reach_Stalled is violated" \
+  "a move out whose last save failed in process is reachable"
 
 section "RENDERER" "BUG-002 dead-renderer recovery (PAUSE-013 + PAUSE-014)"
 expect renderer.cfg renderer.tla "No error has been found" \

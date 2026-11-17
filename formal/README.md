@@ -48,18 +48,26 @@ class.
   NOT join the single-execution kernel — it gets its own model via **self-composition** (run
   both worlds in lockstep, assert app-tier state never diverges). The `Leak` demonstrator
   folds the archive count into app-tier state and is caught.
-- **`archive_transfer.tla`** + `archive_transfer*.cfg` — bounded model of
-  `ArchiveController.moveOut`, `removeKeepingSites`, and empty-slot cleanup. Two
-  sites and an optional collection cross separate durable slot and app-tier
-  writes. Crashes before and after either app-tier write exercise the pending
-  markers on reopen. Safety checks cover lost sites or collections, a site
-  visible in both libraries, an unrelated archive slot, and opening a removed
-  slot. Reachability checks require partial transfer, both sides of each crash
-  boundary, complete removal, and immediate or reopen cleanup of an empty
-  slot. Four fault configurations demonstrate the loss, duplicate, and
-  unrelated-slot checks. This is a hand-maintained abstraction; the controller
-  boundary tests in `test/archive_round_trip_test.dart` exercise the matching
-  write and restart paths in Dart.
+- **`archive_transfer.tla`** + `archive_transfer*.cfg` — a hand-written, bounded model
+  (not printed from the code, not replayed against it) of `ArchiveController`'s move-out
+  journal (`pendingOut`), `removeKeepingSites`' journal (`pendingRemoval`) and empty-slot
+  cleanup: two sites and an optional collection, the slot and the app tier as separate
+  durable writes, a crash at any point. The slot's save after the app-tier write can also
+  fail without a crash (`StallSite`, a locked keychain): the journal stays and the archive
+  stays open. A close and the moves that start a transfer settle that journal first, as
+  `_settlePendingOut` does (#1018); on reopen after a crash `ReopenSiteWritten` settles it.
+  Invariants: no site or collection lost, no site in both libraries, the other archive's
+  slot untouched, no open removed slot, and `OpenCanEnd`: an open archive no operation
+  holds can be closed, or wiped when empty, without a crash. Five planted faults are
+  caught, one per invariant but `NoOpenClearedSlot`; `refusePending` is the controller
+  before #1018, whose close refused a stalled move out and left the archive decrypted for
+  the rest of the run. Nine witnesses reach a partial transfer, each side of each crash
+  boundary, a complete removal, both empty-slot cleanups and a stalled move out. Not
+  modelled: a failure in process of any other save (the journal writes; the settle's own
+  save, which leaves the state as it was, a stutter), the open's settle without a crash
+  before it, and progress of an operation already under way.
+  `test/archive_round_trip_test.dart` drives the crash paths in Dart; the stalled move out
+  and its settle are #1018's test.
 - **`renderer.tla`** + `renderer*.cfg` — BUG-002 dead-renderer recovery (PAUSE-013 +
   PAUSE-014). `Recovered` (a visible dead renderer is always eventually rebuilt); the
   `noProbe` demonstrator drops PAUSE-014 and reproduces the offscreen-kill stuck black

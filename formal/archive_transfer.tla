@@ -5,6 +5,9 @@
 (* slot until the app-tier write lands; opening after a crash decides which *)
 (* copy to keep. Two sites make partial removal reachable. The other slot  *)
 (* stands for a second archive that this removal must never change.         *)
+(* The slot's save that drops a written site's record can also fail in     *)
+(* process (a locked keychain): the journal stays, the archive stays open, *)
+(* and the next close or move settles it first (ARCH-011).                  *)
 (***************************************************************************)
 EXTENDS Naturals, FiniteSets
 
@@ -15,11 +18,11 @@ NoSite == "none"
 
 VARIABLES slotSites, appSites, slotCollections, appCollections,
           pendingSite, pendingRemoval, opened, archiveView, slotLive,
-          otherSlot, recovery
+          otherSlot, recovery, stalled
 
 vars == <<slotSites, appSites, slotCollections, appCollections,
           pendingSite, pendingRemoval, opened, archiveView, slotLive,
-          otherSlot, recovery>>
+          otherSlot, recovery, stalled>>
 
 TypeOK ==
     /\ slotSites \subseteq Sites
@@ -35,6 +38,7 @@ TypeOK ==
     /\ recovery \in {"none", "siteBeforeWrite", "siteAfterWrite",
                      "removalBeforeWrite", "removalAfterWrite",
                      "emptyReclaimed"}
+    /\ stalled \in BOOLEAN
 
 Init ==
     /\ slotSites = Sites
@@ -48,12 +52,21 @@ Init ==
     /\ slotLive = TRUE
     /\ otherSlot = TRUE
     /\ recovery = "none"
+    /\ stalled = FALSE
+
+\* What settling a stalled transfer leaves: the written site's record goes.
+SettledSlot == IF stalled THEN slotSites \ {pendingSite} ELSE slotSites
+
+\* Whether an operation may start: none is in flight, or a stalled transfer
+\* is there to settle first (before #1018 the code refused: refusePending).
+MayStart == pendingSite = NoSite \/ (stalled /\ Fault # "refusePending")
 
 BeginSite(s) ==
-    /\ opened /\ slotLive /\ pendingSite = NoSite /\ ~pendingRemoval
+    /\ opened /\ slotLive /\ MayStart /\ ~pendingRemoval
     /\ s \in slotSites \ appSites
     /\ pendingSite' = s
-    /\ slotSites' = IF Fault = "dropSite" THEN slotSites \ {s} ELSE slotSites
+    /\ slotSites' = IF Fault = "dropSite" THEN SettledSlot \ {s} ELSE SettledSlot
+    /\ stalled' = FALSE
     /\ UNCHANGED <<appSites, slotCollections, appCollections,
                    pendingRemoval, opened, archiveView, slotLive, otherSlot,
                    recovery>>
@@ -64,23 +77,35 @@ WriteSite(s) ==
     /\ archiveView' = archiveView \ {s}
     /\ UNCHANGED <<slotSites, slotCollections, appCollections,
                    pendingSite, pendingRemoval, opened, slotLive, otherSlot,
-                   recovery>>
+                   recovery, stalled>>
 
 FinishSite(s) ==
-    /\ opened /\ pendingSite = s /\ s \in appSites
+    /\ opened /\ pendingSite = s /\ s \in appSites /\ ~stalled
     /\ slotSites' = slotSites \ {s}
     /\ pendingSite' = NoSite
     /\ UNCHANGED <<appSites, slotCollections, appCollections,
                    pendingRemoval, opened, archiveView, slotLive, otherSlot,
-                   recovery>>
+                   recovery, stalled>>
+
+\* The same save failing without a crash: the record and the journal stay,
+\* the move-out ends, and the archive stays open.
+StallSite(s) ==
+    /\ opened /\ pendingSite = s /\ s \in appSites /\ ~stalled
+    /\ stalled' = TRUE
+    /\ UNCHANGED <<slotSites, appSites, slotCollections, appCollections,
+                   pendingSite, pendingRemoval, opened, archiveView, slotLive,
+                   otherSlot, recovery>>
 
 BeginRemoval ==
-    /\ opened /\ slotLive /\ slotSites = {} /\ pendingSite = NoSite
+    /\ opened /\ slotLive /\ SettledSlot = {} /\ MayStart
     /\ ~pendingRemoval /\ slotCollections # {}
     /\ pendingRemoval' = TRUE
     /\ slotCollections' =
          IF Fault = "dropCollection" THEN {} ELSE slotCollections
-    /\ UNCHANGED <<slotSites, appSites, appCollections, pendingSite,
+    /\ slotSites' = SettledSlot
+    /\ pendingSite' = NoSite
+    /\ stalled' = FALSE
+    /\ UNCHANGED <<appSites, appCollections,
                    opened, archiveView, slotLive, otherSlot, recovery>>
 
 WriteCollections ==
@@ -89,7 +114,7 @@ WriteCollections ==
     /\ appCollections' = appCollections \cup slotCollections
     /\ UNCHANGED <<slotSites, appSites, slotCollections, pendingSite,
                    pendingRemoval, opened, archiveView, slotLive, otherSlot,
-                   recovery>>
+                   recovery, stalled>>
 
 WipeRemoval ==
     /\ opened /\ pendingRemoval /\ slotSites = {}
@@ -100,7 +125,8 @@ WipeRemoval ==
     /\ opened' = FALSE
     /\ archiveView' = {}
     /\ otherSlot' = IF Fault = "touchOther" THEN FALSE ELSE otherSlot
-    /\ UNCHANGED <<slotSites, appSites, appCollections, pendingSite, recovery>>
+    /\ UNCHANGED <<slotSites, appSites, appCollections, pendingSite, recovery,
+                   stalled>>
 
 WipeEmpty ==
     /\ opened /\ slotLive /\ slotSites = {} /\ slotCollections = {}
@@ -109,20 +135,26 @@ WipeEmpty ==
     /\ opened' = FALSE
     /\ archiveView' = {}
     /\ UNCHANGED <<slotSites, appSites, slotCollections, appCollections,
-                   pendingSite, pendingRemoval, otherSlot, recovery>>
+                   pendingSite, pendingRemoval, otherSlot, recovery, stalled>>
 
+\* A close settles a stalled transfer first; the slot it seals may then be
+\* empty, which the next open reclaims.
 Close ==
-    /\ opened /\ pendingSite = NoSite /\ ~pendingRemoval
-    /\ slotSites \cup slotCollections # {}
+    /\ opened /\ MayStart /\ ~pendingRemoval
+    /\ stalled \/ slotSites \cup slotCollections # {}
+    /\ slotSites' = SettledSlot
+    /\ pendingSite' = NoSite
+    /\ stalled' = FALSE
     /\ opened' = FALSE
     /\ archiveView' = {}
-    /\ UNCHANGED <<slotSites, appSites, slotCollections, appCollections,
-                   pendingSite, pendingRemoval, slotLive, otherSlot, recovery>>
+    /\ UNCHANGED <<appSites, slotCollections, appCollections,
+                   pendingRemoval, slotLive, otherSlot, recovery>>
 
 Crash ==
     /\ opened
     /\ opened' = FALSE
     /\ archiveView' = {}
+    /\ stalled' = FALSE
     /\ UNCHANGED <<slotSites, appSites, slotCollections, appCollections,
                    pendingSite, pendingRemoval, slotLive, otherSlot, recovery>>
 
@@ -135,7 +167,7 @@ ReopenSiteWritten ==
     /\ opened' = TRUE
     /\ recovery' = "siteAfterWrite"
     /\ UNCHANGED <<appSites, slotCollections, appCollections,
-                   pendingRemoval, slotLive, otherSlot>>
+                   pendingRemoval, slotLive, otherSlot, stalled>>
 
 ReopenSiteUnwritten ==
     /\ ~opened /\ slotLive /\ pendingSite \in Sites \ appSites
@@ -144,7 +176,7 @@ ReopenSiteUnwritten ==
     /\ opened' = TRUE
     /\ recovery' = "siteBeforeWrite"
     /\ UNCHANGED <<slotSites, appSites, slotCollections, appCollections,
-                   pendingRemoval, slotLive, otherSlot>>
+                   pendingRemoval, slotLive, otherSlot, stalled>>
 
 ReopenRemovalWritten ==
     /\ ~opened /\ slotLive /\ pendingRemoval
@@ -154,7 +186,7 @@ ReopenRemovalWritten ==
     /\ pendingRemoval' = FALSE
     /\ recovery' = "removalAfterWrite"
     /\ UNCHANGED <<slotSites, appSites, appCollections, pendingSite,
-                   opened, archiveView, otherSlot>>
+                   opened, archiveView, otherSlot, stalled>>
 
 ReopenRemovalUnwritten ==
     /\ ~opened /\ slotLive /\ pendingRemoval
@@ -164,7 +196,7 @@ ReopenRemovalUnwritten ==
     /\ archiveView' = slotSites
     /\ recovery' = "removalBeforeWrite"
     /\ UNCHANGED <<slotSites, appSites, slotCollections, appCollections,
-                   pendingSite, slotLive, otherSlot>>
+                   pendingSite, slotLive, otherSlot, stalled>>
 
 ReopenPlain ==
     /\ ~opened /\ slotLive /\ pendingSite = NoSite /\ ~pendingRemoval
@@ -172,7 +204,7 @@ ReopenPlain ==
     /\ opened' = TRUE
     /\ archiveView' = slotSites
     /\ UNCHANGED <<slotSites, appSites, slotCollections, appCollections,
-                   pendingSite, pendingRemoval, slotLive, otherSlot, recovery>>
+                   pendingSite, pendingRemoval, slotLive, otherSlot, recovery, stalled>>
 
 ReclaimOnOpen ==
     /\ ~opened /\ slotLive /\ pendingSite = NoSite /\ ~pendingRemoval
@@ -180,10 +212,11 @@ ReclaimOnOpen ==
     /\ slotLive' = FALSE
     /\ recovery' = "emptyReclaimed"
     /\ UNCHANGED <<slotSites, appSites, slotCollections, appCollections,
-                   pendingSite, pendingRemoval, opened, archiveView, otherSlot>>
+                   pendingSite, pendingRemoval, opened, archiveView, otherSlot, stalled>>
 
 Next ==
-    \/ \E s \in Sites : (BeginSite(s) \/ WriteSite(s) \/ FinishSite(s))
+    \/ \E s \in Sites : (BeginSite(s) \/ WriteSite(s) \/ FinishSite(s)
+                         \/ StallSite(s))
     \/ BeginRemoval \/ WriteCollections \/ WipeRemoval \/ WipeEmpty
     \/ Close \/ Crash \/ ReopenSiteWritten \/ ReopenSiteUnwritten
     \/ ReopenRemovalWritten \/ ReopenRemovalUnwritten
@@ -196,14 +229,21 @@ NoLostCollections == Collections \subseteq slotCollections \cup appCollections
 NoDuplicateVisible == archiveView \cap appSites = {}
 OtherArchiveIntact == otherSlot
 NoOpenClearedSlot == opened => slotLive
+\* An open archive no operation holds can still be sealed, or wiped when
+\* nothing is left in it, so it never stays decrypted for the rest of a run.
+\* Crash does not count: ending the run is what the stalled transfer forced.
+OpenCanEnd ==
+    (opened /\ (pendingSite = NoSite \/ stalled) /\ ~pendingRemoval)
+        => ENABLED (Close \/ WipeEmpty)
 
-ReachPartial == ~(appSites # {} /\ slotSites # {} /\ pendingSite = NoSite)
-ReachSiteRecovery == ~(recovery = "siteAfterWrite")
-ReachSiteBeforeWrite == ~(recovery = "siteBeforeWrite")
-ReachRemovalRecovery == ~(recovery = "removalAfterWrite")
-ReachRemovalBeforeWrite == ~(recovery = "removalBeforeWrite")
-ReachRemoved == ~(~slotLive /\ appSites = Sites
-                   /\ appCollections = Collections)
-ReachEmptyWiped == ~(~slotLive /\ appSites = Sites /\ recovery = "none")
-ReachEmptyReclaimed == ~(recovery = "emptyReclaimed")
+Reach_Partial == ~(appSites # {} /\ slotSites # {} /\ pendingSite = NoSite)
+Reach_SiteRecovery == ~(recovery = "siteAfterWrite")
+Reach_SiteBeforeWrite == ~(recovery = "siteBeforeWrite")
+Reach_RemovalRecovery == ~(recovery = "removalAfterWrite")
+Reach_RemovalBeforeWrite == ~(recovery = "removalBeforeWrite")
+Reach_Removed == ~(~slotLive /\ appSites = Sites
+                    /\ appCollections = Collections)
+Reach_EmptyWiped == ~(~slotLive /\ appSites = Sites /\ recovery = "none")
+Reach_EmptyReclaimed == ~(recovery = "emptyReclaimed")
+Reach_Stalled == ~stalled
 =======================================================================
