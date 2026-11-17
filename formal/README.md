@@ -48,6 +48,18 @@ class.
   NOT join the single-execution kernel — it gets its own model via **self-composition** (run
   both worlds in lockstep, assert app-tier state never diverges). The `Leak` demonstrator
   folds the archive count into app-tier state and is caught.
+- **`archive_transfer.tla`** + `archive_transfer*.cfg` — bounded model of
+  `ArchiveController.moveOut`, `removeKeepingSites`, and empty-slot cleanup. Two
+  sites and an optional collection cross separate durable slot and app-tier
+  writes. Crashes before and after either app-tier write exercise the pending
+  markers on reopen. Safety checks cover lost sites or collections, a site
+  visible in both libraries, an unrelated archive slot, and opening a removed
+  slot. Reachability checks require partial transfer, both sides of each crash
+  boundary, complete removal, and immediate or reopen cleanup of an empty
+  slot. Four fault configurations demonstrate the loss, duplicate, and
+  unrelated-slot checks. This is a hand-maintained abstraction; the controller
+  boundary tests in `test/archive_round_trip_test.dart` exercise the matching
+  write and restart paths in Dart.
 - **`renderer.tla`** + `renderer*.cfg` — BUG-002 dead-renderer recovery (PAUSE-013 +
   PAUSE-014). `Recovered` (a visible dead renderer is always eventually rebuilt); the
   `noProbe` demonstrator drops PAUSE-014 and reproduces the offscreen-kill stuck black
