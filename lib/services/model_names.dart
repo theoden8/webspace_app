@@ -327,6 +327,7 @@ enum ModelConst {
   deletable(ConstKind.set, range: r'SUBSET Sites'),
   importing(ConstKind.set, range: r'SUBSET Sites'),
   imports(ConstKind.off, range: r'BOOLEAN', follows: {importing}),
+  importMerges(ConstKind.off, range: r'BOOLEAN', follows: {importing}),
   resettable(ConstKind.set, range: r'SUBSET Sites'),
   rebuilt(ConstKind.set, range: r'SUBSET Sites'),
   joining(ConstKind.set, range: r'SUBSET Sites'),

@@ -86,6 +86,7 @@ void main() {
       sites.applied(SitesLoaded([kept]));
       final replaced = await SiteImport(sites, host: _Host(sites)).replace(
         SitesReplaced(
+          scope: ImportScope.replace,
           sites: [_site('a', cookie: 'backup')],
           webspaces: const [],
           selectedWebspaceId: null,
@@ -98,6 +99,12 @@ void main() {
         'secure',
         'backup',
       ]);
+      expect(
+        sites.models.single.pendingContainerCookies.queued?.map((c) => c.name),
+        ['backup'],
+        reason: 'the container gets the backup\'s cookies with the first '
+            'controller; its secure session is already there',
+      );
     },
   );
 
@@ -115,6 +122,7 @@ void main() {
 
     final replaced = await SiteImport(sites, host: _Host(sites)).replace(
       SitesReplaced(
+        scope: ImportScope.replace,
         sites: [
           _site('a', cookie: 'backup'),
           _site('c', cookie: 'seed'),
@@ -129,6 +137,15 @@ void main() {
     expect(
       {for (final m in sites.models) '${m.siteId}': m.cookies.single.name},
       {'a': 'own', 'c': 'seed'},
+    );
+    expect(
+      {
+        for (final m in sites.models)
+          '${m.siteId}': m.pendingContainerCookies.queued?.single.name,
+      },
+      {'a': null, 'c': 'seed'},
+      reason: "the site it brings seeds its container with the backup's "
+          'cookies; the one it carries keeps its own jar',
     );
     expect(
       native.profiles.keys,

@@ -106,6 +106,9 @@ Importing == {}
 \* Whether a world imports a backup at all; the code may import one any
 \* time, an empty one too.
 Imports == Importing # {}
+\* Whether the import keeps the listed sites it does not carry, a partial
+\* restore's (ImportScope.merge); the pages restore whole.
+ImportMerges == FALSE
 \* The sites a home reset may unload off screen (SiteActivationController.
 \* unload); the pages reset none.
 Resettable == {}

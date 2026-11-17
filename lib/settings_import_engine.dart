@@ -28,6 +28,7 @@ import 'package:webspace/settings/web_extension_backup.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/settings/site_field.dart';
 import 'package:webspace/settings/site_ids.dart';
 
 /// A restored site's choices for the backup's extensions, by the ids they
@@ -259,22 +260,23 @@ SettingsImportPlan planSettingsImport(
   Set<int>? siteScriptIndices,
   Set<int>? siteCookieIndices,
   Set<int>? siteExtensionIndices,
+  Set<SiteId> keeping = const {},
 }) {
   final sites = <WebViewModel>[];
   final seenIds = <String>{};
   for (var index = 0; index < backup.sites.length; index++) {
     var json = Map<String, dynamic>.of(backup.sites[index]);
     if (siteScriptIndices != null && !siteScriptIndices.contains(index)) {
-      json.remove('userScripts');
-      json.remove('enabledGlobalScriptIds');
+      json.remove(SiteField.userScripts.key);
+      json.remove(SiteField.enabledGlobalScriptIds.key);
     }
     if (siteCookieIndices != null && !siteCookieIndices.contains(index)) {
-      json['cookies'] = <dynamic>[];
+      json[SiteField.cookies.key] = <dynamic>[];
     }
     if (siteExtensionIndices != null && !siteExtensionIndices.contains(index)) {
-      json.remove('webExtensionChoices');
+      json.remove(SiteField.webExtensionChoices.key);
     }
-    final id = SiteId.parse(json['siteId']);
+    final id = SiteId.parse(json[SiteField.siteId.key]);
     // Two sites sharing a siteId would share one container: one cookie jar,
     // one storage partition. The first keeps the id, later ones get fresh.
     if (id != null && !seenIds.add(id)) {
@@ -327,7 +329,9 @@ SettingsImportPlan planSettingsImport(
       includeGlobalScripts: true,
     );
   }
-  final known = {for (final s in sites) s.siteId};
+  // A partial restore keeps the listed sites too ([keeping]): references
+  // to them stay.
+  final known = {for (final s in sites) s.siteId, ...keeping};
   for (final ws in webspaces) {
     if (ws.isAll) continue;
     final seen = <String>{};

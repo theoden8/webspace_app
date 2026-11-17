@@ -275,6 +275,7 @@ void main() {
       );
       r.applied(
         SitesReplaced(
+          scope: ImportScope.replace,
           sites: [_site(SiteId('c'))],
           webspaces: [
             Webspace(id: WebspaceId('w'), name: 'w', siteIds: [SiteId('c')]),
@@ -286,6 +287,43 @@ void main() {
       expect(r.loaded, isEmpty);
       expect(r.current, isNull);
       expect(r.filteredIndices(), [0]);
+    });
+
+    test('a partial restore keeps every listed site it does not carry, '
+        'one listed since it began among them (BACKUP-003)', () {
+      final carried = _site(SiteId('a'));
+      final r = _runtime(
+        [_site(SiteId('a')), _site(SiteId('b'))],
+        loaded: ['b'],
+        shown: SiteId('b'),
+      );
+      r.webspaces.add(
+        Webspace(id: WebspaceId('w'), name: 'w', siteIds: [SiteId('b')]),
+      );
+      r.selectedWebspaceId = WebspaceId('w');
+      // Listed while the restore awaited its prefs and extensions.
+      r.applied(SiteAdded(_site(SiteId('c'))));
+      r.applied(
+        SitesReplaced(
+          scope: ImportScope.merge,
+          sites: [carried],
+          webspaces: [
+            Webspace(id: WebspaceId('w'), name: 'w', siteIds: [SiteId('a')]),
+          ],
+          selectedWebspaceId: null,
+          closed: ArchivesClosed.inTest(),
+        ),
+      );
+      expect([for (final m in r.models) m.siteId],
+          [SiteId('b'), SiteId('c'), SiteId('a')]);
+      expect(r.models.last, same(carried));
+      expect(
+        r.webspaces.singleWhere((w) => w.id == WebspaceId('w')).siteIds,
+        containsAll([SiteId('a'), SiteId('b')]),
+      );
+      expect(r.selectedWebspaceId, WebspaceId('w'),
+          reason: 'a partial restore keeps the webspace on screen');
+      expect(r.loaded, isEmpty);
     });
 
     test('an import lets go of what the replaced sites ran (PROXY-008)', () async {
@@ -300,6 +338,7 @@ void main() {
       expect(ProcessRoute.instance.occupants, contains(occupant));
       r.applied(
         SitesReplaced(
+          scope: ImportScope.replace,
           sites: [_site(SiteId('b'))],
           webspaces: const [],
           selectedWebspaceId: null,
@@ -423,7 +462,7 @@ void main() {
         SiteAdded(_site(SiteId('a'))),
         SiteRemoved(_site(SiteId('a'))),
         const SitesMoved(0, to: 1),
-        SitesReplaced(sites: [], webspaces: [], selectedWebspaceId: null, closed: ArchivesClosed.inTest()),
+        SitesReplaced(scope: ImportScope.replace, sites: [], webspaces: [], selectedWebspaceId: null, closed: ArchivesClosed.inTest()),
         ArchiveOpened(
           sites: Admitted.of(const [],
               listed: const {}, build: (_) => throw StateError('none')),

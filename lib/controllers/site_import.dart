@@ -123,12 +123,24 @@ final class ImportFlow extends JarWorld implements SiteModels {
   /// lists move.
   void land({required Commit commit}) {
     _replaced = List.of(_sites.models);
-    _dropped = [
-      for (final m in _replaced)
-        if (!replacement.sites.hasKey(m)) m,
-    ];
+    _dropped = switch (replacement.scope) {
+      ImportScope.replace => [
+        for (final m in _replaced)
+          if (!replacement.sites.hasKey(m)) m,
+      ],
+      ImportScope.merge => const [],
+    };
+    final containers = _sites.isolation is Containers;
     for (final m in replacement.sites) {
       final row = _replaced.indexOfKey(m);
+      // The backup's cookies reach a container only through its webview's
+      // first controller: a site it brings new, and a carried one whose
+      // restore the user chose (BACKUP-003).
+      if (containers &&
+          m.cookies.isNotEmpty &&
+          (row < 0 || replacement.restoreCookiesForSiteIds.contains(m.siteId))) {
+        m.pendingContainerCookies.queue(m.cookies);
+      }
       if (row >= 0) {
         final current = _replaced[row].cookies;
         m.cookies = replacement.restoreCookiesForSiteIds.contains(m.siteId)
@@ -248,6 +260,13 @@ final _importing = Constant<Iterable<SiteId>, ImportFlow>(
   read: (w) => [for (final m in w.replacement.sites) m.siteId],
 ).value;
 
+/// Whether the import keeps the listed sites the backup does not carry, a
+/// partial restore's (`ImportMerges`).
+final _merges = Constant<bool, ImportFlow>(
+  ModelConst.importMerges,
+  read: (w) => w.replacement.scope == ImportScope.merge,
+).value;
+
 /// Whether the world imports a backup: the code may import one any time,
 /// an empty one too.
 final _imports = Expr.ofConstant<bool, ImportFlow>(
@@ -329,7 +348,13 @@ final _frame = Await<ImportFlow, ImportPlace>(
 /// the list starts signed out: whatever session it had left with it, and
 /// the backup's cookies are all it has (BACKUP-003).
 List<Write<ImportFlow>> _landWrites() => [
-  _importGone.becomes(_sitesAll.less(_importing)),
+  _importGone.becomes(
+    Expr.choose(
+      when: _merges,
+      then: _importGone.value.less(_importing),
+      otherwise: _sitesAll.less(_importing),
+    ),
+  ),
   _signedIn.becomes(_signedIn.value.less(_importing.less(_listed))),
   _importLoaded.becomes(Expr.none()),
   _importCurrent.becomes(_noSite),
@@ -340,8 +365,15 @@ List<Write<ImportFlow>> _landWrites() => [
     to: Expr.constant(SiteLifecycleState.resident, tla: '"resident"'),
   ),
   ...webViewsGone(_listed),
-  ...TabVars.openersGone(_listed.less(_importing)),
+  ...TabVars.openersGone(_leaving),
 ];
+
+/// The listed sites the import takes off the list: none a partial restore's.
+final _leaving = Expr.choose<Iterable<SiteId>, ImportFlow>(
+  when: _merges,
+  then: Expr.none(),
+  otherwise: _listed.less(_importing),
+);
 
 Call<ImportFlow> _landCall() => Call.on(
   _landPort,
@@ -352,7 +384,7 @@ Call<ImportFlow> _landCall() => Call.on(
 
 final _dropping = _dropped.becomes(
   Expr.checked(
-    rule: _listed.less(_importing),
+    rule: _leaving,
     run: (c) => [for (final m in _page.from(c).dropped) m.siteId],
     key: (id) => id,
     why: 'the import retires the listed sites the backup does not carry '

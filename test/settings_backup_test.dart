@@ -63,6 +63,25 @@ Map<String, dynamic> _siteEntry(
 };
 
 void main() {
+  test('a backup of some sites names no other site in its webspaces', () {
+    final a = SiteId('a');
+    final b = SiteId('b');
+    final spaces = [
+      Webspace.all(),
+      Webspace(id: WebspaceId('both'), name: 'both', siteIds: [a, b]),
+      Webspace(id: WebspaceId('other'), name: 'other', siteIds: [b]),
+      Webspace(id: WebspaceId('empty'), name: 'empty', siteIds: const []),
+    ];
+    final scoped = webspacesForExport(spaces, sites: {a}, everySite: false);
+    expect({for (final w in scoped) '${w.id}': w.siteIds}, {
+      '${WebspaceId.all}': spaces.first.siteIds,
+      'both': [a],
+    });
+    expect(webspacesForExport(spaces, sites: {a, b}, everySite: true),
+        same(spaces),
+        reason: 'a backup of every site carries every webspace as it is');
+  });
+
   group('SettingsBackup Model', () {
     test(
       'partial import merges collection membership without dropping current sites',
@@ -166,6 +185,27 @@ void main() {
       expect(plan.webspaces.firstWhere((space) => !space.isAll).siteIds, [
         first.siteId,
       ]);
+    });
+
+    test('a partial restore keeps the references to the sites it keeps', () {
+      final first = WebViewModel(initUrl: 'https://first.example');
+      final listed = WebViewModel(initUrl: 'https://listed.example');
+      final backup = SettingsBackupService.createBackup(
+        webViewModels: [first, listed],
+        webspaces: [
+          Webspace.all(),
+          Webspace(name: 'Group', siteIds: [first.siteId, listed.siteId]),
+        ],
+        themeMode: 0,
+      );
+      final plan = planSettingsImport(
+        backup,
+        selectedSiteIndices: {0},
+        keeping: {listed.siteId},
+      );
+      expect(plan.webspaces.firstWhere((space) => !space.isAll).siteIds,
+          [first.siteId, listed.siteId],
+          reason: 'the listed site stays, and so does its membership');
     });
 
     test(

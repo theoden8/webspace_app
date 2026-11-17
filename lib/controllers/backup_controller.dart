@@ -46,10 +46,10 @@ class BackupExportChoices {
     required this.globalScripts,
     required this.extensionCarry,
   });
-  final Set<String> siteIds;
-  final Set<String> siteScriptIds;
-  final Set<String> siteCookieIds;
-  final Set<String> siteExtensionIds;
+  final Set<SiteId> siteIds;
+  final Set<SiteId> siteScriptIds;
+  final Set<SiteId> siteCookieIds;
+  final Set<SiteId> siteExtensionIds;
   final bool appSettings;
   final Set<String> appPrefKeys;
   final bool siteScripts;
@@ -165,16 +165,23 @@ class BackupController {
         )
         .toList();
 
-    final extraSections = await _archives.sectionsForExport();
+    // A backup of one site carries nothing of the others: no open
+    // archive, and only the extensions the site has choices for.
+    final extraSections = onlySite == null
+        ? await _archives.sectionsForExport()
+        : null;
     if (!_host.mounted) return;
 
     final ExtensionCarryOffer? offer;
     final library = WebExtensionLibrary.instance;
-    if (library.installed.value.isEmpty) {
+    final only = onlySite == null
+        ? null
+        : {for (final m in appTierModels) ...m.webExtensionChoices.keys};
+    if (library.installed.value.isEmpty || (only != null && only.isEmpty)) {
       offer = null;
     } else {
       try {
-        offer = await library.carryOffer();
+        offer = await library.carryOffer(only: only);
       } on IOException catch (e) {
         LogTag.webExtension.info('export left extensions out: $e');
         _host.toast((loc) => loc.backupExtensionsUnreadable);
@@ -192,6 +199,16 @@ class BackupController {
     final selected = appTierModels
         .where((site) => choices.siteIds.contains(site.siteId))
         .toList();
+    final everySite =
+        onlySite == null && selected.length == appTierModels.length;
+    final webspaces = webspacesForExport(
+      ArchiveMembershipEngine.persistable(
+        _sites.webspaces,
+        archivedSiteIds: _shell.archivedSiteIds,
+      ),
+      sites: {for (final m in selected) m.siteId},
+      everySite: everySite,
+    );
     final webExtensions = offer == null
         ? null
         : extensionSectionFor(choices.extensionCarry, offer: offer);
@@ -206,16 +223,16 @@ class BackupController {
         siteExtensionIds: choices.siteExtensionIds,
         includeGlobalScriptChoices: choices.globalScripts,
         webViewModels: selected,
-        webspaces: ArchiveMembershipEngine.persistable(
-          _sites.webspaces,
-          archivedSiteIds: _shell.archivedSiteIds,
-        ),
+        webspaces: webspaces,
         themeMode: _shell.theme.toStorageIndex(),
         globalPrefs: choices.appSettings
             ? (readExportedAppPrefs(prefs)
                 ..removeWhere((key, _) => !choices.appPrefKeys.contains(key)))
             : null,
-        selectedWebspaceId: _sites.selectedWebspaceId,
+        selectedWebspaceId: webspaces.any(
+                (w) => w.id == _sites.selectedWebspaceId)
+            ? _sites.selectedWebspaceId
+            : null,
         // A row among the exported sites, which an archive-tier row before
         // the shown site would shift.
         currentIndex: switch (_sites.shown) {
@@ -319,6 +336,11 @@ class BackupController {
     // does not parse throws here, and a malformed/hostile backup would
     // otherwise leave the user with their sites already cleared and the
     // restore half-done.
+    final partialSiteImport =
+        restoreChoices.restoreSites &&
+        (restoreChoices.siteIndices.length < backup.sites.length ||
+            (backup.sites.isEmpty &&
+                restoreChoices.webspaceIndices.isNotEmpty));
     final SettingsImportPlan plan;
     try {
       plan = planSettingsImport(
@@ -329,6 +351,12 @@ class BackupController {
         siteScriptIndices: restoreChoices.siteScriptIndices,
         siteCookieIndices: restoreChoices.siteCookieIndices,
         siteExtensionIndices: restoreChoices.siteExtensionIndices,
+        keeping: partialSiteImport
+            ? {
+                for (final m in _sites.models)
+                  if (!m.isArchiveTier) m.siteId,
+              }
+            : const {},
       );
     } on FormatException catch (e) {
       LogTag.import.error('Aborted import; live state left intact: $e');
@@ -362,23 +390,16 @@ class BackupController {
         if (importedBySource[index] case final site?) site.siteId,
     };
 
-    final partialSiteImport =
-        restoreChoices.restoreSites &&
-        (restoreChoices.siteIndices.length < backup.sites.length ||
-            (backup.sites.isEmpty &&
-                restoreChoices.webspaceIndices.isNotEmpty));
-
     // Seal archives and apply the import in the same turn, so none opens
     // against the site rows this import is replacing (SEC-044).
     var replaced = false;
     var extensionsMissing = 0;
     final sealed = await _archives.closeAllThen((closed) async {
       if (!_host.mounted) return;
-      final currentSites = _sites.models
-          .where((site) => !site.isArchiveTier)
-          .toList();
-      final currentById = {for (final site in currentSites) site.siteId: site};
-      final selectedWebspaceBefore = _sites.selectedWebspaceId;
+      final currentById = {
+        for (final site in _sites.models)
+          if (!site.isArchiveTier) site.siteId: site,
+      };
       for (final MapEntry(key: index, value: site)
           in importedBySource.entries) {
         final current = currentById[site.siteId];
@@ -397,17 +418,6 @@ class BackupController {
           site.webExtensionChoices = Map.of(current.webExtensionChoices);
         }
       }
-      final importedIds = {for (final site in plan.sites) site.siteId};
-      final replacementSites = partialSiteImport
-          ? [
-              for (final site in currentSites)
-                if (!importedIds.contains(site.siteId)) site,
-              ...plan.sites,
-            ]
-          : plan.sites;
-      final replacementWebspaces = partialSiteImport
-          ? mergeBackupWebspaces(_sites.webspaces, imported: plan.webspaces)
-          : plan.webspaces;
 
       // Applied and persisted in one step, before any site activates, so a pref
       // the backup does not name reads the same before and after a restart.
@@ -418,13 +428,14 @@ class BackupController {
         final currentPrefs = readExportedAppPrefs(
           await SharedPreferences.getInstance(),
         );
-        for (final key in backup.globalPrefs.keys) {
+        // The plan holds each pref under its key, one an older build wrote
+        // under another already read across.
+        for (final MapEntry(:key, :value) in plan.appPrefs.entries) {
           if (!restoreChoices.restoreSites &&
               key == AppPref.webSearchDefaultSite.key) {
             continue;
           }
-          if (!restoreChoices.appPrefKeys.contains(key)) continue;
-          if (plan.appPrefs[key] case final value?) currentPrefs[key] = value;
+          if (restoreChoices.appPrefKeys.contains(key)) currentPrefs[key] = value;
         }
         await writeExportedAppPrefs(
           await SharedPreferences.getInstance(),
@@ -473,12 +484,15 @@ class BackupController {
           !restoreChoices.restoreSites ||
           await _imports.replace(
             SitesReplaced(
-              sites: replacementSites,
-              webspaces: replacementWebspaces,
-              selectedWebspaceId: partialSiteImport
-                  ? selectedWebspaceBefore
-                  : plan.selectedWebspaceId,
+              sites: plan.sites,
+              webspaces: plan.webspaces,
+              selectedWebspaceId: plan.selectedWebspaceId,
               closed: closed,
+              // The listed sites a partial restore keeps are read as it
+              // lands, not here: the awaits above let the list change.
+              scope: partialSiteImport
+                  ? ImportScope.merge
+                  : ImportScope.replace,
               restoreCookiesForSiteIds: {
                 for (final index in restoreChoices.siteCookieIndices)
                   if (importedBySource[index] case final site?) site.siteId,

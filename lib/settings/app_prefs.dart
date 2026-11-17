@@ -21,141 +21,160 @@ import 'package:webspace/settings/demo_mode.dart';
 /// prompt, so a backup file would be able to install a man-in-the-middle
 /// certificate silently. `TrustedHostsService` persists and reloads that key
 /// on its own; it just never rides a backup.
+/// The App Settings screens a pref belongs to, as a backup's review groups
+/// them.
+enum PrefSection {
+  appearance,
+  behaviour,
+  privacy,
+  network,
+  extensions,
+  experimental,
+}
+
 enum AppPref<T extends Object> {
-  showUrlBar('showUrlBar', fallback: false),
-  tabsEnabled('tabsEnabled', fallback: true),
-  externalLinkMode('externalLinkMode', fallback: 'inApp'),
-  routeOutboundLinks('routeOutboundLinks', fallback: false),
+  showUrlBar('showUrlBar', section: PrefSection.appearance, fallback: false),
+  tabsEnabled('tabsEnabled', section: PrefSection.behaviour, fallback: true),
+  externalLinkMode('externalLinkMode', section: PrefSection.behaviour, fallback: 'inApp'),
+  routeOutboundLinks('routeOutboundLinks', section: PrefSection.behaviour, fallback: false),
   // NESTED-014: a sign-in window a tap opened shows as a real popup; a site
   // may keep its own choice.
-  signInPopups('signInPopups', fallback: true),
-  showTabStrip('showTabStrip', fallback: false),
+  signInPopups('signInPopups', section: PrefSection.behaviour, fallback: true),
+  showTabStrip('showTabStrip', section: PrefSection.appearance, fallback: false),
   // Keep the site tab strip visible in fullscreen (top bar still hidden).
   // Only meaningful when showTabStrip is on.
-  tabStripInFullscreen('tabStripInFullscreen', fallback: false),
+  tabStripInFullscreen('tabStripInFullscreen', section: PrefSection.appearance, fallback: false),
   // FS-012: the edge the tab strip runs along, 'top' or 'bottom'; empty
   // follows the platform, so a backup carries only a choice the user made.
-  tabStripEdge('tabStripEdge', fallback: ''),
+  tabStripEdge('tabStripEdge', section: PrefSection.appearance, fallback: ''),
   // Floating button that opens the tab strip (and its overflow menu) on
   // demand. Superseded `tabBarButtonInFullscreen` in v0.2.7; a device or a
   // backup from a build in between names only the old key.
-  tabBarButton('tabBarButton', fallback: false, legacyKey: 'tabBarButtonInFullscreen'),
+  tabBarButton('tabBarButton', section: PrefSection.appearance, fallback: false, legacyKey: 'tabBarButtonInFullscreen'),
   // Legacy app-wide default corner for the tab-bar button (true = right).
   // The corner is now remembered per site (WebViewModel.tabBarButtonCorner);
   // this is only the fallback for sites never dragged. No settings UI writes
   // it; kept so pre-per-site backups keep restoring the user's corner.
-  tabBarButtonOnRight('tabBarButtonOnRight', fallback: true),
+  tabBarButtonOnRight('tabBarButtonOnRight', section: PrefSection.appearance, fallback: true),
   // On by default: a pinned shortcut is the user's "app launcher" entry
   // point, so the chrome-free view matches the expectation. Per-site
   // `fullscreenMode` still applies independently on every activation.
-  fullscreenOnShortcut('fullscreenOnShortcut', fallback: true),
+  fullscreenOnShortcut('fullscreenOnShortcut', section: PrefSection.appearance, fallback: true),
   // Max width (logical px) of each tab in the tab strip.
-  tabMaxWidth('tabMaxWidth', fallback: 140),
-  showStatsBanner('showStatsBanner', fallback: true),
+  tabMaxWidth('tabMaxWidth', section: PrefSection.appearance, fallback: 140),
+  showStatsBanner('showStatsBanner', section: PrefSection.privacy, fallback: true),
   // Tile server for the location picker map. Only queried after the user
   // taps "Load map" on the picker.
-  osmTileUrl('osmTileUrl', fallback: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
+  osmTileUrl('osmTileUrl', section: PrefSection.network, fallback: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
   // The app-wide outbound proxy, JSON of the non-secret fields of a
   // UserProxySettings; the default is a DEFAULT-type one. Every Dart-side
   // call not tied to a site goes through it, and so does a site on DEFAULT
   // (`resolveEffectiveProxy`).
   globalOutboundProxy(
-      'globalOutboundProxy', fallback: '{"type":0,"address":null,"username":null}'),
+      'globalOutboundProxy', section: PrefSection.network, fallback: '{"type":0,"address":null,"username":null}'),
   // PROXY-030: the proxy library (gateways, credentials, saved proxies), as
   // JSON of the non-secret fields. Passwords stay in secure storage and never
   // ride a backup (PWD-005, PWD-007).
-  proxyLibrary('proxyLibrary', fallback: '{}'),
+  proxyLibrary('proxyLibrary', section: PrefSection.network, fallback: '{}'),
   // Unlocked by tapping the version row seven times. Gates affordances that
   // only make sense while diagnosing the app.
-  developerMode('developerMode', fallback: false),
+  developerMode('developerMode', section: PrefSection.experimental, fallback: false),
   // DEVTOOLS-011: the Experimental switches, each new when it was added, so
   // off.
-  experimentalTextureRendering('experimentalTextureRendering', fallback: false),
-  experimentalWebExtensions('experimentalWebExtensions', fallback: false),
+  experimentalTextureRendering('experimentalTextureRendering', section: PrefSection.experimental, fallback: false),
+  experimentalWebExtensions('experimentalWebExtensions', section: PrefSection.experimental, fallback: false),
   // WEBEXT-019: the search of addons.mozilla.org, outside the App Store only.
-  experimentalExtensionSearch('experimentalExtensionSearch', fallback: false),
+  experimentalExtensionSearch('experimentalExtensionSearch', section: PrefSection.experimental, fallback: false),
   // WEBEXT-018: the daily check of each extension's source. Off: no request
   // reaches a source the user did not ask to check.
-  webExtensionsCheckUpdates('webExtensionsCheckUpdates', fallback: false),
+  webExtensionsCheckUpdates('webExtensionsCheckUpdates', section: PrefSection.extensions, fallback: false),
   // WEBEXT-019: offered only in a build from outside the App Store.
-  webExtensionsAutoUpdate('webExtensionsAutoUpdate', fallback: false),
+  webExtensionsAutoUpdate('webExtensionsAutoUpdate', section: PrefSection.extensions, fallback: false),
   // NETIF-013: a site's traffic bound to a network interface, where the
   // platform binds one.
-  experimentalNetworkInterface('experimentalNetworkInterface', fallback: false),
+  experimentalNetworkInterface('experimentalNetworkInterface', section: PrefSection.experimental, fallback: false),
   // CB-023: WebKit's own reports of what its rule lists block, outside the
   // App Store only, read once at launch.
-  experimentalWebKitBlockReports('experimentalWebKitBlockReports',
+  experimentalWebKitBlockReports('experimentalWebKitBlockReports', section: PrefSection.experimental,
       fallback: false),
   // TOR-025: Tor sites through a tor already running on the device. The key
   // keeps the name it shipped under as an Experimental switch.
-  externalTor('experimentalExternalTor', fallback: false),
+  externalTor('experimentalExternalTor', section: PrefSection.network, fallback: false),
   // TOR-025: the external tor's SOCKS address; Orbot's and the system tor
   // service's SocksPort.
-  externalTorAddress('externalTorAddress', fallback: '127.0.0.1:9050'),
+  externalTorAddress('externalTorAddress', section: PrefSection.network, fallback: '127.0.0.1:9050'),
   // TOR-026: the external tor's control port, a socket path or host:port;
   // empty for none. Its password is a secret and lives in the keystore.
-  externalTorControl('externalTorControl', fallback: ''),
+  externalTorControl('externalTorControl', section: PrefSection.network, fallback: ''),
   // LIR-008: master "Handle shared links" switch. When off, incoming share
   // and open intents are dropped.
-  linkHandlingEnabled('linkHandlingEnabled', fallback: true),
+  linkHandlingEnabled('linkHandlingEnabled', section: PrefSection.behaviour, fallback: true),
   // LIR-010: a shared link sent to a site through the picker also claims
   // its domain for that site. Opt-in: by default the link just opens there.
-  linkHandlingClaimDomains('linkHandlingClaimDomains', fallback: false),
+  linkHandlingClaimDomains('linkHandlingClaimDomains', section: PrefSection.behaviour, fallback: false),
   // LIR-029: the siteId Web search starts with when the site on screen
   // names none. Empty until the user picks one, so no build ships a default
   // engine. Never an archived site's id (ARCH-001).
-  webSearchDefaultSite('webSearchDefaultSite', fallback: ''),
+  webSearchDefaultSite('webSearchDefaultSite', section: PrefSection.behaviour, fallback: ''),
   // CB-010: the pool $redirect= rules are served from (an empty script, a
   // transparent image, a stand-in for an analytics or ad library's API). Off
   // makes $redirect= drop the request instead.
-  useUboResources('useUboResources', fallback: true),
+  useUboResources('useUboResources', section: PrefSection.privacy, fallback: true),
   // UI language as a locale tag ('de', 'pt_BR', 'zh_Hant'); empty follows
   // the system locale.
-  appLocaleOverride('appLocaleOverride', fallback: ''),
+  appLocaleOverride('appLocaleOverride', section: PrefSection.appearance, fallback: ''),
   // DM-004: weekly check of Mozilla's published Firefox version for
   // generated User-Agents. Off: no network the user did not ask for.
-  firefoxUaAutoRefresh('firefoxUaAutoRefresh', fallback: false),
+  firefoxUaAutoRefresh('firefoxUaAutoRefresh', section: PrefSection.privacy, fallback: false),
   // androidx.webkit BACK_FORWARD_CACHE, applied to every WebView; a no-op
   // where unsupported.
-  backForwardCacheEnabled('backForwardCacheEnabled', fallback: true),
+  backForwardCacheEnabled('backForwardCacheEnabled', section: PrefSection.behaviour, fallback: true),
   // NAV-009: what the back gesture does once a site has no page left to go
   // back to. Off keeps it on webview history; on opens the drawer there and
   // leaves the app on the next press.
-  backOpensMenu('backOpensMenu', fallback: false),
+  backOpensMenu('backOpensMenu', section: PrefSection.behaviour, fallback: false),
   // HTTPS-005: retry a plain-http main-frame navigation over https, falling
   // back silently. On: chromium does the same and Android WebView does not.
-  httpsUpgradeEnabled('httpsUpgradeEnabled', fallback: true),
+  httpsUpgradeEnabled('httpsUpgradeEnabled', section: PrefSection.privacy, fallback: true),
   // SCREENBLOCK-002: withhold the whole app from screenshots, recordings
   // and the recent-apps preview. Android only.
-  blockScreenshots('blockScreenshots', fallback: false),
+  blockScreenshots('blockScreenshots', section: PrefSection.privacy, fallback: false),
   // WEBSPACE-019: the webspace list and drawer in place of the library. Off:
   // a new install starts in the library; loadLegacyDesign keeps an earlier
   // build's design on the device that ran it.
-  legacyDesign('legacyDesign', fallback: false),
+  legacyDesign('legacyDesign', section: PrefSection.appearance, fallback: false),
   // WEBSPACE-015: how the library's folders lay out their sites, every folder
   // at once, and apart from them how its home lays out the webspaces: a
   // LibraryLayout's name. The library starts from these (WEBSPACE-019).
-  libraryLayout('libraryLayout', fallback: 'auto'),
-  libraryWebspaceLayout('libraryWebspaceLayout', fallback: 'list'),
+  libraryLayout('libraryLayout', section: PrefSection.appearance, fallback: 'auto'),
+  libraryWebspaceLayout('libraryWebspaceLayout', section: PrefSection.appearance, fallback: 'list'),
   // WEBSPACE-017: every icon in the library at once, as a percentage of its
   // own size.
-  libraryIconSize('libraryIconSize', fallback: 100),
+  libraryIconSize('libraryIconSize', section: PrefSection.appearance, fallback: 100),
   // NOTIF-018: closing the desktop window hides it and the app keeps running,
   // so its sites can still notify. Linux and macOS only.
-  keepRunningWhenClosed('keepRunningWhenClosed', fallback: false),
+  keepRunningWhenClosed('keepRunningWhenClosed', section: PrefSection.behaviour, fallback: false),
   // SUGGEST-011: keep the popular sites' filter lists between downloads, so
   // a refresh within a month fetches only the top rows: storage for
   // bandwidth. Off: nothing is kept but the rows.
-  topSitesKeepFilters('topSitesKeepFilters', fallback: false),
+  topSitesKeepFilters('topSitesKeepFilters', section: PrefSection.behaviour, fallback: false),
   // SUGGEST-012: the add-site screen offers the popular sites list until it
   // is downloaded or this offer is dismissed.
-  topSitesOffer('topSitesOffer', fallback: true);
+  topSitesOffer('topSitesOffer', section: PrefSection.behaviour, fallback: true);
 
-  const AppPref(this.key, {required this.fallback,this.legacyKey})
+  const AppPref(
+    this.key, {
+    required this.section,
+    required this.fallback,
+    this.legacyKey,
+  })
       : assert(fallback is bool || fallback is int || fallback is String);
 
   final String key;
   final T fallback;
+
+  /// The App Settings screen it belongs to, as a backup's review groups it.
+  final PrefSection section;
 
   /// A key an older build stored this pref under, read when [key] is absent.
   final String? legacyKey;

@@ -28,10 +28,10 @@ class DialogBackupPrompts implements BackupPrompts {
     bool siteOnly = false,
   }) {
     final loc = AppLocalizations.of(context);
-    final selected = {for (final site in sites) site.siteId.toString()};
-    final scriptSites = {for (final site in sites) site.siteId.toString()};
-    final cookieSites = {for (final site in sites) site.siteId.toString()};
-    final extensionSites = {for (final site in sites) site.siteId.toString()};
+    final selected = {for (final site in sites) site.siteId};
+    final scriptSites = {for (final site in sites) site.siteId};
+    final cookieSites = {for (final site in sites) site.siteId};
+    final extensionSites = {for (final site in sites) site.siteId};
     var appSettings = !siteOnly;
     final appPrefKeys = {for (final pref in AppPref.values) pref.key};
     var globalScripts = !siteOnly;
@@ -125,7 +125,7 @@ class DialogBackupPrompts implements BackupPrompts {
                           selected.clear();
                           if (value == true) {
                             selected.addAll(
-                              sites.map((s) => s.siteId.toString()),
+                              sites.map((s) => s.siteId),
                             );
                           }
                         }),
@@ -133,29 +133,29 @@ class DialogBackupPrompts implements BackupPrompts {
                       for (final site in sites)
                         ExpansionTile(
                           leading: Checkbox(
-                            value: selected.contains(site.siteId.toString()),
+                            value: selected.contains(site.siteId),
                             onChanged: (value) => refresh(() {
                               if (value == true) {
-                                selected.add(site.siteId.toString());
+                                selected.add(site.siteId);
                               } else {
-                                selected.remove(site.siteId.toString());
+                                selected.remove(site.siteId);
                               }
                             }),
                           ),
                           title: Text(site.getDisplayName()),
-                          children: selected.contains(site.siteId.toString())
+                          children: selected.contains(site.siteId)
                               ? [
                                   CheckboxListTile(
                                     title: Text(loc.backupSiteScripts),
                                     value: scriptSites.contains(
-                                      site.siteId.toString(),
+                                      site.siteId,
                                     ),
                                     onChanged: (v) => refresh(() {
                                       if (v == true) {
-                                        scriptSites.add(site.siteId.toString());
+                                        scriptSites.add(site.siteId);
                                       } else {
                                         scriptSites.remove(
-                                          site.siteId.toString(),
+                                          site.siteId,
                                         );
                                       }
                                     }),
@@ -163,14 +163,14 @@ class DialogBackupPrompts implements BackupPrompts {
                                   CheckboxListTile(
                                     title: Text(loc.backupSiteCookies),
                                     value: cookieSites.contains(
-                                      site.siteId.toString(),
+                                      site.siteId,
                                     ),
                                     onChanged: (v) => refresh(() {
                                       if (v == true) {
-                                        cookieSites.add(site.siteId.toString());
+                                        cookieSites.add(site.siteId);
                                       } else {
                                         cookieSites.remove(
-                                          site.siteId.toString(),
+                                          site.siteId,
                                         );
                                       }
                                     }),
@@ -178,16 +178,16 @@ class DialogBackupPrompts implements BackupPrompts {
                                   CheckboxListTile(
                                     title: Text(loc.backupSiteExtensions),
                                     value: extensionSites.contains(
-                                      site.siteId.toString(),
+                                      site.siteId,
                                     ),
                                     onChanged: (v) => refresh(() {
                                       if (v == true) {
                                         extensionSites.add(
-                                          site.siteId.toString(),
+                                          site.siteId,
                                         );
                                       } else {
                                         extensionSites.remove(
-                                          site.siteId.toString(),
+                                          site.siteId,
                                         );
                                       }
                                     }),
@@ -205,7 +205,7 @@ class DialogBackupPrompts implements BackupPrompts {
                       ),
                       if (appSettings) ...[
                         for (final group in _backupPrefGroups(
-                          AppPref.values.map((pref) => pref.key),
+                          AppPref.values,
                           loc: loc,
                         ).entries)
                           ExpansionTile(
@@ -319,7 +319,8 @@ class DialogBackupPrompts implements BackupPrompts {
     final selectedSiteScripts = Set<int>.of(selectedSites);
     final selectedSiteCookies = Set<int>.of(selectedSites);
     final selectedSiteExtensions = Set<int>.of(selectedSites);
-    final appPrefKeys = Set<String>.of(backup.globalPrefs.keys);
+    final carried = _carriedPrefs(backup);
+    final appPrefKeys = {for (final p in carried) p.key};
     final scriptSites = <int>{};
     final extensionSites = <int>{};
     var section = 0;
@@ -706,7 +707,7 @@ class DialogBackupPrompts implements BackupPrompts {
                     ),
                     if (appSettings)
                       for (final group in _backupPrefGroups(
-                        backup.globalPrefs.keys,
+                        carried,
                         loc: loc,
                       ).entries)
                         ExpansionTile(
@@ -996,61 +997,35 @@ String _backupPrefLabel(String key) => key
     .replaceAllMapped(RegExp(r'(?<=[a-z])(?=[A-Z])'), (_) => ' ')
     .replaceFirstMapped(RegExp(r'^.'), (match) => match[0]!.toUpperCase());
 
+/// The prefs [backup] names, under their key or the one an older build
+/// wrote them under.
+List<AppPref> _carriedPrefs(SettingsBackup backup) => [
+  for (final p in AppPref.values)
+    if (backup.globalPrefs.containsKey(p.key) ||
+        backup.globalPrefs.containsKey(p.legacyKey))
+      p,
+];
+
+/// [prefs]' keys under the title of the App Settings screen each belongs
+/// to ([AppPref.section]), in the screens' order.
 Map<String, List<String>> _backupPrefGroups(
-  Iterable<String> keys, {
+  Iterable<AppPref> prefs, {
   required AppLocalizations loc,
 }) {
-  final groups = <String, List<String>>{
-    loc.appSettingsAppearance: [],
-    loc.appSettingsBehaviour: [],
-    loc.appSettingsPrivacy: [],
-    loc.appSettingsNetwork: [],
-    loc.appSettingsExtensions: [],
-    loc.appSettingsExperimental: [],
+  String title(PrefSection section) => switch (section) {
+    PrefSection.appearance => loc.appSettingsAppearance,
+    PrefSection.behaviour => loc.appSettingsBehaviour,
+    PrefSection.privacy => loc.appSettingsPrivacy,
+    PrefSection.network => loc.appSettingsNetwork,
+    PrefSection.extensions => loc.appSettingsExtensions,
+    PrefSection.experimental => loc.appSettingsExperimental,
   };
-  for (final key in keys) {
-    final group = switch (key) {
-      'showUrlBar' ||
-      'showTabStrip' ||
-      'tabStripInFullscreen' ||
-      'tabStripEdge' ||
-      'tabBarButton' ||
-      'tabBarButtonOnRight' ||
-      'fullscreenOnShortcut' ||
-      'tabMaxWidth' ||
-      'legacyDesign' ||
-      'libraryLayout' ||
-      'libraryWebspaceLayout' ||
-      'libraryIconSize' ||
-      'appLocaleOverride' => loc.appSettingsAppearance,
-      'tabsEnabled' ||
-      'externalLinkMode' ||
-      'routeOutboundLinks' ||
-      'signInPopups' ||
-      'backOpensMenu' ||
-      'backForwardCacheEnabled' ||
-      'keepRunningWhenClosed' ||
-      'topSitesKeepFilters' ||
-      'topSitesOffer' ||
-      'webSearchDefaultSite' => loc.appSettingsBehaviour,
-      'globalOutboundProxy' ||
-      'proxyLibrary' ||
-      'externalTorAddress' ||
-      'externalTorControl' ||
-      'experimentalExternalTor' ||
-      'osmTileUrl' => loc.appSettingsNetwork,
-      'webExtensionsCheckUpdates' ||
-      'webExtensionsAutoUpdate' => loc.appSettingsExtensions,
-      'developerMode' ||
-      'experimentalTextureRendering' ||
-      'experimentalWebExtensions' ||
-      'experimentalExtensionSearch' ||
-      'experimentalNetworkInterface' ||
-      'experimentalWebKitBlockReports' => loc.appSettingsExperimental,
-      _ => loc.appSettingsPrivacy,
-    };
-    groups[group]!.add(key);
-  }
-  groups.removeWhere((_, entries) => entries.isEmpty);
-  return groups;
+  return {
+    for (final section in PrefSection.values)
+      if (prefs.any((p) => p.section == section))
+        title(section): [
+          for (final p in prefs)
+            if (p.section == section) p.key,
+        ],
+  };
 }

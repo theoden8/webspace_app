@@ -1358,26 +1358,34 @@ void main() {
     });
   }
 
+  // A whole restore and a partial one, which keeps the listed sites the
+  // backup does not carry (ImportScope.merge).
   for (final cookies in ['shared jar', 'containers']) {
-    for (final MapEntry(key: setupName, value: setup)
-        in _importSetups.entries) {
-      _scheduleTest('an import, $cookies, $setupName: every schedule holds',
-          body: () async {
-        for (var length = 1; length <= _importLength; length++) {
-          for (final script in _scripts(length, alphabet: _importAlphabet)) {
-            await _expectEvery(
-              world: () => ActivationWorld(
-                cookies == 'containers' ? _mixedContainers : _mixed,
-                joins: true,
-                imports: true,
-              ),
-              setup: setup,
-              script: script,
-              preemptions: _preemptions,
-            );
+    for (final (scope, merges) in const [
+      ('an import', false),
+      ('a partial restore', true),
+    ]) {
+      for (final MapEntry(key: setupName, value: setup)
+          in _importSetups.entries) {
+        _scheduleTest('$scope, $cookies, $setupName: every schedule holds',
+            body: () async {
+          for (var length = 1; length <= _importLength; length++) {
+            for (final script in _scripts(length, alphabet: _importAlphabet)) {
+              await _expectEvery(
+                world: () => ActivationWorld(
+                  cookies == 'containers' ? _mixedContainers : _mixed,
+                  joins: true,
+                  imports: true,
+                  importMerges: merges,
+                ),
+                setup: setup,
+                script: script,
+                preemptions: _preemptions,
+              );
+            }
           }
-        }
-      });
+        });
+      }
     }
   }
 

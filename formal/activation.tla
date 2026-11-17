@@ -445,6 +445,9 @@ ImportOne == {1, 3}
 \* Beside an open archive (ArchiveOne): it carries site 1 alone, so the
 \* archive's site leaves with site 2.
 ImportKeep == {1}
+\* A partial restore's (ImportScope.merge): the listed sites it does not
+\* carry stay.
+ImportMerging == TRUE
 
 \* R8, ARCH-016: no two listed sites share an id, so a lookup by id names
 \* one site.

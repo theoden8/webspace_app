@@ -55,13 +55,36 @@ A site the backup carries again (one whose id a listed site holds) keeps
 the session it has, and its container where there are containers: the
 backup's cookies SHALL seed only the sites it brings new, so an import never
 signs a site out of a session newer than the backup
-([`SiteImport.land`](../../../lib/controllers/site_import.dart), ISO-015).
+([`SiteImport.land`](../../../lib/controllers/site_import.dart), ISO-015),
+unless the user chose in the review to restore that site's cookies: then its
+non-secure cookies are the backup's and its secure ones stay. Where there are
+containers, the backup's cookies SHALL reach the site's container with its
+webview's first controller, or the container never sees them.
+
+A partial restore (some of the backup's sites chosen) SHALL keep every listed
+site the backup does not carry, read off the list as the import lands, so a
+site listed while the import awaited stays with its container
+([`ImportScope.merge`](../../../lib/controllers/site_set_change.dart)).
 
 #### Scenario: Import restores non-secure cookies
 
 **Given** a backup contains non-secure cookies for a site not on the list
 **When** settings are imported
 **Then** non-secure cookies are restored to the site
+
+#### Scenario: A restore the user chose replaces a carried site's cookies
+
+**Given** site A is on the list with a secure session cookie and a non-secure `theme`
+**And** a backup carries A with a non-secure `backup` cookie
+**When** the user chooses to restore A's cookies and imports
+**Then** A holds the secure session and `backup`
+**And** where there are containers, A's first controller writes `backup` into its container
+
+#### Scenario: A partial restore keeps a site listed while it awaited
+
+**Given** sites B and C are on the list, C added after the restore began
+**When** a partial restore of a backup carrying only A lands
+**Then** A, B and C are listed, and B's and C's containers remain
 
 #### Scenario: Import keeps a carried site's own session
 

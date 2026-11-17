@@ -7,6 +7,7 @@ import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/settings/site_field.dart';
 import 'package:webspace/settings/web_extension_backup.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/webspace_model.dart';
 
 const int kBackupVersion = 1;
@@ -179,6 +180,26 @@ class SettingsBackup {
   }
 }
 
+/// The webspaces a backup carries: all of them when it carries every site;
+/// else those holding a site it carries, each naming only those, so a
+/// backup of some sites names no other site.
+List<Webspace> webspacesForExport(
+  List<Webspace> webspaces, {
+  required Set<SiteId> sites,
+  required bool everySite,
+}) => everySite
+    ? webspaces
+    : [
+        for (final w in webspaces)
+          if (w.isAll)
+            w
+          else if (w.siteIds.any(sites.contains))
+            w.copyWith(siteIds: [
+              for (final id in w.siteIds)
+                if (sites.contains(id)) id,
+            ]),
+      ];
+
 class SettingsBackupService {
   /// Create a backup from current app state.
   ///
@@ -198,9 +219,9 @@ class SettingsBackupService {
     bool includesSites = true,
     bool includesAppSettings = true,
     bool includeSiteScripts = true,
-    Set<String>? siteScriptIds,
-    Set<String>? siteCookieIds,
-    Set<String>? siteExtensionIds,
+    Set<SiteId>? siteScriptIds,
+    Set<SiteId>? siteCookieIds,
+    Set<SiteId>? siteExtensionIds,
     bool includeGlobalScriptChoices = true,
     required List<BackedUpSite> webViewModels,
     required List<Webspace> webspaces,
