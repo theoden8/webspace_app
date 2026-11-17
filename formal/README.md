@@ -147,6 +147,16 @@ class.
   `noguard` demonstrator drops the version check and, after a delete/import/archive mutation,
   activates the wrong site (the legacy-mode cross-site cookie exposure). Standalone (a UI
   orchestration state machine; no shared kernel state).
+- **`backup_import.tla`** + `backup_import*.cfg` — bounded granular settings import.
+  Exhausts independent selections for two backup sites, a populated and an empty backup
+  webspace, site scripts, cookies, extensions, per-site reactivation, script confirmation,
+  and app settings. Checks partial imports retain existing sites and folders, only chosen
+  folders and their chosen members arrive, and content and reactivation obey their own
+  selectors. Two mutants catch unchosen folders and scripts reactivated without consent;
+  two witnesses reach an empty-folder import and a consented script reactivation. This is
+  a hand-written abstraction of the intended effects. It does not prove that the Dart UI
+  and controller implement the abstraction for every input; Dart import tests exercise
+  those paths separately.
 - **`jar_nonempty.tla`** + `jar_nonempty*.cfg` — legacy cookie engine: the shared jar is never
   left empty across a superseded restore (spec: `per-site-cookie-isolation`).
   `Inv_JarRepopulated` (once nuked, the jar is always repopulated before the engine returns to

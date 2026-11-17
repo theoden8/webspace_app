@@ -566,6 +566,18 @@ expect switchguard_noguard.cfg switchguard.tla "Inv_NoWrongActivation is violate
 expect switchguard_reach.cfg switchguard.tla "Reach_Bailed is violated" \
   "a mutation-during-switch bail is reachable (guard not vacuous)"
 
+section "BACKUP IMPORT" "granular site, folder and reactivation selections"
+expect backup_import.cfg backup_import.tla "No error has been found" \
+  "every bounded selector combination preserves import scope"
+expect backup_import_runall.cfg backup_import.tla "Inv_ScriptConsent is violated" \
+  "reactivating a script without per-site consent is caught"
+expect backup_import_allfolders.cfg backup_import.tla "Inv_FolderScope is violated" \
+  "importing unchosen folders is caught"
+expect backup_import_empty_reach.cfg backup_import.tla "Reach_EmptyFolder is violated" \
+  "a chosen empty folder imports without a site"
+expect backup_import_script_reach.cfg backup_import.tla "Reach_EnabledScript is violated" \
+  "a consented per-site script can reactivate"
+
 section "JAR" "legacy cookie jar never left empty on a superseded restore"
 expect jar_nonempty.cfg jar_nonempty.tla "No error has been found" \
   "a nuked jar is always repopulated before returning to rest"

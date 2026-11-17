@@ -165,6 +165,106 @@ void main() {
     });
 
     test(
+      'all bounded site, webspace and content selections reach the plan',
+      () {
+        final source = [
+          for (var i = 0; i < 2; i++)
+            WebViewModel(initUrl: 'https://site$i.example', name: 'Site $i'),
+        ];
+        for (var i = 0; i < source.length; i++) {
+          source[i].userScripts = [
+            UserScriptConfig(
+              id: UserScriptId('script$i'),
+              name: 'Script $i',
+              source: '1',
+            ),
+          ];
+          source[i].cookies = [Cookie(name: 'cookie$i', value: 'value$i')];
+          source[i].webExtensionChoices = {WebExtensionId('extension$i'): true};
+        }
+        final backup = SettingsBackupService.createBackup(
+          webViewModels: source,
+          webspaces: [
+            Webspace.all(),
+            Webspace(
+              name: 'Group',
+              siteIds: source.map((s) => s.siteId).toList(),
+            ),
+            Webspace(name: 'Empty'),
+          ],
+          themeMode: 0,
+          webExtensions: const BackupExtensions(
+            carry: ExtensionCarry.references,
+            extensions: [],
+          ),
+        );
+        Set<int> bits(int mask) => {
+          for (var i = 0; i < 2; i++)
+            if (mask & (1 << i) != 0) i,
+        };
+
+        for (var sites = 0; sites < 4; sites++) {
+          for (var folders = 0; folders < 4; folders++) {
+            for (var scripts = 0; scripts < 4; scripts++) {
+              for (var cookies = 0; cookies < 4; cookies++) {
+                for (var extensions = 0; extensions < 4; extensions++) {
+                  final chosenSites = bits(sites);
+                  final chosenFolders = bits(folders);
+                  final plan = planSettingsImport(
+                    backup,
+                    selectedSiteIndices: chosenSites,
+                    selectedWebspaceIndices: chosenFolders,
+                    siteScriptIndices: bits(scripts),
+                    siteCookieIndices: bits(cookies),
+                    siteExtensionIndices: bits(extensions),
+                  );
+                  expect(plan.sites.map((s) => s.name).toSet(), {
+                    for (final i in chosenSites) 'Site $i',
+                  });
+                  expect(
+                    plan.webspaces
+                        .where((w) => !w.isAll)
+                        .map((w) => w.name)
+                        .toSet(),
+                    {
+                      if (chosenFolders.contains(0)) 'Group',
+                      if (chosenFolders.contains(1)) 'Empty',
+                    },
+                  );
+                  if (chosenFolders.contains(0)) {
+                    expect(
+                      plan.webspaces
+                          .firstWhere((w) => w.name == 'Group')
+                          .siteIds
+                          .toSet(),
+                      {for (final i in chosenSites) source[i].siteId},
+                    );
+                  }
+                  for (final i in chosenSites) {
+                    final site = plan.sites.firstWhere(
+                      (s) => s.name == 'Site $i',
+                    );
+                    expect(
+                      site.userScripts.isNotEmpty,
+                      bits(scripts).contains(i),
+                    );
+                    expect(site.cookies.isNotEmpty, bits(cookies).contains(i));
+                    expect(
+                      plan.heldExtensionChoices.any(
+                        (held) => held.site == site,
+                      ),
+                      bits(extensions).contains(i),
+                    );
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+    );
+
+    test(
       'scoped backup preserves omitted categories across JSON round trip',
       () {
         final site = WebViewModel(
