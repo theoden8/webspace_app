@@ -7,6 +7,7 @@ import 'package:webspace/services/archive.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/setting_tile.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// What the Backup and archives screen asks App Settings to do. Each one runs
 /// on the main page once settings has closed.
@@ -63,9 +64,9 @@ class AppBackupScreen extends StatefulWidget {
 class _AppBackupScreenState extends State<AppBackupScreen> {
   void _failed() {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(AppLocalizations.of(context).downloadButtonFailed),
-    ));
+    ScaffoldMessenger.of(
+      context,
+    ).toast(AppLocalizations.of(context).downloadButtonFailed);
   }
 
   Future<void> _close(ArchiveHandle handle) async {
@@ -82,11 +83,9 @@ class _AppBackupScreenState extends State<AppBackupScreen> {
     if (!mounted) return;
     setState(() {});
     final loc = AppLocalizations.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(closed ? loc.homeArchiveClosed : loc.homeArchiveFull),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).toast(closed ? loc.homeArchiveClosed : loc.homeArchiveFull);
   }
 
   Future<void> _remove(ArchiveHandle handle) async {
@@ -196,15 +195,12 @@ class _AppBackupScreenState extends State<AppBackupScreen> {
                 onTap: () async {
                   if (action == AppBackupAction.closeAllArchives &&
                       widget.archives != null) {
+                    final messenger = ScaffoldMessenger.of(context);
                     final closed = await widget.archives!.closeAll();
                     if (!mounted) return;
                     setState(() {});
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          closed ? loc.homeArchivesClosed : loc.homeArchiveFull,
-                        ),
-                      ),
+                    messenger.toast(
+                      closed ? loc.homeArchivesClosed : loc.homeArchiveFull,
                     );
                   } else {
                     choose(action);
