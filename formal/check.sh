@@ -11,6 +11,8 @@
 #   ACTIVATION activation*.cfg            -> activation.tla, with the modules the
 #                                            code prints (FORMAL_MODEL); each
 #                                            printed mutant MUST be caught
+#   TOAST     toast_page_boundary*.cfg     -> visible/queued ownership and
+#                                            delayed-offer guards
 #   TRACE     trace/check_trace.sh        -> code stayed inside the model (LogService)
 #
 # Exit non-zero if any expectation is unmet. formal/verify.sh prints the
@@ -415,6 +417,24 @@ expect reloadlatch_bug.cfg reloadlatch.tla "Temporal propert(y|ies).*violated" \
   "a one-shot latch spent by the aborted load leaves the replacement blank (reproduced + caught)"
 expect reloadlatch_reach.cfg reloadlatch.tla "Reach_SpentLatch is violated" \
   "the spent-latch ordering is reachable (RepaintLiveness not vacuous)"
+
+section "TOAST" "a snackbar and its delayed offer stay on their page"
+expect toast_page_boundary.cfg toast_page_boundary.tla "No error has been found" \
+  "visible and queued snackbars belong to the current page"
+expect toast_page_boundary_keepvisible.cfg toast_page_boundary.tla "InvOwned is violated" \
+  "keeping a visible snackbar across a page change is caught"
+expect toast_page_boundary_keepqueue.cfg toast_page_boundary.tla "InvOwned is violated" \
+  "letting a queued snackbar surface on another page is caught"
+expect toast_page_boundary_staleoffer.cfg toast_page_boundary.tla "InvOffer is violated" \
+  "a delayed confirmation from an old page is caught"
+expect toast_page_boundary_ignoretab.cfg toast_page_boundary.tla "InvOffer is violated" \
+  "a delayed confirmation after a tab switch is caught"
+expect toast_page_boundary_ignoreversion.cfg toast_page_boundary.tla "InvOffer is violated" \
+  "a delayed confirmation after switching away and back is caught"
+expect toast_page_boundary_reachqueue.cfg toast_page_boundary.tla "Reach_Queued is violated" \
+  "the snackbar queue is reachable"
+expect toast_page_boundary_reachdropped.cfg toast_page_boundary.tla "Reach_Dropped is violated" \
+  "a stale delayed confirmation is dropped"
 
 section "PROXY" "mutual exclusion (Android serialises mismatched-proxy sites)"
 expect proxy.cfg proxy.tla "No error has been found" \

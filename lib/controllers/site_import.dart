@@ -182,7 +182,7 @@ typedef ImportLanding = ({
 });
 final _framePort = Port<Future<void> Function(), ImportFlow>(
   'frame',
-  reads: const {},
+  reads: {ModelVar.current, ModelVar.version},
   changes: {ModelVar.views},
   of: (w) => w.frame,
 );

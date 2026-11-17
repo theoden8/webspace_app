@@ -43,6 +43,7 @@ import 'package:webspace/web_view_model_hooks.dart';
 import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/toast.dart';
+import 'package:webspace/widgets/toast_page_boundary.dart';
 import 'package:webspace/widgets/page_layer.dart';
 import 'package:webspace/widgets/webspace_name.dart';
 import 'package:webspace/platform/host_platform.dart';
@@ -317,6 +318,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   // menus). Re-derived on every shortcut launch from the target's kioskMode, so
   // a normal launch (no shortcut) or a shortcut to a non-kiosk site clears it.
   bool _kioskLocked = false;
+  final _toastBoundary = ToastPageBoundary();
 
   @override
   void initState() {
@@ -334,7 +336,13 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   void _rebuild() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    final site = _sites.shown;
+    _toastBoundary.follow(site: site, tab: site?.activeTabId,
+        scope: _sites.selectedWebspaceId,
+        tabs: site?.tabs.map((tab) => tab.id) ?? const <TabId>[],
+        messenger: ScaffoldMessenger.maybeOf(context));
+    setState(() {});
   }
 
   void _onAppPrefChanged() => _rebuild();
@@ -937,9 +945,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (_kioskLocked) return;
     if (!identical(model, _sites.shown)) return;
     final tabs = _tabs.enabledFor(model);
-    // WebKit shows its own link menu, with Share, where the app shows none;
-    // Android's WebView has none to fall back to.
-    if (!tabs && hostIsIOS) return;
     final uri = Uri.tryParse(url);
     if (uri == null) return;
     final identity = model.runningIdentity;
@@ -1369,7 +1374,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   Future<void> _toLibrary() async {
     await _activation.activate(null);
     if (!mounted) return;
-    setState(() {});
+    _rebuild();
     await _shell.saveSelectedWebspaceId();
     await _shell.saveCurrentIndex();
     if (mounted) _scaffoldKey.currentState?.closeDrawer();
@@ -1391,7 +1396,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _webspaces.switchInFlight;
     await _activation.activate(site);
     if (!mounted) return;
-    setState(() {});
+    _rebuild();
     await _shell.saveCurrentIndex();
   }
 

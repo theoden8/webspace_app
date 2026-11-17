@@ -21,6 +21,7 @@ import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/tab_handling_gate.dart';
+import 'package:webspace/services/tab_offer_origin.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/services/tab_return_engine.dart';
 import 'package:webspace/services/webview_state_storage.dart';
@@ -263,6 +264,12 @@ class TabsController {
   /// Runs [TabTable.tabFlow] from [from] and what follows its end: the shell
   /// and the save a rebind owes, the offer a duplicate makes.
   Future<void> _runTabFlow(StepContext<TabFlow> c, {required TabPlace from}) async {
+    final shown = _sites.shown;
+    final offerOrigin = TabOfferOrigin(
+      site: shown,
+      tab: shown?.activeTabId,
+      activationVersion: _sites.activationVersion,
+    );
     await TabTable.tabFlow.run(c, from: from);
     final w = c.world;
     if (!_host.mounted) return;
@@ -281,7 +288,17 @@ class TabsController {
           sensitive: true);
     }
     if (w.commitAfter) await _host.commitSites(const SitesEdited());
-    if (w.offer case final copy?) _host.offerOpenTab(w.site, tabId: copy);
+    // Saving can suspend after the child was parked. A confirmation from the
+    // old page must not arrive after the user has switched away.
+    if (w.offer case final copy?
+        when offerOrigin.stillVisible(
+          shownSite: _sites.shown,
+          shownTab: _sites.shown?.activeTabId,
+          offerSite: w.site,
+          currentActivationVersion: _sites.activationVersion,
+        )) {
+      _host.offerOpenTab(w.site, tabId: copy);
+    }
   }
 
   /// LIR-034: every tab a link opened runs as its opener's routing switch says

@@ -85,10 +85,10 @@ void main() {
           line.split('\t')[0]: line.split('\t')[1],
     };
     expect(rows.keys.toSet(), calm);
-    // The delete table's ablation pilot: TLC caught DeleteDropReply without
-    // Calm, and the other two held in all 21 worlds that take them.
+    // The frame reply reads current and version through the page's rebuild,
+    // so it now meets steps between awaits as well as the drop reply.
     expect(rows['DeleteDropReply'], 'yes');
-    expect(rows['DeleteFrameReply'], 'no');
+    expect(rows['DeleteFrameReply'], 'yes');
     expect(rows['DeleteRetireReply'], 'no');
   });
 

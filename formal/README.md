@@ -62,6 +62,15 @@ class.
   commit latch, which the aborted load of a double refresh spends, leaving the replacement's
   commit blank and violating `RepaintLiveness`; `Fix="window"` is the bounded window that
   repaints every commit inside it. Standalone (one surface, bounded issue count).
+- **`toast_page_boundary.tla`** + `toast_page_boundary*.cfg` — the page snackbar
+  boundary and a delayed background-tab confirmation. TLC checks every ordering
+  of shows, queue advances, site/tab/scope changes and offer replies within the
+  finite bounds. `InvOwned` keeps visible and queued messages on their current
+  page; `InvOffer` requires the originating site, tab and activation version
+  when a delayed confirmation appears. Five broken variants and two reachable
+  witnesses keep the checks from passing vacuously. The model covers this page
+  boundary and tab offer; other app-wide toasts and Flutter animations remain
+  outside its state.
 - **`proxy.tla`** + `proxy*.cfg` — proxy mutual exclusion (spec: `proxy`). `Inv_ProxyCoherent`
   (every loaded site shares the active proxy, because Android serialises mismatched-proxy
   sites onto one native proxy slot); the `mismatch` demonstrator co-loads a mismatched site

@@ -254,6 +254,39 @@ void main() {
     ], reason: 'each arm moves only its own pc');
   });
 
+  test('a call prints the variables its port reads while out', () {
+    final port = Port<Set<int>, _World>(
+      'read only',
+      reads: {ModelVar.loaded},
+      changes: const {},
+      of: (w) => w.loaded,
+    );
+    final table = StepTable<_World, _Place>(
+      _Place.values,
+      at: (place) => switch (place) {
+        _Place.go => Step(
+          ActivationStep.plan,
+          holds: null,
+          call: Call.on(
+            port,
+            run: (c) async {
+              c.api.length;
+            },
+            writes: const [],
+          ),
+          otherwise: Otherwise(
+            StepOutcome.none,
+            then: [],
+            next: to(_Place.done),
+          ),
+        ),
+        _Place.wait || _Place.done => const Leaves(),
+      },
+    );
+    expect(table.footprints().single.reads.vars, {ModelVar.loaded});
+    expect(table.tla(variables: ModelVar.values), contains('loaded = loaded'));
+  });
+
   test("a guard's needs are read off the constants it reads", () {
     final cold = Constant<bool, _World>(ModelConst.coldStart, read: (_) => true);
     final jar = Constant<bool, _World>(ModelConst.containers, read: (_) => false);

@@ -733,7 +733,7 @@ final _closeDropPort = Port<SiteSetStage, CloseFlow>(
 );
 final _closeFramePort = Port<Future<void> Function(), CloseFlow>(
   'frame',
-  reads: const {},
+  reads: {ModelVar.current, ModelVar.version},
   changes: {ModelVar.views},
   of: (w) => w.frame,
 );
