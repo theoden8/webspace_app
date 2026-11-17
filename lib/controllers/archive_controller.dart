@@ -156,21 +156,7 @@ class ArchiveController {
     final handle = await _archive.tryOpen(passphrase);
     if (handle == null) return null;
     if (_slices.containsKey(handle)) return handle;
-    if (handle.state.pendingOut case final pending?) {
-      if (pending.index < handle.state.sites.length &&
-          _sites.models.any((m) =>
-              !m.isArchiveTier && m.siteId == pending.siteId)) {
-        final record = handle.state.sites.removeAt(pending.index);
-        final archived = SiteId.parse(record[SiteField.siteId.key]);
-        if (archived != null) {
-          handle.state.cookies.remove(archived);
-          ArchiveMembershipEngine.forget(handle.state.appTierMembership,
-              siteId: archived);
-        }
-      }
-      handle.state.pendingOut = null;
-      await _archive.save(handle);
-    }
+    await _settlePendingOut(handle);
     if (handle.state.pendingRemoval case final targetIds?) {
       if (targetIds.every((id) => _sites.webspaces.any(
           (w) => !w.isArchiveTier && w.id == id))) {
@@ -299,8 +285,8 @@ class ArchiveController {
 
   @Held(#_ops)
   Future<bool> _closeHeld(ArchiveHandle handle) async {
-    if (handle.state.pendingOut != null ||
-        handle.state.pendingRemoval != null) {
+    await _settlePendingOut(handle);
+    if (handle.state.pendingRemoval != null) {
       throw StateError('a site transfer is incomplete');
     }
     final slice = _slices[handle];
@@ -492,15 +478,14 @@ class ArchiveController {
     if (!model.isArchiveTier) return;
     final handle = archiveOf(model);
     if (handle == null) return;
-    if (handle.state.pendingOut != null) {
-      throw StateError('a site transfer is incomplete');
-    }
+    await _settlePendingOut(handle);
     final slice = _slices[handle]!;
 
     final capturedCookies = await _host.captureCookies(model);
     final archived = slice.ids.archived(model.siteId);
-    final recordIndex = slice.ids.admitted.indexOf(model.siteId);
-    if (recordIndex < 0 || recordIndex >= handle.state.sites.length) {
+    final recordIndex = handle.state.sites.indexWhere(
+        (r) => SiteId.parse(r[SiteField.siteId.key]) == archived);
+    if (recordIndex < 0) {
       throw StateError('archive site record is missing');
     }
     handle.state.pendingOut =
@@ -531,6 +516,12 @@ class ArchiveController {
       ],
     ).single;
     await _host.commitSites(SiteUnarchived(model));
+    // Out of the archive whether or not its record's removal saves: a save
+    // that fails leaves the journal, which the next open, close or move
+    // settles (_settlePendingOut).
+    slice.siteIds.remove(model.siteId);
+    if (containerKey != null) slice.containerKeys.remove(containerKey);
+    slice.ids.forget(model.siteId);
 
     final oldSites = List<Map<String, dynamic>>.of(handle.state.sites);
     final oldCookies = Map<String, List<Map<String, dynamic>>>.of(
@@ -563,11 +554,55 @@ class ArchiveController {
             ArchivePendingOut(index: recordIndex, siteId: model.siteId);
       }
     }
-    slice.siteIds.remove(model.siteId);
-    if (containerKey != null) slice.containerKeys.remove(containerKey);
-    slice.ids.forget(model.siteId);
     await _removeEmptyHeld(handle);
     _host.toast((loc) => loc.homeSiteMovedOutOfArchive);
+  }
+
+  /// A move out whose record's removal did not save (ARCH-011): the
+  /// journal names the record, and the site is in the app tier once its
+  /// commit landed, so the record goes; a save that fails again leaves
+  /// both as they were, for the next try.
+  @Held(#_ops)
+  Future<void> _settlePendingOut(ArchiveHandle handle) async {
+    final pending = handle.state.pendingOut;
+    if (pending == null) return;
+    final state = handle.state;
+    final sites = List<Map<String, dynamic>>.of(state.sites);
+    final cookies = Map<String, List<Map<String, dynamic>>>.of(state.cookies);
+    final membership = <WebspaceId, List<SiteId>>{
+      for (final e in state.appTierMembership.entries)
+        e.key: List<SiteId>.of(e.value),
+    };
+    if (pending.index < state.sites.length &&
+        _sites.models.any(
+            (m) => !m.isArchiveTier && m.siteId == pending.siteId)) {
+      final record = state.sites.removeAt(pending.index);
+      final archived = SiteId.parse(record[SiteField.siteId.key]);
+      if (archived != null) {
+        state.cookies.remove(archived);
+        ArchiveMembershipEngine.forget(state.appTierMembership,
+            siteId: archived);
+      }
+    }
+    state.pendingOut = null;
+    var saved = false;
+    try {
+      await _archive.save(handle);
+      saved = true;
+    } finally {
+      if (!saved) {
+        state.sites
+          ..clear()
+          ..addAll(sites);
+        state.cookies
+          ..clear()
+          ..addAll(cookies);
+        state.appTierMembership
+          ..clear()
+          ..addAll(membership);
+        state.pendingOut = pending;
+      }
+    }
   }
 
   @Held(#_ops)
@@ -583,8 +618,8 @@ class ArchiveController {
   Future<bool> removeKeepingSites(ArchiveHandle handle) => _ops.run(() async {
         final slice = _slices[handle];
         if (slice == null || !_host.mounted) return false;
-        if (handle.state.pendingOut != null ||
-            handle.state.pendingRemoval != null) {
+        await _settlePendingOut(handle);
+        if (handle.state.pendingRemoval != null) {
           throw StateError('a site transfer is incomplete');
         }
         for (final site in sitesIn(handle)) {

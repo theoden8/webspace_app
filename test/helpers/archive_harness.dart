@@ -61,6 +61,7 @@ class ArchiveHarness implements ArchiveHost, ArchivePrompts {
   final runtime = SiteRuntime()..isolation = fakeContainers();
   final MockFlutterSecureStorage slots;
   bool failUnarchiveCommit = false;
+  bool failArchiveCommit = false;
   bool failArchiveWriteAfterUnarchive = false;
   bool failArchiveWriteAfterCollections = false;
   late final ArchiveController archives;
@@ -129,6 +130,9 @@ class ArchiveHarness implements ArchiveHost, ArchivePrompts {
         held._started.complete();
         await held._released.future;
       }
+    }
+    if (change is SiteArchived && failArchiveCommit) {
+      throw StateError('app-tier write failed');
     }
     if (change is SiteUnarchived && failUnarchiveCommit) {
       throw StateError('app-tier write failed');
