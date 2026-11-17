@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Відновити архів",
   "homePassphraseHint": "Пароль",
   "homeArchiveOpened": "Архів відкрито ({sites} сайтів, {webspaces} просторів)",
-  "homeNoMatchingArchiveCreateBody": "Для цього пароля не існує архіву. Створити новий архів із ним?",
-  "homeNewArchiveCreated": "Новий архів створено",
   "homeCouldNotOpen": "Не вдалося відкрити: {message}",
   "homeVerificationTitle": "Перевірка",
   "homeSignInTitle": "Увійти",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Меню",
   "siteExtensionsPageFailed": "Не вдалося відкрити {name} тут",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Відкрити архіви",
+  "archiveManagementArchive": "Архів {index}",
+  "archiveManagementRemove": "Видалити архів і зберегти сайти",
+  "archiveManagementRemoveBody": "Перемістити всі сайти та колекції до звичайної бібліотеки, а потім видалити цей архів?"
 }

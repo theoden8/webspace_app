@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Adfer archif",
   "homePassphraseHint": "Cyfrinymadrodd",
   "homeArchiveOpened": "Agorwyd yr archif ({sites} safle, {webspaces} webspace)",
-  "homeNoMatchingArchiveCreateBody": "Nid oes archif yn bodoli ar gyfer y cyfrinymadrodd hwn. Creu archif newydd ag ef?",
-  "homeNewArchiveCreated": "Crëwyd archif newydd",
   "homeCouldNotOpen": "Methwyd agor: {message}",
   "homeVerificationTitle": "Dilysiad",
   "homeSignInTitle": "Mewngofnodi",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Dewislen",
   "siteExtensionsPageFailed": "Nid oedd modd agor {name} yma",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Agor archifau",
+  "archiveManagementArchive": "Archif {index}",
+  "archiveManagementRemove": "Dileu archif a chadw gwefannau",
+  "archiveManagementRemoveBody": "Symud pob safle a chasgliad i'r llyfrgell arferol, yna dileu'r archif hwn?"
 }

@@ -15,6 +15,7 @@ import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/webspace_model.dart';
 
 import 'isolations.dart';
 import 'mock_secure_storage.dart';
@@ -36,7 +37,8 @@ Future<Uint8List> _derive(String passphrase, {required Uint8List? salt}) {
 /// [ArchiveController] on the real slot pool, with the page's archive steps
 /// and stores; only the platform (keychain, native containers) is faked.
 class ArchiveHarness implements ArchiveHost, ArchivePrompts {
-  ArchiveHarness() {
+  ArchiveHarness({MockFlutterSecureStorage? archiveSlots})
+      : slots = archiveSlots ?? MockFlutterSecureStorage() {
     archives = ArchiveController(
       runtime,
       host: this,
@@ -57,7 +59,10 @@ class ArchiveHarness implements ArchiveHost, ArchivePrompts {
   // Archives exist for their containers' sake: each site's opaque one is
   // deleted on close (ARCH-007).
   final runtime = SiteRuntime()..isolation = fakeContainers();
-  final slots = MockFlutterSecureStorage();
+  final MockFlutterSecureStorage slots;
+  bool failUnarchiveCommit = false;
+  bool failArchiveWriteAfterUnarchive = false;
+  bool failArchiveWriteAfterCollections = false;
   late final ArchiveController archives;
   final toasts = <String Function(AppLocalizations)>[];
 
@@ -83,6 +88,15 @@ class ArchiveHarness implements ArchiveHost, ArchivePrompts {
         Archive(storage: ArchiveStorage(secureStorage: slots), deriveKey: _derive);
     final handle = await raw.tryOpen(archivePassphrase);
     handle!.state.sites.add(record);
+    await raw.save(handle);
+    await raw.close(handle);
+  }
+
+  Future<void> sealWebspace(Webspace space) async {
+    final raw =
+        Archive(storage: ArchiveStorage(secureStorage: slots), deriveKey: _derive);
+    final handle = await raw.tryOpen(archivePassphrase);
+    handle!.state.webspaces.add(space.toJson());
     await raw.save(handle);
     await raw.close(handle);
   }
@@ -116,7 +130,16 @@ class ArchiveHarness implements ArchiveHost, ArchivePrompts {
         await held._released.future;
       }
     }
+    if (change is SiteUnarchived && failUnarchiveCommit) {
+      throw StateError('app-tier write failed');
+    }
     runtime.applied(change);
+    if (change is SiteUnarchived && failArchiveWriteAfterUnarchive) {
+      slots.throwOnWrite = true;
+    }
+    if (change is ArchiveCollectionsKept && failArchiveWriteAfterCollections) {
+      slots.throwOnWrite = true;
+    }
     if (change case SiteArchived(:final site, :final into)) {
       await archives.recordIn(site, into: into);
     }
@@ -154,7 +177,7 @@ class ArchiveHarness implements ArchiveHost, ArchivePrompts {
       archivePassphrase;
 
   @override
-  Future<bool> createArchive(PassphrasePurpose purpose) async => true;
+  Future<bool> createArchive() async => true;
 
   @override
   Future<bool> includeOpenArchives(int count) async => false;

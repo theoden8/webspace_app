@@ -33,6 +33,154 @@ void main() {
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  test('restore with an unmatched passphrase creates no empty archive', () async {
+    final h = ArchiveHarness();
+
+    await h.archives.promptRestore();
+
+    expect(h.archives.anyOpen, isFalse);
+    expect(h.toasts.single(en), en.homeNoMatchingArchiveTitle);
+    expect(await h.archives.open(archivePassphrase), isNull);
+  });
+
+  test('restore still opens an archive created by moving a site', () async {
+    final h = ArchiveHarness();
+    final site = _away(SiteId('site'));
+    h.load([site]);
+    await h.archives.moveIn(site);
+    await h.archives.closeArchiveOf(site);
+
+    await h.archives.promptRestore();
+
+    expect(h.archives.anyOpen, isTrue);
+    expect(h.runtime.models.single.isArchiveTier, isTrue);
+    expect(h.toasts.last(en), en.homeArchiveOpened(1, 0));
+  });
+
+  test('moving the last site out removes an empty archive', () async {
+    final h = ArchiveHarness();
+    final site = _away(SiteId('site'));
+    h.load([site]);
+    await h.archives.moveIn(site);
+
+    await h.archives.moveOut(site);
+
+    expect(site.isArchiveTier, isFalse);
+    expect(h.archives.anyOpen, isFalse);
+    expect(await h.archives.open(archivePassphrase), isNull);
+  });
+
+  test('a failed archive write leaves the site in its archive', () async {
+    final h = ArchiveHarness();
+    final site = _away(SiteId('site'));
+    h.load([site]);
+    await h.archives.moveIn(site);
+    h.slots.throwOnWrite = true;
+
+    await expectLater(h.archives.moveOut(site), throwsA(isA<Exception>()));
+
+    h.slots.throwOnWrite = false;
+    expect(site.isArchiveTier, isTrue);
+    expect(h.archives.archiveOf(site), isNotNull);
+    await h.archives.moveOut(site);
+    expect(site.isArchiveTier, isFalse);
+  });
+
+  test('interrupted move out reopens the site when app-tier write failed',
+      () async {
+    final h = ArchiveHarness();
+    final site = _away(SiteId('site'));
+    h.load([site]);
+    await h.archives.moveIn(site);
+    h.failUnarchiveCommit = true;
+    await expectLater(h.archives.moveOut(site), throwsStateError);
+
+    final restarted = ArchiveHarness(archiveSlots: h.slots);
+    expect(await restarted.archives.open(archivePassphrase), isNotNull);
+    expect(restarted.runtime.models.single.isArchiveTier, isTrue);
+  });
+
+  test('interrupted move out keeps the app-tier site after archive write fails',
+      () async {
+    final h = ArchiveHarness();
+    final site = _away(SiteId('site'));
+    h.load([site]);
+    await h.archives.moveIn(site);
+    h.failArchiveWriteAfterUnarchive = true;
+    await expectLater(h.archives.moveOut(site), throwsA(isA<Exception>()));
+    h.slots.throwOnWrite = false;
+
+    final restarted = ArchiveHarness(archiveSlots: h.slots)..load([site]);
+    expect(await restarted.archives.open(archivePassphrase), isNull);
+    expect(restarted.runtime.models, [site]);
+    expect(site.isArchiveTier, isFalse);
+  });
+
+  test('removing an archive keeps its sites', () async {
+    final h = ArchiveHarness();
+    final sites = [_away(SiteId('a')), _away(SiteId('b'))];
+    h.load(sites);
+    for (final site in sites) {
+      await h.archives.moveIn(site);
+    }
+    final handle = h.archives.openArchives.single;
+
+    expect(await h.archives.removeKeepingSites(handle), isTrue);
+
+    expect(sites.every((site) => !site.isArchiveTier), isTrue);
+    expect(h.runtime.models, sites);
+    expect(h.archives.anyOpen, isFalse);
+    expect(await h.archives.open(archivePassphrase), isNull);
+  });
+
+  test('removing an archive keeps its collections', () async {
+    final h = ArchiveHarness();
+    final site = _away(SiteId('site'));
+    h.load([site]);
+    await h.archives.moveIn(site);
+    await h.archives.closeArchiveOf(site);
+    final sealed = await h.sealedSites();
+    final siteId = SiteId(sealed.single['siteId'] as String);
+    await h.sealWebspace(Webspace(name: 'Saved', siteIds: [siteId]));
+    final handle = await h.archives.open(archivePassphrase);
+
+    expect(await h.archives.removeKeepingSites(handle!), isTrue);
+
+    final collection = h.runtime.webspaces.singleWhere((w) => w.name == 'Saved');
+    expect(collection.isArchiveTier, isFalse);
+    expect(collection.siteIds, [site.siteId]);
+    expect(await h.archives.open(archivePassphrase), isNull);
+  });
+
+  test('interrupted collection transfer is completed on the next open',
+      () async {
+    final h = ArchiveHarness();
+    final site = _away(SiteId('site'));
+    h.load([site]);
+    await h.archives.moveIn(site);
+    await h.archives.closeArchiveOf(site);
+    final sealed = await h.sealedSites();
+    await h.sealWebspace(Webspace(
+      name: 'Saved',
+      siteIds: [SiteId(sealed.single['siteId'] as String)],
+    ));
+    final handle = await h.archives.open(archivePassphrase);
+    h.failArchiveWriteAfterCollections = true;
+
+    await expectLater(h.archives.removeKeepingSites(handle!),
+        throwsA(isA<Exception>()));
+    h.slots.throwOnWrite = false;
+
+    final transferred = h.runtime.models.single;
+    final restarted = ArchiveHarness(archiveSlots: h.slots)..load([transferred]);
+    restarted.runtime.webspaces.addAll([
+      for (final w in h.runtime.webspaces) if (!w.isArchiveTier) w.copyWith(),
+    ]);
+    expect(await restarted.archives.open(archivePassphrase), isNull);
+    expect(restarted.runtime.webspaces.single.name, 'Saved');
+    expect(transferred.isArchiveTier, isFalse);
+  });
+
   test('closing and opening an archive restores every site as it was (ARCH-004)',
       () async {
     final h = ArchiveHarness();

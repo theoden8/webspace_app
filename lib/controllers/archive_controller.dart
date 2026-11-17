@@ -38,9 +38,8 @@ enum PassphrasePurpose { moveSite, openArchive, restoreSections }
 abstract interface class ArchivePrompts {
   Future<String?> passphrase(PassphrasePurpose purpose);
 
-  /// No archive matched the passphrase given for [purpose]; whether to
-  /// create one with it.
-  Future<bool> createArchive(PassphrasePurpose purpose);
+  /// Whether to create an archive while moving a site into it.
+  Future<bool> createArchive();
 
   /// Whether an export bundles the [count] open archives.
   Future<bool> includeOpenArchives(int count);
@@ -67,6 +66,7 @@ class _ArchiveSlice {
   _ArchiveSlice({
     required this.siteIds,
     required this.webspaceIds,
+    required this.webspaces,
     required this.containerKeys,
     required this.ids,
   });
@@ -74,6 +74,7 @@ class _ArchiveSlice {
   /// The ids its sites run under in the lists.
   final Set<SiteId> siteIds;
   final Set<WebspaceId> webspaceIds;
+  final Set<Webspace> webspaces;
 
   /// Which of them its sealed state names otherwise (SEC-044).
   final ArchiveIds ids;
@@ -119,6 +120,19 @@ class ArchiveController {
 
   bool get anyOpen => _slices.isNotEmpty;
 
+  List<ArchiveHandle> get openArchives => List.unmodifiable(_slices.keys);
+
+  List<WebViewModel> sitesIn(ArchiveHandle handle) {
+    final slice = _slices[handle];
+    if (slice == null) return const [];
+    return [
+      for (final site in _sites.models)
+        if (site.archiveContainerKey case final key?
+            when slice.containerKeys.contains(key))
+          site,
+    ];
+  }
+
   /// The open archive [m] belongs to, or null for an app-tier site. Read
   /// off its opaque container key, which only an archive-tier model has: an
   /// app-tier site a backup brought back under the same id is not the
@@ -137,14 +151,39 @@ class ArchiveController {
   Future<ArchiveHandle?> open(String passphrase) =>
       _ops.run(() => _openHeld(passphrase));
 
-  Future<ArchiveHandle> create(String passphrase) =>
-      _ops.run(() => _createHeld(passphrase));
-
   @Held(#_ops)
   Future<ArchiveHandle?> _openHeld(String passphrase) async {
     final handle = await _archive.tryOpen(passphrase);
     if (handle == null) return null;
     if (_slices.containsKey(handle)) return handle;
+    if (handle.state.pendingOut case final pending?) {
+      if (pending.index < handle.state.sites.length &&
+          _sites.models.any((m) =>
+              !m.isArchiveTier && m.siteId == pending.siteId)) {
+        final record = handle.state.sites.removeAt(pending.index);
+        final archived = SiteId.parse(record[SiteField.siteId.key]);
+        if (archived != null) {
+          handle.state.cookies.remove(archived);
+          ArchiveMembershipEngine.forget(handle.state.appTierMembership,
+              siteId: archived);
+        }
+      }
+      handle.state.pendingOut = null;
+      await _archive.save(handle);
+    }
+    if (handle.state.pendingRemoval case final targetIds?) {
+      if (targetIds.every((id) => _sites.webspaces.any(
+          (w) => !w.isArchiveTier && w.id == id))) {
+        await _archive.remove(handle);
+        return null;
+      }
+      handle.state.pendingRemoval = null;
+      await _archive.save(handle);
+    }
+    if (handle.state.sites.isEmpty && handle.state.webspaces.isEmpty) {
+      await _archive.remove(handle);
+      return null;
+    }
     await _materialise(handle);
     return handle;
   }
@@ -192,6 +231,7 @@ class ArchiveController {
     _slices[handle] = _ArchiveSlice(
       siteIds: {for (final m in admitted.sites) m.siteId},
       webspaceIds: {for (final w in webspaces) w.id},
+      webspaces: webspaces.toSet(),
       containerKeys: {for (final m in admitted.sites) m.archiveContainerKey!},
       ids: ids,
     );
@@ -259,6 +299,10 @@ class ArchiveController {
 
   @Held(#_ops)
   Future<bool> _closeHeld(ArchiveHandle handle) async {
+    if (handle.state.pendingOut != null ||
+        handle.state.pendingRemoval != null) {
+      throw StateError('a site transfer is incomplete');
+    }
     final slice = _slices[handle];
     if (slice == null) return true;
     final flow = CloseFlow._(this, handle: handle, slice: slice);
@@ -345,11 +389,15 @@ class ArchiveController {
     }
     if (found != null) return;
     if (!_host.mounted) return;
-    if (!await _prompts.createArchive(PassphrasePurpose.moveSite)) return;
+    if (!await _prompts.createArchive()) return;
     try {
       await _ops.run(() async {
         final target = await _createHeld(passphrase);
-        await _moveInHeld(model, into: target);
+        try {
+          await _moveInHeld(model, into: target);
+        } finally {
+          if (!model.isArchiveTier) await _removeEmptyHeld(target);
+        }
       });
     } on StateError catch (e) {
       _host.toast((loc) => loc.homeCouldNotCreateArchive(e.message));
@@ -444,32 +492,36 @@ class ArchiveController {
     if (!model.isArchiveTier) return;
     final handle = archiveOf(model);
     if (handle == null) return;
+    if (handle.state.pendingOut != null) {
+      throw StateError('a site transfer is incomplete');
+    }
     final slice = _slices[handle]!;
 
     final capturedCookies = await _host.captureCookies(model);
+    final archived = slice.ids.archived(model.siteId);
+    final recordIndex = slice.ids.admitted.indexOf(model.siteId);
+    if (recordIndex < 0 || recordIndex >= handle.state.sites.length) {
+      throw StateError('archive site record is missing');
+    }
+    handle.state.pendingOut =
+        ArchivePendingOut(index: recordIndex, siteId: model.siteId);
+    var journaled = false;
+    try {
+      await _archive.save(handle);
+      journaled = true;
+    } finally {
+      if (!journaled) handle.state.pendingOut = null;
+    }
     final containerKey = model.archiveContainerKey;
     if ((containerKey, _sites.isolation)
         case (final key?, Containers(:final engine))) {
       await engine.containerNative.deleteContainer(key);
     }
-    final archived = slice.ids.archived(model.siteId);
-    handle.state.sites
-        .removeWhere((s) => s[SiteField.siteId.key] == archived);
-    handle.state.cookies.remove(archived);
-    ArchiveMembershipEngine.forget(handle.state.appTierMembership,
-        siteId: archived);
-    slice.siteIds.remove(model.siteId);
-    slice.ids.forget(model.siteId);
-    if (containerKey != null) slice.containerKeys.remove(containerKey);
-    await _archive.save(handle);
-
-    // Back on the standard `ws-<siteId>` container.
+    // The app-tier write lands while the archive still holds the original.
     model.disposeWebView(commit: const Commit.environment(Environment.letGo));
     model.isArchiveTier = false;
     model.archiveContainerKey = null;
     model.cookies = capturedCookies;
-    // TAB-018: back with the colour it kept in the archive, unless an
-    // app-tier site took that colour meanwhile.
     model.containerColor = ContainerColorEngine.release(
       [model.containerColor],
       paletteSize: kContainerPaletteSize,
@@ -479,11 +531,98 @@ class ArchiveController {
       ],
     ).single;
     await _host.commitSites(SiteUnarchived(model));
+
+    final oldSites = List<Map<String, dynamic>>.of(handle.state.sites);
+    final oldCookies = Map<String, List<Map<String, dynamic>>>.of(
+        handle.state.cookies);
+    final oldMembership = <WebspaceId, List<SiteId>>{
+      for (final e in handle.state.appTierMembership.entries)
+        e.key: List<SiteId>.of(e.value),
+    };
+    handle.state.sites.removeAt(recordIndex);
+    handle.state.cookies.remove(archived);
+    ArchiveMembershipEngine.forget(handle.state.appTierMembership,
+        siteId: archived);
+    handle.state.pendingOut = null;
+    var saved = false;
+    try {
+      await _archive.save(handle);
+      saved = true;
+    } finally {
+      if (!saved) {
+        handle.state.sites
+          ..clear()
+          ..addAll(oldSites);
+        handle.state.cookies
+          ..clear()
+          ..addAll(oldCookies);
+        handle.state.appTierMembership
+          ..clear()
+          ..addAll(oldMembership);
+        handle.state.pendingOut =
+            ArchivePendingOut(index: recordIndex, siteId: model.siteId);
+      }
+    }
+    slice.siteIds.remove(model.siteId);
+    if (containerKey != null) slice.containerKeys.remove(containerKey);
+    slice.ids.forget(model.siteId);
+    await _removeEmptyHeld(handle);
     _host.toast((loc) => loc.homeSiteMovedOutOfArchive);
   }
 
-  /// Settings entry point: open the archive a passphrase names, or offer to
-  /// create one. The toasts never reveal whether other archives exist.
+  @Held(#_ops)
+  Future<void> _removeEmptyHeld(ArchiveHandle handle) async {
+    final slice = _slices[handle];
+    if (slice == null || slice.siteIds.isNotEmpty ||
+        slice.webspaceIds.isNotEmpty || handle.state.pendingOut != null ||
+        handle.state.pendingRemoval != null) return;
+    await _archive.remove(handle);
+    _slices.remove(handle);
+  }
+
+  Future<bool> removeKeepingSites(ArchiveHandle handle) => _ops.run(() async {
+        final slice = _slices[handle];
+        if (slice == null || !_host.mounted) return false;
+        if (handle.state.pendingOut != null ||
+            handle.state.pendingRemoval != null) {
+          throw StateError('a site transfer is incomplete');
+        }
+        for (final site in sitesIn(handle)) {
+          await _moveOutHeld(site);
+        }
+        if (!_slices.containsKey(handle)) return true;
+        final heldIds = {
+          for (final w in _sites.webspaces)
+            if (!w.isArchiveTier) w.id,
+        };
+        final targets = <Webspace, WebspaceId>{};
+        for (final ws in _sites.webspaces) {
+          if (!slice.webspaces.contains(ws)) continue;
+          var id = ws.id;
+          while (heldIds.contains(id)) id = WebspaceId.mint();
+          heldIds.add(id);
+          targets[ws] = id;
+        }
+        handle.state.pendingRemoval = targets.values.toList();
+        var journaled = false;
+        try {
+          await _archive.save(handle);
+          journaled = true;
+        } finally {
+          if (!journaled) handle.state.pendingRemoval = null;
+        }
+        for (final entry in targets.entries) {
+          final ws = entry.key;
+          ws.id = entry.value;
+          ws.isArchiveTier = false;
+        }
+        await _host.commitSites(const ArchiveCollectionsKept());
+        await _archive.remove(handle);
+        _slices.remove(handle);
+        return true;
+      });
+
+  /// Settings entry point: open the archive a passphrase names.
   Future<void> promptRestore() async {
     final passphrase =
         await _prompts.passphrase(PassphrasePurpose.openArchive);
@@ -495,10 +634,9 @@ class ArchiveController {
             handle.state.sites.length, handle.state.webspaces.length));
         return;
       }
-      if (!_host.mounted) return;
-      if (!await _prompts.createArchive(PassphrasePurpose.openArchive)) return;
-      await create(passphrase);
-      _host.toast((loc) => loc.homeNewArchiveCreated);
+      if (_host.mounted) {
+        _host.toast((loc) => loc.homeNoMatchingArchiveTitle);
+      }
     } on StateError catch (e) {
       _host.toast((loc) => loc.homeCouldNotOpen(e.message));
     }

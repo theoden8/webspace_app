@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Herstel argief",
   "homePassphraseHint": "Wagwoordfrase",
   "homeArchiveOpened": "Argief oopgemaak ({sites} webwerwe, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "Geen argief bestaan vir hierdie wagwoordfrase nie. Skep 'n nuwe argief daarmee?",
-  "homeNewArchiveCreated": "Nuwe argief geskep",
   "homeCouldNotOpen": "Kon nie oopmaak nie: {message}",
   "homeVerificationTitle": "Verifikasie",
   "homeSignInTitle": "Meld aan",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Kieslys",
   "siteExtensionsPageFailed": "{name} kon nie hier oopmaak nie",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Maak argiewe oop",
+  "archiveManagementArchive": "Argief {index}",
+  "archiveManagementRemove": "Verwyder argief en hou werwe",
+  "archiveManagementRemoveBody": "Skuif alle werwe en versamelings na die gewone biblioteek, verwyder dan hierdie argief?"
 }

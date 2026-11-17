@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Återställ arkiv",
   "homePassphraseHint": "Lösenfras",
   "homeArchiveOpened": "Arkiv öppnat ({sites} webbplatser, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "Inget arkiv finns för denna lösenfras. Skapa ett nytt arkiv med den?",
-  "homeNewArchiveCreated": "Nytt arkiv skapat",
   "homeCouldNotOpen": "Kunde inte öppna: {message}",
   "homeVerificationTitle": "Verifiering",
   "homeSignInTitle": "Logga in",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Meny",
   "siteExtensionsPageFailed": "{name} kunde inte öppnas här",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Öppna arkiv",
+  "archiveManagementArchive": "Arkiv {index}",
+  "archiveManagementRemove": "Ta bort arkiv och behåll webbplatser",
+  "archiveManagementRemoveBody": "Flytta alla webbplatser och samlingar till det vanliga biblioteket och ta bort det här arkivet?"
 }

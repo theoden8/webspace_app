@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "آرکائیو بحال کریں",
   "homePassphraseHint": "پاس فریز",
   "homeArchiveOpened": "آرکائیو کھل گیا ({sites} سائٹس، {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "اس پاس فریز کے لیے کوئی آرکائیو موجود نہیں ہے۔ اس کے ساتھ ایک نیا آرکائیو بنائیں؟",
-  "homeNewArchiveCreated": "نیا آرکائیو بن گیا",
   "homeCouldNotOpen": "نہیں کھولا جا سکا: {message}",
   "homeVerificationTitle": "تصدیق",
   "homeSignInTitle": "سائن ان کریں",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "مینو",
   "siteExtensionsPageFailed": "{name} یہاں نہیں کھل سکی",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "آرکائیوز کھولیں۔",
+  "archiveManagementArchive": "آرکائیو {index}",
+  "archiveManagementRemove": "محفوظ شدہ دستاویزات کو ہٹا دیں اور سائٹس کو رکھیں",
+  "archiveManagementRemoveBody": "تمام سائٹس اور مجموعوں کو باقاعدہ لائبریری میں منتقل کریں، پھر اس آرکائیو کو ہٹائیں؟"
 }

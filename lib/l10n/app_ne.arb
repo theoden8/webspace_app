@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "अभिलेख पुनर्स्थापना गर्नुहोस्",
   "homePassphraseHint": "पासफ्रेज",
   "homeArchiveOpened": "अभिलेख खोलियो ({sites} साइटहरू, {webspaces} webspace हरू)",
-  "homeNoMatchingArchiveCreateBody": "यो पासफ्रेजका लागि कुनै अभिलेख छैन। यससँग नयाँ अभिलेख सिर्जना गर्ने?",
-  "homeNewArchiveCreated": "नयाँ अभिलेख सिर्जना गरियो",
   "homeCouldNotOpen": "खोल्न सकिएन: {message}",
   "homeVerificationTitle": "प्रमाणीकरण",
   "homeSignInTitle": "साइन इन गर्नुहोस्",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "मेनु",
   "siteExtensionsPageFailed": "{name} यहाँ खोल्न सकिएन",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "अभिलेखहरू खोल्नुहोस्",
+  "archiveManagementArchive": "संग्रह {index}",
+  "archiveManagementRemove": "अभिलेख हटाउनुहोस् र साइटहरू राख्नुहोस्",
+  "archiveManagementRemoveBody": "सबै साइटहरू र सङ्ग्रहहरूलाई नियमित पुस्तकालयमा सार्ने, त्यसपछि यो सङ्ग्रह हटाउने हो?"
 }

@@ -633,8 +633,6 @@
   "homeRestoreArchiveTitle": "Tabularium restituere",
   "homePassphraseHint": "Dictum",
   "homeArchiveOpened": "Tabularium apertum ({sites} loci, {webspaces} webspatia)",
-  "homeNoMatchingArchiveCreateBody": "Nullum tabularium pro hoc dicto exstat. Novum tabularium cum eo creare?",
-  "homeNewArchiveCreated": "Novum tabularium creatum",
   "homeCouldNotOpen": "Aperiri non potuit: {message}",
   "homeVerificationTitle": "Comprobatio",
   "homeSignInTitle": "Inire",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Index",
   "siteExtensionsPageFailed": "{name} hic aperiri non potuit",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Open archives",
+  "archiveManagementArchive": "Archivum {index}",
+  "archiveManagementRemove": "Aufer archivum et custodias situs",
+  "archiveManagementRemoveBody": "Movere omnes sites et collectiones ad bibliothecam regularem, hoc archivum transfer?"
 }

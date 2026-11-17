@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "આર્કાઇવ પુનઃસ્થાપિત કરો",
   "homePassphraseHint": "પાસફ્રેઝ",
   "homeArchiveOpened": "આર્કાઇવ ખુલ્યું ({sites} સાઇટ્સ, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "આ પાસફ્રેઝ માટે કોઈ આર્કાઇવ અસ્તિત્વમાં નથી. તેની સાથે નવું આર્કાઇવ બનાવો?",
-  "homeNewArchiveCreated": "નવું આર્કાઇવ બનાવ્યું",
   "homeCouldNotOpen": "ખોલી શકાયું નહીં: {message}",
   "homeVerificationTitle": "ચકાસણી",
   "homeSignInTitle": "સાઇન ઇન કરો",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "મેનૂ",
   "siteExtensionsPageFailed": "{name} અહીં ખોલી શકાયું નહીં",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "આર્કાઇવ્સ ખોલો",
+  "archiveManagementArchive": "આર્કાઇવ {index}",
+  "archiveManagementRemove": "આર્કાઇવ દૂર કરો અને સાઇટ્સ રાખો",
+  "archiveManagementRemoveBody": "બધી સાઇટ્સ અને સંગ્રહોને નિયમિત લાઇબ્રેરીમાં ખસેડીએ, પછી આ આર્કાઇવ દૂર કરીએ?"
 }

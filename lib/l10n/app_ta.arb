@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "காப்பகத்தை மீட்டெடு",
   "homePassphraseHint": "கடவுச்சொல்",
   "homeArchiveOpened": "காப்பகம் திறக்கப்பட்டது ({sites} தளங்கள், {webspaces} webspace கள்)",
-  "homeNoMatchingArchiveCreateBody": "இந்த கடவுச்சொல்லுக்கு காப்பகம் எதுவும் இல்லை. அதனுடன் ஒரு புதிய காப்பகத்தை உருவாக்கவா?",
-  "homeNewArchiveCreated": "புதிய காப்பகம் உருவாக்கப்பட்டது",
   "homeCouldNotOpen": "திறக்க முடியவில்லை: {message}",
   "homeVerificationTitle": "சரிபார்ப்பு",
   "homeSignInTitle": "உள்நுழை",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "பட்டியல்",
   "siteExtensionsPageFailed": "{name} ஐ இங்கே திறக்க முடியவில்லை",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "காப்பகங்களைத் திறக்கவும்",
+  "archiveManagementArchive": "காப்பகம் {index}",
+  "archiveManagementRemove": "காப்பகத்தை அகற்றி, தளங்களை வைத்திருங்கள்",
+  "archiveManagementRemoveBody": "அனைத்து தளங்களையும் சேகரிப்புகளையும் வழக்கமான நூலகத்திற்கு நகர்த்தி, இந்தக் காப்பகத்தை அகற்றவா?"
 }

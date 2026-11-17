@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Gjenopprett arkiv",
   "homePassphraseHint": "Passordfrase",
   "homeArchiveOpened": "Arkiv åpnet ({sites} nettsteder, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "Det finnes ikke noe arkiv for denne passordfrasen. Opprette et nytt arkiv med den?",
-  "homeNewArchiveCreated": "Nytt arkiv opprettet",
   "homeCouldNotOpen": "Kunne ikke åpne: {message}",
   "homeVerificationTitle": "Verifisering",
   "homeSignInTitle": "Logg på",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Meny",
   "siteExtensionsPageFailed": "{name} kunne ikke åpnes her",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Åpne arkiver",
+  "archiveManagementArchive": "Arkiv {index}",
+  "archiveManagementRemove": "Fjern arkiv og behold nettsteder",
+  "archiveManagementRemoveBody": "Flytte alle nettsteder og samlinger til det vanlige biblioteket, og deretter fjerne dette arkivet?"
 }

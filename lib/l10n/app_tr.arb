@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Arşivi geri yükle",
   "homePassphraseHint": "Parola",
   "homeArchiveOpened": "Arşiv açıldı ({sites} site, {webspaces} webspace)",
-  "homeNoMatchingArchiveCreateBody": "Bu parola için bir arşiv yok. Bununla yeni bir arşiv oluşturmak ister misiniz?",
-  "homeNewArchiveCreated": "Yeni arşiv oluşturuldu",
   "homeCouldNotOpen": "Açılamadı: {message}",
   "homeVerificationTitle": "Doğrulama",
   "homeSignInTitle": "Oturum aç",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Menü",
   "siteExtensionsPageFailed": "{name} burada açılamadı",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Arşivleri aç",
+  "archiveManagementArchive": "Arşiv {index}",
+  "archiveManagementRemove": "Arşivi kaldırın ve siteleri koruyun",
+  "archiveManagementRemoveBody": "Tüm siteler ve koleksiyonlar normal kitaplığa taşınsın, ardından bu arşiv kaldırılsın mı?"
 }

@@ -1033,6 +1033,8 @@ class _WebSpacePageState extends State<WebSpacePage>
           onImportSettings: _backup.import,
           onTrustUboHosts: _backup.trustUboHosts,
           onRestoreArchive: _archives.promptRestore,
+          archiveController: _archives,
+          onOpenArchivedSite: _openSite,
           hasOpenArchives: _archives.anyOpen,
           onCloseAllArchives: () async {
             final closed = await _archives.closeAll();

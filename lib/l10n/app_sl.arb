@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Obnovi arhiv",
   "homePassphraseHint": "Geslo",
   "homeArchiveOpened": "Arhiv odprt ({sites} strani, {webspaces} webspace-ov)",
-  "homeNoMatchingArchiveCreateBody": "Za to geslo ne obstaja noben arhiv. Ustvarim nov arhiv z njim?",
-  "homeNewArchiveCreated": "Nov arhiv ustvarjen",
   "homeCouldNotOpen": "Ni bilo mogoče odpreti: {message}",
   "homeVerificationTitle": "Preverjanje",
   "homeSignInTitle": "Prijavi se",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Meni",
   "siteExtensionsPageFailed": "{name} tukaj ni bilo mogoče odpreti",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Odpri arhive",
+  "archiveManagementArchive": "Arhiv {index}",
+  "archiveManagementRemove": "Odstrani arhiv in obdrži mesta",
+  "archiveManagementRemoveBody": "Ali želite vsa mesta in zbirke premakniti v običajno knjižnico in nato odstraniti ta arhiv?"
 }

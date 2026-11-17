@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "아카이브 복원",
   "homePassphraseHint": "암호",
   "homeArchiveOpened": "아카이브가 열렸습니다(사이트 {sites}개, 웹스페이스 {webspaces}개)",
-  "homeNoMatchingArchiveCreateBody": "이 암호에 대한 아카이브가 없습니다. 이 암호로 새 아카이브를 만들까요?",
-  "homeNewArchiveCreated": "새 아카이브가 생성되었습니다",
   "homeCouldNotOpen": "열 수 없습니다: {message}",
   "homeVerificationTitle": "인증",
   "homeSignInTitle": "로그인",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "메뉴",
   "siteExtensionsPageFailed": "여기서 {name}을(를) 열 수 없습니다",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "아카이브 열기",
+  "archiveManagementArchive": "아카이브 {index}",
+  "archiveManagementRemove": "아카이브를 제거하고 사이트를 유지",
+  "archiveManagementRemoveBody": "모든 사이트와 컬렉션을 일반 라이브러리로 이동한 후 이 아카이브를 삭제하시겠습니까?"
 }

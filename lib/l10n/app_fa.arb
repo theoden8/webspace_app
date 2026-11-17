@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "بازیابی بایگانی",
   "homePassphraseHint": "عبارت عبور",
   "homeArchiveOpened": "بایگانی باز شد ({sites} سایت، {webspaces} Webspace)",
-  "homeNoMatchingArchiveCreateBody": "برای این عبارت عبور هیچ بایگانی‌ای وجود ندارد. یک بایگانی جدید با آن بسازیم؟",
-  "homeNewArchiveCreated": "بایگانی جدید ساخته شد",
   "homeCouldNotOpen": "نتوانست باز کند: {message}",
   "homeVerificationTitle": "تأیید",
   "homeSignInTitle": "ورود",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "منو",
   "siteExtensionsPageFailed": "{name} اینجا باز نشد",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "باز کردن بایگانی ها",
+  "archiveManagementArchive": "آرشیو {index}",
+  "archiveManagementRemove": "آرشیو را حذف کنید و سایت ها را نگه دارید",
+  "archiveManagementRemoveBody": "همه سایت ها و مجموعه ها به کتابخانه معمولی منتقل شوند، سپس این بایگانی حذف شود؟"
 }

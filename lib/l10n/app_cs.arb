@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Obnovit archiv",
   "homePassphraseHint": "Přístupová fráze",
   "homeArchiveOpened": "Archiv otevřen ({sites} stránek, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "Pro tuto přístupovou frázi neexistuje žádný archiv. Vytvořit s ní nový archiv?",
-  "homeNewArchiveCreated": "Nový archiv vytvořen",
   "homeCouldNotOpen": "Nepodařilo se otevřít: {message}",
   "homeVerificationTitle": "Ověření",
   "homeSignInTitle": "Přihlásit",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Nabídka",
   "siteExtensionsPageFailed": "{name} se zde nepodařilo otevřít",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Otevřete archivy",
+  "archiveManagementArchive": "Archiv {index}",
+  "archiveManagementRemove": "Odstraňte archiv a ponechte si weby",
+  "archiveManagementRemoveBody": "Přesunout všechny weby a sbírky do běžné knihovny a poté tento archiv odstranit?"
 }

@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Restaurer une archive",
   "homePassphraseHint": "Phrase secrète",
   "homeArchiveOpened": "Archive ouverte ({sites} sites, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "Aucune archive n'existe pour cette phrase secrète. En créer une nouvelle avec celle-ci ?",
-  "homeNewArchiveCreated": "Nouvelle archive créée",
   "homeCouldNotOpen": "Impossible d'ouvrir : {message}",
   "homeVerificationTitle": "Vérification",
   "homeSignInTitle": "Se connecter",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Menu",
   "siteExtensionsPageFailed": "Impossible d'ouvrir {name} ici",
   "termAndMeaning": "{term} : {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Archives ouvertes",
+  "archiveManagementArchive": "Archives {index}",
+  "archiveManagementRemove": "Supprimer les archives et conserver les sites",
+  "archiveManagementRemoveBody": "Déplacer tous les sites et collections vers la bibliothèque standard, puis supprimer cette archive ?"
 }

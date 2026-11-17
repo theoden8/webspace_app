@@ -66,7 +66,8 @@ final class SiteSetCommit {
     SiteSettingsSaved() ||
     SiteSettingsClosed() ||
     SiteArchived() ||
-    SiteUnarchived() => const Commit.none(),
+    SiteUnarchived() ||
+    ArchiveCollectionsKept() => const Commit.none(),
   };
 
   /// [drop] in the three parts a step table runs it in, so the lists

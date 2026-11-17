@@ -156,6 +156,9 @@ class ArchiveStorage {
     await _storage.write(key: _slotKeyName(index), value: _encodeBase64(bytes));
   }
 
+  Future<void> clearSlot(int index) =>
+      writeSlot(index, bytes: _randomBytes(kArchiveSlotSize));
+
   static Uint8List aadForSlot(int index) {
     final bd = ByteData(4);
     bd.setUint32(0, index, Endian.big);

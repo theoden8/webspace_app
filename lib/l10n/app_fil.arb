@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Ibalik ang archive",
   "homePassphraseHint": "Passphrase",
   "homeArchiveOpened": "Nabuksan ang archive ({sites} na site, {webspaces} na webspace)",
-  "homeNoMatchingArchiveCreateBody": "Walang umiiral na archive para sa passphrase na ito. Gumawa ng bagong archive gamit ito?",
-  "homeNewArchiveCreated": "Nagawa ang bagong archive",
   "homeCouldNotOpen": "Hindi mabuksan: {message}",
   "homeVerificationTitle": "Pag-verify",
   "homeSignInTitle": "Mag-sign in",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Menu",
   "siteExtensionsPageFailed": "Hindi mabuksan dito ang {name}",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Buksan ang mga archive",
+  "archiveManagementArchive": "Archive {index}",
+  "archiveManagementRemove": "Alisin ang archive at panatilihin ang mga site",
+  "archiveManagementRemoveBody": "Ilipat ang lahat ng site at koleksyon sa regular na library, pagkatapos ay alisin ang archive na ito?"
 }

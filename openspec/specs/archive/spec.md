@@ -18,7 +18,7 @@ ARCH-001 through ARCH-009 are wired end-to-end:
   `flutter_secure_storage`; slot bytes = full AEAD wire size with
   length-prefixed plaintext padding.
 - **ARCH-004 (open/close lifecycle):** `ArchiveController.open` /
-  `create` / `close` / `closeAll` (`lib/controllers/archive_controller.dart`),
+  `moveIn` / `close` / `closeAll` (`lib/controllers/archive_controller.dart`),
   each committing its rows through the page's `_commitSites`. In-memory key
   only; zeroed on close.
 - **ARCH-005 (multi-archive concurrency):** per-handle slices in
@@ -86,8 +86,9 @@ This spec adds an archive feature that satisfies both. Crucially, when no archiv
 
 ### User-facing model
 
-- The user creates an archive by typing a passphrase into the existing settings-backup / restore screen. If the passphrase doesn't match any existing archive, the UI offers to create a fresh one.
+- The user creates an archive while moving a site into it. If the passphrase matches no existing archive, the UI offers to create one and move the site into it.
 - The user opens an archive by typing its passphrase into the same screen. Webspaces and sites in that archive appear in the switcher alongside the user's regular webspaces.
+- The Backup and archives screen lists archives open in this process. Each entry shows its sites and offers close and removal while keeping its sites and collections.
 - The user closes an archive by long-pressing one of its webspaces ("Close this archive") or by using "Close all archives" in settings. Closing flushes any cookie changes back to the encrypted store and tears down the archive's per-site containers.
 - Multiple archives can be open at once. Each is independent.
 - Archives auto-close on process exit (cold launch, force-stop, OS-killed-under-memory-pressure, reboot). Within a running process, an archive stays open until the user closes it explicitly.
@@ -224,7 +225,7 @@ Archive state SHALL be stored in a fixed pool of `K = 16` slots in `flutter_secu
 #### Scenario: Create when no archive exists for this passphrase
 
 **Given** a passphrase whose derived key matches no slot in the pool
-**When** the user confirms "create new archive with this passphrase"
+**When** the user confirms "create new archive with this passphrase" while moving a site
 **Then** a random slot among those that did not decrypt is overwritten with the new archive's ciphertext
 **And** the previous random padding in that slot is irrecoverable
 
@@ -442,27 +443,51 @@ On close, after deleting the archive's opaque containers, `_closeArchive` SHALL 
 
 ### Requirement: ARCH-008 — Settings UI entry point
 
-The user-facing entry point for archive restore and create SHALL live inside the existing settings-backup / restore section. It SHALL NOT be a separate "Archives" UI surface, and SHALL be visible identically regardless of whether the user has any archives.
+The user-facing entry point for opening an archive SHALL live inside the existing settings-backup / restore section. It SHALL NOT be a separate "Archives" UI surface, and SHALL be visible identically regardless of whether the user has any archives. Creating an archive SHALL require moving a site into it.
 
 #### Scenario: Entry point co-located with restore
 
 **Given** the user opens the settings screen and navigates to settings-backup
 **When** they reach the restore section
-**Then** they see one combined "Restore" action that, when tapped, prompts for an optional file picker AND a passphrase field
+**Then** they see an "Open archives" action that opens an archive after the user enters its secret
 
 #### Scenario: Passphrase opens an existing archive
 
 **Given** the user enters a passphrase whose derived key matches an archive slot
-**When** they confirm without selecting a file
+**When** they confirm
 **Then** the archive opens and its webspaces become visible in the switcher
 
-#### Scenario: Passphrase with no match offers to create
+#### Scenario: Passphrase with no match leaves archives unchanged
 
 **Given** the user enters a passphrase that matches no archive slot
-**When** they confirm without selecting a file
-**Then** the dialog offers "No matching archive found — create a new archive with this passphrase?"
-**And** confirming creates the archive (occupying a random unused slot)
-**And** declining returns to the restore screen with no change
+**When** they confirm
+**Then** the app reports that no archive matches
+**And** no archive is created
+
+#### Scenario: Manage open archives
+
+**Given** one or more archives open in the current process
+**When** the user opens Backup and archives
+**Then** each open archive appears with its sites
+**And** each has its own close action
+**And** each site can be moved out of its archive
+**And** the user can remove an archive while keeping its sites and collections in the regular library
+**And** no index of closed archives is persisted
+
+#### Scenario: Interrupted removal resumes on the next open
+
+**Given** an archive removal was interrupted between writing the regular library and clearing its slot
+**When** that archive is next opened
+**Then** an encrypted transfer marker is compared with the regular library
+**And** a transferred site or collection is not added a second time
+**And** an item whose regular-library write did not land remains in the archive
+
+#### Scenario: Empty archive is reclaimed
+
+**Given** an open archive with no sites or collections
+**When** a move out or an aborted creation leaves it empty
+**Then** its slot is replaced with random bytes of the same length
+**And** its in-memory key is cleared
 
 #### Scenario: Close-this-archive action visible only on archive sites
 
@@ -794,7 +819,7 @@ App-tier `CookieSecureStorage` behavior is unchanged.
 
 ### Settings UI
 
-The existing settings-backup section in `lib/screens/settings.dart` already exposes export and restore. The restore dialog grows a passphrase field and routes the entered passphrase through `Archive.open`. If a backup file was also selected, the import proceeds for app-tier; if not, the passphrase is the only input and the archive open / create flow runs.
+The settings-backup section offers "Open archives" and lists archives open in this process with their sites. Entering a secret opens an existing archive; an unmatched secret leaves archives unchanged. A new archive is created only while moving a site into it.
 
 The per-webspace long-press menu adds "Close this archive" when the webspace's home model has `isArchiveTier == true`. The settings-backup section adds "Close all archives" when `Archive.openArchives.isNotEmpty`.
 

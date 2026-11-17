@@ -3157,14 +3157,6 @@
       }
     }
   },
-  "homeNoMatchingArchiveCreateBody": "No archive exists for this passphrase. Create a new archive with it?",
-  "@homeNoMatchingArchiveCreateBody": {
-    "description": "Body of the dialog offering to create a new archive"
-  },
-  "homeNewArchiveCreated": "New archive created",
-  "@homeNewArchiveCreated": {
-    "description": "Snackbar confirming a new archive was created"
-  },
   "homeCouldNotOpen": "Could not open: {message}",
   "@homeCouldNotOpen": {
     "description": "Snackbar shown when opening an archive fails during restore",
@@ -6293,5 +6285,13 @@
         "example": "Quit it from the menu bar."
       }
     }
-  }
+  },
+  "archiveManagementOpen": "Open archives",
+  "@archiveManagementOpen": {"description": "Archive management screen"},
+  "archiveManagementArchive": "Archive {index}",
+  "@archiveManagementArchive": {"description": "Archive management screen", "placeholders": {"index": {"type": "int"}}},
+  "archiveManagementRemove": "Remove archive and keep sites",
+  "@archiveManagementRemove": {"description": "Archive management screen"},
+  "archiveManagementRemoveBody": "Move all sites and collections to the regular library, then remove this archive?",
+  "@archiveManagementRemoveBody": {"description": "Archive management screen"}
 }

@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "ਆਰਕਾਈਵ ਮੁੜ-ਬਹਾਲ ਕਰੋ",
   "homePassphraseHint": "ਪਾਸਫਰੇਜ਼",
   "homeArchiveOpened": "ਆਰਕਾਈਵ ਖੁੱਲ੍ਹਿਆ ({sites} ਸਾਈਟਾਂ, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "ਇਸ ਪਾਸਫਰੇਜ਼ ਲਈ ਕੋਈ ਆਰਕਾਈਵ ਮੌਜੂਦ ਨਹੀਂ। ਇਸ ਨਾਲ ਨਵਾਂ ਆਰਕਾਈਵ ਬਣਾਈਏ?",
-  "homeNewArchiveCreated": "ਨਵਾਂ ਆਰਕਾਈਵ ਬਣਾਇਆ ਗਿਆ",
   "homeCouldNotOpen": "ਖੋਲ੍ਹ ਨਹੀਂ ਸਕਿਆ: {message}",
   "homeVerificationTitle": "ਤਸਦੀਕ",
   "homeSignInTitle": "ਸਾਈਨ ਇਨ ਕਰੋ",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "ਮੀਨੂ",
   "siteExtensionsPageFailed": "{name} ਇੱਥੇ ਨਹੀਂ ਖੁੱਲ੍ਹ ਸਕੀ",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "ਪੁਰਾਲੇਖ ਖੋਲ੍ਹੋ",
+  "archiveManagementArchive": "ਪੁਰਾਲੇਖ {index}",
+  "archiveManagementRemove": "ਪੁਰਾਲੇਖ ਨੂੰ ਹਟਾਓ ਅਤੇ ਸਾਈਟਾਂ ਨੂੰ ਰੱਖੋ",
+  "archiveManagementRemoveBody": "ਸਾਰੀਆਂ ਸਾਈਟਾਂ ਅਤੇ ਸੰਗ੍ਰਹਿਆਂ ਨੂੰ ਨਿਯਮਤ ਲਾਇਬ੍ਰੇਰੀ ਵਿੱਚ ਤਬਦੀਲ ਕਰਨਾ ਹੈ, ਫਿਰ ਇਸ ਆਰਕਾਈਵ ਨੂੰ ਹਟਾਉਣਾ ਹੈ?"
 }

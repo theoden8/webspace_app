@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Endurheimta safn",
   "homePassphraseHint": "Aðgangsorð",
   "homeArchiveOpened": "Safn opnað ({sites} svæði, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "Ekkert safn er til fyrir þetta aðgangsorð. Búa til nýtt safn með því?",
-  "homeNewArchiveCreated": "Nýtt safn búið til",
   "homeCouldNotOpen": "Ekki tókst að opna: {message}",
   "homeVerificationTitle": "Staðfesting",
   "homeSignInTitle": "Skrá inn",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Valmynd",
   "siteExtensionsPageFailed": "Ekki tókst að opna {name} hér",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Opna skjalasafn",
+  "archiveManagementArchive": "Skjalasafn {index}",
+  "archiveManagementRemove": "Fjarlægðu skjalasafn og geymdu síður",
+  "archiveManagementRemoveBody": "Færa allar síður og söfn í venjulegt bókasafn og fjarlægja síðan þetta skjalasafn?"
 }

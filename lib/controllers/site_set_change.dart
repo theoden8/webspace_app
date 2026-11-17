@@ -52,7 +52,8 @@ sealed class SiteSetChange {
         SitesMoved() ||
         ArchiveClosed() ||
         SiteArchived() ||
-        SiteUnarchived() =>
+        SiteUnarchived() ||
+        ArchiveCollectionsKept() =>
           const [],
       };
 
@@ -157,6 +158,15 @@ sealed class SiteSetChange {
             persists: true,
             savesWebspaces: true,
             prunesReferences: true,
+            followsOpeners: false,
+            closesIneligibleTabs: false,
+            reschedulesBackground: false,
+            sweepsOrphans: false,
+          ),
+        ArchiveCollectionsKept() => (
+            persists: false,
+            savesWebspaces: true,
+            prunesReferences: false,
             followsOpeners: false,
             closesIneligibleTabs: false,
             reschedulesBackground: false,
@@ -271,4 +281,8 @@ final class SiteArchived extends FunnelChange {
 final class SiteUnarchived extends FunnelChange {
   const SiteUnarchived(this.site);
   final WebViewModel site;
+}
+
+final class ArchiveCollectionsKept extends FunnelChange {
+  const ArchiveCollectionsKept();
 }

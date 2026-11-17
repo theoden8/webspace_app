@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Atjaunot arhīvu",
   "homePassphraseHint": "Parole",
   "homeArchiveOpened": "Arhīvs atvērts ({sites} vietnes, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "Šai parolei nav arhīva. Izveidot jaunu arhīvu ar to?",
-  "homeNewArchiveCreated": "Jauns arhīvs izveidots",
   "homeCouldNotOpen": "Nevarēja atvērt: {message}",
   "homeVerificationTitle": "Verifikācija",
   "homeSignInTitle": "Pierakstīties",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Izvēlne",
   "siteExtensionsPageFailed": "{name} šeit neizdevās atvērt",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Atvērt arhīvus",
+  "archiveManagementArchive": "Arhīvs {index}",
+  "archiveManagementRemove": "Noņemiet arhīvu un saglabājiet vietnes",
+  "archiveManagementRemoveBody": "Vai pārvietot visas vietnes un kolekcijas uz parasto bibliotēku un pēc tam noņemt šo arhīvu?"
 }

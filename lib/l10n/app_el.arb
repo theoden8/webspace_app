@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Επαναφορά αρχειοθήκης",
   "homePassphraseHint": "Συνθηματικό",
   "homeArchiveOpened": "Η αρχειοθήκη άνοιξε ({sites} ιστότοποι, {webspaces} webspaces)",
-  "homeNoMatchingArchiveCreateBody": "Δεν υπάρχει αρχειοθήκη για αυτό το συνθηματικό. Να δημιουργηθεί μια νέα αρχειοθήκη με αυτό;",
-  "homeNewArchiveCreated": "Δημιουργήθηκε νέα αρχειοθήκη",
   "homeCouldNotOpen": "Δεν ήταν δυνατό το άνοιγμα: {message}",
   "homeVerificationTitle": "Επαλήθευση",
   "homeSignInTitle": "Σύνδεση",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Μενού",
   "siteExtensionsPageFailed": "Δεν ήταν δυνατό να ανοίξει εδώ: {name}",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Ανοίξτε τα αρχεία",
+  "archiveManagementArchive": "Αρχείο {index}",
+  "archiveManagementRemove": "Καταργήστε το αρχείο και διατηρήστε τους ιστότοπους",
+  "archiveManagementRemoveBody": "Να μετακινηθούν όλοι οι ιστότοποι και οι συλλογές στην κανονική βιβλιοθήκη και, στη συνέχεια, να καταργηθεί αυτό το αρχείο;"
 }

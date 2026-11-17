@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Taasta arhiiv",
   "homePassphraseHint": "Parool",
   "homeArchiveOpened": "Arhiiv avatud ({sites} saiti, {webspaces} Webspace'i)",
-  "homeNoMatchingArchiveCreateBody": "Selle parooli jaoks arhiivi pole. Luua sellega uus arhiiv?",
-  "homeNewArchiveCreated": "Uus arhiiv loodud",
   "homeCouldNotOpen": "Ei saanud avada: {message}",
   "homeVerificationTitle": "Kontroll",
   "homeSignInTitle": "Logi sisse",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Menüü",
   "siteExtensionsPageFailed": "{name} avamine siin ebaõnnestus",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Avage arhiivid",
+  "archiveManagementArchive": "Arhiiv {index}",
+  "archiveManagementRemove": "Eemaldage arhiiv ja säilitage saidid",
+  "archiveManagementRemoveBody": "Kas teisaldada kõik saidid ja kogud tavalisse teeki ja seejärel eemaldada see arhiiv?"
 }

@@ -56,18 +56,12 @@ class DialogArchivePrompts implements ArchivePrompts {
   }
 
   @override
-  Future<bool> createArchive(PassphrasePurpose purpose) async {
+  Future<bool> createArchive() async {
     final loc = AppLocalizations.of(context);
-    final body = switch (purpose) {
-      PassphrasePurpose.moveSite => loc.homeNoMatchingArchiveMoveBody,
-      PassphrasePurpose.openArchive ||
-      PassphrasePurpose.restoreSections =>
-        loc.homeNoMatchingArchiveCreateBody,
-    };
     return confirm(
       context,
       title: loc.homeNoMatchingArchiveTitle,
-      body: body,
+      body: loc.homeNoMatchingArchiveMoveBody,
       confirmLabel: loc.homeCreateAction,
       destructive: false,
     );

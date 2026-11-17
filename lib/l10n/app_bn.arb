@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "আর্কাইভ পুনরুদ্ধার করুন",
   "homePassphraseHint": "পাসফ্রেজ",
   "homeArchiveOpened": "আর্কাইভ খোলা হয়েছে ({sites}টি সাইট, {webspaces}টি webspace)",
-  "homeNoMatchingArchiveCreateBody": "এই পাসফ্রেজের জন্য কোনো আর্কাইভ নেই। এটি দিয়ে একটি নতুন আর্কাইভ তৈরি করবেন?",
-  "homeNewArchiveCreated": "নতুন আর্কাইভ তৈরি হয়েছে",
   "homeCouldNotOpen": "খোলা যায়নি: {message}",
   "homeVerificationTitle": "যাচাইকরণ",
   "homeSignInTitle": "সাইন ইন করুন",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "মেনু",
   "siteExtensionsPageFailed": "{name} এখানে খোলা যায়নি",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "সংরক্ষণাগার খুলুন",
+  "archiveManagementArchive": "আর্কাইভ {index}",
+  "archiveManagementRemove": "সংরক্ষণাগার সরান এবং সাইট রাখা",
+  "archiveManagementRemoveBody": "সমস্ত সাইট এবং সংগ্রহগুলিকে নিয়মিত লাইব্রেরিতে সরান, তারপর এই সংরক্ষণাগারটি সরাতে চান?"
 }

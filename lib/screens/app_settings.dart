@@ -29,6 +29,8 @@ import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/controllers/archive_controller.dart';
+import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/search_site_picker.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
@@ -57,11 +59,13 @@ class AppSettingsScreen extends StatefulWidget {
   /// the models themselves: the sites stay owned by the page.
   final Future<List<UboTrustedSite>> Function(Set<String> hosts,
       {required bool apply})? onTrustUboHosts;
-  /// Prompt the user for a passphrase and open or create the matching
+  /// Prompt the user for a secret and open the matching
   /// archive (spec `openspec/specs/archive/spec.md`). Wired by the
   /// parent so the dialog runs in the main-page navigator (matching the
   /// import/export pattern).
   final VoidCallback? onRestoreArchive;
+  final ArchiveController? archiveController;
+  final Future<void> Function(WebViewModel)? onOpenArchivedSite;
   /// True when at least one archive is currently open in the running
   /// process. The "Close all archives" tile is shown only when true;
   /// its absence does not indicate whether any archives exist on disk.
@@ -117,6 +121,8 @@ class AppSettingsScreen extends StatefulWidget {
     required this.onImportSettings,
     this.onTrustUboHosts,
     this.onRestoreArchive,
+    this.archiveController,
+    this.onOpenArchivedSite,
     this.hasOpenArchives = false,
     this.onCloseAllArchives,
     required this.onOpenLinkHandlingSettings,
@@ -216,6 +222,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               offerRestoreArchive: widget.onRestoreArchive != null,
               offerCloseAllArchives:
                   widget.hasOpenArchives && widget.onCloseAllArchives != null,
+              archives: widget.archiveController,
+              onOpenSite: (site) async {
+                _closeSelf();
+                await widget.onOpenArchivedSite?.call(site);
+              },
             ),
           ),
         );

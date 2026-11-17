@@ -631,8 +631,6 @@
   "homeRestoreArchiveTitle": "Pulihkan arkib",
   "homePassphraseHint": "Frasa laluan",
   "homeArchiveOpened": "Arkib dibuka ({sites} tapak, {webspaces} webspace)",
-  "homeNoMatchingArchiveCreateBody": "Tiada arkib wujud untuk frasa laluan ini. Cipta arkib baharu dengannya?",
-  "homeNewArchiveCreated": "Arkib baharu dicipta",
   "homeCouldNotOpen": "Tidak dapat membuka: {message}",
   "homeVerificationTitle": "Pengesahan",
   "homeSignInTitle": "Log masuk",
@@ -1284,5 +1282,9 @@
   "siteExtensionsMenu": "Menu",
   "siteExtensionsPageFailed": "{name} tidak dapat dibuka di sini",
   "termAndMeaning": "{term}: {meaning}",
-  "twoSentences": "{first} {second}"
+  "twoSentences": "{first} {second}",
+  "archiveManagementOpen": "Buka arkib",
+  "archiveManagementArchive": "Arkib {index}",
+  "archiveManagementRemove": "Alih keluar arkib dan simpan tapak",
+  "archiveManagementRemoveBody": "Alihkan semua tapak dan koleksi ke pustaka biasa, kemudian alih keluar arkib ini?"
 }
