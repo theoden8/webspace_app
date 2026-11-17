@@ -1868,6 +1868,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
             '${deletes ? '_delete' : ''}'
             '${joins ? '_join' : ''}'
             '${imports ? '_import' : ''}'
+            '${imports && importMerges ? '_merge' : ''}'
             '${page.incognito.isEmpty ? '' : '_incognito'}'
             '${_faults.isEmpty ? '' : '_fails_${[for (final f in _faults) f.name].join('_')}'}',
         constants: (
