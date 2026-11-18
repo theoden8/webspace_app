@@ -161,7 +161,10 @@ abstract final class HeadlessSiteChecks {
     // Android blocks sub-resources in a native interceptor. Without one a
     // site that blocks would load the page's trackers unfiltered, so its
     // load never starts.
-    final attached = await check.follow(config, headlessId: headless.id);
+    final attached = await check.follow(
+      config,
+      view: OnHeadless(headless.id),
+    );
     if (!attached &&
         (posture.blocking.dns ||
             posture.blocking.contentBlock ||
@@ -224,12 +227,11 @@ class HeadlessSiteCheck {
 
   /// Follows the blockers' data from here to [dispose], as a site's webview
   /// does ([followBlockerData]). On Android its interceptor is
-  /// attached by its headless id, so it carries this site's id and level
+  /// attached by its headless id ([view]), so it carries this site's id and level
   /// rather than those of whichever site next asks to attach, and is one of
   /// [ViewBlockers]', told its site's level as the lists move (DNS-022). True
   /// once attached, or where no interceptor attaches.
-  Future<bool> follow(WebViewConfig config, {required String headlessId}) {
-    final view = OnHeadless(headlessId);
+  Future<bool> follow(WebViewConfig config, {required OnHeadless view}) {
     _unfollow = followBlockerData(
       config,
       view: view,

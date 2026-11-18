@@ -80,8 +80,11 @@ void main() {
   test('a check is told its level as the lists move, until it is disposed '
       '(DNS-022)', () async {
     final c = check();
-    await c.follow(site.headlessCheckConfig(
-        inertHostHooks(vars: RuntimeVars.ofSet({}, checked: {site.siteId}))), headlessId: 'check-1');
+    await c.follow(
+      site.headlessCheckConfig(
+          inertHostHooks(vars: RuntimeVars.ofSet({}, checked: {site.siteId}))),
+      view: view,
+    );
     expect(dns.views.told, {site.siteId: 0}, reason: 'attached at its level');
 
     expect(await dns.downloadList(1), isTrue);
