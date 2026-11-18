@@ -9,39 +9,6 @@ import 'checks.dart';
 import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/model_names.dart';
 
-/// The environment's actions, hand-written in `activation.tla` until they
-/// are printed: what each reads and writes and needs of the constants, as
-/// TLC's coverage names it, which the footprint gate holds to its text.
-enum EnvAction {
-  login(
-    next: r'\E s \in Sites : Login(s)',
-    coverage: 'Login',
-    reads: {ModelVar.jar, ModelVar.loaded, ModelVar.signedIn},
-    writes: {ModelVar.jar, ModelVar.signedIn},
-    needs: {(of: ModelConst.containers, set: false)},
-  );
-
-
-  const EnvAction({
-    required this.next,
-    required this.coverage,
-    required this.reads,
-    required this.writes,
-    this.needs = const {},
-  });
-
-  /// How `Next` takes it, a case a proof over `Next` splits on.
-  final String next;
-
-  /// Its operator in `activation.tla`.
-  String get op => '${name[0].toUpperCase()}${name.substring(1)}';
-
-  final String coverage;
-  final Set<ModelVar> reads;
-  final Set<ModelVar> writes;
-  final Set<Need> needs;
-}
-
 /// One action of the model as the composition reads it: what it reads and
 /// writes of the shared state (other flows' rows apart, as [rows]), the
 /// kinds its row holds and the fields of it it writes (null: every one,

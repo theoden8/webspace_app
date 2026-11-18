@@ -5,6 +5,7 @@
 import 'dart:convert';
 
 import 'checks.dart';
+import '../helpers/walk/page_sign_in.dart';
 import 'lean_footprints.dart';
 import 'types_proof.dart';
 import 'worlds.dart';
@@ -64,6 +65,7 @@ typedef Tables = ({
   StepTable<ClearWorld, ClearPlace> clear,
   StepTable<JoinWorld, JoinPlace> join,
   StepTable<MoveWorld, MovePlace> move,
+  StepTable<SignInWorld, SignInPlace> signIn,
   List<Def<Object?, Object?>> ops,
 });
 
@@ -153,6 +155,7 @@ final Tables tables = (
   clear: CookieIsolationEngine.clearSteps,
   join: JoinTable.table,
   move: MoveTable.table,
+  signIn: PageSignIn.table,
   ops: definitions,
 );
 
@@ -177,6 +180,7 @@ enum ModelTable {
   clear,
   join,
   move,
+  signIn,
 }
 
 StepTable<Object?, Enum> _table(Tables t, {required ModelTable of}) =>
@@ -199,6 +203,7 @@ StepTable<Object?, Enum> _table(Tables t, {required ModelTable of}) =>
       ModelTable.clear => t.clear,
       ModelTable.join => t.join,
       ModelTable.move => t.move,
+      ModelTable.signIn => t.signIn,
     };
 
 List<StepTable<Object?, Enum>> _all(Tables t) => [
@@ -453,22 +458,10 @@ Reads _resolved(Reads r, {required Set<ModelDef> seen}) => r.defs
       (sum, d) => sum + _resolved(definition(d).body.reads, seen: {...seen, d}),
     );
 
-/// Every action of the model as the composition reads it: the tables'
-/// from their declarations ([stepActions]), the environment's from
-/// [EnvAction].
+/// Every action of the model as the composition reads it, from the
+/// tables' declarations ([stepActions]).
 List<ComposedAction> composedActions(Tables t) => [
   for (final (step: _, :action) in stepActions(t)) action,
-  for (final e in EnvAction.values)
-    (
-      name: e.coverage,
-      reads: e.reads,
-      writes: e.writes,
-      rows: const {},
-      kinds: const {},
-      fields: const {},
-      ways: [(kind: null, needs: e.needs, from: const {})],
-      armed: const {},
-    ),
 ];
 
 /// Each table step's action as the composition reads it, beside the step
@@ -726,17 +719,6 @@ String activationFootprints(Tables t) {
           }),
           if (needed(f) case final n?) needs(n) else 'unreached',
         ].join('\t'),
-    for (final e in EnvAction.values)
-      [
-        e.coverage,
-        names([for (final v in e.reads) v.name]),
-        names([for (final v in e.writes) v.name]),
-        '',
-        '',
-        '',
-        '',
-        needs(e.needs),
-      ].join('\t'),
     '',
   ].join('\n');
 }
@@ -1487,8 +1469,8 @@ String _armKeeps(
 ].join('\n');
 
 /// [i] in every state: `Next`'s cases, the tables' flow steps and inputs by
-/// their lemmas, and the environment's, the tables' [env] and those
-/// `activation.tla` writes by hand ([EnvAction]), by their definitions.
+/// their lemmas, and the environment's, the tables' [env], by their
+/// definitions.
 String _holds(Inv i, {required List<Step<Object?, Enum>> env}) {
   final cases = [
     (r'\E f \in Flows : InputTableStep(f)', '${i.tla}_InputTableStep'),
@@ -1497,11 +1479,6 @@ String _holds(Inv i, {required List<Step<Object?, Enum>> env}) {
       'EnvTableStep',
       'DEF ${['EnvTableStep', for (final s in env) ...[s.action, ..._operators(s)]].join(', ')}',
     ),
-    for (final e in EnvAction.values)
-      (
-        e.next,
-        'DEF ${e.op}${e == EnvAction.login ? ', Input' : ''}',
-      ),
     ('Done', 'DEF Done, vars'),
     ('UNCHANGED vars', 'DEF vars'),
   ];

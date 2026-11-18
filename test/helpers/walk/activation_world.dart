@@ -27,6 +27,7 @@ import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
 import 'package:webspace/controllers/webspaces_controller.dart';
 import '../../formal_model/models.dart';
+import 'page_sign_in.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/activation_step.dart';
 import 'package:webspace/services/archive.dart';
@@ -2874,16 +2875,22 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   Future<void> _signIn(WebViewModel site) async {
     final name = 'walk${_nextCookie++}';
-    if (page.containers) {
-      (native.dataByContainer[site.containerKey] ??= []).add(name);
-    } else {
-      await jar.setCookie(
-        url: Uri.parse(site.initUrl),
-        name: name,
-        value: site.siteId,
-      );
-    }
-    ActivationSteps.mark(ActivationStep.login, site: site);
+    await PageSignIn.signIn(
+      sites,
+      site: site,
+      idle: idle,
+      write: () async {
+        if (page.containers) {
+          (native.dataByContainer[site.containerKey] ??= []).add(name);
+        } else {
+          await jar.setCookie(
+            url: Uri.parse(site.initUrl),
+            name: name,
+            value: site.siteId,
+          );
+        }
+      },
+    );
     (_signedIn[site.siteId] ??= {}).add(name);
   }
 

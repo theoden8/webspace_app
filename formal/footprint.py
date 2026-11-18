@@ -260,7 +260,7 @@ def main():
         if not line.strip() or line.startswith("#"):
             continue
         op, reads, writes = (line.rstrip("\n").split("\t") + [""] * 3)[:3]
-        tr, tw = prints[op]
+        tr, tw = (set(), set()) if op in SCHEDULER else prints[op]
         if op == "Input":
             tr, tw = tr | prints["Lands"][0], tw | prints["Lands"][1]
         if (set(reads.split()), set(writes.split())) != (tr, tw):

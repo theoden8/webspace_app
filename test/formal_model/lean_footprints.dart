@@ -18,8 +18,6 @@ typedef LeanWorld = ({String cfg, WorldSpec spec, List<Inv> invariants});
 /// over-approximates and so keeps the theorem's premise.
 const _scheduler = [ModelVar.fl, ModelVar.inputs, ModelVar.last, ModelVar.seen];
 
-String _cap(String s) => '${s[0].toUpperCase()}${s.substring(1)}';
-
 String _list(Iterable<String> items) => '[${items.join(', ')}]';
 
 String footprintsLean({
@@ -27,9 +25,7 @@ String footprintsLean({
   required Set<String> inputs,
   required List<LeanWorld> worlds,
 }) {
-  final envNames = {for (final e in EnvAction.values) e.coverage: _cap(e.name)};
-  String act(String name) => envNames[name] ?? name;
-  final names = [for (final a in actions) act(a.name)];
+  final names = [for (final a in actions) a.name];
   final ident = RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$');
   assert(
     names.every(ident.hasMatch) && names.toSet().length == names.length,

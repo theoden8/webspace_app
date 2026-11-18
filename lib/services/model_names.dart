@@ -447,7 +447,12 @@ enum BaseOp {
   /// The rows once a move is made (`MovedRows`): the listed rows permuted
   /// as the code's list is, a row off the list kept in place. Written only
   /// through the land, which makes the move in the code.
-  movedRows(reads: {ModelVar.rows, ModelVar.gone}, arity: 1);
+  movedRows(reads: {ModelVar.rows, ModelVar.gone}, arity: 1),
+
+  /// Every flow finished (`Idle`): how the model schedules, which a
+  /// footprint leaves out (`formal/footprint.py`), so it reads nothing a
+  /// flow owns. The code's value is the caller's count of its flows.
+  idle;
 
   const BaseOp({this.reads = const {}, this.rows = const {}, this.arity = 0});
 

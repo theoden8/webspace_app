@@ -409,6 +409,7 @@ Tables _with({
   StepTable<ClearWorld, ClearPlace>? clear,
   StepTable<JoinWorld, JoinPlace>? join,
   StepTable<MoveWorld, MovePlace>? move,
+  StepTable<SignInWorld, SignInPlace>? signIn,
   List<Def<Object?, Object?>>? ops,
 }) => (
   activation: activation ?? tables.activation,
@@ -429,6 +430,7 @@ Tables _with({
   clear: clear ?? tables.clear,
   join: join ?? tables.join,
   move: move ?? tables.move,
+  signIn: signIn ?? tables.signIn,
   ops: ops ?? tables.ops,
 );
 

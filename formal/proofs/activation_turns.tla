@@ -49,18 +49,10 @@ LEMMA StepInd == Good /\ IndInv /\ [Next]_vars => IndInv'
                PROVE  IndInv'
     OBVIOUS
   <1>1. CASE InputStep
-    <2>1. CASE \E f \in Flows : InputTableStep(f)
-      BY <2>1, InputStepInd
-    <2>3. CASE \E s \in Sites : Login(s)
-      <3> PICK s \in Sites : Login(s)
-        BY <2>3
-      <3>1. inputs' = inputs + 1 /\ fl' = fl /\ holder' = holder
-            /\ dnsHolder' = dnsHolder
-        BY DEF Login, Input, Starts, turn
-      <3> QED
-        BY <3>1, KeepsTurns
+    <2> PICK f \in Flows : InputTableStep(f)
+      BY <1>1 DEF InputStep
     <2> QED
-      BY <1>1, <2>1, <2>3 DEF InputStep
+      BY InputStepInd
   <1>2. CASE \E f \in Flows : FlowStep(f)
     <2> PICK f \in Flows : FlowStep(f)
       BY <1>2
