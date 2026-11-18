@@ -80,16 +80,23 @@ void main() {
       return lines.sublist(start, end).join('\n');
     }
 
-    final menu = body('lib/screens/webspace_page.dart',
-        signature: 'Future<void> _showLinkLongPressMenu(');
-    expect(
-      menu.contains('.loadUrl('),
-      isFalse,
-      reason:
-          'a load from the menu has to go through openLinkAsTapped, '
-          'or a cross-domain link lands in the site\'s own webview',
-    );
-    expect(menu.contains('_links.openLinkAsTapped('), isTrue);
+    for (final signature in [
+      'Future<void> _showLinkLongPressMenu(',
+      'Future<void> _openLinkInNewTab(',
+    ]) {
+      final menu =
+          body('lib/screens/webspace_page_links.dart', signature: signature);
+      expect(
+        menu.contains('.loadUrl('),
+        isFalse,
+        reason:
+            'a load from the menu or a new-tab click has to go through '
+            'openLinkAsTapped, or a cross-domain link lands in the site\'s '
+            'own webview',
+      );
+      expect(menu.contains('_links.openLinkAsTapped('), isTrue,
+          reason: signature);
+    }
 
     final open = body('lib/controllers/link_controller.dart',
         signature: 'Future<void> openLinkAsTapped(');

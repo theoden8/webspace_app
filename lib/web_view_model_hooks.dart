@@ -11,6 +11,7 @@ final class SiteHooks {
     required this.onScreen,
     required this.routeOutbound,
     required this.linkMenu,
+    required this.linkNewTab,
     required this.firstPageLoaded,
     required this.rendererGone,
   });
@@ -33,6 +34,12 @@ final class SiteHooks {
   /// lands.
   final Future<void> Function(WebViewModel source, {required String url})
       linkMenu;
+
+  /// A link in [source]'s webview clicked to open in a new tab (TAB-029):
+  /// what the link menu's "Open in new tab" does, or the link opened as a
+  /// tap where no tab can take it.
+  final Future<void> Function(WebViewModel source, {required String url})
+      linkNewTab;
 
   /// Offers an unclaimed domain reached by this slot's first live page.
   final Future<void> Function(WebViewModel source, {required String url})

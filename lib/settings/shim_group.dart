@@ -27,6 +27,10 @@ enum ShimGroup {
   /// WebKit answers a same-origin subframe too (PASSKEY-013).
   passkeyBlock('passkey_block', frames: ShimFrames.all),
   targetBlankRewrite('target_blank_rewrite', frames: ShimFrames.all),
+
+  /// Top only: the handler takes the top document's word for a link, as the
+  /// link menu takes only a link the top document's hit test found.
+  linkNewTabClick('link_new_tab_click', frames: ShimFrames.top),
   antiFingerprinting('anti_fingerprinting', frames: ShimFrames.all),
   blobUrlCapture('blob_url_capture', frames: ShimFrames.top),
   blobDownloadClickIntercept('blob_download_click_intercept',

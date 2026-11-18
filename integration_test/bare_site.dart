@@ -98,6 +98,7 @@ SiteHooks bareSiteHooks({void Function(String url)? leaving}) => SiteHooks(
         return false;
       },
       linkMenu: (_, {required url}) async {},
+      linkNewTab: (_, {required url}) async {},
       firstPageLoaded: (_, {required url}) async {},
       rendererGone: (_, {required didCrash}) {},
     );

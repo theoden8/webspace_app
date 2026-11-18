@@ -36,6 +36,7 @@ const SAMPLES = {
     linksChangedHandler: 'wsIconLinksChanged',
   }),
   language: pageJs('language', { language: 'fr-FR' }),
+  link_new_tab_click: pageJs('link_new_tab_click', { handler: 'wsLinkNewTab', modifier: 'ctrlKey' }),
   location_spoof: LOC.FULL_COMBO,
   media_pause: pageJs('media_pause'),
   media_session: pageJs('media_session'),

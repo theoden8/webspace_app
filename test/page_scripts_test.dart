@@ -1,5 +1,7 @@
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/keyboard_shortcuts.dart';
+import 'package:webspace/services/link_new_tab_click.dart';
 import 'package:webspace/services/page_focus.dart';
 import 'package:webspace/services/page_scripts.dart';
 import 'package:webspace/services/page_shim.dart';
@@ -16,7 +18,10 @@ const _home = 'https://example.com/';
 
 /// A site's config with an icon and a search target, as its own webview has
 /// them and a popup it spawns inherits them.
-WebViewConfig _config({List<UserScriptConfig> scripts = const []}) =>
+WebViewConfig _config({
+  List<UserScriptConfig> scripts = const [],
+  void Function(String url)? onLinkNewTab,
+}) =>
     WebViewConfig(
       posture: WebViewModel(initUrl: _home, userScripts: scripts).sitePosture(
         globalUserScripts: const <UserScriptConfig>[],
@@ -27,6 +32,7 @@ WebViewConfig _config({List<UserScriptConfig> scripts = const []}) =>
       cacheFirst: false,
       siteIcon: SiteIconTarget(siteUrl: _home, onIcon: (_) {}),
       siteSearch: SiteSearchTarget(siteUrl: _home, onSearch: (_) {}),
+      onLinkNewTab: onLinkNewTab,
     );
 
 /// The group each installed script was injected as.
@@ -113,5 +119,43 @@ void main() {
       ShimGroup.locationSpoof,
       ShimGroup.themeColorScheme,
     ]));
+  });
+
+  test('only the own view of a site that opens new tabs takes the new-tab '
+      'click script, in the top document (TAB-029)', () {
+    List<inapp.UserScript> clicks(WebViewConfig config,
+            {required OwnView? own}) =>
+        [
+          for (final s
+              in PageScripts.buildPageScripts(config, own: own).userScripts)
+            if (s.groupName == ShimGroup.linkNewTabClick.groupName) s,
+        ];
+    final opens = _config(onLinkNewTab: (_) {});
+    expect(clicks(opens, own: null), isEmpty, reason: 'a popup opens no tab');
+    expect(clicks(_config(), own: (keys: null)), isEmpty,
+        reason: 'a nested screen has no tab list');
+    final installed = clicks(opens, own: (keys: null));
+    expect(installed, hasLength(1),
+        reason: 'the test host is a desktop, which has a key convention');
+    expect(installed.single.forMainFrameOnly, isTrue);
+    expect(installed.single.source, contains(kLinkNewTabHandler));
+  });
+
+  test('a Mac opens a new tab on Command-click, the others on Control-click '
+      '(TAB-029)', () {
+    expect(KeyConvention.mac.newTabClickKey, 'metaKey');
+    expect(KeyConvention.pc.newTabClickKey, 'ctrlKey');
+    expect(KeyConvention.android.newTabClickKey, 'ctrlKey');
+  });
+
+  test('a new-tab click names only an http(s) link (TAB-029)', () {
+    expect(linkOfNewTabClick(['https://example.org/a']),
+        'https://example.org/a');
+    expect(linkOfNewTabClick(['http://example.org/']), 'http://example.org/');
+    expect(linkOfNewTabClick(['javascript:alert(1)']), isNull);
+    expect(linkOfNewTabClick(['file:///etc/passwd']), isNull);
+    expect(linkOfNewTabClick([42]), isNull);
+    expect(linkOfNewTabClick([]), isNull);
+    expect(linkOfNewTabClick(['https://a/', 'https://b/']), isNull);
   });
 }

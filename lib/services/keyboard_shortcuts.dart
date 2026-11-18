@@ -31,6 +31,13 @@ enum KeyConvention {
     mac || android => false,
   };
 
+  /// The modifier a click holds to open a link in a new tab, as a page's
+  /// MouseEvent names it: Command on a Mac, Control elsewhere (TAB-029).
+  String get newTabClickKey => switch (this) {
+    mac => 'metaKey',
+    pc || android => 'ctrlKey',
+  };
+
   /// Whether menus write a shortcut's key beside the item it runs: on
   /// Android only while a keyboard is attached, which it may never be.
   bool get writesKeys => switch (this) {
