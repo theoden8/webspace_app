@@ -30,11 +30,25 @@ final class Commit {
   }
 }
 
+/// A variable whose owner writes it only with a [Commit] in hand, so a
+/// write outside a table's arm or a named environment action does not
+/// compile; a table's write gives the arm's.
+Mutable<T, W> committed<T, W>(
+  ModelVar variable, {
+  required T Function(W world) read,
+  required void Function(W world, {required T to, required Commit commit})
+  write,
+}) => Mutable(
+  variable,
+  read: read,
+  write: (w, {required to}) => write(w, to: to, commit: const Commit._()),
+);
+
 /// The environment's actions of `activation.tla` the code writes the
 /// model's variables in, hand-written there until the tables print them.
 enum Environment {
-  /// The sites the last session saved, read into an empty list before any
-  /// flow runs: the list `Init` starts from.
+  /// What the last session saved, read before any flow runs: the state
+  /// `Init` starts from, the site list and the DNS lists in force.
   init,
 
   /// The frame that builds a loaded site's webview for its active tab and

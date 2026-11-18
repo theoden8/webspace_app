@@ -569,25 +569,13 @@ class DnsBlockService {
   }
 
   Future<void> _load() async {
+    var level = 0;
+    var sets = DnsLevelSets.empty;
     try {
       final prefs = await SharedPreferences.getInstance();
-      final level = prefs.get(_levelKey);
-      _level = level is int ? level : 0;
-
-      await _loadFromDisk(prefs);
-      // A level is stored only once its list has landed, so a level with no
-      // list is one the cache lost (PLATFORM-010).
-      if (_level > 0 && _levelSets.isEmpty) {
-        _purgedLevel = _level;
-        LogTag.dnsBlock.warning('Level $_level was downloaded but its list is '
-            'gone; nothing is blocked by it until it is fetched again');
-      }
-      if (!_levelSets.isEmpty) {
-        LogTag.dnsBlock.info(
-            'Loaded ${_levelSets.domainCount} domains from cache '
-            '(level $_level, levels ${_levelSets.levels.toList()..sort()}, '
-            '${_levelSets.groupCount} group(s))');
-      }
+      final stored = prefs.get(_levelKey);
+      level = stored is int ? stored : 0;
+      sets = await _loadFromDisk(prefs, level: level);
       await prefs.remove(_retiredDomainCacheKey);
       _data = BlockerData.ready;
     } on FormatException catch (e) {
@@ -603,22 +591,44 @@ class DnsBlockService {
       LogTag.dnsBlock.error('Error loading cached blocklist: $e');
       _data = BlockerData.unreadable;
     }
+    _apply(
+      sets: sets,
+      level: level,
+      commit: const Commit.environment(Environment.init),
+    );
+    if (_data != BlockerData.ready) return;
+    // A level is stored only once its list has landed, so a level with no
+    // list is one the cache lost (PLATFORM-010).
+    if (level > 0 && sets.isEmpty) {
+      _purgedLevel = level;
+      LogTag.dnsBlock.warning('Level $level was downloaded but its list is '
+          'gone; nothing is blocked by it until it is fetched again');
+    }
+    if (!sets.isEmpty) {
+      LogTag.dnsBlock.info(
+          'Loaded ${sets.domainCount} domains from cache '
+          '(level $level, levels ${sets.levels.toList()..sort()}, '
+          '${sets.groupCount} group(s))');
+    }
   }
 
-  /// Read the stored partition, or migrate the pre-mask single-file cache the
-  /// first time this runs after an upgrade.
-  Future<void> _loadFromDisk(SharedPreferences prefs) async {
+  /// The stored partition, or the pre-mask single-file cache at [level]
+  /// migrated the first time this runs after an upgrade; none when neither
+  /// is on disk.
+  Future<DnsLevelSets> _loadFromDisk(
+    SharedPreferences prefs, {
+    required int level,
+  }) async {
     final stored = await _store.readText(_levelsFileName);
     if (stored != null) {
       // Hundreds of thousands of domains: parsed off the UI isolate, so the
       // other startup inits run beside it instead of after it.
-      _apply(sets: await compute(_parseLevelSets, stored), level: _level);
-      return;
+      return compute(_parseLevelSets, stored);
     }
-    if (_level < 1 || _level > kDnsMaxLevel) return;
+    if (level < 1 || level > kDnsMaxLevel) return DnsLevelSets.empty;
     final legacy = await _store.readText(_legacyCacheFileName);
-    if (legacy == null) return;
-    final builder = DnsLevelSetsBuilder()..startLevel(_level);
+    if (legacy == null) return DnsLevelSets.empty;
+    final builder = DnsLevelSetsBuilder()..startLevel(level);
     for (final domain in listedDomains(legacy).toSet()) {
       builder.add(domain);
     }
@@ -627,7 +637,7 @@ class DnsBlockService {
         contents: _serializeLevelSets(migrated));
     await _store.delete(_legacyCacheFileName);
     await _persistDownloadedLevels(prefs, levels: migrated.levels);
-    _apply(sets: migrated, level: _level);
+    return migrated;
   }
 
   Future<void> _persistDownloadedLevels(
@@ -689,17 +699,26 @@ class DnsBlockService {
 
   /// [_inForce], then every live view told the level its site resolves to
   /// now.
-  void _apply({required DnsLevelSets sets, required int level}) {
-    _inForce(sets: sets, level: level);
+  void _apply({
+    required DnsLevelSets sets,
+    required int level,
+    required Commit commit,
+  }) {
+    _inForce(sets: sets, level: level, commit: commit);
     views.changed();
   }
 
   /// The partition and the app-wide level a listener reads, put in force
   /// together: a listener told of one reads the other as it now stands.
   /// The views are not told here: a fold's write of `told` tells them.
-  void _inForce({required DnsLevelSets sets, required int level}) {
+  void _inForce({
+    required DnsLevelSets sets,
+    required int level,
+    required Commit commit,
+  }) {
     _levelSets = sets;
     _level = level;
+    commit.wrote(ModelVar.dns);
     _notifyBlocklistChanged();
   }
 
@@ -947,14 +966,22 @@ class DnsBlockService {
   void loadDomainsFromString(String data, {int level = 1}) {
     final domains = listedDomains(data).toSet();
     if (domains.isEmpty) {
-      _apply(sets: DnsLevelSets.empty, level: level);
+      _apply(
+        sets: DnsLevelSets.empty,
+        level: level,
+        commit: const Commit.environment(Environment.init),
+      );
       return;
     }
     final builder = DnsLevelSetsBuilder()..startLevel(level);
     for (final domain in domains) {
       builder.add(domain);
     }
-    _apply(sets: builder.build(), level: level);
+    _apply(
+      sets: builder.build(),
+      level: level,
+      commit: const Commit.environment(Environment.init),
+    );
   }
 
   /// Load several levels at once, as if each had been downloaded. Keys are
@@ -972,6 +999,7 @@ class DnsBlockService {
     _apply(
       sets: builder.build(),
       level: globalLevel ?? (levels.isEmpty ? 0 : levels.last),
+      commit: const Commit.environment(Environment.init),
     );
   }
 
@@ -982,7 +1010,11 @@ class DnsBlockService {
 
   @visibleForTesting
   void loadLevelSetsFromSerialized(String text, {int? globalLevel}) {
-    _apply(sets: _parseLevelSets(text), level: globalLevel ?? _level);
+    _apply(
+      sets: _parseLevelSets(text),
+      level: globalLevel ?? _level,
+      commit: const Commit.environment(Environment.init),
+    );
   }
 
   /// Whether a freshly downloaded body is a domain list at all. Guards the
@@ -1109,19 +1141,19 @@ final _dnsAppWide = Field<bool, DnsFlow>(FlowField.appWide);
 
 /// The partition and the app-wide level: written only here, by the fold's
 /// one apply, so a view told of it reads both as they now stand.
-final _dnsInForce = Mutable<DnsInForce, DnsFlow>(
+final _dnsInForce = committed<DnsInForce, DnsFlow>(
   ModelVar.dns,
   read: (w) => DnsInForce(
     level: w.service._level,
     levels: w.service._levelSets.levels,
   ),
-  write: (w, {required to}) {
+  write: (w, {required to, required commit}) {
     final folded = w.folded!;
     assert(
       setEquals(folded.levels, to.levels),
       'the fold made levels ${folded.levels}, the model ${to.levels}',
     );
-    w.service._inForce(sets: folded, level: to.level);
+    w.service._inForce(sets: folded, level: to.level, commit: commit);
   },
 );
 
