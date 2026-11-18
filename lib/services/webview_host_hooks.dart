@@ -23,6 +23,7 @@ final class WebViewHostHooks {
   const WebViewHostHooks({
     required this.isolation,
     required this.vars,
+    required this.runsAs,
     required this.globalUserScripts,
     required this.save,
     required this.rebuild,
@@ -45,6 +46,11 @@ final class WebViewHostHooks {
   /// The page's runtime: the sites that run, which a webview attaching its
   /// blockers is built for (DNS-022).
   final RuntimeVars<SiteId> vars;
+
+  /// The site a loaded slot runs as (`RunsAs`, LIR-018): a hosted tab's
+  /// view is one of its host's views, told its level as the lists move
+  /// (DNS-022).
+  final SiteId Function(SiteId slot) runsAs;
 
   /// Takes [blocked] out of the jar of [controller]'s webview after a load
   /// (ISO-011, CONT-006). A delete the jar refuses leaves that cookie for the
@@ -106,6 +112,7 @@ final class WebViewHostHooks {
   WebViewHostHooks unattended() => WebViewHostHooks(
         isolation: isolation,
         vars: vars,
+        runsAs: runsAs,
         globalUserScripts: globalUserScripts,
         save: save,
         rebuild: rebuild,

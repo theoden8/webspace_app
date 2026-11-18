@@ -960,9 +960,17 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     for (final m in _bySite) {
       final live = sites.loaded.contains(m);
       if (live && _framed.add(m)) {
-        _view(OnPlatformView(m), of: m, up: true);
+        // A slot's view is one of the site's it runs as: a hosted tab's is
+        // its host's (LIR-018), told as the lists move whether or not the
+        // host is loaded.
+        final runs = m.runningIdentity;
+        _view(OnPlatformView(m), of: runs, up: true);
+        if (!DnsBlockService.instance.views.told.containsKey(runs.siteId)) {
+          _violations.add('${m.siteId} framed a view of ${runs.siteId} that '
+              'no list change will tell (DNS-022)');
+        }
       } else if (!live && _framed.remove(m)) {
-        _view(OnPlatformView(m), of: m, up: false);
+        _view(OnPlatformView(m), of: m.runningIdentity, up: false);
       }
     }
   }
@@ -986,6 +994,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           localCdn: false,
           contentBlock: false,
           vars: sites.vars,
+          runsAs: (slot) => sites.siteOf(slot).runningIdentity.siteId,
         );
       } else {
         views.gone(view);

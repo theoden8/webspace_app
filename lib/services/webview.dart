@@ -870,6 +870,7 @@ class WebViewFactory {
                   localCdn: config.posture.blocking.localCdn,
                   contentBlock: config.posture.blocking.contentBlock,
                   vars: config.hooks.vars,
+                  runsAs: config.hooks.runsAs,
                 ),
               )
             : Future.value(!holdsFirstLoad);
