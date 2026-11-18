@@ -116,6 +116,47 @@ void main() {
     expect(site.isArchiveTier, isFalse);
   });
 
+  test('a move out removes the record sealed under the site, even after a '
+      'move in that failed past its admission', () async {
+    final h = ArchiveHarness();
+    final first = _away(SiteId('first'));
+    final a = _away(SiteId('a'));
+    final b = _away(SiteId('b'));
+    h.load([first, a, b]);
+    await h.archives.moveIn(first);
+    h.failArchiveCommit = true;
+    await h.archives.moveIn(a);
+    h.failArchiveCommit = false;
+    expect(h.toasts, isNotEmpty, reason: 'the failed move in was reported');
+    await h.archives.moveIn(b);
+
+    await h.archives.moveOut(b);
+
+    expect(b.isArchiveTier, isFalse);
+    expect([for (final r in await h.sealedSites()) r['siteId']], ['first']);
+  });
+
+  test('an archive whose move out failed to save closes once the save goes '
+      'through', () async {
+    final h = ArchiveHarness();
+    final site = _away(SiteId('site'));
+    final kept = _away(SiteId('kept'));
+    h.load([site, kept]);
+    await h.archives.moveIn(site);
+    await h.archives.moveIn(kept);
+    final handle = h.archives.openArchives.single;
+    h.failArchiveWriteAfterUnarchive = true;
+    await expectLater(h.archives.moveOut(site), throwsA(isA<Exception>()));
+    h.failArchiveWriteAfterUnarchive = false;
+    h.slots.throwOnWrite = false;
+
+    expect(await h.archives.close(handle), isTrue);
+
+    expect(h.archives.anyOpen, isFalse);
+    expect(site.isArchiveTier, isFalse);
+    expect([for (final r in await h.sealedSites()) r['siteId']], ['kept']);
+  });
+
   test('removing an archive keeps its sites', () async {
     final h = ArchiveHarness();
     final sites = [_away(SiteId('a')), _away(SiteId('b'))];
