@@ -959,24 +959,29 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     if (dns == null) return;
     for (final m in _bySite) {
       final live = sites.loaded.contains(m);
-      if (live && _framed.add(m)) {
-        // A slot's view is one of the site's it runs as: a hosted tab's is
-        // its host's (LIR-018), told as the lists move whether or not the
-        // host is loaded.
-        final runs = m.runningIdentity;
+      // A slot's view is one of the site's it runs as: a hosted tab's is
+      // its host's (LIR-018), told as the lists move whether or not the
+      // host is loaded. A reroute that moves the slot to another host lets
+      // go of its view, and the frame builds it as the new one.
+      final runs = m.runningIdentity;
+      if (_framed[m] case final was?
+          when !live || was.siteId != runs.siteId) {
+        _framed.remove(m);
+        _view(OnPlatformView(m), of: was, up: false);
+      }
+      if (live && !_framed.containsKey(m)) {
+        _framed[m] = runs;
         _view(OnPlatformView(m), of: runs, up: true);
         if (!DnsBlockService.instance.views.told.containsKey(runs.siteId)) {
           _violations.add('${m.siteId} framed a view of ${runs.siteId} that '
               'no list change will tell (DNS-022)');
         }
-      } else if (!live && _framed.remove(m)) {
-        _view(OnPlatformView(m), of: m.runningIdentity, up: false);
       }
     }
   }
 
-  /// The sites whose webview a frame attached.
-  final Set<WebViewModel> _framed = {};
+  /// The sites whose webview a frame attached, each with the site it ran as.
+  final Map<WebViewModel, WebViewModel> _framed = {};
 
   /// [view] of site [of] attaches ([up]) or goes, as the platform reports
   /// it: a frame's webview, or a wake's check as its open and its dispose
