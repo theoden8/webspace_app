@@ -1582,11 +1582,22 @@ bool dispatch(NavigationDecision decision,
           },
         ),
         onControllerCreated: (ctrl) {
+          // The slot's own load, not the posture's site: a hosted tab runs
+          // as another site in this slot (LIR-018).
+          if (!views.adopt(
+            ctrl,
+            loaded: hooks.host.vars.loaded.value.contains(siteId),
+          )) {
+            LogTag.webView.debug(
+              'A webview of "$name" was built after its unload; let go of',
+              sensitive: true,
+            );
+            return;
+          }
           own = ctrl;
           LogTag.webView.debug(
               'onControllerCreated for "$name" (siteId: $siteId)',
               sensitive: true);
-          views.controller = ctrl;
           unawaited(setController());
           unawaited(pendingContainerCookies.pushInto(ctrl));
           // Apply any state queued by the activation flow when this

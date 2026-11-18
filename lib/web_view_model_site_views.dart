@@ -30,6 +30,18 @@ final class SiteViews {
   /// them too (PROXY-008).
   final Set<WebViewController> _departing = {};
 
+  /// A controller the slot's build created, shown; or, where the build
+  /// outlived the slot's unload (not [loaded]), let go of as a departing
+  /// view, so the site keeps none until its next build. True when shown.
+  bool adopt(WebViewController created, {required bool loaded}) {
+    if (!loaded) {
+      _depart(created);
+      return false;
+    }
+    controller = created;
+    return true;
+  }
+
   /// The warm views by tab (`warm[s]`).
   Map<TabId, WarmView> get warm => Map.unmodifiable(_warm);
 
@@ -73,7 +85,10 @@ final class SiteViews {
 
   /// Every view let go of, in [commit]: what may still send until its page
   /// is gone, [shown] for the shown one, which a dead renderer leaves out.
-  LeavingView? letGoOfAll({required LeavingView? shown, required Commit commit}) {
+  LeavingView? letGoOfAll({
+    required LeavingView? shown,
+    required Commit commit,
+  }) {
     final leaving = [
       ?shown,
       for (final w in _warm.values) w.controller,
