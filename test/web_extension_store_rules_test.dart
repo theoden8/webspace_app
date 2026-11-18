@@ -52,10 +52,6 @@ void main() {
     debugHostRunsWebExtensions = true;
     debugExtensionSearchBuilt = true;
     DeveloperModeService.instance.debugSet(on: true);
-    ExperimentalFeaturesService.instance.debugSet(
-      ExperimentalFeature.webExtensions,
-      on: true,
-    );
     fetch = FakeExtensionFetch()
       ..replies[_searchQuery] = amoSearchReply
       ..replies[_amoQuery] = amoAddonReply()
@@ -74,12 +70,8 @@ void main() {
     debugHostDistribution = null;
     debugExtensionSearchBuilt = null;
     DeveloperModeService.instance.debugSet(on: false);
-    for (final feature in [
-      ExperimentalFeature.webExtensions,
-      ExperimentalFeature.extensionSearch,
-    ]) {
-      ExperimentalFeaturesService.instance.debugSet(feature, on: false);
-    }
+    ExperimentalFeaturesService.instance
+        .debugSet(ExperimentalFeature.extensionSearch, on: false);
   });
 
   void searchSwitch({required bool on}) => ExperimentalFeaturesService.instance
@@ -138,7 +130,7 @@ void main() {
       await pumpLocalized(tester, home: const AppDeveloperScreen());
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
-        find.text('Web extensions'),
+        find.text('Reset icon cache'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
@@ -167,7 +159,7 @@ void main() {
         await pumpLocalized(tester, home: const AppDeveloperScreen());
         await tester.pumpAndSettle();
         await tester.scrollUntilVisible(
-          find.text('Web extensions'),
+          find.text('Reset icon cache'),
           200,
           scrollable: find.byType(Scrollable).first,
         );

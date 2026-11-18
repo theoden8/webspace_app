@@ -51,5 +51,5 @@
 
 ## Workflow follow-up
 
-- Ask App Review about user-imported extensions (guidelines 2.5.2 and 4.7) before the feature leaves the Experimental group.
+- Ask App Review about user-imported extensions (guidelines 2.5.2 and 4.7): the feature left the Experimental group before it was asked.
 - Sync the deltas into `openspec/specs/` and archive the change once merged.

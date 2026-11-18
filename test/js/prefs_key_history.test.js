@@ -43,6 +43,8 @@ const RETIRED = {
     'TOR-027: the built-in Tor on Linux graduated out of the Experimental group; there is no switch to restore',
   experimentalServiceWorkers:
     "CB-022: a site's service workers through its blockers graduated out of the Experimental group; there is no switch to restore",
+  experimentalWebExtensions:
+    'WEBEXT-001: web extensions graduated out of the Experimental group on iOS and macOS; there is no switch to restore',
   html_cache_version:
     'the page snapshot cache it stamped is gone: HTML caching reads the engine\'s own cache, '
     + 'and retireSnapshotCache only asks whether a release left one behind, then removes it',

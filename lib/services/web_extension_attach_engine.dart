@@ -20,8 +20,7 @@ final class NoExtensions extends ExtensionAttach {
 }
 
 enum NoExtensionsReason {
-  /// Not offered here: this system's WebKit cannot load extensions, or
-  /// developer mode or the Web extensions switch is off.
+  /// Not offered here: this system's WebKit cannot load extensions.
   notOffered,
 
   /// The site is in an archive.

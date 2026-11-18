@@ -19,7 +19,6 @@ The features are:
 |---|---|---|---|
 | Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
 | Linux: the filter lists' network rules compiled into WebKit content rule lists (`content-blocker` CB-020) | WebKit content blocking | off | `ContentBlockerService._syncRuleLists`, read on every engine rebuild and when the switch or developer mode changes |
-| iOS 18.4+ and macOS 15.4+: browser extensions the user imports, switched on per site (`web-extensions` WEBEXT-001) | Web extensions | off | `WebViewModel.sitePosture`, read when a site's webview is built, and the App Settings and site Settings screens, read when they are built |
 
 Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the group with a switch that defaulted off; it graduated with the site info sheet (`site-info-sheet`, NAV-011), which shows the site and container a routed page runs as. Page icons fetched from the links a page declares on iOS, macOS and Linux (`icon-fetching` ICON-013) were in the group with a switch that defaulted off; they graduated to the default there, and the group's Site icons only switch took the slot.
 
@@ -44,6 +43,8 @@ The tray icon while a close only hides the window (`web-push-notifications` NOTI
 The built-in Tor on Linux (`tor-proxy` TOR-027), a tor the app starts, was in the group under its own Built-in Tor switch, which defaulted off; it graduated as Apple's had, and is offered on every Linux build with developer mode on or off. The switch's pref (`experimentalLinuxTor`) is no longer read.
 
 A site's service workers through its own blockers on Android (`content-blocker` CB-022) were in the group under the Service workers through blockers switch, which defaulted off; they graduated, and each site's container hands its service workers to the site's blockers with developer mode on or off. The switch's pref (`experimentalServiceWorkers`) is no longer read.
+
+Browser extensions the user imports on iOS 18.4+ and macOS 15.4+ (`web-extensions` WEBEXT-001) were in the group under the Web extensions switch, which defaulted off; they graduated, and are offered there with developer mode on or off. The switch's pref (`experimentalWebExtensions`) is no longer read.
 
 #### Scenario: The group appears with developer mode
 
@@ -70,9 +71,8 @@ A site's service workers through its own blockers on Android (`content-blocker` 
 - **WHEN** that backup is imported
 - **THEN** the switch is on without a restart
 
-#### Scenario: Web extensions only where WebKit runs them
+#### Scenario: Web extensions have no switch
 
 - **GIVEN** a macOS 15.4 build with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists Web extensions, off
-- **AND** a build on macOS 15.3, iOS 18.3, Android or Linux shows no Web extensions switch
+- **THEN** the Experimental group lists no Web extensions switch

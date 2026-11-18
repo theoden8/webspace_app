@@ -1,8 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
-import 'package:webspace/services/developer_mode_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/services/web_extension_attach_engine.dart';
 import 'package:webspace/services/web_extension_library.dart';
@@ -29,11 +27,6 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     debugHostRunsWebExtensions = true;
-    DeveloperModeService.instance.debugSet(on: true);
-    ExperimentalFeaturesService.instance.debugSet(
-      ExperimentalFeature.webExtensions,
-      on: true,
-    );
     WebExtensionLibrary.instance.debugReset();
     await WebExtensionLibrary.instance.initialize(
       folders: disk,
@@ -51,11 +44,6 @@ void main() {
 
   tearDown(() {
     debugHostRunsWebExtensions = null;
-    DeveloperModeService.instance.debugSet(on: false);
-    ExperimentalFeaturesService.instance.debugSet(
-      ExperimentalFeature.webExtensions,
-      on: false,
-    );
   });
 
   WebViewModel site({bool incognito = false}) => WebViewModel(
@@ -87,11 +75,8 @@ void main() {
       expect(context.grantedMatchPatterns, isNotEmpty);
     });
 
-    test('with the experiment off no webview gets the setting', () {
-      ExperimentalFeaturesService.instance.debugSet(
-        ExperimentalFeature.webExtensions,
-        on: false,
-      );
+    test('a host that runs none gives no webview the setting', () {
+      debugHostRunsWebExtensions = false;
       final extensions = _posture(site()).page.extensions;
       expect(
         extensions,
