@@ -71,6 +71,15 @@ class.
   witnesses keep the checks from passing vacuously. The model covers this page
   boundary and tab offer; other app-wide toasts and Flutter animations remain
   outside its state.
+- **`activation_toast.tla`** + `activation_toast*.cfg` — composes the snackbar
+  boundary with `activation.tla`'s actual `Next` relation. Its page key is the
+  shown site, active tab and tab set from the printed activation tables; each
+  step that changes that key clears visible and queued messages in the same
+  turn as the synchronous rebuild. Shows, queue advances and delayed tab
+  confirmations interleave with those steps. TLC checks ownership and offer
+  guards, five deliberately broken variants, and witnesses for real site and
+  tab changes. The selected webspace is absent from `activation.tla`, so the
+  standalone boundary model covers that component of the key.
 - **`proxy.tla`** + `proxy*.cfg` — proxy mutual exclusion (spec: `proxy`). `Inv_ProxyCoherent`
   (every loaded site shares the active proxy, because Android serialises mismatched-proxy
   sites onto one native proxy slot); the `mismatch` demonstrator co-loads a mismatched site

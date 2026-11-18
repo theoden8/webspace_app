@@ -13,6 +13,8 @@
 #                                            printed mutant MUST be caught
 #   TOAST     toast_page_boundary*.cfg     -> visible/queued ownership and
 #                                            delayed-offer guards
+#   ACTIVATION_TOAST activation_toast*.cfg -> the same rules composed with
+#                                            activation.tla's real steps
 #   TRACE     trace/check_trace.sh        -> code stayed inside the model (LogService)
 #
 # Exit non-zero if any expectation is unmet. formal/verify.sh prints the
@@ -435,6 +437,28 @@ expect toast_page_boundary_reachqueue.cfg toast_page_boundary.tla "Reach_Queued 
   "the snackbar queue is reachable"
 expect toast_page_boundary_reachdropped.cfg toast_page_boundary.tla "Reach_Dropped is violated" \
   "a stale delayed confirmation is dropped"
+
+section "ACTIVATION_TOAST" "snackbar ownership across activation and tab steps"
+expect activation_toast.cfg activation_toast.tla "No error has been found" \
+  "activation page changes clear visible and queued snackbars" "$MODEL"
+expect activation_toast_keepvisible.cfg activation_toast.tla "Inv_ToastOwned is violated" \
+  "keeping a visible snackbar across an activation step is caught" "$MODEL"
+expect activation_toast_keepqueue.cfg activation_toast.tla "Inv_ToastOwned is violated" \
+  "keeping a queued snackbar across an activation step is caught" "$MODEL"
+expect activation_toast_staleoffer.cfg activation_toast.tla "Inv_ToastOffer is violated" \
+  "an unguarded delayed tab confirmation is caught" "$MODEL"
+expect activation_toast_ignoretab.cfg activation_toast.tla "Inv_ToastOffer is violated" \
+  "a delayed tab confirmation ignoring its tab is caught" "$MODEL"
+expect activation_toast_ignoreversion.cfg activation_toast.tla "Inv_ToastOffer is violated" \
+  "a delayed tab confirmation ignoring its version is caught" "$MODEL"
+expect activation_toast_reachsite.cfg activation_toast.tla "Reach_ToastSiteChange is violated" \
+  "a real activation step changes the shown site" "$MODEL"
+expect activation_toast_reachtab.cfg activation_toast.tla "Reach_ToastTabChange is violated" \
+  "a real tab step changes the active tab" "$MODEL"
+expect activation_toast_reachqueue.cfg activation_toast.tla "Reach_ToastQueued is violated" \
+  "a snackbar is queued in the composed world" "$MODEL"
+expect activation_toast_reachdropped.cfg activation_toast.tla "Reach_ToastDropped is violated" \
+  "a stale confirmation is dropped in the composed world" "$MODEL"
 
 section "PROXY" "mutual exclusion (Android serialises mismatched-proxy sites)"
 expect proxy.cfg proxy.tla "No error has been found" \
