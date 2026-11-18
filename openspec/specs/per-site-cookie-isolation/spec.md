@@ -237,7 +237,9 @@ derivative (CLAUDE.md) and a build-time fetch is out of scope. Instead:
   whose registrant hands subdomains to mutually untrusting third parties:
   `github.io`, `pages.dev`, `workers.dev`, `vercel.app`, `netlify.app`,
   `web.app`, `firebaseapp.com`, `appspot.com`, `azurewebsites.net`,
-  `herokuapp.com`, `myshopify.com`, `blogspot.com`, `wordpress.com`.
+  `herokuapp.com`, `myshopify.com`, `blogspot.com`, `wordpress.com`;
+  and `b32.i2p`, under which every name is an I2P destination's own key,
+  so `<key>.b32.i2p` is a site of its own.
 - When a host's last two labels look like a ccTLD registry suffix the table
   does not list (a two-letter TLD under a generic second level such as
   `co`, `com`, `net`, `org`, `edu`, `gov`, `ac`, `ne`, `or`, `go`), the pair
@@ -254,6 +256,13 @@ derivative (CLAUDE.md) and a build-time fetch is out of scope. Instead:
 navigation from A to B is cross-domain (so
 `NavigationDecisionEngine.decideShouldOverrideUrlLoading` reaches the
 gesture check instead of returning `allow`)
+
+#### Scenario: Two I2P destinations are separate sites
+
+**Given** site A is `http://<key A>.b32.i2p/` and site B is
+`http://<key B>.b32.i2p/`
+**Then** `getBaseDomain` returns `<key A>.b32.i2p` and `<key B>.b32.i2p`
+respectively, never `b32.i2p`
 
 #### Scenario: A private suffix still groups its own subdomains
 

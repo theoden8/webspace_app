@@ -121,7 +121,8 @@ const Set<String> _multiPartTlds = {
 };
 
 /// Private suffixes: single registrants who hand out subdomains to mutually
-/// untrusting third parties. Without these, `victim.github.io` and
+/// untrusting third parties, and `b32.i2p`, under which each name is an I2P
+/// destination's own key. Without these, `victim.github.io` and
 /// `attacker.github.io` share a base domain — same cookie container, and
 /// `NavigationDecisionEngine` reads a hop between them as same-site.
 const Set<String> _privateSuffixes = {
@@ -138,6 +139,7 @@ const Set<String> _privateSuffixes = {
   'myshopify.com',
   'blogspot.com',
   'wordpress.com',
+  'b32.i2p',
 };
 
 /// Second-level labels that a two-letter ccTLD registry almost always
