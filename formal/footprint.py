@@ -183,6 +183,8 @@ def declared(model, prints, vars_, inputs):
             if op not in prints:
                 sys.exit("footprint: %s calls %s, which no module defines"
                          % (action, op))
+            if op in SCHEDULER:
+                continue
             r |= prints[op][0]
             w |= prints[op][1]
         if action in inputs:
