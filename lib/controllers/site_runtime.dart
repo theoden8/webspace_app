@@ -396,9 +396,22 @@ class SiteRuntime implements SiteModels {
           ImportScope.replace => spaces,
           ImportScope.merge => mergeBackupWebspaces(webspaces, imported: spaces),
         };
+        // A partial restore keeps the rows: a carried site takes the row of
+        // the listed one it replaces, and only the sites it brings onto the
+        // list are appended, as the model's land leaves `rows` alone.
+        final next = switch (scope) {
+          ImportScope.replace => carried,
+          ImportScope.merge => [
+            for (final m in models)
+              carried.firstWhere((c) => c.modelKey == m.modelKey,
+                  orElse: () => m),
+            for (final c in carried)
+              if (!models.hasKey(c)) c,
+          ],
+        };
         models
           ..clear()
-          ..addAll([...kept, ...carried]);
+          ..addAll(next);
         _loaded.clear();
         _shown = null;
         _version++;
