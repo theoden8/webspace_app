@@ -414,7 +414,7 @@ test('NOTIF-016: a headless check stays on the site and is granted nothing', () 
     'inapp.PermissionResponseAction.DENY',
     'allow: false',
     'WebViewTls.handleServerTrust(null, challenge: challenge, hooks: null)',
-    'check.follow(config, headlessId: headless.id)',
+    'view: OnHeadless(headless.id),',
   ]) {
     assert.ok(body.includes(check), `headless check lacks ${check}`);
   }
