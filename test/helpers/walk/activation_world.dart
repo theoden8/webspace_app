@@ -2137,9 +2137,12 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     final tab = m.activeTabId;
     final build = m.tabBinding.frame(tab, commit: commit);
     final shows = m.tabBinding.held?.bytes ?? _historyOf(tab);
-    m.controller = FakeWebViewController()
-      ..pace = _webViewPace
-      ..history = shows;
+    m.views.adopt(
+      FakeWebViewController()
+        ..pace = _webViewPace
+        ..history = shows,
+      loaded: sites.loaded.contains(m),
+    );
     _claimRoute(m);
     if (_requeued.remove(m) case final lost?) {
       if (lost.tab == tab && _labelOf(shows) != _labelOf(lost.bytes)) {
