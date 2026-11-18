@@ -70,6 +70,7 @@ WebViewHostHooks bareHooks({
     WebViewHostHooks(
       isolation: () => bareIsolation,
       vars: RuntimeVars.ofSet(loaded),
+      runsAs: (slot) => slot,
       globalUserScripts: () => const [],
       save: () async {},
       rebuild: () {},

@@ -30,6 +30,7 @@ WebViewHostHooks inertHostHooks({
     WebViewHostHooks(
       isolation: isolation,
       vars: vars ?? RuntimeVars.ofSet({}),
+      runsAs: (slot) => slot,
       globalUserScripts: () => const [],
       save: () async {},
       rebuild: () {},

@@ -112,12 +112,12 @@ final class ViewBlockers {
     );
   }
 
-  /// [view] is built for [site] while the sites [vars] names run: it
-  /// attaches at the level its site resolves to now, and is told again
-  /// whenever that moves. Returns the attach its build sends. A view whose
-  /// site no longer runs, a build that outlived its site's unload, attaches
-  /// at that level and is told nothing more: the model builds no view for a
-  /// site that does not run.
+  /// [view] is built for [site] while the sites [vars] names run, each
+  /// loaded slot as the site [runsAs] names: it attaches at the level its
+  /// site resolves to now, and is told again whenever that moves. Returns
+  /// the attach its build sends. A view whose site no longer runs, a build
+  /// that outlived its site's unload, attaches at that level and is told
+  /// nothing more: the model builds no view for a site that does not run.
   ViewAttach built(
     InterceptedView view, {
     required SiteId site,
@@ -125,6 +125,7 @@ final class ViewBlockers {
     required bool localCdn,
     required bool contentBlock,
     required RuntimeVars<SiteId> vars,
+    required SiteId Function(SiteId slot) runsAs,
   }) {
     final w = ViewsWorld._(
       this,
@@ -136,6 +137,7 @@ final class ViewBlockers {
         contentBlock: contentBlock,
       ),
       vars: vars,
+      runsAs: runsAs,
     );
     final c = StepContext(w);
     if (_hasView(site)) {
@@ -269,6 +271,7 @@ final class ViewsWorld {
     required this.site,
     this.asked,
     this.vars,
+    this.runsAs,
   });
 
   final ViewBlockers views;
@@ -276,6 +279,7 @@ final class ViewsWorld {
   final SiteId site;
   final ViewAsk? asked;
   final RuntimeVars<SiteId>? vars;
+  final SiteId Function(SiteId slot)? runsAs;
 
   /// The level the step's write of `told` gives the site, which the
   /// platform's half of the write ([_land]) makes so.
@@ -293,10 +297,10 @@ final class ViewsWorld {
 
 /// The environment's view steps (DNS-022): a site's first webview built
 /// attaches its native interceptor at the level its site resolves to under
-/// the lists in force (`ViewBuilt`), where its site runs (`Running`): a
-/// frame's for a loaded site, a nested screen's, a popup either opens, a
-/// wake's headless check; its last to go leaves the views told
-/// (`ViewGone`). The model's `told` is a site's and a site's views run one
+/// the lists in force (`ViewBuilt`), where its site runs: a frame's for
+/// the site a loaded slot runs as (a hosted tab's is its host's, LIR-018),
+/// a nested screen's, a popup either opens, a wake's headless check; its
+/// last to go leaves the views told (`ViewGone`). The model's `told` is a site's and a site's views run one
 /// level, so another view of a site joins or leaves writing none of the
 /// model ([ViewBlockers.built], [ViewBlockers.gone]).
 abstract final class ViewsTable {
@@ -310,7 +314,7 @@ abstract final class ViewsTable {
         site: _each.it,
         enabled:
             _dnsLevels.isNotEmpty &
-            _running.has(_each.it) &
+            _runsHere(_each.it) &
             _told.at(_each.it).eq(_none),
         otherwise: Otherwise(
           StepOutcome.none,
@@ -403,12 +407,32 @@ final _dnsLevels = Constant<Iterable<int>, ViewsWorld>(
   read: (_) => [for (var l = 1; l <= kDnsMaxLevel; l++) l],
 ).value;
 
-/// The sites that run (`Running`): the loaded ones, a nested screen's and
-/// a wake's checks.
-final _running = ModelDef.running.named<Iterable<SiteId>, ViewsWorld>(
-  run: (c) => _vars.from(c).running,
+/// Whether a view of [s] runs: [s] is the site a loaded slot runs as
+/// (`RunsAs`), a nested screen's or a wake's check (`Pages`).
+Expr<bool, ViewsWorld> _runsHere(Expr<SiteId, ViewsWorld> s) =>
+    _pages.has(s) | _loaded.value.exists(_slot, holds: _runsAs(_slot.it).eq(s));
+
+final _pages = ModelDef.pages.named<Iterable<SiteId>, ViewsWorld>(
+  run: (c) => _vars.from(c).pages,
 );
 final _vars = RuntimeVars.port<SiteId, ViewsWorld>(
-  reads: {ModelVar.loaded, ModelVar.nested, ModelVar.headless},
+  reads: {ModelVar.nested, ModelVar.headless},
   of: (w) => w.vars!,
+);
+
+/// The loaded slots (`loaded`).
+final _loaded = Var<Iterable<SiteId>, ViewsWorld>(
+  ModelVar.loaded,
+  read: (w) => w.vars!.loaded.value,
+);
+final _slot = Bound<SiteId, ViewsWorld>('t');
+
+/// The site [slot] runs as (`RunsAs`, the tabs' definition).
+Expr<SiteId, ViewsWorld> _runsAs(Expr<SiteId, ViewsWorld> slot) =>
+    ModelDef.runsAs.over([slot], run: (c) => _slots.from(c)(slot.run(c)));
+final _slots = Port<SiteId Function(SiteId slot), ViewsWorld>(
+  'runsAs',
+  reads: const {},
+  changes: const {},
+  of: (w) => w.runsAs!,
 );

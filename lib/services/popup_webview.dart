@@ -219,6 +219,7 @@ abstract final class PopupWebView {
               localCdn: parent.posture.blocking.localCdn,
               contentBlock: parent.posture.blocking.contentBlock,
               vars: parent.hooks.vars,
+              runsAs: parent.hooks.runsAs,
             ),
           ));
         }

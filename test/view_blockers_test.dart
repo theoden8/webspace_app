@@ -45,13 +45,13 @@ void main() {
   void buildAll() {
     dns.views.built(const OnPlatformView(#follows),
         site: follows, siteLevel: null, localCdn: false, contentBlock: true,
-        vars: running);
+        vars: running, runsAs: (slot) => slot);
     dns.views.built(const OnPlatformView(#asksTwo),
         site: asksTwo, siteLevel: 2, localCdn: false, contentBlock: true,
-        vars: running);
+        vars: running, runsAs: (slot) => slot);
     dns.views.built(const OnPlatformView(#off),
         site: off, siteLevel: kDnsLevelOff, localCdn: true, contentBlock: true,
-        vars: running);
+        vars: running, runsAs: (slot) => slot);
   }
 
   test('a view attaches at the level its site resolves to now', () {
@@ -102,7 +102,7 @@ void main() {
   test('a build attaches with the blockers its view is told again with', () {
     final attach = dns.views.built(const OnPlatformView(#cdn),
         site: follows, siteLevel: null, localCdn: true, contentBlock: false,
-        vars: running);
+        vars: running, runsAs: (slot) => slot);
     expect(attach, (
       view: const OnPlatformView(#cdn),
       blockers: (
@@ -118,10 +118,26 @@ void main() {
       () async {
     dns.views.built(const OnPlatformView(#cdn),
         site: follows, siteLevel: null, localCdn: true, contentBlock: false,
-        vars: running);
+        vars: running, runsAs: (slot) => slot);
     await dns.downloadList(1);
     expect(sent.single.blockers.localCdn, isTrue);
     expect(sent.single.blockers.contentBlock, isFalse);
+  });
+
+  // A hosted tab runs as its host (LIR-018): its view is one of the host's,
+  // told as the lists move though the host itself is not loaded.
+  test("a hosted tab's view is told as the lists move, its host not loaded "
+      '(DNS-022)', () async {
+    final slot = SiteId('slot');
+    final host = SiteId('host');
+    dns.views.built(const OnPlatformView(#hosted),
+        site: host, siteLevel: null, localCdn: false, contentBlock: true,
+        vars: RuntimeVars.ofSet({slot}),
+        runsAs: (s) => s == slot ? host : s);
+    expect(dns.views.told, {host: 0});
+    expect(await dns.downloadList(1), isTrue);
+    expect([for (final a in sent) (a.blockers.site, a.blockers.dnsLevel)],
+        [(host, 1)]);
   });
 
   // The fold asserts the views were told what the model's `told` says, so

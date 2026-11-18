@@ -248,6 +248,7 @@ class HeadlessSiteCheck {
         localCdn: posture.blocking.localCdn,
         contentBlock: posture.blocking.contentBlock,
         vars: config.hooks.vars,
+        runsAs: config.hooks.runsAs,
       ),
     );
   }
