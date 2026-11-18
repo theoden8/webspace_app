@@ -548,10 +548,9 @@ world takes from TLC's coverage of the world's holding check, which `check.sh` r
   names its own, and then hosts only the pairs whose inputs it allows). One world per
   setting takes every pair that needs it, and holds every invariant. The pairs the
   printer computes from the declarations (`activation_pairs.tsv`) are the gate's: the gate
-  fails where they differ from what the text shares. The environment's actions written
-  by hand declare their footprints (`EnvAction`), the printed ones' come from their
-  steps as a table action's do, and the base's operators declare theirs (`BaseOp`),
-  each held to its text.
+  fails where they differ from what the text shares. The environment's actions are
+  printed, their footprints from their steps as a table action's are, and the base's
+  operators declare theirs (`BaseOp`), each held to its text.
 - **Unreached actions are named:** a table action no world takes is checked by nothing,
   so it is taken in some world or listed in `untaken.tsv` with why none can; an
   unlisted one is planted on every run.

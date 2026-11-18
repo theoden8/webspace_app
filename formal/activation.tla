@@ -171,22 +171,9 @@ Init ==
 
 -----------------------------------------------------------------------------
 (* Inputs. The tables start the flows (InputTableStep, printed), a site   *)
-(* joining and a row moving among them (JoinTable, MoveTable); the rest   *)
-(* is the environment: a page signing in. The launch clear, flow 0, is    *)
-(* printed (EnvTableStep).                                                *)
-
-\* A loaded site's page signs in. Only at rest: a page write inside another
-\* site's capture-nuke-restore is lost by design of the shared jar.
-Login(s) ==
-    /\ Input
-    /\ ~Containers
-    /\ Idle
-    /\ s \in loaded
-    /\ jar' = jar \cup {s}
-    /\ signedIn' = signedIn \cup {s}
-    /\ Did("Login", inputs + 1, "", s)
-    /\ UNCHANGED << ids, site, stored, turn, fl, ghosts, tabVars, blocking,
-                    archived >>
+(* joining, a row moving and a page signing in among them (JoinTable,     *)
+(* MoveTable, PageSignIn). The launch clear, flow 0, is printed           *)
+(* (EnvTableStep).                                                        *)
 
 \* The level a site's webview runs at with the lists in force now
 \* (DnsBlockService.effectiveLevelFor).
@@ -208,9 +195,7 @@ Done ==
 FlowStep(f) == TableStep(f)
 
 \* Where a table's input may land is Lands, in activation_base.
-InputStep ==
-    \/ \E f \in Flows : InputTableStep(f)
-    \/ \E s \in Sites : Login(s)
+InputStep == \E f \in Flows : InputTableStep(f)
 
 Next ==
     \/ InputStep
