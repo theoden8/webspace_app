@@ -3,6 +3,8 @@ import 'package:meta/meta.dart';
 import 'package:webspace/services/step_table.dart';
 import 'package:webspace/settings/site_ids.dart';
 
+import 'package:webspace/controllers/join_table.dart';
+import 'package:webspace/controllers/move_table.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/services/archive_membership_engine.dart';
 import 'package:webspace/services/isolation.dart';
@@ -49,6 +51,14 @@ class SiteRuntime implements SiteModels {
     );
     _shown = site;
   }
+
+  /// The sites whose webview the frame has mounted (`views`): written only
+  /// by the frame's step (`FrameTable.mount`, the model's `Frame`).
+  late final Shared<Iterable<SiteId>> views = Shared.ofSet(
+    _mountedViews,
+    variable: ModelVar.views,
+  );
+  final Set<SiteId> _mountedViews = {};
 
   /// The model's variables this runtime owns, as the model knows them, by
   /// id (CONT-012), and as the tables write them (`Mutable.over`): what a
@@ -336,7 +346,7 @@ class SiteRuntime implements SiteModels {
         models.addAll(sites);
       case SiteAdded(:final site, :final joins):
         _assertUnlisted([site]);
-        models.add(site);
+        _join(site, renamed: false);
         for (final ws in webspaces) {
           if (!ws.isAll &&
               (joins?.contains(ws.id) ?? ws.id == selectedWebspaceId)) {
@@ -350,7 +360,16 @@ class SiteRuntime implements SiteModels {
           ws.siteIds.remove(site.siteId);
         }
       case SitesMoved(:final from, :final to):
-        models.insert(to, models.removeAt(from));
+        if (from != to) {
+          MoveTable.move(
+            this,
+            move: (from: from, to: to),
+            land: ({required commit}) {
+              models.insert(to, models.removeAt(from));
+              commit.wrote(ModelVar.rows);
+            },
+          );
+        }
       case SitesReplaced(
         sites: final replacement,
         webspaces: final spaces,
@@ -376,14 +395,31 @@ class SiteRuntime implements SiteModels {
         sites: final opened,
         webspaces: final spaces,
         :final appTierMembership,
+        :final rebuilt,
       ):
+        // Admitted again against the rows as they are now: a change that
+        // listed a site since the open read them lands no clash (BUG-046).
+        final again = opened.readmit(listed: {for (final m in models) m.siteId});
+        final renamed = {for (final r in again) r.was.siteId: r.now.siteId};
+        SiteId named(SiteId id) => renamed[id] ?? id;
+        for (final w in spaces) {
+          w.siteIds = [for (final id in w.siteIds) named(id)];
+        }
         _assertUnlisted(opened.sites);
-        models.addAll(opened.sites);
+        final rebuiltNow = {for (final r in again) r.now};
+        for (final m in opened.sites) {
+          _join(m, renamed: rebuiltNow.any((r) => identical(r, m)));
+        }
         webspaces.addAll(spaces);
         ArchiveMembershipEngine.attach(
           webspaces,
-          membership: appTierMembership,
+          membership: {
+            for (final MapEntry(key: ws, value: ids)
+                in appTierMembership.entries)
+              ws: [for (final id in ids) named(id)],
+          },
         );
+        if (again.isNotEmpty) rebuilt(again);
       case ArchiveClosed(sites: final leaving, :final webspaceIds):
         final closing = [
           for (final m in models)
@@ -409,11 +445,19 @@ class SiteRuntime implements SiteModels {
         }
       }
     }
-    final moved = before.length != models.length ||
-        [
-          for (var i = 0; i < before.length; i++)
-            identical(before[i], models[i]),
-        ].contains(false);
+    // A join appends where the model kept its row all along, in its own
+    // step (`JoinTable`): only a row that moved or left moves the model's.
+    final joined = switch (change) {
+      SiteAdded() || ArchiveOpened() => true,
+      _ => false,
+    };
+    // A row's move is its own step too (`MoveTable`).
+    final moved = change is! SitesMoved &&
+        ((!joined && before.length != models.length) ||
+            [
+              for (var i = 0; i < before.length; i++)
+                i < models.length && identical(before[i], models[i]),
+            ].contains(false));
     if (moved) {
       commit.wrote(ModelVar.rows);
       if (before.any((m) => !models.hasKey(m))) commit.wrote(ModelVar.gone);
@@ -431,6 +475,18 @@ class SiteRuntime implements SiteModels {
       'a site that left the list is still loaded or shown',
     );
   }
+
+  /// [site] joins the list in its own step, the model's `Join`; [renamed]
+  /// when the land gave it a fresh id as it admitted it.
+  void _join(WebViewModel site, {required bool renamed}) => JoinTable.join(
+    this,
+    site: site,
+    land: ({required commit}) {
+      models.add(site);
+      commit.wrote(ModelVar.gone);
+      if (renamed) commit.wrote(ModelVar.ids);
+    },
+  );
 
   /// [sites] left the list: they leave [loaded] and [shown] too, and an
   /// activation suspended meanwhile bails.

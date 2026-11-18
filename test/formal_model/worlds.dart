@@ -13,39 +13,14 @@ import 'package:webspace/services/model_names.dart';
 /// are printed: what each reads and writes and needs of the constants, as
 /// TLC's coverage names it, which the footprint gate holds to its text.
 enum EnvAction {
-  move(
-    next: r'nested = 0 /\ fore /\ \E from, to \in Pos : Move(from, to)',
-    coverage:
-        r'InputStep@nested = 0 /\ fore /\ \E from, to \in Pos : Move(from, to)',
-    reads: {
-      ModelVar.fore,
-      ModelVar.gone,
-      ModelVar.nested,
-      ModelVar.rows,
-    },
-    writes: {ModelVar.rows},
-  ),
-  join(
-    next: r'nested = 0 /\ fore /\ \E s \in Sites : Join(s)',
-    coverage: r'InputStep@nested = 0 /\ fore /\ \E s \in Sites : Join(s)',
-    reads: {ModelVar.fore, ModelVar.gone, ModelVar.ids, ModelVar.nested},
-    writes: {ModelVar.gone, ModelVar.ids},
-    needs: {(of: ModelConst.joining, set: true)},
-  ),
   login(
     next: r'\E s \in Sites : Login(s)',
     coverage: 'Login',
     reads: {ModelVar.jar, ModelVar.loaded, ModelVar.signedIn},
     writes: {ModelVar.jar, ModelVar.signedIn},
     needs: {(of: ModelConst.containers, set: false)},
-  ),
-  frame(
-    next: r'\E s \in Sites : Frame(s)',
-    coverage: 'Frame',
-    reads: {ModelVar.boxes, ModelVar.loaded, ModelVar.views},
-    writes: {ModelVar.boxes, ModelVar.views},
-    needs: {(of: ModelConst.boxed, set: true)},
   );
+
 
   const EnvAction({
     required this.next,

@@ -51,14 +51,6 @@ LEMMA StepInd == Good /\ IndInv /\ [Next]_vars => IndInv'
   <1>1. CASE InputStep
     <2>1. CASE \E f \in Flows : InputTableStep(f)
       BY <2>1, InputStepInd
-    <2>2. CASE \E from, to \in Pos : Move(from, to)
-      <3> PICK from, to \in Pos : Move(from, to)
-        BY <2>2
-      <3>1. inputs' = inputs + 1 /\ fl' = fl /\ holder' = holder
-            /\ dnsHolder' = dnsHolder
-        BY DEF Move, Input, Starts, turn
-      <3> QED
-        BY <3>1, KeepsTurns
     <2>3. CASE \E s \in Sites : Login(s)
       <3> PICK s \in Sites : Login(s)
         BY <2>3
@@ -67,16 +59,8 @@ LEMMA StepInd == Good /\ IndInv /\ [Next]_vars => IndInv'
         BY DEF Login, Input, Starts, turn
       <3> QED
         BY <3>1, KeepsTurns
-    <2>4. CASE \E s \in Sites : Join(s)
-      <3> PICK s \in Sites : Join(s)
-        BY <2>4
-      <3>1. inputs' = inputs + 1 /\ fl' = fl /\ holder' = holder
-            /\ dnsHolder' = dnsHolder
-        BY DEF Join, Input, Starts, turn
-      <3> QED
-        BY <3>1, KeepsTurns
     <2> QED
-      BY <1>1, <2>1, <2>2, <2>3, <2>4 DEF InputStep
+      BY <1>1, <2>1, <2>3 DEF InputStep
   <1>2. CASE \E f \in Flows : FlowStep(f)
     <2> PICK f \in Flows : FlowStep(f)
       BY <1>2
@@ -96,18 +80,10 @@ LEMMA StepInd == Good /\ IndInv /\ [Next]_vars => IndInv'
       BY <1>4 DEF vars, turn
     <2> QED
       BY <2>1, KeepsTurns
-  <1>6. CASE \E s \in Sites : Frame(s)
-    <2> PICK s \in Sites : Frame(s)
-      BY <1>6
-    <2>1. inputs' = inputs /\ fl' = fl /\ holder' = holder
-          /\ dnsHolder' = dnsHolder
-      BY DEF Frame, turn
-    <2> QED
-      BY <2>1, KeepsTurns
   <1>7. CASE EnvTableStep
     BY <1>7, EnvStepInd
   <1> QED
-    BY <1>1, <1>2, <1>4, <1>5, <1>6, <1>7 DEF Next
+    BY <1>1, <1>2, <1>4, <1>5, <1>7 DEF Next
 
 THEOREM Turns == ASSUME Good PROVE Spec => []Inv_Places
   <1>1. Init => IndInv

@@ -80,15 +80,16 @@ final make = planSettingsImport;
     const admitted = '${preamble}ArchiveOpened f(Set<String> listed) => '
         'ArchiveOpened(sites: Admitted.of(const [], listed: {}, '
         'build: (r) => WebViewModel.fromJson(r, stateSetterF: null)), '
-        'webspaces: const [], appTierMembership: const {});';
+        'webspaces: const [], appTierMembership: const {}, rebuilt: (_) {});';
     // A list of models carries no admission: an archived site could join
     // under an id a listed site holds.
     const raw = '${preamble}ArchiveOpened f(List<WebViewModel> sites) => '
         'ArchiveOpened(sites: sites, webspaces: const [], '
-        'appTierMembership: const {});';
+        'appTierMembership: const {}, rebuilt: (_) {});';
     // Nor can one be made by hand around them.
     const forged = '${preamble}Admitted<WebViewModel> f(List<WebViewModel> s, '
-        'ArchiveIds ids) => Admitted._(s, ids: ids);';
+        'ArchiveIds ids) => Admitted._(s, ids: ids, records: const [], '
+        'runsAs: const [], build: (_) => s.first);';
     expect(await errorsIn(admitted), isEmpty);
     expect(await errorsIn(raw), contains('argument_type_not_assignable'));
     expect(await errorsIn(forged), isNotEmpty,

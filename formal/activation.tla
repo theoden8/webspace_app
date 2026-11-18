@@ -170,49 +170,10 @@ Init ==
     /\ boxes = IF Containers THEN Boxed \cap loaded ELSE {}
 
 -----------------------------------------------------------------------------
-(* Inputs. The tables start the flows (InputTableStep, printed); the rest *)
-(* is the environment: a row move the user makes, a site joining, a page  *)
-(* signing in. The launch clear, flow 0, is printed (EnvTableStep).       *)
-
-\* SitesMoved(from, to): models.insert(to, models.removeAt(from)).
-Moved(i, from, to) ==
-    CASE i = 0 -> 0
-      [] i = from -> to
-      [] from < to /\ from < i /\ i <= to -> i - 1
-      [] to < from /\ to <= i /\ i < from -> i + 1
-      [] OTHER -> i
-
-\* What the runtime and every flow hold names sites, so a move changes
-\* nothing else and supersedes no flow in flight (BUG-029).
-Move(from, to) ==
-    /\ Input
-    /\ from # to
-    \* The model keeps every row; once a close took some off the list it
-    \* moves none (the archive configs).
-    /\ gone = {}
-    /\ rows' = [q \in Pos |-> rows[CHOOSE j \in Pos : Moved(j, from, to) = q]]
-    /\ seen' = seen \cup (IF Idle THEN {} ELSE {"movedMidFlight"})
-    /\ Did("Move", inputs + 1, "", 0)
-    /\ UNCHANGED << ids, loaded, current, version, marker, tier, nested, headless, fore,
-                    sessions, turn, fl, newest, evictedShown, tabVars,
-                    blocking, archived >>
-
-\* SiteAdded, ArchiveOpened: a site joins the list, at its end, where the
-\* model kept its row. Nothing a flow holds names it yet, so the join
-\* supersedes no flow in flight.
-Join(s) ==
-    /\ Input
-    /\ s \in Joining \cap gone
-    /\ gone' = gone \ {s}
-    \* A site whose id a listed one holds runs under a fresh one (ARCH-016,
-    \* SEC-044); "joinkeepsid" joins it under the id it arrived with.
-    /\ ids' = [ids EXCEPT ![s] =
-                IF Mistake # "joinkeepsid" /\ \E t \in Sites \ gone : ids[t] = ids[s]
-                THEN FreshId(s) ELSE ids[s]]
-    /\ seen' = seen \cup (IF Idle THEN {} ELSE {"joinedMidFlight"})
-    /\ Did("Join", inputs + 1, "", s)
-    /\ UNCHANGED << site, sessions, turn, fl, newest, evictedShown, tabVars,
-                    blocking, views, boxes >>
+(* Inputs. The tables start the flows (InputTableStep, printed), a site   *)
+(* joining and a row moving among them (JoinTable, MoveTable); the rest   *)
+(* is the environment: a page signing in. The launch clear, flow 0, is    *)
+(* printed (EnvTableStep).                                                *)
 
 \* A loaded site's page signs in. Only at rest: a page write inside another
 \* site's capture-nuke-restore is lost by design of the shared jar.
@@ -230,24 +191,6 @@ Login(s) ==
 \* The level a site's webview runs at with the lists in force now
 \* (DnsBlockService.effectiveLevelFor).
 Eff(s) == ResolveLevel(SiteLevel[s], dns.lvl, dns.levels)
-
-\* A frame mounts a loaded site's webview, which binds its container (the
-\* shared jar has none), and unmounts one whose site is no longer loaded
-\* (SiteWebviewStack). Only where a close or a delete can take a site
-\* away: the other configs follow no view's mount.
-Frame(s) ==
-    /\ Calm
-    /\ Boxed # {}
-    /\ (s \in loaded) # (s \in views)
-    /\ IF s \in loaded
-       THEN /\ views' = views \cup {s}
-            /\ boxes' = IF Containers /\ s \in Boxed
-                        THEN boxes \cup {s} ELSE boxes
-       ELSE /\ views' = views \ {s}
-            /\ UNCHANGED boxes
-    /\ Did("Frame", 0, "", s)
-    /\ UNCHANGED << ids, site, sessions, turn, fl, inputs, ghosts, tabVars,
-                    blocking, gone >>
 
 -----------------------------------------------------------------------------
 
@@ -267,16 +210,13 @@ FlowStep(f) == TableStep(f)
 \* Where a table's input may land is Lands, in activation_base.
 InputStep ==
     \/ \E f \in Flows : InputTableStep(f)
-    \/ nested = 0 /\ fore /\ \E from, to \in Pos : Move(from, to)
-    \/ nested = 0 /\ fore /\ \E s \in Sites : Join(s)
     \/ \E s \in Sites : Login(s)
 
 Next ==
     \/ InputStep
     \/ \E f \in Flows : FlowStep(f)
-    \/ \E s \in Sites : Frame(s)
     \* The environment's actions the tables print: a loaded site's webview
-    \* let go of (LetGoTable) and its frame (FrameTable), a running site's
+    \* let go of (LetGoTable), its frame and a webview's mount (FrameTable), a running site's
     \* first view built and its last gone (ViewsTable), and the launch's
     \* clear of the jar in its first turn (CookieIsolationEngine.clearSteps).
     \/ EnvTableStep
