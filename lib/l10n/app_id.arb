@@ -1161,10 +1161,8 @@
       }
     }
   },
-  "appSettingsExperimentalWebExtensions": "Ekstensi web",
-  "appSettingsExperimentalWebExtensionsHint": "Jalankan ekstensi peramban yang Anda impor dari berkas (.crx Chrome, .xpi Firefox, atau .zip) di situs pilihan Anda. WebKit menjalankan bagian yang didukungnya dari setiap ekstensi. Ekstensi tidak berjalan di situs mana pun hingga Anda mengaktifkannya di pengaturan situs tersebut, dan di sana ekstensi hanya menjangkau situs itu.",
   "appSettingsExperimentalExtensionSearch": "Pencarian ekstensi",
-  "appSettingsExperimentalExtensionSearchHint": "Menambahkan pencarian addons.mozilla.org ke layar \"Ekstensi\", dengan setiap hasil diberi label seberapa baik WebKit diperkirakan menjalankannya. Hanya tersedia di build dari luar App Store, dan hanya selama \"Ekstensi web\" aktif.",
+  "appSettingsExperimentalExtensionSearchHint": "Menambahkan pencarian addons.mozilla.org ke layar \"Ekstensi\", dengan setiap hasil diberi label seberapa baik WebKit diperkirakan menjalankannya. Hanya tersedia di build dari luar App Store.",
   "networkInterfaceTitle": "Antarmuka jaringan",
   "networkInterfaceHint": "Mengirim lalu lintas situs ini hanya melalui satu antarmuka jaringan, seperti terowongan VPN, dan tidak melalui yang lain. Selama antarmuka itu mati, situs tidak memuat apa pun alih-alih memakai koneksi lain. Nama host dicari melalui server DNS milik antarmuka itu sendiri, jadi resolver sistem (systemd-resolved) harus mengenalnya. Proxy yang diatur di atas dicapai melalui antarmuka. Panggilan WebRTC tidak memakainya.",
   "networkInterfaceSystem": "Perutean sistem",

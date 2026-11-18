@@ -1161,10 +1161,8 @@
       }
     }
   },
-  "appSettingsExperimentalWebExtensions": "Estensjonijiet tal-web",
-  "appSettingsExperimentalWebExtensionsHint": "Ħaddem estensjonijiet tal-browser li timporta minn fajl (.crx ta' Chrome, .xpi ta' Firefox jew .zip) fuq is-siti li tagħżel. WebKit iħaddem dak li jappoġġja minn kull waħda. Estensjoni ma taħdem fuq l-ebda sit sakemm tixgħelha fis-settings ta' dak is-sit, u hemmhekk tilħaq biss dak is-sit.",
   "appSettingsExperimentalExtensionSearch": "Tfittxija ta' estensjonijiet",
-  "appSettingsExperimentalExtensionSearchHint": "Iżżid tfittxija f'addons.mozilla.org mal-iskrin \"Estensjonijiet\", b'kull riżultat jindika kemm WebKit mistenni jħaddimha tajjeb. Disponibbli biss f'verżjonijiet minn barra l-App Store, u biss waqt li \"Estensjonijiet tal-web\" ikun mixgħul.",
+  "appSettingsExperimentalExtensionSearchHint": "Iżżid tfittxija f'addons.mozilla.org mal-iskrin \"Estensjonijiet\", b'kull riżultat jindika kemm WebKit mistenni jħaddimha tajjeb. Disponibbli biss f'verżjonijiet minn barra l-App Store.",
   "networkInterfaceTitle": "Interfaċċja tan-netwerk",
   "networkInterfaceHint": "Tibgħat it-traffiku ta' dan is-sit minn interfaċċja waħda tan-netwerk biss, bħall-mina ta' VPN, u minn l-ebda oħra. Sakemm dik l-interfaċċja tkun mitfija, is-sit ma jtella' xejn minflok juża konnessjoni oħra. L-ismijiet tal-hosts jinfittxu permezz tas-servers DNS tal-interfaċċja stess, għalhekk ir-resolver tas-sistema (systemd-resolved) irid ikun jafhom. Il-proxy issettjat hawn fuq jintlaħaq permezz tal-interfaċċja. Is-sejħiet WebRTC ma jużawhiex.",
   "networkInterfaceSystem": "Rotot tas-sistema",

@@ -1161,10 +1161,8 @@
       }
     }
   },
-  "appSettingsExperimentalWebExtensions": "Web-Erweiterungen",
-  "appSettingsExperimentalWebExtensionsHint": "Führt Browsererweiterungen, die Sie aus einer Datei importieren (.crx aus Chrome, .xpi aus Firefox oder .zip), auf den Websites aus, die Sie wählen. WebKit führt von jeder aus, was es unterstützt. Eine Erweiterung läuft auf keiner Website, bis Sie sie in den Einstellungen dieser Website einschalten, und dort erreicht sie nur diese Website.",
   "appSettingsExperimentalExtensionSearch": "Erweiterungssuche",
-  "appSettingsExperimentalExtensionSearchHint": "Fügt dem Bildschirm \"Erweiterungen\" eine Suche auf addons.mozilla.org hinzu; jedes Ergebnis zeigt, wie gut WebKit es voraussichtlich ausführt. Nur in Builds außerhalb des App Store verfügbar und nur, solange \"Web-Erweiterungen\" aktiviert ist.",
+  "appSettingsExperimentalExtensionSearchHint": "Fügt dem Bildschirm \"Erweiterungen\" eine Suche auf addons.mozilla.org hinzu; jedes Ergebnis zeigt, wie gut WebKit es voraussichtlich ausführt. Nur in Builds außerhalb des App Store verfügbar.",
   "networkInterfaceTitle": "Netzwerkschnittstelle",
   "networkInterfaceHint": "Leitet den Verkehr dieser Website nur über eine Netzwerkschnittstelle, etwa den Tunnel eines VPN, und über keine andere. Solange diese Schnittstelle nicht verfügbar ist, lädt die Website nichts, statt eine andere Verbindung zu nutzen. Hostnamen werden über die eigenen DNS-Server der Schnittstelle aufgelöst, daher muss der Systemresolver (systemd-resolved) sie kennen. Ein oben eingestellter Proxy wird über die Schnittstelle erreicht. WebRTC-Anrufe nutzen sie nicht.",
   "networkInterfaceSystem": "Systemrouting",

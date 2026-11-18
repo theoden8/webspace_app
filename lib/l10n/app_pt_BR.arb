@@ -1161,10 +1161,8 @@
       }
     }
   },
-  "appSettingsExperimentalWebExtensions": "Extensões web",
-  "appSettingsExperimentalWebExtensionsHint": "Execute extensões de navegador que você importa de um arquivo (um .crx do Chrome, um .xpi do Firefox ou um .zip) nos sites que escolher. O WebKit executa o que for compatível em cada uma. Uma extensão não roda em nenhum site até você ativá-la nas configurações desse site, e lá ela só acessa esse site.",
   "appSettingsExperimentalExtensionSearch": "Pesquisa de extensões",
-  "appSettingsExperimentalExtensionSearchHint": "Adiciona à tela \"Extensões\" uma pesquisa no addons.mozilla.org, com cada resultado indicando o quanto se espera que o WebKit consiga executá-la. Disponível apenas em builds de fora da App Store e apenas enquanto \"Extensões web\" estiver ativado.",
+  "appSettingsExperimentalExtensionSearchHint": "Adiciona à tela \"Extensões\" uma pesquisa no addons.mozilla.org, com cada resultado indicando o quanto se espera que o WebKit consiga executá-la. Disponível apenas em builds de fora da App Store.",
   "networkInterfaceTitle": "Interface de rede",
   "networkInterfaceHint": "Envia o tráfego deste site só por uma interface de rede, como o túnel de uma VPN, e por nenhuma outra. Enquanto essa interface estiver fora do ar, o site não carrega nada em vez de usar outra conexão. Os nomes de host são consultados pelos servidores DNS da própria interface, então o resolvedor do sistema (systemd-resolved) precisa conhecê-los. Um proxy definido acima é alcançado pela interface. As chamadas WebRTC não a usam.",
   "networkInterfaceSystem": "Roteamento do sistema",

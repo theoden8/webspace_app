@@ -1161,10 +1161,8 @@
       }
     }
   },
-  "appSettingsExperimentalWebExtensions": "תוספי אינטרנט",
-  "appSettingsExperimentalWebExtensionsHint": "מריץ תוספי דפדפן שמייבאים מקובץ (.crx של Chrome, .xpi של Firefox או .zip) באתרים שבוחרים. WebKit מריץ מכל תוסף את מה שהוא תומך בו. תוסף לא פועל באף אתר עד שמפעילים אותו בהגדרות של אותו אתר, ושם הוא מגיע רק לאתר הזה.",
   "appSettingsExperimentalExtensionSearch": "חיפוש תוספים",
-  "appSettingsExperimentalExtensionSearchHint": "מוסיף למסך \"תוספים\" חיפוש ב-addons.mozilla.org, וכל תוצאה מסומנת לפי המידה שבה WebKit צפוי להריץ אותה. מוצע רק בגרסאות שאינן מ-App Store, ורק כל עוד \"תוספי אינטרנט\" מופעל.",
+  "appSettingsExperimentalExtensionSearchHint": "מוסיף למסך \"תוספים\" חיפוש ב-addons.mozilla.org, וכל תוצאה מסומנת לפי המידה שבה WebKit צפוי להריץ אותה. מוצע רק בגרסאות שאינן מ-App Store.",
   "networkInterfaceTitle": "ממשק רשת",
   "networkInterfaceHint": "שולח את התעבורה של אתר זה דרך ממשק רשת אחד בלבד, כמו המנהרה של VPN, ולא דרך אף ממשק אחר. כל עוד הממשק הזה מושבת, האתר לא טוען דבר במקום להשתמש בחיבור אחר. שמות מארחים נבדקים דרך שרתי ה-DNS של הממשק עצמו, ולכן מנגנון הפענוח של המערכת (systemd-resolved) צריך להכיר אותם. לפרוקסי שהוגדר למעלה מגיעים דרך הממשק. שיחות WebRTC לא משתמשות בו.",
   "networkInterfaceSystem": "ניתוב המערכת",
