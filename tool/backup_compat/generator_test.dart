@@ -31,7 +31,10 @@ Set<String> _createBackupParams() {
   final end = src.indexOf('})', start);
   final block = src.substring(start, end);
   return {
-    for (final m in RegExp(r'(\w+),\s*$', multiLine: true).allMatches(block))
+    for (final m in RegExp(
+      r'(\w+)(?:\s*=\s*[^,\n]+)?,\s*$',
+      multiLine: true,
+    ).allMatches(block))
       m.group(1)!,
   };
 }
@@ -75,6 +78,14 @@ String _export({
             for (final e in superset['contentBlockerLists'] as List) _map(e)
           ]
         : null,
+    // A full backup's choices, which the parameters' defaults are.
+    'includesSites': null,
+    'includesAppSettings': null,
+    'includeSiteScripts': null,
+    'siteScriptIds': null,
+    'siteCookieIds': null,
+    'siteExtensionIds': null,
+    'includeGlobalScriptChoices': null,
     'extraSections': null,
     'webExtensions': null,
   };
