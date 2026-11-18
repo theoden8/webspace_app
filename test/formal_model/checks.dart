@@ -1518,6 +1518,15 @@ enum Mutant {
         'an import that empties the jar without saving the share of a '
         'loaded site it carries again loses that session (ISO-015, caught)',
   ),
+  importmergedrops(
+    world: ActivationWorld.importsMerge,
+    slice: (allowed: {'Tap', 'ImportSites'}),
+    by: Inv.noSessionLoss,
+    doc:
+        'a partial restore that saves only the shares of the sites it carries '
+        'again, then empties the jar: a loaded site it keeps listed loses its '
+        'session (BACKUP-003, ISO-015, caught)',
+  ),
   importkeepsbox(
     world: ActivationWorld.importsContainers,
     slice: (allowed: {'ImportSites', 'Tap'}),

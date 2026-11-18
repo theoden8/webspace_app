@@ -615,6 +615,22 @@ Tables mutated(Mutant m) => switch (m) {
       ),
     ),
   ),
+  // A partial restore that saves only the shares of the sites it carries
+  // again, as a full import may, though the sites it does not carry stay
+  // listed (BACKUP-003, ISO-015).
+  Mutant.importmergedrops => _with(
+    importTurn: _withArms(
+      tables.importTurn,
+      step: ActivationStep.grantImport,
+      arms: (s) => s.withArms(
+        otherwise: Otherwise(
+          s.otherwise.outcome,
+          then: SiteImport.carriedOnlyShares,
+          next: s.otherwise.next,
+        ),
+      ),
+    ),
+  ),
   // An import that leaves the containers of the sites it drops, as it did
   // before it ran as a table: the next startup's sweep alone took them.
   Mutant.importkeepsbox => _with(

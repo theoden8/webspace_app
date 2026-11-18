@@ -623,6 +623,12 @@ const _tabDeleteAlphabet = <SiteAction>[
 const _importSetups = <String, List<SiteAction>>{
   'site 1 signed in on screen': _signedInOnScreen,
   'site 2 signed in behind site 1': [Tap(1), Login(1), Tap(0)],
+  // Site 2 is the one a backup leaves out: a partial restore keeps it
+  // listed, so its session must be saved before the jar empties.
+  'site 2, which the backup leaves out, signed in on screen': [
+    Tap(1),
+    Login(1),
+  ],
 };
 
 const _importAlphabet = <SiteAction>[

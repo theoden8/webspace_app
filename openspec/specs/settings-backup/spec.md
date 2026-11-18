@@ -64,7 +64,10 @@ webview's first controller, or the container never sees them.
 A partial restore (some of the backup's sites chosen) SHALL keep every listed
 site the backup does not carry, read off the list as the import lands, so a
 site listed while the import awaited stays with its container
-([`ImportScope.merge`](../../../lib/controllers/site_set_change.dart)).
+([`ImportScope.merge`](../../../lib/controllers/site_set_change.dart)). On the
+shared jar, the import SHALL save the share of every loaded site that stays
+listed before it empties the jar: a whole restore's carried sites, a partial
+restore's every one.
 
 #### Scenario: Import restores non-secure cookies
 
@@ -85,6 +88,14 @@ site listed while the import awaited stays with its container
 **Given** sites B and C are on the list, C added after the restore began
 **When** a partial restore of a backup carrying only A lands
 **Then** A, B and C are listed, and B's and C's containers remain
+
+#### Scenario: A partial restore keeps the session of a loaded site it leaves out
+
+**Given** the shared jar, and site B loaded and signed in
+**When** a partial restore of a backup carrying only A lands
+**Then** B is listed and keeps its session: its share was saved before the import emptied the jar
+
+Tests: `test/activation_schedules_test.dart` ("a partial restore, shared jar, site 2, which the backup leaves out, signed in on screen"); `formal/check.sh` (`activation_imports_merge.cfg`, the `importmergedrops` mutant).
 
 #### Scenario: Import keeps a carried site's own session
 

@@ -361,6 +361,18 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [ImportBackup()],
     breaks: 'walk-0 lost cookies its page set, while unloaded',
   ),
+  Mutant.importmergedrops => _By(
+    world: (d) => ActivationWorld(
+      _mixed,
+      joins: true,
+      imports: true,
+      importMerges: true,
+      declared: d,
+    ),
+    setup: const [Tap(1), Login(1)],
+    script: const [ImportBackup()],
+    breaks: 'walk-1 lost cookies its page set',
+  ),
   Mutant.importkeepsbox => _By(
     world: (d) => ActivationWorld(
       _mixedContainers,

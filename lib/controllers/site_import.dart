@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:meta/meta.dart' show visibleForTesting;
+
 import 'package:webspace/controllers/container_retire.dart';
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_runtime.dart';
@@ -78,6 +80,14 @@ final class SiteImport {
   /// steps, and those it takes in the jar's turn.
   static StepTable<ImportFlow, ImportPlace> get importTable => _importTable;
   static StepTable<ImportFlow, ImportPlace> get turnTable => _turnTable;
+
+  /// The jar's turn taken with only the carried sites' shares to save, the
+  /// mutant `importmergedrops`.
+  @visibleForTesting
+  static List<Effect<ImportFlow>> get carriedOnlyShares => [
+    Lock.jar.takeTurn(),
+    _ls.becomes(_carriedOnly.inOrder),
+  ];
 }
 
 /// What an import's steps run against: on the shared jar, the jar's turn
@@ -453,8 +463,17 @@ final StepTable<ImportFlow, ImportPlace> _importTable = StepTable(
   },
 );
 
-/// The loaded sites the backup carries again, whose shares are saved.
-final _carriedLoaded = () {
+/// The loaded sites that stay listed, whose shares are saved before the
+/// jar is emptied: those the backup carries again, and in a partial
+/// restore every one, since none leaves the list (BACKUP-003, ISO-015).
+final _stayingLoaded = () {
+  final l = Bound<SiteId, ImportFlow>('l');
+  return _importLoaded.value.where(l, holds: _merges | _importing.has(l.it));
+}();
+
+/// The shares a partial restore that saved only the carried sites' would
+/// save: a listed site it does not carry loses its session to the nuke.
+final _carriedOnly = () {
   final l = Bound<SiteId, ImportFlow>('l');
   return _importLoaded.value.where(l, holds: _importing.has(l.it));
 }();
@@ -491,7 +510,7 @@ final StepTable<ImportFlow, ImportPlace> _turnTable = StepTable(
       granted: Lock.jar,
       otherwise: Otherwise(
         StepOutcome.snap,
-        then: [Lock.jar.takeTurn(), _ls.becomes(_carriedLoaded.inOrder)],
+        then: [Lock.jar.takeTurn(), _ls.becomes(_stayingLoaded.inOrder)],
         next: to(ImportPlace.iSnap),
       ),
     ),
