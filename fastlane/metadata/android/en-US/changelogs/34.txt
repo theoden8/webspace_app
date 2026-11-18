@@ -1,0 +1,12 @@
+✨ New Features:
+• New home screen design
+• Browser extensions (iOS, macOS)
+• Built-in Tor (Linux)
+• Menu bar icon (macOS)
+
+🔧 Improvements:
+• Recent tabs stay loaded
+• Nested pages, tab list and backups
+
+🐛 Bug Fixes:
+• Security fixes

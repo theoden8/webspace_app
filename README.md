@@ -42,6 +42,7 @@ WebSpace is a mobile and macOS app that brings all your favorite websites and we
 - 📦 LocalCDN - cache CDN resources locally to prevent tracking (Android)
 - 📌 Home screen shortcuts for quick site access
 - 📜 Per-site user scripts (custom JavaScript injection)
+- 🧩 Per-site browser extensions on iOS 18.4+ and macOS 15.4+, with limited support: imported from a `.zip`, `.crx` or `.xpi` and switched on per site, each confined to that site's domains and container; only what WebKit's `WKWebExtension` runs of the WebExtensions API works, never native messaging, and archived and kiosk sites run none
 - 🎨 Light/dark mode with accent colors
 
 ## Development
