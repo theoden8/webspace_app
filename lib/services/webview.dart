@@ -475,8 +475,8 @@ class WebViewFactory {
     final containerId = binding.containerId;
     final inappProxy = binding.proxy;
     // A first load the site's route cannot carry is a blank page, never a
-    // direct one: a proxy it expects but cannot bind (SEC-009), or an onion
-    // service on a route with no proxy, which the interstitial then names
+    // direct one: a proxy it expects but cannot bind (SEC-009), or an overlay
+    // name on a route with no proxy, which the interstitial then names
     // (LEAK-016).
     final firstLoadRefused =
         refusesLoad(binding, url: config.initialUrl);
@@ -1220,7 +1220,7 @@ class WebViewFactory {
         // store's proxy does cover. The rewrites above reach here on their
         // reissued pass, so a cleaned URL is judged on its own merits rather
         // than riding the original's decision.
-        // An onion service on a site with no proxy is refused here too
+        // An overlay name on a site with no proxy is refused here too
         // (LEAK-016): a link the routing decision keeps in this webview is a
         // request it would make directly.
         if (refused(url)) return inapp.NavigationActionPolicy.CANCEL;

@@ -411,7 +411,7 @@ test('NOTIF-016: a headless check stays on the site and is granted nothing', () 
     + 'through the builder the site webview uses');
   for (const check of [
     'if (binding.proxyUnavailable || binding.relayDown) {\n      return (null, WakeSkip.proxyUnavailable);',
-    'return (null, WakeSkip.onionNeedsProxy);',
+    'return (null, WakeSkip.overlayNeedsProxy);',
     'PageHandlers.registerPageHandlers(',
     'onCreateWindow: (_, _) async => false,',
     'inapp.PermissionResponseAction.DENY',

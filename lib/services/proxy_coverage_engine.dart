@@ -27,7 +27,8 @@ sealed class Uncovered extends ProxyCoverage {
   /// What the `Proxy` log entry says was missing.
   String get logLabel => switch (this) {
         Unprovable() => 'proxy coverage not established',
-        OnionNeedsProxy() => 'an onion service on a site with no proxy',
+        OverlayNeedsProxy(:final overlay) =>
+          '${overlay.what} on a site with no proxy',
       };
 }
 
@@ -38,11 +39,21 @@ final class Unprovable extends Uncovered {
   const Unprovable();
 }
 
-/// The destination is an onion service and the site has no proxy: neither
-/// Tor, built in or external, nor one of the user's. Only Tor resolves the
-/// name, so going direct would only hand it to the device's resolver.
-final class OnionNeedsProxy extends Uncovered {
-  const OnionNeedsProxy();
+/// The destination is on an overlay network and the site has no proxy:
+/// neither Tor, built in or external, nor one of the user's. Only the
+/// network's own router resolves the name, so going direct would only hand
+/// it to the device's resolver.
+final class OverlayNeedsProxy extends Uncovered {
+  const OverlayNeedsProxy(this.overlay);
+
+  final OverlayNetwork overlay;
+
+  @override
+  bool operator ==(Object other) =>
+      other is OverlayNeedsProxy && other.overlay == overlay;
+
+  @override
+  int get hashCode => overlay.hashCode;
 }
 
 /// A navigation the gate cancelled, as its interstitial names it.
@@ -76,9 +87,10 @@ class ProxyCoverageEngine {
   /// calls that binding process-wide.
   ///
   /// [destination] is the host the navigation names, or null for none. Any
-  /// proxy the user chose may carry an onion service: Tor resolves it, and a
-  /// proxy is handed the name rather than an address, so only a site with no
-  /// proxy at all is refused one.
+  /// proxy the user chose may carry an overlay name: Tor resolves an onion
+  /// one, an I2P router's proxy an I2P one, and a proxy is handed the name
+  /// rather than an address, so only a site with no proxy at all is refused
+  /// one.
   ///
   /// [relayDown] is no router running and none starting. Where the binding
   /// routes, that is the only way a configured proxy is reached, so its
@@ -95,8 +107,8 @@ class ProxyCoverageEngine {
           ? const Unprovable()
           : const Established();
     }
-    if (destination != null && destination.isOnion) {
-      return const OnionNeedsProxy();
+    if (destination?.overlay case final overlay?) {
+      return OverlayNeedsProxy(overlay);
     }
     return const NotClaimed();
   }

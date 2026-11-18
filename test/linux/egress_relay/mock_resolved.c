@@ -2,8 +2,8 @@
 // answers `echo.test` with 127.0.0.1 only when asked on the loopback link's
 // index, as resolved answers only from the servers of the link it is asked
 // on. A lookup on any other link, or on none (index 0), finds no servers.
-// It also answers any onion name, as a VPN's hijacking resolver might, so a
-// relay that asks it about one is caught dialling.
+// It also answers any onion or I2P name, as a VPN's hijacking resolver
+// might, so a relay that asks it about one is caught dialling.
 #include <gio/gio.h>
 #include <net/if.h>
 #include <string.h>
@@ -28,8 +28,9 @@ static void on_call(GDBusConnection* connection, const gchar* sender,
   g_variant_get(parameters, "(i&sit)", &index, &name, &family, &flags);
   const gint32 lo = (gint32)if_nametoindex("lo");
   const size_t n = strlen(name);
-  const gboolean onion = n > 6 && strcmp(name + n - 6, ".onion") == 0;
-  if (index != lo || (strcmp(name, "echo.test") != 0 && !onion) ||
+  const gboolean overlay = (n > 6 && strcmp(name + n - 6, ".onion") == 0) ||
+                           (n > 4 && strcmp(name + n - 4, ".i2p") == 0);
+  if (index != lo || (strcmp(name, "echo.test") != 0 && !overlay) ||
       (family != AF_UNSPEC && family != AF_INET)) {
     g_dbus_method_invocation_return_dbus_error(
         invocation, "org.freedesktop.resolve1.NoNameServers",

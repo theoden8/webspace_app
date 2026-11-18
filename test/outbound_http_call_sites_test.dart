@@ -345,7 +345,7 @@ Widget faviconUnder(UserProxySettings proxy, {required String url}) =>
       expect(addSitePreviewMayResolveLocally('example.com'), isTrue);
     });
 
-    test('never probes an onion service (LEAK-016)', () {
+    test('never probes an overlay name (LEAK-016)', () {
       expect(
           addSitePreviewMayResolveLocally(
               'duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion'),
@@ -353,6 +353,8 @@ Widget faviconUnder(UserProxySettings proxy, {required String url}) =>
           reason: 'only Tor resolves an onion name; the device resolver '
               'would only learn it');
       expect(addSitePreviewMayResolveLocally('a.b.ONION.'), isFalse);
+      expect(addSitePreviewMayResolveLocally('forum.I2P.'), isFalse,
+          reason: 'only an I2P router resolves an I2P name');
     });
 
     test('is skipped once a global proxy is configured', () {
