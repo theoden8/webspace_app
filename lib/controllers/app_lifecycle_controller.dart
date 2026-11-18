@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:webspace/controllers/startup_controller.dart' show Launched, Reached;
 import 'package:webspace/controllers/background_sites_controller.dart';
+import 'package:webspace/controllers/let_go_table.dart';
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/shortcut_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
@@ -274,7 +275,22 @@ class AppLifecycleController {
     LogTag.webView.warning(
         'Renderer probe failed for "${model.name}" (siteId: ${model.siteId}) — recreating',
         sensitive: true);
-    model.handleRendererGone(didCrash: false);
+    rendererGone(model, didCrash: false);
+  }
+
+  /// [model]'s renderer is gone (Android `onRenderProcessGone`, iOS/macOS
+  /// `onWebContentProcessDidTerminate`, or the probe): the view is alive but
+  /// has no renderer driving it, which paints as a black surface on resume
+  /// from background (issue #333). Recreation is the only supported
+  /// recovery per Android docs, so its webview is let go of and the page
+  /// rebuilt: the live JS heap and DOM went with the process, and
+  /// `currentUrl` is reloaded, so only the back stack is dropped (BUG-002).
+  void rendererGone(WebViewModel model, {required bool didCrash}) {
+    LogTag.webView.debug(
+        'Renderer gone for "${model.name}" (siteId: ${model.siteId}, '
+        'didCrash: $didCrash) — recreating');
+    LetGoTable.letGo(_sites, site: model, end: WebViewEnd.rendererGone);
+    _host.rebuild();
   }
 
   /// [ResumeReloadEngine]'s recovery for the site on screen (PAUSE-022): the

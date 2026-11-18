@@ -47,6 +47,10 @@ Indexed<S, Map<TabId, TabId?>, W> warmReported<S, W>({
 Expr<Map<TabId, TabId?>, W> noWarm<W>() =>
     Expr.constant(const {}, tla: r'[t \in TabIds |-> 0]');
 Mutable<Map<S, QueuedStack>, W> queuedOf<S, W>() => Mutable.remote(ModelVar.queued);
+
+/// `held[s]`: the back stack the live build took and no controller
+/// restored yet, which a let-go queues again (TAB-003).
+Mutable<Map<S, QueuedStack>, W> heldOf<S, W>() => Mutable.remote(ModelVar.held);
 Mutable<Map<S, Map<TabId, Map<S, TabId?>>>, W> fileOf<S, W>() =>
     Mutable.remote(ModelVar.file);
 
@@ -61,6 +65,14 @@ Indexed<S, Map<TabId, S>, W> hostReported<S, W>({
 
 /// No tab: `0`.
 Expr<TabId?, W> noTab<W>() => Expr.constant(null, tla: '0');
+
+/// No back stack: `NoQueued`.
+Expr<QueuedStack, W> noQueued<W>() => Expr.op(
+  HandPaired.noQueued,
+  tla: 'NoQueued',
+  run: (_) => (t: null, h: null),
+  reads: Reads.none,
+);
 
 /// Whether a build for [tab] takes the back stack [q] queued: only one read
 /// for that tab (`Takes`, TAB-003). The binding's take runs it and `Shown`
@@ -96,11 +108,19 @@ Def<Map<TabId, TabId?>, W> unwarmedOf<S, W>() {
   );
 }
 
+/// The sites whose webview the environment may let go of and frame again
+/// (`Rebuilt`): every site's in the code, so a config picks the few it
+/// checks.
+Members<S, W> rebuiltOf<S, W>() =>
+    Members(ModelConst.rebuilt, test: (_, {required member}) => true);
+
 /// The webview went, its warm ones with it (TAB-026): nothing is built or
-/// shown for the site.
+/// shown for the site, and what its build held goes with it (the tab's
+/// file still holds it).
 List<Write<W>> webViewGone<S, W>(Expr<S, W> site) => [
   builtOf<S, W>().becomes(builtOf<S, W>().value.except(site, to: noTab())),
   histOf<S, W>().becomes(histOf<S, W>().value.except(site, to: noTab())),
+  heldOf<S, W>().becomes(heldOf<S, W>().value.except(site, to: noQueued())),
   warmOf<S, W>().becomes(
     warmOf<S, W>().value.except(site, to: unwarmedOf<S, W>().call([site])),
   ),
@@ -110,6 +130,9 @@ List<Write<W>> webViewGone<S, W>(Expr<S, W> site) => [
 List<Write<W>> webViewsGone<S, W>(Expr<Iterable<S>, W> sites) => [
   builtOf<S, W>().becomes(builtOf<S, W>().value.exceptAll(sites, to: noTab())),
   histOf<S, W>().becomes(histOf<S, W>().value.exceptAll(sites, to: noTab())),
+  heldOf<S, W>().becomes(
+    heldOf<S, W>().value.exceptAll(sites, to: noQueued()),
+  ),
   warmOf<S, W>().becomes(warmOf<S, W>().value.exceptAll(sites, to: noWarm())),
 ];
 

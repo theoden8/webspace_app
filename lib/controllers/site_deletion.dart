@@ -110,6 +110,7 @@ final _deleteDropPort = Port<SiteSetStage, DeleteFlow>(
     ModelVar.built,
     ModelVar.hist,
     ModelVar.warm,
+    ModelVar.held,
     ModelVar.opener,
     ModelVar.link,
   },

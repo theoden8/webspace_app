@@ -210,6 +210,7 @@ void main() {
             builder: (_) => SettingsScreen(
               webViewModel: site,
               appTheme: WebViewTheme.system,
+              letGo: () {},
               isolation: fakeSharedJar(),
             ),
           ),

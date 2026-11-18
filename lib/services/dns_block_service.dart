@@ -340,6 +340,10 @@ class DnsBlockService {
   /// Levels whose list has been fetched, so a site may run at them.
   Set<int> get downloadedLevels => _levelSets.levels;
 
+  /// The app-wide level and the levels downloaded, as a view's level is
+  /// resolved against them.
+  LevelsInForce levelsInForce() => (level: _level, levels: _levelSets.levels);
+
   /// The disjoint groups, keyed by level-membership mask. What the native
   /// push ships, so the Android interceptor can answer at each site's own
   /// level off one copy of the data.
@@ -381,7 +385,7 @@ class DnsBlockService {
   /// whenever the partition or the app-wide level moves (DNS-022).
   late ViewBlockers views = ViewBlockers(
     send: _attachNative,
-    resolve: effectiveLevelFor,
+    inForce: levelsInForce,
   );
 
   static void _attachNative(ViewAttach a) =>
@@ -1018,7 +1022,7 @@ class DnsBlockService {
     _storeOverride = null;
     _holder = null;
     _waiting = const [];
-    views = ViewBlockers(send: _attachNative, resolve: effectiveLevelFor);
+    views = ViewBlockers(send: _attachNative, inForce: levelsInForce);
   }
 
   FileStore? _storeOverride;

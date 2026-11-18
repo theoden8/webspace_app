@@ -3,22 +3,31 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/services/media_session_service.dart';
+import 'package:webspace/controllers/let_go_table.dart';
+import 'package:webspace/controllers/site_runtime.dart';
+import 'package:webspace/services/step_table.dart';
 import 'package:webspace/web_view_model.dart';
 import 'helpers/fake_webview_controller.dart';
 import 'package:webspace/services/webview_controller.dart';
 
 void main() {
-  group('WebViewModel.handleRendererGone', () {
-    test('clears cached webview + controller and triggers a rebuild', () {
-      var rebuilds = 0;
-      final model = WebViewModel(
-        initUrl: 'https://example.com',
-        stateSetterF: () => rebuilds++,
-      );
+  group('a renderer gone lets the webview go (LetGoTable)', () {
+    /// [model] listed, loaded and built for its active tab, as a frame
+    /// leaves it.
+    SiteRuntime built(WebViewModel model) {
+      final sites = SiteRuntime()..models.add(model);
+      sites.seed(loaded: [model], shown: model);
+      model.tabBinding.frame(model.activeTabId, commit: const Commit.fixture());
       model.webview = const SizedBox.shrink();
       model.controller = FakeWebViewController();
+      return sites;
+    }
 
-      model.handleRendererGone(didCrash: true);
+    test('a loaded site: its webview, its controller and its tab go', () {
+      final model = WebViewModel(initUrl: 'https://example.com');
+      final sites = built(model);
+
+      LetGoTable.letGo(sites, site: model, end: WebViewEnd.rendererGone);
 
       expect(model.webview, isNull,
           reason: 'Cached widget must be cleared so the next getWebView call '
@@ -26,37 +35,23 @@ void main() {
       expect(model.controller, isNull,
           reason: 'The dead controller is unusable — keep it and the next '
               'pause/resume/setSettings call hits a torn-down platform view.');
-      expect(rebuilds, 1,
-          reason: 'Host must rebuild so the IndexedStack child reconstructs.');
+      expect(model.tabBinding.built, isNull,
+          reason: 'the model lets go of built and hist (LetGo)');
+      expect(sites.loaded, [model], reason: 'the site stays loaded');
     });
 
-    test('handles a null stateSetterF without throwing', () {
+    test('a site the model takes no let-go of writes none of it', () {
+      // Not loaded, nothing built: the teardown runs in Commit.none, which
+      // fails on a write of the model.
       final model = WebViewModel(initUrl: 'https://example.com');
+      final sites = SiteRuntime()..models.add(model);
       model.webview = const SizedBox.shrink();
       model.controller = FakeWebViewController();
 
-      expect(() => model.handleRendererGone(didCrash: false), returnsNormally);
-      expect(model.webview, isNull);
-      expect(model.controller, isNull);
-    });
-
-    test('didCrash=false (OS-killed renderer) still recreates', () {
-      // Per Android docs: when didCrash is false the renderer was killed by
-      // the system to reclaim memory. The recovery is the same as a hard
-      // crash — the WebView object is unusable either way.
-      var rebuilds = 0;
-      final model = WebViewModel(
-        initUrl: 'https://example.com',
-        stateSetterF: () => rebuilds++,
-      );
-      model.webview = const SizedBox.shrink();
-      model.controller = FakeWebViewController();
-
-      model.handleRendererGone(didCrash: false);
+      LetGoTable.letGo(sites, site: model, end: WebViewEnd.rendererGone);
 
       expect(model.webview, isNull);
       expect(model.controller, isNull);
-      expect(rebuilds, 1);
     });
   });
 
@@ -111,7 +106,8 @@ void main() {
       );
       expect(MediaSessionService.instance.isActive, isTrue);
 
-      model.handleRendererGone(didCrash: true);
+      LetGoTable.letGo(SiteRuntime()..models.add(model),
+          site: model, end: WebViewEnd.rendererGone);
       await pumpEventQueue();
 
       expect(calls.where((m) => m != 'isNotificationActive'), ['start', 'stop']);

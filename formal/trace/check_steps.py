@@ -52,7 +52,7 @@ def tla_seq(xs):
     return "<<" + ", ".join(xs) + ">>"
 
 
-TAB_VARS = ["tabs", "active", "built", "hist", "warm", "queued", "file",
+TAB_VARS = ["tabs", "active", "built", "hist", "warm", "queued", "held", "file",
             "minted", "host", "link", "opener"]
 ARCHIVE_VARS = ["gone", "views", "boxes"]
 
@@ -87,7 +87,7 @@ def tla_state(s, max_tabs=1):
         # A tab not yet made has no file, runs as its own site and follows
         # no link and no opener.
         core += (", tabs |-> %s, active |-> %s, built |-> %s, hist |-> %s, "
-                 "warm |-> %s, queued |-> %s, file |-> %s, minted |-> %s, "
+                 "warm |-> %s, queued |-> %s, held |-> %s, file |-> %s, minted |-> %s, "
                  "host |-> %s, link |-> %s, opener |-> %s") % (
             tla_seq(tla_set(x) for x in s["tabs"]),
             tla_seq(str(x) for x in s["active"]),
@@ -95,6 +95,7 @@ def tla_state(s, max_tabs=1):
             tla_seq(str(x) for x in s["hist"]),
             tla_seq(tla_seq(str(v) for v in padded(w, 0)) for w in s["warm"]),
             tla_seq("[t |-> %d, h |-> %d]" % (q[0], q[1]) for q in s["queued"]),
+            tla_seq("[t |-> %d, h |-> %d]" % (q[0], q[1]) for q in s["held"]),
             tla_seq(tla_seq(tla_seq(str(v) for v in by)
                             for by in padded(f, [0] * sites))
                     for f in s["file"]),
@@ -177,7 +178,7 @@ def module(name, trace, variables):
         "        /\\ signedIn = {} /\\ holder = 0",
         "        /\\ dnsHolder = 0 /\\ dnsQueue = << >>",
         "        /\\ ids = [s \\in Sites |-> s]",
-        "        /\\ queue = IF ColdStart /\\ ~Containers THEN << 0 >> ELSE << >>",
+        "        /\\ queue = IF ColdStart /\\ ~Containers THEN Launched_Jar ELSE << >>",
         "        /\\ fl = [f \\in Flows |-> NoFlow] /\\ inputs = 0",
         "        /\\ newest = 0 /\\ evictedShown = FALSE /\\ seen = {}",
         "        /\\ last = [a |-> \"init\", f |-> 0, o |-> \"\", s |-> 0]",
@@ -186,7 +187,7 @@ def module(name, trace, variables):
             "        /\\ tabs = [s \\in Sites |-> {1}] /\\ active = [s \\in Sites |-> 1]",
             "        /\\ built = [s \\in Sites |-> 0] /\\ hist = built",
             "        /\\ warm = [s \\in Sites |-> [t \\in TabIds |-> 0]]",
-            "        /\\ queued = [s \\in Sites |-> NoQueued]",
+            "        /\\ queued = [s \\in Sites |-> NoQueued] /\\ held = queued",
             "        /\\ file = [s \\in Sites |-> [t \\in TabIds |-> [h \\in Sites |-> 0]]]",
             "        /\\ minted = [s \\in Sites |-> 1]",
             "        /\\ host = [s \\in Sites |-> [t \\in TabIds |-> s]]",

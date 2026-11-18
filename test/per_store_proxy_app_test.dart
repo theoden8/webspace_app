@@ -107,8 +107,12 @@ void main() {
       proxySettings: proxy('127.0.0.1:18081'),
     );
     site.controller = FakeWebViewController();
-    await site.updateProxySettings(proxy('127.0.0.1:18082'));
-    expect(site.controller, isNull, reason: 'the webview goes to be rebuilt');
+    var letGo = false;
+    await site.updateProxySettings(
+      proxy('127.0.0.1:18082'),
+      letGo: () => letGo = true,
+    );
+    expect(letGo, isTrue, reason: 'the webview goes to be rebuilt');
     expect(ruleCalls, isEmpty);
   });
 }

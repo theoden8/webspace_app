@@ -245,6 +245,7 @@ class HeadlessSiteCheck {
         siteLevel: config.siteDnsAsk,
         localCdn: posture.blocking.localCdn,
         contentBlock: posture.blocking.contentBlock,
+        vars: config.hooks.vars,
       ),
     );
   }

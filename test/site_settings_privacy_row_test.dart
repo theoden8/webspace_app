@@ -17,6 +17,7 @@ Future<void> _pump(WidgetTester tester, {required WebViewModel model}) async {
   await tester.pumpWidget(localizedApp(SettingsScreen(
         webViewModel: model,
         appTheme: WebViewTheme.system,
+        letGo: () {},
         isolation: fakeSharedJar())));
   await tester.pumpAndSettle();
 }

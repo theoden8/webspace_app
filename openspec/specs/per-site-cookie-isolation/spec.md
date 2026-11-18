@@ -471,7 +471,7 @@ The boundaries:
 **When** its restore has refilled the jar
 **Then** no jar clear runs after it at that launch
 **And** the post-paint orphan sweep issues no `deleteAllCookies()` at all
-  (`formal/activation.tla`, the cold start's `lateclear` mistake)
+  (`formal/activation.tla`, the cold start's `lateclear` mutant)
 
 #### Scenario: Orphan sweep runs on site deletion
 

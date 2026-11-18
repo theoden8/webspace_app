@@ -23,14 +23,19 @@ final class RuntimeVars<S extends Object> {
   });
 
   /// A page that keeps the loaded sites as a set and the rest as plain
-  /// values: a test's host.
+  /// values: a test's host, a wake checking the sites [checked] headless.
   @visibleForTesting
-  factory RuntimeVars.ofSet(Set<S> loaded, {S? shown, bool onScreen = true}) {
+  factory RuntimeVars.ofSet(
+    Set<S> loaded, {
+    S? shown,
+    bool onScreen = true,
+    Set<S> checked = const {},
+  }) {
     var current = shown;
     var version = 0;
     ActivationMarker<S>? marker;
     S? nested;
-    final headless = <S>{};
+    final headless = {...checked};
     var fore = onScreen;
     return RuntimeVars(
       loaded: Shared.ofSet(loaded, variable: ModelVar.loaded),

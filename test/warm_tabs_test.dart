@@ -157,7 +157,7 @@ void main() {
     _warm(m, tab: 't1');
     _warm(m, tab: 't2');
     m.controller = FakeWebViewController();
-    m.disposeWebView(commit: const Commit.environment(Environment.letGo));
+    m.disposeWebView(commit: _frame);
     expect(m.controller, isNull);
     expect(m.warmViews, isEmpty);
   });
@@ -178,7 +178,7 @@ void main() {
       final m = _site('a', ids: ['t0', 't1', 't2']);
       final warm = [_warm(m, tab: 't1'), _warm(m, tab: 't2')];
       m.controller = FakeWebViewController();
-      m.disposeWebView(commit: const Commit.environment(Environment.letGo));
+      m.disposeWebView(commit: _frame);
       await pumpEventQueue();
       for (final view in warm) {
         expect(view.calls, isNot(contains('saveState')));

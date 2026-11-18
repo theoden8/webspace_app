@@ -4,6 +4,7 @@ import 'package:webspace/services/container_native.dart';
 import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/controllers/startup_controller.dart' show Launched, Reached;
+import 'package:webspace/controllers/let_go_table.dart';
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_route.dart';
 import 'package:webspace/controllers/site_runtime.dart';
@@ -802,7 +803,7 @@ class LinkController {
         await _host.unloadSite(model, reason: UnloadReason.homeReset);
         if (!_host.mounted) return;
       } else {
-        model.disposeWebView(commit: const Commit.environment(Environment.letGo));
+        LetGoTable.letGo(_sites, site: model);
       }
       model.currentUrl = model.initUrl;
     }

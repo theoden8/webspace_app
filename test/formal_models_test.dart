@@ -181,7 +181,13 @@ void main() {
       for (final module in ['activation_tables.tla', 'activation_ops.tla']) {
         final real = printed[module]!.split('\n\n').toSet();
         final mutant = printed['mutants/$name/$module']!.split('\n\n').toSet();
-        changed += mutant.difference(real).length;
+        // A lock's launch queue is printed from the environment steps
+        // granted its turn, so it moves with the one step a mistake changes
+        // there and is not a second place.
+        changed += mutant
+            .difference(real)
+            .where((block) => !block.contains('\nLaunched_'))
+            .length;
       }
       expect(
         changed,
