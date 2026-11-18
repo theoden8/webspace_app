@@ -1030,6 +1030,8 @@
   "unproxiedBlockWhy": "Sakop ng proxy na itinakda para sa isang site ang kahilingang pambukas ng isang pahina. Dumating ito pagkatapos, mula sa loob ng pahina, at walang paraan dito para ipakitang dadaan din ito sa proxy.",
   "onionBlockBody": "Walang proxy ang {site}, at nabubuksan lang ang mga onion address sa pamamagitan ng Tor o ng isang proxy. Kung binuksan ito nang direkta, maipapakita ito sa DNS resolver ng device na ito, kaya hindi ito binuksan.",
   "onionBlockWhy": "Para makapagbukas ng mga onion address sa site na ito, itakda ang proxy nito sa Tor, o sa isang proxy na nakakaabot sa mga onion service.",
+  "i2pBlockBody": "Walang proxy ang {site}, at nabubuksan lang ang mga I2P address sa pamamagitan ng proxy ng isang I2P router. Kung binuksan ito nang direkta, maipapakita ito sa DNS resolver ng device na ito, kaya hindi ito binuksan.",
+  "i2pBlockWhy": "Para makapagbukas ng mga I2P address sa site na ito, itakda ang proxy nito sa HTTP o SOCKS proxy ng isang I2P router na tumatakbo sa device na ito o sa iyong network.",
   "unproxiedBlockBack": "Bumalik",
   "unproxiedBlockProxySettings": "Mga setting ng proxy",
   "proxyTestOk": "Gumagana ang proxy",

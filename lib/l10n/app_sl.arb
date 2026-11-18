@@ -1030,6 +1030,8 @@
   "unproxiedBlockWhy": "Posredniški strežnik, nastavljen za mesto, pokriva zahtevo, s katero se stran odpre. Ta je prišla pozneje, iz same strani, in tu ni načina, da bi pokazali, da bi tudi ona šla skozi posredniški strežnik.",
   "onionBlockBody": "{site} nima posredniškega strežnika, naslovi onion pa se odprejo le prek omrežja Tor ali posredniškega strežnika. Če bi se ta odprl neposredno, bi ga videl razreševalnik DNS te naprave, zato se ni odprl.",
   "onionBlockWhy": "Če želite na tem mestu odpirati naslove onion, mu kot posredniški strežnik nastavite Tor ali strežnik, ki doseže storitve onion.",
+  "i2pBlockBody": "{site} nima posredniškega strežnika, naslovi I2P pa se odprejo le prek posredniškega strežnika usmerjevalnika I2P. Če bi se ta odprl neposredno, bi ga videl razreševalnik DNS te naprave, zato se ni odprl.",
+  "i2pBlockWhy": "Če želite na tem mestu odpirati naslove I2P, mu kot posredniški strežnik nastavite posredniški strežnik HTTP ali SOCKS usmerjevalnika I2P, ki teče na tej napravi ali v vašem omrežju.",
   "unproxiedBlockBack": "Nazaj",
   "unproxiedBlockProxySettings": "Nastavitve posredniškega strežnika",
   "proxyTestOk": "Posredniški strežnik deluje",

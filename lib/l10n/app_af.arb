@@ -1030,6 +1030,8 @@
   "unproxiedBlockWhy": "'n Instaanbediener wat vir 'n werf gestel is, dek die versoek waarmee 'n bladsy oopgemaak word. Hierdie een het daarna gekom, van binne die bladsy af, en hier is daar geen manier om te wys dat dit ook deur die instaanbediener sou gaan nie.",
   "onionBlockBody": "{site} het geen instaanbediener nie, en onion-adresse maak slegs deur Tor of 'n instaanbediener oop. Om hierdie een direk oop te maak, sou dit aan hierdie toestel se DNS-oplosser gewys het, en daarom is dit nie oopgemaak nie.",
   "onionBlockWhy": "Om onion-adresse op hierdie werf oop te maak, stel sy instaanbediener op Tor, of op 'n instaanbediener wat onion-dienste kan bereik.",
+  "i2pBlockBody": "{site} het geen instaanbediener nie, en I2P-adresse maak slegs deur 'n I2P-router se instaanbediener oop. Om hierdie een direk oop te maak, sou dit aan hierdie toestel se DNS-oplosser gewys het, en daarom is dit nie oopgemaak nie.",
+  "i2pBlockWhy": "Om I2P-adresse op hierdie werf oop te maak, stel sy instaanbediener op die HTTP- of SOCKS-instaanbediener van 'n I2P-router wat op hierdie toestel of jou netwerk loop.",
   "unproxiedBlockBack": "Gaan terug",
   "unproxiedBlockProxySettings": "Instaanbediener-instellings",
   "proxyTestOk": "Die instaanbediener werk",

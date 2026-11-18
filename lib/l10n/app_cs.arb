@@ -1030,6 +1030,8 @@
   "unproxiedBlockWhy": "Proxy nastavená pro web pokrývá požadavek, kterým se stránka otevírá. Tento přišel až potom, zevnitř stránky, a zde není jak doložit, že by prošel také přes proxy.",
   "onionBlockBody": "{site} nemá žádnou proxy a adresy onion se otevírají jen přes Tor nebo proxy. Kdyby se tato otevřela napřímo, ukázala by se DNS resolveru tohoto zařízení, a proto se neotevřela.",
   "onionBlockWhy": "Chcete-li na této stránce otevírat adresy onion, nastavte její proxy na Tor nebo na proxy, která dosáhne na služby onion.",
+  "i2pBlockBody": "{site} nemá žádnou proxy a adresy I2P se otevírají jen přes proxy routeru I2P. Kdyby se tato otevřela napřímo, ukázala by se DNS resolveru tohoto zařízení, a proto se neotevřela.",
+  "i2pBlockWhy": "Chcete-li na této stránce otevírat adresy I2P, nastavte její proxy na HTTP nebo SOCKS proxy routeru I2P, který běží na tomto zařízení nebo ve vaší síti.",
   "unproxiedBlockBack": "Zpět",
   "unproxiedBlockProxySettings": "Nastavení proxy",
   "proxyTestOk": "Proxy funguje",
