@@ -64,7 +64,9 @@ webview's first controller, or the container never sees them.
 A partial restore (some of the backup's sites chosen) SHALL keep every listed
 site the backup does not carry, read off the list as the import lands, so a
 site listed while the import awaited stays with its container
-([`ImportScope.merge`](../../../lib/controllers/site_set_change.dart)). On the
+([`ImportScope.merge`](../../../lib/controllers/site_set_change.dart)). It
+SHALL keep the list's order: a carried site takes the place of the listed one
+it replaces, and the sites it brings onto the list follow. On the
 shared jar, the import SHALL save the share of every loaded site that stays
 listed before it empties the jar: a whole restore's carried sites, a partial
 restore's every one.

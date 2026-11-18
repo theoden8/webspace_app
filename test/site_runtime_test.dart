@@ -315,8 +315,9 @@ void main() {
         ),
       );
       expect([for (final m in r.models) m.siteId],
-          [SiteId('b'), SiteId('c'), SiteId('a')]);
-      expect(r.models.last, same(carried));
+          [SiteId('a'), SiteId('b'), SiteId('c')],
+          reason: 'a carried site takes the row of the one it replaces');
+      expect(r.models.first, same(carried));
       expect(
         r.webspaces.singleWhere((w) => w.id == WebspaceId('w')).siteIds,
         containsAll([SiteId('a'), SiteId('b')]),
