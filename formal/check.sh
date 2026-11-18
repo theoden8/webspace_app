@@ -8,6 +8,7 @@
 #                                            (anti-inertness: proves the legal behavior
 #                                            the green checks rely on is reachable)
 #   ARCHIVE   archive*.cfg                -> ARCH-001 byte-identity (self-composition)
+#   ARCHIVE_TRANSFER archive_transfer*.cfg -> encrypted-slot handoff and recovery
 #   ACTIVATION activation*.cfg            -> activation.tla, with the modules the
 #                                            code prints (FORMAL_MODEL); each
 #                                            printed mutant MUST be caught
@@ -393,6 +394,40 @@ expect archive_leak.cfg archive.tla "ByteIdentity is violated" \
   "leaking archive count into app-tier state is caught"
 expect archive_reach.cfg archive.tla "Reach_Active is violated" \
   "byte-identity is checked against real archive+write activity (not vacuous)"
+
+section "ARCHIVE_TRANSFER" "archive removal across separate durable stores"
+expect archive_transfer.cfg archive_transfer.tla "No error has been found" \
+  "transfers keep sites and collections without a visible duplicate"
+expect archive_transfer_empty.cfg archive_transfer.tla "No error has been found" \
+  "a site-only archive can be reclaimed without loss"
+expect archive_transfer_drop_site.cfg archive_transfer.tla "NoLostSites is violated" \
+  "dropping the archived site before the app write is caught"
+expect archive_transfer_duplicate.cfg archive_transfer.tla "NoDuplicateVisible is violated" \
+  "replaying the archived site after the app write is caught"
+expect archive_transfer_drop_collection.cfg archive_transfer.tla "NoLostCollections is violated" \
+  "dropping a collection before the app write is caught"
+expect archive_transfer_touch_other.cfg archive_transfer.tla "OtherArchiveIntact is violated" \
+  "wiping another archive's slot is caught"
+expect archive_transfer_refuse_pending.cfg archive_transfer.tla "OpenCanEnd is violated" \
+  "a close that refuses a move out whose save failed, never settling it, is caught"
+expect archive_transfer_reach_partial.cfg archive_transfer.tla "Reach_Partial is violated" \
+  "a partially transferred archive is reachable"
+expect archive_transfer_reach_recovery.cfg archive_transfer.tla "Reach_SiteRecovery is violated" \
+  "a site transfer can recover after a crash"
+expect archive_transfer_reach_site_before_write.cfg archive_transfer.tla "Reach_SiteBeforeWrite is violated" \
+  "a site transfer can recover before the app write"
+expect archive_transfer_reach_removal_recovery.cfg archive_transfer.tla "Reach_RemovalRecovery is violated" \
+  "a collection transfer can recover after the app write"
+expect archive_transfer_reach_removal_before_write.cfg archive_transfer.tla "Reach_RemovalBeforeWrite is violated" \
+  "a collection transfer can recover before the app write"
+expect archive_transfer_reach_removed.cfg archive_transfer.tla "Reach_Removed is violated" \
+  "sites and collections can be transferred before slot removal"
+expect archive_transfer_reach_empty_wiped.cfg archive_transfer.tla "Reach_EmptyWiped is violated" \
+  "the final site can cause immediate empty-slot cleanup"
+expect archive_transfer_reach_empty_reclaimed.cfg archive_transfer.tla "Reach_EmptyReclaimed is violated" \
+  "opening an empty slot after a crash can reclaim it"
+expect archive_transfer_reach_stalled.cfg archive_transfer.tla "Reach_Stalled is violated" \
+  "a move out whose last save failed in process is reachable"
 
 section "RENDERER" "BUG-002 dead-renderer recovery (PAUSE-013 + PAUSE-014)"
 expect renderer.cfg renderer.tla "No error has been found" \
