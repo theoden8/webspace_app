@@ -58,17 +58,18 @@ SitePosture barePosture(
 }
 
 /// A host with no app around the webview: every prompt answers no, nothing
-/// opens elsewhere and no site runs, so a view is told no level after its
-/// attach. [httpAuth] stands in for the sign-in prompt; [leaving]
+/// opens elsewhere and only the sites [loaded] names run, so another
+/// site's view is told no level after its attach. [httpAuth] stands in for the sign-in prompt; [leaving]
 /// hears each URL a navigation would have taken out of the site (a nested
 /// screen, the browser, another site's slot), which this host declines.
 WebViewHostHooks bareHooks({
   HttpAuthPrompt? httpAuth,
   void Function(String url)? leaving,
+  Set<SiteId> loaded = const {},
 }) =>
     WebViewHostHooks(
       isolation: () => bareIsolation,
-      vars: RuntimeVars.ofSet({}),
+      vars: RuntimeVars.ofSet(loaded),
       globalUserScripts: () => const [],
       save: () async {},
       rebuild: () {},
@@ -88,10 +89,13 @@ WebViewHostHooks bareHooks({
       media: _NoPrompts(),
     );
 
-/// [bareHooks] for a site's own webview, which is on screen and takes no
-/// link to another site's slot ([leaving] hears it).
-SiteHooks bareSiteHooks({void Function(String url)? leaving}) => SiteHooks(
-      host: bareHooks(leaving: leaving),
+/// [bareHooks] for [site]'s own webview, which is loaded and on screen
+/// and takes no link to another site's slot ([leaving] hears it).
+SiteHooks bareSiteHooks({
+  required SiteId site,
+  void Function(String url)? leaving,
+}) => SiteHooks(
+      host: bareHooks(leaving: leaving, loaded: {site}),
       onScreen: (_) => true,
       routeOutbound: (_, {required url, required decision, required hadGesture}) {
         leaving?.call(url);
