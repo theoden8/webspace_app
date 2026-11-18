@@ -66,7 +66,7 @@ void main() {
         );
         final local = remintImportedGlobalScripts(
           plan.globalUserScripts!,
-          plan.heldScripts,
+          held: plan.heldScripts,
         );
         expect(local.scripts.first.id, isNot(originalId));
         expect(archived.combineUserScripts(local.scripts), isEmpty);

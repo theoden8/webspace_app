@@ -113,9 +113,9 @@ List<HeldScript> heldScriptsForSites(
 /// therefore never opt into newly imported code through an old id.
 ({List<UserScriptConfig> scripts, List<HeldScript> held})
 remintImportedGlobalScripts(
-  List<UserScriptConfig> scripts,
-  List<HeldScript> held,
-) {
+  List<UserScriptConfig> scripts, {
+  required List<HeldScript> held,
+}) {
   final firstByBackupId = <UserScriptId, UserScriptConfig>{};
   final localScripts = <UserScriptConfig>[];
   final usedIds = {for (final script in scripts) script.id};

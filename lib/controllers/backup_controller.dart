@@ -229,8 +229,8 @@ class BackupController {
             ? (readExportedAppPrefs(prefs)
                 ..removeWhere((key, _) => !choices.appPrefKeys.contains(key)))
             : null,
-        selectedWebspaceId: webspaces.any(
-                (w) => w.id == _sites.selectedWebspaceId)
+        selectedWebspaceId:
+            webspaces.any((w) => w.id == _sites.selectedWebspaceId)
             ? _sites.selectedWebspaceId
             : null,
         // A row among the exported sites, which an archive-tier row before
@@ -365,7 +365,10 @@ class BackupController {
     }
     final remintedGlobals =
         restoreChoices.restoreGlobalScripts && plan.globalUserScripts != null
-        ? remintImportedGlobalScripts(plan.globalUserScripts!, plan.heldScripts)
+        ? remintImportedGlobalScripts(
+            plan.globalUserScripts!,
+            held: plan.heldScripts,
+          )
         : null;
 
     final selectedSourceIndices =
@@ -435,7 +438,8 @@ class BackupController {
               key == AppPref.webSearchDefaultSite.key) {
             continue;
           }
-          if (restoreChoices.appPrefKeys.contains(key)) currentPrefs[key] = value;
+          if (restoreChoices.appPrefKeys.contains(key))
+            currentPrefs[key] = value;
         }
         await writeExportedAppPrefs(
           await SharedPreferences.getInstance(),
