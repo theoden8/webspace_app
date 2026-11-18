@@ -77,7 +77,7 @@ runs:
       if: inputs.proofs == 'true'
       run: |
         echo "url=https://github.com/tlaplus/tlapm/releases/download/1.6.0-pre/tlapm-1.6.0-pre-x86_64-linux-gnu.tar.gz" >> "$GITHUB_OUTPUT"
-        echo "sha256=1fcb037a300929d4bed8539511f65073fc19762abd9cea5260fe91d0f2d617df" >> "$GITHUB_OUTPUT"
+        echo "sha256=d9c06a04eb6b1b4192d3e22d5378143d09c9801414b9ad7ff6e918d34093c1f0" >> "$GITHUB_OUTPUT"
     - uses: ./.github/actions/master-cache
       if: inputs.proofs == 'true'
       with:
