@@ -126,6 +126,7 @@ void main() {
       SiteRemoved.new,
       (_) => const SitesMoved(0, to: 1),
       (_) => SitesReplaced(
+        scope: ImportScope.replace,
         sites: [_site('c')],
         webspaces: [Webspace(id: WebspaceId('w'), name: 'w', siteIds: [SiteId('c')])],
         selectedWebspaceId: WebspaceId('w'),
@@ -164,7 +165,7 @@ void main() {
   test('the reconcile (LIR-034) runs before ineligible hosted tabs close',
       () async {
     await commit.landed(
-      SitesReplaced(sites: [_site('a')], webspaces: const [], selectedWebspaceId: null, closed: ArchivesClosed.inTest()),
+      SitesReplaced(scope: ImportScope.replace, sites: [_site('a')], webspaces: const [], selectedWebspaceId: null, closed: ArchivesClosed.inTest()),
     );
     expect(host.calls.indexOf('reconcile'), greaterThan(-1));
     expect(host.calls.indexOf('reconcile'),
@@ -196,7 +197,7 @@ void main() {
     expect(host.calls, contains('sweep'));
     host.calls.clear();
     await commit.landed(
-      SitesReplaced(sites: [_site('c')], webspaces: const [], selectedWebspaceId: null, closed: ArchivesClosed.inTest()),
+      SitesReplaced(scope: ImportScope.replace, sites: [_site('c')], webspaces: const [], selectedWebspaceId: null, closed: ArchivesClosed.inTest()),
     );
     expect(host.calls, contains('sweep'));
   });

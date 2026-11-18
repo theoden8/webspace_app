@@ -28,6 +28,7 @@ import 'package:webspace/settings/web_extension_backup.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/settings/site_field.dart';
 import 'package:webspace/settings/site_ids.dart';
 
 /// A restored site's choices for the backup's extensions, by the ids they
@@ -84,6 +85,107 @@ final class HeldGlobalScript extends HeldScript {
       site.enabledGlobalScriptIds.add(script.id);
     }
   }
+}
+
+/// Only release scripts on sites the user selected in the restore review.
+/// A global script is held with just those sites, so its other opt-ins stay off.
+List<HeldScript> heldScriptsForSites(
+  List<HeldScript> held, {
+  required Set<SiteId> siteIds,
+  required bool includeGlobalScripts,
+}) => [
+  for (final script in held)
+    if (script is HeldSiteScript && siteIds.contains(script.site.siteId))
+      script
+    else if (script is HeldGlobalScript && includeGlobalScripts)
+      if (script.sites.any((site) => siteIds.contains(site.siteId)))
+        HeldGlobalScript(
+          script.script,
+          sites: script.sites
+              .where((site) => siteIds.contains(site.siteId))
+              .toList(),
+        ),
+];
+
+/// The parsed backup keeps its original ids for compatibility checks. When
+/// installing its globals, give each a fresh local id and move the backup's
+/// held per-site opt-ins to that id. A retained site or closed archive can
+/// therefore never opt into newly imported code through an old id.
+({List<UserScriptConfig> scripts, List<HeldScript> held})
+remintImportedGlobalScripts(
+  List<UserScriptConfig> scripts, {
+  required List<HeldScript> held,
+}) {
+  final firstByBackupId = <UserScriptId, UserScriptConfig>{};
+  final localScripts = <UserScriptConfig>[];
+  final usedIds = {for (final script in scripts) script.id};
+  for (final script in scripts) {
+    late UserScriptId localId;
+    do {
+      localId = UserScriptId.mint();
+    } while (!usedIds.add(localId));
+    final local = UserScriptConfig.fromJson({
+      ...script.toJson(),
+      'id': localId,
+    });
+    firstByBackupId.putIfAbsent(script.id, () => local);
+    localScripts.add(local);
+  }
+  return (
+    scripts: localScripts,
+    held: [
+      for (final script in held)
+        if (script is HeldGlobalScript)
+          HeldGlobalScript(
+            firstByBackupId[script.script.id]!,
+            sites: script.sites,
+          )
+        else
+          script,
+    ],
+  );
+}
+
+/// Replacing the global script library invalidates opt-ins on sites retained
+/// from this device. A backup script can reuse an old id with different code;
+/// leaving an opt-in set would run that code without the site's review choice.
+/// Imported sites were already sanitized and are reenabled only after review.
+List<WebViewModel> clearRetainedGlobalScriptOptIns(
+  Iterable<WebViewModel> retainedSites,
+) {
+  final changed = <WebViewModel>[];
+  for (final site in retainedSites) {
+    if (site.enabledGlobalScriptIds.isEmpty) continue;
+    site.enabledGlobalScriptIds.clear();
+    changed.add(site);
+  }
+  return changed;
+}
+
+/// Partial imports retain existing collections and add selected backup
+/// memberships to matching collection ids, including chosen empty folders.
+List<Webspace> mergeBackupWebspaces(
+  List<Webspace> current, {
+  required List<Webspace> imported,
+}) {
+  final result = <Webspace>[
+    Webspace.all(),
+    for (final space in current)
+      if (!space.isAll && !space.isArchiveTier) space.copyWith(),
+  ];
+  for (final space in imported) {
+    if (space.isAll) continue;
+    final existing = result.indexWhere((item) => item.id == space.id);
+    if (existing < 0) {
+      result.add(space);
+    } else {
+      result[existing].siteIds = {
+        ...result[existing].siteIds,
+        ...space.siteIds,
+      }.toList();
+    }
+  }
+  return result;
 }
 
 /// What an import applies, made only by [planSettingsImport], so nothing
@@ -153,12 +255,28 @@ class SettingsImportPlan {
 SettingsImportPlan planSettingsImport(
   SettingsBackup backup, {
   Function? stateSetterF,
+  Set<int>? selectedSiteIndices,
+  Set<int>? selectedWebspaceIndices,
+  Set<int>? siteScriptIndices,
+  Set<int>? siteCookieIndices,
+  Set<int>? siteExtensionIndices,
+  Set<SiteId> keeping = const {},
 }) {
   final sites = <WebViewModel>[];
   final seenIds = <String>{};
-  for (final raw in backup.sites) {
-    var json = raw;
-    final id = SiteId.parse(json['siteId']);
+  for (var index = 0; index < backup.sites.length; index++) {
+    var json = Map<String, dynamic>.of(backup.sites[index]);
+    if (siteScriptIndices != null && !siteScriptIndices.contains(index)) {
+      json.remove(SiteField.userScripts.key);
+      json.remove(SiteField.enabledGlobalScriptIds.key);
+    }
+    if (siteCookieIndices != null && !siteCookieIndices.contains(index)) {
+      json[SiteField.cookies.key] = <dynamic>[];
+    }
+    if (siteExtensionIndices != null && !siteExtensionIndices.contains(index)) {
+      json.remove(SiteField.webExtensionChoices.key);
+    }
+    final id = SiteId.parse(json[SiteField.siteId.key]);
     // Two sites sharing a siteId would share one container: one cookie jar,
     // one storage partition. The first keeps the id, later ones get fresh.
     if (id != null && !seenIds.add(id)) {
@@ -175,23 +293,45 @@ SettingsImportPlan planSettingsImport(
         if (site.webExtensionChoices.isNotEmpty)
           (site: site, choices: Map.of(site.webExtensionChoices)),
   ];
-  final heldScripts =
-      sanitizeImportedSites(sites, globalScripts: globalScripts ?? const []);
+  var heldScripts = sanitizeImportedSites(
+    sites,
+    globalScripts: globalScripts ?? const [],
+  );
   // TAB-018: a restored site keeps its colour unless a site before it holds
   // it, which a re-minted duplicate or a hand-edited backup can. A released
   // site gets the least used colour when the import is applied.
-  final colours = ContainerColorEngine.release(
-    [for (final s in sites) s.containerColor],
-    paletteSize: kContainerPaletteSize,
-  );
+  final colours = ContainerColorEngine.release([
+    for (final s in sites) s.containerColor,
+  ], paletteSize: kContainerPaletteSize);
   for (var i = 0; i < sites.length; i++) {
     sites[i].containerColor = colours[i];
   }
 
-  final webspaces = SettingsBackupService.restoreWebspaces(backup);
+  final webspaces = SettingsBackupService.restoreWebspaces(
+    backup,
+    selectedIndices: selectedWebspaceIndices,
+  );
   _dedupeWebspaceIds(webspaces);
   promoteLegacySiteIndices(webspaces, sites: sites);
-  final known = {for (final s in sites) s.siteId};
+  final allSites = List<WebViewModel>.of(sites);
+  if (selectedSiteIndices != null) {
+    final selectedIds = {
+      for (final index in selectedSiteIndices)
+        if (index >= 0 && index < allSites.length) allSites[index].siteId,
+    };
+    sites.removeWhere((site) => !selectedIds.contains(site.siteId));
+    heldExtensionChoices.removeWhere(
+      (held) => !selectedIds.contains(held.site.siteId),
+    );
+    heldScripts = heldScriptsForSites(
+      heldScripts,
+      siteIds: selectedIds,
+      includeGlobalScripts: true,
+    );
+  }
+  // A partial restore keeps the listed sites too ([keeping]): references
+  // to them stay.
+  final known = {for (final s in sites) s.siteId, ...keeping};
   for (final ws in webspaces) {
     if (ws.isAll) continue;
     final seen = <String>{};
@@ -212,8 +352,9 @@ SettingsImportPlan planSettingsImport(
     site.pruneSearchReferences(known.contains);
   }
   final appPrefs = resolveExportedAppPrefs(backup.globalPrefs);
-  final searchDefault =
-      AppPref.webSearchDefaultSite.fromBackup(backup.globalPrefs);
+  final searchDefault = AppPref.webSearchDefaultSite.fromBackup(
+    backup.globalPrefs,
+  );
   if (searchDefault.isNotEmpty && !known.contains(searchDefault)) {
     appPrefs[AppPref.webSearchDefaultSite.key] = '';
   }
@@ -224,16 +365,20 @@ SettingsImportPlan planSettingsImport(
   return SettingsImportPlan._(
     sites: sites,
     webspaces: webspaces,
-    themeStorageIndex: normalizeBackupThemeIndex(backup.themeMode, sites: backup.sites),
+    themeStorageIndex: normalizeBackupThemeIndex(
+      backup.themeMode,
+      sites: backup.sites,
+    ),
     appPrefs: appPrefs,
     selectedWebspaceId:
         selected != null && webspaces.any((ws) => ws.id == selected)
-            ? selected
-            : WebspaceId.all,
-    currentIndex:
-        current != null && current >= 0 && current < sites.length
-            ? current
-            : null,
+        ? selected
+        : WebspaceId.all,
+    currentIndex: current != null && current >= 0 && current < allSites.length
+        ? sites.contains(allSites[current])
+              ? sites.indexOf(allSites[current])
+              : null
+        : null,
     globalUserScripts: globalScripts,
     heldScripts: heldScripts,
     webExtensions: backup.webExtensions,
@@ -242,8 +387,11 @@ SettingsImportPlan planSettingsImport(
         ? null
         : [
             for (final e in backup.suggestedSites!)
-              if ((e['name'], e['url'], e['domain'])
-                  case (final String name, final String url, final String domain))
+              if ((e['name'], e['url'], e['domain']) case (
+                final String name,
+                final String url,
+                final String domain,
+              ))
                 (name: name, url: url, domain: domain),
           ],
     dnsBlockLevel: switch (backup.dnsBlockLevel) {
@@ -264,10 +412,9 @@ SettingsImportPlan planSettingsImport(
           ],
     extraSections: backup.extraSections ?? const [],
     proxyPasswordsNeeded: _backupNamesProxyUsername(backup),
-    blocklistsNeedDownload: (backup.dnsBlockLevel is int &&
-            backup.dnsBlockLevel! > kDnsLevelOff) ||
-        (backup.contentBlockerLists?.any((e) => e['enabled'] == true) ??
-            false),
+    blocklistsNeedDownload:
+        (backup.dnsBlockLevel is int && backup.dnsBlockLevel! > kDnsLevelOff) ||
+        (backup.contentBlockerLists?.any((e) => e['enabled'] == true) ?? false),
   );
 }
 
@@ -357,8 +504,10 @@ ArchiveState sanitizeImportedArchive(ArchiveState section) {
 /// Webspaces written before membership was keyed by siteId (v0.2.3 and
 /// earlier) carry positional `siteIndices`. Resolve them against [sites] in
 /// their saved order. Idempotent. Returns whether anything changed.
-bool promoteLegacySiteIndices(List<Webspace> webspaces,
-    {required List<WebViewModel> sites}) {
+bool promoteLegacySiteIndices(
+  List<Webspace> webspaces, {
+  required List<WebViewModel> sites,
+}) {
   var migrated = false;
   for (final ws in webspaces) {
     if (ws.isAll) continue;
@@ -377,10 +526,13 @@ bool promoteLegacySiteIndices(List<Webspace> webspaces,
 /// 0..2, so the old form is told apart by shape: v0.1.0 also began writing
 /// `language` on every site. A negative index would make
 /// `AppThemeSettings.fromStorageIndex` read `ThemeMode.values[-1]`.
-int normalizeBackupThemeIndex(int raw,
-    {required List<Map<String, dynamic>> sites}) {
+int normalizeBackupThemeIndex(
+  int raw, {
+  required List<Map<String, dynamic>> sites,
+}) {
   if (raw < 0) return 0;
-  final legacy = raw <= 2 &&
+  final legacy =
+      raw <= 2 &&
       sites.isNotEmpty &&
       !sites.any((s) => s.containsKey('language'));
   return legacy ? raw * 10 : raw;
@@ -389,7 +541,9 @@ int normalizeBackupThemeIndex(int raw,
 /// `host:port` of the app-wide proxy [backup] would install, or null when it
 /// sets none. Shown in the import confirmation.
 String? backupGlobalProxyAddress(SettingsBackup backup) {
-  final proxy = _decodeProxyPref(backup.globalPrefs[AppPref.globalOutboundProxy.key]);
+  final proxy = _decodeProxyPref(
+    backup.globalPrefs[AppPref.globalOutboundProxy.key],
+  );
   if (proxy == null) return null;
   final type = proxy['type'];
   if (type is! int || type == ProxyType.DEFAULT.index) return null;
@@ -398,8 +552,9 @@ String? backupGlobalProxyAddress(SettingsBackup backup) {
   if (type == ProxyType.SAVED.index || type == ProxyType.GATEWAY.index) {
     return resolveLibrary(
       UserProxySettings.fromJson(proxy),
-      library:
-          ProxyLibraryData.decode(backup.globalPrefs[AppPref.proxyLibrary.key]),
+      library: ProxyLibraryData.decode(
+        backup.globalPrefs[AppPref.proxyLibrary.key],
+      ),
     ).route.address;
   }
   final address = proxy['address'];
@@ -433,9 +588,12 @@ bool _backupNamesProxyUsername(SettingsBackup backup) {
       proxy['username'] is String &&
       (proxy['username'] as String).isNotEmpty;
   return backup.sites.any((s) => named(s['proxySettings'])) ||
-      named(_decodeProxyPref(backup.globalPrefs[AppPref.globalOutboundProxy.key])) ||
+      named(
+        _decodeProxyPref(backup.globalPrefs[AppPref.globalOutboundProxy.key]),
+      ) ||
       _libraryNamesUsername(
-          ProxyLibraryData.decode(backup.globalPrefs[AppPref.proxyLibrary.key]));
+        ProxyLibraryData.decode(backup.globalPrefs[AppPref.proxyLibrary.key]),
+      );
 }
 
 bool _libraryNamesUsername(ProxyLibraryData lib) {

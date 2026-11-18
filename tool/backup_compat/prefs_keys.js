@@ -72,7 +72,7 @@ function scanRegistry(sources, globals) {
   const enumStart = src.indexOf('enum AppPref<');
   if (enumStart >= 0) {
     const block = src.slice(enumStart, src.indexOf('const AppPref(', enumStart));
-    const entry = /^\s*(\w+)\(\s*'([^']+)'\s*,\s*(?:fallback:\s*)?(true|false|-?\d+(?:\.\d+)?|'[^']*')\s*(?:,\s*legacyKey:\s*'([^']+)'\s*)?,?\s*\)\s*[,;]/gm;
+    const entry = /^\s*(\w+)\(\s*'([^']+)'\s*,\s*(?:section:\s*PrefSection\.\w+\s*,\s*)?(?:fallback:\s*)?(true|false|-?\d+(?:\.\d+)?|'[^']*')\s*(?:,\s*legacyKey:\s*'([^']+)'\s*)?,?\s*\)\s*[,;]/gm;
     const out = { types: {}, names: {}, legacy: {} };
     for (const m of block.matchAll(entry)) {
       const type = literalType(m[3]);

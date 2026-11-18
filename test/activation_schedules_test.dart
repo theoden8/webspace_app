@@ -623,6 +623,12 @@ const _tabDeleteAlphabet = <SiteAction>[
 const _importSetups = <String, List<SiteAction>>{
   'site 1 signed in on screen': _signedInOnScreen,
   'site 2 signed in behind site 1': [Tap(1), Login(1), Tap(0)],
+  // Site 2 is the one a backup leaves out: a partial restore keeps it
+  // listed, so its session must be saved before the jar empties.
+  'site 2, which the backup leaves out, signed in on screen': [
+    Tap(1),
+    Login(1),
+  ],
 };
 
 const _importAlphabet = <SiteAction>[
@@ -1358,26 +1364,34 @@ void main() {
     });
   }
 
+  // A whole restore and a partial one, which keeps the listed sites the
+  // backup does not carry (ImportScope.merge).
   for (final cookies in ['shared jar', 'containers']) {
-    for (final MapEntry(key: setupName, value: setup)
-        in _importSetups.entries) {
-      _scheduleTest('an import, $cookies, $setupName: every schedule holds',
-          body: () async {
-        for (var length = 1; length <= _importLength; length++) {
-          for (final script in _scripts(length, alphabet: _importAlphabet)) {
-            await _expectEvery(
-              world: () => ActivationWorld(
-                cookies == 'containers' ? _mixedContainers : _mixed,
-                joins: true,
-                imports: true,
-              ),
-              setup: setup,
-              script: script,
-              preemptions: _preemptions,
-            );
+    for (final (scope, merges) in const [
+      ('an import', false),
+      ('a partial restore', true),
+    ]) {
+      for (final MapEntry(key: setupName, value: setup)
+          in _importSetups.entries) {
+        _scheduleTest('$scope, $cookies, $setupName: every schedule holds',
+            body: () async {
+          for (var length = 1; length <= _importLength; length++) {
+            for (final script in _scripts(length, alphabet: _importAlphabet)) {
+              await _expectEvery(
+                world: () => ActivationWorld(
+                  cookies == 'containers' ? _mixedContainers : _mixed,
+                  joins: true,
+                  imports: true,
+                  importMerges: merges,
+                ),
+                setup: setup,
+                script: script,
+                preemptions: _preemptions,
+              );
+            }
           }
-        }
-      });
+        });
+      }
     }
   }
 

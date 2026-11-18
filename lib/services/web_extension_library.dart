@@ -655,14 +655,17 @@ class WebExtensionLibrary {
     await _save(entries);
   }
 
-  /// Each way a backup can carry the library, with its size (WEBEXT-011).
-  /// Fails with an [IOException] when a folder cannot be read.
-  Future<ExtensionCarryOffer> carryOffer() async {
+  /// Each way a backup can carry the library, with its size (WEBEXT-011):
+  /// [only] those extensions where given, as a backup of some sites carries
+  /// only what they use. Fails with an [IOException] when a folder cannot
+  /// be read.
+  Future<ExtensionCarryOffer> carryOffer({Set<WebExtensionId>? only}) async {
     final folders = _folders;
     if (folders == null) return offerExtensionCarry(const []);
     final library = [
       for (final (:entry, folder: _) in _installed.value)
-        (entry: entry, files: await folders.read(entry.id)),
+        if (only == null || only.contains(entry.id))
+          (entry: entry, files: await folders.read(entry.id)),
     ];
     return compute(offerExtensionCarry, library);
   }

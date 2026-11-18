@@ -601,6 +601,88 @@ expect switchguard_noguard.cfg switchguard.tla "Inv_NoWrongActivation is violate
 expect switchguard_reach.cfg switchguard.tla "Reach_Bailed is violated" \
   "a mutation-during-switch bail is reachable (guard not vacuous)"
 
+section "BACKUP IMPORT" "granular site, folder and reactivation selections"
+expect backup_import.cfg backup_import.tla "No error has been found" \
+  "every bounded selector combination, including empty backups, preserves import scope"
+expect backup_import_runall.cfg backup_import.tla "Inv_ScriptConsent is violated" \
+  "reactivating a script without per-site consent is caught"
+expect backup_import_allfolders.cfg backup_import.tla "Inv_FolderScope is violated" \
+  "importing unchosen folders is caught"
+expect backup_import_empty_replace.cfg backup_import.tla "Inv_SiteScope is violated" \
+  "replacing current sites with a chosen folder from an empty backup is caught"
+expect backup_import_empty_reach.cfg backup_import.tla "Reach_EmptyFolder is violated" \
+  "a chosen empty folder imports without a site"
+expect backup_import_script_reach.cfg backup_import.tla "Reach_EnabledScript is violated" \
+  "a consented per-site script can reactivate"
+expect backup_import_empty_backup_reach.cfg backup_import.tla "Reach_EmptyBackupFolder is violated" \
+  "an empty backup can add a chosen empty folder without removing current sites"
+expect backup_import_empty_noscope_reach.cfg backup_import.tla "Reach_EmptyBackupNoScope is violated" \
+  "an empty backup with no selected content leaves current sites and folders alone"
+
+section "BACKUP REVIEW" "whole-webspace and per-site selection transitions"
+expect backup_review.cfg backup_review.tla "No error has been found" \
+  "overlapping and empty webspaces preserve selection and activation scope"
+expect backup_review_drop_shared.cfg backup_review.tla "Inv_NoSharedSiteLost is violated" \
+  "dropping a site shared with another chosen webspace is caught"
+expect backup_review_shared_reach.cfg backup_review.tla "Reach_SharedKept is violated" \
+  "a shared site survives deselecting one of its webspaces"
+expect backup_review_empty_reach.cfg backup_review.tla "Reach_EmptyFolder is violated" \
+  "an empty webspace can be selected without a site"
+
+section "BACKUP SETTINGS" "app preference and global-script import scope"
+expect backup_settings.cfg backup_settings.tla "No error has been found" \
+  "preference keys and global scripts obey their independent choices"
+expect backup_settings_allprefs.cfg backup_settings.tla "Inv_PrefScope is violated" \
+  "applying preferences without app consent or site scope is caught"
+expect backup_settings_global_without_consent.cfg backup_settings.tla "Inv_GlobalRunConsent is violated" \
+  "reactivating a global script without consent is caught"
+expect backup_settings_search_reach.cfg backup_settings.tla "Reach_SearchSkipped is violated" \
+  "the search default is skipped when no site import is chosen"
+expect backup_settings_global_reach.cfg backup_settings.tla "Reach_GlobalRuns is violated" \
+  "a confirmed global script can run on its chosen site"
+
+section "BACKUP CONFLICTS" "matching site and webspace identities"
+expect backup_conflicts.cfg backup_conflicts.tla "No error has been found" \
+  "selected identity collisions obey site, content, folder and global-script rules"
+expect backup_conflicts_discard.cfg backup_conflicts.tla "Inv_SiteCollision is violated" \
+  "discarding an unselected current site during partial import is caught"
+expect backup_conflicts_content.cfg backup_conflicts.tla "Inv_ContentCollision is violated" \
+  "overwriting unchecked content on a matching site is caught"
+expect backup_conflicts_folder.cfg backup_conflicts.tla "Inv_FolderCollision is violated" \
+  "replacing a matching folder instead of merging a partial import is caught"
+expect backup_conflicts_global.cfg backup_conflicts.tla "Inv_NoGlobalCollision is violated" \
+  "letting a retained site run a new global script under an old id is caught"
+expect backup_conflicts_reuse_global.cfg backup_conflicts.tla "Inv_FreshGlobalIdentity is violated" \
+  "reusing a backup global-script id that an archive may have opted into is caught"
+expect backup_conflicts_keep_reach.cfg backup_conflicts.tla "Reach_KeepCurrent is violated" \
+  "an unchecked matching site remains current"
+expect backup_conflicts_merge_reach.cfg backup_conflicts.tla "Reach_MergeFolder is violated" \
+  "partial import merges a matching folder's members"
+expect backup_conflicts_replace_reach.cfg backup_conflicts.tla "Reach_ReplaceAll is violated" \
+  "all-site import replaces the site and folder lists"
+expect backup_conflicts_global_reach.cfg backup_conflicts.tla "Reach_GlobalDisabled is violated" \
+  "a retained site's old global opt-in is cleared before library replacement"
+expect backup_conflicts_fresh_global_reach.cfg backup_conflicts.tla "Reach_FreshGlobal is violated" \
+  "an imported global script receives a fresh local id"
+
+section "BACKUP EXTENSION CONFLICTS" "fingerprint relinking and per-site consent"
+expect backup_extension_conflicts.cfg backup_extension_conflicts.tla "No error has been found" \
+  "an existing extension is never overwritten or activated by an id collision"
+expect backup_extension_conflicts_id.cfg backup_extension_conflicts.tla "Inv_Fingerprint is violated" \
+  "relinking a different extension by id instead of fingerprint is caught"
+expect backup_extension_conflicts_add.cfg backup_extension_conflicts.tla "Inv_AddConsent is violated" \
+  "adding backup files without approval is caught"
+expect backup_extension_conflicts_run.cfg backup_extension_conflicts.tla "Inv_SiteConsent is violated" \
+  "running a linked extension without per-site consent is caught"
+expect backup_extension_conflicts_overwrite.cfg backup_extension_conflicts.tla "Inv_NoOverwrite is violated" \
+  "overwriting an installed extension during import is caught"
+expect backup_extension_conflicts_relink_reach.cfg backup_extension_conflicts.tla "Reach_Relink is violated" \
+  "identical installed files are relinked without adding a package"
+expect backup_extension_conflicts_add_reach.cfg backup_extension_conflicts.tla "Reach_Add is violated" \
+  "an approved carried package can be added"
+expect backup_extension_conflicts_missing_reach.cfg backup_extension_conflicts.tla "Reach_Missing is violated" \
+  "a missing reference remains inactive"
+
 section "JAR" "legacy cookie jar never left empty on a superseded restore"
 expect jar_nonempty.cfg jar_nonempty.tla "No error has been found" \
   "a nuked jar is always repopulated before returning to rest"

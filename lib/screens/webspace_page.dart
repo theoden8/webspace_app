@@ -25,6 +25,7 @@ import 'package:webspace/controllers/site_deletion.dart';
 import 'package:webspace/controllers/site_import.dart';
 import 'package:webspace/controllers/site_set_commit.dart';
 import 'package:webspace/controllers/backup_controller.dart';
+import 'package:webspace/widgets/backup_prompts.dart';
 import 'package:webspace/controllers/fullscreen_controller.dart';
 import 'package:webspace/controllers/keyboard_shortcut_controller.dart';
 import 'package:webspace/controllers/link_controller.dart';
@@ -107,7 +108,6 @@ import 'package:webspace/widgets/tab_count_pill.dart';
 import 'package:webspace/widgets/fullscreen_overlays.dart';
 import 'package:webspace/widgets/link_menu_sheet.dart';
 import 'package:webspace/widgets/archive_prompts.dart';
-import 'package:webspace/widgets/backup_prompts.dart';
 import 'package:webspace/widgets/launch_zoom.dart';
 import 'package:webspace/widgets/link_prompts.dart';
 import 'package:webspace/widgets/page_load_bar.dart';
@@ -362,6 +362,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             },
             onScriptsChanged: _resets.resetShown,
             onClearCookies: () => _clearSiteData(model),
+            onExportSite: () => _backup.export(onlySite: model.siteId),
             onSettingsSaved: _resets.settingsSaved,
             letGo: () => LetGoTable.letGo(_sites, site: model),
             onProxyChanging: () => _beforeProxyChange(model),

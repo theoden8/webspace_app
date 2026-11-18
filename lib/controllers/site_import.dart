@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:meta/meta.dart' show visibleForTesting;
+
 import 'package:webspace/controllers/container_retire.dart';
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_runtime.dart';
@@ -78,6 +80,14 @@ final class SiteImport {
   /// steps, and those it takes in the jar's turn.
   static StepTable<ImportFlow, ImportPlace> get importTable => _importTable;
   static StepTable<ImportFlow, ImportPlace> get turnTable => _turnTable;
+
+  /// The jar's turn taken with only the carried sites' shares to save, the
+  /// mutant `importmergedrops`.
+  @visibleForTesting
+  static List<Effect<ImportFlow>> get carriedOnlyShares => [
+    Lock.jar.takeTurn(),
+    _ls.becomes(_carriedOnly.inOrder),
+  ];
 }
 
 /// What an import's steps run against: on the shared jar, the jar's turn
@@ -123,13 +133,33 @@ final class ImportFlow extends JarWorld implements SiteModels {
   /// lists move.
   void land({required Commit commit}) {
     _replaced = List.of(_sites.models);
-    _dropped = [
-      for (final m in _replaced)
-        if (!replacement.sites.hasKey(m)) m,
-    ];
+    _dropped = switch (replacement.scope) {
+      ImportScope.replace => [
+        for (final m in _replaced)
+          if (!replacement.sites.hasKey(m)) m,
+      ],
+      ImportScope.merge => const [],
+    };
+    final containers = _sites.isolation is Containers;
     for (final m in replacement.sites) {
       final row = _replaced.indexOfKey(m);
-      if (row >= 0) m.cookies = List.of(_replaced[row].cookies);
+      // The backup's cookies reach a container only through its webview's
+      // first controller: a site it brings new, and a carried one whose
+      // restore the user chose (BACKUP-003).
+      if (containers &&
+          m.cookies.isNotEmpty &&
+          (row < 0 || replacement.restoreCookiesForSiteIds.contains(m.siteId))) {
+        m.pendingContainerCookies.queue(m.cookies);
+      }
+      if (row >= 0) {
+        final current = _replaced[row].cookies;
+        m.cookies = replacement.restoreCookiesForSiteIds.contains(m.siteId)
+            ? [
+                ...current.where((cookie) => cookie.isSecure == true),
+                ...m.cookies,
+              ]
+            : List.of(current);
+      }
     }
     _stage.land(commit: commit);
   }
@@ -240,6 +270,13 @@ final _importing = Constant<Iterable<SiteId>, ImportFlow>(
   read: (w) => [for (final m in w.replacement.sites) m.siteId],
 ).value;
 
+/// Whether the import keeps the listed sites the backup does not carry, a
+/// partial restore's (`ImportMerges`).
+final _merges = Constant<bool, ImportFlow>(
+  ModelConst.importMerges,
+  read: (w) => w.replacement.scope == ImportScope.merge,
+).value;
+
 /// Whether the world imports a backup: the code may import one any time,
 /// an empty one too.
 final _imports = Expr.ofConstant<bool, ImportFlow>(
@@ -321,7 +358,13 @@ final _frame = Await<ImportFlow, ImportPlace>(
 /// the list starts signed out: whatever session it had left with it, and
 /// the backup's cookies are all it has (BACKUP-003).
 List<Write<ImportFlow>> _landWrites() => [
-  _importGone.becomes(_sitesAll.less(_importing)),
+  _importGone.becomes(
+    Expr.choose(
+      when: _merges,
+      then: _importGone.value.less(_importing),
+      otherwise: _sitesAll.less(_importing),
+    ),
+  ),
   _signedIn.becomes(_signedIn.value.less(_importing.less(_listed))),
   _importLoaded.becomes(Expr.none()),
   _importCurrent.becomes(_noSite),
@@ -332,8 +375,15 @@ List<Write<ImportFlow>> _landWrites() => [
     to: Expr.constant(SiteLifecycleState.resident, tla: '"resident"'),
   ),
   ...webViewsGone(_listed),
-  ...TabVars.openersGone(_listed.less(_importing)),
+  ...TabVars.openersGone(_leaving),
 ];
+
+/// The listed sites the import takes off the list: none a partial restore's.
+final _leaving = Expr.choose<Iterable<SiteId>, ImportFlow>(
+  when: _merges,
+  then: Expr.none(),
+  otherwise: _listed.less(_importing),
+);
 
 Call<ImportFlow> _landCall() => Call.on(
   _landPort,
@@ -344,7 +394,7 @@ Call<ImportFlow> _landCall() => Call.on(
 
 final _dropping = _dropped.becomes(
   Expr.checked(
-    rule: _listed.less(_importing),
+    rule: _leaving,
     run: (c) => [for (final m in _page.from(c).dropped) m.siteId],
     key: (id) => id,
     why: 'the import retires the listed sites the backup does not carry '
@@ -413,8 +463,17 @@ final StepTable<ImportFlow, ImportPlace> _importTable = StepTable(
   },
 );
 
-/// The loaded sites the backup carries again, whose shares are saved.
-final _carriedLoaded = () {
+/// The loaded sites that stay listed, whose shares are saved before the
+/// jar is emptied: those the backup carries again, and in a partial
+/// restore every one, since none leaves the list (BACKUP-003, ISO-015).
+final _stayingLoaded = () {
+  final l = Bound<SiteId, ImportFlow>('l');
+  return _importLoaded.value.where(l, holds: _merges | _importing.has(l.it));
+}();
+
+/// The shares a partial restore that saved only the carried sites' would
+/// save: a listed site it does not carry loses its session to the nuke.
+final _carriedOnly = () {
   final l = Bound<SiteId, ImportFlow>('l');
   return _importLoaded.value.where(l, holds: _importing.has(l.it));
 }();
@@ -451,7 +510,7 @@ final StepTable<ImportFlow, ImportPlace> _turnTable = StepTable(
       granted: Lock.jar,
       otherwise: Otherwise(
         StepOutcome.snap,
-        then: [Lock.jar.takeTurn(), _ls.becomes(_carriedLoaded.inOrder)],
+        then: [Lock.jar.takeTurn(), _ls.becomes(_stayingLoaded.inOrder)],
         next: to(ImportPlace.iSnap),
       ),
     ),

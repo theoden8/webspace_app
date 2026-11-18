@@ -1,14 +1,20 @@
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
     show WebUri;
+import 'package:meta/meta.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/webview_controller.dart';
 
-/// The cookies an archive's open queued for a site's container, written once
-/// its webview exists: without them an archive-tier site on native containers
-/// loads with an empty jar though [`ArchiveHandle.state.cookies`] holds its
-/// saved login.
-final class ArchiveCookieQueue {
+/// The cookies queued for a site's container, written once its webview
+/// exists: an archive's open queues the saved login its state holds
+/// ([`ArchiveHandle.state.cookies`]), and a settings import the backup's
+/// cookies (BACKUP-003). Without them a site on native containers loads with
+/// a jar that has never seen them.
+final class ContainerCookieQueue {
   List<Cookie>? _queued;
+
+  /// What the next controller will be handed, if anything.
+  @visibleForTesting
+  List<Cookie>? get queued => _queued;
 
   /// Replaces the queue, as each re-open of the archive does.
   void queue(List<Cookie> cookies) => _queued = List<Cookie>.from(cookies);

@@ -31,6 +31,7 @@ enum Env {
   deleteOne(op: ModelConst.deletable, by: 'DeleteOne'),
   importOne(op: ModelConst.importing, by: 'ImportOne'),
   importKeep(op: ModelConst.importing, by: 'ImportKeep'),
+  importMerging(op: ModelConst.importMerges, by: 'ImportMerging'),
   resetOne(op: ModelConst.resettable, by: 'ResetOne'),
   rebuildOne(op: ModelConst.rebuilt, by: 'RebuildOne'),
   joinOne(op: ModelConst.joining, by: 'JoinOne'),
@@ -932,6 +933,27 @@ enum ActivationWorld {
         'drops leaves the list, the loaded sites, the frame and the disk '
         '(CONT-010)',
   ),
+  importsMerge(
+    cookies: Cookies.sharedJar,
+    coldStart: false,
+    inputs: 3,
+    env: {Env.importOne, Env.joinOne, Env.importMerging},
+    invariants: [..._core, ..._jar, Inv.retired],
+    holds:
+        "shared jar, a partial restore beside taps and the jar's turns: "
+        'every listed site stays, a carried one keeps its session, and the '
+        'one it brings joins (BACKUP-003, ISO-015)',
+  ),
+  importsMergeContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    inputs: 3,
+    env: {Env.importOne, Env.joinOne, Env.importMerging},
+    invariants: [..._core, Inv.retired],
+    holds:
+        'containers, a partial restore beside taps and frames: no listed '
+        'site leaves the list or the disk (CONT-010)',
+  ),
   importsArchive(
     cookies: Cookies.sharedJar,
     coldStart: false,
@@ -1503,6 +1525,15 @@ enum Mutant {
     doc:
         'an import that empties the jar without saving the share of a '
         'loaded site it carries again loses that session (ISO-015, caught)',
+  ),
+  importmergedrops(
+    world: ActivationWorld.importsMerge,
+    slice: (allowed: {'Tap', 'ImportSites'}),
+    by: Inv.noSessionLoss,
+    doc:
+        'a partial restore that saves only the shares of the sites it carries '
+        'again, then empties the jar: a loaded site it keeps listed loses its '
+        'session (BACKUP-003, ISO-015, caught)',
   ),
   importkeepsbox(
     world: ActivationWorld.importsContainers,

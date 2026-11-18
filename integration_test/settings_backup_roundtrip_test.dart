@@ -32,7 +32,7 @@ import 'package:file_picker/file_picker.dart';
 // magnitude more code for no extra coverage.
 // ignore: implementation_imports
 import 'package:file_picker/src/platform/file_picker_platform_interface.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -190,6 +190,9 @@ void main() {
     await openSettingsAndScrollTo(find.text('Export Settings'));
     await tester.tap(find.text('Export Settings'));
     await tester.pumpAndSettle(const Duration(seconds: 5));
+    // Export now opens a review screen before the file picker.
+    await tester.tap(find.widgetWithText(FilledButton, 'Create backup'));
+    await tester.pumpAndSettle(const Duration(seconds: 5));
 
     expect(File(exportPath).existsSync(), isTrue,
         reason: 'export should write to the path returned by FilePicker.saveFile');
@@ -203,16 +206,16 @@ void main() {
 
     // Import Settings — same Pop-then-callback pattern, so re-open
     // App Settings, scroll, and tap Import Settings. The import flow
-    // shows its confirmation dialog and the post-import snackbar
+    // shows its review screen and the post-import snackbar
     // attached to the parent (webspaces-list) ScaffoldMessenger.
     stub.pickReturn = exportPath;
     await openSettingsAndScrollTo(find.text('Import Settings'));
     await tester.tap(find.text('Import Settings'));
     await tester.pumpAndSettle(const Duration(seconds: 5));
 
-    final importButton = find.text('Import');
+    final importButton = find.widgetWithText(FilledButton, 'Import');
     expect(importButton, findsOneWidget,
-        reason: 'Import confirmation dialog should render its OK button');
+        reason: 'Import review should render its action button');
     await tester.tap(importButton);
     await tester.pumpAndSettle(const Duration(seconds: 5));
 

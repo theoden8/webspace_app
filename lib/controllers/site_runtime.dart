@@ -14,6 +14,7 @@ import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
+import 'package:webspace/settings_import_engine.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
@@ -371,9 +372,10 @@ class SiteRuntime implements SiteModels {
           );
         }
       case SitesReplaced(
-        sites: final replacement,
+        sites: final carried,
         webspaces: final spaces,
         :final selectedWebspaceId,
+        :final scope,
         :final closed,
       ):
         assert(
@@ -381,16 +383,34 @@ class SiteRuntime implements SiteModels {
           'the sites are replaced only in the archives\' turn, every archive '
           'closed, so none opens against the rows being replaced (SEC-044)',
         );
+        // The listed sites a partial restore keeps, read as it lands; every
+        // webview goes as the loaded set empties, theirs too.
+        final kept = switch (scope) {
+          ImportScope.replace => const <WebViewModel>[],
+          ImportScope.merge => [
+            for (final m in models)
+              if (!carried.hasKey(m)) m,
+          ],
+        };
+        final keptSpaces = switch (scope) {
+          ImportScope.replace => spaces,
+          ImportScope.merge => mergeBackupWebspaces(webspaces, imported: spaces),
+        };
         models
           ..clear()
-          ..addAll(replacement);
+          ..addAll([...kept, ...carried]);
         _loaded.clear();
         _shown = null;
         _version++;
         webspaces
           ..clear()
-          ..addAll(spaces);
-        this.selectedWebspaceId = selectedWebspaceId;
+          ..addAll(keptSpaces);
+        if (scope == ImportScope.replace) {
+          this.selectedWebspaceId = selectedWebspaceId;
+        }
+        for (final m in kept) {
+          m.disposeWebView(commit: commit);
+        }
       case ArchiveOpened(
         sites: final opened,
         webspaces: final spaces,

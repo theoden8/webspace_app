@@ -434,6 +434,7 @@ void main() {
     final importing = h.archives.closeAllThen((closed) async {
       await applying.future;
       h.runtime.applied(SitesReplaced(
+        scope: ImportScope.replace,
         sites: [_away(id)],
         webspaces: const [],
         selectedWebspaceId: null,

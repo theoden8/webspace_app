@@ -5,15 +5,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/settings_import_engine.dart'
-    show planSettingsImport;
+    show planSettingsImport, mergeBackupWebspaces;
 import 'package:webspace/services/settings_backup.dart';
-import 'package:webspace/services/trusted_hosts_service.dart' show kTrustedHostsKey;
+import 'package:webspace/services/trusted_hosts_service.dart'
+    show kTrustedHostsKey;
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/settings/web_extension.dart';
+import 'package:webspace/settings/web_extension_backup.dart';
 import 'package:webspace/services/cookie_manager.dart';
 
 /// What the export path builds for [sites] under default app settings.
@@ -28,45 +31,328 @@ SettingsBackup _export(List<WebViewModel> sites, {List<Webspace>? webspaces}) =>
 /// [backup] written out as a file and read back in.
 SettingsBackup _reimport(SettingsBackup backup) =>
     SettingsBackupService.importFromJson(
-        SettingsBackupService.exportToJson(backup))!;
+      SettingsBackupService.exportToJson(backup),
+    )!;
 
 /// A backup holding only [sites] and [webspaces], as a file carries them.
 SettingsBackup _backupOf({
   List<Map<String, dynamic>> sites = const [],
   List<Map<String, dynamic>> webspaces = const [],
-}) =>
-    SettingsBackup(
-      version: 1,
-      sites: sites,
-      webspaces: webspaces,
-      themeMode: 0,
-      showUrlBar: false,
-      exportedAt: DateTime.now(),
-    );
+}) => SettingsBackup(
+  version: 1,
+  sites: sites,
+  webspaces: webspaces,
+  themeMode: 0,
+  showUrlBar: false,
+  exportedAt: DateTime.now(),
+);
 
 /// A site entry in a backup file, on [url] unless it is null.
-Map<String, dynamic> _siteEntry(String? url, {required String name,
-        List<Object> cookies = const []}) =>
-    {
-      if (url != null) ...{'initUrl': url, 'currentUrl': url},
-      'name': name,
-      'cookies': [...cookies],
-      'proxySettings': {'type': 0, 'address': null},
-      'javascriptEnabled': true,
-      'userAgent': '',
-      'thirdPartyCookiesEnabled': false,
-    };
+Map<String, dynamic> _siteEntry(
+  String? url, {
+  required String name,
+  List<Object> cookies = const [],
+}) => {
+  if (url != null) ...{'initUrl': url, 'currentUrl': url},
+  'name': name,
+  'cookies': [...cookies],
+  'proxySettings': {'type': 0, 'address': null},
+  'javascriptEnabled': true,
+  'userAgent': '',
+  'thirdPartyCookiesEnabled': false,
+};
 
 void main() {
+  test('a backup of some sites names no other site in its webspaces', () {
+    final a = SiteId('a');
+    final b = SiteId('b');
+    final spaces = [
+      Webspace.all(),
+      Webspace(id: WebspaceId('both'), name: 'both', siteIds: [a, b]),
+      Webspace(id: WebspaceId('other'), name: 'other', siteIds: [b]),
+      Webspace(id: WebspaceId('empty'), name: 'empty', siteIds: const []),
+    ];
+    final scoped = webspacesForExport(spaces, sites: {a}, everySite: false);
+    expect({for (final w in scoped) '${w.id}': w.siteIds}, {
+      '${WebspaceId.all}': spaces.first.siteIds,
+      'both': [a],
+    });
+    expect(webspacesForExport(spaces, sites: {a, b}, everySite: true),
+        same(spaces),
+        reason: 'a backup of every site carries every webspace as it is');
+  });
+
   group('SettingsBackup Model', () {
+    test(
+      'partial import merges collection membership without dropping current sites',
+      () {
+        final current = Webspace(
+          id: WebspaceId('work'),
+          name: 'Work',
+          siteIds: [SiteId('current')],
+        );
+        final incoming = Webspace(
+          id: WebspaceId('work'),
+          name: 'Backup Work',
+          siteIds: [SiteId('imported')],
+        );
+        final merged = mergeBackupWebspaces(
+          [Webspace.all(), current],
+          imported: [Webspace.all(), incoming],
+        );
+        expect(merged.firstWhere((space) => space.id == current.id).siteIds, [
+          SiteId('current'),
+          SiteId('imported'),
+        ]);
+        expect(
+          merged.firstWhere((space) => space.id == current.id).name,
+          'Work',
+        );
+        expect(current.siteIds, [SiteId('current')]);
+        expect(
+          mergeBackupWebspaces(
+            [Webspace.all(), current],
+            imported: [
+              Webspace.all(),
+              Webspace(id: WebspaceId('empty'), name: 'Empty'),
+            ],
+          ).where((space) => space.id == WebspaceId('empty')),
+          hasLength(1),
+        );
+      },
+    );
+
+    test('import includes only chosen webspaces, including an empty one', () {
+      final backup = _backupOf(
+        sites: [_siteEntry('https://example.com', name: 'Example')],
+        webspaces: [
+          {
+            'id': 'work',
+            'name': 'Work',
+            'siteIndices': [0],
+          },
+          {'id': 'empty', 'name': 'Empty', 'siteIds': <String>[]},
+        ],
+      );
+      final plan = planSettingsImport(
+        backup,
+        selectedSiteIndices: <int>{},
+        selectedWebspaceIndices: {1},
+      );
+      expect(plan.sites, isEmpty);
+      expect(plan.webspaces.map((space) => space.name), ['All', 'Empty']);
+    });
+
+    test('granular import keeps only chosen sites and contents', () {
+      final first = WebViewModel(
+        initUrl: 'https://first.example',
+        name: 'First',
+      );
+      first.userScripts = [
+        UserScriptConfig(id: UserScriptId('one'), name: 'One', source: '1'),
+      ];
+      first.cookies = [Cookie(name: 'theme', value: 'dark')];
+      first.webExtensionChoices = {WebExtensionId('reader'): true};
+      final second = WebViewModel(
+        initUrl: 'https://second.example',
+        name: 'Second',
+      );
+      final backup = SettingsBackupService.createBackup(
+        webViewModels: [first, second],
+        webspaces: [
+          Webspace.all(),
+          Webspace(name: 'Group', siteIds: [first.siteId, second.siteId]),
+        ],
+        themeMode: 0,
+        webExtensions: const BackupExtensions(
+          carry: ExtensionCarry.references,
+          extensions: [],
+        ),
+      );
+      final plan = planSettingsImport(
+        backup,
+        selectedSiteIndices: {0},
+        siteScriptIndices: {},
+        siteCookieIndices: {},
+        siteExtensionIndices: {},
+      );
+      expect(plan.sites.map((site) => site.name), ['First']);
+      expect(plan.sites.single.userScripts, isEmpty);
+      expect(plan.sites.single.cookies, isEmpty);
+      expect(plan.sites.single.webExtensionChoices, isEmpty);
+      expect(plan.heldScripts, isEmpty);
+      expect(plan.heldExtensionChoices, isEmpty);
+      expect(plan.webspaces.firstWhere((space) => !space.isAll).siteIds, [
+        first.siteId,
+      ]);
+    });
+
+    test('a partial restore keeps the references to the sites it keeps', () {
+      final first = WebViewModel(initUrl: 'https://first.example');
+      final listed = WebViewModel(initUrl: 'https://listed.example');
+      final backup = SettingsBackupService.createBackup(
+        webViewModels: [first, listed],
+        webspaces: [
+          Webspace.all(),
+          Webspace(name: 'Group', siteIds: [first.siteId, listed.siteId]),
+        ],
+        themeMode: 0,
+      );
+      final plan = planSettingsImport(
+        backup,
+        selectedSiteIndices: {0},
+        keeping: {listed.siteId},
+      );
+      expect(plan.webspaces.firstWhere((space) => !space.isAll).siteIds,
+          [first.siteId, listed.siteId],
+          reason: 'the listed site stays, and so does its membership');
+    });
+
+    test(
+      'all bounded site, webspace and content selections reach the plan',
+      () {
+        final source = [
+          for (var i = 0; i < 2; i++)
+            WebViewModel(initUrl: 'https://site$i.example', name: 'Site $i'),
+        ];
+        for (var i = 0; i < source.length; i++) {
+          source[i].userScripts = [
+            UserScriptConfig(
+              id: UserScriptId('script$i'),
+              name: 'Script $i',
+              source: '1',
+            ),
+          ];
+          source[i].cookies = [Cookie(name: 'cookie$i', value: 'value$i')];
+          source[i].webExtensionChoices = {WebExtensionId('extension$i'): true};
+        }
+        final backup = SettingsBackupService.createBackup(
+          webViewModels: source,
+          webspaces: [
+            Webspace.all(),
+            Webspace(
+              name: 'Group',
+              siteIds: source.map((s) => s.siteId).toList(),
+            ),
+            Webspace(name: 'Empty'),
+          ],
+          themeMode: 0,
+          webExtensions: const BackupExtensions(
+            carry: ExtensionCarry.references,
+            extensions: [],
+          ),
+        );
+        Set<int> bits(int mask) => {
+          for (var i = 0; i < 2; i++)
+            if (mask & (1 << i) != 0) i,
+        };
+
+        for (var sites = 0; sites < 4; sites++) {
+          for (var folders = 0; folders < 4; folders++) {
+            for (var scripts = 0; scripts < 4; scripts++) {
+              for (var cookies = 0; cookies < 4; cookies++) {
+                for (var extensions = 0; extensions < 4; extensions++) {
+                  final chosenSites = bits(sites);
+                  final chosenFolders = bits(folders);
+                  final plan = planSettingsImport(
+                    backup,
+                    selectedSiteIndices: chosenSites,
+                    selectedWebspaceIndices: chosenFolders,
+                    siteScriptIndices: bits(scripts),
+                    siteCookieIndices: bits(cookies),
+                    siteExtensionIndices: bits(extensions),
+                  );
+                  expect(plan.sites.map((s) => s.name).toSet(), {
+                    for (final i in chosenSites) 'Site $i',
+                  });
+                  expect(
+                    plan.webspaces
+                        .where((w) => !w.isAll)
+                        .map((w) => w.name)
+                        .toSet(),
+                    {
+                      if (chosenFolders.contains(0)) 'Group',
+                      if (chosenFolders.contains(1)) 'Empty',
+                    },
+                  );
+                  if (chosenFolders.contains(0)) {
+                    expect(
+                      plan.webspaces
+                          .firstWhere((w) => w.name == 'Group')
+                          .siteIds
+                          .toSet(),
+                      {for (final i in chosenSites) source[i].siteId},
+                    );
+                  }
+                  for (final i in chosenSites) {
+                    final site = plan.sites.firstWhere(
+                      (s) => s.name == 'Site $i',
+                    );
+                    expect(
+                      site.userScripts.isNotEmpty,
+                      bits(scripts).contains(i),
+                    );
+                    expect(site.cookies.isNotEmpty, bits(cookies).contains(i));
+                    expect(
+                      plan.heldExtensionChoices.any(
+                        (held) => held.site == site,
+                      ),
+                      bits(extensions).contains(i),
+                    );
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+    );
+
+    test(
+      'scoped backup preserves omitted categories across JSON round trip',
+      () {
+        final site = WebViewModel(
+          initUrl: 'https://example.com',
+          name: 'Example',
+        );
+        site.userScripts = [
+          UserScriptConfig(id: UserScriptId('test'), name: 'Test', source: '1'),
+        ];
+        site.webExtensionChoices = {WebExtensionId('ext'): true};
+        final scoped = SettingsBackupService.createBackup(
+          webViewModels: [site],
+          webspaces: [Webspace.all()],
+          themeMode: 0,
+          includesAppSettings: false,
+          includeSiteScripts: false,
+          siteExtensionIds: const {},
+          siteCookieIds: const {},
+        );
+        final restored = _reimport(scoped);
+        expect(restored.includesSites, isTrue);
+        expect(restored.includesAppSettings, isFalse);
+        expect(restored.sites.single.containsKey('userScripts'), isFalse);
+        expect(
+          restored.sites.single.containsKey('webExtensionChoices'),
+          isFalse,
+        );
+        expect(restored.sites.single['cookies'], isEmpty);
+        expect(_reimport(_backupOf()).includesAppSettings, isTrue);
+      },
+    );
+
     test('should serialize to JSON correctly', () {
       final backup = SettingsBackup(
         version: 1,
         sites: [
-          {'initUrl': 'https://example.com', 'name': 'Example'}
+          {'initUrl': 'https://example.com', 'name': 'Example'},
         ],
         webspaces: [
-          {'id': 'ws-1', 'name': 'Work', 'siteIndices': [0]}
+          {
+            'id': 'ws-1',
+            'name': 'Work',
+            'siteIndices': [0],
+          },
         ],
         themeMode: 2,
         showUrlBar: true,
@@ -117,10 +403,14 @@ void main() {
       final json = {
         'version': 1,
         'sites': [
-          {'initUrl': 'https://test.com', 'name': 'Test'}
+          {'initUrl': 'https://test.com', 'name': 'Test'},
         ],
         'webspaces': [
-          {'id': 'ws-2', 'name': 'Personal', 'siteIndices': [0, 1]}
+          {
+            'id': 'ws-2',
+            'name': 'Personal',
+            'siteIndices': [0, 1],
+          },
         ],
         'themeMode': 1,
         'showUrlBar': false,
@@ -141,10 +431,7 @@ void main() {
     });
 
     test('should handle missing optional fields', () {
-      final json = {
-        'sites': [],
-        'webspaces': [],
-      };
+      final json = {'sites': [], 'webspaces': []};
 
       final backup = SettingsBackup.fromJson(json);
 
@@ -162,7 +449,11 @@ void main() {
           {'url': 'https://b.com'},
         ],
         webspaces: [
-          {'id': 'w1', 'name': 'W1', 'siteIndices': [0]},
+          {
+            'id': 'w1',
+            'name': 'W1',
+            'siteIndices': [0],
+          },
         ],
         themeMode: 2,
         showUrlBar: true,
@@ -219,7 +510,10 @@ void main() {
         cookies: [
           Cookie(name: 'session', value: 'secret123', isSecure: true),
           Cookie(name: 'theme', value: 'dark', isSecure: false),
-          Cookie(name: 'prefs', value: 'abc'),  // isSecure defaults to null/false
+          Cookie(
+            name: 'prefs',
+            value: 'abc',
+          ), // isSecure defaults to null/false
         ],
       );
 
@@ -257,39 +551,51 @@ void main() {
 
       // Only custom webspaces should be exported
       expect(backup.webspaces, hasLength(2));
-      expect(backup.webspaces.every((ws) => ws['id'] != WebspaceId.all), isTrue);
-    });
-
-    test('should preserve site settings with non-secure cookies only (BACKUP-004)', () {
-      final model = WebViewModel(
-        initUrl: 'https://example.com',
-        currentUrl: 'https://example.com/page',
-        name: 'My Site',
-        cookies: [
-          Cookie(name: 'secure_token', value: 'secret', isSecure: true),
-          Cookie(name: 'theme', value: 'dark', isSecure: false),
-        ],
-        proxySettings: UserProxySettings(type: ProxyType.SOCKS5, address: 'localhost:9050'),
-        javascriptEnabled: false,
-        userAgent: 'Custom/1.0',
-        thirdPartyCookiesEnabled: true,
+      expect(
+        backup.webspaces.every((ws) => ws['id'] != WebspaceId.all),
+        isTrue,
       );
-
-      final backup = _export([model]);
-
-      final siteJson = backup.sites[0];
-      expect(siteJson['initUrl'], equals('https://example.com'));
-      expect(siteJson['currentUrl'], equals('https://example.com/page'));
-      expect(siteJson['name'], equals('My Site'));
-      // Only non-secure cookie exported
-      final cookies = siteJson['cookies'] as List;
-      expect(cookies, hasLength(1));
-      expect(cookies[0]['name'], equals('theme'));
-      expect(siteJson['javascriptEnabled'], equals(false));
-      expect(siteJson['userAgent'], equals('Custom/1.0'));
-      expect(siteJson['thirdPartyCookiesEnabled'], equals(true));
-      expect(siteJson['proxySettings']['type'], equals(ProxyType.SOCKS5.index));
     });
+
+    test(
+      'should preserve site settings with non-secure cookies only (BACKUP-004)',
+      () {
+        final model = WebViewModel(
+          initUrl: 'https://example.com',
+          currentUrl: 'https://example.com/page',
+          name: 'My Site',
+          cookies: [
+            Cookie(name: 'secure_token', value: 'secret', isSecure: true),
+            Cookie(name: 'theme', value: 'dark', isSecure: false),
+          ],
+          proxySettings: UserProxySettings(
+            type: ProxyType.SOCKS5,
+            address: 'localhost:9050',
+          ),
+          javascriptEnabled: false,
+          userAgent: 'Custom/1.0',
+          thirdPartyCookiesEnabled: true,
+        );
+
+        final backup = _export([model]);
+
+        final siteJson = backup.sites[0];
+        expect(siteJson['initUrl'], equals('https://example.com'));
+        expect(siteJson['currentUrl'], equals('https://example.com/page'));
+        expect(siteJson['name'], equals('My Site'));
+        // Only non-secure cookie exported
+        final cookies = siteJson['cookies'] as List;
+        expect(cookies, hasLength(1));
+        expect(cookies[0]['name'], equals('theme'));
+        expect(siteJson['javascriptEnabled'], equals(false));
+        expect(siteJson['userAgent'], equals('Custom/1.0'));
+        expect(siteJson['thirdPartyCookiesEnabled'], equals(true));
+        expect(
+          siteJson['proxySettings']['type'],
+          equals(ProxyType.SOCKS5.index),
+        );
+      },
+    );
 
     test('should handle empty data', () {
       final backup = _export([], webspaces: []);
@@ -303,7 +609,9 @@ void main() {
     test('should produce valid JSON string', () {
       final backup = SettingsBackup(
         version: 1,
-        sites: [{'url': 'https://test.com'}],
+        sites: [
+          {'url': 'https://test.com'},
+        ],
         webspaces: [],
         themeMode: 0,
         showUrlBar: false,
@@ -375,15 +683,16 @@ void main() {
 
   group('planSettingsImport sites', () {
     test('should restore WebViewModels from backup', () {
-      final backup = _backupOf(sites: [
-        {
-          ..._siteEntry('https://example.com', name: 'Example'),
-          'pageTitle': 'Example Page',
-        },
-      ]);
+      final backup = _backupOf(
+        sites: [
+          {
+            ..._siteEntry('https://example.com', name: 'Example'),
+            'pageTitle': 'Example Page',
+          },
+        ],
+      );
 
-      final sites =
-          planSettingsImport(backup).sites;
+      final sites = planSettingsImport(backup).sites;
 
       expect(sites, hasLength(1));
       expect(sites[0].initUrl, equals('https://example.com'));
@@ -398,37 +707,43 @@ void main() {
       // `initUrl` is malformed/hostile.
       final backup = _backupOf(sites: [_siteEntry(null, name: 'No initUrl')]);
 
-      expect(
-        () => planSettingsImport(backup).sites,
-        throwsA(anything),
-      );
+      expect(() => planSettingsImport(backup).sites, throwsA(anything));
     });
 
     test('should restore non-secure cookies from backup', () {
-      final backup = _backupOf(sites: [
-        _siteEntry('https://example.com', name: 'Test', cookies: [
-          {'name': 'theme', 'value': 'dark', 'isSecure': false},
-          {'name': 'prefs', 'value': 'abc'},
-        ]),
-      ]);
+      final backup = _backupOf(
+        sites: [
+          _siteEntry(
+            'https://example.com',
+            name: 'Test',
+            cookies: [
+              {'name': 'theme', 'value': 'dark', 'isSecure': false},
+              {'name': 'prefs', 'value': 'abc'},
+            ],
+          ),
+        ],
+      );
 
-      final sites =
-          planSettingsImport(backup).sites;
+      final sites = planSettingsImport(backup).sites;
 
       // Non-secure cookies should be restored
       expect(sites[0].cookies, hasLength(2));
-      expect(sites[0].cookies.map((c) => c.name).toSet(), equals({'theme', 'prefs'}));
+      expect(
+        sites[0].cookies.map((c) => c.name).toSet(),
+        equals({'theme', 'prefs'}),
+      );
     });
 
     test('should restore multiple sites', () {
-      final backup = _backupOf(sites: [
-        _siteEntry('https://a.com', name: 'A'),
-        _siteEntry('https://b.com', name: 'B'),
-        _siteEntry('https://c.com', name: 'C'),
-      ]);
+      final backup = _backupOf(
+        sites: [
+          _siteEntry('https://a.com', name: 'A'),
+          _siteEntry('https://b.com', name: 'B'),
+          _siteEntry('https://c.com', name: 'C'),
+        ],
+      );
 
-      final sites =
-          planSettingsImport(backup).sites;
+      final sites = planSettingsImport(backup).sites;
 
       expect(sites, hasLength(3));
       expect(sites[0].initUrl, equals('https://a.com'));
@@ -439,10 +754,20 @@ void main() {
 
   group('SettingsBackupService.restoreWebspaces', () {
     test('should restore webspaces with "All" at the start (BACKUP-005)', () {
-      final backup = _backupOf(webspaces: [
-        {'id': 'ws-1', 'name': 'Work', 'siteIndices': [0, 1]},
-        {'id': 'ws-2', 'name': 'Personal', 'siteIndices': [2]},
-      ]);
+      final backup = _backupOf(
+        webspaces: [
+          {
+            'id': 'ws-1',
+            'name': 'Work',
+            'siteIndices': [0, 1],
+          },
+          {
+            'id': 'ws-2',
+            'name': 'Personal',
+            'siteIndices': [2],
+          },
+        ],
+      );
 
       final webspaces = SettingsBackupService.restoreWebspaces(backup);
 
@@ -454,16 +779,25 @@ void main() {
     });
 
     test('should skip "All" webspace if somehow in backup', () {
-      final backup = _backupOf(webspaces: [
-        {'id': WebspaceId.all, 'name': 'All', 'siteIndices': []},
-        {'id': 'ws-1', 'name': 'Custom', 'siteIndices': [0]},
-      ]);
+      final backup = _backupOf(
+        webspaces: [
+          {'id': WebspaceId.all, 'name': 'All', 'siteIndices': []},
+          {
+            'id': 'ws-1',
+            'name': 'Custom',
+            'siteIndices': [0],
+          },
+        ],
+      );
 
       final webspaces = SettingsBackupService.restoreWebspaces(backup);
 
       // Should have exactly one "All" (auto-created) + one custom
       expect(webspaces, hasLength(2));
-      expect(webspaces.where((ws) => ws.id == WebspaceId.all).length, equals(1));
+      expect(
+        webspaces.where((ws) => ws.id == WebspaceId.all).length,
+        equals(1),
+      );
     });
 
     test('should handle empty webspaces list', () {
@@ -477,9 +811,15 @@ void main() {
     });
 
     test('should preserve webspace site indices', () {
-      final backup = _backupOf(webspaces: [
-        {'id': 'ws-1', 'name': 'Mixed', 'siteIndices': [0, 2, 5, 10]},
-      ]);
+      final backup = _backupOf(
+        webspaces: [
+          {
+            'id': 'ws-1',
+            'name': 'Mixed',
+            'siteIndices': [0, 2, 5, 10],
+          },
+        ],
+      );
 
       final webspaces = SettingsBackupService.restoreWebspaces(backup);
 
@@ -498,7 +838,10 @@ void main() {
           javascriptEnabled: false,
           userAgent: 'Custom/1.0',
           thirdPartyCookiesEnabled: true,
-          proxySettings: UserProxySettings(type: ProxyType.HTTP, address: 'proxy:8080'),
+          proxySettings: UserProxySettings(
+            type: ProxyType.HTTP,
+            address: 'proxy:8080',
+          ),
         ),
       ];
       final originalWebspaces = [
@@ -507,7 +850,11 @@ void main() {
         // positional siteIndices is the runtime view rebuilt by
         // `_resolveWebspaceIndices` after models load and is not
         // included in the backup payload.
-        Webspace(id: WebspaceId('work'), name: 'Work', siteIds: [originalSites[0].siteId]),
+        Webspace(
+          id: WebspaceId('work'),
+          name: 'Work',
+          siteIds: [originalSites[0].siteId],
+        ),
       ];
 
       // Export
@@ -526,7 +873,9 @@ void main() {
       expect(importedBackup, isNotNull);
 
       final restoredSites = planSettingsImport(importedBackup!).sites;
-      final restoredWebspaces = SettingsBackupService.restoreWebspaces(importedBackup);
+      final restoredWebspaces = SettingsBackupService.restoreWebspaces(
+        importedBackup,
+      );
 
       // Verify sites
       expect(restoredSites, hasLength(1));
@@ -564,13 +913,15 @@ void main() {
       // Second cycle with modified data
       final backup2 = SettingsBackupService.createBackup(
         webViewModels: restored1,
-        webspaces: [Webspace.all(), Webspace(name: 'New')],
+        webspaces: [
+          Webspace.all(),
+          Webspace(name: 'New'),
+        ],
         themeMode: 1,
         showUrlBar: true,
       );
       final imported2 = _reimport(backup2);
-      final restored2 =
-          planSettingsImport(imported2).sites;
+      final restored2 = planSettingsImport(imported2).sites;
       final restoredWs2 = SettingsBackupService.restoreWebspaces(imported2);
 
       // Verify final state
@@ -625,41 +976,50 @@ void main() {
         },
       );
       final exported = SettingsBackupService.exportToJson(backup);
-      expect(exported.contains(perSitePwd), isFalse,
-          reason: 'per-site proxy password leaked into exported JSON');
-      expect(exported.contains(globalPwd), isFalse,
-          reason: 'global proxy password leaked into exported JSON');
-    });
-
-    test('secure cookies never appear in export, non-secure cookies preserved (BACKUP-003)', () {
-      // Create site with mixed cookies
-      final siteWithCookies = WebViewModel(
-        initUrl: 'https://example.com',
-        cookies: [
-          Cookie(name: 'session', value: 'secret', isSecure: true),
-          Cookie(name: 'theme', value: 'dark', isSecure: false),
-        ],
+      expect(
+        exported.contains(perSitePwd),
+        isFalse,
+        reason: 'per-site proxy password leaked into exported JSON',
       );
-
-      // First export (secure cookies stripped, non-secure preserved)
-      final backup1 = _export([siteWithCookies]);
-
-      final cookies1 = backup1.sites[0]['cookies'] as List;
-      expect(cookies1, hasLength(1));
-      expect(cookies1[0]['name'], equals('theme'));
-
-      final restored1 = planSettingsImport(_reimport(backup1)).sites;
-
-      expect(restored1[0].cookies, hasLength(1));
-      expect(restored1[0].cookies[0].name, equals('theme'));
-
-      // Second export of restored data
-      final backup2 = _export(restored1);
-
-      final cookies2 = backup2.sites[0]['cookies'] as List;
-      expect(cookies2, hasLength(1));
-      expect(cookies2[0]['name'], equals('theme'));
+      expect(
+        exported.contains(globalPwd),
+        isFalse,
+        reason: 'global proxy password leaked into exported JSON',
+      );
     });
+
+    test(
+      'secure cookies never appear in export, non-secure cookies preserved (BACKUP-003)',
+      () {
+        // Create site with mixed cookies
+        final siteWithCookies = WebViewModel(
+          initUrl: 'https://example.com',
+          cookies: [
+            Cookie(name: 'session', value: 'secret', isSecure: true),
+            Cookie(name: 'theme', value: 'dark', isSecure: false),
+          ],
+        );
+
+        // First export (secure cookies stripped, non-secure preserved)
+        final backup1 = _export([siteWithCookies]);
+
+        final cookies1 = backup1.sites[0]['cookies'] as List;
+        expect(cookies1, hasLength(1));
+        expect(cookies1[0]['name'], equals('theme'));
+
+        final restored1 = planSettingsImport(_reimport(backup1)).sites;
+
+        expect(restored1[0].cookies, hasLength(1));
+        expect(restored1[0].cookies[0].name, equals('theme'));
+
+        // Second export of restored data
+        final backup2 = _export(restored1);
+
+        final cookies2 = backup2.sites[0]['cookies'] as List;
+        expect(cookies2, hasLength(1));
+        expect(cookies2[0]['name'], equals('theme'));
+      },
+    );
   });
 
   group('Global prefs registry', () {
@@ -680,80 +1040,89 @@ void main() {
 
     /// [siteJson] as an import of a hand-written backup file restores it.
     List<WebViewModel> importSanitized(Map<String, dynamic> siteJson) =>
-        planSettingsImport(SettingsBackup(
-          version: 1,
-          sites: [siteJson],
-          webspaces: const [],
-          themeMode: 0,
-          exportedAt: DateTime(2026, 1, 1),
-        )).sites;
+        planSettingsImport(
+          SettingsBackup(
+            version: 1,
+            sites: [siteJson],
+            webspaces: const [],
+            themeMode: 0,
+            exportedAt: DateTime(2026, 1, 1),
+          ),
+        ).sites;
 
-    test('every registered key round-trips through export and import', () async {
-      // Write a non-default value for every registered key.
-      final prefs = await SharedPreferences.getInstance();
-      final nonDefaults = <String, Object>{};
-      for (final pref in AppPref.values) {
-        final key = pref.key;
-        final override = switch (pref.fallback) {
-          bool b => !b,
-          int i => i + 7,
-          _ => 'override-$key',
-        };
-        switch (override) {
-          case bool b:
-            await prefs.setBool(key, b);
-          case int i:
-            await prefs.setInt(key, i);
-          case String s:
-            await prefs.setString(key, s);
+    test(
+      'every registered key round-trips through export and import',
+      () async {
+        // Write a non-default value for every registered key.
+        final prefs = await SharedPreferences.getInstance();
+        final nonDefaults = <String, Object>{};
+        for (final pref in AppPref.values) {
+          final key = pref.key;
+          final override = switch (pref.fallback) {
+            bool b => !b,
+            int i => i + 7,
+            _ => 'override-$key',
+          };
+          switch (override) {
+            case bool b:
+              await prefs.setBool(key, b);
+            case int i:
+              await prefs.setInt(key, i);
+            case String s:
+              await prefs.setString(key, s);
+          }
+          nonDefaults[key] = override;
         }
-        nonDefaults[key] = override;
-      }
 
-      final backup = exportPrefs(prefs);
+        final backup = exportPrefs(prefs);
 
-      // Every registered key must appear in the backup's globalPrefs with the
-      // non-default value. If this fails after adding a new pref, it means
-      // the registry is not being read correctly during export.
-      for (final key in AppPref.values.map((p) => p.key)) {
-        expect(
-          backup.globalPrefs[key],
-          equals(nonDefaults[key]),
-          reason: 'Registered pref "$key" was not captured during export.',
-        );
-      }
+        // Every registered key must appear in the backup's globalPrefs with the
+        // non-default value. If this fails after adding a new pref, it means
+        // the registry is not being read correctly during export.
+        for (final key in AppPref.values.map((p) => p.key)) {
+          expect(
+            backup.globalPrefs[key],
+            equals(nonDefaults[key]),
+            reason: 'Registered pref "$key" was not captured during export.',
+          );
+        }
 
-      // Simulate a fresh install.
-      SharedPreferences.setMockInitialValues({});
-      final freshPrefs = await SharedPreferences.getInstance();
-      for (final key in AppPref.values.map((p) => p.key)) {
-        expect(freshPrefs.get(key), isNull);
-      }
+        // Simulate a fresh install.
+        SharedPreferences.setMockInitialValues({});
+        final freshPrefs = await SharedPreferences.getInstance();
+        for (final key in AppPref.values.map((p) => p.key)) {
+          expect(freshPrefs.get(key), isNull);
+        }
 
-      // Apply the backup and assert each key was restored to the non-default
-      // value. A missing restore path for a new pref will fail here.
-      await writeExportedAppPrefs(freshPrefs, values: backup.globalPrefs);
-      for (final key in AppPref.values.map((p) => p.key)) {
-        expect(
-          freshPrefs.get(key),
-          equals(nonDefaults[key]),
-          reason:
-              'Registered pref "$key" was not restored during import. '
-              'Ensure writeExportedAppPrefs handles its type.',
-        );
-      }
-    });
+        // Apply the backup and assert each key was restored to the non-default
+        // value. A missing restore path for a new pref will fail here.
+        await writeExportedAppPrefs(freshPrefs, values: backup.globalPrefs);
+        for (final key in AppPref.values.map((p) => p.key)) {
+          expect(
+            freshPrefs.get(key),
+            equals(nonDefaults[key]),
+            reason:
+                'Registered pref "$key" was not restored during import. '
+                'Ensure writeExportedAppPrefs handles its type.',
+          );
+        }
+      },
+    );
 
     test('TLS cert pins never ride a backup (TLS-007)', () async {
       // A restored pin makes `badCertificateCallback` return true and the
       // webview PROCEED with no prompt, so a backup file must not be able
       // to install one. `TrustedHostsService` persists the key itself.
-      expect(AppPref.values.map((p) => p.key), isNot(contains(kTrustedHostsKey)),
-          reason: 'trust-granting state must not be in the export registry');
+      expect(
+        AppPref.values.map((p) => p.key),
+        isNot(contains(kTrustedHostsKey)),
+        reason: 'trust-granting state must not be in the export registry',
+      );
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(
-          kTrustedHostsKey, <String>['evil.example|443|deadbeefpin']);
+      await prefs.setStringList(kTrustedHostsKey, <String>[
+        'evil.example|443|deadbeefpin',
+      ]);
       final backup = exportPrefs(prefs);
       expect(backup.globalPrefs.containsKey(kTrustedHostsKey), isFalse);
       expect(
@@ -765,9 +1134,12 @@ void main() {
       // A hand-crafted backup naming the key must not install it either.
       SharedPreferences.setMockInitialValues({});
       final freshPrefs = await SharedPreferences.getInstance();
-      await writeExportedAppPrefs(freshPrefs, values: <String, Object?>{
-        kTrustedHostsKey: <String>['evil.example|443|deadbeefpin'],
-      });
+      await writeExportedAppPrefs(
+        freshPrefs,
+        values: <String, Object?>{
+          kTrustedHostsKey: <String>['evil.example|443|deadbeefpin'],
+        },
+      );
       expect(freshPrefs.getStringList(kTrustedHostsKey), isNull);
     });
 
@@ -787,8 +1159,10 @@ void main() {
           'import-needle-9c2b';
       final restored = importSanitized(siteJson);
       expect(restored.single.proxySettings.password, isNull);
-      expect(restored.single.proxySettings.address,
-          equals('attacker.example:1080'));
+      expect(
+        restored.single.proxySettings.address,
+        equals('attacker.example:1080'),
+      );
     });
 
     test('a backup carries site and global user scripts (US-005)', () {
@@ -796,23 +1170,36 @@ void main() {
         initUrl: 'https://a.com',
         userScripts: [
           UserScriptConfig(
-              id: UserScriptId('s1'), name: 'tidy', source: 'tidy()'),
+            id: UserScriptId('s1'),
+            name: 'tidy',
+            source: 'tidy()',
+          ),
         ],
         enabledGlobalScriptIds: {UserScriptId('g1')},
       );
-      final global =
-          UserScriptConfig(id: UserScriptId('g1'), name: 'dark', source: 'dark()');
-      final backup = _reimport(SettingsBackupService.createBackup(
-        webViewModels: [site],
-        webspaces: [Webspace.all()],
-        themeMode: 0,
-        globalUserScripts: [global.toJson()],
-      ));
-      final restored =
-          WebViewModel.fromJson(backup.sites.single, stateSetterF: () {});
+      final global = UserScriptConfig(
+        id: UserScriptId('g1'),
+        name: 'dark',
+        source: 'dark()',
+      );
+      final backup = _reimport(
+        SettingsBackupService.createBackup(
+          webViewModels: [site],
+          webspaces: [Webspace.all()],
+          themeMode: 0,
+          globalUserScripts: [global.toJson()],
+        ),
+      );
+      final restored = WebViewModel.fromJson(
+        backup.sites.single,
+        stateSetterF: () {},
+      );
       expect(restored.userScripts.single.source, 'tidy()');
-      expect(restored.enabledGlobalScriptIds, {UserScriptId('g1')},
-          reason: 'the file keeps the opt-ins; the import drops them');
+      expect(
+        restored.enabledGlobalScriptIds,
+        {UserScriptId('g1')},
+        reason: 'the file keeps the opt-ins; the import drops them',
+      );
       expect(backup.globalUserScripts!.single['id'], 'g1');
     });
 
@@ -840,8 +1227,11 @@ void main() {
         initUrl: 'https://a.com',
         webExtensionChoices: {WebExtensionId('we-ublock'): true},
       ).toJson();
-      expect(siteJson['webExtensionChoices'], {'we-ublock': true},
-          reason: 'the file keeps the choice; the import drops it');
+      expect(
+        siteJson['webExtensionChoices'],
+        {'we-ublock': true},
+        reason: 'the file keeps the choice; the import drops it',
+      );
       expect(importSanitized(siteJson).single.webExtensionChoices, isEmpty);
     });
 
@@ -912,40 +1302,45 @@ void main() {
 
   group('Downloaded-data blocker prefs', () {
     // DNS-024, BACKUP-009
-    test('DNS level and content-blocker selection round-trip through JSON (CB-011)', () {
-      final backup = SettingsBackupService.createBackup(
-        webViewModels: [],
-        webspaces: [Webspace.all()],
-        themeMode: 0,
-        dnsBlockLevel: 4,
-        contentBlockerLists: [
-          {
-            'id': 'easylist',
-            'name': 'EasyList',
-            'url': 'https://easylist.to/easylist/easylist.txt',
-            'enabled': true,
-          },
-          {
-            'id': 'custom_1',
-            'name': 'My List',
-            'url': 'https://example.com/list.txt',
-            'enabled': false,
-          },
-        ],
-      );
+    test(
+      'DNS level and content-blocker selection round-trip through JSON (CB-011)',
+      () {
+        final backup = SettingsBackupService.createBackup(
+          webViewModels: [],
+          webspaces: [Webspace.all()],
+          themeMode: 0,
+          dnsBlockLevel: 4,
+          contentBlockerLists: [
+            {
+              'id': 'easylist',
+              'name': 'EasyList',
+              'url': 'https://easylist.to/easylist/easylist.txt',
+              'enabled': true,
+            },
+            {
+              'id': 'custom_1',
+              'name': 'My List',
+              'url': 'https://example.com/list.txt',
+              'enabled': false,
+            },
+          ],
+        );
 
-      final restored = SettingsBackupService.importFromJson(
-        SettingsBackupService.exportToJson(backup),
-      )!;
+        final restored = SettingsBackupService.importFromJson(
+          SettingsBackupService.exportToJson(backup),
+        )!;
 
-      expect(restored.dnsBlockLevel, equals(4));
-      expect(restored.contentBlockerLists, hasLength(2));
-      expect(restored.contentBlockerLists![0]['id'], equals('easylist'));
-      expect(restored.contentBlockerLists![0]['enabled'], isTrue);
-      expect(restored.contentBlockerLists![1]['url'],
-          equals('https://example.com/list.txt'));
-      expect(restored.contentBlockerLists![1]['enabled'], isFalse);
-    });
+        expect(restored.dnsBlockLevel, equals(4));
+        expect(restored.contentBlockerLists, hasLength(2));
+        expect(restored.contentBlockerLists![0]['id'], equals('easylist'));
+        expect(restored.contentBlockerLists![0]['enabled'], isTrue);
+        expect(
+          restored.contentBlockerLists![1]['url'],
+          equals('https://example.com/list.txt'),
+        );
+        expect(restored.contentBlockerLists![1]['enabled'], isFalse);
+      },
+    );
 
     test('fields are absent when not provided (backward compatible)', () {
       final backup = SettingsBackupService.createBackup(
@@ -990,7 +1385,8 @@ void main() {
       expect(
         selection[0].keys.toSet(),
         equals({'id', 'name', 'url', 'enabled'}),
-        reason: 'download metadata (ruleCount/skippedCount/lastUpdated) '
+        reason:
+            'download metadata (ruleCount/skippedCount/lastUpdated) '
             'must not appear in the exported selection',
       );
       expect(selection[0]['enabled'], isTrue);
@@ -999,13 +1395,20 @@ void main() {
 
   group('Edge Cases', () {
     for (final (name, siteName) in [
-      ('should handle sites with special characters in names',
-          'Test!@#\$%^&*()_+-=[]{}|;:\'",.<>?/`~'),
-      ('should handle sites with unicode characters',
-          '工作站 🚀 Espace de travail'),
+      (
+        'should handle sites with special characters in names',
+        'Test!@#\$%^&*()_+-=[]{}|;:\'",.<>?/`~',
+      ),
+      (
+        'should handle sites with unicode characters',
+        '工作站 🚀 Espace de travail',
+      ),
     ]) {
       test(name, () {
-        final site = WebViewModel(initUrl: 'https://example.com', name: siteName);
+        final site = WebViewModel(
+          initUrl: 'https://example.com',
+          name: siteName,
+        );
         final restored = planSettingsImport(_reimport(_export([site]))).sites;
         expect(restored[0].name, equals(siteName));
       });
@@ -1038,7 +1441,9 @@ void main() {
       // 50 custom webspaces (All excluded)
       expect(backup.webspaces, hasLength(50));
 
-      final restored = SettingsBackupService.restoreWebspaces(_reimport(backup));
+      final restored = SettingsBackupService.restoreWebspaces(
+        _reimport(backup),
+      );
 
       // All + 50 custom
       expect(restored, hasLength(51));
@@ -1052,15 +1457,24 @@ void main() {
         ),
         WebViewModel(
           initUrl: 'https://http.com',
-          proxySettings: UserProxySettings(type: ProxyType.HTTP, address: 'http:8080'),
+          proxySettings: UserProxySettings(
+            type: ProxyType.HTTP,
+            address: 'http:8080',
+          ),
         ),
         WebViewModel(
           initUrl: 'https://https.com',
-          proxySettings: UserProxySettings(type: ProxyType.HTTPS, address: 'https:443'),
+          proxySettings: UserProxySettings(
+            type: ProxyType.HTTPS,
+            address: 'https:443',
+          ),
         ),
         WebViewModel(
           initUrl: 'https://socks.com',
-          proxySettings: UserProxySettings(type: ProxyType.SOCKS5, address: 'socks:1080'),
+          proxySettings: UserProxySettings(
+            type: ProxyType.SOCKS5,
+            address: 'socks:1080',
+          ),
         ),
       ];
 

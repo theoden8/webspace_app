@@ -167,6 +167,43 @@ class.
   `noguard` demonstrator drops the version check and, after a delete/import/archive mutation,
   activates the wrong site (the legacy-mode cross-site cookie exposure). Standalone (a UI
   orchestration state machine; no shared kernel state).
+- **`backup_import.tla`** + `backup_import*.cfg` — bounded granular settings import.
+  Exhausts independent selections for two backup sites (also the empty-backup case), a populated and an empty backup
+  webspace, site scripts, cookies, extensions, per-site reactivation, script confirmation,
+  and app settings. Checks partial imports retain existing sites and folders, only chosen
+  folders and their chosen members arrive, and content and reactivation obey their own
+  selectors. Mutants catch unchosen folders, scripts reactivated without consent, and an
+  empty backup clearing current sites. Witnesses reach an empty-folder import, a consented
+  script reactivation, an empty-backup folder import, and an empty backup with no site scope.
+- **`backup_review.tla`** + `backup_review*.cfg` — the review screen's group and individual
+  selection transitions for overlapping and empty webspaces. A group deselection retains
+  a site shared with another selected group; the `dropShared` mutant is caught. Reactivation
+  choices stay within selected sites. Witnesses reach shared-site retention and an empty
+  webspace selected on its own.
+- **`backup_settings.tla`** + `backup_settings*.cfg` — independent app preference keys,
+  site restoration, global script library, per-site run choices, and script confirmation.
+  Checks the search default is skipped without a site import and global scripts run only
+  after every required choice. Both skipped search and approved global runs are reachable;
+  mutants break preference scope and global script consent.
+- **`backup_conflicts.tla`** + `backup_conflicts*.cfg` — a current and a backup site with
+  the same ID, plus a matching webspace ID. Partial imports keep unselected current sites,
+  preserve unchecked content on a matching site, and merge the chosen folder's membership
+  under its current title. A full import replaces the site and folder lists. Restored
+  cookies combine current secure cookies with backup non-secure cookies. Replacing the
+  global script library clears old opt-ins on retained sites and gives the imported
+  scripts fresh local IDs, so an old opt-in in a retained site or closed archive cannot
+  run backup code without review. Two sites with the same URL but different IDs stay
+  separate containers; the identity collision model concerns matching IDs. Mutants and
+  witnesses exercise each case.
+- **`backup_extension_conflicts.tla`** + `backup_extension_conflicts*.cfg` — extension
+  files are linked by fingerprint even when backup and local IDs match; unmatched carried
+  packages require approval and receive a fresh local ID. A missing reference stays off,
+  and per-site activation still requires the site's content and run selections. Mutants
+  catch linking by ID, adding without approval, running without consent, and overwriting
+  an installed extension.
+  These five models are hand-written abstractions of intended effects. They do not prove
+  the Dart UI and controller implement the abstraction for every input; Dart widget and
+  import tests exercise those paths separately.
 - **`jar_nonempty.tla`** + `jar_nonempty*.cfg` — legacy cookie engine: the shared jar is never
   left empty across a superseded restore (spec: `per-site-cookie-isolation`).
   `Inv_JarRepopulated` (once nuked, the jar is always repopulated before the engine returns to

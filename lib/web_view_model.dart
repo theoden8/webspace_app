@@ -58,7 +58,7 @@ import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/settings/web_extension.dart';
 import 'package:webspace/services/tor_service.dart';
-import 'package:webspace/services/archive_cookie_queue.dart';
+import 'package:webspace/services/container_cookie_queue.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/isolation.dart';
@@ -1588,7 +1588,7 @@ bool dispatch(NavigationDecision decision,
               sensitive: true);
           views.controller = ctrl;
           unawaited(setController());
-          unawaited(pendingArchiveCookies.pushInto(ctrl));
+          unawaited(pendingContainerCookies.pushInto(ctrl));
           // Apply any state queued by the activation flow when this
           // model came back from SavedForRestore. The InAppWebView's
           // `initialUrlRequest` already kicked off a navigation to
@@ -1868,15 +1868,15 @@ bool dispatch(NavigationDecision decision,
   ContainerKey get containerKey =>
       archiveContainerKey ?? ContainerKey.ofSite(siteId);
 
-  /// Cookies an archive's open queued for this site's container, pushed by
-  /// [getWebView]'s `onControllerCreated`.
-  final ArchiveCookieQueue pendingArchiveCookies = ArchiveCookieQueue();
+  /// Cookies queued for this site's container, an archive's open's or an
+  /// import's, pushed by [getWebView]'s `onControllerCreated`.
+  final ContainerCookieQueue pendingContainerCookies = ContainerCookieQueue();
 
   /// Queues [cookies] for the container and seeds [cookies] with them, so the
   /// in-Dart cookie-blocking machinery (`onCookiesChanged`) starts from the
   /// right baseline.
   void setPendingArchiveCookies(List<Cookie> archiveCookies) {
-    pendingArchiveCookies.queue(archiveCookies);
+    pendingContainerCookies.queue(archiveCookies);
     cookies = List<Cookie>.from(archiveCookies);
   }
 

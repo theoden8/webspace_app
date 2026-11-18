@@ -227,20 +227,42 @@ final class SitesMoved extends FunnelChange {
   final int to;
 }
 
-/// A settings import replaced every site and webspace (`SiteImport`).
+/// What an import does with the listed sites its backup does not carry,
+/// read off the list as the import lands, so a site listed meanwhile counts
+/// (BACKUP-003).
+enum ImportScope {
+  /// A whole restore: every listed site the backup does not carry leaves.
+  replace,
+
+  /// A partial restore: every listed site stays, and the backup's sites
+  /// join the list or take the place of the listed ones they share an id
+  /// with; its webspaces merge into the listed ones.
+  merge,
+}
+
+/// A settings import replaced the sites and webspaces (`SiteImport`), the
+/// listed ones it does not carry as [scope] says.
 final class SitesReplaced extends SiteDrop {
   const SitesReplaced({
     required this.sites,
     required this.webspaces,
     required this.selectedWebspaceId,
     required this.closed,
+    required this.scope,
+    this.restoreCookiesForSiteIds = const {},
   });
+
+  /// The backup's sites.
   final List<WebViewModel> sites;
+  final ImportScope scope;
 
   /// The archives' turn the replace lands in, every archive closed.
   final ArchivesClosed closed;
   final List<Webspace> webspaces;
   final WebspaceId? selectedWebspaceId;
+
+  /// Explicit opt-in to replace a matching site's non-secure cookies.
+  final Set<SiteId> restoreCookiesForSiteIds;
 }
 
 /// An open archive's sites and collections, materialised at the end of the

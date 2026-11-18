@@ -573,6 +573,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     this.deletes = false,
     this.joins = false,
     this.imports = false,
+    this.importMerges = false,
     this.rehosts = false,
     this.lateControllers = false,
     this.declared,
@@ -742,6 +743,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// mounts each loaded site's webview, which with containers binds its
   /// container (`Importing`, `Frame`).
   final bool imports;
+
+  /// The import is a partial restore ([ImportScope.merge]): the listed
+  /// sites it does not carry stay (`ImportMerges`).
+  final bool importMerges;
 
   /// The sites an import took off the list, as it found them.
   final List<WebViewModel> _unlisted = [];
@@ -1890,6 +1895,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
             '${deletes ? '_delete' : ''}'
             '${joins ? '_join' : ''}'
             '${imports ? '_import' : ''}'
+            '${imports && importMerges ? '_merge' : ''}'
             '${page.incognito.isEmpty ? '' : '_incognito'}'
             '${_faults.isEmpty ? '' : '_fails_${[for (final f in _faults) f.name].join('_')}'}',
         constants: (
@@ -1960,6 +1966,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       ModelConst.deletable => set(deletes ? const [1] : const <int>[]),
       ModelConst.importing => set(imports ? _carried : const <int>[]),
       ModelConst.imports => null,
+      ModelConst.importMerges =>
+        imports && importMerges ? 'TRUE' : null,
       ModelConst.resettable => set(every),
       // A renderer dies only where the world builds webviews.
       ModelConst.rebuilt => set(_boxed || rehosts ? every : const <int>[]),
@@ -2075,6 +2083,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         webspaces: [...sites.webspaces],
         selectedWebspaceId: sites.selectedWebspaceId,
         closed: ArchivesClosed.inTest(),
+        scope: importMerges ? ImportScope.merge : ImportScope.replace,
       ),
     );
   }

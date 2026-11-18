@@ -154,6 +154,7 @@ Set<Env> _with(Env e) => switch (e) {
   // archive it carries site 1 alone.
   Env.importOne => {Env.importOne, Env.joinOne},
   Env.importKeep => {Env.importKeep, Env.archiveOne},
+  Env.importMerging => {Env.importOne, Env.joinOne, Env.importMerging},
   Env.routeSplit ||
   Env.warmOne ||
   Env.awaySpaces ||
@@ -198,6 +199,7 @@ Env? _setting(ModelConst c, {required Set<Need> needs}) => switch (c) {
     Env.archiveOne,
   ModelConst.deletable => Env.deleteOne,
   ModelConst.importing || ModelConst.imports => Env.importOne,
+  ModelConst.importMerges => Env.importMerging,
   ModelConst.resettable => Env.resetOne,
   ModelConst.rebuilt => Env.rebuildOne,
   ModelConst.joining => Env.joinOne,
