@@ -70,6 +70,70 @@ void main() {
     }
   });
 
+  group('AppLifecycleEngine.snapshotMasked (ARCH-009)', () {
+    bool after(List<AppLifecycleState> states, {required bool open}) {
+      var masked = false;
+      for (final state in states) {
+        masked = AppLifecycleEngine.snapshotMasked(
+          state,
+          masked: masked,
+          archivesOpen: open,
+        );
+      }
+      return masked;
+    }
+
+    test('focus leaving the app with an archive open masks before paused',
+        () {
+      expect(after([AppLifecycleState.inactive], open: true), isTrue);
+    });
+
+    test('the mask holds through paused and hidden, and the return clears it',
+        () {
+      const away = [
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+      ];
+      expect(after(away, open: true), isTrue);
+      expect(
+        after([...away, AppLifecycleState.inactive, AppLifecycleState.resumed],
+            open: true),
+        isFalse,
+      );
+    });
+
+    test('with no archive open nothing masks', () {
+      for (final state in AppLifecycleState.values) {
+        expect(after([state], open: false), isFalse, reason: '$state');
+      }
+    });
+
+    test('an archive closed while away keeps the mask until the return', () {
+      expect(
+        AppLifecycleEngine.snapshotMasked(
+          AppLifecycleState.paused,
+          masked: true,
+          archivesOpen: false,
+        ),
+        isTrue,
+      );
+    });
+
+    test('detached changes nothing', () {
+      for (final masked in [true, false]) {
+        expect(
+          AppLifecycleEngine.snapshotMasked(
+            AppLifecycleState.detached,
+            masked: masked,
+            archivesOpen: true,
+          ),
+          masked,
+        );
+      }
+    });
+  });
+
   group('AppLifecycleEngine.activeLoadedIndex', () {
     test('null currentIndex yields null', () {
       expect(

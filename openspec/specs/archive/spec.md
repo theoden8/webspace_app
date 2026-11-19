@@ -510,10 +510,11 @@ When at least one archive is open and the app is backgrounded, the visible UI SH
 #### Scenario: iOS task switcher does not show archive sites
 
 **Given** an archive is open and an archive site is the currently displayed view
-**When** `applicationWillResignActive` fires
-**Then** the IndexedStack switches to an app-tier index
+**When** `applicationWillResignActive` fires (the app goes `inactive`)
+**Then** an opaque mask paints over the whole page
 **And** the masked view is what the OS captures for the task switcher preview
-**And** on `applicationDidBecomeActive` the IndexedStack restores the archive-tier view
+**And** the mask holds through `paused` and `hidden`, even if the archive closes meanwhile
+**And** on `applicationDidBecomeActive` (`resumed`) the mask goes and the archive's site shows again
 
 #### Scenario: Android recents does not show archive sites
 
