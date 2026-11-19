@@ -156,19 +156,21 @@ The effective value (`WebViewModel.effectiveLocalCdnEnabled`: forced on by the u
 
 ### Requirement: LCDN-008 - Per-Site Settings UI
 
-The per-site settings screen SHALL show a toggle for LocalCDN with cache statistics. When the tracking-protection umbrella is on, the toggle SHALL render with `onChanged: null`, `value: true` (gated by `LocalCdnService.instance.hasCache`), and subtitle "Forced on by Tracking Protection".
+The per-site settings screen SHALL show a toggle for LocalCDN with cache statistics, on a host that serves LocalCDN (`LocalCdnService.offered`, Android). When the tracking-protection umbrella is on, the toggle SHALL render with `onChanged: null` and `value: true` (gated by `LocalCdnService.instance.hasCache`); its subtitle keeps the cache count, since the umbrella card states the forcing once for every row it forces on. With no cache the toggle is off and locked, its subtitle saying to download the cache in App Settings.
 
 #### Scenario: Toggle display
 
 - **Given** the user opens per-site settings
 - **When** the settings list is displayed
 - **Then** a "LocalCDN" toggle appears with the count of cached resources
+- **And** `test/site_privacy_screen_test.dart` ("LCDN-008: the LocalCDN row") holds it
 
 #### Scenario: Toggle locked while umbrella is on
 
 - **Given** `trackingProtectionEnabled` is true on the site settings screen
-- **Then** the LocalCDN switch's `onChanged` is `null`
-- **And** its subtitle reads "Forced on by Tracking Protection"
+- **Then** the LocalCDN switch's `onChanged` is `null` and its value is on
+- **And** its subtitle still counts the cached resources
+- **And** `test/site_privacy_screen_test.dart` ("LCDN-008: the LocalCDN row") holds it
 
 ### Requirement: LCDN-009 - App Settings UI
 

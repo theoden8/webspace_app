@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
-import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/screens/block_stats.dart';
 import 'package:webspace/screens/content_blocker_settings.dart';
 import 'package:webspace/services/content_blocker_service.dart';
@@ -25,7 +24,7 @@ List<Localized> appPrivacyOn(AppLocalizations loc) => [
       if (DnsBlockService.instance.level > 0) loc.appSettingsDnsBlocklist,
       if (ContentBlockerService.instance.lists.any((l) => l.enabled))
         loc.appSettingsContentBlocker,
-      if (hostIsAndroid && LocalCdnService.instance.resourceCount > 0)
+      if (LocalCdnService.offered && LocalCdnService.instance.resourceCount > 0)
         loc.appSettingsLocalCdn,
       if (ScreenCaptureGuard.isSupported && AppPref.blockScreenshots.value)
         loc.siteSettingsBlockScreenshots,
@@ -138,7 +137,7 @@ class _AppPrivacyScreenState extends State<AppPrivacyScreen>
                 none: loc.appSettingsNotConfigured),
             control: Opens(() => guardedOpen(_openContentBlocker)),
           ),
-          if (hostIsAndroid)
+          if (LocalCdnService.offered)
             DatasetTile(
               create: LocalCdnDataset.new,
               icon: Icons.storage,

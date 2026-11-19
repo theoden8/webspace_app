@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
-import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/settings/site_ids.dart';
 
 import 'package:flutter/material.dart';
@@ -558,7 +557,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen>
           if (_values.effectiveContentBlock &&
               ContentBlockerService.instance.hasRules)
             _contentBlockerLists(loc),
-          if (hostIsAndroid) _localCdn(loc),
+          if (LocalCdnService.offered) _localCdn(loc),
           SettingTile(
             title: loc.siteSettingsThirdPartyCookies,
             hint: loc.siteSettingsThirdPartyCookiesHint,

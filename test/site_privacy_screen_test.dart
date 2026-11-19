@@ -4,6 +4,7 @@ import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/screens/site_privacy.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/screen_capture_guard.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/scoped.dart';
@@ -318,6 +319,60 @@ void main() {
     expect(find.textContaining('Forced on by'), findsNothing);
     expect(find.text('Forced off by Tracking Protection'), findsOneWidget);
     expect(find.text('Strip tracking parameters from URLs'), findsOneWidget);
+  });
+
+  group('LCDN-008: the LocalCDN row', () {
+    setUp(() {
+      LocalCdnService.debugOffered = true;
+      LocalCdnService.instance.seedIndexForTest({
+        'jquery@3.7.1/jquery.min.js': '/cache/a',
+        'bootstrap@5.3.3/bootstrap.min.css': '/cache/b',
+        'gsap@3.12.5/gsap.min.js': '/cache/c',
+      });
+    });
+    tearDown(() {
+      LocalCdnService.debugOffered = null;
+      LocalCdnService.instance.seedIndexForTest(const {});
+    });
+
+    testWidgets('names the cached resources and is the site\'s to switch',
+        (tester) async {
+      SitePrivacyValues? reported;
+      await _pump(tester,
+          values: _values(), onChanged: (v) => reported = v);
+      expect(find.text('3 cached resources'), findsOneWidget);
+      final row = _switchTitled(tester, title: 'LocalCDN');
+      expect(row.value, isFalse);
+      row.onChanged!(true);
+      await tester.pump();
+      expect(reported!.choices.localCdnEnabled, isTrue);
+    });
+
+    testWidgets('locked on under Tracking Protection, still counting',
+        (tester) async {
+      await _pump(tester, values: _values(trackingProtection: true));
+      final row = _switchTitled(tester, title: 'LocalCDN');
+      expect(row.value, isTrue);
+      expect(row.onChanged, isNull);
+      expect(find.text('3 cached resources'), findsOneWidget);
+    });
+
+    testWidgets('locked off with no cache, saying where to get one',
+        (tester) async {
+      LocalCdnService.instance.seedIndexForTest(const {});
+      await _pump(tester, values: _values(trackingProtection: true));
+      final row = _switchTitled(tester, title: 'LocalCDN');
+      expect(row.value, isFalse);
+      expect(row.onChanged, isNull);
+      expect(find.text('Download the cache in app settings first'),
+          findsOneWidget);
+    });
+
+    testWidgets('absent where the host serves no LocalCDN', (tester) async {
+      LocalCdnService.debugOffered = false;
+      await _pump(tester, values: _values());
+      expect(find.text('LocalCDN'), findsNothing);
+    });
   });
 
   group('the per-site level uses the same slider as App Settings', () {
