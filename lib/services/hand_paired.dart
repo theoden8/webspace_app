@@ -127,9 +127,6 @@ enum HandPaired implements Pairing {
   /// The activation's target as the jar's dispose reads it (`LiveTarget`).
   jarLiveTarget,
 
-  /// A DNS download that fails, which the model never takes (`FALSE`).
-  dnsFails,
-
   /// The levels a prune may drop as it is asked: any held but the app-wide
   /// level and those a listed site asks for (DNS-021).
   dnsPrunes,

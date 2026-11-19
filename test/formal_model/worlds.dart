@@ -115,6 +115,7 @@ Set<Env> _with(Env e) => switch (e) {
   Env.exitPair => {Env.torOn, Env.exitPair},
   Env.notifyAll || Env.wakesUp => {Env.notifyAll, Env.wakesUp},
   Env.dnsAsk || Env.dnsTwo => {Env.dnsAsk, Env.dnsTwo},
+  Env.dnsFetchFails => {Env.dnsAsk, Env.dnsTwo, Env.dnsFetchFails},
   Env.residentOne || Env.capTwo => {Env.residentOne, Env.capTwo},
   Env.clashOne => {Env.joinOne, Env.clashOne},
   // The backup brings site 3, which starts off the list; beside an open
@@ -158,6 +159,7 @@ Env? _setting(ModelConst c, {required Set<Need> needs}) => switch (c) {
   ModelConst.waking => Env.wakesUp,
   ModelConst.siteLevel => Env.dnsAsk,
   ModelConst.dnsLevels => Env.dnsTwo,
+  ModelConst.dnsFetchFails => Env.dnsFetchFails,
   ModelConst.maxResident => Env.residentOne,
   ModelConst.maxLoaded => Env.capTwo,
   ModelConst.warmOwn => Env.warmOne,
