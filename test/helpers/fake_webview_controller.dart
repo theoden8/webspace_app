@@ -92,6 +92,18 @@ class FakeWebViewController extends Fake implements WebViewController {
     unawaited(Future<void>.delayed(backLag, land));
   }
 
+  /// What [getHtml] answers, awaited once per call.
+  Future<String?> Function() htmlAnswer = () async => '<html></html>';
+
+  /// How many times the page's HTML was asked for.
+  int htmlFetches = 0;
+
+  @override
+  Future<String?> getHtml() {
+    htmlFetches++;
+    return htmlAnswer();
+  }
+
   @override
   Future<bool> reload() async {
     calls.add('reload');
