@@ -34,7 +34,6 @@ DESIGN-009	no check: mostly a protocol between sessions; its one mechanical rule
 DEVTOOLS-003	no check: no test drives Share/Save/Copy HTML or the concurrent-fetch guard
 DEVTOOLS-004	no check: copy and sensitive-copy are tested, but no test checks live streaming, auto-scroll or the App Settings entry (partly: test/dev_tools_copy_test.dart, "App Logs copy")
 # dns-blocklist
-DNS-006	no check: no test drives the App Settings DNS row (DnsBlocklistDataset with its slider): nothing checks that moving the slider does not download, that the slider is disabled while a download runs, or that it opens at the downloaded level (partly: test/level_slider_test.dart, "every stop is labelled and the current one stands out")
 # downloads
 DL-001	no check: no gate reads AndroidManifest.xml for the flutter_inappwebview_android FileProvider or its FILE_PROVIDER_PATHS resource, and no native test drives getOutputUri
 # external-scheme-handling
