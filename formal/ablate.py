@@ -1,0 +1,215 @@
+"""Ablation of the printed tables' decisions over the security state: each
+mutant forces one branch condition TRUE or FALSE, or drops one guard, of an
+action that writes a variable a security invariant reads, and TLC runs it in
+the cheapest world that takes the action first, then in every such world
+before calling it a survivor.
+
+Out of scope by construction: the place (`fl[f].pc`), `Calm` (decided from the
+footprints, activation_calm.tsv), `Input` and the fresh flow number (the
+scheduler), picks over the flow's own fields (`\\E s \\in fl[f]...`), a lock's
+grant (`Jar!Granted`), a reply's read marker (`stored = stored`), and arms
+over a world constant (`IF ProxyRefused`, `IF FALSE ...`): none of them is a
+decision the code makes about a site.
+
+A survivor is a branch whose arms, or a guard whose absence, the invariants
+cannot tell apart: a missing invariant or a redundant check. Each one is
+labelled by hand in formal/ablation_survivors.tsv.
+
+usage: ablate.py --model DIR --formal DIR --jar JAR [--times DIR]
+                 [--only ACTION...] [--budget SECONDS] [--list]
+                 [--resume TSV] [--progress TSV]
+"""
+import argparse
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from world_key import Keys, tsv  # noqa: E402
+
+SECURITY = {"jar", "stored", "signedIn", "loaded", "nested", "headless",
+            "boxes", "gone", "ids", "told"}
+ACTION = re.compile(r"^([A-Z]\w*)\(f\) ==\n(.*?)\n\n", re.S | re.M)
+CONJUNCT = re.compile(r"^    /\\ (.*)$", re.M)
+FRAMEWORK = ("fl[f].pc", "Calm", "Input", "f = inputs", "Jar!", "((", "\\E ")
+
+
+PICK = re.compile(r"^    /\\ \\E (\w+) \\in (.+) :$")
+# `v = v`: a reply's read of a variable only a platform call reaches, which
+# the printer writes so the action's footprint names it; always TRUE.
+SELF_EQUAL = re.compile(r"(\w+) = \1")
+GUARD = re.compile(r"^         \(([^()]*)\)$")
+
+
+def mutants(tables, writes):
+    """Each mutant as (id, action, operator, the line, its replacement): a
+    branch forced TRUE or FALSE, or a guard dropped, of an action that writes
+    the security state; a pick's bound widened by an operand of its
+    intersection left out, in any action; a guard heading a pick's body
+    forced TRUE. An id numbers its action's mutants, so a new kind in
+    one action moves no other's."""
+    out = []
+    for action, body in ACTION.findall(tables):
+        # A pick decides which site a flow acts on, so its bound is
+        # mutated whatever the action itself writes.
+        secure = bool(writes.get(action, set()) & SECURITY)
+        mine = []
+
+        def add(kind, op, line, replacement):
+            mine.append((f"{action}.{len(mine)}.{kind}", action, op, line, replacement))
+
+        lines = body.split("\n")
+        for i, line in enumerate(lines):
+            conjunct = re.match(r"^    /\\ (.*)$", line)
+            if not conjunct:
+                continue
+            text = conjunct.group(1)
+            pick = PICK.match(line)
+            if not secure and not pick:
+                continue
+            if pick:
+                var, bound = pick.groups()
+                # Only a plain intersection of names: splitting a set
+                # builder or a SUBSET at its \\cap would not parse.
+                operands = [o.strip() for o in bound.split(" \\cap ")]
+                if len(operands) > 1 and all(re.fullmatch(r"\w+", o) for o in operands):
+                    for o in operands:
+                        rest = " \\cap ".join(x for x in operands if x != o)
+                        add("bound", f"bound {bound} -> {rest}", line,
+                            f"    /\\ \\E {var} \\in {rest} :")
+                if secure and i + 1 < len(lines) and GUARD.match(lines[i + 1]):
+                    add("pickguard", f"force TRUE ({GUARD.match(lines[i + 1]).group(1)})",
+                        lines[i + 1], "         (TRUE)")
+                continue
+            branch = re.match(r"(\(?IF )(.*)$", text)
+            if branch:
+                head, cond = branch.groups()
+                if cond in ("ProxyRefused", "FALSE"):
+                    continue
+                for value in ("TRUE", "FALSE"):
+                    add(value.lower(), f"force {value}", line, f"    /\\ {head}{value}")
+            elif not text.startswith(FRAMEWORK) and not SELF_EQUAL.fullmatch(text):
+                add("drop", "drop", line, "    /\\ TRUE")
+        out.extend(mine)
+    return out
+
+
+def apply(tables, action, line, replacement):
+    m = next(m for m in ACTION.finditer(tables) if m.group(1) == action)
+    block = m.group(0)
+    old = line + "\n"
+    assert block.count(old) == 1, (action, line)
+    return tables[:m.start()] + block.replace(old, replacement + "\n") + tables[m.end():]
+
+
+def worlds_taking(action, *, model, keys):
+    expect = {r[0]: r[1] for r in tsv(os.path.join(model, "checks.tsv")) or ()}
+    consts = {r[0]: set(r[1].split()) if len(r) > 1 else set()
+              for r in tsv(os.path.join(model, "activation_worlds.tsv")) or ()}
+    needs = keys.needs(model).get(action, set())
+    return [w for w, c in consts.items()
+            if expect.get(w) == "No error has been found"
+            and all((n in c) == want for n, want in needs)]
+
+
+def cost(world, times):
+    try:
+        secs, workers = open(os.path.join(times, world)).read().split()[:2]
+        return int(secs) * int(workers)
+    except (OSError, ValueError):
+        return 10 ** 9
+
+
+def tlc(lib, world, *, formal, jar):
+    meta = os.path.join(lib, "states", world)
+    os.makedirs(meta + ".tmp", exist_ok=True)
+    t0 = time.time()
+    r = subprocess.run(
+        ["java", f"-Djava.io.tmpdir={meta}.tmp", f"-DTLA-Library={lib}", "-cp", jar,
+         "tlc2.TLC", "-workers", "2", "-checkpoint", "0", "-metadir", meta,
+         "-config", os.path.join(lib, "checks", world + ".cfg"), "activation.tla"],
+        cwd=formal, capture_output=True, text=True)
+    shutil.rmtree(os.path.join(lib, "states"), ignore_errors=True)
+    if "No error has been found" in r.stdout:
+        return "held", time.time() - t0
+    if "Parsing or semantic analysis failed" in r.stdout:
+        raise RuntimeError(f"{lib} does not parse in {world}: a tool fault, not a catch\n"
+                           f"{r.stdout[-1500:]}")
+    if "TLC threw an unexpected exception" in r.stdout:
+        raise RuntimeError(f"TLC threw in {world} for {lib}: a tool fault, not a catch\n"
+                           f"{r.stdout[-1500:]}")
+    m = re.search(r"Invariant (\S+) is violated|(Deadlock reached)|Error: (.*)", r.stdout)
+    if not m:
+        raise RuntimeError(f"TLC gave no verdict for {lib} in {world}: a tool fault, "
+                           f"not a catch\n{r.stdout[-400:]}{r.stderr[-400:]}")
+    return next(g for g in m.groups() if g), time.time() - t0
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--model", required=True)
+    ap.add_argument("--formal", required=True)
+    ap.add_argument("--jar", required=True)
+    ap.add_argument("--times", default=os.path.expanduser("~/.cache/webspace-formal/times"))
+    ap.add_argument("--only", nargs="*")
+    ap.add_argument("--budget", type=int, default=36000)
+    ap.add_argument("--work", default="states/ablate")
+    ap.add_argument("--list", action="store_true")
+    ap.add_argument("--resume", help="a tsv of verdicts already found; its mutants are skipped")
+    ap.add_argument("--progress", help="a tsv of the worlds each mutant held in, appended as each "
+                    "holds and read back, so a mutant longer than one run goes on where it stopped")
+    a = ap.parse_args()
+    model = os.path.abspath(a.model)
+    a.jar = os.path.abspath(a.jar)
+    tables = open(os.path.join(model, "activation_tables.tla")).read()
+    writes = {r[0]: set(r[2].split()) for r in tsv(os.path.join(model, "activation_footprints.tsv")) or ()}
+    keys = Keys(os.path.join(a.formal, "activation.tla"))
+    all_mutants = [m for m in mutants(tables, writes) if not a.only or m[1] in a.only]
+    if a.list:
+        for mid, action, op, line, _ in all_mutants:
+            print(f"{mid}\t{op}\t{line.strip()[:100]}\t{len(worlds_taking(action, model=model, keys=keys))} worlds")
+        return 0
+    spent = 0.0
+    done = set()
+    if a.resume and os.path.exists(a.resume):
+        done = {r[0] for r in tsv(a.resume) or () if not r[2].startswith("not run")}
+    else:
+        print("# mutant\toperator\tverdict\tworld\tseconds")
+    for mid, action, op, line, replacement in all_mutants:
+        if mid in done:
+            continue
+        if spent > a.budget:
+            print(f"{mid}\t{op}\tnot run: budget\t-\t0", flush=True)
+            continue
+        lib = os.path.abspath(os.path.join(a.work, mid))
+        shutil.rmtree(lib, ignore_errors=True)
+        shutil.copytree(model, lib)
+        with open(os.path.join(lib, "activation_tables.tla"), "w") as f:
+            f.write(apply(tables, action, line, replacement))
+        worlds = sorted(worlds_taking(action, model=model, keys=keys), key=lambda w: cost(w, a.times))
+        verdict, where, took = "SURVIVED", f"{len(worlds)} worlds", 0.0
+        held = {r[1]: float(r[2]) for r in (tsv(a.progress) or ()) if r[0] == mid} \
+            if a.progress and os.path.exists(a.progress) else {}
+        took += sum(held.values())
+        for w in worlds:
+            if w in held:
+                continue
+            v, secs = tlc(lib, w, formal=os.path.abspath(a.formal), jar=a.jar)
+            took += secs
+            if v != "held":
+                verdict, where = v, w
+                break
+            if a.progress:
+                with open(a.progress, "a") as f:
+                    f.write(f"{mid}\t{w}\t{secs:.0f}\n")
+        spent += took
+        shutil.rmtree(lib, ignore_errors=True)
+        print(f"{mid}\t{op}\t{verdict}\t{where}\t{took:.0f}", flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
