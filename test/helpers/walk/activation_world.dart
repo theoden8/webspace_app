@@ -45,7 +45,9 @@ import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/view_blockers.dart';
 import 'package:webspace/services/webview_tab_binding.dart';
+import 'package:webspace/services/file_import_document.dart';
 import 'package:webspace/services/file_store.dart';
+import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
@@ -295,6 +297,15 @@ final class Fails extends SiteAction {
   final Fault fault;
   @override
   String toString() => 'Fails(Fault.${fault.name})';
+}
+
+/// From here on the page's file imports are read from a store that waits on
+/// the platform (`HtmlImportStorage.preloadOne`), so an input can land while
+/// an activation reads one (`HtmlReply`): a setup step.
+final class ImportStore extends SiteAction {
+  const ImportStore();
+  @override
+  String toString() => 'ImportStore()';
 }
 
 /// The renderer under the webview of the site at [slot] dies, and the
@@ -1371,6 +1382,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     Settle() ||
     Login() ||
     Fails() ||
+    ImportStore() ||
     Add() ||
     JoinSite() ||
     Move() ||
@@ -1863,11 +1875,16 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   /// The page's base domains, numbered from 1 by first appearance, as
   /// `formal/activation.tla`'s `Base`.
+  /// A host's site URL: a `file://` host is a file import, read from the
+  /// import store ([ImportStore]), any other a web site.
+  static String _initUrl(String host) =>
+      isFileImportUrl(host) ? host : 'https://$host/';
+
   List<int> get _bases {
     final seen = <String, int>{};
     return [
       for (final h in page.hosts)
-        seen.putIfAbsent(getBaseDomain('https://$h/'), () => seen.length + 1),
+        seen.putIfAbsent(getBaseDomain(_initUrl(h)), () => seen.length + 1),
     ];
   }
 
@@ -2041,6 +2058,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     Settle() ||
     Login() ||
     Fails() ||
+    ImportStore() ||
     Retap() ||
     Touch() ||
     StayPut() => null,
@@ -2233,7 +2251,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   WebViewModel _site(String host, {SiteId? id}) => WebViewModel(
     siteId: id ?? SiteId('walk-${_nextSite++}'),
-    initUrl: 'https://$host/',
+    initUrl: _initUrl(host),
     name: host,
     incognito: page.incognito.contains(host),
     proxySettings: switch ((
@@ -2698,6 +2716,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           Settle() ||
           Login() ||
           Fails() ||
+    ImportStore() ||
           Retap() ||
           Touch() ||
           StayPut():
@@ -2793,6 +2812,13 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         } case final call?) {
           jar.failing.add(call);
         }
+      case ImportStore():
+        final storage = HtmlImportStorage(
+          secureStorage: MockFlutterSecureStorage(),
+          store: _PacedImports(gate),
+        );
+        await storage.initialize();
+        HtmlImportStorage.overrideForTesting(storage);
       case Login(:final slot):
         await settle();
         if (n > 0 && sites.isLoadedAt(slot % n)) {
@@ -3905,4 +3931,18 @@ Future<Uint8List> _deriveArchiveKey(
     material[i] = src[i % src.length];
   }
   return ArchiveCrypto.hmac(material, info: passphrase);
+}
+
+/// The import store's files, each read waiting on the platform as a disk
+/// read does ([ImportStore]).
+final class _PacedImports extends MemoryFileStore {
+  _PacedImports(this._gate);
+
+  final Gate _gate;
+
+  @override
+  Future<String?> readText(String name) async {
+    await _gate.pace(PlatformCall.htmlImportRead);
+    return super.readText(name);
+  }
 }

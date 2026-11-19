@@ -47,6 +47,7 @@ enum PlatformCall {
   navStateRemoveForSite('WebViewStateStorage.removeStatesForSite'),
   navStateRemoveOrphans('WebViewStateStorage.removeOrphans'),
   navStateSiteIds('WebViewStateStorage.siteIds'),
+  htmlImportRead('HtmlImportStorage.preloadOne'),
   routerSetRoutes('ProxyRouter.refreshRoutes'),
   proxyOverride('ProxyController.setProxyOverride'),
   nestedScreen('Navigator.push'),
@@ -273,7 +274,10 @@ enum ActivationStep {
   ),
 
   /// The site's cached or imported HTML decrypted before its webview builds.
-  htmlReply(outcomes: {StepOutcome.go, StepOutcome.bail}),
+  htmlReply(
+    outcomes: {StepOutcome.go, StepOutcome.bail},
+    calls: {PlatformCall.htmlImportRead},
+  ),
   commit(outcomes: {StepOutcome.none, StepOutcome.bail}),
   resumeReply(calls: {PlatformCall.webViewResume}),
   exit(outcomes: {StepOutcome.home, StepOutcome.stay, StepOutcome.refused}),

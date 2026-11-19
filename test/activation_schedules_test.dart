@@ -54,6 +54,15 @@ const _mixedContainers = (
   incognito: <String>[],
 );
 
+/// [_mixedContainers] with its second site a file import, read from the
+/// import store as it activates (`HtmlReply`).
+const _withImport = (
+  hosts: ['one.example.com', 'file:///page.html', 'other.test'],
+  pool: <String>[],
+  containers: true,
+  incognito: <String>[],
+);
+
 /// [_mixed] with its third site incognito, on a base domain of its own.
 const _mixedIncognito = (
   hosts: ['one.example.com', 'two.example.com', 'other.test'],
@@ -1774,6 +1783,23 @@ void main() {
           preemptions: _onePast,
         );
       });
+    }
+  });
+
+  // A tap that lands while the activation reads the import's HTML
+  // supersedes it, so the read's reply finds it stale and bails.
+  _scheduleTest('a file import\'s activation read past by a tap bails',
+      body: () async {
+    for (final script in const [
+      [Tap(1), Tap(0)],
+      [Tap(1), Tap(2)],
+    ]) {
+      await _expectEvery(
+        world: () => ActivationWorld(_withImport),
+        setup: const [ImportStore()],
+        script: script,
+        preemptions: _preemptions,
+      );
     }
   });
 
