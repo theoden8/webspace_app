@@ -71,6 +71,14 @@ class LayerImportTest extends AnalysisRuleTest {
   @override
   void setUp() {
     rule = LayerImport();
+    newPackage('flutter_inappwebview_android').addFile(
+      'lib/flutter_inappwebview_android.dart',
+      'class AndroidWebView {}',
+    );
+    newPackage('flutter_inappwebview').addFile(
+      'lib/flutter_inappwebview.dart',
+      'class InAppWebView {}',
+    );
     super.setUp();
     for (final (path, name) in [
       ('web_view_model.dart', 'Model'),
@@ -174,6 +182,42 @@ class LayerImportTest extends AnalysisRuleTest {
     to: 'values',
     from: 'platform',
   );
+
+  Future<void> test_one_platforms_webview_is_reported() async {
+    const directives =
+        "import /*here*/'package:flutter_inappwebview_android/"
+        "flutter_inappwebview_android.dart'/*end*/;";
+    const source = '$directives\nAndroidWebView? w;\n';
+    final at = source.indexOf('/*here*/') + '/*here*/'.length;
+    await assertDiagnosticsInFile(
+      _file(
+        'services/platform.dart',
+        directives: directives,
+        uses: 'AndroidWebView? w;',
+      ),
+      [
+        lint(
+          at,
+          source.indexOf('/*end*/') - at,
+          name: 'platform_webview',
+          messageContainsAll: [
+            "'flutter_inappwebview_android' is one platform's webview",
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> test_the_plugin_facade_is_allowed() async {
+    await assertNoDiagnosticsInFile(
+      _file(
+        'screens/facade.dart',
+        directives:
+            "import 'package:flutter_inappwebview/flutter_inappwebview.dart';",
+        uses: 'InAppWebView? w;',
+      ),
+    );
+  }
 
   Future<void> test_down_and_across_are_allowed() async {
     await assertNoDiagnosticsInFile(
