@@ -1317,8 +1317,9 @@ class WebViewFactory {
           LogTag.webView.debug(
               '  -> CANCEL (iOS UL bypass: reissuing programmatically) $url',
               sensitive: true);
+          final originalUrl = navigationAction.request.url;
           unawaited(controller.loadUrl(urlRequest: inapp.URLRequest(
-            url: navigationAction.request.url,
+            url: originalUrl,
             headers: reissue.headers,
           )));
           return inapp.NavigationActionPolicy.CANCEL;
