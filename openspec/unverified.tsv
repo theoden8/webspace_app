@@ -82,7 +82,6 @@ SHIM-TEST-006	no check: no gate asserts each test/browser file uses setupBrowser
 # kiosk-mode
 # language
 LANG-003	no check: no widget test of the per-site language picker (System default plus 30+ options) or of the webview being disposed on save
-LANG-005	no check: no test or gate asserts the header and the override are built without platform branching
 # lazy-webview-loading
 # legal
 EXPORT-002	no check: nothing fails a cryptographic primitive outside the listed ones; review is the gate
