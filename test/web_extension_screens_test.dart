@@ -11,7 +11,6 @@ import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/site_extensions.dart';
 import 'package:webspace/services/developer_mode_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/step_table.dart';
 import 'package:webspace/services/web_extension_library.dart';
 import 'package:webspace/services/web_extension_native.dart';
@@ -112,53 +111,35 @@ void main() {
   tearDown(() {
     debugHostRunsWebExtensions = null;
     DeveloperModeService.instance.debugSet(on: false);
-    ExperimentalFeaturesService.instance.debugSet(
-      ExperimentalFeature.webExtensions,
-      on: false,
-    );
   });
 
-  group('WEBEXT-001 offered only where WebKit runs extensions, as an '
-      'experiment', () {
-    testWidgets('the Developer screen offers the switch, off by default', (
+  group('WEBEXT-001 offered wherever WebKit runs extensions', () {
+    testWidgets('App Settings shows the row with developer mode off', (
       tester,
     ) async {
+      DeveloperModeService.instance.debugSet(on: false);
       await tester.pumpWidget(_appSettings());
       await tester.pumpAndSettle();
-      expect(find.text('Extensions'), findsNothing);
-      await _tapText(tester, text: 'Developer');
-      await tester.scrollUntilVisible(
-        find.text('Web extensions'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      final row = find.ancestor(
-        of: find.text('Web extensions'),
-        matching: find.byType(SwitchListTile),
-      );
-      expect(tester.widget<SwitchListTile>(row).value, isFalse);
-      await tester.tap(find.descendant(of: row, matching: find.byType(Switch)));
-      await tester.pumpAndSettle();
       expect(webExtensionsOffered, isTrue);
-      await tester.pageBack();
-      await tester.pumpAndSettle();
       expect(find.text('Extensions'), findsOneWidget);
       expect(find.text('None imported'), findsOneWidget);
     });
 
-    testWidgets('a host that runs none has no switch and no row', (
+    testWidgets('the Developer screen has no Web extensions switch', (
       tester,
     ) async {
-      debugHostRunsWebExtensions = false;
-      ExperimentalFeaturesService.instance.debugSet(
-        ExperimentalFeature.webExtensions,
-        on: true,
-      );
       await tester.pumpWidget(_appSettings());
       await tester.pumpAndSettle();
-      expect(find.text('Extensions'), findsNothing);
       await _tapText(tester, text: 'Developer');
       expect(find.text('Web extensions'), findsNothing);
+    });
+
+    testWidgets('a host that runs none has no row', (tester) async {
+      debugHostRunsWebExtensions = false;
+      await tester.pumpWidget(_appSettings());
+      await tester.pumpAndSettle();
+      expect(webExtensionsOffered, isFalse);
+      expect(find.text('Extensions'), findsNothing);
     });
   });
 
@@ -253,10 +234,6 @@ void main() {
     testWidgets('switching on asks first, showing what the site grants', (
       tester,
     ) async {
-      ExperimentalFeaturesService.instance.debugSet(
-        ExperimentalFeature.webExtensions,
-        on: true,
-      );
       final entry = await _imported();
       final site = WebViewModel(initUrl: 'https://mail.example.com/');
       var changes = 0;
@@ -312,10 +289,6 @@ void main() {
   group('WEBEXT-004 an extension on for every site, unless a site says '
       'otherwise', () {
     setUp(() {
-      ExperimentalFeaturesService.instance.debugSet(
-        ExperimentalFeature.webExtensions,
-        on: true,
-      );
     });
 
     testWidgets('switching the default on asks once, then every site that '
@@ -417,10 +390,6 @@ void main() {
     }
 
     setUp(() async {
-      ExperimentalFeaturesService.instance.debugSet(
-        ExperimentalFeature.webExtensions,
-        on: true,
-      );
     });
 
     testWidgets('a site switched on counts what runs on it', (tester) async {
@@ -464,9 +433,10 @@ void main() {
     });
   });
 
-  group('WEBEXT-012 with the experiment off the screens are hidden', () {
+  group('WEBEXT-012 where WebKit runs none the screens are hidden', () {
     testWidgets('a site keeps its choice, and its row is gone', (tester) async {
       final entry = await _imported();
+      debugHostRunsWebExtensions = false;
       final site = WebViewModel(
         initUrl: 'https://mail.example.com/',
         webExtensionChoices: {entry.id: true},
@@ -567,10 +537,6 @@ void main() {
 
   group('WEBEXT-003 an extension WebKit does not load here says so', () {
     setUp(() {
-      ExperimentalFeaturesService.instance.debugSet(
-        ExperimentalFeature.webExtensions,
-        on: true,
-      );
       engine.anyFolder = (
         problems: const ['Invalid `persistent` manifest entry.'],
         hasOptionsPage: true,
@@ -613,10 +579,6 @@ void main() {
 
   group('an extension\'s own UI opens within its site', () {
     setUp(() {
-      ExperimentalFeaturesService.instance.debugSet(
-        ExperimentalFeature.webExtensions,
-        on: true,
-      );
       engine.anyFolder = (
         problems: const <String>[],
         hasOptionsPage: true,

@@ -242,7 +242,6 @@
     "experimentalSiteIconsOnly": true,
     "experimentalTextureRendering": true,
     "experimentalFolderLibrary": true,
-    "experimentalWebExtensions": true,
     "experimentalExtensionSearch": true,
     "webExtensionsCheckUpdates": true,
     "webExtensionsAutoUpdate": true,

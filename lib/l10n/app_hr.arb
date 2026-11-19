@@ -1161,10 +1161,8 @@
       }
     }
   },
-  "appSettingsExperimentalWebExtensions": "Web-proširenja",
-  "appSettingsExperimentalWebExtensionsHint": "Pokreće proširenja preglednika koja uvezete iz datoteke (.crx iz Chromea, .xpi iz Firefoxa ili .zip) na web-mjestima koja odaberete. WebKit od svakog pokreće ono što podržava. Proširenje ne radi ni na jednom web-mjestu dok ga ne uključite u postavkama tog web-mjesta, a ondje doseže samo to web-mjesto.",
   "appSettingsExperimentalExtensionSearch": "Pretraživanje proširenja",
-  "appSettingsExperimentalExtensionSearchHint": "Dodaje pretraživanje stranice addons.mozilla.org na zaslon \"Proširenja\", a svaki je rezultat označen prema tome koliko bi ga dobro WebKit trebao pokretati. Nudi se samo u verzijama aplikacije izvan App Storea i samo dok je \"Web-proširenja\" uključeno.",
+  "appSettingsExperimentalExtensionSearchHint": "Dodaje pretraživanje stranice addons.mozilla.org na zaslon \"Proširenja\", a svaki je rezultat označen prema tome koliko bi ga dobro WebKit trebao pokretati. Nudi se samo u verzijama aplikacije izvan App Storea.",
   "networkInterfaceTitle": "Mrežno sučelje",
   "networkInterfaceHint": "Šalje promet ove stranice samo kroz jedno mrežno sučelje, poput tunela VPN-a, i nijedno drugo. Dok to sučelje ne radi, stranica ne učitava ništa umjesto da koristi drugu vezu. Nazivi hostova traže se putem vlastitih DNS poslužitelja sučelja, pa ih sustavski razlučivač (systemd-resolved) mora poznavati. Proxyju postavljenom gore pristupa se kroz sučelje. WebRTC pozivi ga ne koriste.",
   "networkInterfaceSystem": "Usmjeravanje sustava",

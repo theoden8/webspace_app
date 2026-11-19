@@ -6,27 +6,30 @@ Lets a user run browser extensions (WebExtensions, the format Chrome, Firefox an
 
 ## ADDED Requirements
 
-### Requirement: WEBEXT-001 - Offered only where WebKit runs extensions, as an experiment
+### Requirement: WEBEXT-001 - Offered wherever WebKit runs extensions
 
-Web extensions SHALL be reachable only on iOS 18.4+ and macOS 15.4+, and there only while developer mode and the Web extensions switch in the Experimental group are on (DEVTOOLS-011). The switch SHALL default off. Elsewhere there SHALL be no switch, no Extensions screen and no extension setting on any webview.
+Web extensions SHALL be reachable on iOS 18.4+ and macOS 15.4+, with developer mode on or off. Elsewhere there SHALL be no Extensions screen and no extension setting on any webview.
 
-#### Scenario: A supported Mac with the switch on
+This was an Experimental switch (DEVTOOLS-011), Web extensions, which defaulted off; it graduated. The switch's pref (`experimentalWebExtensions`) is no longer read.
 
-- **GIVEN** macOS 15.4 with developer mode and Web extensions on
+#### Scenario: A supported Mac
+
+- **GIVEN** macOS 15.4 with developer mode off
 - **WHEN** the user opens App Settings
 - **THEN** an Extensions row is shown
+- **AND** the Developer screen shows no Web extensions switch
 
 #### Scenario: An older system
 
-- **GIVEN** iOS 18.3 with developer mode on
+- **GIVEN** iOS 18.3
 - **WHEN** the user opens App Settings
-- **THEN** there is no Web extensions switch and no Extensions row
+- **THEN** there is no Extensions row
 
 #### Scenario: Android and Linux
 
-- **GIVEN** an Android or Linux build with developer mode on
+- **GIVEN** an Android or Linux build
 - **WHEN** the user opens App Settings
-- **THEN** there is no Web extensions switch and no Extensions row
+- **THEN** there is no Extensions row
 
 ### Requirement: WEBEXT-002 - The user adds an extension from a file or a link; the app downloads only what the user asked for
 
@@ -256,16 +259,16 @@ Exporting settings SHALL ask how to carry the extension library, naming the size
 - **WHEN** the user imports it
 - **THEN** the site runs no extension until the user switches one on there
 
-### Requirement: WEBEXT-012 - Turning the experiment off detaches every extension
+### Requirement: WEBEXT-012 - Where WebKit runs none, no extension attaches
 
-With the Web extensions switch or developer mode off, no webview SHALL attach an extension and the Extensions screens SHALL be hidden. Each site's choices SHALL be kept, so turning the switch back on restores them.
+Where extensions are not offered (WEBEXT-001), no webview SHALL attach an extension and the Extensions screens SHALL be hidden. Each site's choices SHALL be kept, so a backup taken there and restored where extensions run restores them.
 
-#### Scenario: Off and on again
+#### Scenario: A site's choice on a host that runs none
 
-- **GIVEN** a site with an extension switched on
-- **WHEN** the user turns Web extensions off, reopens the site, then turns it back on
-- **THEN** the site ran with no extension while it was off
-- **AND** the extension runs on the site again after it is back on
+- **GIVEN** a site with an extension switched on, on a host that runs no extensions
+- **WHEN** the user opens the site's settings
+- **THEN** there is no Extensions row, and the site runs no extension
+- **AND** the site's choice is kept
 
 ### Requirement: WEBEXT-013 - A package is read from its bytes, or refused with the reason
 

@@ -116,6 +116,14 @@ void main() {
             "site's own blockers on every Android launch (DEVTOOLS-011)");
   });
 
+  test('Web extensions graduated: they have no switch (WEBEXT-001)', () {
+    expect(
+        ExperimentalFeature.values.map((f) => f.pref.key),
+        isNot(contains('experimentalWebExtensions')),
+        reason: 'iOS 18.4+ and macOS 15.4+ offer extensions with developer '
+            'mode on or off (DEVTOOLS-011)');
+  });
+
   test('Proxy router graduated: its switch is not an experiment (PROXY-013)',
       () {
     expect(
@@ -143,13 +151,13 @@ void main() {
   test('a switch defaults off and counts only with developer mode', () async {
     await ExperimentalFeaturesService.instance.initialize();
     DeveloperModeService.instance.debugSet(on: true);
-    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.webExtensions), isFalse);
-    await ExperimentalFeaturesService.instance.setSwitch(ExperimentalFeature.webExtensions, on: true);
-    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.webExtensions), isTrue);
+    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.extensionSearch), isFalse);
+    await ExperimentalFeaturesService.instance.setSwitch(ExperimentalFeature.extensionSearch, on: true);
+    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.extensionSearch), isTrue);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool(AppPref.experimentalWebExtensions.key), isTrue);
+    expect(prefs.getBool(AppPref.experimentalExtensionSearch.key), isTrue);
     DeveloperModeService.instance.debugSet(on: false);
-    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.webExtensions), isFalse);
+    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.extensionSearch), isFalse);
   });
 
   test('a wrong-typed stored value reads as the default', () async {

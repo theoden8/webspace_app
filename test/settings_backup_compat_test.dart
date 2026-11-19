@@ -174,6 +174,9 @@ const Map<String, String> _retiredKeys = {
   'experimentalServiceWorkers': "CB-022: a site's service workers through "
       'its blockers graduated out of the Experimental group; there is no '
       'switch to restore',
+  'experimentalWebExtensions': 'WEBEXT-001: web extensions graduated out of '
+      'the Experimental group on iOS and macOS; there is no switch to '
+      'restore',
 };
 
 /// A pref whose default HEAD changed, and why. A release's minimal backup

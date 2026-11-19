@@ -31,14 +31,10 @@ import 'package:webspace/settings/web_extension_backup.dart';
 import 'package:webspace/settings/web_extension_source.dart';
 import 'package:webspace/utils/concurrency.dart';
 
-/// Whether extensions are offered here now (WEBEXT-001): on a host that runs
-/// them, with developer mode and the Web extensions switch on. Every
-/// webview's plan and every Extensions row reads it.
-bool get webExtensionsOffered =>
-    hostRunsWebExtensions &&
-    ExperimentalFeaturesService.instance.isEnabled(
-      ExperimentalFeature.webExtensions,
-    );
+/// Whether extensions are offered here (WEBEXT-001): on a host that runs
+/// them, with developer mode on or off. Every webview's plan and every
+/// Extensions row reads it.
+bool get webExtensionsOffered => hostRunsWebExtensions;
 
 /// Whether this build carries the search of addons.mozilla.org at all
 /// (WEBEXT-019): only one made with the [directFlavor], which no App Store

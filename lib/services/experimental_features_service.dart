@@ -12,10 +12,6 @@ enum ExperimentalFeature {
   /// default: every release before it drew pages with hybrid composition.
   textureRendering(AppPref.experimentalTextureRendering),
 
-  /// Web extensions per site, where WebKit runs them (WEBEXT-001). New, so
-  /// off by default.
-  webExtensions(AppPref.experimentalWebExtensions),
-
   /// A search of addons.mozilla.org on the Extensions screen, in a build
   /// from outside the App Store (WEBEXT-019). New, so off by default.
   extensionSearch(AppPref.experimentalExtensionSearch),

@@ -11,8 +11,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/screens/app_extension_entry.dart';
 import 'package:webspace/screens/app_extensions.dart';
-import 'package:webspace/services/developer_mode_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/web_extension_attach_engine.dart';
 import 'package:webspace/services/web_extension_library.dart';
@@ -69,11 +67,6 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     AppPref.loadAll(await SharedPreferences.getInstance());
     debugHostRunsWebExtensions = true;
-    DeveloperModeService.instance.debugSet(on: true);
-    ExperimentalFeaturesService.instance.debugSet(
-      ExperimentalFeature.webExtensions,
-      on: true,
-    );
     disk = FakeExtensionFolders();
     fetch = FakeExtensionFetch()
       ..replies[_amoQuery] = amoAddonReply()
@@ -83,11 +76,6 @@ void main() {
 
   tearDown(() {
     debugHostRunsWebExtensions = null;
-    DeveloperModeService.instance.debugSet(on: false);
-    ExperimentalFeaturesService.instance.debugSet(
-      ExperimentalFeature.webExtensions,
-      on: false,
-    );
   });
 
   /// AdNauseam added from its listing at [version], as the add flow does.

@@ -5577,21 +5577,13 @@
       }
     }
   },
-  "appSettingsExperimentalWebExtensions": "Web extensions",
-  "@appSettingsExperimentalWebExtensions": {
-    "description": "Title of the switch in App Settings > Developer > Experimental that turns on browser extensions (add-ons such as ad blockers, imported from a file) on iOS and macOS."
-  },
-  "appSettingsExperimentalWebExtensionsHint": "Run browser extensions you import from a file (a Chrome .crx, a Firefox .xpi or a .zip) on the sites you choose. WebKit runs what it supports of each one. An extension runs on no site until you switch it on in that site's settings, and there it reaches only that site.",
-  "@appSettingsExperimentalWebExtensionsHint": {
-    "description": "Explanation behind the hint button of the Web extensions experiment switch. .crx, .xpi and .zip are file types; WebKit is the browser engine; keep those names as they are."
-  },
   "appSettingsExperimentalExtensionSearch": "Extension search",
   "@appSettingsExperimentalExtensionSearch": {
     "description": "Title of the switch in App Settings > Developer > Experimental that adds a search of addons.mozilla.org (Firefox's add-on site) to the Extensions screen."
   },
-  "appSettingsExperimentalExtensionSearchHint": "Adds a search of addons.mozilla.org to the Extensions screen, each result labelled by how well WebKit is expected to run it. Offered only in builds from outside the App Store, and only while Web extensions is on.",
+  "appSettingsExperimentalExtensionSearchHint": "Adds a search of addons.mozilla.org to the Extensions screen, each result labelled by how well WebKit is expected to run it. Offered only in builds from outside the App Store.",
   "@appSettingsExperimentalExtensionSearchHint": {
-    "description": "Explanation behind the hint button of the Extension search experiment switch. addons.mozilla.org is a website, WebKit is the browser engine and Web extensions is the name of another switch; keep those names as they are."
+    "description": "Explanation behind the hint button of the Extension search experiment switch. addons.mozilla.org is a website and WebKit is the browser engine; keep those names as they are."
   },
   "networkInterfaceTitle": "Network interface",
   "@networkInterfaceTitle": {

@@ -1161,10 +1161,8 @@
       }
     }
   },
-  "appSettingsExperimentalWebExtensions": "Extensii web",
-  "appSettingsExperimentalWebExtensionsHint": "Rulează pe site-urile pe care le alegi extensii de browser importate dintr-un fișier (un .crx pentru Chrome, un .xpi pentru Firefox sau un .zip). WebKit rulează din fiecare ce suportă. O extensie nu rulează pe niciun site până nu o activezi în setările acelui site, iar acolo ajunge doar la acel site.",
   "appSettingsExperimentalExtensionSearch": "Căutare extensii",
-  "appSettingsExperimentalExtensionSearchHint": "Adaugă pe ecranul \"Extensii\" o căutare pe addons.mozilla.org, fiecare rezultat fiind marcat după cât de bine se așteaptă ca WebKit să o ruleze. Disponibil doar în versiunile distribuite în afara App Store și doar cât timp \"Extensii web\" este activat.",
+  "appSettingsExperimentalExtensionSearchHint": "Adaugă pe ecranul \"Extensii\" o căutare pe addons.mozilla.org, fiecare rezultat fiind marcat după cât de bine se așteaptă ca WebKit să o ruleze. Disponibil doar în versiunile distribuite în afara App Store.",
   "networkInterfaceTitle": "Interfață de rețea",
   "networkInterfaceHint": "Trimite traficul acestui site doar printr-o singură interfață de rețea, cum ar fi tunelul unui VPN, și prin nicio alta. Cât timp interfața este oprită, site-ul nu încarcă nimic în loc să folosească altă conexiune. Numele de gazdă sunt căutate prin serverele DNS proprii ale interfeței, deci rezolvatorul sistemului (systemd-resolved) trebuie să le cunoască. Un proxy setat mai sus este atins prin interfață. Apelurile WebRTC nu o folosesc.",
   "networkInterfaceSystem": "Rutarea sistemului",

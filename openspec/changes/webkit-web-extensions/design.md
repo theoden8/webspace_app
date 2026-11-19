@@ -208,9 +208,9 @@ cite WEBEXT-001 to WEBEXT-012.
 
 ## Risks / Trade-offs
 
-- [App Review treats user-loaded extensions as code under 2.5.2] → behind
-  developer mode and an experiment switch; ask App Review (4.7) before it
-  graduates.
+- [App Review treats user-loaded extensions as code under 2.5.2] → it was
+  behind developer mode and an experiment switch until it graduated; App
+  Review (4.7) is still to be asked.
 - [Extension compatibility varies; WebKit's API is young] → errors shown per
   extension (WEBEXT-003); an extension that fails to load is offered to no site.
 - [A background page per extension per loaded site costs memory] → contexts
@@ -225,9 +225,10 @@ cite WEBEXT-001 to WEBEXT-012.
 
 ## Migration Plan
 
-New feature behind a switch that defaults off. Rollback is turning the switch
-off (WEBEXT-012); removing the feature deletes the library folder and the
-`webExtensionData` records through the orphan sweep.
+Shipped behind a switch that defaulted off, then graduated: offered wherever
+WebKit runs extensions (WEBEXT-001). A site runs none until the user imports
+one and switches it on; removing the feature deletes the library folder and
+the `webExtensionData` records through the orphan sweep.
 
 ## Open Questions
 
