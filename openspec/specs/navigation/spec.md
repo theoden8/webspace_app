@@ -275,7 +275,7 @@ Test: [test/url_bar_sync_test.dart](../../../test/url_bar_sync_test.dart)
 
 ### Requirement: NAV-008 - Nested WebView Back Gesture
 
-The **system back gesture** (Android back button, iOS edge swipe) on a nested `InAppWebViewScreen` SHALL navigate back in the nested webview's history when possible, and only pop the nested route when there is no back history. The decision policy SHALL mirror NAV-002: on Android, trust `canGoBack()` directly; on iOS/macOS, attempt `goBack()` unconditionally and decide via URL comparison with a 150ms settle.
+The **system back gesture** (Android back button, iOS edge swipe) on a nested `InAppWebViewScreen` SHALL navigate back in the nested webview's history when possible, and only pop the nested route when there is no back history. The decision policy SHALL be NAV-002's, taken by the one back step both surfaces run (`stepBack` in `lib/services/webview_back.dart`): on Android, trust `canGoBack()` directly; on iOS/macOS, attempt `goBack()` unconditionally and decide via URL comparison with a 150ms settle (`kBackSettle`).
 
 The **AppBar back button** on a nested `InAppWebViewScreen` SHALL always close the nested route immediately, regardless of the webview's history. It bypasses PopScope by calling `Navigator.pop` directly.
 
@@ -289,6 +289,7 @@ The **AppBar back button** on a nested `InAppWebViewScreen` SHALL always close t
 **Then** the nested webview navigates back in its own history
 **And** the nested route stays open
 
+**And** `test/nested_back_test.dart` holds it
 #### Scenario: Nested webview has no back history (Android)
 
 **Given** a nested `InAppWebViewScreen` is open on Android
@@ -296,6 +297,7 @@ The **AppBar back button** on a nested `InAppWebViewScreen` SHALL always close t
 **When** the user presses the system back button
 **Then** the nested route pops back to the parent webview
 
+**And** `test/nested_back_test.dart` holds it
 #### Scenario: Nested webview has back history (iOS/macOS)
 
 **Given** a nested `InAppWebViewScreen` is open on iOS or macOS
@@ -305,6 +307,7 @@ The **AppBar back button** on a nested `InAppWebViewScreen` SHALL always close t
 **And** the URL is compared before/after with a 150ms delay
 **And** if the URL changed, the nested route stays open
 **And** if the URL did NOT change, the nested route pops
+**And** `test/nested_back_test.dart` holds it
 
 #### Scenario: SPA with pushState in nested webview (iOS/macOS)
 
@@ -315,6 +318,7 @@ The **AppBar back button** on a nested `InAppWebViewScreen` SHALL always close t
 **And** URL comparison decides whether the back succeeded
 **And** if the URL changed, the nested route stays open
 **And** if the URL did NOT change, the nested route pops
+**And** `test/nested_back_test.dart` holds it
 
 #### Scenario: AppBar back button always closes nested
 
@@ -324,6 +328,7 @@ The **AppBar back button** on a nested `InAppWebViewScreen` SHALL always close t
 **Then** the nested route pops immediately
 **And** `goBack()` is NOT called on the nested webview
 
+**And** `test/nested_back_test.dart` holds it
 #### Scenario: Rapid back gestures (race guard)
 
 **Given** the user triggers the back gesture twice in quick succession
@@ -331,6 +336,7 @@ The **AppBar back button** on a nested `InAppWebViewScreen` SHALL always close t
 **Then** the second invocation drops (guarded by `_backGuard`)
 **And** at most one `goBack()` per gesture is dispatched
 
+**And** `test/nested_back_test.dart` holds it
 ---
 
 ### Requirement: NAV-009 - Back At Start Of History (opt-in)

@@ -64,6 +64,34 @@ class FakeWebViewController extends Fake implements WebViewController {
   Future<void> loadUrl(String url) async =>
       calls.add('loadUrl $url');
 
+  /// The pages this webview has shown, oldest first; the last is on screen.
+  List<String> pages = ['https://example.com/'];
+
+  /// What [canGoBack] answers, or null for what [pages] says. WebKit
+  /// answers false over `pushState` entries it would go back through.
+  bool? canGoBackAnswer;
+
+  @override
+  Future<bool> canGoBack() async => canGoBackAnswer ?? pages.length > 1;
+
+  @override
+  Future<Uri?> getUrl() async => Uri.parse(pages.last);
+
+  /// How long after [goBack] returns its page lands, as a real webview's
+  /// navigation does.
+  Duration backLag = Duration.zero;
+
+  @override
+  Future<void> goBack() async {
+    calls.add('goBack');
+    void land() {
+      if (pages.length > 1) pages.removeLast();
+    }
+
+    if (backLag == Duration.zero) return land();
+    unawaited(Future<void>.delayed(backLag, land));
+  }
+
   @override
   Future<bool> reload() async {
     calls.add('reload');

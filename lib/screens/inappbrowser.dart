@@ -44,6 +44,7 @@ import 'package:webspace/widgets/site_info_sheet.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_proxy.dart';
+import 'package:webspace/services/webview_back.dart';
 import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/services/page_js.dart';
 
@@ -753,34 +754,18 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             if (mounted) navigator.pop();
             return;
           }
-          if (hostIsAndroid) {
-            if (await controller.canGoBack()) {
-              await _goBackAndRepaint(controller);
-              LogTag.navigation.debug(
-                  'Nested back gesture: navigated back (canGoBack)');
-            } else {
-              if (!mounted) return;
+          switch (await stepBack(controller,
+              trustsCanGoBack: hostIsAndroid,
+              goBack: () => _goBackAndRepaint(controller),
+              live: () => mounted)) {
+            case BackStep.moved:
+              LogTag.navigation.debug('Nested back gesture: navigated back');
+            case BackStep.atStart:
               LogTag.navigation.debug(
                   'Nested back gesture: no history, exiting nested');
               navigator.pop();
-            }
-            return;
-          }
-          final urlBefore = (await controller.getUrl())?.toString();
-          await controller.goBack();
-          await Future.delayed(const Duration(milliseconds: 150));
-          if (!mounted) return;
-          final urlAfter = (await controller.getUrl())?.toString();
-          if (!mounted) return;
-          if (urlBefore == urlAfter) {
-            LogTag.navigation.debug(
-                'Nested back gesture: no history ($urlAfter), exiting nested',
-                sensitive: true);
-            navigator.pop();
-          } else {
-            LogTag.navigation.debug(
-                'Nested back gesture: navigated $urlBefore -> $urlAfter',
-                sensitive: true);
+            case BackStep.abandoned:
+              break;
           }
         });
       },
