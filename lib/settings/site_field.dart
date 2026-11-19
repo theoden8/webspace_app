@@ -115,6 +115,10 @@ enum SiteField {
   // A scanned code must not make a site claim domains: claims decide where
   // other sites' links and shared URLs go.
   domainClaims('domainClaims', qr: QrShare.withheld),
+  // Learned from the site's own answer and this device's yes or no to it;
+  // another device learns and asks again (ONION-008).
+  onionLocation('onionLocation',
+      qr: QrShare.withheld, backup: BackupShare.withheld),
   // Whether a redirected domain was already offered is local prompt history.
   offeredRedirectDomains('offeredRedirectDomains', qr: QrShare.withheld),
   routeOutboundLinks('routeOutboundLinks', qr: QrShare.carried),

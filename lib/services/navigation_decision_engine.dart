@@ -1,4 +1,5 @@
 import 'package:webspace/settings/external_links.dart';
+import 'package:webspace/services/onion_location.dart';
 import 'package:webspace/services/url_host.dart';
 
 enum NavigationDecision {
@@ -43,11 +44,13 @@ enum NavigationFrame { top, sub, unverified }
 /// Only the first document may establish a canonical domain; later redirects
 /// are judged by the usual gesture and outbound-link rules. A sign-in tab
 /// also holds every identity provider's sign-in host, [signInHosts], which a
-/// sign-in redirects through on its way back (NESTED-016).
+/// sign-in redirects through on its way back (NESTED-016). A site on its
+/// onion endpoint also holds the onion origin (ONION-005).
 class NavigationBoundary {
   final String _homeDomain;
   final String _initialUrl;
   final bool Function(String url)? _signInHosts;
+  final OnionEndpoint? _onion;
   String _resolvedDomain;
   bool _awaitingDocument;
 
@@ -55,9 +58,11 @@ class NavigationBoundary {
     required String homeUrl,
     required String initialUrl,
     bool Function(String url)? signInHosts,
+    required OnionEndpoint? onion,
   })  : _homeDomain = getNormalizedDomain(homeUrl),
         _initialUrl = initialUrl,
         _signInHosts = signInHosts,
+        _onion = onion,
         _resolvedDomain = getNormalizedDomain(initialUrl),
         _awaitingDocument = Host.ofWebUrl(initialUrl) != null;
 
@@ -65,6 +70,7 @@ class NavigationBoundary {
     final domain = getNormalizedDomain(url);
     return domain == _homeDomain ||
         domain == _resolvedDomain ||
+        (_onion?.isOnion(url) ?? false) ||
         (_signInHosts?.call(url) ?? false);
   }
 

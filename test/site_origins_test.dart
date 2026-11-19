@@ -4,7 +4,7 @@ import 'package:webspace/services/site_origins.dart';
 
 void main() {
   const home = 'https://example.com/app';
-  final site = SiteOrigins(home, claims: DomainClaim.implicitFor(home));
+  final site = SiteOrigins(home, claims: DomainClaim.implicitFor(home), onion: null);
 
   test("PERM-001: a site owns its claimed hosts on its own scheme, no one "
       "else's", () {
@@ -28,6 +28,7 @@ void main() {
         DomainClaim.exactHost('app.example.com'),
         DomainClaim.baseDomain('example.org'),
       ],
+      onion: null,
     );
     expect(claimed.owns('https://app.example.com'), isTrue);
     expect(claimed.owns('https://www.example.com'), isFalse);

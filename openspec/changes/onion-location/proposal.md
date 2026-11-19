@@ -38,7 +38,10 @@ Checked on 2026-11-14: `proton.me` and `torproject.org` send the header;
 - **Off Tor, nothing** (ONION-007): no check, no rewrite, the onion not owned.
 - **Kept with the site, not carried** (ONION-008): the learned address and the
   answer stay with the site and are left out of backups and QR shares; a new
-  device learns and asks again.
+  device learns and asks again. The site is rechecked whenever its clearnet
+  origin loads anyway, else every 30 days, without asking again for the same
+  address: the onion address is the service's key, so only a withdrawn or
+  changed address matters.
 
 ### Why an endpoint rather than a domain claim
 
@@ -56,7 +59,12 @@ ONION-005 derives that from the posture.
 - **Sites that do not announce.** A curated list (real-world-onion-sites) or a
   Certificate Transparency match (both certificates naming the same
   organization) could cover DuckDuckGo. Both trust something other than the
-  site's own announcement, so they are a later change.
+  site's own announcement, so they are a later change. A survey on 2026-11-19
+  of real-world-onion-sites' 147 entries found 104 whose clearnet site
+  announces the listed onion, 4 that announce a different one (RFE/RL
+  regional sites pointing at the network's main onion), 25 that announce
+  nothing (DuckDuckGo, the New York Times, Reddit) and 14 not reached: for
+  the sites that announce, the list adds nothing this change does not learn.
 - **Other hosts of the site.** Only the origin that announced is rewritten;
   `account.proton.me` is not, unless it announces its own.
 - **Cookies.** A session on the clearnet host is not one on the onion host;
@@ -64,12 +72,16 @@ ONION-005 derives that from the posture.
 
 ## Impact
 
-- New: `lib/services/onion_address.dart` (`OnionAddress`, a checked v3
-  address), `lib/services/onion_location_engine.dart` (pure: parse the
-  announcement, decide the rewrite and the fallback), a check through
-  `OutboundProxy` in a service beside it.
-- `SiteField` gains the learned address and the answer, outside backups and
-  QR; `SitePosture` gains the endpoint, read by `webview.dart`'s navigation
-  decision and by `SiteOrigins`.
+- New: `lib/services/onion_location.dart`: `OnionAddress` (a checked v3
+  address), `OnionEndpoint` (the move and its way back), `SiteOnion` (what
+  is saved) and `announcedEndpoint` (reading the header or the meta tag);
+  a check through `OutboundProxy` beside it.
+- `HttpsUpgradeEngine` takes the move onto the onion beside the https
+  upgrade (`onionFor`, `onFirstLoad`, `deadlineFor`): one set of events, one
+  fallback. An onion host is never upgraded to https.
+- `SiteField.onionLocation`, outside backups and QR; `SiteContainer.onion`,
+  read by `webview.dart`, `SiteOrigins` and `NavigationBoundary` (a new
+  required `onion:`, so no surface builds one without saying).
 - One prompt (the offer) and one row on the site Network screen.
-- Persisted format: two new site JSON keys, read as absent when wrong-typed.
+- Persisted format: one new site JSON key, `onionLocation`, read as absent
+  when it has the wrong shape.

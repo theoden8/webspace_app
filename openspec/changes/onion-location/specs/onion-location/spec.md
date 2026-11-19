@@ -166,16 +166,33 @@ site takes them up again when its route is Tor once more.
 
 ---
 
-### Requirement: ONION-008 - Kept with the site, not carried
+### Requirement: ONION-008 - Kept with the site, rechecked without asking
 
-The learned onion address, when it was learned and the user's answer SHALL be
-saved with the site and SHALL be left out of a settings backup and a QR share.
-A site whose last successful check is more than 7 days old SHALL be checked
-again the next time it loads while its route is Tor. A value of the wrong type
-in the saved site SHALL read as absent.
+The learned onion address, when it was last checked and the user's answer
+SHALL be saved with the site and SHALL be left out of a settings backup and a
+QR share. A value of the wrong type in the saved site SHALL read as absent.
+
+The site SHALL be checked again, through its route, when its clearnet origin
+is loaded anyway (a fallback under ONION-006, or a top-frame load the rewrite
+left alone), and otherwise when its last successful check is more than 30
+days old. A recheck that finds the same address SHALL NOT ask again; only a
+different address is offered (ONION-003). The onion address is the onion
+service's key, so a changed certificate on the onion is no reason to ask.
 
 #### Scenario: A restored site asks again
 
 **Given** a backup made from a site whose onion address was accepted
 **When** the backup is imported on another device
 **Then** the site carries no onion address until it is checked and the user answers
+
+#### Scenario: A recheck finds the same address
+
+**Given** a site whose onion address was accepted 31 days ago
+**When** the site loads over Tor and the check finds the same address
+**Then** the user is not asked and the check date moves to today
+
+#### Scenario: A fallback rechecks
+
+**Given** a site whose onion load just fell back to its clearnet address
+**When** the clearnet page loads
+**Then** the site is checked again, and a withdrawn address is forgotten (ONION-003)

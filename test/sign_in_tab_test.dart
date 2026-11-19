@@ -104,7 +104,8 @@ void main() {
       final boundary = NavigationBoundary(
           homeUrl: authorize,
           initialUrl: authorize,
-          signInHosts: PopupKind.isSignInUrl);
+          signInHosts: PopupKind.isSignInUrl,
+          onion: null);
       for (final url in [
         'https://accounts.youtube.com/accounts/SetSID?ssdc=1',
         'https://accounts.google.de/accounts/SetSID',
@@ -115,7 +116,7 @@ void main() {
       expect(boundary.contains(callback), isFalse);
       expect(boundary.contains('https://example.org/'), isFalse);
       expect(
-          NavigationBoundary(homeUrl: authorize, initialUrl: authorize)
+          NavigationBoundary(homeUrl: authorize, initialUrl: authorize, onion: null)
               .contains('https://login.microsoftonline.com/common/oauth2/v2.0/authorize'),
           isFalse,
           reason: 'any other tab keeps its own domain');
@@ -126,7 +127,8 @@ void main() {
       final boundary = NavigationBoundary(
           homeUrl: authorize,
           initialUrl: authorize,
-          signInHosts: PopupKind.isSignInUrl);
+          signInHosts: PopupKind.isSignInUrl,
+          onion: null);
       DateTime? lastGesture;
       NavigationDecision ask(String url, {required bool gesture, required int s}) {
         final at = t0.add(Duration(seconds: s));
