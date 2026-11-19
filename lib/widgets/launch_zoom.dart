@@ -128,6 +128,32 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
     await showing;
   }
 
+  /// Puts [site]'s card over the whole screen at once, with no motion in,
+  /// then switches [to] the site and fades off it once it is on screen: the
+  /// app is entered from outside (a home shortcut), so the site it was left
+  /// on is never seen on the way (HS-006). The card stays until [to]'s
+  /// show has finished too, which may first reload a site already on screen.
+  Future<void> cover(WebViewModel site, {required CardSwitch to}) async {
+    if (_site != null || _grip != null) return to.show();
+    _fade.value = 1;
+    _size.value = 1;
+    setState(() {
+      _site = site;
+      _lookalike = _sharesAnIcon(site);
+      _icon = null;
+      _over = null;
+      _fadeScales = false;
+    });
+    var finished = false;
+    final showing = to.show().whenComplete(() => finished = true);
+    await _hold(until: () => finished && to.shown());
+    if (mounted && !MediaQuery.disableAnimationsOf(context)) {
+      await _play(_fade.reverse());
+    }
+    _done();
+    await showing;
+  }
+
   /// Fades [site]'s card in over the screen, brings the library back under
   /// it, and once the library is on screen lands the card in the site's
   /// icon there.

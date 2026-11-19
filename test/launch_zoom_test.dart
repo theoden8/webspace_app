@@ -274,6 +274,63 @@ void main() {
     },
   );
 
+  for (final reduceMotion in [false, true]) {
+    testWidgets(
+      'an entry from outside the app covers the whole screen from its first '
+      'frame, so the site the app was left on is never seen on the way '
+      '(HS-006, reduced motion ${reduceMotion ? 'on' : 'off'})',
+      (tester) async {
+        final zoom = await _pump(
+          tester,
+          onButton: () {},
+          reduceMotion: reduceMotion,
+        );
+        var shown = false;
+        final entering = zoom.cover(
+          _site(),
+          to: (show: () async {}, shown: () => shown),
+        );
+        await tester.pump();
+        expect(tester.getRect(_card), _screen, reason: 'the bars too');
+        final opacity = tester
+            .widget<Opacity>(
+              find.descendant(
+                of: find.byType(LaunchZoom),
+                matching: find.byType(Opacity),
+              ),
+            )
+            .opacity;
+        expect(opacity, 1, reason: 'no fade in');
+        await tester.pump(Motion.launchHold ~/ 2);
+        expect(tester.getRect(_card), _screen, reason: 'until it is on screen');
+        shown = true;
+        await tester.pumpAndSettle();
+        await entering;
+        expect(_card, findsNothing);
+      },
+    );
+  }
+
+  testWidgets(
+    'an entry to the site already on screen keeps its card until the switch '
+    'has finished, which first sends the site home (HS-006)',
+    (tester) async {
+      final zoom = await _pump(tester, onButton: () {});
+      final home = Completer<void>();
+      final entering = zoom.cover(
+        _site(),
+        to: (show: () => home.future, shown: () => true),
+      );
+      await tester.pump();
+      await tester.pump(Motion.launchHold ~/ 2);
+      expect(tester.getRect(_card), _screen, reason: 'still going home');
+      home.complete();
+      await tester.pumpAndSettle();
+      await entering;
+      expect(_card, findsNothing);
+    },
+  );
+
   testWidgets('with no icon in view to land on, the card fades where it is', (
     tester,
   ) async {

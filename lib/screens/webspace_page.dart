@@ -1828,6 +1828,14 @@ class _PageHost
       _s._resets.resetHomeOnLaunch(launched);
 
   @override
+  Future<void> enter(WebViewModel site, {required Future<void> Function() show}) =>
+      switch (_s._libraryDesign ? _s._launchZoom.currentState : null) {
+        final zoom? => zoom.cover(site,
+            to: (show: show, shown: () => identical(_s._sites.shown, site))),
+        null => show(),
+      };
+
+  @override
   Future<void> registerSite(WebViewModel model, {bool activate = true}) =>
       _s._editing.registerSite(model, activate: activate);
 

@@ -65,6 +65,11 @@ abstract interface class ShortcutHost implements PageHost {
   void resetForEntry();
 
   Future<void> activate(WebViewModel site);
+
+  /// Runs [show], which puts [site] on screen, under a cover from its first
+  /// frame, so no other site is seen on the way in (HS-006).
+  Future<void> enter(WebViewModel site, {required Future<void> Function() show});
+
   void enterFullscreen();
 
   /// Sends the always-open-home siblings of [launched] home (HS-007,
@@ -327,18 +332,19 @@ class ShortcutController implements HomeShortcutsHost {
     return null;
   }
 
-  /// Warm-tap switch to a resolved site: it and its flagged siblings home
-  /// (HS-006, HS-007), switch if not already on screen, persist.
+  /// Warm-tap switch to a resolved site, under a cover from its first frame:
+  /// it and its flagged siblings home (HS-006, HS-007), switch if not already
+  /// on screen, persist.
   Future<void> _open(WebViewModel site) async {
     if (!_sites.models.contains(site)) return;
     // KIOSK-001: a kiosk site locks the shell; any other clears the lock.
     _host.kioskLocked = site.effectiveKioskMode;
-    await _host.resetHomeOnLaunch(site);
-    if (!_host.mounted) return;
-    if (site != _sites.shown) {
+    await _host.enter(site, show: () async {
+      await _host.resetHomeOnLaunch(site);
+      if (!_host.mounted || site == _sites.shown) return;
       await _host.activate(site);
-      if (!_host.mounted) return;
-    }
+    });
+    if (!_host.mounted) return;
     // FS-008, after the activation exited full screen for a non-full-screen
     // target, so there is no else.
     if (_host.kioskLocked ||

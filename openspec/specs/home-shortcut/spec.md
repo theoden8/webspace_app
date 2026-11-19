@@ -651,6 +651,15 @@ The rule is the same for a cold launch (including after the app was killed) and 
 **And** A is selected
 **And** A's webview is at `https://www.google.com/maps`
 
+#### Scenario: A warm tap does not show the site the app was left on
+
+**Given** the app is running in the library design, left in the background with site B (GitHub) on screen
+**When** the user taps site A's (DDG) home shortcut
+**Then** A's card covers the whole screen from the first frame the app paints after reading the shortcut, with no fade in
+**And** B is sent away and A sent home and switched to under it
+**And** the card fades only once A is on screen (or at `Motion.launchHold`, as every switch's card)
+**And** what the app paints before it reads the shortcut, and the snapshot iOS shows while it brings the app forward, are outside this: the app does not know the shortcut until the OS has handed it over
+
 #### Scenario: Non-shortcut cold launch is unchanged
 
 **Given** the previous session ended with site A active at a deep `currentUrl` and Always open Home off

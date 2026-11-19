@@ -333,6 +333,16 @@ void guarded(String src,
           shortcuts.indexOf('Future<WebViewModel?> resolveColdLaunch('));
       expect(cold.substring(0, cold.indexOf('\n  }\n')),
           contains('await _host.resetHomeOnLaunch(site);'));
+      final warm =
+          shortcuts.substring(shortcuts.indexOf('Future<void> _open('));
+      final open = warm.substring(0, warm.indexOf('\n  }\n'));
+      final covered = open.indexOf('await _host.enter(site, show: () async {');
+      expect(covered, isNot(-1),
+          reason: 'a warm tap switches under a cover, so the site the app '
+              'was left on is not seen on the way in');
+      expect(open.indexOf('await _host.resetHomeOnLaunch(site);'),
+          greaterThan(covered));
+      expect(open.indexOf('await _host.activate(site);'), greaterThan(covered));
     });
   });
 
