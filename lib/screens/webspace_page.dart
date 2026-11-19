@@ -1849,8 +1849,7 @@ class _PageHost
       _s._executeOpenNested(action, source: source);
 
   @override
-  Future<void> unloadSite(WebViewModel site, {required UnloadReason reason}) =>
-      _s._activation.unload(site, reason: reason);
+  Future<void> sendHome(WebViewModel site) => _s._activation.sendHome(site);
 
   @override
   Future<void> wipeContainer(ContainerKey key) async {

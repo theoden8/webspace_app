@@ -76,6 +76,13 @@ imported from settings backups.
 **And** the resulting model's `pageTitle` is null
 **And** the resulting model's `cookies` reflect the persisted list (NOT cleared)
 
+#### Scenario: The saved back stack is not restored over home
+
+**Given** a site with `alwaysOpenHome = true` left at `https://www.bank.example/account/123`, its tab's back stack saved for that page (PAUSE-009)
+**When** the app is cold-started and the site is opened, from a shortcut or the app
+**Then** the back stack saved for the tab the read lands it on is forgotten before the site list takes a tap
+**And** the site's webview loads at `initUrl` with no history behind it (issue #1046: the tab keeps its id, so restoring that stack put the deep page back over home)
+
 ---
 
 ### Requirement: AOH-003 - Cookies Are Preserved
@@ -121,6 +128,7 @@ an unflagged launched site opens where it was left
 **And** A's webview is created with URL `initUrl` (or stays at `initUrl` if not yet built)
 **And** B's webview is disposed
 **And** B's `currentUrl` is reset to its `initUrl`
+**And** the back stack saved for B's tab is forgotten
 **And** the next time B is shown, it reloads at `initUrl`
 
 #### Scenario: Webspace boundary keeps unrelated flagged sites untouched
@@ -206,7 +214,12 @@ e.g. fetching an emailed 2FA code — intact on return (issue #333).
 #### Modified
 
 - `lib/web_view_model.dart` — `alwaysOpenHome` field, ctor param,
-  `toJson` URL-strip gate, `fromJson` URL-strip gate.
+  `toJson` URL-strip gate, `fromJson` URL-strip gate; `landsAtHomeOnLoad`,
+  which the read lands at home and the startup forgets the saved back stack
+  of.
+- `lib/controllers/site_activation_controller.dart` — `sendHome` (a tab sent
+  home in place: unload with no capture, its saved back stack forgotten) and
+  `forgetHistory`, the one way that stack goes.
 - `lib/main.dart` — `resetHomeOnLaunch(int)` helper
   invoked from `StartupController.restore` (cold) and `_handleShortcutIntent`
   (warm). `didChangeAppLifecycleState` on `paused` does NOT reset
@@ -223,3 +236,7 @@ e.g. fetching an emailed 2FA code — intact on return (issue #333).
   new flag.
 - `test/webspace_selection_engine_test.dart` —
   `indicesToResetOnShortcutLaunch` cases.
+- `test/always_open_home_back_stack_app_test.dart` — a cold start restores
+  no saved back stack of an always-home site, with tabs and without.
+- `test/site_send_home_test.dart` — `sendHome` forgets the stack, so the next
+  activation queues nothing.

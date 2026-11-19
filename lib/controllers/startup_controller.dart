@@ -278,6 +278,12 @@ class StartupController implements DeferredStartupHost {
     if (promoteLegacySiteIndices(_sites.webspaces, sites: loaded.sites)) {
       await _shell.saveWebspaces();
     }
+    // Before the grid takes a tap, which would restore the page a site read
+    // at home was left on.
+    await Future.wait([
+      for (final m in loaded.sites)
+        if (m.landsAtHomeOnLoad) _activation.forgetHistory(m),
+    ]);
     // Sites restored with ProxyType.TOR need the runtime coming up before
     // their first navigation, or each opens on the bootstrap interstitial;
     // the commit's Tor sync does that.

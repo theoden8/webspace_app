@@ -608,6 +608,11 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
   /// - **incognito**: navigation state is meant to be ephemeral.
   bool get persistsNavState => !isArchiveTier && !incognito;
 
+  /// Whether reading this site from storage is a fresh entry, which Always
+  /// open Home lands at home (AOH-002, TAB-014): an archive restores what it
+  /// sealed instead (ARCH-012), and an incognito site keeps no back stack.
+  bool get landsAtHomeOnLoad => alwaysOpenHome && persistsNavState;
+
   /// Effective incognito decision for the webview container. Archive-tier
   /// sites are always incognito (ARCH-006): otherwise the container writes
   /// localStorage / IndexedDB / ServiceWorker registrations / HTTP cache to

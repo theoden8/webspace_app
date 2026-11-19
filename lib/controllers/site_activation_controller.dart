@@ -363,6 +363,25 @@ class SiteActivationController {
   /// being removed, or the site is.
   void forgetNavigation(SiteId siteId) => _navDebouncer.cancel(siteId);
 
+  /// [site] sent home in place, as Always open Home sends it on a fresh
+  /// entry (AOH-004, LIR-011): its webview goes with no capture, then the
+  /// back stack saved for its tab ([forgetHistory]).
+  Future<void> sendHome(WebViewModel site) async {
+    site.currentUrl = site.initUrl;
+    await unload(site, reason: UnloadReason.homeReset);
+    if (!_sites.models.holdsObject(site)) return;
+    await forgetHistory(site);
+  }
+
+  /// The back stack saved for [site]'s active tab forgotten, once the tab
+  /// was sent home in place: it keeps its id, so the stack is still the
+  /// page it was on, and the next activation would restore that page over
+  /// the home page (AOH-002, NAV-004, TAB-014, #1046).
+  Future<void> forgetHistory(WebViewModel site) {
+    forgetNavigation(site.siteId);
+    return _navStates.removeState(site.activeStateKey);
+  }
+
   /// Drops every pending navigation capture.
   void dispose() => _navDebouncer.dispose();
 

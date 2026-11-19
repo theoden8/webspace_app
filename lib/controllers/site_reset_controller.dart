@@ -6,7 +6,6 @@ import 'package:webspace/controllers/site_activation_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
-import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/services/step_table.dart';
 import 'package:webspace/web_view_model.dart';
@@ -130,8 +129,7 @@ class SiteResetController {
       if (m.currentUrl == m.initUrl && m.webview == null) continue;
       await _tabs.bindOwnerRunTab(m);
       if (!_host.mounted) return;
-      m.currentUrl = m.initUrl;
-      await _activation.unload(m, reason: UnloadReason.homeReset);
+      await _activation.sendHome(m);
       if (!_host.mounted) return;
     }
     for (final m in withTabs) {
@@ -148,6 +146,7 @@ class SiteResetController {
     final model = _sites.models[_sites.current!];
     model.currentUrl = model.navigationHomeUrl;
     LetGoTable.letGo(_sites, site: model);
+    unawaited(_activation.forgetHistory(model));
     _host.rebuild();
     // Re-apply fullscreen for sites with auto-fullscreen after webview recreation
     if (model.fullscreenMode) {
