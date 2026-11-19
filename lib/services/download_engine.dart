@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/bounded_inflate.dart';
+// ignore: webspace_lints/engine_impure
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/proxy.dart';

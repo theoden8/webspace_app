@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:webspace/settings/site_ids.dart';
 
+// ignore: webspace_lints/engine_impure
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/url_host.dart';

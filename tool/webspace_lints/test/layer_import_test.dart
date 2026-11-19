@@ -79,6 +79,10 @@ class LayerImportTest extends AnalysisRuleTest {
       'lib/flutter_inappwebview.dart',
       'class InAppWebView {}',
     );
+    newPackage('flutter').addFile(
+      'lib/foundation.dart',
+      'class ChangeNotifier {}',
+    );
     super.setUp();
     for (final (path, name) in [
       ('web_view_model.dart', 'Model'),
@@ -182,6 +186,84 @@ class LayerImportTest extends AnalysisRuleTest {
     to: 'values',
     from: 'platform',
   );
+
+  Future<void> test_an_engine_importing_flutter_is_reported() async {
+    const directives =
+        "import /*here*/'package:flutter/foundation.dart'/*end*/;";
+    const source = '$directives\nChangeNotifier? n;\n';
+    final at = source.indexOf('/*here*/') + '/*here*/'.length;
+    await assertDiagnosticsInFile(
+      _file(
+        'services/decide_engine.dart',
+        directives: directives,
+        uses: 'ChangeNotifier? n;',
+      ),
+      [
+        lint(
+          at,
+          source.indexOf('/*end*/') - at,
+          name: 'engine_impure',
+          messageContainsAll: ["'package:flutter' is Flutter or I/O"],
+        ),
+      ],
+    );
+  }
+
+  Future<void> test_an_engine_importing_dart_io_is_reported() async {
+    const directives = "import /*here*/'dart:io'/*end*/;";
+    const source = '$directives\nFile? f;\n';
+    final at = source.indexOf('/*here*/') + '/*here*/'.length;
+    await assertDiagnosticsInFile(
+      _file('services/io_engine.dart', directives: directives, uses: 'File? f;'),
+      [
+        lint(
+          at,
+          source.indexOf('/*end*/') - at,
+          name: 'engine_impure',
+          messageContainsAll: ["'dart:io' is Flutter or I/O"],
+        ),
+      ],
+    );
+  }
+
+  Future<void> test_an_engine_reaching_flutter_through_a_service_is_reported()
+      async {
+    newFile(
+      '$testPackageLibPath/services/notifying.dart',
+      "import 'package:flutter/foundation.dart';\n"
+          'class Notifying { ChangeNotifier? n; }\n',
+    );
+    const directives = "import /*here*/'notifying.dart'/*end*/;";
+    const source = '$directives\nNotifying? n;\n';
+    final at = source.indexOf('/*here*/') + '/*here*/'.length;
+    await assertDiagnosticsInFile(
+      _file(
+        'services/through_engine.dart',
+        directives: directives,
+        uses: 'Notifying? n;',
+      ),
+      [
+        lint(
+          at,
+          source.indexOf('/*end*/') - at,
+          name: 'engine_impure',
+          messageContainsAll: [
+            "'package:flutter, through services/notifying.dart,' is Flutter or I/O",
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> test_a_service_beside_an_engine_may_import_flutter() async {
+    await assertNoDiagnosticsInFile(
+      _file(
+        'services/notifier.dart',
+        directives: "import 'package:flutter/foundation.dart';",
+        uses: 'ChangeNotifier? n;',
+      ),
+    );
+  }
 
   Future<void> test_one_platforms_webview_is_reported() async {
     const directives =
