@@ -33,6 +33,15 @@ void main() {
     });
   }
 
+  test('OpenStreetMap is listed with its data and its cartography licences '
+      'and the tile policy the picker keeps (LOC-006)', () async {
+    final text = await licenceOf('OpenStreetMap (map data and tiles)');
+    expect(text, contains('Open Database License (ODbL)'));
+    expect(text, contains('CC BY-SA 2.0'));
+    expect(text, contains('Tile Usage Policy'));
+    expect(text, contains('Load map'));
+  });
+
   test('EasyList is credited to its authors (CB-007)', () async {
     expect(await licenceOf('EasyList filter lists (filter data)'),
         contains('The EasyList authors'));

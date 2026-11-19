@@ -82,6 +82,130 @@ void main() {
     expect(find.text(en.locationPickerTilesBlocked), findsOneWidget);
     expect(outbound.requested, isEmpty);
   });
+
+  group('LOC-006: the map waits for the user', () {
+    Future<List<Object?>> openPicker(WidgetTester tester) async {
+      final popped = <Object?>[];
+      await pumpLocalized(tester,
+          size: const Size(800, 1400),
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () async => popped.add(await Navigator.of(context)
+                  .push<LocationPickerResult>(MaterialPageRoute(
+                      builder: (_) => const LocationPickerScreen()))),
+              child: const Text('open'),
+            ),
+          ));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      return popped;
+    }
+
+    Future<void> awaitTiles(WidgetTester tester) async {
+      for (var i = 0; i < 20 && outbound.requested.isEmpty; i++) {
+        await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 50)));
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(outbound.requested, isNotEmpty);
+    }
+
+    testWidgets('LOC-006: opening it fetches nothing, names the tile host and '
+        'takes coordinates', (tester) async {
+      await openPicker(tester);
+      expect(find.byType(FlutterMap), findsNothing);
+      expect(outbound.queries, isEmpty);
+      expect(find.text(en.locationPickerPrivacyNotice('tile.openstreetmap.org')),
+          findsOneWidget);
+      final fields = tester.widgetList<TextField>(find.byType(TextField));
+      expect(fields.where((f) => f.enabled ?? true), hasLength(3),
+          reason: 'latitude, longitude and accuracy');
+    });
+
+    testWidgets('LOC-006: typed coordinates come back on Done with no map',
+        (tester) async {
+      final popped = await openPicker(tester);
+      final fields = find.byType(TextField);
+      await tester.enterText(fields.at(0), '51.5');
+      await tester.enterText(fields.at(1), '-0.12');
+      await tester.enterText(fields.at(2), '30');
+      await tester.tap(find.text(en.commonDone));
+      await tester.pumpAndSettle();
+
+      expect(popped, hasLength(1));
+      final result = popped.single! as LocationPickerResult;
+      expect((result.latitude, result.longitude, result.accuracy),
+          (51.5, -0.12, 30.0));
+      expect(outbound.queries, isEmpty);
+      expect(outbound.requested, isEmpty);
+    });
+
+    testWidgets('LOC-006: a tap on the loaded map sets the coordinates and '
+        'the pin', (tester) async {
+      await openPicker(tester);
+      await tester.tap(find.text(en.locationPickerLoadMap));
+      await tester.pump();
+      expect(find.byIcon(Icons.location_pin), findsNothing);
+      await tester.tapAt(tester.getCenter(find.byType(FlutterMap)) +
+          const Offset(40, -30));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      final fields = tester.widgetList<TextField>(find.byType(TextField)).toList();
+      final lat = double.parse(fields[0].controller!.text);
+      final lng = double.parse(fields[1].controller!.text);
+      expect(lat, greaterThan(0), reason: 'above the centre, north of 0');
+      expect(lng, greaterThan(0), reason: 'right of the centre, east of 0');
+      expect(find.byIcon(Icons.location_pin), findsOneWidget);
+    });
+
+    for (final url in [
+      AppPref.osmTileUrl.fallback,
+      'https://tiles.example.org/{z}/{x}/{y}.png',
+    ]) {
+      testWidgets('LOC-006: Load map fetches from $url, as the app names '
+          'itself, with the attribution on the map', (tester) async {
+        await AppPref.osmTileUrl.set(url);
+        await openPicker(tester);
+        await tester.tap(find.text(en.locationPickerLoadMap));
+        await tester.pump();
+        expect(find.byType(FlutterMap), findsOneWidget);
+
+        final layer = tester.widget<TileLayer>(find.byType(TileLayer));
+        expect(layer.urlTemplate, url);
+        final layerAgent = layer.tileProvider.headers['User-Agent'] ?? '';
+        expect(layerAgent, startsWith('Webspace'));
+        expect(layerAgent, contains('(+https://github.com/theoden8/webspace_app)'));
+
+        // The process's tile cache already holds the default URL's tiles a
+        // test above fetched, so only a URL no test fetched shows requests.
+        if (url != AppPref.osmTileUrl.fallback) await awaitTiles(tester);
+        final host = Uri.parse(url.replaceAll(RegExp('[{}]'), '')).host;
+        for (final request in outbound.requests) {
+          expect(request.url.scheme, 'https');
+          expect(request.url.host, host);
+          final agent = request.headers['User-Agent'] ?? '';
+          expect(agent, startsWith('Webspace'));
+          expect(agent, contains('(+https://github.com/theoden8/webspace_app)'));
+          expect(agent, isNot(contains('flutter_map')));
+          expect(request.headers['Cache-Control'] ?? '', isNot(contains('no-cache')));
+          expect(request.headers['Pragma'] ?? '', isNot(contains('no-cache')));
+        }
+
+        final spans = <TextSpan>[];
+        for (final text in tester.widgetList<RichText>(find.byType(RichText))) {
+          text.text.visitChildren((span) {
+            if (span is TextSpan) spans.add(span);
+            return true;
+          });
+        }
+        final osm = spans.singleWhere((s) => s.text == 'OpenStreetMap');
+        expect(osm.recognizer, isNotNull, reason: 'the word is the link');
+        expect(osm.style?.decoration, TextDecoration.underline);
+        expect(spans.where((s) => s.text == en.locationPickerReportMapIssue),
+            hasLength(1));
+      });
+    }
+  });
 }
 
 /// Deletes [dir] while flutter_map's cache worker may still be writing the
