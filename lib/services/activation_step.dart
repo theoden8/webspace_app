@@ -48,6 +48,7 @@ enum PlatformCall {
   navStateRemoveOrphans('WebViewStateStorage.removeOrphans'),
   navStateSiteIds('WebViewStateStorage.siteIds'),
   htmlImportRead('HtmlImportStorage.preloadOne'),
+  webspaceSave('ShellStore.saveSelectedWebspaceId'),
   routerSetRoutes('ProxyRouter.refreshRoutes'),
   proxyOverride('ProxyController.setProxyOverride'),
   nestedScreen('Navigator.push'),
@@ -308,7 +309,7 @@ enum ActivationStep {
   nestedOpen(),
 
   /// The webspace that shows the target, for an open from outside a site.
-  nestedSwitchReply(),
+  nestedSwitchReply(calls: {PlatformCall.webspaceSave}),
 
   /// Which running sites the screen would repoint, asked again after every
   /// round of unloads; a newer input supersedes the open.

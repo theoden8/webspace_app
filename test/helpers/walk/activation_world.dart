@@ -3424,8 +3424,22 @@ final class _WalkNestedScreen implements NestedScreenHost {
 
   final ActivationWorld world;
 
+  /// `WebspacesController.revealSite`: a target outside the webspace on
+  /// screen shows All, and the choice is saved before the open goes on.
   @override
-  Future<void> switchWebspaceFor(WebViewModel target) => Future.value();
+  Future<void> switchWebspaceFor(WebViewModel target) async {
+    final sites = world.sites;
+    final shown = sites.selectedWebspaceId;
+    final row = sites.models.indexOfKey(target);
+    if (row < 0 || shown == null || shown == WebspaceId.all) return;
+    final ws = sites.webspaces.firstWhere(
+      (w) => w.id == shown,
+      orElse: () => sites.webspaces.first,
+    );
+    if (ws.siteIndices.contains(row)) return;
+    sites.selectedWebspaceId = WebspaceId.all;
+    await world.gate.pace(PlatformCall.webspaceSave);
+  }
 
   @override
   Future<void> applyProxyOf(WebViewModel target) => world._route.claim(

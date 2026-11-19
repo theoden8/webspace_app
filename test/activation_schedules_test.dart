@@ -1815,6 +1815,34 @@ void main() {
     }
   });
 
+  // An open from outside a site whose target the webspace on screen leaves
+  // out shows All and saves the choice (WEBSPACE-012); a tap that lands
+  // while it saves supersedes the open, which its first ask finds stale.
+  _scheduleTest('a nested open whose reveal a tap passes goes stale',
+      body: () async {
+    for (final (:setup, :script) in const [
+      (
+        setup: [SwitchWebspace(1), Tap(0), Settle()],
+        script: [OpenNested(2), Tap(1)],
+      ),
+      (
+        setup: [SwitchWebspace(2), Tap(2), Settle()],
+        script: [OpenNested(0), Tap(1)],
+      ),
+    ]) {
+      await _expectEvery(
+        world: () => ActivationWorld(
+          _mixedContainers,
+          spaces: _spaces,
+          nestedOpens: true,
+        ),
+        setup: setup,
+        script: script,
+        preemptions: _preemptions,
+      );
+    }
+  });
+
   // A tap that lands while the activation reads the import's HTML
   // supersedes it, so the read's reply finds it stale and bails.
   _scheduleTest('a file import\'s activation read past by a tap bails',
