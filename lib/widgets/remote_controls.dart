@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -217,11 +218,18 @@ class _FocusRingState extends State<_FocusRing> {
   Rect? _rect;
   bool _armed = false;
 
+  /// Whether a key, rather than a pointer, drove the app last. Flutter's
+  /// highlight mode cannot say: a mouse leaves a desktop in its traditional
+  /// mode, so the mode alone kept the ring up under the mouse.
+  bool _keyed = false;
+
   @override
   void initState() {
     super.initState();
     FocusManager.instance.addListener(_changed);
     FocusManager.instance.addHighlightModeListener(_modeChanged);
+    HardwareKeyboard.instance.addHandler(_key);
+    GestureBinding.instance.pointerRouter.addGlobalRoute(_pointer);
     _changed();
   }
 
@@ -229,10 +237,27 @@ class _FocusRingState extends State<_FocusRing> {
   void dispose() {
     FocusManager.instance.removeListener(_changed);
     FocusManager.instance.removeHighlightModeListener(_modeChanged);
+    HardwareKeyboard.instance.removeHandler(_key);
+    GestureBinding.instance.pointerRouter.removeGlobalRoute(_pointer);
     super.dispose();
   }
 
   void _modeChanged(FocusHighlightMode mode) => _changed();
+
+  bool _key(KeyEvent event) {
+    if (event is KeyDownEvent) _drivenBy(keys: true);
+    return false;
+  }
+
+  void _pointer(PointerEvent event) {
+    if (event is PointerDownEvent) _drivenBy(keys: false);
+  }
+
+  void _drivenBy({required bool keys}) {
+    if (_keyed == keys) return;
+    _keyed = keys;
+    _changed();
+  }
 
   void _changed() {
     _arm();
@@ -256,13 +281,17 @@ class _FocusRingState extends State<_FocusRing> {
 
   Rect? _measure() {
     final manager = FocusManager.instance;
-    if (manager.highlightMode != FocusHighlightMode.traditional) return null;
+    if (!_keyed || manager.highlightMode != FocusHighlightMode.traditional) {
+      return null;
+    }
     final node = manager.primaryFocus;
     final focused = node?.context;
     if (node is FocusScopeNode || focused == null || !focused.mounted) {
       return null;
     }
-    if (OwnFocusOutline.covers(focused)) return null;
+    if (OwnFocusOutline.covers(focused) || _focusedField() != null) {
+      return null;
+    }
     final target = focused.findRenderObject();
     final stack = context.findAncestorRenderObjectOfType<RenderStack>();
     if (target is! RenderBox ||
