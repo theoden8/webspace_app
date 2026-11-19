@@ -585,6 +585,14 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [DnsDownload(0)],
     breaks: 'where its site resolves to',
   ),
+  // Site 3's archive outgrew its slot; a close that does not ask goes on
+  // to seal and save it.
+  Mutant.fullclosed => _By(
+    world: (d) => ActivationWorld(_mixedContainers, archived: true, declared: d),
+    setup: const [Tap(2), ArchiveSite(2), Tap(0), Fails(Fault.archiveFull)],
+    script: const [CloseArchive()],
+    breaks: 'exceeds slot capacity',
+  ),
   // Every mirror is down: the download's turn outlives it, and the level
   // asked after it waits on a flow that has ended.
   Mutant.failkeepsturn => _By(

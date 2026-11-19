@@ -532,6 +532,12 @@ final _failing =
         setup: const [Fails(Fault.headlessClose)],
         script: const [Background(), Wake()],
       ),
+      'an archive that outgrew its slot refuses its close before anything '
+          'moves (ARCH-003)': (
+        world: () => ActivationWorld(_mixedContainers, archived: true),
+        setup: const [Tap(2), ArchiveSite(2), Tap(0), Fails(Fault.archiveFull)],
+        script: const [CloseArchive(), Tap(1)],
+      ),
       'a download no mirror answers changes no list and lets the next have '
           'its turn (DNS-022)': (
         world: () => ActivationWorld(_mixedContainers, dns: _dnsSites),
