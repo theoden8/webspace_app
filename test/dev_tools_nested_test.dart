@@ -51,7 +51,7 @@ void main() {
     expect(find.byTooltip('Export'), findsOneWidget,
         reason: 'Share HTML and Save Icon stay');
 
-    host.appendConsole('hello from the nested page',
+    host.console.append('hello from the nested page',
         level: ConsoleMessageLevel.LOG);
     await tester.pump();
     expect(find.textContaining('hello from the nested page'), findsOneWidget);

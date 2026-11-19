@@ -34,9 +34,7 @@ class _StubHost implements DevToolsHost {
   @override
   WebViewController? get controller => null;
   @override
-  List<ConsoleLogEntry> get consoleLogs => const [];
-  @override
-  set onConsoleLogChanged(VoidCallback? cb) {}
+  final ConsoleLog console = ConsoleLog();
   @override
   List<Cookie> get cookies => const [];
   @override

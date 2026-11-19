@@ -1041,11 +1041,11 @@ IconButton zoomStep(IconData icon,
                       if (controller == null) {
                         return '(webview not ready — wait for page to finish loading)';
                       }
-                      final logsBefore = widget.webViewModel.consoleLogs.length;
+                      final logsBefore = widget.webViewModel.console.length;
                       await controller.evaluateJavascript(source);
                       // Brief delay to let console messages arrive
                       await Future.delayed(const Duration(milliseconds: 200));
-                      final newLogs = widget.webViewModel.consoleLogs.skip(logsBefore);
+                      final newLogs = widget.webViewModel.console.entries.skip(logsBefore);
                       return newLogs.map((e) => e.message).join('\n');
                     },
                   ),

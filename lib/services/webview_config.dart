@@ -273,3 +273,36 @@ class ConsoleLogEntry {
     this.isEvalInput = false,
   });
 }
+
+/// A webview's console as Developer Tools shows it: the last [cap] lines,
+/// oldest first, and the one listener told when a line lands (DEVTOOLS-001).
+class ConsoleLog {
+  static const cap = 500;
+
+  final List<ConsoleLogEntry> _entries = [];
+
+  List<ConsoleLogEntry> get entries => List.unmodifiable(_entries);
+
+  int get length => _entries.length;
+
+  /// Told after every [append] and [clear]; Developer Tools sets it while open.
+  void Function()? onChanged;
+
+  void append(String message,
+      {required ConsoleMessageLevel level, bool isEvalInput = false}) {
+    _entries.add(ConsoleLogEntry(
+      timestamp: DateTime.now(),
+      message: message,
+      level: level,
+      isEvalInput: isEvalInput,
+    ));
+    if (_entries.length > cap) _entries.removeAt(0);
+    assert(_entries.length <= cap, 'the console keeps at most $cap lines');
+    onChanged?.call();
+  }
+
+  void clear() {
+    _entries.clear();
+    onChanged?.call();
+  }
+}
