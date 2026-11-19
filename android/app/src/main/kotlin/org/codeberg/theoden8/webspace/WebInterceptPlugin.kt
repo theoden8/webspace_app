@@ -838,7 +838,10 @@ class FastSubresourceInterceptor(
             ".map" to "application/json"
         )
 
-        private fun contentTypeFor(file: String): String {
+        /// The MIME type a cached resource is served with, by its extension
+        /// (LCDN-006).
+        @JvmStatic
+        internal fun contentTypeFor(file: String): String {
             val path = if (file.contains("?")) file.substringBefore("?") else file
             for ((ext, mime) in contentTypes) {
                 if (path.endsWith(ext)) return mime
