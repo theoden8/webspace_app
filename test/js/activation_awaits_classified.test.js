@@ -98,6 +98,9 @@ const CLASSIFIED = {
   'HtmlImportStorage.preloadOne':
     'A file import\'s activation only: its encrypted copy read from the '
     + 'app\'s own storage and decrypted in process, no socket or channel.',
+  'ShellStore.saveSelectedWebspaceId':
+    'A nested open only, showing All for a target outside the webspace on '
+    + 'screen: a SharedPreferences write on the device.',
   'DnsBlockService.fetchLevel':
     'A DNS download only, which no activation waits on: each mirror is '
     + 'bounded by fetchViaAppProxy\'s timeout.',
