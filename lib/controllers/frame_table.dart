@@ -82,7 +82,7 @@ abstract final class FrameTable {
 
   static final StepTable<FrameWorld, FramePlace> table = StepTable(
     FramePlace.values,
-    vars: [_loaded, _current, _built, _queued, _held, _views],
+    vars: [_loaded, _current, _built, _queued, _held, _epoch, _views],
     at: (place) => switch (place) {
       FramePlace.reframe => Step.environment(
         ActivationStep.reframe,
@@ -202,7 +202,13 @@ final _named = Port<SiteId, FrameWorld>(
 final _build = Port<void Function({required Commit commit}), FrameWorld>(
   'build',
   reads: const {},
-  changes: {ModelVar.built, ModelVar.hist, ModelVar.queued, ModelVar.held},
+  changes: {
+    ModelVar.built,
+    ModelVar.hist,
+    ModelVar.queued,
+    ModelVar.held,
+    ModelVar.epoch,
+  },
   of: (w) => w.platform,
 );
 
@@ -275,8 +281,8 @@ final _current = Mutable<SiteId?, FrameWorld>.over(
   of: (w) => w._sites.vars.current,
 );
 
-/// `built`, `queued` and `held` whole, as the bindings hold them, so the
-/// frame check holds the build to the writes the step declares.
+/// `built`, `queued`, `held` and `epoch` whole, as the bindings hold them,
+/// so the frame check holds the build to the writes the step declares.
 final _built = Var<Map<SiteId, TabId?>, FrameWorld>(
   ModelVar.built,
   read: (w) => {for (final m in w._sites.models) m.siteId: m.tabBinding.built},
@@ -291,5 +297,11 @@ final _held = Var<Map<SiteId, TabId?>, FrameWorld>(
   ModelVar.held,
   read: (w) => {
     for (final m in w._sites.models) m.siteId: m.tabBinding.held?.tab,
+  },
+);
+final _epoch = Var<Map<SiteId, Set<TabId>>, FrameWorld>(
+  ModelVar.epoch,
+  read: (w) => {
+    for (final m in w._sites.models) m.siteId: {...m.tabBinding.stamped},
   },
 );

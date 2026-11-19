@@ -139,6 +139,7 @@ Init ==
     /\ inputs = 0
     /\ newest = 0
     /\ evictedShown = FALSE
+    /\ rebuiltWarm = FALSE
     /\ seen = {}
     /\ last = [a |-> "init", f |-> 0, o |-> "", s |-> 0]
     /\ tabs = [s \in Sites |-> IF s \in Tabbed THEN {1, 2} ELSE {1}]
@@ -148,6 +149,9 @@ Init ==
     /\ warm = [s \in Sites |-> [t \in TabIds |-> 0]]
     /\ queued = [s \in Sites |-> NoQueued]
     /\ held = [s \in Sites |-> NoQueued]
+    \* The loaded tabbed site's first tab was built, under the bit its build
+    \* set.
+    /\ epoch = [s \in Sites |-> [t \in TabIds |-> built[s] = t]]
     /\ file = [s \in Sites |-> [t \in TabIds |-> [h \in Sites |-> 0]]]
     /\ minted = [s \in Sites |-> IF s \in Tabbed THEN 2 ELSE 1]
     /\ host = [s \in Sites |-> [t \in TabIds |-> s]]
@@ -426,6 +430,9 @@ Inv_WarmLimit == \A s \in Tabbed :
 \* only for that live build, so a let-go before its controller comes
 \* leaves none behind: it queues it again for the next build.
 Inv_HeldBuilt == \A s \in Tabbed : held[s] # NoQueued => held[s].t = built[s]
+\* TAB-023: a switch to a tab that kept a warm view shows that view: no
+\* switch builds its target anew, as its epoch would say (ghost).
+Inv_WarmNotRebuilt == ~rebuiltWarm
 \* LIR-034: a tab follows a listed opener or none, so a site that leaves
 \* the list stops being one in the step that takes it.
 Inv_OpenerListed == \A s \in Tabbed : \A t \in tabs[s] : opener[s][t] \in Listed \cup {0}

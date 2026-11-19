@@ -33,6 +33,7 @@ final class WebViewTabBinding {
   TabId? _built;
   CapturedNavState? _queued;
   ({FramedBuild build, CapturedNavState stack})? _held;
+  final Map<TabId, bool> _epoch = {};
 
   /// The tab the live webview was built for; null while there is none.
   TabId? get built => _built;
@@ -42,6 +43,24 @@ final class WebViewTabBinding {
 
   /// The tab the queued back stack was read for, if one is queued.
   TabId? get queuedFor => _queued?.tab;
+
+  /// The bit [tab]'s latest webview was built under (`epoch[s][t]`): each
+  /// build for it flips it, a warm view shown again keeps it (TAB-023).
+  bool epochOf(TabId tab) => _epoch[tab] ?? false;
+
+  /// Every view of the site gone, the epochs they were built under with
+  /// them (`webViewGone`): the next build of each tab starts from clear.
+  void clearEpochs({required Commit commit}) {
+    if (_epoch.isEmpty) return;
+    _epoch.clear();
+    commit.wrote(ModelVar.epoch);
+  }
+
+  /// The tabs whose bit is set: `epoch[s]`, every other tab's being clear.
+  Iterable<TabId> get stamped => [
+    for (final MapEntry(key: t, value: on) in _epoch.entries)
+      if (on) t,
+  ];
 
   /// The back stack the live build took that its controller has not
   /// restored yet, with the tab it was read for.
@@ -92,13 +111,16 @@ final class WebViewTabBinding {
   }
 
   /// The frame builds a webview for [tab] and hands it the back stack queued
-  /// for it, in one [commit] (`Bound`, `Shown`, `Taken` and `Handed`,
+  /// for it, in one [commit] (`Bound`, `Shown`, `Taken`, `Handed` and
+  /// `Stamped`, the build's own epoch for [tab],
   /// TAB-003): the model's `built[s]`, its `hist[s]`, its `queued[s]`,
   /// emptied, and its `held[s]`, what the build took until its controller
   /// restores it. Bytes queued for another tab are dropped: that tab is no
   /// longer the one being built.
   FramedBuild frame(TabId tab, {required Commit commit}) {
     _built = tab;
+    _epoch[tab] = !epochOf(tab);
+    commit.wrote(ModelVar.epoch);
     final queued = _queued;
     _queued = null;
     _drop(commit: commit);

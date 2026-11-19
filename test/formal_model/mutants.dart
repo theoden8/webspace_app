@@ -101,6 +101,53 @@ Act<LetGoWorld> _dropsHeld(
   );
 }
 
+/// The switch [rebinds] as it was before TAB-023 showed a warm target:
+/// every switch builds its target anew, under the other epoch. The code it
+/// runs is the same; the ghost over the epoch it now writes is asserted
+/// before it, as the production one is.
+Act<TabFlow> _rebuildsWarm(Act<TabFlow> rebinds) {
+  const site = Field<SiteId, TabFlow>(FlowField.site);
+  const tab = Field<TabId, TabFlow>(FlowField.tab);
+  final keys = TabVars.ids<TabFlow>();
+  final flipped = ~TabVars.epochBit<SiteId, TabFlow>(
+    site.value,
+    tab: tab.value,
+    keys: keys,
+  );
+  final stamp = TabVars.stamp<SiteId, TabFlow>(
+    site.value,
+    tab: tab.value,
+    to: flipped,
+  );
+  final kept = TabVars.warmKept<SiteId, TabFlow>(
+    site.value,
+    tab: tab.value,
+    bitAfter: flipped,
+    keys: keys,
+  );
+  // The rebind's last two writes are its stamp and the ghost over it.
+  final at = rebinds.tla.indexOf("epoch' = ");
+  assert(
+    at > 0 && rebinds.tla.indexOf("rebuiltWarm' = ", at) > at,
+    'the rebind ends with its stamp and the ghost over it',
+  );
+  return Act(
+    writes: rebinds.writes,
+    tla: '${rebinds.tla.substring(0, at)}${stamp.tla} /\\ ${kept.tla}',
+    reads: Reads.of([rebinds.reads, stamp.reads, kept.reads]),
+    run: (c) {
+      kept.stage(c);
+      rebinds.run(c);
+    },
+  );
+}
+
+/// [e] as [_rebuildsWarm] makes it where it is a switch's rebind.
+Effect<TabFlow> _rebuildingWarm(Effect<TabFlow> e) =>
+    e is Act<TabFlow> && e.writes.contains(ModelVar.rebuiltWarm)
+    ? _rebuildsWarm(e)
+    : e;
+
 /// [ops] with the definition named as [def] replaced by it.
 List<Def<Object?, Object?>> _withDef(
   List<Def<Object?, Object?>> ops, {
@@ -966,6 +1013,36 @@ Tables mutated(Mutant m) => switch (m) {
               else
                 e,
           ],
+          next: s.otherwise.next,
+        ),
+      ),
+    ),
+  ),
+  // A switch back to a tab that kept a warm view builds it anew, as the
+  // switch did before TAB-023 showed it.
+  Mutant.rebuildwarm => _with(
+    tabFlow: _withArms(
+      tables.tabFlow,
+      step: ActivationStep.tabRebind,
+      arms: (s) => s.withArms(
+        branches: [
+          for (final b in s.branches)
+            Branch(
+              b.outcome,
+              when: b.when,
+              pick: b.pick,
+              site: b.site,
+              tab: b.tab,
+              then: [for (final e in b.then) _rebuildingWarm(e)],
+              next: b.next,
+            ),
+        ],
+        otherwise: Otherwise(
+          s.otherwise.outcome,
+          site: s.otherwise.site,
+          pick: s.otherwise.pick,
+          tab: s.otherwise.tab,
+          then: [for (final e in s.otherwise.then) _rebuildingWarm(e)],
           next: s.otherwise.next,
         ),
       ),

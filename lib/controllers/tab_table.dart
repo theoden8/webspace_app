@@ -39,6 +39,7 @@ abstract final class TabTable {
       ModelVar.warm,
       ModelVar.queued,
       ModelVar.held,
+      ModelVar.epoch,
     },
     of: (w) => TabCalls(w._c, sites: w),
   );

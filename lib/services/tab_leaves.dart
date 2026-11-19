@@ -43,6 +43,16 @@ Indexed<S, Map<TabId, TabId?>, W> warmReported<S, W>({
   read: (w, {required at}) => {for (final t in read(w, site: at)) t: t},
 );
 
+/// `epoch[s][t]`: the bit tab t's latest webview was built under, which
+/// each build for t flips and a warm view shown again keeps (TAB-023). The
+/// code holds the views, so a write of it prints and the binding does it.
+Mutable<Map<S, Map<TabId, bool>>, W> epochOf<S, W>() =>
+    Mutable.remote(ModelVar.epoch);
+
+/// A site's row of [epochOf] with no view built: `[t \in TabIds |-> FALSE]`.
+Expr<Map<TabId, bool>, W> noEpoch<W>() =>
+    Expr.constant(const {}, tla: r'[t \in TabIds |-> FALSE]');
+
 /// A site's row of [warmOf] with no warm view: `[t \in TabIds |-> 0]`.
 Expr<Map<TabId, TabId?>, W> noWarm<W>() =>
     Expr.constant(const {}, tla: r'[t \in TabIds |-> 0]');
@@ -115,9 +125,10 @@ Members<S, W> rebuiltOf<S, W>() =>
     Members(ModelConst.rebuilt, test: (_, {required member}) => true);
 
 /// The webview went, its warm ones with it (TAB-026): nothing is built or
-/// shown for the site, and what its build held goes with it (the tab's
-/// file still holds it).
+/// shown for the site, what its build held goes with it (the tab's file
+/// still holds it), and so do the epochs its views were built under.
 List<Write<W>> webViewGone<S, W>(Expr<S, W> site) => [
+  epochOf<S, W>().becomes(epochOf<S, W>().value.except(site, to: noEpoch())),
   builtOf<S, W>().becomes(builtOf<S, W>().value.except(site, to: noTab())),
   histOf<S, W>().becomes(histOf<S, W>().value.except(site, to: noTab())),
   heldOf<S, W>().becomes(heldOf<S, W>().value.except(site, to: noQueued())),
@@ -128,6 +139,9 @@ List<Write<W>> webViewGone<S, W>(Expr<S, W> site) => [
 
 /// [webViewGone] for every site of [sites] at once.
 List<Write<W>> webViewsGone<S, W>(Expr<Iterable<S>, W> sites) => [
+  epochOf<S, W>().becomes(
+    epochOf<S, W>().value.exceptAll(sites, to: noEpoch()),
+  ),
   builtOf<S, W>().becomes(builtOf<S, W>().value.exceptAll(sites, to: noTab())),
   histOf<S, W>().becomes(histOf<S, W>().value.exceptAll(sites, to: noTab())),
   heldOf<S, W>().becomes(

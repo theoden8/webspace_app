@@ -380,6 +380,40 @@ final class TabVars {
 
   static Mutable<Map<S, QueuedStack>, W> held<S, W>() => heldOf<S, W>();
 
+  static Mutable<Map<S, Map<TabId, bool>>, W> epoch<S, W>() =>
+      epochOf<S, W>();
+
+  /// [epoch] with [s]'s bit for [tab] flipped: a build for that tab.
+  static Expr<Map<S, Map<TabId, bool>>, W> flipped<S, W>(
+    Expr<S, W> s, {
+    required Expr<TabId, W> tab,
+  }) {
+    final row = epoch<S, W>().value.at(s);
+    return epoch<S, W>().value.except(
+      s,
+      to: row.except(tab, to: ~row.at(tab)),
+    );
+  }
+
+  /// A frame's build stamps the tab it binds with a new epoch, as [handed]
+  /// hands it a back stack: only where it builds one (TAB-023).
+  static Def<Map<S, Map<TabId, bool>>, W> stamped<S, W>({
+    required SiteKeys<S, W> keys,
+  }) {
+    final s = Bound<S, W>('s');
+    final l = Bound<Iterable<S>, W>('l');
+    final target = active<S, W>(keys: keys).at(s.it);
+    return Def(
+      ModelDef.stamped,
+      params: [s, l],
+      body: Expr.choose(
+        when: builds(s, l: l) & builtFn<S, W>().value.at(s.it).neq(target),
+        then: flipped<S, W>(s.it, tab: target),
+        otherwise: epoch<S, W>().value,
+      ),
+    );
+  }
+
   /// A capture's save stores the webview's bytes under the tab it was built
   /// for, [t], keyed by the site [a] that tab ran as, read as the capture
   /// started with the history [h] it showed; the read before it dropped a
@@ -597,7 +631,7 @@ final class TabVars {
     required WarmMove<W> warmth,
   }) {
     final isLoaded = loaded.has(site);
-    final warmView = warm<S, W>().value.at(site).at(tab);
+    final warmView = warmViews<S, W>(keys: keys).at(site).at(tab);
     final shows = switch (warmth) {
       KeepsWarm() => Expr.choose(
         when: warmView.neq(noTab()),
@@ -614,12 +648,13 @@ final class TabVars {
         otherwise: tab,
       ),
     };
-    // A warm view shown as it is takes no back stack: only a build does.
-    final takes = isLoaded & rebuiltOf<S, W>().has(site) & label.neq(noTab());
-    final builds = switch (warmth) {
-      KeepsWarm() => takes & warmView.eq(noTab()),
-      DropsWarm() => takes,
+    // A warm view shown as it is takes no back stack and keeps its epoch:
+    // only a build does either.
+    final fresh = switch (warmth) {
+      KeepsWarm() => isLoaded & warmView.eq(noTab()),
+      DropsWarm() => isLoaded,
     };
+    final builds = fresh & rebuiltOf<S, W>().has(site) & label.neq(noTab());
     final warmRow = switch (warmth) {
       KeepsWarm(:final kept, :final victim) => warmed<S, W>(keys: keys).call([
         site,
@@ -629,6 +664,18 @@ final class TabVars {
       ]),
       DropsWarm() => noWarm<W>(),
     };
+    // A build that leaves no warm view lets go of every view first, and the
+    // epochs they were built under with them: the target's is its first.
+    final cleared = switch (warmth) {
+      KeepsWarm() => fresh & warmRow.eq(noWarm()),
+      DropsWarm() => fresh,
+    };
+    final bit = epochBit<S, W>(site, tab: tab, keys: keys);
+    final bitAfter = Expr.choose<bool, W>(
+      when: cleared,
+      then: Expr.constant(true, tla: 'TRUE'),
+      otherwise: Expr.choose(when: fresh, then: ~bit, otherwise: bit),
+    );
     return [
       builtFn<S, W>().becomes(
         builtFn<S, W>().value.except(
@@ -678,8 +725,70 @@ final class TabVars {
           ),
         ),
       ),
+      TabVars.epoch<S, W>().becomes(
+        TabVars.epoch<S, W>().value.except(
+          site,
+          to: Expr.choose(
+            when: ~isLoaded,
+            then: noEpoch<W>(),
+            otherwise: Expr.choose(
+              when: cleared,
+              then: noEpoch<W>().except(tab, to: bitAfter),
+              otherwise: TabVars.epoch<S, W>().value.at(site).except(
+                tab,
+                to: bitAfter,
+              ),
+            ),
+          ),
+        ),
+      ),
+      if (warmth is KeepsWarm)
+        warmKept<S, W>(site, tab: tab, bitAfter: bitAfter, keys: keys),
     ];
   }
+
+  /// `epoch[s][t]` as the code reads it off the site's binding.
+  static Expr<bool, W> epochBit<S, W>(
+    Expr<S, W> site, {
+    required Expr<TabId, W> tab,
+    required SiteKeys<S, W> keys,
+  }) => Indexed<S, Map<TabId, bool>, W>.reported(
+    ModelVar.epoch,
+    read: (w, {required at}) {
+      final m = keys.site(w, key: at);
+      return {for (final t in m.tabs) t.id: m.tabBinding.epochOf(t.id)};
+    },
+  ).at(site).at(tab);
+
+  /// `epoch[s][t]` set to [to]: a switch's write of the bit its target's
+  /// view is built under.
+  static Write<W> stamp<S, W>(
+    Expr<S, W> site, {
+    required Expr<TabId, W> tab,
+    required Expr<bool, W> to,
+  }) {
+    final epoch = TabVars.epoch<S, W>().value;
+    return TabVars.epoch<S, W>().becomes(
+      epoch.except(site, to: epoch.at(site).except(tab, to: to)),
+    );
+  }
+
+  /// The ghost a switch to [tab] sets where it gives a target that kept a
+  /// warm view another epoch, [bitAfter] being the bit it writes (TAB-023):
+  /// stated over that write, apart from the rule that picks it.
+  static Write<W> warmKept<S, W>(
+    Expr<S, W> site, {
+    required Expr<TabId, W> tab,
+    required Expr<bool, W> bitAfter,
+    required SiteKeys<S, W> keys,
+  }) => ghost(
+    ModelVar.rebuiltWarm,
+    never:
+        warmViews<S, W>(keys: keys).at(site).at(tab).neq(noTab()) &
+        bitAfter.neq(epochBit<S, W>(site, tab: tab, keys: keys)),
+    why: 'a switch built a new webview for a target that kept a warm one '
+        '(TAB-023)',
+  );
 
   /// [s]'s warm row with the views of [g] gone: closed, or running as
   /// another site than the slot (TAB-026).
@@ -756,6 +865,7 @@ final class TabVars {
     hist<S, W>().becomes(shown<S, W>(keys: keys).call([site, loaded])),
     queued<S, W>().becomes(taken<S, W>().call([site, loaded])),
     held<S, W>().becomes(handed<S, W>(keys: keys).call([site, loaded])),
+    epoch<S, W>().becomes(stamped<S, W>(keys: keys).call([site, loaded])),
   ], then: build);
 }
 
