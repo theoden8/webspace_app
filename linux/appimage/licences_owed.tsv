@@ -1,0 +1,11 @@
+# The Ubuntu packages the AppImage bundles that LICENSE-001 does not yet let
+# ship (PLATFORM-013): a package, a tab, and what it waits on. Each was read
+# against what its binary package ships (openspec/specs/legal/debian_licences.tsv,
+# debian_readings.tsv); what is left is the policy's (licences.tsv): a licence
+# it does not list, or LicenseRef-build-only for a package its row does not
+# name yet. tool/check_bundle_licences.js --owed reports their refusals
+# instead of failing on them, and fails on a package listed here, in a bundle
+# that carries it, that no longer needs to be; the list only shrinks. While it
+# holds a row (tool/check_bundle_licences.js --count-owed), the Snap workflow
+# keeps the AppImage to itself and
+# scripts/release_appimage.sh refuses to publish one.

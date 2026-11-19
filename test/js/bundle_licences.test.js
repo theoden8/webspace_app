@@ -159,3 +159,58 @@ test('LICENSE-001 CI checks the Linux bundle and the snap it builds', () => {
   assert.match(read('.github/workflows/snap.yml'), /node tool\/check_bundle_licences\.js /,
     'CI does not check the snap it builds');
 });
+
+// PLATFORM-013: the AppImage bundles packages whose copyright files are not
+// read yet, listed in linux/appimage/licences_owed.tsv. The list lets their
+// refusals through as owed and only shrinks.
+test('LICENSE-001 an owed package\'s refusals are owed, not errors, and the list only shrinks', (t) => {
+  const root = pkg(t, {
+    'usr/share/doc/libowed/copyright': dep5(['*', 'GPL-2+']),
+    'usr/share/doc/libread/copyright': dep5(['*', 'Expat']),
+    'usr/share/doc/libnew/copyright': dep5(['*', 'GPL-3+']),
+  });
+  const found = B.refusals(root);
+  const owing = (owed) => B.owing(found, { root, owed });
+  const { errors, owes } = owing('libowed\tits GPL stanza is not read yet\n');
+  assert.deepEqual(errors, ['usr/share/doc/libnew/copyright: GPL-3.0-or-later'], 'a package the list does not name');
+  assert.deepEqual([...owes], [['libowed', 1]]);
+  assert.deepEqual(owing('libowed\tnot read\nlibnew\tnot read\nlibread\tnot read\n').errors,
+    ['libread: listed as owed but nothing in it is refused; drop it from the list'], 'a package read since');
+  assert.deepEqual(owing('libowed\tnot read\nlibnew\tnot read\nlibother\tnot read\n').errors, [],
+    "a package another architecture's bundle carries");
+  assert.deepEqual(owing('libowed\nlibnew\tnot read\n').errors, ['libowed: listed as owed with no reason']);
+});
+
+// PLATFORM-013 bundles Ubuntu packages whose copyright files name a licence
+// in a phrase (GStreamer's "MIT/X11 (BSD like)") or are not machine-readable.
+test('LICENSE-001 a row naming a whole phrase reads it as one licence', (t) => {
+  const root = pkg(t, { 'usr/share/doc/libgst/copyright': dep5(['*', 'LGPL-2+'], ['ext/x.c', 'MIT/X11 (BSD like)']) });
+  assert.deepEqual(B.refusals(root, { table: B.names('LGPL-2+\tLGPL-2.0-or-later\n') }), [
+    'usr/share/doc/libgst/copyright: MIT/X11 is a name openspec/specs/legal/debian_licences.tsv does not read',
+    'usr/share/doc/libgst/copyright: (BSD is a name openspec/specs/legal/debian_licences.tsv does not read',
+    'usr/share/doc/libgst/copyright: like) is a name openspec/specs/legal/debian_licences.tsv does not read',
+  ], 'the words of a phrase no row names');
+  assert.deepEqual(B.refusals(root, { table: B.names('LGPL-2+\tLGPL-2.0-or-later\nMIT/X11 (BSD like)\tMIT\n') }), []);
+});
+
+test("LICENSE-001 a file that is not machine-readable passes only as the bytes a reading pinned", (t) => {
+  const text = 'This package was debianized by someone.\nIt is under the MIT licence.\n';
+  const root = pkg(t, { 'usr/share/doc/libold/copyright': text });
+  const sha256 = require('node:crypto').createHash('sha256').update(text).digest('hex');
+  const unread = ['usr/share/doc/libold/copyright: (not a machine-readable copyright file) is a name openspec/specs/legal/debian_licences.tsv does not read'];
+  assert.deepEqual(B.refusals(root, { held: [] }), unread);
+  assert.deepEqual(B.refusals(root, { held: [{ pkg: 'libold', sha256, spdx: 'MIT' }] }), []);
+  assert.deepEqual(B.refusals(root, { held: [{ pkg: 'libother', sha256, spdx: 'MIT' }] }), unread, "another package's reading");
+  assert.deepEqual(B.refusals(root, { held: [{ pkg: 'libold', sha256: '0'.repeat(64), spdx: 'MIT' }] }), unread, 'a reading of other bytes');
+  assert.deepEqual(B.refusals(root, { held: [{ pkg: 'libold', sha256, spdx: 'GPL-2.0-or-later' }] }),
+    ['usr/share/doc/libold/copyright: GPL-2.0-or-later'], 'a reading the policy refuses');
+});
+
+// The Snap workflow and scripts/release_appimage.sh ask the gate how many
+// packages are owed; a grep of their own once counted a blank line as one,
+// and the AppDir was never kept.
+test('LICENSE-001 an owed list of comments and blank lines owes nothing', () => {
+  assert.equal(B.owedCount('# header\n\n'), 0);
+  assert.equal(B.owedCount('# header\nlibx\twhat it waits on\n\n'), 1);
+  assert.equal(B.owedCount(read('linux/appimage/licences_owed.tsv')), 0, 'the committed list');
+});

@@ -9,14 +9,21 @@
 // outside its notices carries a GNU licence's notice, but a debug source of a
 // library whose copyright file names the LGPL, under the LGPL alone.
 //
-//   node tool/check_bundle_licences.js <unpacked package or bundle directory>
+//   node tool/check_bundle_licences.js <unpacked package or bundle directory> [--owed <list>]
+//   node tool/check_bundle_licences.js --count-owed <list>
+//
+// --owed names a list of packages the policy does not yet let ship
+// (linux/appimage/licences_owed.tsv): their refusals are reported, not
+// failed, and a package the list names that no longer needs it fails.
 
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const L = require('../test/js/helpers/licences');
 const { read } = require('../test/js/helpers/source');
 
 const NAMES = 'openspec/specs/legal/debian_licences.tsv';
+const READINGS = 'openspec/specs/legal/debian_readings.tsv';
 
 // The notices in lib/tor/docs of the programs there rather than of a library
 // tor links: tor's LICENSE (linux/tor_build.sh), and lyrebird's, the licence
@@ -29,6 +36,14 @@ function names(text = read(NAMES)) {
   return L.rows(text).map(([name, spdx, pkg = '', files = '']) => ({
     name: name.trim(), spdx: spdx.trim(), pkg: pkg.trim(), files: files.trim().split(/\s+/).filter(Boolean),
   }));
+}
+
+/**
+ * The rows of debian_readings.tsv: { pkg, sha256, spdx }, a person's reading
+ * of a copyright file no machine can, pinned to the file's bytes.
+ */
+function readings(text = read(READINGS)) {
+  return L.rows(text).map(([pkg, sha256, spdx]) => ({ pkg: pkg.trim(), sha256: sha256.trim(), spdx: spdx.trim() }));
 }
 
 /**
@@ -45,10 +60,19 @@ function spdxOf(name, { pkg, files, table }) {
 /**
  * The licence expressions a DEP-5 copyright file's stanzas name, each in SPDX
  * ids, or the names no row reads. A stanza's commas group alternatives, so
- * each group is held on its own: "A or B, and C" is (A or B) and C.
+ * each group is held on its own: "A or B, and C" is (A or B) and C. A group a
+ * row names whole ("MIT/X11 (BSD like)") reads as that row's id; otherwise
+ * each of its words is read. A file that is not machine-readable reads as
+ * the reading of it debian_readings.tsv holds for exactly its bytes.
  */
-function licencesOf(text, { pkg, table = names() }) {
-  if (!/^Format(-Specification)?:\s*\S/m.test(text)) return { expressions: [], unknown: ['(not a machine-readable copyright file)'] };
+function licencesOf(text, { pkg, table = names(), read: held = readings() }) {
+  if (!/^Format(-Specification)?:\s*\S/m.test(text)) {
+    const sha256 = crypto.createHash('sha256').update(text).digest('hex');
+    const reading = held.find((r) => r.pkg === pkg && r.sha256 === sha256);
+    return reading
+      ? { expressions: [reading.spdx], unknown: [] }
+      : { expressions: [], unknown: ['(not a machine-readable copyright file)'] };
+  }
   const expressions = [];
   const unknown = [];
   for (const para of text.split(/\n[ \t]*\n/)) {
@@ -57,7 +81,13 @@ function licencesOf(text, { pkg, table = names() }) {
     if (!licence || (!filesField && !/^Format/m.test(para))) continue;
     const files = filesField ? filesField.split(/\s+/).filter(Boolean) : ['*'];
     for (const group of licence.split(',')) {
-      const words = group.trim().replace(/^(and|or)\s+/i, '').split(/\s+/).filter(Boolean);
+      const phrase = group.trim().replace(/^(and|or)\s+/i, '');
+      const whole = /\s/.test(phrase) ? spdxOf(phrase, { pkg, files, table }) : null;
+      if (whole) {
+        expressions.push(whole);
+        continue;
+      }
+      const words = phrase.split(/\s+/).filter(Boolean);
       const spdx = words.map((w) => {
         if (/^(and|or)$/i.test(w)) return w.toUpperCase();
         const id = spdxOf(w, { pkg, files, table });
@@ -97,14 +127,14 @@ const DEBUG_SOURCE = /^lib\/debug\/source\/([^/]+)\//;
 const copyrightsOf = (pkg) => [`share/doc/${pkg}/copyright`, `usr/share/doc/${pkg}/copyright`];
 
 /** What [root] ships that LICENSE-001 refuses, one line each. */
-function refusals(root, { table = names(), licences = L.policy() } = {}) {
+function refusals(root, { table = names(), held = readings(), licences = L.policy() } = {}) {
   const out = [];
   const files = copyrightFiles(root);
   if (files.length === 0) out.push(`${root}: no copyright file at all`);
   const lgpl = new Set();
   for (const { file, pkg } of files) {
     const rel = path.relative(root, file);
-    const { expressions, unknown } = licencesOf(fs.readFileSync(file, 'utf8'), { pkg, table });
+    const { expressions, unknown } = licencesOf(fs.readFileSync(file, 'utf8'), { pkg, table, read: held });
     for (const name of unknown) out.push(`${rel}: ${name} is a name ${NAMES} does not read`);
     for (const e of expressions) {
       if (!unknown.length && !L.allows(e, { ships: 'shared', component: `deb:${pkg}`, licences })) {
@@ -131,16 +161,65 @@ function refusals(root, { table = names(), licences = L.policy() } = {}) {
   return out;
 }
 
-module.exports = { names, spdxOf, licencesOf, copyrightFiles, refusals, NAMES };
+/**
+ * [found] split by a list of packages the policy does not yet let ship (a
+ * TSV of a package and what it waits on): a refusal of a listed package's file
+ * is owed, not an error; a listed package [root] carries with nothing
+ * refused is an error, so the list only shrinks. One list serves every
+ * architecture, so a package [root] does not carry (libatomic1 links only
+ * on amd64) is passed over.
+ */
+function owing(found, { root, owed }) {
+  const listed = new Map(L.rows(owed).map(([pkg, why = '']) => [pkg.trim(), why.trim()]));
+  const shipped = new Set(copyrightFiles(root).map((f) => f.pkg));
+  const errors = [];
+  const owes = new Map();
+  for (const line of found) {
+    const pkg = line.match(/^(?:usr\/)?share\/doc\/([^/]+)\/copyright: /)?.[1];
+    if (pkg && listed.has(pkg)) owes.set(pkg, (owes.get(pkg) ?? 0) + 1);
+    else errors.push(line);
+  }
+  for (const [pkg, why] of listed) {
+    if (!why) errors.push(`${pkg}: listed as owed with no reason`);
+    else if (shipped.has(pkg) && !owes.has(pkg)) errors.push(`${pkg}: listed as owed but nothing in it is refused; drop it from the list`);
+  }
+  return { errors, owes };
+}
+
+module.exports = { names, readings, spdxOf, licencesOf, copyrightFiles, refusals, owing, owedCount, NAMES };
+
+/** How many packages the owed list [owed] holds: its rows, as owing() reads them. */
+function owedCount(owed) {
+  return L.rows(owed).length;
+}
 
 if (require.main === module) {
-  const root = process.argv[2];
-  if (!root) {
-    console.error('usage: node tool/check_bundle_licences.js <package directory>');
+  const args = process.argv.slice(2);
+  if (args[0] === '--count-owed') {
+    if (!args[1]) {
+      console.error('usage: node tool/check_bundle_licences.js --count-owed <list>');
+      process.exit(2);
+    }
+    console.log(owedCount(fs.readFileSync(args[1], 'utf8')));
+    process.exit(0);
+  }
+  const at = args.indexOf('--owed');
+  const owedFile = at >= 0 ? args.splice(at, 2)[1] : null;
+  const root = args[0];
+  if (!root || (at >= 0 && !owedFile)) {
+    console.error('usage: node tool/check_bundle_licences.js <package directory> [--owed <list>]');
     process.exit(2);
   }
   const found = refusals(path.resolve(root));
-  for (const line of found) console.error(`::error::${line}`);
-  if (found.length) process.exit(1);
-  console.log(`OK: ${copyrightFiles(path.resolve(root)).length} copyright files under ${root}`);
+  const { errors, owes } = owedFile
+    ? owing(found, { root: path.resolve(root), owed: fs.readFileSync(owedFile, 'utf8') })
+    : { errors: found, owes: new Map() };
+  for (const line of errors) console.error(`::error::${line}`);
+  if (owes.size) {
+    console.log(`::warning::${owes.size} bundled packages are owed (${owedFile}): `
+      + [...owes].map(([pkg, n]) => `${pkg} (${n})`).join(', '));
+  }
+  if (errors.length) process.exit(1);
+  console.log(`OK: ${copyrightFiles(path.resolve(root)).length} copyright files under ${root}`
+    + (owes.size ? `, ${owes.size} of them owed` : ''));
 }
