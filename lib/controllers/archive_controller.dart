@@ -960,11 +960,11 @@ final _closeRunning = Expr.inFlight<CloseFlow>(
   FlowKind.close,
   run: (c) => _closeAsk.from(c).running(),
 );
-final _closeTooBig = Expr.op<bool, CloseFlow>(
-  HandPaired.archiveTooBig,
-  tla: 'FALSE',
+/// Whether the sealed slice no longer fits its slot: in the model, a world
+/// whose archive has outgrown it (`ArchiveTooBig`).
+final _closeTooBig = Expr.ofConstant<bool, CloseFlow>(
+  ModelConst.archiveTooBig,
   run: (c) => _closeAsk.from(c).tooBig(),
-  reads: Reads.none,
 );
 
 final _closeLoaded = Mutable<Iterable<SiteId>, CloseFlow>.over(
