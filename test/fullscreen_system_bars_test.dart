@@ -220,5 +220,33 @@ void main() {
       expect(modes.sublist(before), isEmpty,
           reason: 'sticky bars hide themselves');
     });
+
+    testWidgets('FS-004: a resume in full screen asks for its system UI again',
+        (tester) async {
+      addTearDown(tester.view.reset);
+      await enterFullscreenOn(tester, prefs: {'showTabStrip': true});
+      expect(modes.last, immersiveSticky);
+
+      final binding = tester.binding;
+      for (final state in const [
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+      ]) {
+        binding.handleAppLifecycleStateChanged(state);
+      }
+      await settleRealApp(tester);
+      final before = modes.length;
+      for (final state in const [
+        AppLifecycleState.hidden,
+        AppLifecycleState.inactive,
+        AppLifecycleState.resumed,
+      ]) {
+        binding.handleAppLifecycleStateChanged(state);
+      }
+      await settleRealApp(tester);
+      expect(modes.sublist(before), [immersiveSticky],
+          reason: 'the OS can drop the immersive mode while the app is away');
+    });
   });
 }

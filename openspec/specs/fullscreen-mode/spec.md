@@ -125,6 +125,7 @@ The system SHALL maintain the correct full screen state across app lifecycle tra
 **Given** the user is in full screen mode
 **When** the app is backgrounded and then resumed
 **Then** the immersive system UI mode is re-applied
+**And** `test/fullscreen_system_bars_test.dart` ("FS-004: a resume in full screen asks for its system UI again") holds it
 
 ---
 
