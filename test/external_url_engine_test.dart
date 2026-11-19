@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/external_url_engine.dart';
+import 'package:webspace/services/navigation_decision_engine.dart';
 
 void main() {
   group('cleanExternalUrl (EXT-006)', () {
@@ -51,6 +52,57 @@ void main() {
           ExternalUrlParser.parse(tel)!, clean: service.cleanUrl);
       expect(cleaned.launch, tel);
       expect(cleaned.fallback, isEmpty);
+    });
+  });
+
+  group('routeExternal (EXT-003, NESTED-013)', () {
+    ExternalUrlInfo intent(String path) => ExternalUrlParser.parse(
+          'intent://www.google.com/$path#Intent;scheme=https;'
+          'S.browser_fallback_url=https%3A%2F%2Fwww.google.com%2F$path;end',
+        )!;
+
+    test('an intent with a web fallback is routed to it without a prompt', () {
+      final route = routeExternal(intent('maps-ext003'),
+          hasGesture: true, frame: NavigationFrame.top);
+      expect(route, isA<ExternalRouted>());
+      expect((route as ExternalRouted).url,
+          'https://www.google.com/maps-ext003');
+    });
+
+    test('a scheme with no web equivalent asks the user', () {
+      expect(
+        routeExternal(ExternalUrlParser.parse('tel:+15550100')!,
+            hasGesture: true, frame: NavigationFrame.top),
+        isA<ExternalAsk>(),
+      );
+    });
+
+    test('a frame other than the top never routes (NESTED-013)', () {
+      for (final frame in [NavigationFrame.sub, NavigationFrame.unverified]) {
+        expect(
+          routeExternal(intent('maps-sub-$frame'),
+              hasGesture: true, frame: frame),
+          isA<ExternalDropped>(),
+          reason: '$frame',
+        );
+      }
+    });
+
+    test('a script firing it again within the window is dropped, a tap is not',
+        () {
+      final info = intent('maps-ext007');
+      expect(
+        routeExternal(info, hasGesture: false, frame: NavigationFrame.top),
+        isA<ExternalRouted>(),
+      );
+      expect(
+        routeExternal(info, hasGesture: false, frame: NavigationFrame.top),
+        isA<ExternalDropped>(),
+      );
+      expect(
+        routeExternal(info, hasGesture: true, frame: NavigationFrame.top),
+        isA<ExternalRouted>(),
+      );
     });
   });
 

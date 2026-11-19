@@ -1,3 +1,5 @@
+import 'package:webspace/services/navigation_decision_engine.dart';
+
 /// Parsed metadata for a non-webview URL (intent://, tel:, mailto:,
 /// market:, custom app schemes, etc.). The rendering layer turns this
 /// into a confirmation dialog and, on accept, hands it to url_launcher.
@@ -313,4 +315,46 @@ class ExternalUrlSuppressor {
     }
     return true;
   }
+}
+
+/// What a navigation to an external scheme becomes in a site's webview.
+sealed class ExternalRoute {
+  const ExternalRoute();
+}
+
+/// No web equivalent: the user is asked whether to hand it to an app.
+final class ExternalAsk extends ExternalRoute {
+  const ExternalAsk();
+}
+
+/// Dropped: a frame other than the top asked (NESTED-013), or a script
+/// fired again one routed moments ago (EXT-007).
+final class ExternalDropped extends ExternalRoute {
+  const ExternalDropped();
+}
+
+/// Routed without a prompt to its web equivalent [url], through the site's
+/// own navigation (EXT-003).
+final class ExternalRouted extends ExternalRoute {
+  const ExternalRouted(this.url);
+
+  final String url;
+}
+
+/// The route for [info], asked by a navigation of [frame] with or without
+/// a gesture. A route taken is marked, so a script that fires it again
+/// within the window is dropped (EXT-007); a gesture always routes.
+ExternalRoute routeExternal(
+  ExternalUrlInfo info, {
+  required bool hasGesture,
+  required NavigationFrame frame,
+}) {
+  final resolved = ExternalUrlParser.toWebUrl(info);
+  if (resolved == null) return const ExternalAsk();
+  if (frame != NavigationFrame.top) return const ExternalDropped();
+  if (!hasGesture && ExternalUrlSuppressor.isSuppressedInfo(info)) {
+    return const ExternalDropped();
+  }
+  ExternalUrlSuppressor.mark(info);
+  return ExternalRouted(resolved);
 }
