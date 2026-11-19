@@ -88,6 +88,10 @@ extension type OutboundProxy._(UserProxySettings settings) {
         relay: EgressRelay.instance.state,
       ));
 
+  /// Whether this route goes through Tor, the site's own or the app's it
+  /// follows (PROXY-011).
+  bool get carriesTor => resolved.type == ProxyType.TOR;
+
   UserProxySettings get _proxy {
     if (settings.type == ProxyType.DEFAULT) {
       final global = resolveLibraryProxy(GlobalOutboundProxy.current);
@@ -280,4 +284,4 @@ enum BodyEncoding {
 /// DEFAULT through the global proxy (PROXY-011), so a site that inherits a
 /// global Tor is gated exactly like one that opted into Tor itself.
 bool waitsForTor(OutboundProxy proxy, {required bool torUp}) =>
-    !torUp && proxy.resolved.type == ProxyType.TOR;
+    !torUp && proxy.carriesTor;

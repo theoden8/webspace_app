@@ -1,4 +1,7 @@
-/// HTTPS upgrade decisions for main-frame navigations (HTTPS-001..005).
+/// HTTPS upgrade decisions for main-frame navigations (HTTPS-001..005), and
+/// the move of a site's clearnet origin onto the onion origin it announced
+/// (ONION-004, ONION-006): both rewrite a top-frame URL to a better transport
+/// and fall back silently to the one asked for, through the same events.
 ///
 /// Chromium has upgraded ordinary navigations since Chrome 115 and falls back
 /// silently when https does not answer. Android WebView does not carry that
@@ -13,6 +16,7 @@
 /// does not pay the same timeout.
 library;
 
+import 'package:webspace/services/onion_location.dart';
 import 'package:webspace/services/url_host.dart';
 
 /// What the call site must do about an event. Every field is an instruction to
@@ -37,7 +41,10 @@ const UpgradeOutcome _nothing = (load: null, cancel: false, armDeadlineFor: null
 /// about, and a wrong entry would outlive its cause with nothing in the UI to
 /// show or clear it.
 class HttpsUpgradeEngine {
-  HttpsUpgradeEngine({this.deadline = const Duration(seconds: 8)});
+  HttpsUpgradeEngine({
+    this.deadline = const Duration(seconds: 8),
+    this.onionDeadline = const Duration(seconds: 30),
+  });
 
   /// How long an upgraded navigation may go without a verdict before the call
   /// site treats it as failed (HTTPS-002).
@@ -54,8 +61,21 @@ class HttpsUpgradeEngine {
   /// that a blackhole costs a pause rather than a hang.
   final Duration deadline;
 
+  /// How long a move onto an onion origin may go without a verdict
+  /// (ONION-006): a new circuit to an onion service takes several seconds
+  /// before the server has said anything.
+  final Duration onionDeadline;
+
   /// Hosts that answered an upgrade attempt with a failure.
   final Set<Host> _httpOnlyHosts = <Host>{};
+
+  /// Onion services a move onto failed this run (ONION-006), in memory only
+  /// for the reason [_httpOnlyHosts] is.
+  final Set<OnionAddress> _failedOnions = <OnionAddress>{};
+
+  /// The in-flight entries of [_inFlight] that are moves onto an onion
+  /// origin, each with the service it went to.
+  final Map<String, OnionAddress> _onionInFlight = <String, OnionAddress>{};
 
   /// Upgraded URL currently in flight -> the http URL it came from. An entry
   /// lives from the moment the call site issues the upgrade until that
@@ -94,6 +114,37 @@ class HttpsUpgradeEngine {
     return upgraded;
   }
 
+  /// [url] on the onion origin [endpoint] names, or null to leave it: no
+  /// endpoint (the site is not on Tor or has none accepted, ONION-007), a URL
+  /// off the announcing origin, or a service that failed this run
+  /// (ONION-006). Called where [upgradeFor] is, and before it (ONION-004).
+  String? onionFor(String url, {required OnionEndpoint? endpoint}) {
+    if (endpoint == null || _failedOnions.contains(endpoint.service)) {
+      return null;
+    }
+    final moved = endpoint.rewrite(url);
+    if (moved == null) return null;
+    _inFlight[moved] = url;
+    _onionInFlight[moved] = endpoint.service;
+    return moved;
+  }
+
+  /// How long the call site waits on [upgradedUrl] before [onDeadline].
+  Duration deadlineFor(String upgradedUrl) =>
+      _onionInFlight.containsKey(upgradedUrl) ? onionDeadline : deadline;
+
+  /// Records that the rewrite to [upgradedUrl] failed, against what it
+  /// rewrote to: an onion service, or a host that will not serve https.
+  void _failed(String upgradedUrl) {
+    final onion = _onionInFlight.remove(upgradedUrl);
+    if (onion != null) {
+      _failedOnions.add(onion);
+      return;
+    }
+    final host = Host.inUrl(upgradedUrl);
+    if (host != null) _httpOnlyHosts.add(host);
+  }
+
   /// The http URL to fall back to after [failedUrl] failed to load, or null
   /// when this engine did not upgrade it.
   ///
@@ -105,8 +156,7 @@ class HttpsUpgradeEngine {
     _responded.remove(failedUrl);
     final original = _inFlight.remove(failedUrl);
     if (original == null) return null;
-    final host = Host.inUrl(failedUrl);
-    if (host != null) _httpOnlyHosts.add(host);
+    _failed(failedUrl);
     return original;
   }
 
@@ -155,10 +205,10 @@ class HttpsUpgradeEngine {
     // to a page they had already left.
     final original = _inFlight[matching.last]!;
     for (final k in matching) {
+      _failed(k);
       _inFlight.remove(k);
       _responded.remove(k);
     }
-    _httpOnlyHosts.add(wanted);
     return original;
   }
 
@@ -168,6 +218,7 @@ class HttpsUpgradeEngine {
   /// read as a fallback long after the fact.
   void recordUpgradeSuccess(String upgradedUrl) {
     _inFlight.remove(upgradedUrl);
+    _onionInFlight.remove(upgradedUrl);
     _responded.remove(upgradedUrl);
   }
 
@@ -177,6 +228,8 @@ class HttpsUpgradeEngine {
   /// Test seam: forget every recorded host and in-flight upgrade.
   void reset() {
     _httpOnlyHosts.clear();
+    _failedOnions.clear();
+    _onionInFlight.clear();
     _inFlight.clear();
     _responded.clear();
   }
@@ -188,10 +241,29 @@ class HttpsUpgradeEngine {
 
   /// A main-frame navigation the routing decision has already allowed
   /// (HTTPS-004).
-  UpgradeOutcome onNavigation(String url, {required bool enabled}) {
-    final upgraded = upgradeFor(url, enabled: enabled);
+  ///
+  /// [onion] is the site's accepted onion endpoint while it is on Tor, else
+  /// null. A move onto it comes first, so a plain-http clearnet URL goes to
+  /// the onion rather than through an https upgrade (ONION-004).
+  UpgradeOutcome onNavigation(
+    String url, {
+    required bool enabled,
+    required OnionEndpoint? onion,
+  }) {
+    final upgraded =
+        onionFor(url, endpoint: onion) ?? upgradeFor(url, enabled: enabled);
     if (upgraded == null) return _nothing;
     return (load: upgraded, cancel: true, armDeadlineFor: upgraded);
+  }
+
+  /// A webview's first load, which reaches no navigation callback on
+  /// Android: only the move onto the site's onion origin applies to it
+  /// (ONION-004), [onion] as [onNavigation] takes it. The call site loads
+  /// [UpgradeOutcome.load] in its place and arms the deadline.
+  UpgradeOutcome onFirstLoad(String url, {required OnionEndpoint? onion}) {
+    final moved = onionFor(url, endpoint: onion);
+    if (moved == null) return _nothing;
+    return (load: moved, cancel: false, armDeadlineFor: moved);
   }
 
   /// The main frame began loading [url]: for an upgrade of ours that is the
@@ -250,6 +322,9 @@ class HttpsUpgradeEngine {
     if (_isIpLiteral(host)) return false;
     final lower = host.toLowerCase();
     if (lower.endsWith('.local')) return false;
+    // An overlay network already encrypts its sites' traffic end to end and
+    // checks their key, which is their address; many serve plain http only.
+    if (Host(lower).overlay != null) return false;
     // Single-label names ("localhost", "nas", "router") are not public DNS
     // names and cannot carry a publicly-trusted certificate.
     if (!lower.contains('.')) return false;

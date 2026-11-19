@@ -85,14 +85,11 @@ NESTED-012	process: the requirement is that the spec states the provenance loss 
 # network-interface
 NETIF-014	no check: not built yet; an import that names an interface this device lacks lands without a notice, and the site loads nothing until the user picks again (tasks 3.9)
 # onion-location
-ONION-001	not implemented: onion-location tasks open (the check through the site's route)
-ONION-002	not implemented: onion-location tasks open (OnionAddress.parse)
-ONION-003	not implemented: onion-location tasks open (the offer and its saved answer)
-ONION-004	not implemented: onion-location tasks open (the rewrite in shouldOverrideUrlLoading)
-ONION-005	not implemented: onion-location tasks open (the endpoint in SiteOrigins and the claims)
-ONION-006	not implemented: onion-location tasks open (the fallback)
-ONION-007	not implemented: onion-location tasks open (the Tor-only gate)
-ONION-008	not implemented: onion-location tasks open (the SiteField cases and the stale check)
+ONION-001	not implemented: onion-location task 4.1 open, the check through the site's route (partly: test/onion_location_test.dart, "announcedEndpoint")
+ONION-003	not implemented: onion-location task 4.2 open, the offer (partly: test/onion_location_test.dart, "only an accepted address is used")
+ONION-006	no check: the engine's fallback is tested (test/https_upgrade_events_test.dart, "the onion endpoint"), but nothing drives it through webview.dart's error, TLS and deadline handlers on a device
+ONION-007	not implemented: onion-location task 4.1 open, the check must skip a site off Tor (partly: test/onion_location_test.dart, "the model resolves the endpoint only on a Tor route")
+ONION-008	not implemented: onion-location task 4.1 open, the rechecks (partly: test/onion_location_test.dart, "a site saves it, and neither a backup nor a QR carries it")
 # passkey-support
 # per-site-containers
 # per-site-cookie-isolation

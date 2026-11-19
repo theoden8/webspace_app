@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/services/https_upgrade_engine.dart';
+import 'package:webspace/services/onion_location.dart';
 
 /// The upgrade as a state machine, driven event by event.
 ///
@@ -21,10 +22,14 @@ import 'package:webspace/services/https_upgrade_engine.dart';
 /// it plays the call site, obeying outcomes exactly as `webview.dart` does,
 /// with no judgement of its own. What it records is what a user would see.
 class _Site {
-  _Site(this.engine, {this.enabled = true});
+  _Site(this.engine, {this.enabled = true, this.onion});
 
   final HttpsUpgradeEngine engine;
   final bool enabled;
+
+  /// The site's accepted onion endpoint while it is on Tor, as the posture
+  /// hands it to the real call site.
+  final OnionEndpoint? onion;
 
   /// What the webview was told to load, in order. The first entry is the URL
   /// the user asked for only if nothing upgraded it.
@@ -39,7 +44,7 @@ class _Site {
 
   bool navigate(String url) {
     generation++;
-    final out = engine.onNavigation(url, enabled: enabled);
+    final out = engine.onNavigation(url, enabled: enabled, onion: onion);
     if (out.armDeadlineFor != null) _armed[out.armDeadlineFor!] = generation;
     if (out.load != null) loaded.add(out.load!);
     if (!out.cancel) loaded.add(url);
@@ -234,6 +239,79 @@ void main() {
       expect(off.navigate('http://example.com/a'), isFalse);
       expect(off.loaded, ['http://example.com/a']);
       expect(off.hasArmedDeadline, isFalse);
+    });
+  });
+
+  group('the onion endpoint', () {
+    const proton =
+        'protonmailrmez3lotccipshtkleegetolb73fuirgj7r4o4vfu7ozyd.onion';
+    late _Site tor;
+
+    setUp(() {
+      tor = _Site(engine,
+          onion: OnionEndpoint.of(
+              from: 'https://proton.me', to: 'https://$proton/'));
+    });
+
+    test('the announcing origin moves to the onion, with the longer deadline',
+        () {
+      expect(tor.navigate('https://proton.me/mail'), isTrue);
+      expect(tor.loaded, ['https://$proton/mail']);
+      expect(engine.deadlineFor('https://$proton/mail'), engine.onionDeadline);
+      tor.loadStarted('https://$proton/mail');
+      tor.loadFinished('https://$proton/mail');
+      tor.deadlineFires('https://$proton/mail');
+      expect(tor.loaded, ['https://$proton/mail']);
+    });
+
+    test('a plain-http clearnet URL goes to the onion, not through https', () {
+      final http = _Site(engine,
+          onion: OnionEndpoint.of(
+              from: 'https://proton.me', to: 'https://$proton/'));
+      expect(http.navigate('http://proton.me/'), isTrue);
+      expect(http.loaded, ['https://proton.me/']);
+      expect(http.navigate('https://proton.me/'), isTrue);
+      expect(http.loaded.last, 'https://$proton/');
+    });
+
+    test('a failed onion falls back to the clearnet URL for the rest of the run',
+        () {
+      tor.navigate('https://proton.me/mail');
+      tor.loadFailed('https://$proton/mail');
+      expect(tor.loaded.last, 'https://proton.me/mail');
+      expect(tor.navigate('https://proton.me/inbox'), isFalse);
+      expect(tor.loaded.last, 'https://proton.me/inbox');
+      expect(engine.isKnownHttpOnly('proton.me'), isFalse,
+          reason: 'the onion failed, not the clearnet host');
+    });
+
+    test('a lapsed certificate on the onion falls back without a prompt', () {
+      tor.navigate('https://proton.me/');
+      final out = engine.onCertificateRejected(proton);
+      expect(out.cancel, isTrue);
+      expect(out.load, 'https://proton.me/');
+      expect(tor.navigate('https://proton.me/'), isFalse);
+    });
+
+    test('a silent onion falls back at its deadline, a slow one does not', () {
+      tor.navigate('https://proton.me/a');
+      tor.deadlineFires('https://$proton/a');
+      expect(tor.loaded.last, 'https://proton.me/a');
+
+      final slow = _Site(HttpsUpgradeEngine(),
+          onion: OnionEndpoint.of(
+              from: 'https://proton.me', to: 'https://$proton/'));
+      slow.navigate('https://proton.me/b');
+      slow.loadStarted('https://$proton/b');
+      slow.deadlineFires('https://$proton/b');
+      expect(slow.loaded, ['https://$proton/b']);
+    });
+
+    test('an onion URL is never upgraded to https', () {
+      const torProject =
+          '2gzyxa5ihm7nsggfxnu52rck2vv4rvmdlkiu3zzui5du4xyclen53wid.onion';
+      expect(site.navigate('http://$torProject/'), isFalse);
+      expect(site.loaded, ['http://$torProject/']);
     });
   });
 }

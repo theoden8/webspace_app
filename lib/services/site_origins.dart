@@ -1,5 +1,6 @@
 import 'package:meta/meta.dart';
 import 'package:webspace/services/link_routing_service.dart';
+import 'package:webspace/services/onion_location.dart';
 
 /// The documents a site's own grants and settings answer for: its address's
 /// scheme and a host one of its claims covers (LIR-001), the reading that
@@ -9,16 +10,25 @@ import 'package:webspace/services/link_routing_service.dart';
 /// nothing the site was granted (PERM-001, SEC-043).
 @immutable
 final class SiteOrigins {
-  SiteOrigins(String initUrl, {required List<DomainClaim> claims})
-    : _scheme = Uri.tryParse(initUrl)?.scheme.toLowerCase() ?? '',
-      _claims = List.unmodifiable(claims);
+  SiteOrigins(
+    String initUrl, {
+    required List<DomainClaim> claims,
+    required OnionEndpoint? onion,
+  }) : _scheme = Uri.tryParse(initUrl)?.scheme.toLowerCase() ?? '',
+       _claims = List.unmodifiable(claims),
+       _onion = onion;
 
   final String _scheme;
   final List<DomainClaim> _claims;
 
+  /// The onion origin the site runs on while it is its endpoint, its own on
+  /// its own scheme (ONION-005).
+  final OnionEndpoint? _onion;
+
   /// Whether [origin], a document's origin as the platform reports it, is
   /// one of the site's own.
   bool owns(String origin) {
+    if (_onion?.isOnion(origin) ?? false) return true;
     final uri = Uri.tryParse(origin);
     if (uri == null || uri.scheme.toLowerCase() != _scheme) return false;
     return LinkRoutingService.urlMatchesAnyClaim(uri, claims: _claims);

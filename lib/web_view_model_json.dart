@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/domain_claim.dart';
+import 'package:webspace/services/onion_location.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
@@ -171,6 +172,9 @@ extension WebViewModelJson on WebViewModel {
       SiteField.domainClaims => {
           if (domainClaims != null && domainClaims!.isNotEmpty)
             key: domainClaims!.map((c) => c.toJson()).toList(),
+        },
+      SiteField.onionLocation => {
+          if (onionLocation != null) key: onionLocation!.toJson(),
         },
       SiteField.offeredRedirectDomains => {
           if (!dropUrl && offeredRedirectDomains.isNotEmpty)
@@ -463,6 +467,8 @@ class _SiteJson {
         model.fingerprintResetNonce = value<String>(field);
       case SiteField.customIconPng:
         model.customIconPng = _decodeCustomIconPng(raw);
+      case SiteField.onionLocation:
+        model.onionLocation = SiteOnion.fromJson(raw);
       case SiteField.domainClaims:
         // Absent stays null: no claims configured, as opposed to an emptied
         // list.

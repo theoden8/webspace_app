@@ -116,9 +116,9 @@ test('HTTPS-004: the https upgrade comes after the routing decision', () => {
 // must be one the engine produced from the navigation's own URL, never one a
 // page supplied.
 test('HTTPS-004: the upgraded URL is the engine\'s, not the page\'s', () => {
-  assert.match(NAV, /onNavigation\(url,\s*enabled:[^)]*config\.posture\.blocking\.httpsUpgrade\)/,
-    'the engine must be asked about the navigation URL itself, and about the ' +
-    'site\'s own setting');
+  assert.match(NAV, /onNavigation\(url,\s*enabled:[^)]*config\.posture\.blocking\.httpsUpgrade,\s*onion:[^)]*config\.posture\.container\.onion\s*:\s*null\)/,
+    'the engine must be asked about the navigation URL itself, about the ' +
+    'site\'s own setting and about its own onion endpoint (ONION-004)');
   const upgrade = NAV.indexOf('WebViewFactory.httpsUpgrade');
   const load = NAV.indexOf('inapp.WebUri(upgrade.load!)');
   assert.ok(load > upgrade, 'loadUrl must consume what the engine returned');

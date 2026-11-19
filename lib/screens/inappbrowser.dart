@@ -303,8 +303,10 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   Widget _createNestedInappWebView() {
     final p = widget.posture;
     final blockedCookies = p.blocking.blockedCookies;
-    final navigationBoundary =
-        NavigationBoundary(homeUrl: widget.url, initialUrl: widget.url);
+    final navigationBoundary = NavigationBoundary(
+        homeUrl: widget.url,
+        initialUrl: widget.url,
+        onion: p.container.onion);
     return WebViewFactory.createWebView(
       config: WebViewConfig(
         posture: p,
