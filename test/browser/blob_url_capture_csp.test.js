@@ -23,13 +23,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-let puppeteer;
-try {
-  puppeteer = require('puppeteer');
-} catch (_) {
-  // Puppeteer not installed; whole file is skipped.
-}
-
+const { setupBrowser, requireBrowser } = require('./helpers/launch');
 const { start } = require('./helpers/csp_server');
 
 const { pageJs } = require('../js/helpers/page_js');
@@ -60,58 +54,25 @@ function bridgeStub() {
   };
 }
 
-let browser;
+const browser = setupBrowser();
 let server;
-let launchError;
 
 test.before(async () => {
-  if (!puppeteer) {
-    launchError = new Error('puppeteer not installed');
-    return;
-  }
-  try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
-    server = await start();
-  } catch (e) {
-    launchError = e;
-  }
+  server = await start();
 });
 
 test.after(async () => {
-  if (browser) await browser.close();
   if (server) await server.close();
 });
 
-// node:test evaluates the `skip` option at test-registration time, which
-// is before `test.before` runs. Defer the check to the test body so the
-// browser/server state from `before` is observable.
-//
-// In CI (process.env.CI === 'true'), missing Chromium is a hard failure
-// — the whole point of running these tests in CI is to PROVE the fix
-// works on a real browser, so silently skipping defeats the purpose.
-// Locally the same condition skips gracefully so a dev without Chromium
-// installed isn't blocked.
-function requireBrowser(t) {
-  if (browser && server) return true;
-  const msg = `Puppeteer/Chromium not available: ${launchError ? launchError.message : 'unknown'}`;
-  if (process.env.CI === 'true') {
-    throw new Error(msg + ' (CI=true → hard fail; install via `npx puppeteer browsers install chromium`)');
-  }
-  t.skip(msg);
-  return false;
-}
-
 test('PREMISE: without the shim, fetch(blob:) is blocked by CSP connect-src',
   async (t) => {
-    if (!requireBrowser(t)) return;
+    if (!requireBrowser(browser, t)) return;
     // No init script — page loads with the original URL.createObjectURL.
     // The IIFE will miss the captured-blob lookup and fall through to
     // fetch, which the browser must reject under
     // `connect-src 'none'`.
-    const page = await browser.newPage();
+    const page = await browser.browser.newPage();
     try {
       await page.goto(server.url, { waitUntil: 'load' });
 
@@ -152,11 +113,11 @@ test('PREMISE: without the shim, fetch(blob:) is blocked by CSP connect-src',
 
 test('PREMISE: without the shim, page-driven fetch(blob:) is blocked by CSP',
   async (t) => {
-    if (!requireBrowser(t)) return;
+    if (!requireBrowser(browser, t)) return;
     // Mirrors the github.com failure: page JS itself (e.g.
     // fetch-utilities-*.js) calls fetch(blobUrl) — no IIFE involved.
     // The browser must reject under `connect-src 'none'`.
-    const page = await browser.newPage();
+    const page = await browser.browser.newPage();
     try {
       await page.goto(server.url, { waitUntil: 'load' });
       const result = await page.evaluate(async () => {
@@ -184,8 +145,8 @@ test('PREMISE: without the shim, page-driven fetch(blob:) is blocked by CSP',
 
 test('FIX: with the shim installed, page-driven fetch(blob:) is serviced locally',
   async (t) => {
-    if (!requireBrowser(t)) return;
-    const page = await browser.newPage();
+    if (!requireBrowser(browser, t)) return;
+    const page = await browser.browser.newPage();
     try {
       await page.evaluateOnNewDocument(SHIM);
       await page.goto(server.url, { waitUntil: 'load' });
@@ -228,8 +189,8 @@ test('FIX: with the shim installed, page-driven fetch(blob:) is serviced locally
 
 test('FIX: aborted signal rejects with AbortError instead of resolving',
   async (t) => {
-    if (!requireBrowser(t)) return;
-    const page = await browser.newPage();
+    if (!requireBrowser(browser, t)) return;
+    const page = await browser.browser.newPage();
     try {
       await page.evaluateOnNewDocument(SHIM);
       await page.goto(server.url, { waitUntil: 'load' });
@@ -259,8 +220,8 @@ test('FIX: aborted signal rejects with AbortError instead of resolving',
 
 test('FIX: non-GET methods fall through to native fetch (which CSP-blocks)',
   async (t) => {
-    if (!requireBrowser(t)) return;
-    const page = await browser.newPage();
+    if (!requireBrowser(browser, t)) return;
+    const page = await browser.browser.newPage();
     try {
       await page.evaluateOnNewDocument(SHIM);
       await page.goto(server.url, { waitUntil: 'load' });
@@ -286,8 +247,8 @@ test('FIX: non-GET methods fall through to native fetch (which CSP-blocks)',
 
 test('FIX: HEAD returns headers without a body',
   async (t) => {
-    if (!requireBrowser(t)) return;
-    const page = await browser.newPage();
+    if (!requireBrowser(browser, t)) return;
+    const page = await browser.browser.newPage();
     try {
       await page.evaluateOnNewDocument(SHIM);
       await page.goto(server.url, { waitUntil: 'load' });
@@ -314,8 +275,8 @@ test('FIX: HEAD returns headers without a body',
 
 test('FIX: fetch(new Request(blobUrl)) is intercepted',
   async (t) => {
-    if (!requireBrowser(t)) return;
-    const page = await browser.newPage();
+    if (!requireBrowser(browser, t)) return;
+    const page = await browser.browser.newPage();
     try {
       await page.evaluateOnNewDocument(SHIM);
       await page.goto(server.url, { waitUntil: 'load' });
@@ -334,8 +295,8 @@ test('FIX: fetch(new Request(blobUrl)) is intercepted',
 
 test('FIX: Request method=POST is honored over default GET',
   async (t) => {
-    if (!requireBrowser(t)) return;
-    const page = await browser.newPage();
+    if (!requireBrowser(browser, t)) return;
+    const page = await browser.browser.newPage();
     try {
       await page.evaluateOnNewDocument(SHIM);
       await page.goto(server.url, { waitUntil: 'load' });
@@ -363,8 +324,8 @@ test('FIX: Request method=POST is honored over default GET',
 
 test('FIX: with the shim installed, the captured-blob path bypasses CSP',
   async (t) => {
-    if (!requireBrowser(t)) return;
-    const page = await browser.newPage();
+    if (!requireBrowser(browser, t)) return;
+    const page = await browser.browser.newPage();
     try {
       // evaluateOnNewDocument runs at DOCUMENT_START, beating the
       // page's inline blob-mint script by exactly the same amount our
