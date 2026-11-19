@@ -24,7 +24,6 @@ ARCH-008	no check: no widget test covers the combined Restore action with its pa
 # block-statistics
 STATS-003	no check: no test of the report's range total, per-day chart, category shares, all-time/since line, the empty state, or the badge using the accent rather than colorScheme.error (partly: test/block_stats_service_test.dart, "reset zeroes the persisted payload")
 # captcha-support
-CAPTCHA-006	no check: no test shows a per-site third-party-cookie toggle reaching thirdPartyCookiesEnabled or a cross-site cookie being accepted; only the posture resolution is checked (partly: test/site_posture_test.dart, "$cell: container follows tier and TP (ETP-024, ARCH-006/007)")
 # clearurls
 # configurable-suggested-sites
 # content-blocker
