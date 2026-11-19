@@ -132,8 +132,11 @@ white rounded square.
 
 ### Requirement: ICON-005 - SVG Dark Mode Support
 
-SVG icons with CSS media queries SHALL render correctly based on app theme
-when flutter_svg supports the CSS features used.
+SVG icons with CSS media queries SHALL render correctly based on app theme.
+flutter_svg reads no `<style>` element, so the sheet's plain rules and its
+`prefers-color-scheme` rules for the app's brightness are written into the
+elements' `style` attributes before the icon is drawn; a selector or at-rule
+past that is skipped.
 
 #### Scenario: Render SVG in dark mode
 
@@ -141,6 +144,8 @@ when flutter_svg supports the CSS features used.
 **And** the app is in dark mode
 **When** the SVG is rendered
 **Then** the dark mode styles are applied
+**And** `test/svg_style_inliner_test.dart` holds it, drawing the same icon
+in each theme
 
 #### Scenario: Reject SVGs relying on CSS visibility toggles
 
