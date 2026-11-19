@@ -29,6 +29,7 @@ The system SHALL allow users to enter full screen mode from the overflow menu or
 **When** the user opens the overflow menu (app bar or tab strip) and taps "Full Screen"
 **Then** the app bar, tab strip, URL bar, find toolbar, and system UI are hidden
 **And** the webview fills the entire screen
+**And** `test/fullscreen_enter_test.dart` holds it
 
 #### Scenario: Toggle full screen by double-tapping title
 
@@ -37,6 +38,7 @@ The system SHALL allow users to enter full screen mode from the overflow menu or
 **Then** the app enters full screen mode
 **When** the user exits full screen and double-taps the title again
 **Then** the app enters full screen mode again
+**And** `test/fullscreen_enter_test.dart` holds it
 
 ---
 
