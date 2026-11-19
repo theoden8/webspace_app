@@ -494,6 +494,17 @@ abstract final class ActivationTable {
     run: (c) => ActivationFlow.state.from(c).online,
   );
 
+  /// The loaded sites a webspace switch keeps though it stops showing
+  /// them: an incognito site's session lives only in memory (INC-007).
+  static final switchSpares = () {
+    const u = Bound<SiteId, ActivationFlow>('u');
+    return Def<bool, ActivationFlow>(
+      ModelDef.switchSpares,
+      params: const [u],
+      body: incognitoOf<ActivationFlow>().has(u.it),
+    );
+  }();
+
   /// What a switch unloads on the shared jar: the loaded sites it stops
   /// showing that may go; the code's plan is asserted to be these.
   static final _leftBehind = () {
@@ -505,7 +516,8 @@ abstract final class ActivationTable {
         holds:
             _away.value.has(_u.it) &
             _evictable(_u.it) &
-            _behind.value.neq(_u.it),
+            _behind.value.neq(_u.it) &
+            ~switchSpares.call([_u.it]),
       ),
     );
     return Expr.checked(

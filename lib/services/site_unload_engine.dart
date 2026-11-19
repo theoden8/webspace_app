@@ -410,7 +410,11 @@ class SiteUnloadEngine {
             useContainers: host.isolation is Containers,
             loadedIndices: loaded,
             leaving: leaving,
-          ).where((i) => host.vars.isEvictable(models[i].siteId)),
+          ).where(
+            (i) =>
+                host.vars.isEvictable(models[i].siteId) &&
+                !models[i].effectiveIncognito,
+          ),
           reason: UnloadReason.webspaceSwitch,
         );
       case TorExitSettled(:final order):

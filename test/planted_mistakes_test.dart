@@ -159,6 +159,14 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [Tap(2), Tap(2), Pressure(), Pressure()],
     breaks: 'memory pressure unloaded walk-2 while its activation ran',
   ),
+  // Site 2 is incognito and webspace 1 does not show it: the switch's
+  // rule names it, where the code's plan keeps it loaded.
+  Mutant.switchdropsincognito => _By(
+    world: (d) => ActivationWorld(_mixedIncognito, spaces: _spaces, declared: d),
+    setup: const [..._slot2Behind, GoHome()],
+    script: const [SwitchWebspace(1)],
+    breaks: 'the switch unloads what its printed rule names',
+  ),
   Mutant.incognitonuked => _By(
     world: (d) => ActivationWorld(_mixedIncognito, declared: d),
     setup: _slot2Behind,

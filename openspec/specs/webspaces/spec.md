@@ -313,7 +313,8 @@ holds it back (another preload in flight, a loaded site on its base domain
 on the shared jar, another route). Once the device answers that it is
 online, the switch SHALL unload, on the shared cookie jar only, the loaded
 sites the new webspace stops showing, except the site on screen, the target
-of the live activation and the site it keeps loading. An unload the switch
+of the live activation, the site it keeps loading and an incognito site,
+whose session lives only in memory (INC-007). An unload the switch
 planned SHALL back off if its site becomes one of those before it is
 disposed (PAUSE-006). Offline, every webview stays, so a cached page can
 still be read.

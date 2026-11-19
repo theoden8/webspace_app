@@ -1716,6 +1716,20 @@ void main() {
         );
       });
     }
+    // Site 2 is incognito, its session only in memory: a switch to a
+    // webspace that does not show it keeps it loaded, so it opens again
+    // signed in (INC-007).
+    _scheduleTest(
+      'a switch keeps an incognito site it stops showing (INC-007)',
+      body: () async {
+        await _expectEvery(
+          world: () => ActivationWorld(_mixedIncognito, spaces: _spaces),
+          setup: _spaceSetups['home, slot 2 signed in behind']!,
+          script: const [SwitchWebspace(1), Tap(2)],
+          preemptions: _onePast,
+        );
+      },
+    );
   });
 
   group('opener regressions', () {
