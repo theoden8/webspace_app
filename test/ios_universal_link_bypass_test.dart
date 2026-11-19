@@ -276,4 +276,55 @@ void main() {
       );
     });
   });
+
+  group('IosUniversalLinkBypass.reissueFor', () {
+    BypassAsk tap({Map<String, String>? headers}) => (
+      isMainFrame: true,
+      url: 'https://maps.google.com/maps',
+      isLinkActivated: true,
+      isFormSubmitted: false,
+      httpMethod: 'GET',
+      headers: headers,
+    );
+
+    test('the reissue carries the navigation\'s headers (IOS-UL-004)',
+        () async {
+      final reissue = await IosUniversalLinkBypass().reissueFor(
+        tap(headers: const {'Accept-Language': 'de'}),
+        onIos: true,
+        currentUrl: () async => 'https://example.com/start',
+      );
+      expect(reissue?.headers, {'Accept-Language': 'de'});
+    });
+
+    test('no host but iOS enters the bypass, nor reads the page (IOS-UL-005)',
+        () async {
+      var read = false;
+      final reissue = await IosUniversalLinkBypass().reissueFor(
+        tap(),
+        onIos: false,
+        currentUrl: () async {
+          read = true;
+          return 'https://example.com/start';
+        },
+      );
+      expect(reissue, isNull);
+      expect(read, isFalse,
+          reason: 'a navigation off iOS costs no platform read of the page');
+    });
+
+    test('the reissued navigation passes through on its second pass',
+        () async {
+      final bypass = IosUniversalLinkBypass();
+      final now = DateTime(2026);
+      Future<BypassReissue?> ask() => bypass.reissueFor(
+            tap(),
+            onIos: true,
+            currentUrl: () async => 'https://example.com/start',
+            now: now,
+          );
+      expect(await ask(), isNotNull);
+      expect(await ask(), isNull);
+    });
+  });
 }

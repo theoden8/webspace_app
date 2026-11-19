@@ -77,8 +77,6 @@ INTEG-008	process: conventions for writing a new integration test file; nothing 
 INTEG-009	no check: macOS integration step configuration in build-and-test.yml (per-file loop, keychain unlock, entitlements override, disk reclaim); no gate reads the workflow for it
 INTEG-011	no check: the tier is scripts/run_android_lifecycle_tests.sh with scripts/classify_window_pixels.py, not a counted check; no test checks its warm-start, bfcache-back or recreation scenarios or the classifier's parity with SurfaceDiagNative.classify (partly: test/diag_seed_test.dart, "passes an explicit siteId through so the harness can activate it")
 # ios-universal-link-bypass
-IOS-UL-004	no check: no test asserts the reissued loadUrl carries navigationAction.request.headers (e.g. Accept-Language)
-IOS-UL-005	no check: no test or gate asserts the bypass is entered only when the host is iOS
 IOS-UL-006	no check: no test asserts a nested InAppWebViewScreen's navigations run through the bypass gate
 # ip-leakage
 # js-shim-tests
