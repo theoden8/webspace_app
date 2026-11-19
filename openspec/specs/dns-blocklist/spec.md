@@ -637,12 +637,14 @@ The per-site settings screen SHALL display a compact DNS stats summary below the
 **And** DNS requests have been recorded for the current site
 **When** the user opens site settings
 **Then** a row of stat chips shows total, allowed, blocked counts, and block rate percentage
+**And** `test/site_privacy_screen_test.dart` ("DNS-015: the site's DNS counters below the blocklist") holds it
 
 #### Scenario: Stats hidden when no requests
 
 **Given** no DNS requests have been recorded for the current site
 **When** the user opens site settings
 **Then** no stats row is shown
+**And** `test/site_privacy_screen_test.dart` ("DNS-015: the site's DNS counters below the blocklist") holds it
 
 ---
 
