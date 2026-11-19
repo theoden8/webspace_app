@@ -222,10 +222,10 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
             hint: null,
             values: ExternalLinkMode.values,
             label: (mode) => mode.label(loc),
-            value: ExternalLinkMode.appDefault,
+            value: appExternalLinkMode,
             onChanged: (mode) => AppPref.externalLinkMode.set(mode.name),
           ),
-          if (ExternalLinkMode.appDefault == ExternalLinkMode.inApp)
+          if (appExternalLinkMode == ExternalLinkMode.inApp)
             Padding(
               padding: const EdgeInsetsDirectional.only(start: 24),
               child: SettingTile(

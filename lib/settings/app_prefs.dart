@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/settings/demo_mode.dart';
+import 'package:webspace/settings/external_links.dart';
 
 /// A global app-level preference: its SharedPreferences key, its default,
 /// and the value the app runs with. Every entry rides settings
@@ -296,3 +297,8 @@ Object? _withoutProxyPassword(Object? raw) {
   }
   return jsonEncode(Map<String, dynamic>.from(decoded)..remove('password'));
 }
+
+/// The app-wide mode for a cross-domain link a site opens (NESTED-009), as
+/// [AppPref.externalLinkMode] stores it.
+ExternalLinkMode get appExternalLinkMode => externalLinkModeFromJson(
+    AppPref.externalLinkMode.value, legacyInBrowser: null);

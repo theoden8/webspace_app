@@ -176,7 +176,7 @@ class SiteBehaviourValues {
 
   ExternalLinkMode get effectiveExternalLinkMode =>
       ArchiveFold.externalLinks(
-          choices.externalLinkMode.resolve(ExternalLinkMode.appDefault),
+          choices.externalLinkMode.resolve(appExternalLinkMode),
           archived: archived);
 }
 

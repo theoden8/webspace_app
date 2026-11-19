@@ -57,13 +57,6 @@ const LEFT = {
     'lib/services/download_engine.dart':
       'reaches Flutter through outbound_http.dart. Lifted when the engine '
       + 'takes the client factory as an interface.',
-    'lib/services/link_intent_dispatch_engine.dart':
-      'reaches Flutter through AppPref, whose value is a ValueNotifier. '
-      + 'Lifted when AppPref keeps a plain Dart listenable.',
-    'lib/services/navigation_decision_engine.dart':
-      'reaches Flutter through AppPref, as above.',
-    'lib/services/redirect_domain_engine.dart':
-      'reaches Flutter through AppPref, as above.',
     'lib/services/media_grant_engine.dart':
       'reaches Flutter through EgressRelay (a MethodChannel). Lifted when '
       + 'the relay state reaches it as a value.',

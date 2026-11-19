@@ -8,7 +8,6 @@ library;
 
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/settings/site_ids.dart';
-// ignore: webspace_lints/engine_impure
 import 'package:webspace/services/navigation_decision_engine.dart'
     show NavigationDecision;
 import 'package:webspace/services/outbound_preference.dart';
