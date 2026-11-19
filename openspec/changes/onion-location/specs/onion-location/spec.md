@@ -1,0 +1,181 @@
+# Onion location
+
+## ADDED Requirements
+
+### Requirement: ONION-001 - The onion address comes from the site itself
+
+While a site's route is Tor, the app SHALL learn the site's onion address only
+from the site's own `https://` response for its home address, fetched by the
+app through the site's own route and Tor circuit: an `Onion-Location` response
+header, else a `<meta http-equiv="onion-location" content="...">` in the
+document's head. A redirect SHALL be followed only to a host the site's domain
+claims cover, and only over https. No list, link, page script or plain-http
+response SHALL supply an onion address.
+
+#### Scenario: A site that announces its onion
+
+**Given** a site at `https://proton.me` whose route is Tor
+**And** its home page answers with `Onion-Location: https://protonmailrmez3lotccipshtkleegetolb73fuirgj7r4o4vfu7ozyd.onion/`
+**When** the site is checked
+**Then** that onion address is learned for the site
+
+#### Scenario: A plain-http answer is not trusted
+
+**Given** a site at `http://example.com` whose route is Tor
+**When** its home page answers with an `Onion-Location` header
+**Then** nothing is learned
+
+#### Scenario: A redirect away from the site is not followed
+
+**Given** the home page redirects to a host the site's claims do not cover
+**When** the site is checked
+**Then** the check stops there and nothing is learned
+
+---
+
+### Requirement: ONION-002 - Only a well formed v3 address
+
+An announced address SHALL be used only when it is an absolute `http` or
+`https` URL whose host is a v3 onion address (56 base32 characters before
+`.onion`, version byte 3, and the checksum the address carries matching the
+SHA3-256 checksum of its key), on the scheme's default port. Anything else
+SHALL be ignored, as if nothing were announced.
+
+#### Scenario: A mistyped address is ignored
+
+**Given** a site announces an onion address with one character changed
+**When** the site is checked
+**Then** the checksum does not match and nothing is learned
+
+#### Scenario: A v2 address is ignored
+
+**Given** a site announces a 16-character onion address
+**Then** nothing is learned
+
+---
+
+### Requirement: ONION-003 - The user is asked once per address
+
+A newly learned onion address SHALL NOT be used until the user accepts it, in
+a prompt that names the site and the onion address. Declining SHALL be
+remembered for that address, which is not offered again. A different address
+announced later SHALL be offered on its own, and the old one stops being used
+until the new one is answered. A check whose answer announces nothing SHALL
+forget the learned address and its answer; a check that fails SHALL keep them.
+
+#### Scenario: Accepting the address
+
+**Given** an onion address is learned for a site
+**When** the user accepts it
+**Then** the site uses it as its endpoint while its route is Tor (ONION-004)
+
+#### Scenario: Declining is remembered
+
+**Given** the user declined a site's onion address
+**When** the site announces the same address again
+**Then** the user is not asked again
+
+#### Scenario: The site stops announcing
+
+**Given** a site's onion address was accepted
+**When** a later check succeeds and the answer carries no announcement
+**Then** the address and its answer are forgotten and the site loads its clearnet address
+
+---
+
+### Requirement: ONION-004 - The accepted onion is the site's endpoint on Tor
+
+While a site's route is Tor and its onion address is accepted, a top-frame
+navigation of any webview that runs as the site to the announcing origin
+(scheme, host and port exactly) SHALL load the same path, query and fragment
+on the onion origin instead. The rewrite SHALL be decided after the
+navigation's routing decision, as the HTTPS upgrade is (HTTPS-004), and before
+the HTTPS upgrade, so a plain-http clearnet URL goes to the onion rather than being upgraded
+first. Sub-frames, sub-resources and other hosts SHALL NOT be rewritten.
+
+#### Scenario: The home page loads from the onion
+
+**Given** a site at `https://proton.me/mail` whose onion address is accepted and whose route is Tor
+**When** the site loads
+**Then** `https://protonmailrmez3lotccipshtkleegetolb73fuirgj7r4o4vfu7ozyd.onion/mail` is loaded
+
+#### Scenario: Another host of the site is left alone
+
+**Given** the same site
+**When** the top frame navigates to `https://account.proton.me/login`
+**Then** that URL loads unchanged
+
+---
+
+### Requirement: ONION-005 - The onion origin is the site's own while it is the endpoint
+
+While a site's onion address is its endpoint (ONION-004), the onion origin, on
+its own scheme, SHALL count as one of the site's own origins wherever the
+site's origins are decided: its domain claims as the routing reads them, its
+navigation boundary and `SiteOrigins`. It SHALL be derived from the site's
+posture and SHALL NOT be written into the user's domain claims.
+
+#### Scenario: A grant answers for the onion page
+
+**Given** a site whose onion address is its endpoint
+**When** a page on the onion origin asks for the camera
+**Then** the request stands as the site's own, as it would on the clearnet origin
+
+#### Scenario: The claims the user edits are unchanged
+
+**Given** a site whose onion address is accepted
+**When** the user opens the site's domain claims
+**Then** the onion host is not among them
+
+---
+
+### Requirement: ONION-006 - A failing onion falls back silently
+
+When a navigation rewritten to the onion origin fails to load, is rejected by
+TLS, or has no answer from the server within 30 seconds, the app SHALL load
+the clearnet URL it rewrote and SHALL NOT rewrite to that onion origin again in
+the same run. This state SHALL be kept in memory only.
+
+#### Scenario: The onion is down
+
+**Given** a site whose onion address is its endpoint
+**When** the onion load fails
+**Then** the clearnet URL loads
+**And** later navigations in the same run are not rewritten
+
+#### Scenario: A lapsed certificate on the onion
+
+**Given** the onion service presents an expired certificate
+**When** the rewritten navigation is rejected by TLS
+**Then** the clearnet URL loads without a trust prompt for the onion host
+
+---
+
+### Requirement: ONION-007 - Off Tor, nothing
+
+While a site's route is not Tor, the app SHALL NOT check the site for an onion
+address, SHALL NOT rewrite any navigation, and SHALL NOT count the onion origin
+as the site's own. The learned address and its answer SHALL be kept, so the
+site takes them up again when its route is Tor once more.
+
+#### Scenario: The user turns Tor off
+
+**Given** a site whose onion address is its endpoint
+**When** the user sets the site's proxy to none
+**Then** the site loads its clearnet address and no check runs
+
+---
+
+### Requirement: ONION-008 - Kept with the site, not carried
+
+The learned onion address, when it was learned and the user's answer SHALL be
+saved with the site and SHALL be left out of a settings backup and a QR share.
+A site whose last successful check is more than 7 days old SHALL be checked
+again the next time it loads while its route is Tor. A value of the wrong type
+in the saved site SHALL read as absent.
+
+#### Scenario: A restored site asks again
+
+**Given** a backup made from a site whose onion address was accepted
+**When** the backup is imported on another device
+**Then** the site carries no onion address until it is checked and the user answers
