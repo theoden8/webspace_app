@@ -84,6 +84,15 @@ NESTED-011	no check: needs the fork's iOS/macOS onCreateWindow decline path to s
 NESTED-012	process: the requirement is that the spec states the provenance loss (Sec-Fetch-Site: none, no Referer) as accepted behaviour; it is documentation, with nothing to run
 # network-interface
 NETIF-014	no check: not built yet; an import that names an interface this device lacks lands without a notice, and the site loads nothing until the user picks again (tasks 3.9)
+# onion-location
+ONION-001	not implemented: onion-location tasks open (the check through the site's route)
+ONION-002	not implemented: onion-location tasks open (OnionAddress.parse)
+ONION-003	not implemented: onion-location tasks open (the offer and its saved answer)
+ONION-004	not implemented: onion-location tasks open (the rewrite in shouldOverrideUrlLoading)
+ONION-005	not implemented: onion-location tasks open (the endpoint in SiteOrigins and the claims)
+ONION-006	not implemented: onion-location tasks open (the fallback)
+ONION-007	not implemented: onion-location tasks open (the Tor-only gate)
+ONION-008	not implemented: onion-location tasks open (the SiteField cases and the stale check)
 # passkey-support
 # per-site-containers
 # per-site-cookie-isolation
