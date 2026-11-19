@@ -89,6 +89,7 @@ external equivalents.
 **When** the webview invokes `InAppWebViewChromeClient.getOutputUri`
 **Then** `FileProvider.getUriForFile` finds the meta-data
 **And** the camera/video intent receives a valid content URI
+**And** `test/js/file_chooser_provider.test.js` holds the provider, its paths and its authority against the one the plugin asks for; the content URI itself is the platform's
 
 ---
 
