@@ -68,6 +68,15 @@ class LayerImport extends MultiAnalysisRule {
     severity: DiagnosticSeverity.ERROR,
   );
 
+  static const platformWebview = LintCode(
+    'platform_webview',
+    "'{0}' is one platform's webview; application code knows none (PLATFORM-002).",
+    correctionMessage:
+        "Import 'package:flutter_inappwebview/flutter_inappwebview.dart', "
+        'which picks the platform for you.',
+    severity: DiagnosticSeverity.ERROR,
+  );
+
   LayerImport()
     : super(
         name: 'layer_import',
@@ -75,7 +84,11 @@ class LayerImport extends MultiAnalysisRule {
       );
 
   @override
-  List<DiagnosticCode> get diagnosticCodes => [upward, unplaced];
+  List<DiagnosticCode> get diagnosticCodes => [
+    upward,
+    unplaced,
+    platformWebview,
+  ];
 
   @override
   void registerNodeProcessors(
@@ -132,6 +145,15 @@ class _Visitor extends SimpleAstVisitor<void> {
   void visitExportDirective(ExportDirective node) => _check(node);
 
   void _check(NamespaceDirective node) {
+    for (final uri in [node.uri, for (final c in node.configurations) c.uri]) {
+      if (_platformWebview(uri.stringValue) case final name?) {
+        rule.reportAtNode(
+          uri,
+          diagnosticCode: LayerImport.platformWebview,
+          arguments: [name],
+        );
+      }
+    }
     final from = layer;
     if (from == null) return;
     for (final uri in [node.uri, for (final c in node.configurations) c.uri]) {
@@ -146,6 +168,19 @@ class _Visitor extends SimpleAstVisitor<void> {
         );
       }
     }
+  }
+
+  /// The package [uri] names when it is one platform's webview (the
+  /// federated plugin's `flutter_inappwebview_android`, `_ios`, ..., its
+  /// platform interface among them), else null.
+  String? _platformWebview(String? uri) {
+    if (uri == null) return null;
+    final resolved = library.resolve(uri);
+    if (resolved.scheme != 'package') return null;
+    return switch (resolved.pathSegments) {
+      [final p, ...] when p.startsWith('flutter_inappwebview_') => p,
+      _ => null,
+    };
   }
 
   /// [uri]'s path under this package's `lib/`, or null outside it.
