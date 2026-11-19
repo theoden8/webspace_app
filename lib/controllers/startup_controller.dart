@@ -48,6 +48,10 @@ abstract interface class StartupHost implements PageHost {
 
   Future<void> activateRouter({required LaunchedSite launch});
   Future<void> handleShareIntent({required Reached<Launched> after});
+
+  /// The launch opens [site], or the list for null: until now the page was
+  /// covered, so a shortcut's site comes up with no list on the way (HS-006).
+  void launching(WebViewModel? site);
 }
 
 /// A fact of the launch, as a type: holding a [Reached] of one is the proof
@@ -159,6 +163,7 @@ class StartupController implements DeferredStartupHost {
       ));
       final target = await launching;
       if (target == null) return;
+      _host.launching(target.site);
       LaunchTimeline.reached(LaunchMark.launchTarget);
       final pins = _shortcuts.refreshPinned(after: onPage);
       await routes;

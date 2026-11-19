@@ -108,6 +108,7 @@ import 'package:webspace/widgets/tab_count_pill.dart';
 import 'package:webspace/widgets/fullscreen_overlays.dart';
 import 'package:webspace/widgets/link_menu_sheet.dart';
 import 'package:webspace/widgets/archive_prompts.dart';
+import 'package:webspace/widgets/entry_cover.dart';
 import 'package:webspace/widgets/launch_zoom.dart';
 import 'package:webspace/widgets/link_prompts.dart';
 import 'package:webspace/widgets/page_load_bar.dart';
@@ -139,6 +140,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     with WidgetsBindingObserver, RouteAware {
   final _libraryKey = GlobalKey<WebspaceLibraryState>();
   final _launchZoom = GlobalKey<LaunchZoomState>();
+  late final _entry = EntryCover(card: () => _libraryDesign ? _launchZoom.currentState : null, shown: () => _sites.shown, until: _startup.launched());
   final _siteArea = GlobalKey();
   final _urlBar = GlobalKey<UrlBarState>();
   bool get _libraryDesign => !AppPref.legacyDesign.value;
@@ -418,6 +420,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   @override
   void dispose() {
     _startup.dispose();
+    _entry.dispose();
     _background.dispose();
     _surface.dispose();
     _activation.dispose();
@@ -1514,6 +1517,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       fit: StackFit.expand,
       children: [
         _buildMainTree(context, webviewIsVisible: webviewIsVisible),
+        _entry.view(),
         if (_libraryDesign)
           LaunchZoom(key: _launchZoom, sites: _sites.models, area: _siteArea),
         // Snapshot-time mask: an opaque surface overlays everything so the
@@ -1828,12 +1832,10 @@ class _PageHost
       _s._resets.resetHomeOnLaunch(launched);
 
   @override
-  Future<void> enter(WebViewModel site, {required Future<void> Function() show}) =>
-      switch (_s._libraryDesign ? _s._launchZoom.currentState : null) {
-        final zoom? => zoom.cover(site,
-            to: (show: show, shown: () => identical(_s._sites.shown, site))),
-        null => show(),
-      };
+  Future<void> enter(WebViewModel site, {required Future<void> Function() show}) => _s._entry.over(site, show: show);
+
+  @override
+  void launching(WebViewModel? site) => _s._entry.decided(site);
 
   @override
   Future<void> registerSite(WebViewModel model, {bool activate = true}) =>
