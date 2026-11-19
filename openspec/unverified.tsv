@@ -41,7 +41,6 @@ DNS-015	no check: no test renders the per-site settings DNS stats chips, or chec
 # downloads
 DL-001	no check: no gate reads AndroidManifest.xml for the flutter_inappwebview_android FileProvider or its FILE_PROVIDER_PATHS resource, and no native test drives getOutputUri
 # external-scheme-handling
-EXT-007	no check: ExternalUrlSuppressor, the gesture bypass, the Android-only about:blank clear and dialog marking are unchecked; the bypass reads hasGesture (Android) or the navigation type (Apple), and the test host is neither, so no Dart test can drive it without a platform seam
 EXT-009	no check: not implemented: tasks 2.1 to 2.4 of upstream-webview-defects (the fork patch and the decline-path gate) are open
 # file-import-sites
 IMPORT-001	no check: no widget test pumps AddSiteScreen to find the 'Import HTML file' button
