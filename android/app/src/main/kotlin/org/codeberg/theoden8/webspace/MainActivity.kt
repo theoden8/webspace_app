@@ -427,15 +427,7 @@ class MainActivity: FlutterActivity() {
 
     private fun extractShareUrl(intent: Intent?): String? {
         if (intent == null || intent.action != Intent.ACTION_SEND) return null
-        val text = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim() ?: return null
-        if (text.isEmpty()) return null
-        val direct = Uri.parse(text)
-        val directScheme = direct.scheme?.lowercase()
-        return if (directScheme == "http" || directScheme == "https") {
-            text
-        } else {
-            Regex("""https?://\S+""").find(text)?.value
-        }
+        return ShareText.urlIn(intent.getStringExtra(Intent.EXTRA_TEXT))
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
