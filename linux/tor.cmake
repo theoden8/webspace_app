@@ -31,9 +31,9 @@
 # `.sha256sum` against the `.sha256sum.asc` signatures of the tor release
 # signing keys, and copy the tarball's SHA-256 here.
 
-set(TOR_VERSION "0.4.9.15")
+set(TOR_VERSION "0.4.9.17")
 set(TOR_SOURCE_SHA256
-  "1911f5b216a6814ed143a08bbcff1c6dc96d2ca3b505df9a21876080a92963f3")
+  "ff372c41ee7013557fe5b7acd96c909950b27a7959c59fcb87c02591682fabe2")
 set(_WEBSPACE_TOR_BUILD "${CMAKE_CURRENT_LIST_DIR}/tor_build.sh")
 set(_WEBSPACE_IPTPROXY_BUILD "${CMAKE_CURRENT_LIST_DIR}/../go/iptproxy/build.sh")
 
