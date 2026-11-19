@@ -1,0 +1,222 @@
+# Input to flatpak-flutter, which writes the offline manifest
+# (page.codeberg.theoden8.webspace_app.yml) beside it. Build through
+# scripts/build_flatpak.sh; nothing here reaches the network at build time.
+id: page.codeberg.theoden8.webspace_app
+runtime: org.gnome.Platform
+runtime-version: '51'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.llvm22
+command: webspace_app
+separate-locales: false
+build-options:
+  # meson and CMake pick lib64 here, which the SDK's pkg-config does not
+  # search; flatpak-builder passes this to both.
+  libdir: lib
+
+# Each entry names what needs it. Needing none: files through the FileChooser
+# portal (file_picker), links through OpenURI (url_launcher), a camera through
+# the Camera portal (WebKit's PipeWire capture), the app's own files under
+# ~/.var/app (PLATFORM-010), and its own id on the session bus (PLATFORM-011).
+finish-args:
+  # GTK's window under Wayland.
+  - --socket=wayland
+  # GTK's window under X11 where no Wayland compositor runs.
+  - --socket=fallback-x11
+  # X11 shared memory for the fallback window.
+  - --share=ipc
+  # Flutter's and WPE WebKit's GL rendering.
+  - --device=dri
+  # Every site, its proxy, and an external tor's SOCKS and control ports.
+  - --share=network
+  # WPE's GStreamer: a page's sound out, and its microphone in.
+  - --socket=pulseaudio
+  # flutter_local_notifications_linux calls it directly, not the notification portal.
+  - --talk-name=org.freedesktop.Notifications
+  # libsecret (flutter_secure_storage_linux) where no Secret portal answers.
+  - --talk-name=org.freedesktop.secrets
+  # The tray icon's RegisterStatusNotifierItem (NOTIF-019).
+  - --talk-name=org.kde.StatusNotifierWatcher
+  # Debian's tor control socket and cookie, the path the control port hint names (TOR-026).
+  - --filesystem=/run/tor:ro
+  # flatpak's default PS1 carries an emoji, and WebKit hands the whole
+  # environment to flatpak-spawn, which cannot convert it under a non-UTF-8
+  # locale and so never starts the web process.
+  - '--env=PS1=[$FLATPAK_ID \W]\$ '
+
+cleanup:
+  - /include
+  - /lib/cmake
+  - /lib/pkgconfig
+  - /share/cmake
+  - /share/pkgconfig
+  - '*.a'
+  - '*.la'
+
+modules:
+  - name: libwpe
+    buildsystem: meson
+    config-opts:
+      - -Dbuild-docs=false
+    # Its notices, where the app reads a flatpak's (LICENSE-003). Its
+    # src/key-unicode.c, adapted from GDK, is under the LGPL, so it ships as
+    # WebKit does (LICENSE-004), with the offer of its source. Its tree has no
+    # text of the LGPL or of Apache-2.0 (src/gamepad.c), which the SDK's glib
+    # carries, and keysyms.h's X11 notices live only in its header.
+    # Post-install runs in the build directory, inside the source tree.
+    post-install:
+      - >-
+        bash ../install_notices.sh --src .. --dest /app/share/doc/libwpe --name libwpe
+        --source https://github.com/WebPlatformForEmbedded/libwpe.git
+        --revision e0814ca7d4f87594a46732ebd309494872d2520e
+        --license "BSD-2-clause and LGPL-2+ and Apache-2.0 and MIT-open-group and HPND" --offer
+        --licence-text /usr/share/licenses/gnome/glib/LICENSES/LGPL-2.1-or-later.txt
+        --licence-text /usr/share/licenses/gnome/glib/LICENSES/Apache-2.0.txt
+        --notice-of include/wpe/keysyms.h
+    sources:
+      # libwpe 1.16.3, its tag's commit, from git so the commit its notices
+      # offer is the one built.
+      - type: git
+        url: https://github.com/WebPlatformForEmbedded/libwpe.git
+        commit: e0814ca7d4f87594a46732ebd309494872d2520e
+      - type: file
+        path: install_notices.sh
+
+  # WebKit main at 323622@main, the merge of WebKit PR 69204 (WebKitFrameInfo,
+  # first released in 2.56); the plugin reads it through weak symbols.
+  - name: wpewebkit
+    buildsystem: cmake-ninja
+    builddir: true
+    build-options:
+      append-path: /usr/lib/sdk/llvm22/bin
+      prepend-ld-library-path: /usr/lib/sdk/llvm22/lib
+      no-debuginfo: true
+      # Debug info makes WebKit's link outgrow a CI runner's memory and disk.
+      cflags: -g0
+      cxxflags: -g0
+      env:
+        CC: clang
+        CXX: clang++
+    config-opts:
+      - -DPORT=WPE
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DENABLE_DOCUMENTATION=OFF
+      - -DENABLE_INTROSPECTION=OFF
+      - -DENABLE_MINIBROWSER=OFF
+      - -DENABLE_WEBDRIVER=OFF
+      - -DENABLE_SPEECH_SYNTHESIS=OFF
+      # Inside a flatpak WebKit sandboxes its processes with flatpak-spawn,
+      # which does not depend on this option.
+      - -DENABLE_BUBBLEWRAP_SANDBOX=OFF
+      # With precompiled headers clang splits WebKit into subtargets, and the
+      # network process's compiles stop waiting for the
+      # WebKitDirectoryInputStreamData.h WebKit generates, a race a parallel
+      # build can lose.
+      - -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
+      - -DENABLE_WPE_PLATFORM_DRM=OFF
+      - -DUSE_LIBBACKTRACE=OFF
+      - -DUSE_SYSTEM_SYSPROF_CAPTURE=OFF
+      - -DUSE_SYSTEM_UNIFDEF=OFF
+      - -DENABLE_PDFJS=ON
+    # Its notices, with the offer of the source the LGPL asks for (LICENSE-003,
+    # LICENSE-004), where the app reads a flatpak's.
+    post-install:
+      - >-
+        bash ../install_notices.sh --src .. --dest /app/share/doc/wpewebkit --name "WPE WebKit"
+        --source https://github.com/WebKit/WebKit.git
+        --revision c22ba3278caac6a1fc8b0c7a10f04db1ffc44982
+        --license "LGPL-2.1+ and LGPL-2+ and BSD-2-clause and BSD-2-Clause-Patent and BSD-3-clause and Expat and Apache-2.0 and BSL-1.0 and ISC and CC0-1.0 and OFL-1.1"
+        --third-party ../webkit_third_party.tsv --offer
+        --changed "$(cat ../pdfjs_fonts.changed)"
+    sources:
+      - type: git
+        url: https://github.com/WebKit/WebKit.git
+        commit: c22ba3278caac6a1fc8b0c7a10f04db1ffc44982
+      - type: file
+        path: install_notices.sh
+      - type: file
+        path: webkit_third_party.tsv
+      - type: file
+        path: pdfjs_fonts.sh
+      # PDF.js's Liberation Sans fonts are 1.07.4, under GPL-2.0, and WebKit
+      # compiles them into the library; linux/pdfjs_fonts.sh replaces them
+      # with the SDK's 2.x release, under the OFL, before the build
+      # (LICENSE-001). A shell source runs in the SDK, in the source tree.
+      - type: shell
+        commands:
+          - >-
+            bash pdfjs_fonts.sh --src . --fonts /usr/share/fonts/liberation-fonts
+            --licence /usr/share/licenses/freedesktop-sdk/liberation-fonts/fonts/LICENSE
+            > pdfjs_fonts.changed
+
+  - name: nlohmann-json
+    buildsystem: cmake-ninja
+    builddir: true
+    cleanup:
+      - /share/doc
+    config-opts:
+      - -DJSON_BuildTests=OFF
+    sources:
+      - type: archive
+        url: https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+        sha256: d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d
+
+  - name: webspace_app
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/llvm22/bin:/run/build/webspace_app/flutter/bin
+      prepend-ld-library-path: /usr/lib/sdk/llvm22/lib
+      arch:
+        x86_64:
+          env:
+            BUNDLE: build/linux/x64/release/bundle
+        aarch64:
+          env:
+            BUNDLE: build/linux/arm64/release/bundle
+      env:
+        PUB_CACHE: /run/build/webspace_app/.pub-cache
+        # The tarball below, which linux/tor.cmake cannot download in a build
+        # with no network.
+        WEBSPACE_TOR_SOURCE: /run/build/webspace_app/flatpak-sources/tor-0.4.9.15.tar.gz
+        # The checkout below, which rust/webspace_adblock/build.rs cannot fetch
+        # in a build with no network.
+        WEBSPACE_SURROGATES_SOURCE: /run/build/webspace_app/flatpak-sources/tracker-surrogates
+        # The SDK has no Go, so linux/tor.cmake builds no lyrebird, and
+        # verify_tor_shipped.sh holds the bundle to shipping no transport.
+        WEBSPACE_LYREBIRD: none
+        # rust-toolchain.toml's channel. Set here, it overrides that file,
+        # whose Android targets rustup would otherwise download.
+        RUSTUP_TOOLCHAIN: 1.94.1
+    build-commands:
+      - WEBSPACE_APPLICATION_ID="$FLATPAK_ID" flutter build linux --release --no-pub
+      - bash scripts/verify_adblock_shipped.sh linux
+      - bash scripts/verify_tor_shipped.sh "$BUNDLE"
+      # The plugin copies WPE into the bundle; the copy in /app is the one
+      # it was built against.
+      - rm -f "$BUNDLE"/lib/libWPEWebKit-*.so* "$BUNDLE"/lib/libwpe-*.so*
+      - mkdir -p /app/webspace /app/bin /app/share
+      - cp -a "$BUNDLE"/share/. /app/share/
+      - rm -r "$BUNDLE"/share
+      - cp -a "$BUNDLE"/. /app/webspace/
+      - ln -s /app/webspace/webspace_app /app/bin/webspace_app
+    sources:
+      - type: git
+        url: https://github.com/theoden8/webspace_app.git
+        branch: master
+      - type: git
+        url: https://github.com/flutter/flutter.git
+        tag: 3.44.9
+        dest: flutter
+      # The tor source release linux/tor.cmake pins (TOR-027).
+      - type: file
+        url: https://archive.torproject.org/tor-package-archive/tor-0.4.9.15.tar.gz
+        sha256: 1911f5b216a6814ed143a08bbcff1c6dc96d2ca3b505df9a21876080a92963f3
+        dest: flatpak-sources
+      # The tracker surrogates commit rust/webspace_adblock/build.rs pins (CB-010).
+      - type: git
+        url: https://github.com/duckduckgo/tracker-surrogates.git
+        commit: 1cca57fa1edc945f208423d478c1d2aa50655141
+        dest: flatpak-sources/tracker-surrogates
+    modules:
+      # flatpak-flutter generates the toolchain this names, rust-toolchain.toml's.
+      - generated/modules/rustup-1.94.1.json

@@ -85,6 +85,11 @@ git push origin vX.Y.Z
 The fixture directory and the tag share a name, so `generate.sh vX.Y.Z`
 reproduces what the PR committed.
 
+The tag also starts the Flatpak workflow. Its `webspace-flatpak` artifact
+(`webspace-x86_64.flatpak`) goes on the GitHub release beside the APKs; users
+install it with `flatpak install --user webspace-x86_64.flatpak`, which offers
+to fetch the GNOME runtime from Flathub.
+
 ## The snap
 
 The tag runs the Snap workflow, which builds the snap from

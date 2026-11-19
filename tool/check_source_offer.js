@@ -13,9 +13,19 @@ const path = require('node:path');
 const ARCHIVE = 'https://archive.softwareheritage.org/api/1';
 const OFFER = 'For at least three years from the day you received this copy';
 
+// Where a package keeps its libraries' notices, as bundledDocsDir() in
+// lib/services/bundled_notices_io.dart reads them: a snap's /usr/share/doc,
+// a flatpak's /app/share/doc.
+const DOC_DIRS = ['usr/share/doc', 'share/doc'];
+
 /** Each copyright file under [root] that makes the offer: { file, source, revision }. */
 function offers(root) {
-  const doc = path.join(root, 'usr/share/doc');
+  const out = [];
+  for (const dir of DOC_DIRS) out.push(...offersIn(root, path.join(root, dir)));
+  return out;
+}
+
+function offersIn(root, doc) {
   if (!fs.existsSync(doc)) return [];
   const out = [];
   for (const name of fs.readdirSync(doc).sort()) {

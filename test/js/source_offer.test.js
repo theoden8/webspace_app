@@ -26,7 +26,7 @@ const WEBKIT_TREE = {
 
 // The notices of [tree] as linux/install_notices.sh writes them; each of
 // [host] is a file outside the tree, passed by its name.
-function notices(t, { revision, offer = true, changed = null, tree = WEBKIT_TREE, license = 'LGPL-2.1+', host = {}, extra = [] }) {
+function notices(t, { revision, offer = true, changed = null, tree = WEBKIT_TREE, license = 'LGPL-2.1+', host = {}, extra = [], doc = 'usr/share/doc' }) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'source-offer-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const src = path.join(root, 'src');
@@ -37,7 +37,7 @@ function notices(t, { revision, offer = true, changed = null, tree = WEBKIT_TREE
   fs.mkdirSync(path.join(root, 'host'));
   for (const [name, text] of Object.entries(host)) fs.writeFileSync(path.join(root, 'host', name), text);
   const args = [path.join(REPO, 'linux/install_notices.sh'), '--src', src,
-    '--dest', path.join(root, 'pkg/usr/share/doc/lib'), '--name', 'lib', '--source', SOURCE,
+    '--dest', path.join(root, 'pkg', doc, 'lib'), '--name', 'lib', '--source', SOURCE,
     '--revision', revision, '--license', license, ...(offer ? ['--offer'] : []),
     ...(changed ? ['--changed', changed] : []),
     ...extra.map((a) => a.replace(/^host\//, `${root}/host/`))];
@@ -58,6 +58,8 @@ test('LICENSE-004 the offer names the commit the library was built from', (t) =>
   assert.match(fs.readFileSync(path.join(changed, 'usr/share/doc/lib/copyright'), 'utf8'),
     /^Comment: Built from \S+ at [0-9a-f]{40}, changed before the build:\n fonts replaced\.$/m,
     'and says what changed, never "as it is"');
+  assert.deepEqual(S.offers(notices(t, { revision: COMMIT, doc: 'share/doc' }).root),
+    [{ file: 'share/doc/lib/copyright', source: SOURCE, revision: COMMIT }], "a flatpak's /app, which keeps them in share/doc");
   const branch = notices(t, { revision: 'main' }).run;
   assert.equal(branch.status, 2, 'an offer of a branch, which moves, is refused as the notices are written');
   assert.match(branch.stderr, /--offer needs --revision to be a commit/);
@@ -198,4 +200,16 @@ test('LICENSE-004 CI asks the archive about the snap it built', () => {
   assert.deepEqual(untriggered(workflow.replace('      - test/js/helpers/licences.js\n', ''), tools),
     ['test/js/helpers/licences.js'], 'the helper the licence check loads, left out of one list');
   assert.equal(execFileSync('node', ['-e', 'console.log(typeof fetch)'], { encoding: 'utf8' }).trim(), 'function');
+});
+
+test('LICENSE-004 CI asks the archive about the flatpak it built', () => {
+  const workflow = read('.github/workflows/flatpak.yml');
+  const build = workflow.indexOf('- name: Build\n');
+  const check = workflow.indexOf('node tool/check_source_offer.js build/flatpak/app/files');
+  assert.ok(build >= 0 && check > build, 'CI does not check the built flatpak\'s offer');
+  const tools = ['tool/check_bundle_licences.js', 'tool/check_source_offer.js'];
+  for (const tool of tools) assert.ok(workflow.includes(`node ${tool} `), `the flatpak job does not run ${tool}`);
+  assert.deepEqual(untriggered(workflow, tools), [], 'a change to these does not run the flatpak job');
+  assert.deepEqual(untriggered(workflow.replace('      - test/js/helpers/source.js\n', ''), tools),
+    ['test/js/helpers/source.js'], 'the helper the licence check loads, left out of one list');
 });

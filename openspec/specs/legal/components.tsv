@@ -55,6 +55,9 @@ gradle:com.google.crypto.tink:tink-android	Apache-2.0	linked		its POM
 gradle:com.google.guava:guava	Apache-2.0	linked		its parent POM, guava-parent
 gradle:org.jetbrains.kotlin:kotlin-stdlib	Apache-2.0	linked		its POM
 url:https://github.com/nlohmann/json/releases/download/v${NLOHMANN_JSON_VERSION}/json.tar.xz	MIT	linked		its LICENSE.MIT; flutter_inappwebview_linux fetches it only where no nlohmann_json is installed
+url:https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz	MIT	linked		its LICENSE.MIT; the flatpak builds it as a module of its own, since its SDK has none
+url:https://archive.torproject.org/tor-package-archive/tor-0.4.9.15.tar.gz	BSD-3-Clause	linked		the tarball linux/tor.cmake pins, which the flatpak lists for its build with no network; tor's LICENSE, its client build configured by linux/tor_build.sh, never --enable-gpl
+url:https://github.com/theoden8/webspace_app.git	MIT	linked		the app itself, its LICENSE; the flatpak builds it from the commit scripts/build_flatpak.sh names
 url:https://github.com/google/googletest/archive/release-1.11.0.zip	BSD-3-Clause	build		its LICENSE; the plugins' own test runners, never installed
 url:https://github.com/google/googletest/archive/v1.15.2.zip	BSD-3-Clause	build		its LICENSE; the plugins' own test runners, never installed
 url:https://github.com/google/googletest/archive/b514bdc898e2951020cbdca1304b75f5950d1f59.zip	BSD-3-Clause	build		its LICENSE; flutter_secure_storage_linux's own test runner, never installed
