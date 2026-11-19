@@ -29,6 +29,11 @@ class HtmlImportStorage {
   static HtmlImportStorage? _instance;
   static HtmlImportStorage get instance => _instance ??= HtmlImportStorage();
 
+  /// The store [instance] answers, for a test whose fakes stand behind it.
+  static void overrideForTesting(HtmlImportStorage storage) {
+    _instance = storage;
+  }
+
   /// Tests construct an instance directly with overrides; the production
   /// singleton uses the default-arg path.
   HtmlImportStorage({

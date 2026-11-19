@@ -95,6 +95,9 @@ const CLASSIFIED = {
     'A wake only: the reloads\' settle waits at most its deadline '
     + '(BackgroundWakeEngine.settleDeadline), and the pages stay open '
     + 'afterLoad more, never past the wake\'s budget (WakeTask.budget).',
+  'HtmlImportStorage.preloadOne':
+    'A file import\'s activation only: its encrypted copy read from the '
+    + 'app\'s own storage and decrypted in process, no socket or channel.',
   'DnsBlockService.fetchLevel':
     'A DNS download only, which no activation waits on: each mirror is '
     + 'bounded by fetchViaAppProxy\'s timeout.',
