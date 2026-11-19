@@ -227,7 +227,7 @@ void main() {
                   .readAsStringSync(),
               needle: '_tabs.bindOwnerRunTab('),
           1,
-          reason: 'an always-home site a shortcut resets lands at home');
+          reason: 'a site a shortcut resets lands at home');
       expect(shortcuts, isNot(contains('bindOwnerRunTab(')),
           reason: 'a shortcut loads an owner URL only through that reset '
               '(HS-006)');

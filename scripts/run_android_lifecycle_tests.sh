@@ -1030,10 +1030,10 @@ adb shell am start -W -n "$component" --es siteId "$blue_site_id"
 wait_for_pixels shortcut-warm-switch-blue 90 --expect-dominant "$blue"
 assert_nudged shortcut-warm-switch-nudged activate "$activate_nudges_before"
 
-echo "== Scenario H: warm tap leaves the running session intact (HS-006)"
+echo "== Scenario H: warm tap sends the site home (HS-006)"
 # Back to the dark site, drive it off its initUrl (the full-page link),
-# then re-tap its shortcut: HS-006 resets to initUrl on cold launch only,
-# so the live session must survive. A regression repaints dark here.
+# then re-tap its shortcut: HS-006 sends it home on every tap, so its
+# initUrl paints again. A regression keeps the magenta page.
 adb shell am start -W -n "$component" --es siteId "$dark_site_id"
 wait_for_pixels shortcut-warm-back-dark 90 --expect-dominant "$dark"
 adb shell input tap "$((w / 2))" "$((h / 2))"
@@ -1041,7 +1041,7 @@ wait_for_pixels shortcut-session-magenta 90 --expect-dominant "$magenta"
 adb shell input keyevent 3
 sleep 5
 adb shell am start -W -n "$component" --es siteId "$dark_site_id"
-wait_for_pixels shortcut-warm-preserves-session 90 --expect-dominant "$magenta"
+wait_for_pixels shortcut-warm-sends-home 90 --expect-dominant "$dark"
 
 # Scenario B2 asks a question the rest of the suite structurally cannot: does
 # ANYTHING below Dart repaint the surface when the window comes back?

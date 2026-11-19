@@ -110,7 +110,7 @@ void main() {
         ],
         flag: (i) => i == 1 || i == 2,
       );
-      expect(result, {1});
+      expect(result, {0, 1});
     });
 
     test('includes the launched site when it satisfies the flag', () {
@@ -124,10 +124,10 @@ void main() {
       expect(result, {0});
     });
 
-    test('excludes the launched site when its flag is false but resets siblings', () {
-      // The launched site itself is unflagged (e.g. user opened a shortcut
-      // for a non-banking site that happens to share a webspace with a
-      // flagged one). Sibling propagation still runs.
+    test('includes the launched site when its flag is false, and resets its '
+        'flagged siblings (HS-006)', () {
+      // A shortcut always opens its own site at home; only the siblings
+      // need Always open Home.
       final result = WebspaceSelectionEngine.indicesToResetOnShortcutLaunch(
         launchedIndex: 0,
         webspaces: [
@@ -135,7 +135,7 @@ void main() {
         ],
         flag: (i) => i == 1,
       );
-      expect(result, {1});
+      expect(result, {0, 1});
     });
 
     test('skips the synthetic All webspace when computing siblings', () {
@@ -187,7 +187,7 @@ void main() {
         flag: (i) => i == 1 || i == 3 || i == 4,
       );
       // Misc is unrelated to A, so 4 stays.
-      expect(result, {1, 3});
+      expect(result, {0, 1, 3});
     });
   });
 

@@ -252,7 +252,8 @@ class ShortcutController implements HomeShortcutsHost {
   }
 
   /// A cold launch: the site to activate for a shortcut that resolves to
-  /// one, with the Always open Home resets done (HS-006, HS-007), or null.
+  /// one, sent home with the Always open Home resets done (HS-006, HS-007),
+  /// or null.
   /// A launch that needs a prompt is parked for [promptParkedAfterFrame].
   Future<WebViewModel?> resolveColdLaunch({
     required Reached<SitesOnPage> after,
@@ -326,9 +327,8 @@ class ShortcutController implements HomeShortcutsHost {
     return null;
   }
 
-  /// Warm-tap switch to a resolved site: siblings home (HS-007), switch if
-  /// not already on screen, persist. The site's own page is kept: a warm tap
-  /// preserves the live session (HS-006).
+  /// Warm-tap switch to a resolved site: it and its flagged siblings home
+  /// (HS-006, HS-007), switch if not already on screen, persist.
   Future<void> _open(WebViewModel site) async {
     if (!_sites.models.contains(site)) return;
     // KIOSK-001: a kiosk site locks the shell; any other clears the lock.

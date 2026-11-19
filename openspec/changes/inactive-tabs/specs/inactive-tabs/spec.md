@@ -557,10 +557,12 @@ tabs off SHALL delete or rewrite them (TAB-012).
 ### Requirement: TAB-014 - Where a site with tabs lands
 
 A cold start and a home-shortcut tap, warm or cold, are fresh entries to a
-site. For a site whose tabs are in effect (TAB-013), Always open Home SHALL
-decide where it lands:
+site. For a site whose tabs are in effect (TAB-013), a shortcut tap SHALL land
+the site it opens on a tab at home whatever Always open Home says (HS-006); on
+a cold start, and for a shortcut's flagged siblings (AOH-004), Always open Home
+SHALL decide where it lands:
 
-- **Off**: on the tab it was on, with that tab's history (HS-006).
+- **Off**: on the tab it was on, with that tab's history.
 - **On** (incognito implies it, AOH-005): on a tab at home. When the active tab
   is at `initUrl` the site SHALL stay on it and SHALL NOT open a tab. Otherwise
   it SHALL switch to the most recently used parked tab at `initUrl`, or when
@@ -575,10 +577,17 @@ open Home site when it is loaded, before any webview exists (AOH-002). A site
 whose tabs are not in effect keeps AOH-001 to AOH-004 as written: with Always
 open Home on, its active tab is sent home in place.
 
-#### Scenario: A shortcut resumes the last tab
+#### Scenario: A shortcut lands on a tab at home
 
 - **GIVEN** a GitHub site with tabs and Always open Home off, last on a pull request
 - **WHEN** the app is cold-launched from GitHub's shortcut
+- **THEN** GitHub shows a tab at `initUrl`
+- **AND** the pull request is still listed as a parked tab with its history
+
+#### Scenario: A cold start resumes the last tab
+
+- **GIVEN** a GitHub site with tabs and Always open Home off, last on a pull request
+- **WHEN** the app is cold-started from its icon and GitHub is opened
 - **THEN** GitHub shows the pull request with its history
 - **AND** no tab is created
 

@@ -95,13 +95,10 @@ class SiteResetController {
     await _sites.models[_sites.current!].userStopLoading();
   }
 
-  /// Reset every "Always open Home" / incognito site that shares a named
-  /// webspace with [launchedIndex] back to its `initUrl` and tear down its
-  /// live webview so the next paint reloads at home. Called from both the
-  /// cold and warm shortcut entrypoints — on cold launch most flagged
-  /// sites already had `currentUrl` dropped during `fromJson`, so the
-  /// pass is mostly a no-op there; on warm launch it is the only thing
-  /// that resets siblings.
+  /// Send [launched] home with no history (HS-006), and every "Always open
+  /// Home" / incognito site that shares a named webspace with it (HS-007):
+  /// its live webview goes so the next paint loads at home. Called from
+  /// both the cold and the warm shortcut entrypoints.
   ///
   /// A site with tabs is not sent home in place: it lands on a tab at home,
   /// and the tab it was on stays in its list (TAB-014).
@@ -126,7 +123,11 @@ class SiteResetController {
     ];
     for (final m in sites) {
       if (withTabs.holdsObject(m)) continue;
-      if (m.currentUrl == m.initUrl && m.webview == null) continue;
+      if (m.currentUrl == m.initUrl && m.webview == null) {
+        await _activation.forgetHistory(m);
+        if (!_host.mounted) return;
+        continue;
+      }
       await _tabs.bindOwnerRunTab(m);
       if (!_host.mounted) return;
       await _activation.sendHome(m);

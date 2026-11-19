@@ -10,8 +10,8 @@
 // suite drives, through the real widget tree.
 //
 // Scenario map (requirement -> test):
-//   HS-002 / HS-006  cold launch selects the site and opens it where it was
-//                    left, tabs on or off; with Always open Home, at initUrl
+//   HS-002 / HS-006  cold launch selects the site and opens it at initUrl,
+//                    tabs on or off, with or without Always open Home
 //   HS-005 / HS-004  "Home Shortcut" hidden while a tile opens the site, shown
 //                    for a site none opens, hidden for a site a tile pinned
 //                    by an earlier version was rebound to, hidden where the
@@ -398,7 +398,7 @@ Future<void> tapDialogButton(WidgetTester tester,
 
   for (final tabsOn in [false, true]) {
     testWidgets(
-      'cold launch opens the pinned site where it was left, tabs '
+      'cold launch opens the pinned site at home, tabs '
       '${tabsOn ? 'on' : 'off'} (HS-002 / HS-006)',
       (tester) async {
         seed(
@@ -416,9 +416,9 @@ Future<void> tapDialogButton(WidgetTester tester,
             description: 'the launched site to activate',
           );
           final launched = models().firstWhere((m) => m.siteId == 'ws-hs-a');
-          expect(launched.currentUrl, '$hostA/deep.html',
-              reason: 'without Always open Home a shortcut opens the site '
-                  'where it was left (HS-006, TAB-014)');
+          expect(launched.currentUrl, launched.initUrl,
+              reason: 'a shortcut opens its site at home, Always open Home '
+                  'or not (HS-006, TAB-014)');
           expect(
             siteIsMounted('ws-hs-b'),
             isFalse,
@@ -473,7 +473,7 @@ Future<void> tapDialogButton(WidgetTester tester,
         );
         final launched = models().firstWhere((m) => m.siteId == 'ws-hs-a');
         expect(launched.currentUrl, launched.initUrl,
-            reason: 'Always open Home is what sends a shortcut launch home');
+            reason: 'a shortcut launch lands at home');
         expect(launched.tabs.map((t) => t.url),
             containsAll(['$hostA/deep.html', '$hostA/other.html']),
             reason: 'the tabs it had are kept (TAB-014)');

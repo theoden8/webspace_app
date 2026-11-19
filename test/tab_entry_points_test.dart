@@ -322,14 +322,13 @@ void guarded(String src,
           contains('TabLifecycleEngine.homeLanding('));
     });
 
-    test('a shortcut sends a site home only through Always open Home '
+    test('a shortcut sends a site home only through resetHomeOnLaunch '
         '(HS-006)', () {
       final shortcuts =
           File('lib/controllers/shortcut_controller.dart').readAsStringSync();
       expect(RegExp(r'currentUrl\s*=').hasMatch(shortcuts), isFalse,
-          reason: 'a launch opens the site where it was left; '
-              'resetHomeOnLaunch, flagged by Always open Home, is the one '
-              'way home');
+          reason: 'resetHomeOnLaunch, which sends the launched site and its '
+              'flagged siblings home, is the one way home');
       final cold = shortcuts.substring(
           shortcuts.indexOf('Future<WebViewModel?> resolveColdLaunch('));
       expect(cold.substring(0, cold.indexOf('\n  }\n')),

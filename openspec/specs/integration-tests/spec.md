@@ -969,14 +969,14 @@ which an in-process test cannot produce. Those two scenarios live in
 lifecycle scenarios, which already own the emulator, the page server,
 and the frame classifier.
 
-#### Scenario: Cold launch opens the pinned site where it was left
+#### Scenario: Cold launch opens the pinned site at home
 
 - **Given** a seeded site whose persisted `currentUrl` drifted away
   from its `initUrl`, and a pending launch carrying its `siteId`
 - **When** the app cold-starts
 - **Then** that site is the activated one, no other site is mounted,
-  and its `currentUrl` is where it was left, with tabs on or off; with
-  Always open Home on it is back at `initUrl` (HS-006)
+  and its `currentUrl` is back at `initUrl`, with tabs on or off and
+  with Always open Home on or off (HS-006)
 - **And** the startup reconcile has recorded the pinned site's url in
   `shortcutUrlLedger` (HS-012)
 
@@ -1033,9 +1033,9 @@ and the frame classifier.
 - **When** the adb harness issues `am start ... --es siteId <other>`
 - **Then** the other site composites (HS-002 "app already running")
 - **And** after driving a site off its `initUrl` and re-tapping its own
-  shortcut, the frame still shows the navigated page — a warm tap
-  preserves the live session (HS-006), and a reset to `initUrl` would
-  repaint the home page instead
+  shortcut, the frame shows its home page again — a warm tap sends the
+  site home (HS-006), and a kept session would still show the navigated
+  page
 
 #### Scenario: Runs as its own wrapper script in build-android
 
