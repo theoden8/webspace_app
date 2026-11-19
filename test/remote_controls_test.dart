@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -368,6 +369,34 @@ void main() {
 
       expect(_ring, findsOneWidget);
       expect(tester.getRect(_ring), below.rect);
+    });
+
+    /// Flutter keeps a desktop in its traditional highlight mode after a
+    /// mouse click, so that mode alone left the ring up under the mouse.
+    testWidgets('no outline once the mouse drives the app, and back at the '
+        'next key (NAV-022)', (tester) async {
+      await tester.pumpWidget(_app(form(), keys: _Keys.desktop));
+      field.requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+      await tester.pump();
+      expect(_ring, findsOneWidget);
+
+      await tester.tap(find.text('go'), kind: PointerDeviceKind.mouse);
+      await tester.pump();
+      await tester.pump();
+      expect(FocusManager.instance.highlightMode,
+          FocusHighlightMode.traditional);
+      expect(below.hasPrimaryFocus, isTrue);
+      expect(_ring, findsNothing);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+      await tester.pump();
+      expect(below.hasPrimaryFocus, isTrue);
+      expect(_ring, findsOneWidget);
     });
 
     /// The ring once hugged the EditableText's box, which starts at the first
