@@ -1299,32 +1299,29 @@ class WebViewFactory {
         // redirects without a tap origin, pushState) carry no user
         // gesture — they don't activate AASA in the first place and
         // are passed through here without interception.
-        if (hostIsIOS &&
-            IosUniversalLinkBypass.isEligibleNavigation(
-              isMainFrame: frame == NavigationFrame.top,
-              url: url,
-              currentUrl: (await view?.getUrl())?.toString(),
-              isLinkActivated: navigationAction.navigationType ==
-                  inapp.NavigationType.LINK_ACTIVATED,
-              isFormSubmitted: navigationAction.navigationType ==
-                  inapp.NavigationType.FORM_SUBMITTED,
-              httpMethod: navigationAction.request.method,
-            )) {
-          if (iosUlBypass.shouldCancelAndReissue(url)) {
-            LogTag.webView.debug(
-                '  -> CANCEL (iOS UL bypass: reissuing programmatically) $url',
-                sensitive: true);
-            final originalUrl = navigationAction.request.url;
-            final originalHeaders = navigationAction.request.headers;
-            unawaited(controller.loadUrl(urlRequest: inapp.URLRequest(
-              url: originalUrl,
-              headers: originalHeaders,
-            )));
-            return inapp.NavigationActionPolicy.CANCEL;
-          }
+        final reissue = await iosUlBypass.reissueFor(
+          (
+            isMainFrame: frame == NavigationFrame.top,
+            url: url,
+            isLinkActivated: navigationAction.navigationType ==
+                inapp.NavigationType.LINK_ACTIVATED,
+            isFormSubmitted: navigationAction.navigationType ==
+                inapp.NavigationType.FORM_SUBMITTED,
+            httpMethod: navigationAction.request.method,
+            headers: navigationAction.request.headers,
+          ),
+          onIos: hostIsIOS,
+          currentUrl: () async => (await view?.getUrl())?.toString(),
+        );
+        if (reissue != null) {
           LogTag.webView.debug(
-              '  -> ALLOW (iOS UL bypass: reissued nav passing through)',
+              '  -> CANCEL (iOS UL bypass: reissuing programmatically) $url',
               sensitive: true);
+          unawaited(controller.loadUrl(urlRequest: inapp.URLRequest(
+            url: navigationAction.request.url,
+            headers: reissue.headers,
+          )));
+          return inapp.NavigationActionPolicy.CANCEL;
         }
         return inapp.NavigationActionPolicy.ALLOW;
       },

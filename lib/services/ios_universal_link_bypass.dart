@@ -120,6 +120,45 @@ class IosUniversalLinkBypass {
     return true;
   }
 
+  /// The request to load in [ask]'s place, or null to let it through: only
+  /// on iOS (IOS-UL-005), only for an eligible navigation, and only on its
+  /// first pass. It carries [ask]'s headers, a site's `Accept-Language`
+  /// among them (IOS-UL-004). [currentUrl] is read only when it decides.
+  Future<BypassReissue?> reissueFor(
+    BypassAsk ask, {
+    required bool onIos,
+    required Future<String?> Function() currentUrl,
+    DateTime? now,
+  }) async {
+    if (!onIos) return null;
+    if (!isEligibleNavigation(
+      isMainFrame: ask.isMainFrame,
+      url: ask.url,
+      currentUrl: await currentUrl(),
+      isLinkActivated: ask.isLinkActivated,
+      isFormSubmitted: ask.isFormSubmitted,
+      httpMethod: ask.httpMethod,
+    )) {
+      return null;
+    }
+    if (!shouldCancelAndReissue(ask.url, now: now)) return null;
+    return (headers: ask.headers);
+  }
+
   /// Test hook.
   void clear() => _recentBypass.clear();
 }
+
+/// A navigation as the bypass reads it off `shouldOverrideUrlLoading`.
+typedef BypassAsk = ({
+  bool isMainFrame,
+  String url,
+  bool isLinkActivated,
+  bool isFormSubmitted,
+  String? httpMethod,
+  Map<String, String>? headers,
+});
+
+/// The programmatic load the bypass issues in a navigation's place, of the
+/// navigation's own URL.
+typedef BypassReissue = ({Map<String, String>? headers});
