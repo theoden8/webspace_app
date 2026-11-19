@@ -545,6 +545,9 @@ UI or App Store metadata.
   network
 - **AND** it does not present "Tor" as the name of a WebSpace feature,
   mode, or product
+- **AND** `test/js/tor_trademark.test.js` holds the app's names, titles
+  and identifiers on every platform and in the store listing, and the
+  English strings, to no branded use
 
 #### Scenario: No onion iconography
 
@@ -552,6 +555,8 @@ UI or App Store metadata.
 - **THEN** no Tor onion logo or derivative ships as an icon or badge
 - **AND** the per-site indicator uses a generic routing/shield glyph
   from the existing icon set
+- **AND** `test/js/tor_trademark.test.js` fails on an image whose name
+  is an onion or Tor mark
 
 ---
 
