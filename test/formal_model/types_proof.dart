@@ -26,10 +26,11 @@ List<({String path, String text})> activationTypesProofs({
   final facts = _facts(definitions: definitions);
   return [
     _module('activation_types_proof', extending: 'activation, TLAPS', body: [
-      '\\* Zenon for a moment, then SMT: an action whose rows each keep a fact',
-      '\\* closes from their lemmas in a second by Zenon, where SMT can spend its',
+      '\\* Zenon first, then SMT: an action whose rows each keep a fact closes',
+      '\\* from their lemmas by Zenon, most in a second and the longest',
+      '\\* (TabRebind, expanded whole) in half a minute, where SMT can spend its',
       '\\* whole timeout on a long action before Zenon is tried.',
-      'ZenonFirst == TRUE (*{ by (prover:"zenon"; timeout:1) by (prover:"smt3") }*)',
+      'ZenonFirst == TRUE (*{ by (prover:"zenon"; timeout:4) by (prover:"smt3") }*)',
       '',
       '\\* What some steps need of their flow beyond TypeOK and Held at the place',
       '\\* they run from (_supports in test/formal_model/types_proof.dart).',
