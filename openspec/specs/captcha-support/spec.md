@@ -99,6 +99,7 @@ The WebView MUST support third-party cookies when enabled per-site for captcha s
 **Given** a site has third-party cookies enabled in settings
 **When** a captcha iframe sets a cookie
 **Then** the cookie is accepted
+**And** the site's webview, the popups it spawns and a nested screen it opens are built with `thirdPartyCookiesEnabled` on, and with it off where the site left it off or Tracking Protection forces it off (`test/third_party_cookies_test.dart`); whether the engine then accepts the cookie is the platform's
 
 ---
 
