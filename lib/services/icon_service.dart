@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/engine_image.dart';
+import 'package:webspace/services/favicon_rank.dart';
 import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/icon_image_store.dart';
@@ -576,29 +577,6 @@ bool _isRealColor(String color) {
          color != 'ccc' && color != 'eee';
 }
 
-int _compareFavicons(Favicon a,
-    {required Favicon b, required Map<String, bool> svgColorCache}) {
-  final aSvg = a.url.endsWith('.svg');
-  final bSvg = b.url.endsWith('.svg');
-
-  if (aSvg && bSvg) {
-    final aColored = svgColorCache[a.url] ?? false;
-    final bColored = svgColorCache[b.url] ?? false;
-
-    if (aColored && !bColored) return -1;
-    if (!aColored && bColored) return 1;
-
-    // Both monochrome SVGs, treat as low quality
-    if (!aColored && !bColored) return 1; // Prefer bitmaps over monochrome SVGs
-  }
-
-  // Monochrome SVG vs bitmap - prefer bitmap
-  if (aSvg && !bSvg && !(svgColorCache[a.url] ?? false)) return 1;
-  if (bSvg && !aSvg && !(svgColorCache[b.url] ?? false)) return -1;
-
-  return a.compareTo(b);
-}
-
 /// The best icon the site's home page declares (ICON-002), as one final
 /// [IconUpdate], or nothing when none is found. Every request goes to a host
 /// the page names, through [proxy]; no third-party icon service is asked
@@ -706,18 +684,13 @@ Future<_Search> _tryFaviconPackage(String url,
       })
     );
 
-    favicons.sort((a, b) => _compareFavicons(a, b: b, svgColorCache: svgColorCache));
+    final rank = FaviconRank(colored: svgColorCache);
+    favicons.sort((a, b) => rank.compare(a, b: b));
 
     final best = favicons.first;
 
     if (await _verifyIconUrl(best.url, proxy: proxy)) {
-      int quality;
-
-      if (best.url.endsWith('.svg')) {
-        quality = (svgColorCache[best.url] ?? false) ? 1000 : 30;
-      } else {
-        quality = (best.width > 0) ? best.width : 50;
-      }
+      final quality = rank.score(best);
 
       LogTag.icon.debug(
           'Found favicon via package for $url (quality: $quality) ${best.url}',
