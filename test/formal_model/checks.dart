@@ -1528,7 +1528,7 @@ enum Mutant {
   ),
   importmergedrops(
     world: ActivationWorld.importsMerge,
-    slice: (allowed: {'Tap', 'ImportSites'}),
+    slice: (allowed: {'Tap', 'Login', 'ImportSites'}),
     by: Inv.noSessionLoss,
     doc:
         'a partial restore that saves only the shares of the sites it carries '
