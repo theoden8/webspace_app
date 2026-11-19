@@ -192,14 +192,17 @@ test('LIR-034: a foreign tab decides capture as a nested screen of its opener do
 test('NESTED-013: a subframe cannot steer the top document through an external scheme', () => {
   const at = WEBVIEW.indexOf("'External scheme intercepted: scheme=");
   assert.notEqual(at, -1, 'the external-scheme branch is gone');
-  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('config.hooks.externalScheme(', at));
-  const gate = body.indexOf('frame != NavigationFrame.top');
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('return inapp.NavigationActionPolicy.CANCEL;', at));
+  // routeExternal refuses anything but a vouched top frame (its own test,
+  // test/external_url_engine_test.dart); this holds the caller to pass the
+  // navigation's frame and to load only the route it returns.
+  assert.match(body, /routeExternal\(externalInfo,\s*hasGesture: hasGesture, frame: frame\)/,
+    'the external branch must ask routeExternal with the navigation\'s own frame: '
+    + 'it resolves intent:// and x-safari- targets onto the top-frame controller');
+  const routed = body.indexOf('case ExternalRouted(');
   const load = body.indexOf('controller.loadUrl(');
-  assert.notEqual(gate, -1,
-    'the external branch must refuse anything but a vouched top frame: it '
-    + 'resolves intent:// and x-safari- targets onto the top-frame controller');
-  assert.ok(load === -1 || gate < load,
-    'the frame test must precede the reissued load');
+  assert.ok(routed !== -1 && (load === -1 || routed < load),
+    'the reissued load happens only on the route routeExternal returned');
 });
 
 test('NESTED-013: onCreateWindow loads into the top webview only on a gesture', () => {

@@ -1077,43 +1077,34 @@ class WebViewFactory {
           // cross-domain → nested via shouldOverrideUrlLoading. Schemes
           // *without* a web equivalent (zxing scanner, custom-app deep
           // links, tel:) still hit the confirmation dialog.
-          final resolved = ExternalUrlParser.toWebUrl(externalInfo);
-          if (resolved != null) {
-            // The reissued load below lands on the top-frame controller, so
-            // only a navigation the platform vouches is the page may reach it
-            // (NESTED-013): an ad iframe would otherwise steer the top
-            // document with the session attached.
-            if (frame != NavigationFrame.top) {
-              return inapp.NavigationActionPolicy.CANCEL;
-            }
-            final hasGesture = navigationAction.byUserGesture;
-            // Loop guard (EXT-007): x.com re-fires its Safari bounce on
-            // every page render — resolving it again would reload the
-            // fallback forever. A script-driven re-fire inside the
-            // suppression window is dropped; a user-gesture nav is the
-            // user deliberately clicking, so it always routes.
-            if (!hasGesture &&
-                ExternalUrlSuppressor.isSuppressedInfo(externalInfo)) {
-              LogTag.webView.debug(
-                  'silent route suppressed (recently routed): $url',
+          // The reissued load lands on the top-frame controller, so only a
+          // navigation the platform vouches is the page may reach it
+          // (NESTED-013): an ad iframe would otherwise steer the top
+          // document with the session attached. x.com re-fires its Safari
+          // bounce on every render, which the loop guard drops (EXT-007).
+          final hasGesture = navigationAction.byUserGesture;
+          switch (routeExternal(externalInfo,
+              hasGesture: hasGesture, frame: frame)) {
+            case ExternalAsk():
+              unawaited(
+                  config.hooks.externalScheme(externalInfo, loadIn: view));
+            case ExternalDropped():
+              LogTag.webView.debug('external scheme dropped: $url',
                   sensitive: true);
-              return inapp.NavigationActionPolicy.CANCEL;
-            }
-            ExternalUrlSuppressor.mark(externalInfo);
-            LogTag.webView.debug(
-                'external scheme resolved → $resolved (from $url)',
-                sensitive: true);
-            bool allow = true;
-            if (config.shouldOverrideUrlLoading != null) {
-              allow = config.shouldOverrideUrlLoading!(resolved,
-                  hasGesture: hasGesture, frame: frame, replayable: true);
-            }
-            if (allow && !refused(resolved)) {
-              unawaited(controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved))));
-            }
-            return inapp.NavigationActionPolicy.CANCEL;
+            case ExternalRouted(url: final resolved):
+              LogTag.webView.debug(
+                  'external scheme resolved → $resolved (from $url)',
+                  sensitive: true);
+              bool allow = true;
+              if (config.shouldOverrideUrlLoading != null) {
+                allow = config.shouldOverrideUrlLoading!(resolved,
+                    hasGesture: hasGesture, frame: frame, replayable: true);
+              }
+              if (allow && !refused(resolved)) {
+                unawaited(controller.loadUrl(
+                    urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved))));
+              }
           }
-          unawaited(config.hooks.externalScheme(externalInfo, loadIn: view));
           return inapp.NavigationActionPolicy.CANCEL;
         }
         // The source is the page that started the navigation. Counted only
@@ -1374,37 +1365,35 @@ class WebViewFactory {
           LogTag.webView.debug('External scheme intercepted (onCreateWindow): '
               'scheme=${externalInfo.scheme} package=${externalInfo.package} url=$url',
               sensitive: true);
-          final resolved = ExternalUrlParser.toWebUrl(externalInfo);
-          if (resolved != null) {
-            final hasGesture = createWindowAction.byUserGesture;
-            // Same loop guard as shouldOverrideUrlLoading (EXT-007).
-            if (!hasGesture &&
-                ExternalUrlSuppressor.isSuppressedInfo(externalInfo)) {
+          final hasGesture = createWindowAction.byUserGesture;
+          switch (routeExternal(externalInfo,
+              hasGesture: hasGesture, frame: NavigationFrame.top)) {
+            case ExternalAsk():
+              unawaited(
+                  config.hooks.externalScheme(externalInfo, loadIn: view));
+            case ExternalDropped():
               LogTag.webView.debug(
-                  'silent route suppressed (onCreateWindow, recently routed): $url',
+                  'external scheme dropped (onCreateWindow): $url',
                   sensitive: true);
-              return false;
-            }
-            ExternalUrlSuppressor.mark(externalInfo);
-            LogTag.webView.debug(
-                'external scheme resolved (onCreateWindow) → $resolved (from $url)',
-                sensitive: true);
-            bool allow = true;
-            if (config.shouldOverrideUrlLoading != null) {
-              allow = config.shouldOverrideUrlLoading!(resolved,
-                  hasGesture: hasGesture,
-                  frame: NavigationFrame.top,
-                  replayable: true);
-            }
-            // A window this webview did not ask for by gesture never loads
-            // into it (NESTED-013); a real target="_blank" tap is rewritten
-            // before it gets here (NESTED-008).
-            if (allow && hasGesture && !refused(resolved)) {
-              unawaited(controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved))));
-            }
-            return false;
+            case ExternalRouted(url: final resolved):
+              LogTag.webView.debug(
+                  'external scheme resolved (onCreateWindow) → $resolved (from $url)',
+                  sensitive: true);
+              bool allow = true;
+              if (config.shouldOverrideUrlLoading != null) {
+                allow = config.shouldOverrideUrlLoading!(resolved,
+                    hasGesture: hasGesture,
+                    frame: NavigationFrame.top,
+                    replayable: true);
+              }
+              // A window this webview did not ask for by gesture never loads
+              // into it (NESTED-013); a real target="_blank" tap is
+              // rewritten before it gets here (NESTED-008).
+              if (allow && hasGesture && !refused(resolved)) {
+                unawaited(controller.loadUrl(
+                    urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved))));
+              }
           }
-          unawaited(config.hooks.externalScheme(externalInfo, loadIn: view));
           return false;
         }
 
@@ -1779,28 +1768,32 @@ class WebViewFactory {
           }));
           return;
         }
-        final resolved = ExternalUrlParser.toWebUrl(externalInfo);
-        if (resolved != null) {
-          ExternalUrlSuppressor.mark(externalInfo);
-          LogTag.webView.debug(
-              'onReceivedError: external scheme resolved → $resolved (from $reqUrl)',
-              sensitive: true);
-          unawaited(Future.microtask(() async {
-            final bool allow = config.shouldOverrideUrlLoading
-                    ?.call(resolved,
-                        hasGesture: false,
-                        frame: NavigationFrame.top,
-                        replayable: true) ??
-                true;
-            await view?.loadUrl(allow ? resolved : 'about:blank');
-          }));
-          return;
+        switch (routeExternal(externalInfo,
+            hasGesture: false, frame: NavigationFrame.top)) {
+          case ExternalRouted(url: final resolved):
+            LogTag.webView.debug(
+                'onReceivedError: external scheme resolved → $resolved (from $reqUrl)',
+                sensitive: true);
+            unawaited(Future.microtask(() async {
+              final bool allow = config.shouldOverrideUrlLoading
+                      ?.call(resolved,
+                          hasGesture: false,
+                          frame: NavigationFrame.top,
+                          replayable: true) ??
+                  true;
+              await view?.loadUrl(allow ? resolved : 'about:blank');
+            }));
+          // Not suppressed: the check above returned for that.
+          case ExternalDropped():
+            break;
+          // No web equivalent: the user can still choose to launch the app.
+          case ExternalAsk():
+            LogTag.webView.debug(
+                'onReceivedError: type=${error.type} url=$reqUrl '
+                '— routing to external-scheme dialog',
+                sensitive: true);
+            unawaited(config.hooks.externalScheme(externalInfo, loadIn: view));
         }
-        // No web equivalent — fall through to the dialog path so the
-        // user can still choose to launch the target app.
-        LogTag.webView.debug('onReceivedError: type=${error.type} url=$reqUrl '
-            '— routing to external-scheme dialog', sensitive: true);
-        unawaited(config.hooks.externalScheme(externalInfo, loadIn: view));
       },
       // Header names, never values, and no URL, so the line reaches logcat:
       // the name set tells the app's own proxy relay (`connection` alone, or
