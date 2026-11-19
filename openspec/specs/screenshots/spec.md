@@ -72,12 +72,26 @@ Screenshots SHALL use demo data seeded automatically via `lib/demo_data.dart`.
 
 ### Requirement: SCREENSHOT-003 - Screenshot Coverage
 
-The test SHALL capture 4 screenshots per theme (8 total): `01-site-settings`, `02-work-sites-drawer`, `03-work-webspace`, `04-workspace-sites-selected`.
+The test SHALL capture 4 screenshots per theme (8 total) in the library design a fresh install starts in (WEBSPACE-019): `01-site-settings` (a site's settings), `02-webspace-library` (the webspace folders), `03-work-webspace` (the Work folder open) and `04-workspace-sites-selected` (a new webspace with sites ticked).
 
 #### Scenario: Capture all screenshots
 
 - **WHEN** the screenshot test completes
 - **THEN** 8 screenshots are saved with `-light` and `-dark` variants
+
+#### Scenario: The seed starts in the library
+
+- **GIVEN** the demo seed, once or once per theme
+- **WHEN** the app launches as `main()` launches it
+- **THEN** it shows the webspace library, not the legacy list and drawer
+- **AND** the seeded sites never read as an earlier build's, since the seed stores the design as a fresh install's
+
+#### Scenario: A screen the tour no longer finds
+
+- **GIVEN** a design change that moves a screen the tour captures
+- **WHEN** the tour reaches that stop
+- **THEN** it fails there instead of capturing another screen
+- **AND** `test/screenshot_tour_test.dart`, the same tour on the real app with faked webviews, fails first, without a device
 
 ---
 

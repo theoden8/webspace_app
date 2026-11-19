@@ -6,9 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/widgets/site_menu.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/demo_data.dart';
+
+import 'helpers/library_tour.dart';
 
 /// Check if device is iPad based on screen size
 bool _isTablet(WidgetTester tester) {
@@ -180,514 +181,47 @@ Future<void> _takeThemedScreenshots(
   await tester.pump();
 }
 
+
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-
-  // Enable native screenshot capture
-  // This will save screenshots to the device/emulator
-  if (binding is IntegrationTestWidgetsFlutterBinding) {
-    binding.framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
-  }
+  binding.framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
 
   group('Screenshot Test', () {
     for (final theme in ['light', 'dark']) {
       testWidgets('Take screenshots of app flow ($theme theme)', (WidgetTester tester) async {
-        print('========================================');
-        print('Setting up screenshot test ($theme theme)');
-        print('========================================');
-
         // In memory, so the seed never replaces a device's own storage.
         SharedPreferences.setMockInitialValues(<String, Object>{
           if (Platform.isAndroid) ..._androidTextureMode,
         });
-        print('Seeding demo data with $theme theme...');
         await seedDemoData(theme: theme);
-        print('Demo data seeded successfully');
-
-        // Launch the app
-        print('Launching app...');
         app.main();
-
-        // Wait for app to fully load and render
         await tester.pumpAndSettle(const Duration(seconds: 10));
-        print('App launched and settled');
-
-        // Set orientation based on device type (iPad: landscape, iPhone: portrait)
         await _setDeviceOrientation(tester);
         await _sizeWindow(tester);
-
-        // Theme is already set via seedDemoData
-        String currentTheme = theme;
-
-        print('========================================');
-        print('STARTING SCREENSHOT TOUR ($theme theme)');
-        print('========================================');
 
         // Required before takeScreenshot on Android, which PixelCopies the
         // FlutterView; texture mode puts the webviews inside that frame.
         await binding.convertFlutterSurfaceToImage();
         await tester.pumpAndSettle();
 
-        // Open drawer to select a site
-        print('Opening drawer via menu button...');
-        print('Looking for drawer elements...');
-        _debugPrintWidgets(tester);
-        await _openDrawer(tester);
-        await tester.pump();
-        await Future.delayed(const Duration(seconds: 2));
-
-        // Look for a site to select (SearXNG) to access settings
-        print('Looking for SearXNG site...');
-        final searxFinder = find.text('SearXNG');
-
-        if (searxFinder.evaluate().isNotEmpty) {
-          print('Selecting SearXNG site');
-          await tester.tap(searxFinder);
-
-          // Pump to process the tap event and trigger Navigator.pop + activate
+        // pumpAndSettle never settles once a webview is live, so every stop
+        // waits on the real clock.
+        Future<void> wait(Duration span) async {
           await tester.pump();
-          
-          // Wait for drawer closing animation to complete
-          // Standard Material drawer animation is typically 300ms
-          print('Completing animation and waiting for webview to load...');
-          await tester.pumpAndSettle(const Duration(seconds: 2));
-          
-          // Now wait for webview to actually load the page content
-          // The webview is a native platform view that renders outside Flutter's surface
-          print('Waiting for webview to load SearXNG page...');
-          await Future.delayed(_WEBVIEW_LOAD_TIMEOUT);
-          
-          // Pump a few frames to ensure the native view is fully rendered
+          await Future<void>.delayed(span);
           await tester.pump();
-          await tester.pump(const Duration(milliseconds: 500));
-
-          // Use pump() instead of pumpAndSettle() to avoid timeout with webviews
-          await tester.pump(const Duration(seconds: 2));
-          await Future.delayed(const Duration(seconds: 2));
-
-          // Screenshot 1: Open Settings from toolbar menu
-          print('Opening toolbar menu to access Settings...');
-          final popupMenuButton = find.byType(PopupMenuButton<SiteMenuAction>);
-          if (popupMenuButton.evaluate().isNotEmpty) {
-            print('Found popup menu button, tapping...');
-            await tester.tap(popupMenuButton.first);
-            await tester.pumpAndSettle();
-            await Future.delayed(const Duration(seconds: 1));
-
-            // Look for Settings option in the popup menu
-            final settingsOption = find.text('Settings');
-            if (settingsOption.evaluate().isNotEmpty) {
-              print('Found Settings option, tapping...');
-              await tester.tap(settingsOption);
-              await tester.pumpAndSettle();
-              await Future.delayed(const Duration(seconds: 2));
-
-              // Screenshot 1: Settings screen
-              await _takeThemedScreenshots(binding,
-                  tester: tester,
-                  baseName: '01-site-settings',
-                  currentTheme: currentTheme);
-              print('Screenshot 1 captured successfully (settings screen)');
-
-              // Go back to webview
-              print('Navigating back from Settings...');
-              final backButton = find.byType(BackButton);
-              if (backButton.evaluate().isNotEmpty) {
-                await tester.tap(backButton.first);
-              } else {
-                // Try Navigator pop via back arrow icon
-                final backArrow = find.byIcon(Icons.arrow_back);
-                if (backArrow.evaluate().isNotEmpty) {
-                  await tester.tap(backArrow.first);
-                } else {
-                  // Use Navigator.pop as fallback
-                  Navigator.of(tester.element(find.byType(Scaffold).first)).pop();
-                }
-              }
-              await tester.pumpAndSettle();
-              await Future.delayed(const Duration(seconds: 1));
-              print('Returned from Settings');
-            } else {
-              print('Settings option not found in menu');
-            }
-          } else {
-            print('Popup menu button not found');
-          }
-
-          // Ensure drawer is fully closed before reopening
-          if (find.byType(Drawer).evaluate().isNotEmpty) {
-            print('Drawer still open, closing first...');
-            await _closeDrawerByTappingOutside(tester);
-            await tester.pump();
-            await Future.delayed(const Duration(seconds: 1));
-          }
-
-          // Open drawer again - with retry to ensure it opens
-          print('Opening drawer to show current site');
-          bool drawerOpened = false;
-          for (int attempt = 0; attempt < 3 && !drawerOpened; attempt++) {
-            if (attempt > 0) {
-              print('Retry attempt $attempt to open drawer...');
-              await Future.delayed(const Duration(seconds: 1));
-            }
-            await _openDrawer(tester);
-            await Future.delayed(const Duration(seconds: 2));
-            await tester.pump();
-            drawerOpened = find.byType(Drawer).evaluate().isNotEmpty;
-            print('Drawer visible after attempt ${attempt + 1}: $drawerOpened');
-          }
-
-          // Navigate back to webspaces using "Back to Webspaces" button
-          print('Navigating back to webspaces list...');
-          final backButtonFinder = find.text('Back to Webspaces');
-          if (backButtonFinder.evaluate().isNotEmpty) {
-            await tester.tap(backButtonFinder);
-            await tester.pump();
-            await Future.delayed(const Duration(seconds: 2));
-            print('Back to webspaces list');
-          } else {
-            print('Back to Webspaces button not found');
-          }
-        } else {
-          print('SearXNG site not found');
         }
 
-        // Look for "Work" webspace
-        print('Looking for Work webspace...');
-        final workWebspaceFinder = find.text('Work');
-
-        if (workWebspaceFinder.evaluate().isNotEmpty) {
-          print('Work webspace found - capturing screenshots');
-          print('Selecting Work webspace');
-          await tester.tap(workWebspaceFinder);
-          await tester.pump();
-          await Future.delayed(const Duration(seconds: 2));
-
-          // Screenshot 2: Work webspace drawer
-          await _takeThemedScreenshots(binding,
-              tester: tester,
-              baseName: '02-work-sites-drawer',
-              currentTheme: currentTheme);
-          print('Screenshot 2 captured successfully');
-          await tester.pump();
-          await Future.delayed(const Duration(seconds: 2));
-
-          // Close drawer before capturing the Work webspace sites
-          await _closeDrawer(tester);
-          await tester.pump();
-          await Future.delayed(const Duration(seconds: 2));
-
-          // Screenshot 3: Work webspace sites
-          await _takeThemedScreenshots(binding,
-              tester: tester,
-              baseName: '03-work-webspace',
-              currentTheme: currentTheme);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
-        }
-
-        // Demonstrate workspace creation
-        print('Starting workspace creation demonstration...');
-        print('Looking for add workspace button...');
-
-        // Try different possible button labels
-        Finder? addButton = find.text('Add Webspace');
-        if (addButton.evaluate().isEmpty) {
-          addButton = find.text('Add');
-        }
-        if (addButton.evaluate().isEmpty) {
-          addButton = find.text('+');
-        }
-        if (addButton.evaluate().isEmpty) {
-          addButton = find.text('Create Webspace');
-        }
-        if (addButton.evaluate().isEmpty) {
-          addButton = find.text('New Webspace');
-        }
-        // Also try to find by icon
-        if (addButton.evaluate().isEmpty) {
-          addButton = find.byIcon(Icons.add);
-        }
-
-        if (addButton.evaluate().isNotEmpty) {
-          print('Found add button, tapping...');
-          await tester.tap(addButton);
-          await tester.pump();
-          await Future.delayed(const Duration(seconds: 2));
-
-          await Future.delayed(const Duration(seconds: 2));
-
-          // Look for workspace name field
-          print('Looking for workspace name field...');
-          final nameFieldFinder = find.byType(TextField).first;
-
-          if (nameFieldFinder.evaluate().isNotEmpty) {
-            print('Found name field, entering text...');
-            await tester.tap(nameFieldFinder);
-            await tester.pump();
-            await Future.delayed(const Duration(seconds: 1));
-            await tester.enterText(nameFieldFinder, 'Entertainment');
-            await tester.pump();
-            await Future.delayed(const Duration(seconds: 1));
-
-            // Dismiss keyboard
-            await tester.testTextInput.receiveAction(TextInputAction.done);
-            await tester.pump();
-            await Future.delayed(const Duration(seconds: 1));
-
-            await Future.delayed(const Duration(seconds: 1));
-
-            // Look for site selection checkboxes (in CheckboxListTile)
-            print('Looking for site selection elements...');
-
-            // Find CheckboxListTile containing "Reddit" text
-            final redditCheckbox = find.ancestor(
-              of: find.text('Reddit'),
-              matching: find.byType(CheckboxListTile),
-            );
-            if (redditCheckbox.evaluate().isNotEmpty) {
-              print('Selecting Reddit checkbox...');
-              await tester.tap(redditCheckbox.first);
-              await tester.pump();
-              await Future.delayed(const Duration(seconds: 1));
-            } else {
-              print('Reddit checkbox not found');
-            }
-
-            // Find CheckboxListTile containing "Wikipedia" text
-            final wikipediaCheckbox = find.ancestor(
-              of: find.text('Wikipedia'),
-              matching: find.byType(CheckboxListTile),
-            );
-            if (wikipediaCheckbox.evaluate().isNotEmpty) {
-              print('Selecting Wikipedia checkbox...');
-              await tester.tap(wikipediaCheckbox.first);
-              await tester.pump();
-              await Future.delayed(const Duration(seconds: 1));
-            } else {
-              print('Wikipedia checkbox not found');
-            }
-
-            // Screenshot 4: Sites selected
-            await _takeThemedScreenshots(binding,
-                tester: tester,
-                baseName: '04-workspace-sites-selected',
-                currentTheme: currentTheme);
-            await Future.delayed(const Duration(seconds: 1));
-
-            // Look for save button (check icon in AppBar)
-            print('Looking for save button...');
-            Finder? saveButton = find.byIcon(Icons.check);
-
-            // Fallback to text-based save buttons
-            if (saveButton.evaluate().isEmpty) {
-              saveButton = find.text('Save');
-            }
-            if (saveButton.evaluate().isEmpty) {
-              saveButton = find.text('Create');
-            }
-            if (saveButton.evaluate().isEmpty) {
-              saveButton = find.text('Done');
-            }
-
-            if (saveButton.evaluate().isNotEmpty) {
-              print('Found save button (check icon), tapping...');
-              await tester.tap(saveButton);
-              await tester.pump();
-              await Future.delayed(const Duration(seconds: 2));
-            } else {
-              print('Could not find save button');
-            }
-          } else {
-            print('Could not find name field');
-          }
-        } else {
-          print('Could not find add workspace button');
-        }
-
-        print('========================================');
-        print('Screenshot tour completed ($theme theme)');
-        print('========================================');
+        await walkLibraryTour(
+          tester,
+          host: (
+            settle: () => wait(const Duration(seconds: 2)),
+            pageLoad: () => wait(_WEBVIEW_LOAD_TIMEOUT),
+            shoot: (name) => _takeThemedScreenshots(binding,
+                tester: tester, baseName: name, currentTheme: theme),
+          ),
+        );
       });
     }
   });
-}
-
-/// Open the navigation drawer
-Future<void> _openDrawer(WidgetTester tester) async {
-  print('Opening drawer programmatically...');
-
-  try {
-    bool drawerOpened = false;
-
-    // Approach 1: Try swipe gesture from left edge (works well on iOS)
-    print('Trying swipe gesture to open drawer...');
-    final screenSize = tester.view.physicalSize / tester.view.devicePixelRatio;
-    await tester.dragFrom(
-      Offset(0, screenSize.height / 2),
-      Offset(screenSize.width * 0.5, 0),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    drawerOpened = find.byType(Drawer).evaluate().isNotEmpty;
-    print('Drawer opened via swipe: $drawerOpened');
-
-    // Approach 2: Try tapping the menu icon
-    if (!drawerOpened) {
-      final menuIcon = find.byIcon(Icons.menu);
-      if (menuIcon.evaluate().isNotEmpty) {
-        print('Found menu icon, tapping...');
-        await tester.tap(menuIcon);
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 300));
-        drawerOpened = find.byType(Drawer).evaluate().isNotEmpty;
-        print('Drawer opened via menu icon: $drawerOpened');
-      } else {
-        print('Menu icon not found');
-      }
-    }
-
-    // Approach 3: Try any IconButton in the leading position of AppBar
-    if (!drawerOpened) {
-      print('Trying to find leading IconButton in AppBar...');
-      final appBar = find.byType(AppBar);
-      if (appBar.evaluate().isNotEmpty) {
-        final iconButtons = find.descendant(
-          of: appBar,
-          matching: find.byType(IconButton),
-        );
-        if (iconButtons.evaluate().isNotEmpty) {
-          print('Found ${iconButtons.evaluate().length} IconButton(s) in AppBar, tapping first...');
-          await tester.tap(iconButtons.first);
-          await tester.pump();
-          await tester.pump(const Duration(milliseconds: 300));
-          drawerOpened = find.byType(Drawer).evaluate().isNotEmpty;
-          print('Drawer opened via AppBar IconButton: $drawerOpened');
-        }
-      }
-    }
-
-    // Approach 4: Try opening drawer via ScaffoldState
-    if (!drawerOpened) {
-      print('Previous approaches failed, trying ScaffoldState...');
-      final scaffoldFinder = find.byType(Scaffold);
-      final scaffolds = scaffoldFinder.evaluate();
-      print('Found ${scaffolds.length} Scaffold(s)');
-
-      for (int i = 0; i < scaffolds.length && !drawerOpened; i++) {
-        try {
-          final scaffoldElement = scaffolds.elementAt(i);
-          final scaffoldWidget = scaffoldElement.widget as Scaffold;
-          print('Scaffold $i drawer property: ${scaffoldWidget.drawer != null}');
-
-          final ScaffoldState scaffoldState = tester.state(find.byWidget(scaffoldWidget));
-          print('Scaffold $i hasDrawer: ${scaffoldState.hasDrawer}');
-
-          if (scaffoldState.hasDrawer) {
-            print('Scaffold $i has drawer via state, attempting to open...');
-            scaffoldState.openDrawer();
-            await tester.pump();
-            await tester.pump(const Duration(milliseconds: 300));
-            drawerOpened = find.byType(Drawer).evaluate().isNotEmpty;
-            print('Drawer opened via Scaffold $i: $drawerOpened');
-          }
-        } on StateError catch (e) {
-          print('Failed to open drawer via Scaffold $i: $e');
-        }
-      }
-    }
-
-    // Give drawer animation time to complete
-    await Future.delayed(const Duration(seconds: 2));
-    await tester.pump();
-
-    // Final verification
-    final drawerVisible = find.byType(Drawer).evaluate().isNotEmpty;
-    print('Drawer opened: $drawerVisible');
-
-    await Future.delayed(const Duration(seconds: 2));
-  } on StateError catch (e) {
-    print('Error opening drawer: $e');
-  }
-}
-
-/// Close the navigation drawer by tapping outside of it
-Future<void> _closeDrawerByTappingOutside(WidgetTester tester) async {
-  print('Closing drawer by tapping outside...');
-  final screenSize = tester.view.physicalSize / tester.view.devicePixelRatio;
-  // Tap on the right side of the screen (outside the drawer)
-  await tester.tapAt(Offset(screenSize.width * 0.9, screenSize.height / 2));
-  await tester.pump();
-  await Future.delayed(const Duration(milliseconds: 500));
-  await tester.pump();
-}
-
-/// Close the navigation drawer
-Future<void> _closeDrawer(WidgetTester tester) async {
-  print('Closing drawer...');
-
-  try {
-    // Look for "Back to Webspaces" button
-    final backButtonFinder = find.text('Back to Webspaces');
-
-    if (backButtonFinder.evaluate().isNotEmpty) {
-      await tester.tap(backButtonFinder);
-    } else {
-      // Fallback: Find the scaffold with an open drawer and close it
-      print('Back to Webspaces button not found, closing programmatically');
-      final scaffoldFinder = find.byType(Scaffold);
-      final scaffolds = scaffoldFinder.evaluate();
-
-      for (int i = 0; i < scaffolds.length; i++) {
-        try {
-          final scaffoldElement = scaffolds.elementAt(i);
-          final scaffoldWidget = scaffoldElement.widget as Scaffold;
-
-          if (scaffoldWidget.drawer != null) {
-            final ScaffoldState scaffoldState = tester.state(find.byWidget(scaffoldWidget));
-            if (scaffoldState.isDrawerOpen) {
-              Navigator.of(scaffoldState.context).pop();
-              break;
-            }
-          }
-        } on StateError catch (e) {
-          print('Failed to close drawer via Scaffold $i: $e');
-        } on FlutterError catch (e) {
-          print('Failed to close drawer via Scaffold $i: $e');
-        }
-      }
-    }
-
-    // Use pump() instead of pumpAndSettle to avoid webview timeout
-    await tester.pump();
-    await Future.delayed(const Duration(seconds: 2));
-    await tester.pump();
-
-    print('Drawer closed');
-  } on StateError catch (e) {
-    print('Error closing drawer: $e');
-  }
-}
-
-/// Debug helper to print visible widgets
-void _debugPrintWidgets(WidgetTester tester) {
-  // Check for common widgets
-  print('--- Widget Debug Info ---');
-  print('AppBar found: ${find.byType(AppBar).evaluate().isNotEmpty}');
-  print('Scaffold found: ${find.byType(Scaffold).evaluate().isNotEmpty}');
-  print('Drawer found: ${find.byType(Drawer).evaluate().isNotEmpty}');
-  print('IconButton count: ${find.byType(IconButton).evaluate().length}');
-  print('Menu icon found: ${find.byIcon(Icons.menu).evaluate().isNotEmpty}');
-
-  // Try to find any text widgets
-  final textWidgets = find.byType(Text);
-  print('Text widgets found: ${textWidgets.evaluate().length}');
-  if (textWidgets.evaluate().length <= 10) {
-    for (final element in textWidgets.evaluate()) {
-      final widget = element.widget as Text;
-      if (widget.data != null) {
-        print('  Text: "${widget.data}"');
-      }
-    }
-  }
-  print('--- End Debug Info ---');
 }
