@@ -1770,38 +1770,23 @@ class WebViewFactory {
               errorType: error.type.toValue()));
           return;
         }
-        if (ExternalUrlSuppressor.isSuppressedInfo(externalInfo)) {
-          if (!hostIsAndroid) {
-            // WebKit reports a policy-cancelled external-scheme nav as
-            // error 102 (frame load interrupted) but keeps the committed
-            // page painted — loading about:blank here would wipe the page
-            // the user is looking at (and clobber a silent-route load the
-            // shouldOverrideUrlLoading path just issued). Only Android
-            // paints chrome-error:// over the page and needs the clear.
+        switch (routeExternalFailure(externalInfo, paintsErrorPage: hostIsAndroid)) {
+          case ExternalFailureKept():
             LogTag.webView.debug(
                 'onReceivedError: suppressed — committed page intact, no-op (url=$reqUrl)',
                 sensitive: true);
-            return;
-          }
-          LogTag.webView.debug(
-              'onReceivedError: suppressed — loading about:blank to clear error commit (url=$reqUrl)',
-              sensitive: true);
-          // The fallback page actually loaded (HtmlCache shows
-          // multi-MB saves); Android then painted chrome-error://
-          // chromewebdata over it because the page's JS retried the
-          // intent we cancelled. about:blank clears the error visibly
-          // without walking back through history (controller.goBack
-          // dropped users out of the webview entirely). The
-          // suppression already prevents another dialog if the page
-          // tries again.
-          unawaited(Future.microtask(() async {
-            await view?.loadUrl('about:blank');
-          }));
-          return;
-        }
-        switch (routeExternal(externalInfo,
-            hasGesture: false, frame: NavigationFrame.top)) {
-          case ExternalRouted(url: final resolved):
+          case ExternalFailureCleared():
+            // The page's JS retried the intent we cancelled and Android
+            // painted chrome-error://chromewebdata over the loaded page.
+            // about:blank clears it without walking back through history
+            // (controller.goBack dropped users out of the webview entirely).
+            LogTag.webView.debug(
+                'onReceivedError: suppressed — loading about:blank to clear error commit (url=$reqUrl)',
+                sensitive: true);
+            unawaited(Future.microtask(() async {
+              await view?.loadUrl('about:blank');
+            }));
+          case ExternalFailureRouted(route: ExternalRouted(url: final resolved)):
             LogTag.webView.debug(
                 'onReceivedError: external scheme resolved → $resolved (from $reqUrl)',
                 sensitive: true);
@@ -1814,11 +1799,11 @@ class WebViewFactory {
                   true;
               await view?.loadUrl(allow ? resolved : 'about:blank');
             }));
-          // Not suppressed: the check above returned for that.
-          case ExternalDropped():
+          // A top-frame route that was not fired moments ago is never dropped.
+          case ExternalFailureRouted(route: ExternalDropped()):
             break;
           // No web equivalent: the user can still choose to launch the app.
-          case ExternalAsk():
+          case ExternalFailureRouted(route: ExternalAsk()):
             LogTag.webView.debug(
                 'onReceivedError: type=${error.type} url=$reqUrl '
                 '— routing to external-scheme dialog',
