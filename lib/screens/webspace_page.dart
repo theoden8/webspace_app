@@ -461,22 +461,14 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Mask any visible archive content the moment focus leaves the app
-    // (well before `paused`) so the OS snapshot for the task switcher
-    // / recents preview never captures an archive-tier site. False
-    // positives (popup dialog, app-switcher peek) cost a brief visual
-    // overlay flash, not data — acceptable trade for the snapshot
-    // guarantee. Armed only while an archive is open (ARCH-009).
-    if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused ||
-        state == AppLifecycleState.hidden) {
-      if (_archives.anyOpen && !_maskBackground) {
-        setState(() => _maskBackground = true);
-      }
-    }
-    if (state == AppLifecycleState.resumed && _maskBackground) {
-      setState(() => _maskBackground = false);
-    }
+    // A popup or an app-switcher peek also masks for a moment: a flash,
+    // not data, for the snapshot guarantee.
+    final masked = AppLifecycleEngine.snapshotMasked(
+      state,
+      masked: _maskBackground,
+      archivesOpen: _archives.anyOpen,
+    );
+    if (masked != _maskBackground) setState(() => _maskBackground = masked);
     _lifecycle.changed(state);
   }
 

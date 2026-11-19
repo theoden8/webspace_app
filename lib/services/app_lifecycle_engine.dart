@@ -63,6 +63,24 @@ class AppLifecycleEngine {
   static bool memoryPressureTrims(AppLifecycleState? state) =>
       state == AppLifecycleState.resumed;
 
+  /// Whether the page is masked once [state] lands, so the OS snapshot for
+  /// the task switcher never captures an archive's site (ARCH-009). Focus
+  /// leaving the app (`inactive`, well before `paused`) arms it while an
+  /// archive is open; it stays through `paused` and `hidden`, an archive
+  /// closed meanwhile included, and only the return clears it. `detached`
+  /// changes nothing: no frame follows it.
+  static bool snapshotMasked(
+    AppLifecycleState state, {
+    required bool masked,
+    required bool archivesOpen,
+  }) => switch (state) {
+    AppLifecycleState.inactive ||
+    AppLifecycleState.paused ||
+    AppLifecycleState.hidden => masked || archivesOpen,
+    AppLifecycleState.resumed => false,
+    AppLifecycleState.detached => masked,
+  };
+
   /// Whether an Android refresh tick finds the app on screen, where it reloads
   /// around the site the user sees instead of running a wake (NOTIF-006).
   /// `inactive` is on screen: it is the step between `resumed` and `hidden`
