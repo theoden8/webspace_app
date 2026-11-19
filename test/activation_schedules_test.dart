@@ -721,6 +721,16 @@ const _rerouteAlphabet = <SiteAction>[
 
 const _rerouteLength = 2;
 
+/// A reroute that moves site 1's link tab to site 3 and back, against the
+/// lists moving under the views it lets go of and builds again (DNS-022).
+const _dnsRerouteAlphabet = <SiteAction>[
+  Reroute(),
+  OwnerRun(0),
+  DnsDownload(0),
+  DnsAddLevel(1),
+  Tap(1),
+];
+
 /// Site 1 with its link tab, on screen or loaded behind, under one
 /// process-wide proxy, where a child tab joins its tree (TAB-006): one
 /// running as site 2, or a link tab into site 3's domain, switched to or
@@ -1186,6 +1196,25 @@ void main() {
         await _expectEvery(
           world: () => ActivationWorld(_mixedContainers, dns: _dnsSites),
           setup: _oneSignedIn,
+          script: script,
+          preemptions: _preemptions,
+        );
+      }
+    }
+  });
+
+  _scheduleTest('reroute and owner-run (LIR-018, DNS-022), containers, a DNS '
+      'download landing beside a rehost: every schedule holds', body: () async {
+    for (var length = 1; length <= _rerouteLength; length++) {
+      for (final script in _scripts(length, alphabet: _dnsRerouteAlphabet)) {
+        await _expectEvery(
+          world: () => ActivationWorld(
+            _mixedContainers,
+            proxies: _proxied['mismatched proxies'],
+            rehosts: true,
+            dns: _dnsSites,
+          ),
+          setup: _rerouteSetups['site 1 on its link tab']!,
           script: script,
           preemptions: _preemptions,
         );
