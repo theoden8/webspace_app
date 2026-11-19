@@ -64,7 +64,6 @@ ICON-005	no check: no test renders an SVG with @media (prefers-color-scheme: dar
 INC-007	no check: no test checks an incognito site keeps its URL and storage across a webspace switch or background-resume (partly: test/app_lifecycle_engine_test.dart, "URL-ephemeral active site is paused+captured, never reset")
 # integration-tests
 INTEG-001	no check: pass-secret-service is set up by a CI workflow step; no test or gate asserts the collection is unlocked or that no 'Failed to unlock the keyring' line is logged, and the integration tests fall back to an in-memory keychain when the real one throws (installInMemoryKeychainIfUnavailable)
-INTEG-002	no check: CI container choice in .github/workflows/build-and-test.yml; no gate reads the workflow for debian:sid-slim or the WPE >= 2.50 headers (only the Linux build failing would show it)
 INTEG-003	process: a test-authoring convention (mock plugin dialogs at the platform-interface level); nothing in the app to run against
 INTEG-004	process: a test-harness convention (set isDemoMode and mock SharedPreferences in setUpAll); the demo-mode guard it relies on is tested separately (partly: test/app_prefs_test.dart, "demo mode applies a pref without persisting it")
 INTEG-005	process: a test-writing pattern (re-open App Settings between pop-then-callback taps); no app behaviour to check

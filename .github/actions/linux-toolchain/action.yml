@@ -48,7 +48,11 @@ runs:
           libcairo2-dev python3-dev libgirepository-2.0-dev \
           nftables iproute2
         rm -rf /var/lib/apt/lists/*
-        pkg-config --modversion wpe-webkit-2.0 || echo "wpe-webkit-2.0 NOT FOUND"
+        # The plugin needs symbols WPE WebKit 2.50 introduced (INTEG-002):
+        # an older one is a broken build, so the step says so here.
+        wpe="$(pkg-config --modversion wpe-webkit-2.0)"
+        dpkg --compare-versions "$wpe" ge 2.50.0 ||
+          { echo "::error::wpe-webkit-2.0 $wpe is older than 2.50.0"; exit 1; }
         pkg-config --modversion wpe-platform-2.0 || echo "wpe-platform-2.0 NOT FOUND"
 
     - name: Install pass-secret-service
