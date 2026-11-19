@@ -285,7 +285,7 @@ final class Login extends SiteAction {
 /// What the platform fails at once a setup step says so: a read, a write
 /// or the clear of the shared jar (ISO-014), the process-wide proxy rule
 /// (PROXY-008), the network (WEBSPACE-013).
-enum Fault { jarRead, jarWrite, jarClear, proxy, network }
+enum Fault { jarRead, jarWrite, jarClear, proxy, network, headlessClose }
 
 /// From here on the platform fails at [fault]: a setup step, before the
 /// script the trace records, whose world then lets the model's step fail
@@ -1959,9 +1959,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       ModelConst.linked => set(nestedOpens ? every : const <int>[]),
       ModelConst.proxyRefused => _faults.contains(Fault.proxy) ? 'TRUE' : null,
       ModelConst.jarRefuses => _jarFails ? 'TRUE' : null,
-      // The walks' host disposes every check: the refusal is the engine
-      // test's (NOTIF-021).
-      ModelConst.headlessCloseRefuses => null,
+      ModelConst.headlessCloseRefuses =>
+        _faults.contains(Fault.headlessClose) ? 'TRUE' : null,
       ModelConst.headlessOpenRefuses => null,
       ModelConst.notified => set(wakes ? every : const <int>[]),
       ModelConst.waking => '$wakes'.toUpperCase(),
@@ -2392,7 +2391,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   bool get _jarFails => _faults.any(
     (f) => switch (f) {
       Fault.jarRead || Fault.jarWrite || Fault.jarClear => true,
-      Fault.proxy || Fault.network => false,
+      Fault.proxy || Fault.network || Fault.headlessClose => false,
     },
   );
 
@@ -2790,7 +2789,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           Fault.jarRead => JarCall.read,
           Fault.jarWrite => JarCall.write,
           Fault.jarClear => JarCall.clear,
-          Fault.proxy || Fault.network => null,
+          Fault.proxy || Fault.network || Fault.headlessClose => null,
         } case final call?) {
           jar.failing.add(call);
         }
@@ -3544,6 +3543,9 @@ final class _WalkWake implements BackgroundWakeHost<SiteId> {
     close: () async {
       _checkGone(siteId);
       await world.gate.pace(PlatformCall.headlessClose);
+      if (world._faults.contains(Fault.headlessClose)) {
+        throw const HeadlessCloseFailure('the walk refuses every dispose');
+      }
     },
   );
 

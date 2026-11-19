@@ -513,6 +513,16 @@ final _failing =
         setup: const [Fails(Fault.proxy)],
         script: const [Background(), Wake()],
       ),
+      'a wake whose check the platform will not dispose goes on to the rest '
+          '(NOTIF-021)': (
+        world: () => ActivationWorld(
+          _launches['mixed, containers, from launch']!.page,
+          launch: _launches['mixed, containers, from launch']!.launch,
+          wakes: true,
+        ),
+        setup: const [Fails(Fault.headlessClose)],
+        script: const [Background(), Wake()],
+      ),
       'a webspace switch offline unloads nothing (WEBSPACE-013)': (
         world: () => ActivationWorld(_mixed, spaces: _spaces),
         setup: [
@@ -1474,6 +1484,24 @@ void main() {
       }
     });
   }
+
+  // With no site contending for a process-wide route, a reroute moves no
+  // rule, so it rebinds the slot in place (LIR-024).
+  _scheduleTest(
+      'reroute with no proxies (LIR-024), containers, site 1 on its link '
+      'tab: every schedule holds',
+      body: () async {
+    for (var length = 1; length <= _rerouteLength; length++) {
+      for (final script in _scripts(length, alphabet: _rerouteAlphabet)) {
+        await _expectEvery(
+          world: () => ActivationWorld(_mixedContainers, rehosts: true),
+          setup: _rerouteSetups['site 1 on its link tab']!,
+          script: script,
+          preemptions: _preemptions,
+        );
+      }
+    }
+  });
 
   for (final MapEntry(key: setupName, value: setup)
       in _childSetups.entries) {
