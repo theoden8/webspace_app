@@ -48,7 +48,7 @@ void main() {
   tearDown(() {
     resetOutboundHttp();
     GlobalOutboundProxy.resetForTest();
-    dir.deleteSync(recursive: true);
+    _deleteWhileCacheWrites(dir);
   });
 
   Future<void> loadMap(WidgetTester tester) async {
@@ -82,4 +82,23 @@ void main() {
     expect(find.text(en.locationPickerTilesBlocked), findsOneWidget);
     expect(outbound.requested, isEmpty);
   });
+}
+
+/// Deletes [dir] while flutter_map's cache worker may still be writing the
+/// tiles a test fetched into it: the worker is an isolate of its own, so it
+/// drains its queue while this one sleeps, and a delete that met a file it
+/// wrote mid-walk ("Directory not empty") goes again. Its own `destroy()`
+/// cannot be awaited here: the worker reports its exit through a port the
+/// test's fake-time zone opened.
+void _deleteWhileCacheWrites(Directory dir) {
+  final notEmpty = Platform.isMacOS ? 66 : 39; // ENOTEMPTY
+  for (var attempt = 0;; attempt++) {
+    try {
+      dir.deleteSync(recursive: true);
+      return;
+    } on FileSystemException catch (e) {
+      if (e.osError?.errorCode != notEmpty || attempt >= 50) rethrow;
+      sleep(const Duration(milliseconds: 20));
+    }
+  }
 }
