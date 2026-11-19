@@ -370,6 +370,32 @@ void main() {
       expect(tester.getRect(_ring), below.rect);
     });
 
+    /// The ring once hugged the EditableText's box, which starts at the first
+    /// glyph, so its border painted over the first letter of the text.
+    testWidgets('no outline over a text field, whose border and caret show '
+        'its focus (NAV-022)', (tester) async {
+      await tester.pumpWidget(_app(
+        Column(children: [
+          TextField(
+            focusNode: field,
+            decoration: const InputDecoration(border: OutlineInputBorder()),
+          ),
+          TextButton(focusNode: below, onPressed: () {}, child: const Text('go')),
+        ]),
+        keys: _Keys.desktop,
+      ));
+      below.requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pump();
+      await tester.pump();
+
+      expect(field.hasPrimaryFocus, isTrue);
+      expect(FocusManager.instance.highlightMode,
+          FocusHighlightMode.traditional);
+      expect(_ring, findsNothing);
+    });
+
     testWidgets('the keyboard comes up in a field and Enter is the field\'s '
         '(NAV-022)', (tester) async {
       final submitted = <String>[];

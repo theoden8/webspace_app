@@ -871,7 +871,8 @@ opens, a site's settings, the library, dialogs, sheets and menus.
 - A disabled control SHALL take focus, so the keys can rest on a locked row and its reason.
 - An outline SHALL mark whatever has focus once a key moved it, drawn inside the control,
   and none while the mouse drives the app. A site's page and what outlines itself (a
-  launcher icon, a tab strip chip) get no second outline.
+  launcher icon, a tab strip chip, a text field, whose border and caret show its focus)
+  get no second outline.
 - The on-screen keyboard is not held back and Enter in a field is the field's: a desktop
   types with its own keys.
 

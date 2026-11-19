@@ -262,7 +262,9 @@ class _FocusRingState extends State<_FocusRing> {
     if (node is FocusScopeNode || focused == null || !focused.mounted) {
       return null;
     }
-    if (OwnFocusOutline.covers(focused)) return null;
+    if (OwnFocusOutline.covers(focused) || _focusedField() != null) {
+      return null;
+    }
     final target = focused.findRenderObject();
     final stack = context.findAncestorRenderObjectOfType<RenderStack>();
     if (target is! RenderBox ||
