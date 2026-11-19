@@ -15,13 +15,14 @@ Allow users to add a site by importing a local HTML file (.html/.htm) from their
 
 ### Requirement: IMPORT-001 - Import Button on Add Site Screen
 
-An "Import HTML file" button SHALL be shown on the "Add new site" screen.
+An "Import File" button SHALL be shown on the "Add new site" screen.
 
 #### Scenario: Button visibility
 
 **Given** the user opens the "Add new site" screen
 **When** the screen is displayed
-**Then** an "Import HTML file" button is visible below the "Add Site" button
+**Then** an "Import File" button is visible beside the "Add Site" button
+**And** `test/add_site_import_test.dart` holds it
 
 ---
 
@@ -31,15 +32,17 @@ Users SHALL be able to pick an HTML file via the system file picker.
 
 #### Scenario: Supported file types
 
-**Given** the user taps the "Import HTML file" button
+**Given** the user taps the "Import File" button
 **When** the file picker opens
 **Then** it filters for `.html` and `.htm` files
+**And** `test/add_site_import_test.dart` holds it
 
 #### Scenario: User cancels file picker
 
 **Given** the file picker is open
 **When** the user cancels without selecting a file
 **Then** nothing happens and the "Add new site" screen remains
+**And** `test/add_site_import_test.dart` holds it
 
 ---
 
@@ -220,7 +223,7 @@ No new data models. Imported HTML sites use the existing `WebViewModel` with:
 - `lib/services/html_import_storage.dart` - Persistent AES-256-GCM store (fresh nonce per write, `nonce || ciphertext || tag`) for user-imported HTML, separate from the cache so imports survive app upgrades. Pre-GCM AES-CBC blobs are still readable and are rewritten under GCM on first successful read, because an import is the user's only copy of that data
 
 ### Modified
-- `lib/screens/add_site.dart` - Added `_importHtmlFile()` method and "Import HTML file" button
+- `lib/screens/add_site.dart` - Added `_importHtmlFile()` method and "Import File" button
 - `lib/main.dart` - Updated `SiteEditingController.addSite()` to handle `htmlContent` in result and save to `HtmlImportStorage`; init/preload of the import store, then `retireSnapshotCache`; orphan-cleanup and per-site delete touch the store; the webview's `initialHtml` reads from `HtmlImportStorage` for `file://` sites
 - `lib/utils/url_utils.dart` - Added `migrateLegacyFileImportUrl` for legacy two-slash imports
 - `lib/web_view_model.dart` - Applies migration in `WebViewModel.fromJson` for `initUrl`/`currentUrl`
@@ -237,7 +240,7 @@ No new data models. Imported HTML sites use the existing `WebViewModel` with:
 ### Test: Import an HTML file
 1. Save a simple HTML file on the device (e.g., `test-page.html`)
 2. Open the app, tap "+" to add a site
-3. Tap "Import HTML file"
+3. Tap "Import File"
 4. Select the HTML file
 5. **Expected**: Site is added with name "test-page", content renders in webview
 
@@ -255,7 +258,7 @@ No new data models. Imported HTML sites use the existing `WebViewModel` with:
    and incognito doesn't retroactively unpersist it
 
 ### Test: Cancel file picker
-1. Tap "Import HTML file"
+1. Tap "Import File"
 2. Cancel the file picker
 3. **Expected**: Nothing happens, Add Site screen remains
 
