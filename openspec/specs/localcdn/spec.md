@@ -181,18 +181,21 @@ App Settings SHALL display LocalCDN with a download/update button, cache statist
 - **Given** the user opens app settings
 - **When** the user taps the download button
 - **Then** popular resources are downloaded with a progress indicator
+- **And** `test/localcdn_settings_row_test.dart` holds it
 
 #### Scenario: Cache statistics display
 
 - **Given** resources have been downloaded
 - **When** the Privacy section is displayed
 - **Then** the LocalCDN entry shows resource count, cache size, and last updated timestamp
+- **And** `test/localcdn_settings_row_test.dart` holds it
 
 #### Scenario: Clear cache
 
 - **Given** the user taps the clear cache button
 - **When** the cache is cleared
 - **Then** all cached resources are deleted and the count resets to 0
+- **And** `test/localcdn_settings_row_test.dart` holds it
 
 ### Requirement: LCDN-010 - Backward Compatibility
 

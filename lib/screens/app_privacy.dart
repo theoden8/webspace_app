@@ -137,13 +137,7 @@ class _AppPrivacyScreenState extends State<AppPrivacyScreen>
                 none: loc.appSettingsNotConfigured),
             control: Opens(() => guardedOpen(_openContentBlocker)),
           ),
-          if (LocalCdnService.offered)
-            DatasetTile(
-              create: LocalCdnDataset.new,
-              icon: Icons.storage,
-              title: loc.appSettingsLocalCdn,
-              hint: loc.appSettingsLocalCdnHint,
-            ),
+          if (LocalCdnService.offered) const LocalCdnTile(),
           SettingsSection(loc.appSettingsGroupWhatSitesLearn),
           DatasetTile(
             create: FirefoxVersionDataset.new,
@@ -218,6 +212,23 @@ class _AppPrivacyScreenState extends State<AppPrivacyScreen>
           const SizedBox(height: 24),
         ],
       ),
+    );
+  }
+}
+
+/// The app-wide LocalCDN row: what is cached, its size and date, with
+/// download and clear (LCDN-009).
+class LocalCdnTile extends StatelessWidget {
+  const LocalCdnTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    return DatasetTile(
+      create: LocalCdnDataset.new,
+      icon: Icons.storage,
+      title: loc.appSettingsLocalCdn,
+      hint: loc.appSettingsLocalCdnHint,
     );
   }
 }
