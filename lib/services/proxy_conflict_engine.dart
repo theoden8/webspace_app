@@ -1,3 +1,4 @@
+// ignore: webspace_lints/engine_impure
 import 'package:webspace/services/outbound_http_types.dart'
     show OutboundProxy, resolveEffectiveProxy;
 import 'package:webspace/settings/proxy.dart';

@@ -3,6 +3,7 @@ import 'package:analyzer/analysis_rule/rule_context.dart';
 import 'package:analyzer/analysis_rule/rule_visitor_registry.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
+import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/error/error.dart';
 
 /// The layers of `lib/`, lowest first (CLAUDE.md, Coding principles, rule 4).
@@ -77,6 +78,15 @@ class LayerImport extends MultiAnalysisRule {
     severity: DiagnosticSeverity.ERROR,
   );
 
+  static const engineImpure = LintCode(
+    'engine_impure',
+    "'{0}' is Flutter or I/O; an engine decides and is pure (CLAUDE.md rule 4).",
+    correctionMessage:
+        'Take what the engine needs through an interface its caller '
+        'implements, and test it with a fake that models it.',
+    severity: DiagnosticSeverity.ERROR,
+  );
+
   LayerImport()
     : super(
         name: 'layer_import',
@@ -88,6 +98,7 @@ class LayerImport extends MultiAnalysisRule {
     upward,
     unplaced,
     platformWebview,
+    engineImpure,
   ];
 
   @override
@@ -154,6 +165,32 @@ class _Visitor extends SimpleAstVisitor<void> {
         );
       }
     }
+    if (path.endsWith('_engine.dart')) {
+      var direct = false;
+      for (final uri in [node.uri, for (final c in node.configurations) c.uri]) {
+        if (_impure(uri.stringValue) case final what?) {
+          direct = true;
+          rule.reportAtNode(
+            uri,
+            diagnosticCode: LayerImport.engineImpure,
+            arguments: [what],
+          );
+        }
+      }
+      final target = switch (node) {
+        ImportDirective(:final libraryImport) => libraryImport?.importedLibrary,
+        ExportDirective(:final libraryExport) => libraryExport?.exportedLibrary,
+      };
+      if (!direct && target != null) {
+        if (_through(target) case (:final what, :final via)?) {
+          rule.reportAtNode(
+            node.uri,
+            diagnosticCode: LayerImport.engineImpure,
+            arguments: ['$what, through $via,'],
+          );
+        }
+      }
+    }
     final from = layer;
     if (from == null) return;
     for (final uri in [node.uri, for (final c in node.configurations) c.uri]) {
@@ -179,6 +216,50 @@ class _Visitor extends SimpleAstVisitor<void> {
     if (resolved.scheme != 'package') return null;
     return switch (resolved.pathSegments) {
       [final p, ...] when p.startsWith('flutter_inappwebview_') => p,
+      _ => null,
+    };
+  }
+
+  final Map<Uri, ({String what, String via})?> _reached = {};
+
+  /// The first library of this package that [library] is or imports, by
+  /// any path inside the package, which imports Flutter or `dart:io`
+  /// itself; null when none does.
+  ({String what, String via})? _through(LibraryElement library) {
+    final uri = library.uri;
+    if (uri.scheme != 'package' || uri.pathSegments.first != package) {
+      return null;
+    }
+    if (_reached.containsKey(uri)) return _reached[uri];
+    _reached[uri] = null;
+    final rest = uri.pathSegments.skip(1).join('/');
+    final next = <LibraryElement>[];
+    for (final fragment in library.fragments) {
+      for (final imported in [
+        for (final i in fragment.libraryImports) i.importedLibrary,
+        for (final e in fragment.libraryExports) e.exportedLibrary,
+      ]) {
+        if (imported == null) continue;
+        if (_impure(imported.uri.toString()) case final what?) {
+          return _reached[uri] = (what: what, via: rest);
+        }
+        next.add(imported);
+      }
+    }
+    for (final imported in next) {
+      if (_through(imported) case final found?) return _reached[uri] = found;
+    }
+    return null;
+  }
+
+  /// What [uri] names when an engine may not import it: Flutter's
+  /// framework or `dart:io`. `dart:ui`'s plain types stay allowed.
+  String? _impure(String? uri) {
+    if (uri == null) return null;
+    final resolved = library.resolve(uri);
+    return switch ((resolved.scheme, resolved.pathSegments)) {
+      ('dart', ['io', ...]) => 'dart:io',
+      ('package', ['flutter', ...]) => 'package:flutter',
       _ => null,
     };
   }

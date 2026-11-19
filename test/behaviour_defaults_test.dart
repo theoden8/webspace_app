@@ -145,10 +145,10 @@ void main() {
     await AppPref.routeOutboundLinks.set(false);
     await writeExportedAppPrefs(prefs, values: exported);
     expect(AppPref.tabsEnabled.load(prefs), isFalse);
-    expect(ExternalLinkMode.appDefault, ExternalLinkMode.browser);
+    expect(appExternalLinkMode, ExternalLinkMode.browser);
     expect(AppPref.routeOutboundLinks.value, isTrue);
     await AppPref.externalLinkMode.set('unrecognized');
-    expect(ExternalLinkMode.appDefault, ExternalLinkMode.inApp);
+    expect(appExternalLinkMode, ExternalLinkMode.inApp);
   });
 
   testWidgets('app behaviour edits persisted defaults and updates live sites', (

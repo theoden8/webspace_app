@@ -13,6 +13,7 @@
 library;
 
 import 'package:webspace/services/site_origins.dart';
+// ignore: webspace_lints/engine_impure
 import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/origin_choices.dart';

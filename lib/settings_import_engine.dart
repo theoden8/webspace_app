@@ -11,21 +11,27 @@ library;
 
 import 'dart:convert';
 
+// ignore: webspace_lints/engine_impure
 import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart'
     show kDnsLevelOff, kDnsMaxLevel;
 import 'package:webspace/services/outbound_preference.dart';
+// ignore: webspace_lints/engine_impure
 import 'package:webspace/services/settings_backup.dart';
+// ignore: webspace_lints/engine_impure
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/origin_choices.dart';
 import 'package:webspace/settings/proxy.dart';
+// ignore: webspace_lints/engine_impure
 import 'package:webspace/services/proxy_library.dart'
     show ProxyLibraryData, resolveLibrary;
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/settings/web_extension.dart';
 import 'package:webspace/settings/web_extension_backup.dart';
+// ignore: webspace_lints/engine_impure
 import 'package:webspace/web_view_model.dart';
+// ignore: webspace_lints/engine_impure
 import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/settings/site_field.dart';

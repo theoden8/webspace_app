@@ -47,6 +47,38 @@ const LEFT = {
       + 'this line is the only record a refresh failed. Lifted when each wake '
       + 'step owns its failures.',
   },
+  engine_impure: {
+    'lib/services/container_isolation_engine.dart': {
+      sites: 2,
+      why: 'reaches Flutter through ContainerNative (a MethodChannel) and '
+        + 'LogService. Lifted when both reach it through interfaces its '
+        + 'caller implements.',
+    },
+    'lib/services/download_engine.dart':
+      'reaches Flutter through outbound_http.dart. Lifted when the engine '
+      + 'takes the client factory as an interface.',
+    'lib/services/media_grant_engine.dart':
+      'reaches Flutter through EgressRelay (a MethodChannel). Lifted when '
+      + 'the relay state reaches it as a value.',
+    'lib/services/proxy_conflict_engine.dart':
+      'reaches Flutter through EgressRelay, as above.',
+    'lib/services/proxy_router_engine.dart':
+      'reaches Flutter through EgressRelay, as above.',
+    'lib/services/site_unload_engine.dart': {
+      sites: 6,
+      why: 'reaches Flutter through Keystores, CookieManager, LogService, '
+        + 'outbound_http.dart and EgressRelay. Lifted as each reaches it '
+        + 'through the interfaces EngineSite and the unload host already '
+        + 'name.',
+    },
+    'lib/settings_import_engine.dart': {
+      sites: 6,
+      why: 'reaches Flutter through Keystores, SettingsBackup, AppPref, '
+        + 'LogService, WebViewModel and SiteSearchListService: it plans an '
+        + 'import over the whole app. Lifted when the plan takes values the '
+        + 'controller reads for it.',
+    },
+  },
   raw_http_client: {
     'lib/design_gallery/roboto.dart':
       'the design builds fetch their own bundled Roboto by a URL relative to '

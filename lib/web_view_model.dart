@@ -709,7 +709,7 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
   /// in-app there. Blocking crosses nothing and stays in force.
   ExternalLinkMode get effectiveExternalLinkMode =>
       ArchiveFold.externalLinks(
-          Scoped.fromStored(externalLinkMode).resolve(ExternalLinkMode.appDefault),
+          Scoped.fromStored(externalLinkMode).resolve(appExternalLinkMode),
           archived: isArchiveTier);
 
   /// Whether the site's sign-ins open as popups, or as a tab of the site for
