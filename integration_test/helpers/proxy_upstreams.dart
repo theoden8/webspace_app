@@ -32,8 +32,10 @@ class RecordingUpstream {
   /// navigation carries.
   final List<String> navigations = [];
 
-  /// Each request line with when it arrived, a navigation marked, for a
-  /// failure's timeline.
+  /// Each request line with when it arrived, a navigation marked and its
+  /// header names listed, for a failure's timeline: the set tells
+  /// Chromium's network service from the app's Dart clients where a site's
+  /// request reached another site's upstream (PROXY-008).
   final List<(DateTime, String)> timeline = [];
 
   RecordingUpstream._(this._server, {required this.label}) {
@@ -54,8 +56,12 @@ class RecordingUpstream {
               final lines = buffer.toString().split('\r\n');
               requestLines.add(lines.first);
               var navigation = false;
+              final names = <String>[];
               for (final line in lines.skip(1)) {
                 final header = line.toLowerCase();
+                if (header.contains(':')) {
+                  names.add(header.substring(0, header.indexOf(':')));
+                }
                 if (header.startsWith('proxy-authorization:')) {
                   credentials.add(line.substring(line.indexOf(':') + 1).trim());
                 }
@@ -64,7 +70,12 @@ class RecordingUpstream {
                   navigation = true;
                 }
               }
-              timeline.add((at, navigation ? '${lines.first} (navigation)' : lines.first));
+              names.sort();
+              timeline.add((
+                at,
+                '${lines.first}${navigation ? ' (navigation)' : ''} '
+                    '[${names.join(',')}]',
+              ));
               socket.write(
                 'HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n'
                 'Content-Length: 13\r\nConnection: close\r\n\r\n'
