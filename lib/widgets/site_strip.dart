@@ -5,7 +5,11 @@ import 'package:webspace/services/page_focus.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/site_strip_edge.dart';
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/services/open_sites.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/tab_chips.dart';
 import 'package:webspace/widgets/tab_count_pill.dart';
 
 /// The selected webspace's sites along one edge of the screen. A tap opens
@@ -26,6 +30,9 @@ class SiteStrip extends StatelessWidget {
     required this.onShowTabs,
     required this.onReorder,
     required this.menu,
+    this.open = const OpenSites(),
+    this.onToggleOpen,
+    this.tabs,
   });
 
   final SiteStripEdge edge;
@@ -45,6 +52,15 @@ class SiteStrip extends StatelessWidget {
   /// Null where the view cannot be reordered.
   final void Function(int fromListIndex, {required int to})? onReorder;
   final Widget menu;
+
+  /// Which sites show their tabs after their chip.
+  final OpenSites open;
+
+  /// A site's arrow: opens or closes its tabs without switching to it.
+  final ValueChanged<SiteId>? onToggleOpen;
+
+  /// What a tab chip asks; null shows no tabs, only the sites.
+  final TabChipActions? tabs;
 
   @override
   Widget build(BuildContext context) {
@@ -100,10 +116,52 @@ class SiteStrip extends StatelessWidget {
     required ThemeData theme,
     required bool isDark,
   }) {
+    final site = models[order[listIndex]];
+    final tabs = this.tabs;
+    if (tabs == null || !site.effectiveTabsEnabled) {
+      return _chip(listIndex, theme: theme, isDark: isDark, opened: false);
+    }
+    final isActive = order[listIndex] == current;
+    final opened = open.isOpen(site.siteId,
+        current: current == null ? null : models[current!].siteId);
+    return Builder(builder: (context) {
+      final loc = AppLocalizations.of(context);
+      final arrow = IconButton(
+        visualDensity: VisualDensity.compact,
+        iconSize: IconSizes.inline,
+        tooltip: opened
+            ? loc.stripHideSiteTabs(site.getDisplayName())
+            : loc.stripShowSiteTabs(site.getDisplayName()),
+        icon: Icon(opened ? Icons.chevron_left : Icons.chevron_right),
+        onPressed: () => onToggleOpen?.call(site.siteId),
+      );
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _chip(listIndex, theme: theme, isDark: isDark, opened: opened),
+          // The site on screen opens and closes with a tap on its chip.
+          if (!isActive && onToggleOpen != null) arrow,
+          if (opened)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: Spacing.sm),
+              child: TabChips(site: site, isCurrent: isActive, actions: tabs),
+            ),
+        ],
+      );
+    });
+  }
+
+  Widget _chip(
+    int listIndex, {
+    required ThemeData theme,
+    required bool isDark,
+    required bool opened,
+  }) {
     final siteIndex = order[listIndex];
     final site = models[siteIndex];
     final isActive = siteIndex == current;
-    final content = _content(site, isActive: isActive, theme: theme, isDark: isDark);
+    final content = _content(site,
+        isActive: isActive, opened: opened, theme: theme, isDark: isDark);
 
     void handleTap() {
       if (isActive) {
@@ -177,6 +235,7 @@ class SiteStrip extends StatelessWidget {
   Widget _content(
     WebViewModel site, {
     required bool isActive,
+    required bool opened,
     required ThemeData theme,
     required bool isDark,
   }) {
@@ -223,7 +282,7 @@ class SiteStrip extends StatelessWidget {
           ),
           // Tab count, only once there is more than one: a site with a single
           // tab looks exactly as it did before tabs existed (TAB-008).
-          if (site.effectiveTabsEnabled && site.tabs.length > 1)
+          if (site.effectiveTabsEnabled && site.tabs.length > 1 && !opened)
             TabCountPill(count: site.tabs.length, active: isActive),
         ],
       ),

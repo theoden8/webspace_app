@@ -17,8 +17,13 @@ void main() {
   late String links;
 
   setUpAll(() {
+    // The page and its parts, which hold its links and its navigation.
     source = [
-      for (final f in ['webspace_page', 'webspace_page_links'])
+      for (final f in [
+        'webspace_page',
+        'webspace_page_links',
+        'webspace_page_navigation',
+      ])
         File('lib/screens/$f.dart').readAsStringSync(),
     ].join('\n');
     menu = File('lib/widgets/site_menu.dart').readAsStringSync();
@@ -251,9 +256,12 @@ void main() {
       expect(start, isNot(-1));
       final body = tabs.substring(start, tabs.indexOf('\n  }\n', start));
       expect(
-        RegExp(r'for \(final i in view\)\s*if \(enabledFor\(_sites\.models\[i\]\)\)')
+        RegExp(r'for \(final i in view\)\s*'
+                r'if \(everyInView \|\| enabledFor\(_sites\.models\[i\]\)\)')
             .hasMatch(body),
         isTrue,
+        reason: 'only the sidebar lists a site without tabs, as one row that '
+            'opens the site, never a tab it stored',
       );
       expect(
         RegExp(r'if \(!shown\.contains\(i\) && enabledFor\(_sites\.models\[i\]\)\)')
@@ -267,7 +275,8 @@ void main() {
     test('nothing tab-shaped is drawn while they are off', () {
       expect(
         RegExp(r'if \(currentModel != null && '
-                r'_tabs\.enabledFor\(currentModel\)\)\s*TabCountButton\(')
+                r'_tabs\.enabledFor\(currentModel\) &&\s*'
+                r'_surfaces\.tabCountButton\)\s*TabCountButton\(')
             .hasMatch(source),
         isTrue,
         reason: 'the tab count in the app bar',

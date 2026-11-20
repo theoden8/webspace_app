@@ -45,6 +45,7 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/web_view_model_hooks.dart';
 import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/site_address.dart';
 import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/widgets/toast_page_boundary.dart';
 import 'package:webspace/widgets/page_layer.dart';
@@ -98,6 +99,9 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/site_navigation.dart';
+import 'package:webspace/widgets/tab_chips.dart';
+import 'package:webspace/services/open_sites.dart';
+import 'package:webspace/services/navigation_surface_engine.dart';
 import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/settings/site_strip_edge.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -125,6 +129,7 @@ import 'package:webspace/services/step_table.dart';
 part 'webspace_page_residency.dart';
 part 'webspace_page_seams.dart';
 part 'webspace_page_links.dart';
+part 'webspace_page_navigation.dart';
 
 class WebSpacePage extends StatefulWidget {
   final Function(AppThemeSettings) onThemeSettingsChanged;
@@ -830,60 +835,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (isolation is SharedJar) await _resets.refreshShown();
   }
 
-  Future<void> _showTabsSheet() async {
-    if (_kioskLocked || !_tabs.enabledFor(_sites.shown) || _isShowingTabsSheet) {
-      return;
-    }
-    _isShowingTabsSheet = true;
-    try {
-      await _presentTabsSheet();
-    } finally {
-      _isShowingTabsSheet = false;
-    }
-  }
-
   bool _isShowingTabsSheet = false;
 
-  /// The tabs sheet of the site on screen, or with [scope] the library's tab
-  /// tree (WEBSPACE-004): every tree the scope holds, with no site on screen,
-  /// so a tab picked there opens its site on that tab.
-  Future<void> _presentTabsSheet({WebspaceId? scope}) async {
-    final shown = scope == null ? _sites.shown : null;
-    final (:sites, :wayBack) = _tabs.sheetListing(scope: scope);
-    final at = sites.indexWhere((s) => identical(s.model, shown));
-    if (scope == null ? at < 0 : sites.isEmpty) return;
-    final loc = AppLocalizations.of(context);
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => TabsSheet(
-        sites: sites,
-        currentIndex: at,
-        title: scope == null
-            ? null
-            : _sites.webspaces
-                    .where((w) => w.id == scope && !w.isAll)
-                    .firstOrNull
-                    ?.name ??
-                loc.tabsAllSites,
-        onOpenTab: (site, {required tabId}) =>
-            unawaited(_throughCard(site, to: (
-              show: () => _tabs.openTab(site, tabId: tabId),
-              shown: () => identical(_sites.shown, site) && site.activeTabId == tabId,
-            ))),
-        onNewTab: (site) => unawaited(_tabs.newTab(site)),
-        onWebSearch: shown == null ? null : () => unawaited(_links.webSearch()),
-        onCloseTab: (site, {required tabId}) =>
-            _tabs.closeFromSheet(site, tabId: tabId, subtree: false, scope: scope),
-        onCloseSubtree: (site, {required tabId}) =>
-            _tabs.closeFromSheet(site, tabId: tabId, subtree: true, scope: scope),
-        onReopen: (closed) => _tabs.reopenFromSheet(closed, scope: scope),
-        onMoveTab: _tabs.moveTab,
-        onMoveSite: shown != null && _webspaces.canReorderView ? _moveSiteInTabsSheet : null,
-        wayBack: wayBack,
-      ),
-    );
-  }
+  /// Which sites show their tabs in the site strip and the squares, and the
+  /// site on screen they last followed.
+  OpenSites _openSites = const OpenSites();
+  SiteId? _openSitesFor;
 
   /// [to] puts [site] on screen; in the library it runs behind the
   /// site's card, grown from the site's icon where the library shows it and
@@ -893,32 +850,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (zoom == null || to.shown()) return to.show();
     final icon = _libraryKey.currentState?.siteWell(site.siteId);
     await zoom.open(site, from: _sites.shown == null ? icon : null, to: to);
-  }
-
-  Future<void> _showLibraryTabs(WebspaceId scope) async {
-    if (_kioskLocked || _isShowingTabsSheet) return;
-    _isShowingTabsSheet = true;
-    try {
-      await _presentTabsSheet(scope: scope);
-    } finally {
-      _isShowingTabsSheet = false;
-    }
-  }
-
-  /// A site heading dropped on another in the Tabs sheet (TAB-016): the same
-  /// reorder the drawer grid and the site strip make. Returns the sheet's sites
-  /// afresh, since reordering "All" renumbers them.
-  List<TabsSheetSite>? _moveSiteInTabsSheet(SiteId siteId,
-      {required SiteId ontoSiteId}) {
-    if (_tabs.busy || !_webspaces.canReorderView) return null;
-    final order = _sites.filteredIndices();
-    int at(String id) => order.indexWhere((i) =>
-        i >= 0 && i < _sites.models.length && _sites.models[i].siteId == id);
-    final from = at(siteId);
-    final to = at(ontoSiteId);
-    if (from < 0 || to < 0 || from == to) return null;
-    _webspaces.reorderSite(from, newListIndex: to);
-    return _tabs.sheetSites();
   }
 
   /// The one way the theme changes: the app, its saved settings and the
@@ -1046,8 +977,10 @@ class _WebSpacePageState extends State<WebSpacePage>
       // KIOSK-002: no app-bar actions (download, settings) when locked.
       actions: _kioskLocked ? const <Widget>[] : [
         // Tab count for the site on screen. Present whenever a site is shown,
-        // even at one tab, because it is also how a new tab is opened.
-        if (currentModel != null && _tabs.enabledFor(currentModel))
+        // even at one tab, because it is also how a new tab is opened; only
+        // with the tab button, as the strip and the sidebar show the tabs.
+        if (currentModel != null && _tabs.enabledFor(currentModel) &&
+            _surfaces.tabCountButton)
           TabCountButton(
             count: currentModel.tabs.length,
             onPressed: () => unawaited(_showTabsSheet()),
@@ -1069,66 +1002,6 @@ class _WebSpacePageState extends State<WebSpacePage>
           _siteMenu(SiteMenuPlacement.appBar),
       ],
     ));
-  }
-
-  /// Whether the site strip is on screen, at either edge: always out of full
-  /// screen while it is the chosen navigation; in full screen as the
-  /// full-screen choice says (kept, revealed by its button, or hidden).
-  bool get _siteStripShown {
-    // KIOSK-002: never show the site strip in a locked session, in or out of
-    // fullscreen — no switching away from the kiosk site.
-    if (_kioskLocked || _sites.shown == null) return false;
-    if (_sites.filteredIndices().isEmpty) return false;
-    if (currentSiteNavigation != SiteNavigation.strip) return false;
-    if (!_fullscreen.active) return true;
-    return switch (currentFullscreenNavigation) {
-      FullscreenNavigation.kept => true,
-      FullscreenNavigation.button => _fullscreen.siteStripRevealed,
-      FullscreenNavigation.hidden => false,
-    };
-  }
-
-  /// Whether the strip's floating button is shown: in full screen set to
-  /// Button, until it reveals the strip, which then carries its own dismiss
-  /// control.
-  bool get _tabBarButtonShown {
-    if (currentSiteNavigation != SiteNavigation.strip ||
-        currentFullscreenNavigation != FullscreenNavigation.button) {
-      return false;
-    }
-    // KIOSK-002: a locked session must not expose tab switching.
-    if (_kioskLocked || _sites.shown == null) return false;
-    if (_sites.filteredIndices().isEmpty) return false;
-    if (_fullscreen.siteStripRevealed) return false;
-    return _fullscreen.active;
-  }
-
-  /// The edge the site strip is on screen at, or null while it is not.
-  SiteStripEdge? get _siteStripEdge =>
-      _siteStripShown ? SiteStripEdge.current : null;
-
-  /// The site strip when it is on screen at [at]: the top of the body, or
-  /// bottomNavigationBar, where it is hidden while the keyboard is open.
-  Widget? _buildSiteStrip({required SiteStripEdge at}) {
-    if (_siteStripEdge != at) return null;
-    if (at == SiteStripEdge.bottom &&
-        MediaQuery.of(context).viewInsets.bottom > 0) {
-      return null;
-    }
-    return SiteStrip(
-      edge: at,
-      models: _sites.models,
-      order: _sites.filteredIndices(),
-      current: _sites.current,
-      revealed: _fullscreen.siteStripRevealed,
-      onHide: _fullscreen.hideSiteStrip,
-      onOpen: _openSite,
-      onShowTabs: () => unawaited(_showTabsSheet()),
-      onReorder: _webspaces.canReorderView
-          ? (from, {required to}) => _webspaces.reorderSite(from, newListIndex: to)
-          : null,
-      menu: _siteMenu(SiteMenuPlacement.tabStrip),
-    );
   }
 
   /// Build the URL bar and find toolbar, placed in the body so that
@@ -1179,6 +1052,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         state: () => (
           loading: _sites.shown?.isLoading ?? false,
           tabsOn: _tabs.enabledFor(_sites.shown),
+          allTabs: currentSiteNavigation != SiteNavigation.tabButton,
           fullscreen: _fullscreen.active,
           offersShortcut: switch (_sites.shown) {
             final shown? => _shortcuts.offersShortcutFor(shown),
@@ -1208,6 +1082,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     switch (action) {
       case SiteMenuAction.newTab:
         if (model != null) await _tabs.newTab(model);
+      case SiteMenuAction.allTabs:
+        await _showTabsSheet();
       case SiteMenuAction.backToWebspaces:
         final zoom = _libraryDesign ? _launchZoom.currentState : null;
         if (model != null && zoom != null) {
