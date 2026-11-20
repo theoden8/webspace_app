@@ -141,6 +141,10 @@ jobs:
             sudo apt-get --simulate --no-install-recommends --allow-downgrades install $packages 2>&1 \
               | grep -v '^\(Inst\|Conf\) ' || true
           fi
+          # A configure check that failed says why only here; Flutter's build
+          # prints CMake's errors, not its checks.
+          sudo find parts -path '*/CMakeFiles/CMakeError.log' -print0 2>/dev/null \
+            | while IFS= read -r -d '' f; do echo "== $f"; sudo tail -n 120 "$f"; done
 
       # Saved even when a later part fails, so the next run starts from the
       # WPE objects this one compiled.
