@@ -97,6 +97,7 @@ import 'package:webspace/services/app_lifecycle_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/site_navigation.dart';
 import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/settings/site_strip_edge.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -1063,40 +1064,43 @@ class _WebSpacePageState extends State<WebSpacePage>
             tooltip: loc.homeAppSettingsTooltip,
             onPressed: _openAppSettings,
           ),
-        if (currentModel != null && !AppPref.showTabStrip.value)
+        if (currentModel != null &&
+            SiteNavigation.current != SiteNavigation.strip)
           _siteMenu(SiteMenuPlacement.appBar),
       ],
     ));
   }
 
-  /// Whether the site strip is on screen, at either edge. Out of fullscreen it
-  /// follows the "Site Site Strip" pref. In fullscreen the behavior is an
-  /// independent choice: always visible, revealed on demand by the tab-bar
-  /// button, or hidden.
+  /// Whether the site strip is on screen, at either edge: always out of full
+  /// screen while it is the chosen navigation; in full screen as the
+  /// full-screen choice says (kept, revealed by its button, or hidden).
   bool get _siteStripShown {
     // KIOSK-002: never show the site strip in a locked session, in or out of
     // fullscreen — no switching away from the kiosk site.
     if (_kioskLocked || _sites.shown == null) return false;
     if (_sites.filteredIndices().isEmpty) return false;
-    if (_fullscreen.active) {
-      if (AppPref.tabStripInFullscreen.value) return true;
-      return AppPref.tabBarButton.value && _fullscreen.siteStripRevealed;
-    }
-    return AppPref.showTabStrip.value || (AppPref.tabBarButton.value && _fullscreen.siteStripRevealed);
+    if (SiteNavigation.current != SiteNavigation.strip) return false;
+    if (!_fullscreen.active) return true;
+    return switch (FullscreenNavigation.current) {
+      FullscreenNavigation.kept => true,
+      FullscreenNavigation.button => _fullscreen.siteStripRevealed,
+      FullscreenNavigation.hidden => false,
+    };
   }
 
-  /// Whether the floating tab-bar button is currently shown. It reveals the
-  /// site strip (and its overflow menu) on demand, in and out of fullscreen.
-  /// Suppressed while the strip is already pinned or revealed — the strip then
-  /// carries its own dismiss control.
+  /// Whether the strip's floating button is shown: in full screen set to
+  /// Button, until it reveals the strip, which then carries its own dismiss
+  /// control.
   bool get _tabBarButtonShown {
-    if (!AppPref.tabBarButton.value) return false;
+    if (SiteNavigation.current != SiteNavigation.strip ||
+        FullscreenNavigation.current != FullscreenNavigation.button) {
+      return false;
+    }
     // KIOSK-002: a locked session must not expose tab switching.
     if (_kioskLocked || _sites.shown == null) return false;
     if (_sites.filteredIndices().isEmpty) return false;
     if (_fullscreen.siteStripRevealed) return false;
-    if (_fullscreen.active) return !AppPref.tabStripInFullscreen.value;
-    return !AppPref.showTabStrip.value;
+    return _fullscreen.active;
   }
 
   /// The edge the site strip is on screen at, or null while it is not.

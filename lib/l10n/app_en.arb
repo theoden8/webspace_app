@@ -1027,6 +1027,34 @@
   "@appSettingsSiteStripPositionBottom": {
     "description": "Tooltip of an icon button. Option: the strip of site tabs runs along the bottom of the screen."
   },
+  "appSettingsSiteNavigation": "Site navigation",
+  "@appSettingsSiteNavigation": {
+    "description": "Title of the setting that chooses how the webspace's sites and their tabs are reached: the tab-count button in the app bar alone, the site strip (a bar of sites along the top or bottom), or the sidebar (sites and tabs down the left side)"
+  },
+  "appSettingsFullscreenNavigation": "In full screen",
+  "@appSettingsFullscreenNavigation": {
+    "description": "Title of the setting for what full screen does with the chosen site navigation (site strip or sidebar): hide it, keep it, or leave a small button that brings it back"
+  },
+  "backupPrefSidebarState": "Sidebar open, collapsed or hidden",
+  "@backupPrefSidebarState": {
+    "description": "Name of a saved setting in the list a settings backup shows before import: whether the tab sidebar was left open, collapsed to a narrow rail of site icons, or hidden"
+  },
+  "appSettingsSidebarStyle": "Open sidebar shows",
+  "@appSettingsSidebarStyle": {
+    "description": "Title of the setting for what the open sidebar shows: the sites as squares with their tabs opening out under them, or the tabs as a tree. Followed by those two options"
+  },
+  "backupPrefSidebarWidth": "Sidebar width",
+  "@backupPrefSidebarWidth": {
+    "description": "Name of a saved setting in the list a settings backup shows before import: how wide the user dragged the tab sidebar"
+  },
+  "appSettingsSidebarExpandOnHover": "Expand rail on hover",
+  "@appSettingsSidebarExpandOnHover": {
+    "description": "Title of the switch that, when the sidebar is collapsed to a narrow rail of site icons, shows the names over the page while the mouse pointer rests on the rail"
+  },
+  "backupPrefSidebarHandle": "Sidebar arrow tab position",
+  "@backupPrefSidebarHandle": {
+    "description": "Name of a saved setting in the list a settings backup shows before import: where along the left screen edge the user moved the small arrow tab that brings the hidden sidebar back"
+  },
   "appSettingsTabMaxWidth": "Tab Width Limit",
   "@appSettingsTabMaxWidth": {
     "description": "Title for the slider that caps the maximum width of each chip in the site strip"

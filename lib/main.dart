@@ -50,6 +50,7 @@ import 'package:webspace/services/remote_input.dart';
 import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/app_design.dart';
+import 'package:webspace/settings/site_navigation.dart';
 import 'package:webspace/settings/app_locale.dart';
 
 void main([List<String> args = const []]) async {
@@ -175,6 +176,7 @@ void main([List<String> args = const []]) async {
     ExperimentalFeaturesService.instance.initialize(),
     // Before the first frame, which draws one design or the other.
     SharedPreferences.getInstance().then(loadLegacyDesign),
+    SharedPreferences.getInstance().then(loadSiteNavigation),
     WebExtensionLibrary.instance.initialize(),
     ExternalTorSettings.initialize(),
   ]);

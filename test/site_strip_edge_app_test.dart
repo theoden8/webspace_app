@@ -62,7 +62,7 @@ void main() {
         WebViewModel(
             initUrl: 'https://example.test', name: 'Site', fullscreenMode: true),
       ],
-      prefs: {'tabBarButton': true, 'tabStripEdge': 'top', 'showUrlBar': true},
+      prefs: {'siteNavigation': 'strip', 'fullscreenNavigation': 'button', 'tabStripEdge': 'top', 'showUrlBar': true},
     );
     await openWebspace(tester, name: 'All');
     await openSiteFromDrawer(tester, name: 'Site');
@@ -82,7 +82,8 @@ void main() {
     await settleRealApp(tester);
     await tester.tap(find.text('Exit Full Screen'));
     await settleRealApp(tester);
-    expect(find.byType(SiteStrip), findsNothing);
+    expect(find.byType(SiteStrip), findsOneWidget,
+        reason: 'out of full screen the strip is pinned');
     expect(find.byType(AppBar), findsOneWidget);
 
     expect(tester.element(find.byType(SiteWebViewStack)), same(before),
