@@ -2,29 +2,12 @@
 # The AppImage's entry point (PLATFORM-013), written into the AppDir by
 # linux/appimage/build_appdir.sh. The AppImage mounts somewhere new each run,
 # so what WebKit, GIO, gdk-pixbuf and GStreamer were built to read from /usr
-# is named here by where the bundle is now. Libraries need nothing but
-# libstdc++: every ELF file finds the bundled ones by its RUNPATH.
+# is named here by where the bundle is now. Libraries need nothing: every ELF
+# file finds the bundled ones by its RUNPATH.
 set -eu
 
 here="$(dirname "$(readlink -f "$0")")"
 lib="$here/usr/lib/@TRIPLET@"
-
-# GCC 13's libstdc++ and libgcc_s, first only where the machine's libstdc++
-# is older (Ubuntu 22.04's): a newer one may be what its GPU driver needs.
-# On the library path, so WebKit's processes inherit it.
-case "$(uname -m)" in
-  x86_64) abi=x86-64 ;;
-  aarch64) abi=AArch64 ;;
-  *) abi='' ;;
-esac
-bundled="$(readlink "$lib/compat/libstdc++.so.6")"
-system="$(PATH="$PATH:/sbin:/usr/sbin" ldconfig -p 2>/dev/null \
-  | awk -v a=",$abi)" '$1 == "libstdc++.so.6" && index($0, a) { print $NF; exit }')"
-[ -z "$system" ] || system="$(basename "$(readlink -f "$system")")"
-if [ -z "$system" ] || { [ "$system" != "$bundled" ] \
-  && [ "$(printf '%s\n%s\n' "$system" "$bundled" | sort -V | tail -n 1)" = "$bundled" ]; }; then
-  export LD_LIBRARY_PATH="$lib/compat${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-fi
 
 # WebKit's helper processes, injected bundle and inspector resources
 # (linux/wpe_root.patch).

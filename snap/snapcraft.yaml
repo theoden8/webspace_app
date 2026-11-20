@@ -15,12 +15,6 @@ architectures:
   - build-on: [amd64]
   - build-on: [arm64]
 
-# GCC 13 for WebKit, which needs libstdc++ 13 (<format>) where Ubuntu 22.04
-# stops at 12; its libstdc++6 ships in the snap and the AppImage.
-package-repositories:
-  - type: apt
-    ppa: ubuntu-toolchain-r/test
-
 # WebKit compiles in where its helper processes, injected bundle and inspector
 # resources live (PKGLIBEXECDIR, PKGLIBDIR, PKGDATADIR), and a release build
 # reads its helpers from there alone. Built for /usr, these bind the snap's
@@ -48,10 +42,9 @@ apps:
     common-id: org.codeberg.theoden8.webspace
     extensions: [gnome]
     environment:
-      # libWPEWebKit, libwpe and GCC 13's libstdc++ and libgcc_s (in lib/ on
-      # Ubuntu 22.04), for the app and for WebKit's helper processes, which
-      # inherit it.
-      LD_LIBRARY_PATH: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR:$SNAP/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
+      # libWPEWebKit and libwpe, for the app and for WebKit's helper
+      # processes, which inherit it.
+      LD_LIBRARY_PATH: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
     # The GNOME extension adds desktop (portals, notifications), desktop-legacy,
     # gsettings, opengl, wayland and x11. Each plug here names what needs it.
     plugs:
@@ -106,13 +99,51 @@ parts:
       - -usr/include
       - -usr/lib/*/pkgconfig
 
+  # Clang and libc++ for WebKit: LLVM's release toolchain, pinned by SHA-256
+  # per architecture, of which only what builds WebKit is kept and nothing is
+  # primed. Ubuntu 22.04's newest Clang (15) is older than WebKit needs (18),
+  # and its libstdc++ (12) has no <format>; WebKit links this libc++ in
+  # statically with its symbols hidden, so the machine's libstdc++ is the one
+  # every other library uses. Debian's libc++ packages cannot be installed
+  # here: they depend on LLVM's libunwind, which conflicts with the
+  # libunwind-dev GStreamer's headers need. Its clang needs glibc 2.34 and
+  # libstdc++ 12, which Ubuntu 22.04 has.
+  llvm:
+    plugin: nil
+    override-pull: |
+      case "$CRAFT_ARCH_BUILD_FOR" in
+        amd64)
+          url=https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.6/LLVM-23.1.6-Linux-X64.tar.xz
+          sum=bd4d1c434ff69ef06d19e7934c04708da677e5f2eb51f5bcf052ab91818f0094 ;;
+        arm64)
+          url=https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.6/LLVM-23.1.6-Linux-ARM64.tar.xz
+          sum=e9daa167da28b9e31d30046f05f98e3e7da3647cdbe1c1863e8b223c07ccf291 ;;
+        *) echo "no LLVM toolchain for $CRAFT_ARCH_BUILD_FOR" >&2; exit 1 ;;
+      esac
+      top="$(basename "$url" .tar.xz)"
+      curl --proto '=https' --tlsv1.2 -fsSL --retry 4 --retry-delay 2 -o llvm.tar.xz "$url"
+      echo "$sum  llvm.tar.xz" | sha256sum --check --status || { echo "$url is not the toolchain pinned" >&2; exit 1; }
+      tar -xJf llvm.tar.xz --strip-components=1 --wildcards \
+        "$top/bin/clang" "$top/bin/clang++" "$top/bin/clang-[0-9]*" "$top/bin/ld.lld" "$top/bin/lld" \
+        "$top/lib/clang/*" "$top/lib/*-unknown-linux-gnu/libc++*" \
+        "$top/include/c++/*" "$top/include/*-unknown-linux-gnu/c++/*"
+      rm llvm.tar.xz
+    override-build: |
+      mkdir -p "$CRAFT_PART_INSTALL/llvm"
+      cp -a "$CRAFT_PART_SRC"/. "$CRAFT_PART_INSTALL/llvm/"
+    build-packages:
+      - curl
+      - xz-utils
+    prime:
+      - -*
+
   # WebKit main at 323622@main, the merge of WebKit PR 69204 (WebKitFrameInfo,
   # first released in 2.56), as the flatpak builds it; the plugin reads it
   # through weak symbols. The checkout leaves out LayoutTests and JSTests, most
   # of the tree and read by no build step, since the nil plugin copies the
   # source into the build directory.
   wpewebkit:
-    after: [libwpe]
+    after: [libwpe, llvm]
     plugin: nil
     override-pull: |
       [ -d .git ] || git init -q .
@@ -122,8 +153,6 @@ parts:
       git fetch --depth 1 --filter=blob:none origin c22ba3278caac6a1fc8b0c7a10f04db1ffc44982
       git -c advice.detachedHead=false checkout FETCH_HEAD
     build-environment:
-      - CC: gcc-13
-      - CXX: g++-13
       # Debug info makes WebKit's link outgrow a CI runner's memory and disk.
       - CFLAGS: -g0
       - CXXFLAGS: -g0
@@ -131,10 +160,15 @@ parts:
       # like any other.
       - CCACHE_DIR: /var/cache/webspace-snap-ccache
     # The GNOME extension points every part at its SDK, whose glibc headers
-    # the compiler then reads as ordinary headers, with the SDK's libraries
-    # mixed into Ubuntu's. WebKit builds against Ubuntu 22.04's alone, the
-    # release the GNOME 42 runtime is built from, and libwpe from the stage. Set here, not
-    # around `craftctl default`, which sets the extension's environment again.
+    # clang then reads as ordinary headers (its own posix_memalign clashes
+    # with them), with the SDK's libraries mixed into Ubuntu's. WebKit builds
+    # against Ubuntu 22.04's alone, the release the GNOME 42 runtime is built
+    # from, and libwpe from the stage. Set here, not around `craftctl
+    # default`, which sets the extension's environment again.
+    # Clang and libc++ come from the llvm part: libc++ and libc++abi are
+    # linked in statically at the end of every C++ link (CMake's standard
+    # libraries) and kept out of what WebKit exports; unwinding stays the
+    # machine's libgcc_s.
     # WebKit's bubblewrap sandbox is off: strict confinement grants none of
     # the user namespaces it needs, and snapd confines the processes itself.
     # Its Swift back-forward list is off: WebKit turns it on wherever CMake
@@ -154,6 +188,9 @@ parts:
     # layout binds.
     override-build: |
       export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+      export CC="$CRAFT_STAGE/llvm/bin/clang" CXX="$CRAFT_STAGE/llvm/bin/clang++"
+      export CXXFLAGS="${CXXFLAGS:+$CXXFLAGS }-stdlib=libc++"
+      export LDFLAGS="-fuse-ld=lld -stdlib=libc++ -nostdlib++ -Wl,--exclude-libs,libc++.a:libc++abi.a"
       changed="$(bash "$CRAFT_PROJECT_DIR/linux/pdfjs_fonts.sh" --src "$CRAFT_PART_SRC" \
         --fonts /usr/share/fonts/truetype/liberation2 \
         --copyright /usr/share/doc/fonts-liberation2/copyright)"
@@ -167,6 +204,7 @@ parts:
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_C_COMPILER_LAUNCHER=ccache \
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+        "-DCMAKE_CXX_STANDARD_LIBRARIES=-Wl,-Bstatic -lc++ -lc++abi -Wl,-Bdynamic -lm" \
         -DPORT=WPE \
         -DENABLE_DOCUMENTATION=OFF \
         -DENABLE_INTROSPECTION=OFF \
@@ -196,8 +234,6 @@ parts:
     build-packages:
       - ccache
       - fonts-liberation2
-      - g++-13
-      - gcc-13
       - git
       - gperf
       - ninja-build
@@ -236,15 +272,10 @@ parts:
       - libxslt1-dev
       - wayland-protocols
       - zlib1g-dev
-    # The libraries WebKit links that neither core22 nor the GNOME runtime
-    # ships: libavif, and GCC 13's libstdc++ and the libgcc_s it needs, newer
-    # than core22's, which the app and WebKit's processes find first on
-    # LD_LIBRARY_PATH. Named, since snapcraft drops a package the base ships
-    # unless the part names it.
+    # The one library WebKit links that neither core22 nor the GNOME runtime
+    # ships.
     stage-packages:
       - libavif13
-      - libgcc-s1
-      - libstdc++6
     prime:
       - -usr/include
       - -usr/lib/*/pkgconfig
