@@ -149,3 +149,8 @@ files, and uploads them to the tag's GitHub release once you answer `y`,
 making the release from the build's changelog if there is none. Installed
 copies update from the latest release. It needs `gh` signed in, `gpg`, `node`,
 `curl`, `tar` and `zstd`.
+
+`scripts/build_all.sh appimage` packs and signs the same way into
+`build/release`, from a snap built on your machine or, with
+`APPIMAGE_RUN=<run id>`, from a run's AppDirs, but checks no provenance and
+uploads nothing: publish a release with the command above.
