@@ -2,8 +2,6 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-// ignore: implementation_imports
-import 'package:file_picker/src/platform/file_picker_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/screens/webspace_page.dart';
@@ -12,32 +10,8 @@ import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/web_view_model.dart';
 
+import 'helpers/fake_file_picker.dart';
 import 'helpers/real_app.dart';
-
-class _PickedBackup extends FilePickerPlatform {
-  _PickedBackup(this.bytes);
-
-  final Uint8List bytes;
-
-  @override
-  Future<FilePickerResult?> pickFiles({
-    String? dialogTitle,
-    String? initialDirectory,
-    FileType type = FileType.any,
-    List<String>? allowedExtensions,
-    Function(FilePickerStatus)? onFileLoading,
-    int compressionQuality = 0,
-    bool allowMultiple = false,
-    bool withData = false,
-    bool withReadStream = false,
-    bool lockParentWindow = false,
-    bool readSequential = false,
-    bool cancelUploadOnWindowBlur = true,
-  }) async =>
-      FilePickerResult([
-        PlatformFile(name: 'backup.json', size: bytes.length, bytes: bytes),
-      ]);
-}
 
 /// A settings import replaces the site list, and the sites it drops leave
 /// their saved navigation state behind unless the import sweeps it.
@@ -61,8 +35,10 @@ void main() {
       webspaces: const [],
       themeMode: 0,
     );
-    FilePickerPlatform.instance = _PickedBackup(Uint8List.fromList(
-        utf8.encode(SettingsBackupService.exportToJson(backup))));
+    final bytes = Uint8List.fromList(
+        utf8.encode(SettingsBackupService.exportToJson(backup)));
+    FakeFilePicker.install(
+        file: PlatformFile(name: 'backup.json', size: bytes.length, bytes: bytes));
 
     await tester.tap(find.byTooltip('App Settings'));
     await settleRealApp(tester);

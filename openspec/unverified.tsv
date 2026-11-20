@@ -42,8 +42,6 @@ DL-001	no check: no gate reads AndroidManifest.xml for the flutter_inappwebview_
 EXT-007	no check: ExternalUrlSuppressor, the gesture bypass, the Android-only about:blank clear and dialog marking are unchecked; the bypass reads hasGesture (Android) or the navigation type (Apple), and the test host is neither, so no Dart test can drive it without a platform seam
 EXT-009	no check: not implemented: tasks 2.1 to 2.4 of upstream-webview-defects (the fork patch and the decline-path gate) are open
 # file-import-sites
-IMPORT-001	no check: no widget test pumps AddSiteScreen to find the 'Import HTML file' button
-IMPORT-002	no check: no test asserts the picker filters html/htm or that cancelling leaves the screen; the flow depends on FilePicker and is untested
 IMPORT-004	no check: no test builds a file-import webview through createWebView and asserts the import renders via initialHtml/initialData, nor that its links open nested (partly: test/webview_controller_lifetime_test.dart, "a load of an import's URL renders the import, however it is issued")
 # fullscreen-mode
 FS-001	no check: no test enters full screen from either overflow menu or by double-tapping the app bar title

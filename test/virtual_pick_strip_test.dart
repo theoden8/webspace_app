@@ -2,36 +2,12 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-// ignore: implementation_imports
-import 'package:file_picker/src/platform/file_picker_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:webspace/services/virtual_media_picker.dart';
 import 'package:webspace/settings/capture.dart';
 
-/// The platform's dialog, answering every pick with [file].
-final class _Picked extends FilePickerPlatform {
-  _Picked(this.file);
-
-  final PlatformFile file;
-
-  @override
-  Future<FilePickerResult?> pickFiles({
-    String? dialogTitle,
-    String? initialDirectory,
-    FileType type = FileType.any,
-    List<String>? allowedExtensions,
-    Function(FilePickerStatus)? onFileLoading,
-    int compressionQuality = 0,
-    bool allowMultiple = false,
-    bool withData = false,
-    bool withReadStream = false,
-    bool lockParentWindow = false,
-    bool readSequential = false,
-    bool cancelUploadOnWindowBlur = true,
-  }) async =>
-      FilePickerResult([file]);
-}
+import 'helpers/fake_file_picker.dart';
 
 /// The chunk types of a PNG, in order.
 List<String> _chunks(Uint8List png) {
@@ -57,8 +33,8 @@ void main() {
     final raw = Uint8List.fromList(img.encodePng(shot));
     expect(_chunks(raw), contains('tEXt'), reason: 'the planted XMP block');
     expect(String.fromCharCodes(raw), contains(_device));
-    FilePickerPlatform.instance = _Picked(
-      PlatformFile(name: 'Screenshot.png', size: raw.length, bytes: raw),
+    FakeFilePicker.install(
+      file: PlatformFile(name: 'Screenshot.png', size: raw.length, bytes: raw),
     );
 
     final picked = await VirtualMediaPicker.pick(CaptureMedium.visual);
