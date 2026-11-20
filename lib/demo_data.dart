@@ -4,6 +4,7 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -130,6 +131,11 @@ Future<void> seedDemoData({String theme = 'system', String? language}) async {
   };
   await prefs.setInt('themeSettings', themeSettingsIndex);
   await prefs.setBool('showUrlBar', false);
+  // A fresh install: without the key, the seeded sites read as a build
+  // before the library, which keeps the legacy design (WEBSPACE-019). Written
+  // directly, since a second seed runs in demo mode, where `set` writes
+  // nothing.
+  await prefs.setBool(AppPref.legacyDesign.key, false);
 
   log('Data saved successfully!');
   log('Verifying saved data...');
