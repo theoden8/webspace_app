@@ -305,7 +305,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     final navigationBoundary = NavigationBoundary(
         homeUrl: widget.url,
         initialUrl: widget.url,
-        onion: p.container.onion);
+        onion: p.container.onion?.endpoint);
     return WebViewFactory.createWebView(
       config: WebViewConfig(
         posture: p,

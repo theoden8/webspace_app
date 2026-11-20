@@ -30,11 +30,13 @@ Checked on 2026-11-14: `proton.me` and `torproject.org` send the header;
   onion origin counts as the site's own while it is the endpoint (ONION-005),
   derived from the site's posture and never written into the user's domain
   claims.
-- **Silent fallback.** An onion that fails to load, fails TLS or says nothing
-  for 30 seconds falls back to the clearnet address for the rest of the run
-  (ONION-006). Onion services are often down, and certificates on them lapse:
-  the newest one in Certificate Transparency for Proton's onion expired on
-  2026-11-03.
+- **Fallback only by choice.** An onion that fails to load, fails TLS or
+  says nothing for 30 seconds stays on its failure unless the user chose,
+  per site, to fall back to the clearnet address (ONION-006, ONION-009). A
+  silent fallback would send the page through an exit relay the user moved
+  the site away from, so it is opt-in. Onion services are often down, and
+  certificates on them lapse (the newest one in Certificate Transparency for
+  Proton's onion expired on 2026-11-03), which is what the choice is for.
 - **Off Tor, nothing** (ONION-007): no check, no rewrite, the onion not owned.
 - **Kept with the site, not carried** (ONION-008): the learned address and the
   answer stay with the site and are left out of backups and QR shares; a new
@@ -78,7 +80,7 @@ ONION-005 derives that from the posture.
   a check through `OutboundProxy` beside it.
 - `HttpsUpgradeEngine` takes the move onto the onion beside the https
   upgrade (`onionFor`, `onFirstLoad`, `deadlineFor`): one set of events, one
-  fallback. An onion host is never upgraded to https.
+  fallback, armed only for a site whose user chose it. An onion host is never upgraded to https.
 - `SiteField.onionLocation`, outside backups and QR; `SiteContainer.onion`,
   read by `webview.dart`, `SiteOrigins` and `NavigationBoundary` (a new
   required `onion:`, so no surface builds one without saying).

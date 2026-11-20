@@ -448,10 +448,10 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
   /// Tor, through [sitePosture].
   SiteOnion? onionLocation;
 
-  /// The onion endpoint this site's webviews move onto: accepted, and only
+  /// The onion route this site's webviews move onto: accepted, and only
   /// while its route is Tor (ONION-004, ONION-007).
-  OnionEndpoint? get onionEndpoint =>
-      onionLocation?.endpointOn(tor: outboundProxy.carriesTor);
+  OnionRoute? get onionRoute =>
+      onionLocation?.routeOn(tor: outboundProxy.carriesTor);
   /// Homepage suggestions already shown per domain, including declines, so
   /// prompts do not repeat on refresh, tab recreation, or an app restart.
   Set<DomainClaim> offeredRedirectDomains = {};
@@ -743,7 +743,7 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
     return SitePosture(
       siteId: siteId,
       origins: SiteOrigins(initUrl,
-          claims: effectiveDomainClaims, onion: onionEndpoint),
+          claims: effectiveDomainClaims, onion: onionRoute?.endpoint),
       container: (
         containerId: boundContainerId(isolation),
         incognito: effectiveIncognito,
@@ -751,7 +751,7 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
         thirdPartyCookies: effectiveThirdPartyCookiesEnabled,
         httpAuthMemory: effectiveHttpAuthMemory,
         passkeys: effectivePasskeysEnabled,
-        onion: onionEndpoint,
+        onion: onionRoute,
       ),
       blocking: (
         clearUrls: forced(TrackingProtectionForce.clearUrls, stored: clearUrlEnabled),
@@ -1262,7 +1262,7 @@ bool dispatch(NavigationDecision decision,
       // redirectHandled / previousSameDomainUrl / currentUrl; the engine
       // enforces the invariants (see its class-level doc).
       var urlChangedState = OnUrlChangedState.initial(currentUrl);
-      final onion = id.onionEndpoint;
+      final onion = id.onionRoute?.endpoint;
       final startUrl =
           id.onionLocation?.startUrl(currentUrl, inUse: onion) ?? currentUrl;
       final navigationBoundary = NavigationBoundary(

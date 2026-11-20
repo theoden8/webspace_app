@@ -182,6 +182,16 @@ String? _metaOnionLocation(String document) {
 /// What the user answered about an announced onion address (ONION-003).
 enum OnionAnswer { accepted, declined }
 
+/// What a load the move sent to the onion origin does when it fails, is
+/// rejected by TLS or says nothing (ONION-006): stay on the failure, or load
+/// the clearnet URL it moved, through an exit. The user chooses; staying is
+/// the default.
+enum OnionFallback { none, clearnet }
+
+/// The onion origin a site's webviews move onto while it is on Tor, and what
+/// a failure there does.
+typedef OnionRoute = ({OnionEndpoint endpoint, OnionFallback fallback});
+
 /// A site's onion address as last learned from its own answer (ONION-001),
 /// when that check succeeded and what the user answered, null while they
 /// have not been asked. Saved with the site, never in a backup or a QR share
@@ -191,21 +201,25 @@ final class SiteOnion {
     required this.endpoint,
     required this.checked,
     required this.answer,
+    required this.fallback,
   });
 
   final OnionEndpoint endpoint;
   final DateTime checked;
   final OnionAnswer? answer;
+  final OnionFallback fallback;
 
-  /// The endpoint a webview of the site moves onto: only an accepted one,
+  /// The route a webview of the site moves onto: only an accepted endpoint,
   /// and only while the site's route is Tor (ONION-004, ONION-007).
-  OnionEndpoint? endpointOn({required bool tor}) =>
-      tor && answer == OnionAnswer.accepted ? endpoint : null;
+  OnionRoute? routeOn({required bool tor}) =>
+      tor && answer == OnionAnswer.accepted
+          ? (endpoint: endpoint, fallback: fallback)
+          : null;
 
   /// The URL a webview of the site starts at, given the endpoint [inUse]: a
   /// saved onion URL goes back to the clearnet origin when the endpoint is
   /// not in use (ONION-007); the move onto it is the first load's
-  /// (`HttpsUpgradeEngine.onFirstLoad`), so a failed one falls back.
+  /// (`HttpsUpgradeEngine.onFirstLoad`), so a failure there is the route's.
   String startUrl(String url, {required OnionEndpoint? inUse}) =>
       inUse == null ? endpoint.back(url) ?? url : url;
 
@@ -214,6 +228,7 @@ final class SiteOnion {
     'to': endpoint.to,
     'checked': checked.toUtc().toIso8601String(),
     if (answer != null) 'answer': answer!.name,
+    'fallback': fallback.name,
   };
 
   /// The saved value, or null for one absent or of the wrong shape, which
@@ -232,7 +247,12 @@ final class SiteOnion {
         'declined' => OnionAnswer.declined,
         _ => null,
       };
-      return SiteOnion(endpoint: endpoint, checked: at, answer: answer);
+      final fallback = switch (json['fallback']) {
+        'clearnet' => OnionFallback.clearnet,
+        _ => OnionFallback.none,
+      };
+      return SiteOnion(
+          endpoint: endpoint, checked: at, answer: answer, fallback: fallback);
     }
     return null;
   }

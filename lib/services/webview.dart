@@ -505,7 +505,7 @@ class WebViewFactory {
         NavigationBoundary(
             homeUrl: config.initialUrl,
             initialUrl: config.initialUrl,
-            onion: config.posture.container.onion);
+            onion: config.posture.container.onion?.endpoint);
     if (renderInitialData) navigationBoundary.useExistingDocument();
     var initialDataPending = renderInitialData;
     var firstPagePending = true;
