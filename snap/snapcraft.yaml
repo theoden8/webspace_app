@@ -257,9 +257,12 @@ parts:
     parse-info:
       - usr/share/metainfo/org.codeberg.theoden8.webspace.metainfo.xml
     # A go command for the lyrebird linux/tor.cmake builds beside tor
-    # (TOR-016), which fetches the Go go/iptproxy/.go-version names.
+    # (TOR-016), which fetches the Go go/iptproxy/.go-version names; and a
+    # CMake newer than Ubuntu 22.04's 3.22, which the WebView plugin's
+    # FetchContent (DOWNLOAD_EXTRACT_TIMESTAMP, 3.24) needs.
     build-snaps:
       - go/latest/stable
+      - cmake/latest/stable
     build-packages:
       - build-essential
       - ca-certificates
@@ -293,8 +296,9 @@ parts:
       # the extension points every part at carries a newer GLib, whose headers
       # compile in calls 22.04's GLib lacks (g_string_free_and_steal), and the
       # AppImage bundles the build host's. The snap's GNOME runtime is newer
-      # still, so either runs there. /snap/bin keeps the go snap's go.
-      export PATH=/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+      # still, so either runs there. /snap/bin first, for the cmake and go
+      # snaps.
+      export PATH=/snap/bin:/usr/sbin:/usr/bin:/sbin:/bin
       export PKG_CONFIG_PATH="$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig"
       export CMAKE_PREFIX_PATH="$CRAFT_STAGE/usr"
       unset LD_LIBRARY_PATH PYTHONPATH GI_TYPELIB_PATH ACLOCAL_PATH \
