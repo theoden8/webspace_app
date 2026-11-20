@@ -15,7 +15,7 @@ A11Y-010	no check: the contrast test omits primary-on-surface and the hard-coded
 A11Y-011	no check: nothing reads the reduce-motion flags yet, so no test can check the helper
 A11Y-012	no check: no Shortcuts/Actions/PlatformMenuBar exist and no test drives keyboard focus traversal or Escape
 A11Y-013	process: a person runs OS accessibility checks on devices before a release; nothing a test can run
-A11Y-014	no check: Flutter's tap-target guidelines run in no test; the render matrix holds widgets to TapTargets.compact (32), below both platform floors (partly: test/design_render_matrix_test.dart, "the corner button is a tap target, not just an icon")
+A11Y-014	no check: the tabs sheet's expand/collapse control and the proxy indicator's check-again button are below both floors, and TapTargets.compact (32) still sizes them, the URL bar's submit button and the corner button (partly: test/tap_targets_test.dart, "every tap target of the chrome meets both platforms' floor")
 A11Y-015	no check: no test checks that a teaching SnackBar carries an action or repeats a labelled control; the fullscreen hint is known to fail
 A11Y-016	process: reading the Play pre-launch report each release is a release step; nothing a test can run
 # archive

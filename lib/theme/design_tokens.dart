@@ -240,6 +240,9 @@ abstract final class IconSizes {
 abstract final class TapTargets {
   /// Floor for a compact icon button that still has to be hittable.
   static const double compact = 32;
+
+  /// Android's floor for any tap target, above iOS's 44pt.
+  static const double floor = 48;
 }
 
 abstract final class Motion {

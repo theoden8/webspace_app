@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/app_theme.dart';
+import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/accent_logo.dart';
@@ -108,8 +109,7 @@ class SiteDrawer extends StatelessWidget {
                           horizontal: 12.0,
                           vertical: 0,
                         ),
-                        minimumSize: Size(0, 32),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        minimumSize: const Size(0, TapTargets.floor),
                       ),
                       onPressed: onBackToWebspaces,
                       icon: Icon(Icons.arrow_back, size: 16),

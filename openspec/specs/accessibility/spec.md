@@ -683,18 +683,19 @@ Every tappable element of the chrome SHALL have a hit area of at least
 Guidelines, `iOSTapTargetGuideline`). The drawn glyph may stay smaller; the
 hit area may not.
 
-Status: `TapTargets.compact` is 32 (`lib/theme/design_tokens.dart`), and
-`test/design_render_matrix_test.dart` holds its widgets to that floor, which
-is below both platforms'. It sizes the `HintButton` (46 call sites), the
-proxy status indicator's check-again button and the tabs sheet's
-expand/collapse control. Smaller still: the drawer's site menu button (about
-24) and the tab counter (22x22). Flutter's tap target guidelines run in no
-test.
+Status: `test/tap_targets_test.dart` runs both guidelines over the webspaces,
+a site with its tab strip, the drawer, and App Settings with each screen it
+opens, and they pass: `HintButton` reaches 48 through `IconButton`'s padded
+tap target, and the drawer's Back to Webspaces row is `TapTargets.floor`
+tall. Still below: the tabs sheet's expand/collapse control (a 32 box) and
+the proxy status indicator's check-again button (compact density), which no
+gated screen shows; `TapTargets.compact` (32) still sizes them, the URL bar's
+submit button and the tab bar corner button, and
+`test/design_render_matrix_test.dart` holds those to it.
 
-Gate to add: `meetsGuideline(androidTapTargetGuideline)` and
-`meetsGuideline(iOSTapTargetGuideline)` in widget tests of the drawer, tab
-strip, app bar and settings screens, with `TapTargets.compact` raised to 48
-and the render matrix floor following it.
+Gate to extend: the tabs sheet and a proxied site's indicator under the same
+guidelines, with `TapTargets.compact` raised to 48 and the render matrix
+floor following it.
 
 #### Scenario: Pre-launch report
 
