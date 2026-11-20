@@ -175,6 +175,7 @@ the only place with room; the tile's height is unchanged by the badges.
 **Given** a webspace whose sites can be reordered by drag
 **When** the drawer renders a site holding a camera grant
 **Then** its badge is drawn, exactly as in a non-reorderable webspace
+**And** `test/drawer_permission_badges_test.dart` holds it, in the drawer either way and in every tile layout
 
 ### Requirement: PERMBADGE-005 — Every Grant Stays Visible Inside Its Tile
 
