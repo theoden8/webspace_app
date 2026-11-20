@@ -90,6 +90,22 @@
   "@commonDelete": {
     "description": "Generic button that deletes an item."
   },
+  "findPreviousMatch": "Previous match",
+  "@findPreviousMatch": {
+    "description": "Tooltip and screen-reader name of the find-in-page toolbar button that moves to the previous match on the page."
+  },
+  "findNextMatch": "Next match",
+  "@findNextMatch": {
+    "description": "Tooltip and screen-reader name of the find-in-page toolbar button that moves to the next match on the page."
+  },
+  "passwordShow": "Show password",
+  "@passwordShow": {
+    "description": "Tooltip and screen-reader name of the eye button beside a password field while the password is hidden; pressing it reveals the password."
+  },
+  "passwordHide": "Hide password",
+  "@passwordHide": {
+    "description": "Tooltip and screen-reader name of the eye button beside a password field while the password is shown; pressing it hides the password again."
+  },
   "commonRemove": "Remove",
   "@commonRemove": {
     "description": "Generic button that removes an item from a list."

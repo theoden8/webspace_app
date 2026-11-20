@@ -56,6 +56,7 @@ class DialogWebViewPrompts implements MediaPrompter {
                     children: [
                       Text(title, style: TextStyle(fontWeight: FontWeight.bold)),
                       IconButton(
+                        tooltip: loc.commonClose,
                         icon: Icon(Icons.close),
                         onPressed: () => Navigator.of(dialogContext).pop(),
                       ),

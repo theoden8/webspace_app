@@ -92,6 +92,7 @@ class _HttpAuthDialogState extends State<HttpAuthDialog> {
                 labelText: loc.httpAuthPassword,
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
+                  tooltip: _obscurePassword ? loc.passwordShow : loc.passwordHide,
                   icon: Icon(
                     _obscurePassword ? Icons.visibility : Icons.visibility_off,
                   ),

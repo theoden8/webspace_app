@@ -106,6 +106,7 @@ class _ProxyAuthSectionState extends State<ProxyAuthSection> {
             label: loc.proxyAuthPassword,
             obscure: _obscurePassword,
             suffixIcon: IconButton(
+              tooltip: _obscurePassword ? loc.passwordShow : loc.passwordHide,
               icon: Icon(
                 _obscurePassword ? Icons.visibility : Icons.visibility_off,
               ),

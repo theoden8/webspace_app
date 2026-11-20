@@ -85,7 +85,8 @@ class WebspacesListScreen extends StatelessWidget {
                   final isSelected = selectedWebspaceId == webspace.id;
                   final isAll = webspace.id == WebspaceId.all;
                   final siteCount = isAll ? totalSitesCount : webspace.siteIndices.length;
-Widget action(IconData icon, {required VoidCallback onPressed}) => IconButton(
+Widget action(IconData icon, {required String tooltip, required VoidCallback onPressed}) => IconButton(
+      tooltip: tooltip,
       icon: Icon(icon, size: 20),
       padding: EdgeInsets.zero,
       constraints: BoxConstraints(minWidth: 40, minHeight: 40),
@@ -128,8 +129,9 @@ Widget action(IconData icon, {required VoidCallback onPressed}) => IconButton(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (!isAll) ...[
-                              action(Icons.edit, onPressed: () => onEditWebspace(webspace)),
+                              action(Icons.edit, tooltip: loc.commonEdit, onPressed: () => onEditWebspace(webspace)),
                               action(Icons.delete,
+                                  tooltip: loc.commonDelete,
                                   onPressed: () => onDeleteWebspace(webspace)),
                               ReorderableDragStartListener(
                                 index: index,
