@@ -13,6 +13,7 @@ import 'package:webspace/widgets/webspace_chips.dart';
 import 'favicon_image.dart';
 import '../services/icon_service.dart' show cachedSvgContent, getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, faviconsFound, iconImagesFetched, iconRetries, IconUpdate, iconReloads, reloadAllIcons;
 import '../services/file_dialog.dart';
+import '../services/svg_style_inliner.dart';
 import '../services/html_import_storage.dart' show importedFileSite;
 import '../services/outbound_http.dart' show OutboundProxy, resolveEffectiveProxy;
 import '../services/icon_image_store.dart';
@@ -460,18 +461,11 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
     final svg = _svgContent;
     // SVG not cached yet — show placeholder, never use SvgPicture.network
     if (svg == null) return fallback(context);
-    // Wrap in MediaQuery to pass app theme to SVG's CSS media queries
-    // (e.g., @media (prefers-color-scheme: dark) in codeberg's favicon)
-    return MediaQuery(
-      data: MediaQuery.of(context).copyWith(
-        platformBrightness: Theme.of(context).brightness,
-      ),
-      child: SvgPicture.string(
-        svg,
-        width: widget.size,
-        height: widget.size,
-        fit: BoxFit.contain,
-      ),
+    return SvgPicture.string(
+      inlineSvgStyles(svg, dark: Theme.of(context).brightness == Brightness.dark),
+      width: widget.size,
+      height: widget.size,
+      fit: BoxFit.contain,
     );
   }
 }

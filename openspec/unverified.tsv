@@ -54,7 +54,6 @@ HS-010	no check: no test of the iOS/macOS instructional dialog, its ShortcutsUIB
 HS-014	no check: the Swift SiteEntityQuery.entities(for:) live/tombstone/placeholder resolution is untested (RunnerTests has no case for it); only the Dart tombstone list's dedupe and cap are tested (partly: test/startup_restore_engine_test.dart, "ShortcutTombstones.add (iOS HS-011)")
 # http-auth-prompt
 # icon-fetching
-ICON-005	no check: no test renders an SVG with @media (prefers-color-scheme: dark) in dark mode; only the rejection of display:none toggles is checked (partly: test/icon_svg_selection_test.dart, "flags CSS display:none theme toggle")
 # inactive-tabs
 # incognito-mode
 # integration-tests

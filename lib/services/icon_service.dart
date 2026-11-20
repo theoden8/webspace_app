@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
+import 'package:webspace/services/svg_style_inliner.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/engine_image.dart';
 import 'package:webspace/services/favicon_rank.dart';
@@ -458,7 +459,8 @@ bool svgHasRealColor(String lowerSvg) {
 /// hostile icon can make it throw is named here, once.
 Future<PictureInfo?> loadUntrustedSvg(String svg) async {
   try {
-    return await vg.loadPicture(SvgStringLoader(svg), null);
+    return await vg.loadPicture(
+        SvgStringLoader(inlineSvgStyles(svg, dark: false)), null);
   } on FormatException catch (e) {
     LogTag.icon.warning('SVG rejected: $e');
   } on UnsupportedError catch (e) {
