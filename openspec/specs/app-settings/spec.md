@@ -147,10 +147,10 @@ prompt.
 ### Requirement: APPSET-005 — Behaviour shows a navigation's rows only with it
 
 App Settings > Behaviour SHALL open with a Navigation section whose first row
-is Site navigation (TAB-029). Each row under it SHALL show only where the chosen
+is Site navigation (TAB-030). Each row under it SHALL show only where the chosen
 navigation has something for it to set: In full screen (FS-007) with the site
-strip or the sidebar; Open sidebar shows (TAB-033) and Expand rail on hover
-(TAB-036) with the sidebar; the strip's position (FS-012) and its tab width
+strip or the sidebar; Open sidebar shows (TAB-034) and Expand rail on hover
+(TAB-037) with the sidebar; the strip's position (FS-012) and its tab width
 limit with the strip. The Behaviour row of the index SHALL name the site strip
 or the sidebar when either is chosen (APPSET-002).
 

@@ -11,6 +11,7 @@ NavigationSurfaces surfaces({
   FullscreenNavigation inFullscreen = FullscreenNavigation.hidden,
   bool fullscreen = false,
   SidebarState sidebar = SidebarState.open,
+  bool drawerShown = false,
   bool wide = true,
   bool kioskLocked = false,
   bool siteOnScreen = true,
@@ -22,6 +23,7 @@ NavigationSurfaces surfaces({
       inFullscreen: inFullscreen,
       fullscreen: fullscreen,
       sidebar: sidebar,
+      drawerShown: drawerShown,
       wide: wide,
       kioskLocked: kioskLocked,
       siteOnScreen: siteOnScreen,
@@ -41,7 +43,7 @@ const NavigationSurfaces nothing = (
 
 void main() {
   group('tab button', () {
-    test('shows only the tab count (TAB-029)', () {
+    test('shows only the tab count (TAB-030)', () {
       expect(surfaces(navigation: SiteNavigation.tabButton),
           (
             strip: false,
@@ -131,8 +133,10 @@ void main() {
   });
 
   group('sidebar, phone', () {
-    test('open is the rail with the drawer over the page', () {
-      final s = surfaces(wide: false);
+    test('open is the rail; the drawer shows over the page only when '
+        'opened (TAB-033)', () {
+      expect(surfaces(wide: false).float, SidebarFloat.none);
+      final s = surfaces(wide: false, drawerShown: true);
       expect((s.dock, s.float), (SidebarDock.rail, SidebarFloat.drawer));
       expect(s.arrowTab, isFalse);
     });
@@ -193,7 +197,7 @@ void main() {
     });
   });
 
-  test('no site on screen or a locked kiosk shows nothing (TAB-029)', () {
+  test('no site on screen or a locked kiosk shows nothing (TAB-030)', () {
     for (final navigation in SiteNavigation.values) {
       expect(surfaces(navigation: navigation, siteOnScreen: false), nothing,
           reason: '${navigation.name}, no site');
@@ -208,13 +212,6 @@ void main() {
       expect(settleSidebar(visible: 50, width: 260, rail: 60), SidebarState.collapsed);
       expect(settleSidebar(visible: 200, width: 260, rail: 60), SidebarState.open);
     });
-  });
-
-  test('a narrowing window keeps the sidebar at the rail, not over the page',
-      () {
-    expect(sidebarOnNarrowing(SidebarState.open), SidebarState.collapsed);
-    expect(sidebarOnNarrowing(SidebarState.collapsed), SidebarState.collapsed);
-    expect(sidebarOnNarrowing(SidebarState.hidden), SidebarState.hidden);
   });
 
   test('full screen set to Button gives a floating control with the strip or '
@@ -248,5 +245,23 @@ void main() {
         surfaces(
             siteOnScreen: false, legacyWebspace: true, kioskLocked: true),
         nothing);
+  });
+
+  test('NAV-009: the back gesture opens a drawer it may escalate from only in '
+      'the legacy design, and with the sidebar only on a phone', () {
+    for (final navigation in SiteNavigation.values) {
+      for (final wide in [true, false]) {
+        expect(
+            backOpensDrawer(
+                libraryDesign: true, navigation: navigation, wide: wide),
+            isFalse,
+            reason: 'the library: Back goes to the webspaces');
+        expect(
+            backOpensDrawer(
+                libraryDesign: false, navigation: navigation, wide: wide),
+            navigation != SiteNavigation.sidebar || !wide,
+            reason: '${navigation.name}, wide: $wide');
+      }
+    }
   });
 }

@@ -14,8 +14,12 @@ import 'package:webspace/widgets/site_sidebar.dart';
 import 'helpers/localized.dart';
 import 'helpers/real_app.dart';
 
-Future<void> start(WidgetTester tester, {required String inFullscreen}) async {
-  setViewSize(tester, size: const Size(1200, 900));
+Future<void> start(
+  WidgetTester tester, {
+  required String inFullscreen,
+  Size size = const Size(1200, 900),
+}) async {
+  setViewSize(tester, size: size);
   await pumpRealApp(
     tester,
     sites: [
@@ -102,5 +106,17 @@ void main() {
     await settleRealApp(tester);
     expect(find.byType(AppBar), findsOneWidget, reason: 'B is not full screen');
     expect(pageLeft(tester), AppPref.sidebarWidth.value);
+  });
+
+  testWidgets('FS-009, TAB-033: Back puts the phone sidebar revealed in full '
+      'screen away and leaves its state', (tester) async {
+    await start(tester, inFullscreen: 'button', size: const Size(360, 740));
+    await tester.tap(find.byType(SidebarArrowTab));
+    await settleRealApp(tester);
+    expect(find.byType(SidebarSquares), findsOneWidget);
+    await pressBack(tester);
+    expect(find.byType(SidebarSquares), findsNothing);
+    expect(find.byType(SidebarArrowTab), findsOneWidget);
+    expect(AppPref.sidebarState.value, 'open');
   });
 }

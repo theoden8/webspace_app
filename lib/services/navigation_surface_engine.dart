@@ -6,6 +6,8 @@ typedef NavigationQuery = ({
   FullscreenNavigation inFullscreen,
   bool fullscreen,
   SidebarState sidebar,
+  // A phone's drawer is open over the page.
+  bool drawerShown,
   bool wide,
   bool kioskLocked,
   bool siteOnScreen,
@@ -128,8 +130,11 @@ NavigationSurfaces _sidebar(NavigationQuery q) {
   }
   final (dock, float) = switch ((q.sidebar, q.wide)) {
     (SidebarState.open, true) => (SidebarDock.full, SidebarFloat.none),
-    (SidebarState.open, false) => (SidebarDock.rail, SidebarFloat.drawer),
-    (SidebarState.collapsed, _) => (SidebarDock.rail, SidebarFloat.none),
+    (SidebarState.collapsed, true) => (SidebarDock.rail, SidebarFloat.none),
+    (SidebarState.open || SidebarState.collapsed, false) => (
+        SidebarDock.rail,
+        q.drawerShown ? SidebarFloat.drawer : SidebarFloat.none,
+      ),
     (SidebarState.hidden, _) => (SidebarDock.none, SidebarFloat.none),
   };
   final hidden = q.sidebar == SidebarState.hidden;
@@ -164,10 +169,13 @@ SidebarState settleSidebar({
   return best.$2;
 }
 
-/// The sidebar's state once the window narrows to a phone's: an open
-/// sidebar would cover the page there, so it keeps the rail.
-SidebarState sidebarOnNarrowing(SidebarState state) => switch (state) {
-      SidebarState.open => SidebarState.collapsed,
-      SidebarState.collapsed => SidebarState.collapsed,
-      SidebarState.hidden => SidebarState.hidden,
-    };
+/// Whether the back gesture's navigation (NAV-009) opens a drawer over the
+/// page, which the next gesture may escalate from: the legacy design's
+/// drawer, or its sidebar's drawer on a phone. The library's goes to the
+/// webspaces, and a docked sidebar is no drawer.
+bool backOpensDrawer({
+  required bool libraryDesign,
+  required SiteNavigation navigation,
+  required bool wide,
+}) =>
+    !libraryDesign && (navigation != SiteNavigation.sidebar || !wide);

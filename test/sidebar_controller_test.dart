@@ -34,7 +34,7 @@ void main() {
     sidebar
       ..collapse()
       ..hide()
-      ..openFully();
+      ..openFully(wide: true);
     expect(sidebar.state, SidebarState.open);
   });
 
@@ -43,7 +43,7 @@ void main() {
     expect(sidebar.state, SidebarState.open);
   });
 
-  test('cycle goes open, collapsed, hidden, open (TAB-031)', () {
+  test('cycle goes open, collapsed, hidden, open (TAB-032)', () {
     final seen = [
       for (var i = 0; i < 3; i++) (sidebar..cycle()).state,
     ];
@@ -51,13 +51,29 @@ void main() {
         [SidebarState.collapsed, SidebarState.hidden, SidebarState.open]);
   });
 
-  test('a narrowing window keeps an open sidebar at the rail', () {
-    sidebar.narrowed();
-    expect(sidebar.state, SidebarState.collapsed);
+  test('on a phone expand shows the drawer and leaves the state (TAB-033)',
+      () {
+    sidebar
+      ..collapse()
+      ..expand(wide: false);
+    expect((sidebar.state, sidebar.drawerShown),
+        (SidebarState.collapsed, true));
+    sidebar.closeDrawer();
+    expect((sidebar.state, sidebar.drawerShown),
+        (SidebarState.collapsed, false));
+  });
+
+  test('hiding closes the drawer; a wide expand opens it in place', () {
+    sidebar
+      ..expand(wide: false)
+      ..hide();
+    expect(sidebar.drawerShown, isFalse);
+    sidebar.expand(wide: true);
+    expect((sidebar.state, sidebar.drawerShown), (SidebarState.open, false));
   });
 
   test('settle lands where a drag let go, and is persisted', () async {
-    sidebar.settle(SidebarState.collapsed);
+    sidebar.settle(SidebarState.collapsed, wide: true);
     expect(sidebar.state, SidebarState.collapsed);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.get(AppPref.sidebarState.key), 'collapsed');

@@ -1567,7 +1567,7 @@ final TabChipActions _noChipActions = (
 );
 
 /// The site strip with GitHub on screen, its tabs open beside its chip
-/// (TAB-030); the other sites carry their arrows.
+/// (TAB-031); the other sites carry their arrows.
 Widget _siteStripTabs(BuildContext _) {
   _TabsDemo.bindLookup();
   final sites = _TabsDemo.all;
@@ -1588,8 +1588,8 @@ Widget _siteStripTabs(BuildContext _) {
 }
 
 /// The page laid out with its sidebar, as the real frame lays it out: open
-/// (TAB-031) as squares or the tree (TAB-033), the rail, or on a phone the
-/// drawer over the rail (TAB-032). GitHub is on screen.
+/// (TAB-032) as squares or the tree (TAB-034), the rail, or on a phone the
+/// drawer over the rail (TAB-033). GitHub is on screen.
 Widget _sidebarFrame({
   required SidebarDock dock,
   required SidebarStyle style,
@@ -1609,6 +1609,7 @@ Widget _sidebarFrame({
               onSquare: (_) {},
               onToggleOpen: (_) {},
               actions: _noChipActions,
+              onMenu: (_, {required site, required position}) {},
             ),
           SidebarStyle.tree => TabsSheet(
               host: floating ? TabsSheetHost.drawer : TabsSheetHost.sidebar,

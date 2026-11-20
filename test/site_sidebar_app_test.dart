@@ -101,7 +101,7 @@ Widget frame(SidebarDock dock, {bool expandsOnHover = false}) => MaterialApp(
 );
 
 void main() {
-  testWidgets('TAB-031 wide: open, the collapse button gives the rail, its cross '
+  testWidgets('TAB-032 wide: open, the collapse button gives the rail, its cross '
       'hides it, the app bar icon opens it fully', (tester) async {
     await start(tester);
     expect(find.byType(SiteSidebar), findsWidgets);
@@ -136,7 +136,7 @@ void main() {
     );
   });
 
-  testWidgets('TAB-031 wide: the arrow tab brings it back as it was left; a short '
+  testWidgets('TAB-032 wide: the arrow tab brings it back as it was left; a short '
       'pull settles at the rail', (tester) async {
     await start(tester, prefs: {'sidebarState': 'collapsed'});
     await tester.tap(find.byTooltip('Hide the sidebar'));
@@ -152,7 +152,7 @@ void main() {
     expect(AppPref.sidebarState.value, 'collapsed');
   });
 
-  testWidgets('squares by default: the site on screen opens its tabs (TAB-033)', (
+  testWidgets('squares by default: the site on screen opens its tabs (TAB-034)', (
     tester,
   ) async {
     await start(tester);
@@ -166,7 +166,7 @@ void main() {
     );
   });
 
-  testWidgets('the tree, when chosen, is the Tabs sheet as the sidebar (TAB-033)', (
+  testWidgets('the tree, when chosen, is the Tabs sheet as the sidebar (TAB-034)', (
     tester,
   ) async {
     await start(tester, prefs: {'sidebarStyle': 'tree'});
@@ -174,26 +174,53 @@ void main() {
     expect(tree.host, TabsSheetHost.sidebar);
   });
 
-  testWidgets('TAB-032 phone: the rail stays, expand opens the drawer, a pick drops '
+  testWidgets('TAB-033 phone: the rail stays, expand opens the drawer, a pick drops '
       'back to the rail', (tester) async {
     await start(tester, size: phone);
-    expect(
-      AppPref.sidebarState.value,
-      'collapsed',
-      reason: 'a phone starts at the rail',
-    );
+    expect(find.byType(SidebarSquares), findsNothing,
+        reason: 'a phone starts at the rail');
     expect(tester.getSize(find.byType(SidebarRail)).width, 52);
 
     await tester.tap(find.byTooltip('Expand the sidebar'));
     await settleRealApp(tester);
-    expect(AppPref.sidebarState.value, 'open');
+    expect(find.byType(SidebarSquares), findsOneWidget);
     await tester.tap(find.widgetWithText(TabChip, 'Budget 2027').last);
     await settleRealApp(tester);
-    expect(AppPref.sidebarState.value, 'collapsed');
+    expect(find.byType(SidebarSquares), findsNothing);
+    expect(find.byType(SidebarRail), findsOneWidget);
     expect(appSite('Docs').activeTabId, TabId('Docst1'));
   });
 
-  testWidgets('the edge resizes it on release, within 200 to 420 (TAB-031)', (
+  testWidgets('TAB-033: a narrow window shows the rail and keeps the state; '
+      'widening opens it again', (tester) async {
+    await start(tester);
+    setViewSize(tester, size: phone);
+    await settleRealApp(tester);
+    expect(find.byType(SidebarRail), findsOneWidget);
+    expect(docked(SidebarSquares), findsNothing);
+    expect(AppPref.sidebarState.value, 'open');
+    setViewSize(tester, size: wide);
+    await settleRealApp(tester);
+    expect(docked(SidebarSquares), findsOneWidget);
+  });
+
+  testWidgets('TAB-031, TAB-034: the squares follow a switch; the site on '
+      'screen shows its tabs', (tester) async {
+    await start(tester);
+    Finder square(String name) => find.descendant(
+        of: find.byType(SidebarSquares), matching: find.text(name));
+    await tester.tap(square('Docs'));
+    await settleRealApp(tester);
+    expect(find.widgetWithText(TabChip, 'Budget 2027'), findsNothing,
+        reason: 'a second tap closes them');
+    await tester.tap(square('Mail'));
+    await settleRealApp(tester);
+    await tester.tap(square('Docs'));
+    await settleRealApp(tester);
+    expect(find.widgetWithText(TabChip, 'Budget 2027'), findsOneWidget);
+  });
+
+  testWidgets('the edge resizes it on release, within 200 to 420 (TAB-032)', (
     tester,
   ) async {
     await start(tester);
@@ -207,7 +234,7 @@ void main() {
     expect(AppPref.sidebarWidth.value, 420);
   });
 
-  testWidgets('TAB-036 expand on hover: the rail opens over the page while the '
+  testWidgets('TAB-037 expand on hover: the rail opens over the page while the '
       'pointer rests on it', (tester) async {
     await tester.pumpWidget(frame(SidebarDock.rail, expandsOnHover: true));
     expect(find.byKey(const ValueKey('panel')), findsNothing);
@@ -234,7 +261,7 @@ void main() {
     expect(find.byKey(const ValueKey('panel')), findsNothing);
   });
 
-  testWidgets('with reduced motion the page takes its width at once (TAB-034)', (
+  testWidgets('with reduced motion the page takes its width at once (TAB-035)', (
     tester,
   ) async {
     await tester.pumpWidget(frame(SidebarDock.full));

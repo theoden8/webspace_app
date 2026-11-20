@@ -20,6 +20,7 @@ class SidebarSquares extends StatelessWidget {
     required this.onSquare,
     required this.onToggleOpen,
     required this.actions,
+    required this.onMenu,
   });
 
   static const int columns = 3;
@@ -36,6 +37,15 @@ class SidebarSquares extends StatelessWidget {
   /// switching site.
   final ValueChanged<WebViewModel> onToggleOpen;
   final TabChipActions actions;
+
+  /// A long press or a secondary click on a square: the site's menu, as the
+  /// drawer's tiles give it.
+  final void Function(
+    BuildContext context, {
+    required WebViewModel site,
+    required Offset position,
+  })
+  onMenu;
 
   bool _isOpen(WebViewModel site) =>
       site.effectiveTabsEnabled &&
@@ -59,6 +69,8 @@ class SidebarSquares extends StatelessWidget {
                           on: identical(row[c], current),
                           opened: _isOpen(row[c]),
                           onTap: () => onSquare(row[c]),
+                          onMenu: (context, {required position}) =>
+                              onMenu(context, site: row[c], position: position),
                           onToggle: row[c].effectiveTabsEnabled
                               ? () => onToggleOpen(row[c])
                               : null,
@@ -98,6 +110,7 @@ class _Square extends StatelessWidget {
     required this.on,
     required this.opened,
     required this.onTap,
+    required this.onMenu,
     required this.onToggle,
   });
 
@@ -105,6 +118,7 @@ class _Square extends StatelessWidget {
   final bool on;
   final bool opened;
   final VoidCallback onTap;
+  final void Function(BuildContext context, {required Offset position}) onMenu;
   final VoidCallback? onToggle;
 
   @override
@@ -122,63 +136,67 @@ class _Square extends StatelessWidget {
           width: on ? 1.5 : Chrome.hairlineWidth,
         ),
       ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(Radii.lg),
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: Spacing.sm,
-                horizontal: Spacing.xs,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  UnifiedFaviconImage.site(site, size: 28),
-                  const SizedBox(height: Spacing.xs),
-                  Text(
-                    site.getDisplayName(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: on ? FontWeight.w600 : null,
+      child: GestureDetector(
+        onLongPressStart: (d) => onMenu(context, position: d.globalPosition),
+        onSecondaryTapUp: (d) => onMenu(context, position: d.globalPosition),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(Radii.lg),
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: Spacing.sm,
+                  horizontal: Spacing.xs,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    UnifiedFaviconImage.site(site, size: 28),
+                    const SizedBox(height: Spacing.xs),
+                    Text(
+                      site.getDisplayName(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: on ? FontWeight.w600 : null,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            if (onToggle case final toggle?)
-              PositionedDirectional(
-                top: 0,
-                start: 0,
-                child: IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 24,
-                    height: 24,
-                  ),
-                  iconSize: IconSizes.inline,
-                  tooltip: opened
-                      ? loc.stripHideSiteTabs(site.getDisplayName())
-                      : loc.stripShowSiteTabs(site.getDisplayName()),
-                  icon: Icon(
-                    opened
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                  ),
-                  onPressed: toggle,
+                  ],
                 ),
               ),
-            if (count > 1 && !opened)
-              PositionedDirectional(
-                top: Spacing.xs,
-                end: Spacing.xs,
-                child: TabCountPill(count: count, active: on),
-              ),
-          ],
+              if (onToggle case final toggle?)
+                PositionedDirectional(
+                  top: 0,
+                  start: 0,
+                  child: IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 24,
+                      height: 24,
+                    ),
+                    iconSize: IconSizes.inline,
+                    tooltip: opened
+                        ? loc.stripHideSiteTabs(site.getDisplayName())
+                        : loc.stripShowSiteTabs(site.getDisplayName()),
+                    icon: Icon(
+                      opened
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
+                    ),
+                    onPressed: toggle,
+                  ),
+                ),
+              if (count > 1 && !opened)
+                PositionedDirectional(
+                  top: Spacing.xs,
+                  end: Spacing.xs,
+                  child: TabCountPill(count: count, active: on),
+                ),
+            ],
+          ),
         ),
       ),
     );

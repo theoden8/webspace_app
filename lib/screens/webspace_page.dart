@@ -329,6 +329,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     _shortcuts.start();
     _network.start();
     _fullscreen.start();
+    _sidebar.addListener(_onSidebarChanged);
     _keys.start();
     WebExtensionLibrary.instance.answerTabRequests(_openExtensionTab);
   }
@@ -437,6 +438,9 @@ class _WebSpacePageState extends State<WebSpacePage>
     _shortcuts.dispose();
     AppPref.anyChange.removeListener(_onAppPrefChanged);
     _fullscreen.dispose();
+    _sidebar
+      ..removeListener(_onSidebarChanged)
+      ..dispose();
     _keys.dispose();
     WebExtensionLibrary.instance.answerTabRequests(null);
     surfaceRouteObserver.unsubscribe(this);
@@ -852,9 +856,11 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// and the navigation the last build saw, so a narrowing window or a
   /// switch to the sidebar on a phone starts at the rail.
   final SidebarController _sidebar = SidebarController();
+
+  void _onSidebarChanged() {
+    if (mounted) setState(() {});
+  }
   final GlobalKey<SiteNavigationFrameState> _frame = GlobalKey();
-  bool? _wasWide;
-  bool _wasSidebar = false;
   bool _wasDrawer = false;
 
   /// [to] puts [site] on screen; in the library it runs behind the
@@ -1622,9 +1628,11 @@ class _PageHost
       _s._surfaces.float == SidebarFloat.drawer;
 
   @override
-  bool get navigationIsDrawer =>
-      (_s._scaffoldKey.currentState?.hasDrawer ?? false) ||
-      (_s._sidebarChosen && !_s._wideNavigation);
+  bool get navigationIsDrawer => backOpensDrawer(
+        libraryDesign: _s._libraryDesign,
+        navigation: currentSiteNavigation,
+        wide: _s._wideNavigation,
+      );
 
   @override
   WebViewController? get shownController => _s.getController();
@@ -1641,7 +1649,7 @@ class _PageHost
   @override
   void closeDrawer() {
     _s._scaffoldKey.currentState?.closeDrawer();
-    if (_s._surfaces.float == SidebarFloat.drawer) _s._sidebar.collapse();
+    if (_s._surfaces.float == SidebarFloat.drawer) _s._putFloatAway();
   }
 
   @override
@@ -1659,7 +1667,7 @@ class _PageHost
       await _s._onSiteMenuAction(SiteMenuAction.backToWebspaces);
     } else if (_s._sidebarChosen) {
       // The legacy design's sidebar is its drawer.
-      _s._sidebar.openFully();
+      _s._sidebar.openFully(wide: _s._wideNavigation);
     } else {
       _s._scaffoldKey.currentState?.openDrawer();
     }

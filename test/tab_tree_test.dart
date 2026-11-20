@@ -90,7 +90,7 @@ void main() {
     expect(find.byType(TabsSheet), findsOneWidget);
   });
 
-  testWidgets('a tab subtree folds and says how many it holds (TAB-033)',
+  testWidgets('a tab subtree folds and says how many it holds (TAB-034)',
       (tester) async {
     final docs = siteWithChain('Docs', urls: [
       'https://docs.test/a',
