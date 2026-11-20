@@ -195,73 +195,85 @@ The User Scripts screen SHALL operate in two distinct modes:
 
 **Given** the user opens User Scripts from site settings
 **When** they tap the + button
-**Then** a script editor is shown with name, source, injection time, and enabled fields
+**Then** a script editor is shown with name, URL, injection time and source fields; a new script starts enabled, and its tile's switch turns it off
+**And** `test/user_scripts_screen_test.dart` holds it
 
 #### Scenario: Edit an existing script
 
 **Given** a site with user scripts
 **When** the user taps a script in the list
 **Then** the script editor opens pre-filled with the script's current values
+**And** `test/user_scripts_screen_test.dart` holds it
 
 #### Scenario: Delete a site script via swipe
 
 **Given** a site with user scripts
 **When** the user swipes a script to dismiss
 **Then** a confirmation dialog appears asking "Delete \"<name>\"?" with Cancel/Delete actions. On confirm, the script is removed from the list; on cancel, the script remains.
+**And** `test/user_scripts_screen_test.dart` holds it
 
 #### Scenario: Delete a site script via long-press
 
 **Given** a site with user scripts
 **When** the user long-presses a site script
 **Then** a bottom sheet appears with "Delete" and (when global scripts are supported) "Make Global" actions. Tapping "Delete" shows a confirmation dialog; on confirm, the script is removed.
+**And** `test/user_scripts_screen_test.dart` holds it
 
 #### Scenario: Delete a global script from the per-site screen
 
 **Given** global scripts are configured and the user has opened User Scripts from site settings
 **When** the user long-presses a global script tile
-**Then** a bottom sheet appears with a "Delete" action. Tapping "Delete" shows a confirmation dialog warning "It will stop running on all sites."; on confirm, the global script is removed from the global list and stops running on all sites.
+**Then** a bottom sheet appears with a "Delete" action subtitled "Removes from all sites". Tapping "Delete" shows a confirmation dialog asking "Delete \"<name>\" from all sites?"; on confirm, the global script is removed from the global list and from this site's opt-ins, and stops running on all sites.
+**And** `test/user_scripts_screen_test.dart` holds it
 
 #### Scenario: Cancel delete confirmation
 
 **Given** the delete confirmation dialog is shown
 **When** the user taps Cancel or dismisses the dialog
 **Then** the script is NOT deleted and remains in its list
+**And** `test/user_scripts_screen_test.dart` holds it
 
 #### Scenario: Toggle a script
 
 **Given** a site with user scripts
 **When** the user toggles the switch on a script
 **Then** the script's enabled state changes without opening the editor
+**And** `test/user_scripts_screen_test.dart` holds it
 
 #### Scenario: Reorder scripts
 
 **Given** a site with multiple user scripts
 **When** the user drags a script via the drag handle (leading icon)
 **Then** the script order changes. Drag handles are explicit (`buildDefaultDragHandles: false`) to avoid collision with the trailing toggle switch.
+**And** `test/user_scripts_screen_test.dart` holds it
 
 #### Scenario: View global scripts in per-site screen
 
 **Given** global scripts are configured
 **When** the user opens User Scripts from any site's settings
 **Then** global scripts appear at the top with a "Global" badge and globe icon, followed by site-specific scripts below a divider. The trailing switch on each global tile toggles this site's opt-in (not a master flag). Tap-to-edit opens the global script editor; changes save to the global list and preserve the script's `id`.
+**And** `test/user_scripts_screen_test.dart` holds it
 
 #### Scenario: Opt-in toggle on a global tile
 
 **Given** a site in per-site mode
 **When** the user flips the Switch on a global script tile from off to on
 **Then** the script's `id` is added to this site's `enabledGlobalScriptIds`. Flipping it back off removes the `id`. No other site is affected.
+**And** `test/user_scripts_screen_test.dart` holds it
 
 #### Scenario: Global library tile has no enable switch
 
 **Given** the user is on App Settings > Global User Scripts
 **When** the list renders
 **Then** each tile shows a "Global" badge and a drag handle, but NO trailing Switch. The tile is tap-to-edit and long-press-to-delete. Reorder and swipe-to-delete are available.
+**And** `test/user_scripts_screen_test.dart` holds it
 
 #### Scenario: Promote site script to global
 
 **Given** the user opens User Scripts from site settings
 **When** they long-press a site-specific script and select "Make Global" from the bottom sheet
 **Then** a confirmation dialog offers to move it to global scripts. On confirmation, the script is moved from the site list to the global list, and the current site is automatically opted into the promoted script so it keeps running here.
+**And** `test/user_scripts_screen_test.dart` holds it
 
 ### Requirement: US-004 - Backward Compatibility
 
