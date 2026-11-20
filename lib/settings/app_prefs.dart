@@ -42,13 +42,13 @@ enum AppPref<T extends Object> {
   // may keep its own choice.
   signInPopups('signInPopups', section: PrefSection.behaviour, fallback: true),
   showTabStrip('showTabStrip', section: PrefSection.appearance, fallback: false),
-  // Keep the site tab strip visible in fullscreen (top bar still hidden).
+  // Keep the site site strip visible in fullscreen (top bar still hidden).
   // Only meaningful when showTabStrip is on.
   tabStripInFullscreen('tabStripInFullscreen', section: PrefSection.appearance, fallback: false),
-  // FS-012: the edge the tab strip runs along, 'top' or 'bottom'; empty
+  // FS-012: the edge the site strip runs along, 'top' or 'bottom'; empty
   // follows the platform, so a backup carries only a choice the user made.
   tabStripEdge('tabStripEdge', section: PrefSection.appearance, fallback: ''),
-  // Floating button that opens the tab strip (and its overflow menu) on
+  // Floating button that opens the site strip (and its overflow menu) on
   // demand. Superseded `tabBarButtonInFullscreen` in v0.2.7; a device or a
   // backup from a build in between names only the old key.
   tabBarButton('tabBarButton', section: PrefSection.appearance, fallback: false, legacyKey: 'tabBarButtonInFullscreen'),
@@ -61,7 +61,7 @@ enum AppPref<T extends Object> {
   // point, so the chrome-free view matches the expectation. Per-site
   // `fullscreenMode` still applies independently on every activation.
   fullscreenOnShortcut('fullscreenOnShortcut', section: PrefSection.appearance, fallback: true),
-  // Max width (logical px) of each tab in the tab strip.
+  // Max width (logical px) of each tab in the site strip.
   tabMaxWidth('tabMaxWidth', section: PrefSection.appearance, fallback: 140),
   showStatsBanner('showStatsBanner', section: PrefSection.privacy, fallback: true),
   // Tile server for the location picker map. Only queried after the user

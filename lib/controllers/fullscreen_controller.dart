@@ -6,18 +6,18 @@ import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/services/fullscreen_system_ui.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/tab_strip_edge.dart';
+import 'package:webspace/settings/site_strip_edge.dart';
 
 /// What full screen asks of the page.
 abstract interface class FullscreenHost implements PageHost {
   bool get kioskLocked;
 
-  /// The edge the tab strip is on screen at, or null while it is not.
-  TabStripEdge? get tabStripEdge;
+  /// The edge the site strip is on screen at, or null while it is not.
+  SiteStripEdge? get siteStripEdge;
 }
 
 /// Full screen (FS-*): whether the page is in it, the system UI it holds,
-/// and the tab strip the tab-bar button reveals.
+/// and the site strip the tab-bar button reveals.
 class FullscreenController {
   FullscreenController({
     required FullscreenHost host,
@@ -28,21 +28,21 @@ class FullscreenController {
   final FullscreenHost _host;
   final SurfaceRepaintController _surface;
 
-  /// Hides the app bar, the tab strip and the system UI.
+  /// Hides the app bar, the site strip and the system UI.
   bool active = false;
 
-  /// Whether the tab-bar button has revealed the tab strip (FS-009). Runtime
+  /// Whether the tab-bar button has revealed the site strip (FS-009). Runtime
   /// only. A site switch out of full screen keeps it; its dismiss control,
   /// full screen and an app entry point end it.
-  bool get tabStripRevealed => _tabStripRevealed;
-  bool _tabStripRevealed = false;
+  bool get siteStripRevealed => _siteStripRevealed;
+  bool _siteStripRevealed = false;
 
   Timer? _revealedBarsHideTimer;
 
   void start() {
-    AppPref.tabStripInFullscreen.listenable.addListener(_onTabStripPrefChanged);
-    AppPref.tabBarButton.listenable.addListener(_onTabStripPrefChanged);
-    AppPref.tabStripEdge.listenable.addListener(_onTabStripPrefChanged);
+    AppPref.tabStripInFullscreen.listenable.addListener(_onSiteStripPrefChanged);
+    AppPref.tabBarButton.listenable.addListener(_onSiteStripPrefChanged);
+    AppPref.tabStripEdge.listenable.addListener(_onSiteStripPrefChanged);
     // Only Android's embedder implements the listener; elsewhere registering
     // it throws MissingPluginException.
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
@@ -53,15 +53,15 @@ class FullscreenController {
   void dispose() {
     _revealedBarsHideTimer?.cancel();
     AppPref.tabStripInFullscreen.listenable
-        .removeListener(_onTabStripPrefChanged);
-    AppPref.tabBarButton.listenable.removeListener(_onTabStripPrefChanged);
-    AppPref.tabStripEdge.listenable.removeListener(_onTabStripPrefChanged);
+        .removeListener(_onSiteStripPrefChanged);
+    AppPref.tabBarButton.listenable.removeListener(_onSiteStripPrefChanged);
+    AppPref.tabStripEdge.listenable.removeListener(_onSiteStripPrefChanged);
     unawaited(SystemChrome.setSystemUIChangeCallback(null));
   }
 
-  void _onTabStripPrefChanged() {
+  void _onSiteStripPrefChanged() {
     if (!AppPref.tabBarButton.value) {
-      _setTabStripRevealed(revealed: false, nudge: 'tab-overlay-hide');
+      _setSiteStripRevealed(revealed: false, nudge: 'tab-overlay-hide');
     }
     if (active) apply();
   }
@@ -69,24 +69,24 @@ class FullscreenController {
   /// A strip revealed along the top edge brings the status bar with it
   /// (FS-012), so in full screen a reveal or a dismiss re-asks for the
   /// system UI.
-  void revealTabStrip() {
-    if (_setTabStripRevealed(revealed: true, nudge: 'tab-overlay-show') &&
+  void revealSiteStrip() {
+    if (_setSiteStripRevealed(revealed: true, nudge: 'tab-overlay-show') &&
         active) {
       apply();
     }
   }
 
-  void hideTabStrip() {
-    if (_setTabStripRevealed(revealed: false, nudge: 'tab-overlay-hide') &&
+  void hideSiteStrip() {
+    if (_setSiteStripRevealed(revealed: false, nudge: 'tab-overlay-hide') &&
         active) {
       apply();
     }
   }
 
   /// Whether it changed.
-  bool _setTabStripRevealed({required bool revealed, required String nudge}) {
-    if (_tabStripRevealed == revealed) return false;
-    _tabStripRevealed = revealed;
+  bool _setSiteStripRevealed({required bool revealed, required String nudge}) {
+    if (_siteStripRevealed == revealed) return false;
+    _siteStripRevealed = revealed;
     _host.rebuild();
     _surface.nudge(nudge);
     return true;
@@ -96,15 +96,15 @@ class FullscreenController {
     if (active) {
       // A site or tab landing in full screen: there a revealed strip lasts
       // one pick.
-      _setTabStripRevealed(revealed: false, nudge: 'tab-overlay-hide');
-      // The system UI depends on the kiosk lock, the tab strip prefs and
+      _setSiteStripRevealed(revealed: false, nudge: 'tab-overlay-hide');
+      // The system UI depends on the kiosk lock, the site strip prefs and
       // the strip's edge, which a shortcut launch or an import can change
       // while already full screen.
       apply();
       return;
     }
     active = true;
-    _tabStripRevealed = false;
+    _siteStripRevealed = false;
     _host.rebuild();
     apply();
     // Removing the app bar / changing the bottom bar resizes the webview; on
@@ -124,7 +124,7 @@ class FullscreenController {
     if (!active) return;
     _revealedBarsHideTimer?.cancel();
     active = false;
-    _tabStripRevealed = false;
+    _siteStripRevealed = false;
     _host.rebuild();
     unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
     _surface.nudge('fullscreen-exit');
@@ -140,8 +140,8 @@ class FullscreenController {
 
   FullscreenSystemUi get _systemUi => FullscreenSystemUi.of(
         kioskLocked: _host.kioskLocked,
-        tabStripEdge: _host.tabStripEdge,
-        tabBarButton: AppPref.tabBarButton.value,
+        siteStripEdge: _host.siteStripEdge,
+        floatingControl: AppPref.tabBarButton.value,
       );
 
   /// Asks for the system UI full screen holds now.
@@ -150,7 +150,7 @@ class FullscreenController {
   }
 
   /// Where a revealed bar stays (FS-011) it does so until the app hides it;
-  /// the body and the tab strip inset around it meanwhile.
+  /// the body and the site strip inset around it meanwhile.
   Future<void> onSystemUiChange(bool systemOverlaysAreVisible) async {
     _revealedBarsHideTimer?.cancel();
     if (!_host.mounted || !active) return;

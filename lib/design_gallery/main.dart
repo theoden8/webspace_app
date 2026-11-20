@@ -926,14 +926,14 @@ Widget _appAppearance(BuildContext _) => AppAppearanceScreen(
       onSettingsChanged: (_) {},
     );
 
-/// App behaviour, with the tab strip pinned by [_seedAppPrefs] so the
+/// App behaviour, with the site strip pinned by [_seedAppPrefs] so the
 /// full-screen choice under it shows.
 Widget _appBehaviour(BuildContext _) => AppBehaviourScreen(
       onOpenLinkHandlingSettings: () {},
       homeShortcuts: null,
     );
 
-/// Off their defaults where that shows more of App settings: the tab strip
+/// Off their defaults where that shows more of App settings: the site strip
 /// pinned, so Behaviour shows its full-screen choice, with a width set, and
 /// full screen on shortcut off, on a device that takes shortcuts. Demo mode
 /// keeps what a designer toggles out of the browser's storage.

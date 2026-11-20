@@ -159,7 +159,7 @@ void main() {
     AppPref.linkHandlingEnabled.debugValue = true;
     await tester.pumpAndSettle();
     expect(summaryText(tester, title: 'Behaviour'),
-        'Site Tab Strip · Full screen on shortcut launch · 1 more');
+        'Site strip · Full screen on shortcut launch · 1 more');
   });
 
   testWidgets('where no shortcut can be added, as on a TV, full screen on '

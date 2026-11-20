@@ -5,7 +5,7 @@
 A per-site `kioskMode` toggle that turns a configured site into a
 locked-down "app". When the site is launched from a home-screen
 shortcut, the WebSpace shell hides every piece of *app UI* around the
-site — drawer, tab strip, app-bar actions, context menus — and enters
+site — drawer, site strip, app-bar actions, context menus — and enters
 fullscreen. The **webview itself is the one thing that stays**: the
 user sees the full-bleed website and nothing else, and cannot reach any
 configuration, switch to another site, edit, or delete it. Opening
@@ -59,7 +59,7 @@ the lock cleared.
 **Given** a site with `kioskMode = true` exists
 **When** the user opens WebSpace from the launcher icon (no shortcut payload)
 **Then** the shell is NOT locked
-**And** the drawer, tab strip, and settings are reachable as usual
+**And** the drawer, site strip, and settings are reachable as usual
 
 #### Scenario: Warm shortcut tap to a non-kiosk site clears a prior lock
 
@@ -82,7 +82,7 @@ While the lock is active the system SHALL suppress every affordance
 that navigates between sites or reaches configuration, while keeping the
 site's own webview fully presented. Specifically the shell SHALL NOT
 present: the navigation drawer (and its edge-swipe and auto app-bar
-hamburger), the bottom tab strip, the app-bar actions (download,
+hamburger), the bottom site strip, the app-bar actions (download,
 settings), or the per-site context menu (edit, delete, move,
 archive). The webview and in-page back navigation remain available; the opt-in back-at-history-start behaviour (NAV-009) is inert while locked, since it would otherwise reach the suppressed drawer or leave the app.
 
@@ -92,7 +92,7 @@ archive). The webview and in-page back navigation remain available; the opt-in b
 **When** the home page renders
 **Then** the active site's webview fills the screen
 **And** no navigation drawer is attached to the scaffold
-**And** no bottom tab strip is shown
+**And** no bottom site strip is shown
 **And** no app-bar action buttons or leading menu button are shown
 
 #### Scenario: Settings unreachable while locked
@@ -109,7 +109,7 @@ A locked session SHALL enter fullscreen on launch, overriding the
 per-site `fullscreenMode` and the global `fullscreenOnShortcut`
 preference, and SHALL NOT offer any exit-fullscreen affordance: the
 top-edge exit handle, the in-fullscreen tab-bar button, and the
-`FullscreenController.exit` action are all suppressed while locked. The tab strip
+`FullscreenController.exit` action are all suppressed while locked. The site strip
 SHALL stay hidden even when `tabStripInFullscreen` is on. The only way
 out of fullscreen is to relaunch the app normally, which clears the lock
 (KIOSK-001).
@@ -126,7 +126,7 @@ out of fullscreen is to relaunch the app normally, which clears the lock
 **When** the user taps the top-edge exit zone
 **Then** the app stays fullscreen
 **And** no tab-bar reveal button is shown even if `tabBarButtonInFullscreen` is on
-**And** the tab strip stays hidden even if `tabStripInFullscreen` is on
+**And** the site strip stays hidden even if `tabStripInFullscreen` is on
 
 ---
 
@@ -229,7 +229,7 @@ among what the code turns on. The rule is
 - `lib/main.dart` — `_kioskLocked` session flag, set from the target's
   `kioskMode` on cold launch (`StartupController.restore`) and warm tap
   (`_openShortcutIndex`); shell gates on `drawer`, `_buildAppBar`
-  (leading + actions), and `_tabStripShown`. Fullscreen is forced on
+  (leading + actions), and `_siteStripShown`. Fullscreen is forced on
   both launch paths and held: `FullscreenController.exit` early-returns while
   locked, and the exit handle / tab-bar button are not rendered.
 - `lib/l10n/app_en.arb` (+ all locale ARBs) — `siteSettingsKioskMode` +

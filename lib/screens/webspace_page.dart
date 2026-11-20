@@ -69,7 +69,7 @@ import 'package:webspace/widgets/site_editing_prompts.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
 import 'package:webspace/widgets/site_list_menu.dart';
 import 'package:webspace/widgets/site_menu.dart';
-import 'package:webspace/widgets/site_tab_strip.dart';
+import 'package:webspace/widgets/site_strip.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/isolation.dart';
@@ -98,7 +98,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_tor.dart';
-import 'package:webspace/settings/tab_strip_edge.dart';
+import 'package:webspace/settings/site_strip_edge.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:webspace/widgets/download_button.dart';
@@ -300,7 +300,7 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   // KIOSK-002: set when the current session entered via a home-shortcut tap
   // targeting a kiosk-mode site. While true the app shell hides all navigation
-  // and configuration affordances (drawer, tab strip, app-bar actions, context
+  // and configuration affordances (drawer, site strip, app-bar actions, context
   // menus). Re-derived on every shortcut launch from the target's kioskMode, so
   // a normal launch (no shortcut) or a shortcut to a non-kiosk site clears it.
   bool _kioskLocked = false;
@@ -905,7 +905,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   /// A site heading dropped on another in the Tabs sheet (TAB-016): the same
-  /// reorder the drawer grid and the tab strip make. Returns the sheet's sites
+  /// reorder the drawer grid and the site strip make. Returns the sheet's sites
   /// afresh, since reordering "All" renumbers them.
   List<TabsSheetSite>? _moveSiteInTabsSheet(SiteId siteId,
       {required SiteId ontoSiteId}) {
@@ -1069,24 +1069,24 @@ class _WebSpacePageState extends State<WebSpacePage>
     ));
   }
 
-  /// Whether the tab strip is on screen, at either edge. Out of fullscreen it
-  /// follows the "Site Tab Strip" pref. In fullscreen the behavior is an
+  /// Whether the site strip is on screen, at either edge. Out of fullscreen it
+  /// follows the "Site Site Strip" pref. In fullscreen the behavior is an
   /// independent choice: always visible, revealed on demand by the tab-bar
   /// button, or hidden.
-  bool get _tabStripShown {
-    // KIOSK-002: never show the tab strip in a locked session, in or out of
+  bool get _siteStripShown {
+    // KIOSK-002: never show the site strip in a locked session, in or out of
     // fullscreen — no switching away from the kiosk site.
     if (_kioskLocked || _sites.shown == null) return false;
     if (_sites.filteredIndices().isEmpty) return false;
     if (_fullscreen.active) {
       if (AppPref.tabStripInFullscreen.value) return true;
-      return AppPref.tabBarButton.value && _fullscreen.tabStripRevealed;
+      return AppPref.tabBarButton.value && _fullscreen.siteStripRevealed;
     }
-    return AppPref.showTabStrip.value || (AppPref.tabBarButton.value && _fullscreen.tabStripRevealed);
+    return AppPref.showTabStrip.value || (AppPref.tabBarButton.value && _fullscreen.siteStripRevealed);
   }
 
   /// Whether the floating tab-bar button is currently shown. It reveals the
-  /// tab strip (and its overflow menu) on demand, in and out of fullscreen.
+  /// site strip (and its overflow menu) on demand, in and out of fullscreen.
   /// Suppressed while the strip is already pinned or revealed — the strip then
   /// carries its own dismiss control.
   bool get _tabBarButtonShown {
@@ -1094,30 +1094,30 @@ class _WebSpacePageState extends State<WebSpacePage>
     // KIOSK-002: a locked session must not expose tab switching.
     if (_kioskLocked || _sites.shown == null) return false;
     if (_sites.filteredIndices().isEmpty) return false;
-    if (_fullscreen.tabStripRevealed) return false;
+    if (_fullscreen.siteStripRevealed) return false;
     if (_fullscreen.active) return !AppPref.tabStripInFullscreen.value;
     return !AppPref.showTabStrip.value;
   }
 
-  /// The edge the tab strip is on screen at, or null while it is not.
-  TabStripEdge? get _tabStripEdge =>
-      _tabStripShown ? TabStripEdge.current : null;
+  /// The edge the site strip is on screen at, or null while it is not.
+  SiteStripEdge? get _siteStripEdge =>
+      _siteStripShown ? SiteStripEdge.current : null;
 
-  /// The tab strip when it is on screen at [at]: the top of the body, or
+  /// The site strip when it is on screen at [at]: the top of the body, or
   /// bottomNavigationBar, where it is hidden while the keyboard is open.
-  Widget? _buildTabStrip({required TabStripEdge at}) {
-    if (_tabStripEdge != at) return null;
-    if (at == TabStripEdge.bottom &&
+  Widget? _buildSiteStrip({required SiteStripEdge at}) {
+    if (_siteStripEdge != at) return null;
+    if (at == SiteStripEdge.bottom &&
         MediaQuery.of(context).viewInsets.bottom > 0) {
       return null;
     }
-    return SiteTabStrip(
+    return SiteStrip(
       edge: at,
       models: _sites.models,
       order: _sites.filteredIndices(),
       current: _sites.current,
-      revealed: _fullscreen.tabStripRevealed,
-      onHide: _fullscreen.hideTabStrip,
+      revealed: _fullscreen.siteStripRevealed,
+      onHide: _fullscreen.hideSiteStrip,
       onOpen: _openSite,
       onShowTabs: () => unawaited(_showTabsSheet()),
       onReorder: _webspaces.canReorderView
@@ -1303,7 +1303,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         into: () => _libraryKey.currentState?.siteWell(site.siteId),
       );
 
-  /// A site picked in the drawer, the library or the tab strip, once a
+  /// A site picked in the drawer, the library or the site strip, once a
   /// webspace switch in flight lands.
   Future<void> _openSiteFromDrawer(WebViewModel site) async {
     // closeDrawer() (not Navigator.pop) is idempotent: a rapid second tap
@@ -1316,7 +1316,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _shell.saveCurrentIndex();
   }
 
-  /// A site picked in the tab strip or the library, or by its keyboard
+  /// A site picked in the site strip or the library, or by its keyboard
   /// shortcut, shown behind its card.
   Future<void> _openSite(WebViewModel site) =>
       _throughCard(site, to: _siteOnScreen(site));
@@ -1346,19 +1346,19 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// Build the body with the input bar (URL bar / find toolbar) integrated,
   /// so resizeToAvoidBottomInset naturally keeps them above the keyboard.
-  /// A top tab strip leads the body; a bottom one stays in
+  /// A top site strip leads the body; a bottom one stays in
   /// bottomNavigationBar.
   Widget _buildBodyWithBottomBar() {
     _sites.loaded.forEach(_wireSite);
     final inputBar = _buildInputBar();
-    final topStrip = _buildTabStrip(at: TabStripEdge.top);
+    final topStrip = _buildSiteStrip(at: SiteStripEdge.top);
     final nudgeInset = _surface.bottomInset;
-    // A bottom tab strip (in bottomNavigationBar) handles the bottom safe
+    // A bottom site strip (in bottomNavigationBar) handles the bottom safe
     // area when visible. Input bar has its own SafeArea. Only apply body safe
-    // area when neither is present (e.g. webspace list screen). The tab strip
+    // area when neither is present (e.g. webspace list screen). The site strip
     // is also rendered when kept in fullscreen or temporarily revealed by the
     // tab-bar button, in which case it owns the safe-area inset of its edge.
-    final hasBottomStrip = _tabStripEdge == TabStripEdge.bottom;
+    final hasBottomStrip = _siteStripEdge == SiteStripEdge.bottom;
     return SafeArea(
       // Out of fullscreen the AppBar absorbs the top inset, so top stays false.
       // In fullscreen there is no AppBar, and the immersive modes do not
@@ -1368,7 +1368,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       // both edges so it stays clear of any bars that persist, or that the user
       // revealed under `immersive` (FS-011); when they are truly hidden the
       // padding is ~0 and the webview still fills the screen. github #385
-      // A tab strip along the top keeps the status bar, and this inset puts
+      // A site strip along the top keeps the status bar, and this inset puts
       // the strip under it (FS-012).
       top: _fullscreen.active || (_libraryDesign && _sites.shown == null),
       bottom: !hasBottomStrip && inputBar == null,
@@ -1468,7 +1468,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                 if (_fullscreen.active && !_kioskLocked)
                   FullscreenExitHandle(onExit: _fullscreen.exit),
                 // Tab-bar button: a small floating control that reveals the
-                // tab strip (with its overflow menu) on demand, in and out of
+                // site strip (with its overflow menu) on demand, in and out of
                 // fullscreen. Works on its own (no always-on strip needed).
                 // Hidden once the strip is showing — its dismiss control then
                 // lives inside the bar instead.
@@ -1476,7 +1476,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                   Positioned.fill(
                     child: TabBarCornerOverlay(
                       corner: _tabBarButtonCornerEffective,
-                      onTap: _fullscreen.revealTabStrip,
+                      onTap: _fullscreen.revealSiteStrip,
                       // Remembered on the site on screen.
                       onCornerChosen: (corner) {
                         final site = _sites.shown;
@@ -1589,7 +1589,7 @@ class _WebSpacePageState extends State<WebSpacePage>
               onPressed: () => unawaited(_editing.addSite()),
               child: Icon(Icons.add),
             ),
-      bottomNavigationBar: _buildTabStrip(at: TabStripEdge.bottom),
+      bottomNavigationBar: _buildSiteStrip(at: SiteStripEdge.bottom),
     ),
     );
   }
@@ -1711,12 +1711,12 @@ class _PageHost
   set kioskLocked(bool locked) => _s._kioskLocked = locked;
 
   @override
-  TabStripEdge? get tabStripEdge => _s._tabStripEdge;
+  SiteStripEdge? get siteStripEdge => _s._siteStripEdge;
 
   @override
   void resetForEntry() {
     Navigator.of(_s.context).popUntil((route) => route.isFirst);
-    _s._fullscreen.hideTabStrip();
+    _s._fullscreen.hideSiteStrip();
   }
 
   @override

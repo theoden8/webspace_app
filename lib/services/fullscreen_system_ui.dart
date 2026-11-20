@@ -1,5 +1,5 @@
 import 'package:flutter/services.dart';
-import 'package:webspace/settings/tab_strip_edge.dart';
+import 'package:webspace/settings/site_strip_edge.dart';
 
 /// The system UI a full screen asks the platform for (FS-011, FS-012).
 ///
@@ -8,7 +8,7 @@ import 'package:webspace/settings/tab_strip_edge.dart';
 /// can move out from under them. Under `immersive` a revealed bar is a real
 /// one: the layout insets around it, and the app hides it again after
 /// [kRevealedSystemBarsHideDelay]. Sticky is kept for a full screen that shows
-/// none of the app's own controls. A tab strip along the top edge keeps the
+/// none of the app's own controls. A site strip along the top edge keeps the
 /// status bar, so the strip sits below it rather than in its place.
 enum FullscreenSystemUi {
   /// Both bars hidden; a swipe shows them as transient overlays.
@@ -23,19 +23,19 @@ enum FullscreenSystemUi {
   /// navigation bar comes back on a touch, not only on a swipe.
   statusBarKept;
 
-  /// What full screen shows: [tabStripEdge] is the edge the tab strip is on
-  /// screen at, null while it is not; [tabBarButton] whether the floating
-  /// button can reveal it.
+  /// What full screen shows: [siteStripEdge] is the edge the site strip is on
+  /// screen at, null while it is not; [floatingControl] whether a floating
+  /// control can reveal what navigation it hides.
   static FullscreenSystemUi of({
     required bool kioskLocked,
-    required TabStripEdge? tabStripEdge,
-    required bool tabBarButton,
+    required SiteStripEdge? siteStripEdge,
+    required bool floatingControl,
   }) {
     if (kioskLocked) return barsHiddenSticky;
-    return switch (tabStripEdge) {
-      TabStripEdge.top => statusBarKept,
-      TabStripEdge.bottom => barsHidden,
-      null => tabBarButton ? barsHidden : barsHiddenSticky,
+    return switch (siteStripEdge) {
+      SiteStripEdge.top => statusBarKept,
+      SiteStripEdge.bottom => barsHidden,
+      null => floatingControl ? barsHidden : barsHiddenSticky,
     };
   }
 

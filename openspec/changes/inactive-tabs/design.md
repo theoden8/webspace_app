@@ -425,7 +425,7 @@ A saved state is a transcript of one identity's browsing: the back-forward list,
   from the list, and the fact that opening a site never adds a tab. There is
   no bulk "close the rest": it reads as a nudge to throw tabs away. Sweeping
   is a later round.
-- **Naming.** The bottom strip is the "site tab strip" and its chips are
+- **Naming.** The bottom strip is the "site site strip" and its chips are
   sites. The new objects are "tabs" of a site. Copy in the sheet always says
   whose tabs they are ("GitHub, 4 tabs").
 - **[Risk] A hosted tab reads a field from the owner.** A single `this.<field>` left in `getWebView` runs the host's page with the owner's setting, or writes the host's cookies into the owner's store. Mitigation: the identity-read gate (D9) and the containers.tla demonstrator (D14).

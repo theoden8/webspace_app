@@ -205,7 +205,7 @@ final class GoForward extends KeyboardShortcut {
   const GoForward();
 }
 
-/// The next site along the tab strip, round to the first.
+/// The next site along the site strip, round to the first.
 final class NextSite extends KeyboardShortcut {
   const NextSite();
 }
@@ -214,7 +214,7 @@ final class PreviousSite extends KeyboardShortcut {
   const PreviousSite();
 }
 
-/// The site at [place] along the tab strip, counted from 0.
+/// The site at [place] along the site strip, counted from 0.
 final class SiteAt extends KeyboardShortcut {
   const SiteAt(this.place);
 

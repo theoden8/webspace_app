@@ -20,7 +20,7 @@ import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/launch_zoom.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/site_drawer.dart';
-import 'package:webspace/widgets/site_tab_strip.dart';
+import 'package:webspace/widgets/site_strip.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
 import 'package:webspace/widgets/webspace_name.dart';
@@ -873,7 +873,7 @@ void main() {
       await openWebspace(tester, name: 'All');
       await tester.tap(_siteTile('First'));
       await settleRealApp(tester);
-      final strip = find.byType(SiteTabStrip);
+      final strip = find.byType(SiteStrip);
       await tester.tap(
         find.descendant(of: strip, matching: find.text('Second')),
       );

@@ -550,7 +550,7 @@ class _TabsSheetState extends State<TabsSheet> {
 
   /// A long press lifts a site's heading, or a one-tab site's row
   /// (TAB-021); a drop on another puts the site in that one's place, as the
-  /// drawer and the tab strip do (TAB-016).
+  /// drawer and the site strip do (TAB-016).
   Widget _siteDragAndDrop(TabsSheetSite site,
       {required Widget drawn,
       required String label,

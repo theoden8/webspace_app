@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// TAB-005 / TAB-010 / TAB-020: where "New tab", "Duplicate tab" and the
 /// page Back would go to in a new tab are reached from. The app has two
-/// overflow menus (app bar, and the tab strip's when the strip is on), and a
+/// overflow menus (app bar, and the site strip's when the strip is on), and a
 /// spec that names "the overflow menu" means both. "Duplicate tab" is a long
 /// press on refresh only, and the back page a long press on back, never a
 /// menu row.
@@ -291,7 +291,7 @@ void guarded(String src,
   }
 }
 
-      guarded(File('lib/widgets/site_tab_strip.dart').readAsStringSync(),
+      guarded(File('lib/widgets/site_strip.dart').readAsStringSync(),
           count: 1,
           guard: RegExp(r'^if \(site\.effectiveTabsEnabled && '),
           reason: 'the strip chip counts tabs only where the site has them');

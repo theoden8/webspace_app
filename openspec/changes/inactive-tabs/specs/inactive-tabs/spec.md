@@ -653,7 +653,7 @@ the tab.
 In the Tabs sheet's All sites view, a long press on a site's heading SHALL
 lift the site, and a drop on another site's heading SHALL put the site in that
 one's place: above it when dragged up, below it when dragged down, the rule the
-drawer grid and the tab strip follow. The move SHALL be the same reorder those
+drawer grid and the site strip follow. The move SHALL be the same reorder those
 make (`_reorderSite`), so all three show one order: a named webspace's
 `siteIds` order, or the global site order in "All". It SHALL be offered only
 where they offer it, and SHALL be refused while a tab is being opened,
@@ -670,7 +670,7 @@ or active site SHALL change.
 - **GIVEN** the All sites view lists GitHub, Mastodon and Wikipedia
 - **WHEN** the user long-presses Wikipedia's heading and drops it on GitHub's
 - **THEN** the sites are listed Wikipedia, GitHub, Mastodon, each with its tabs
-- **AND** the drawer and the tab strip show the same order
+- **AND** the drawer and the site strip show the same order
 
 #### Scenario: The rows follow the new numbering
 
@@ -863,7 +863,7 @@ While the screen is where the last jump landed, on the tab it opened:
   it left, when that webspace shows the site; neither tab SHALL close.
 
 Leaving that tab any other way SHALL drop the trail: another site from the
-drawer, the tab strip, a shortcut or a link, another tab of the same site, or
+drawer, the site strip, a shortcut or a link, another tab of the same site, or
 a jump from somewhere else, which starts a new trail. The trail SHALL NOT be
 stored.
 

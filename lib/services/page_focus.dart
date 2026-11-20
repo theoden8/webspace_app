@@ -57,7 +57,7 @@ enum PageKeys {
 /// to the webview; focus entering it gives the native view focus; and, for a
 /// remote, an arrow the page had no use for ([PageJs.remoteEdge], in
 /// whichever of its frames had focus) moves focus out of it, toward the app
-/// bar or the tab strip.
+/// bar or the site strip.
 final class PageFocus {
   PageFocus({required this.keys});
 

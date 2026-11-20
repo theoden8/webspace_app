@@ -6,7 +6,7 @@ import 'package:webspace/web_view_model.dart';
 
 import 'helpers/real_app.dart';
 
-/// The app bar and the tab strip carry the same site menu. They were two
+/// The app bar and the site strip carry the same site menu. They were two
 /// copies once, and the strip's opened Developer Tools without the
 /// background-refresh simulation.
 void main() {

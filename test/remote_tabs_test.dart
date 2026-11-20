@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/site_tab.dart';
-import 'package:webspace/settings/tab_strip_edge.dart';
+import 'package:webspace/settings/site_strip_edge.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/remote_controls.dart';
-import 'package:webspace/widgets/site_tab_strip.dart';
+import 'package:webspace/widgets/site_strip.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
 import 'helpers/model_fixture.dart';
 import 'helpers/localized.dart';
@@ -74,8 +74,8 @@ void main() {
       tester,
       body: Align(
         alignment: Alignment.bottomCenter,
-        child: SiteTabStrip(
-          edge: TabStripEdge.bottom,
+        child: SiteStrip(
+          edge: SiteStripEdge.bottom,
           models: sites,
           order: const [0, 1, 2],
           current: 0,
@@ -117,8 +117,8 @@ void main() {
         tester,
         body: Align(
           alignment: Alignment.bottomCenter,
-          child: SiteTabStrip(
-            edge: TabStripEdge.bottom,
+          child: SiteStrip(
+            edge: SiteStripEdge.bottom,
             models: sites,
             order: const [0, 1],
             current: 0,
