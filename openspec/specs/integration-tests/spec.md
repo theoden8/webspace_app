@@ -177,6 +177,7 @@ ship a sufficient version.
   `libwpebackend-fdo-1.0-dev`, `libwpe-1.0-dev`
 - **When** `pkg-config --modversion wpe-webkit-2.0` runs
 - **Then** the reported version is ≥ 2.50.0
+- **And** `test/js/linux_container.test.js` holds it; the toolchain's install step stops below 2.50.0
 
 #### Scenario: GTK + libsecret + epoxy support stack present
 
@@ -184,6 +185,7 @@ ship a sufficient version.
 - **Then** `libgtk-3-dev`, `liblzma-dev`, `libsecret-1-dev`, and
   `libepoxy-dev` are installed at versions Flutter desktop linux's
   CMake build resolves cleanly
+- **And** `test/js/linux_container.test.js` holds it; the toolchain's install step stops below 2.50.0
 
 ---
 

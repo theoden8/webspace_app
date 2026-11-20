@@ -37,7 +37,6 @@ DEVTOOLS-004	no check: copy and sensitive-copy are tested, but no test checks li
 DNS-006	no check: no test drives the App Settings DNS row (DnsBlocklistDataset with its slider): nothing checks that moving the slider does not download, that the slider is disabled while a download runs, or that it opens at the downloaded level (partly: test/level_slider_test.dart, "every stop is labelled and the current one stands out")
 DNS-015	no check: no test renders the per-site settings DNS stats chips, or checks that they are absent when nothing was recorded
 # downloads
-DL-001	no check: no gate reads AndroidManifest.xml for the flutter_inappwebview_android FileProvider or its FILE_PROVIDER_PATHS resource, and no native test drives getOutputUri
 # external-scheme-handling
 EXT-007	no check: ExternalUrlSuppressor, the gesture bypass, the Android-only about:blank clear and dialog marking are unchecked; the bypass reads hasGesture (Android) or the navigation type (Apple), and the test host is neither, so no Dart test can drive it without a platform seam
 EXT-009	no check: not implemented: tasks 2.1 to 2.4 of upstream-webview-defects (the fork patch and the decline-path gate) are open
@@ -60,7 +59,6 @@ ICON-005	no check: no test renders an SVG with @media (prefers-color-scheme: dar
 # incognito-mode
 # integration-tests
 INTEG-001	no check: pass-secret-service is set up by a CI workflow step; no test or gate asserts the collection is unlocked or that no 'Failed to unlock the keyring' line is logged, and the integration tests fall back to an in-memory keychain when the real one throws (installInMemoryKeychainIfUnavailable)
-INTEG-002	no check: CI container choice in .github/workflows/build-and-test.yml; no gate reads the workflow for debian:sid-slim or the WPE >= 2.50 headers (only the Linux build failing would show it)
 INTEG-003	process: a test-authoring convention (mock plugin dialogs at the platform-interface level); nothing in the app to run against
 INTEG-004	process: a test-harness convention (set isDemoMode and mock SharedPreferences in setUpAll); the demo-mode guard it relies on is tested separately (partly: test/app_prefs_test.dart, "demo mode applies a pref without persisting it")
 INTEG-005	process: a test-writing pattern (re-open App Settings between pop-then-callback taps); no app behaviour to check
