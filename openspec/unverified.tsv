@@ -33,8 +33,6 @@ DESIGN-002	no check: the web compile is checked only by the CI design-web job ru
 DEVTOOLS-003	no check: no test drives Share/Save/Copy HTML or the concurrent-fetch guard
 DEVTOOLS-004	no check: copy and sensitive-copy are tested, but no test checks live streaming, auto-scroll or the App Settings entry (partly: test/dev_tools_copy_test.dart, "App Logs copy")
 # dns-blocklist
-DNS-006	no check: no test drives the App Settings DNS row (DnsBlocklistDataset with its slider): nothing checks that moving the slider does not download, that the slider is disabled while a download runs, or that it opens at the downloaded level (partly: test/level_slider_test.dart, "every stop is labelled and the current one stands out")
-DNS-015	no check: no test renders the per-site settings DNS stats chips, or checks that they are absent when nothing was recorded
 # downloads
 # external-scheme-handling
 EXT-007	no check: ExternalUrlSuppressor, the gesture bypass, the Android-only about:blank clear and dialog marking are unchecked; the bypass reads hasGesture (Android) or the navigation type (Apple), and the test host is neither, so no Dart test can drive it without a platform seam

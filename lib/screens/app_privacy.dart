@@ -118,17 +118,7 @@ class _AppPrivacyScreenState extends State<AppPrivacyScreen>
             title: loc.appSettingsClearUrlsRules,
             hint: loc.appSettingsClearUrlsHint,
           ),
-          DatasetTile(
-            create: DnsBlocklistDataset.new,
-            icon: Icons.shield,
-            title: loc.appSettingsDnsBlocklist,
-            hint: loc.appSettingsDnsBlocklistHint,
-            below: (dns, {required download}) => LevelSlider(
-              labels: dnsBlockLevelNames,
-              value: dns.picked,
-              onChanged: download == null ? null : dns.pick,
-            ),
-          ),
+          const DnsBlocklistTile(),
           SettingTile(
             leading: const Icon(Icons.filter_list),
             title: loc.appSettingsContentBlocker,
@@ -229,6 +219,28 @@ class LocalCdnTile extends StatelessWidget {
       icon: Icons.storage,
       title: loc.appSettingsLocalCdn,
       hint: loc.appSettingsLocalCdnHint,
+    );
+  }
+}
+
+/// The app-wide DNS blocklist row: the list on disk and a level slider that
+/// only picks, the download button fetching the pick (DNS-006).
+class DnsBlocklistTile extends StatelessWidget {
+  const DnsBlocklistTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    return DatasetTile(
+      create: DnsBlocklistDataset.new,
+      icon: Icons.shield,
+      title: loc.appSettingsDnsBlocklist,
+      hint: loc.appSettingsDnsBlocklistHint,
+      below: (dns, {required download}) => LevelSlider(
+        labels: dnsBlockLevelNames,
+        value: dns.picked,
+        onChanged: download == null ? null : dns.pick,
+      ),
     );
   }
 }

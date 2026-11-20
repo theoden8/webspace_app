@@ -229,12 +229,14 @@ App Settings SHALL display a severity level slider and download button in the Pr
 **Then** a slider with 6 positions (Off through Ultimate) is shown
 **And** labels for each level are displayed below the slider
 **And** a download/sync button is shown to the right
+**And** `test/dns_dataset_row_test.dart` ("DNS-006: the level slider") holds it
 
 #### Scenario: Slider does not auto-download
 
 **Given** the user moves the slider from Pro to Ultimate
 **Then** no download occurs automatically
 **And** the download icon changes to indicate a new level is selected
+**And** `test/dns_dataset_row_test.dart` ("DNS-006: the level slider") holds it
 
 #### Scenario: Spinning icon during download
 
@@ -242,12 +244,14 @@ App Settings SHALL display a severity level slider and download button in the Pr
 **When** the download is in progress
 **Then** the sync icon spins continuously
 **And** the slider is disabled
+**And** `test/dns_dataset_row_test.dart` ("DNS-006: the level slider") holds it
 
 #### Scenario: Slider resets on screen open
 
 **Given** the downloaded level is Pro (3)
 **When** the user opens App Settings
 **Then** the slider is set to position 3 (Pro)
+**And** `test/dns_dataset_row_test.dart` ("DNS-006: the level slider") holds it
 
 ---
 
@@ -637,12 +641,14 @@ The per-site settings screen SHALL display a compact DNS stats summary below the
 **And** DNS requests have been recorded for the current site
 **When** the user opens site settings
 **Then** a row of stat chips shows total, allowed, blocked counts, and block rate percentage
+**And** `test/site_privacy_screen_test.dart` ("DNS-015: the site's DNS counters below the blocklist") holds it
 
 #### Scenario: Stats hidden when no requests
 
 **Given** no DNS requests have been recorded for the current site
 **When** the user opens site settings
 **Then** no stats row is shown
+**And** `test/site_privacy_screen_test.dart` ("DNS-015: the site's DNS counters below the blocklist") holds it
 
 ---
 
