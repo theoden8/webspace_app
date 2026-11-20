@@ -1,17 +1,25 @@
-# The snap: built from source by snapcraft on core24 under strict confinement,
+# The snap: built from source by snapcraft on core22 under strict confinement,
 # on the GNOME extension's runtime. `snapcraft pack` builds it (in LXD, or with
-# --destructive-mode on an Ubuntu 24.04 host). Registering the name, uploading
+# --destructive-mode on an Ubuntu 22.04 host). core22, not a newer base, so
+# the AppImage made from it runs on the oldest Ubuntu LTS still supported
+# (PLATFORM-013). Registering the name, uploading
 # and releasing are the maintainer's (docs/releasing.md).
 name: webspace-app
 title: WebSpace
-base: core24
+base: core22
 adopt-info: webspace
 grade: stable
 confinement: strict
 
-platforms:
-  amd64:
-  arm64:
+architectures:
+  - build-on: [amd64]
+  - build-on: [arm64]
+
+# GCC 13 for WebKit, which needs libstdc++ 13 (<format>) where Ubuntu 22.04
+# stops at 12; its libstdc++6 ships in the snap and the AppImage.
+package-repositories:
+  - type: apt
+    ppa: ubuntu-toolchain-r/test
 
 # WebKit compiles in where its helper processes, injected bundle and inspector
 # resources live (PKGLIBEXECDIR, PKGLIBDIR, PKGDATADIR), and a release build
@@ -40,9 +48,10 @@ apps:
     common-id: org.codeberg.theoden8.webspace
     extensions: [gnome]
     environment:
-      # libWPEWebKit and libwpe, for the app and for WebKit's helper
-      # processes, which inherit it.
-      LD_LIBRARY_PATH: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
+      # libWPEWebKit, libwpe and GCC 13's libstdc++ and libgcc_s (in lib/ on
+      # Ubuntu 22.04), for the app and for WebKit's helper processes, which
+      # inherit it.
+      LD_LIBRARY_PATH: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR:$SNAP/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
     # The GNOME extension adds desktop (portals, notifications), desktop-legacy,
     # gsettings, opengl, wayland and x11. Each plug here names what needs it.
     plugs:
@@ -113,8 +122,8 @@ parts:
       git fetch --depth 1 --filter=blob:none origin c22ba3278caac6a1fc8b0c7a10f04db1ffc44982
       git -c advice.detachedHead=false checkout FETCH_HEAD
     build-environment:
-      - CC: clang
-      - CXX: clang++
+      - CC: gcc-13
+      - CXX: g++-13
       # Debug info makes WebKit's link outgrow a CI runner's memory and disk.
       - CFLAGS: -g0
       - CXXFLAGS: -g0
@@ -122,10 +131,9 @@ parts:
       # like any other.
       - CCACHE_DIR: /var/cache/webspace-snap-ccache
     # The GNOME extension points every part at its SDK, whose glibc headers
-    # clang then reads as ordinary headers (its own posix_memalign clashes
-    # with them), with the SDK's libraries mixed into Ubuntu's. WebKit builds
-    # against Ubuntu 24.04's alone, the release the GNOME 46 runtime and the
-    # GPU provider are built from, and libwpe from the stage. Set here, not
+    # the compiler then reads as ordinary headers, with the SDK's libraries
+    # mixed into Ubuntu's. WebKit builds against Ubuntu 22.04's alone, the
+    # release the GNOME 42 runtime is built from, and libwpe from the stage. Set here, not
     # around `craftctl default`, which sets the extension's environment again.
     # WebKit's bubblewrap sandbox is off: strict confinement grants none of
     # the user namespaces it needs, and snapd confines the processes itself.
@@ -137,7 +145,9 @@ parts:
     # loses.
     # PDF.js's Liberation Sans fonts are 1.07.4, under GPL-2.0, and WebKit
     # compiles them into the library; linux/pdfjs_fonts.sh replaces them with
-    # Ubuntu's 2.x release, under the OFL, before the build (LICENSE-001).
+    # Ubuntu's 2.x release (fonts-liberation2), under the OFL, before the
+    # build (LICENSE-001).
+    # Ubuntu 22.04 has no libjxl, so JPEG XL is off.
     # linux/wpe_root.sh lets the same build run moved whole, as the AppImage
     # the Snap workflow makes from this part runs it (PLATFORM-013); the snap
     # sets no WEBSPACE_WPE_ROOT and reads the configured paths, which its
@@ -145,8 +155,8 @@ parts:
     override-build: |
       export PATH=/usr/sbin:/usr/bin:/sbin:/bin
       changed="$(bash "$CRAFT_PROJECT_DIR/linux/pdfjs_fonts.sh" --src "$CRAFT_PART_SRC" \
-        --fonts /usr/share/fonts/truetype/liberation \
-        --copyright /usr/share/doc/fonts-liberation/copyright)"
+        --fonts /usr/share/fonts/truetype/liberation2 \
+        --copyright /usr/share/doc/fonts-liberation2/copyright)"
       changed="$changed; $(bash "$CRAFT_PROJECT_DIR/linux/wpe_root.sh" --src "$CRAFT_PART_SRC")"
       export PKG_CONFIG_PATH="$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig"
       export CMAKE_PREFIX_PATH="$CRAFT_STAGE/usr"
@@ -168,6 +178,7 @@ parts:
         -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON \
         -DENABLE_WPE_PLATFORM_DRM=OFF \
         -DUSE_LIBBACKTRACE=OFF \
+        -DUSE_JPEGXL=OFF \
         -DUSE_SYSTEM_SYSPROF_CAPTURE=OFF \
         -DUSE_SYSTEM_UNIFDEF=OFF \
         -DENABLE_PDFJS=ON
@@ -184,8 +195,9 @@ parts:
       install -m 644 "$CRAFT_PROJECT_DIR/linux/wpe_root.patch" "$CRAFT_PART_INSTALL/usr/share/doc/wpewebkit/"
     build-packages:
       - ccache
-      - clang
-      - fonts-liberation
+      - fonts-liberation2
+      - g++-13
+      - gcc-13
       - git
       - gperf
       - ninja-build
@@ -209,7 +221,6 @@ parts:
       - libhyphen-dev
       - libicu-dev
       - libjpeg-dev
-      - libjxl-dev
       - liblcms2-dev
       - libmanette-0.2-dev
       - libpng-dev
@@ -225,11 +236,15 @@ parts:
       - libxslt1-dev
       - wayland-protocols
       - zlib1g-dev
-    # The one library WebKit links that neither core24, the GNOME runtime nor
-    # the GPU provider (mesa-2404) ships. ICU, libxml2 and Wayland come from
-    # the GPU provider, as they do for the GNOME runtime's own WebKitGTK.
+    # The libraries WebKit links that neither core22 nor the GNOME runtime
+    # ships: libavif, and GCC 13's libstdc++ and the libgcc_s it needs, newer
+    # than core22's, which the app and WebKit's processes find first on
+    # LD_LIBRARY_PATH. Named, since snapcraft drops a package the base ships
+    # unless the part names it.
     stage-packages:
-      - libavif16
+      - libavif13
+      - libgcc-s1
+      - libstdc++6
     prime:
       - -usr/include
       - -usr/lib/*/pkgconfig

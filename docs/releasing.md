@@ -101,7 +101,7 @@ snapcraft register webspace-app
 ```
 
 Each release, upload the workflow's artifacts, or snaps built locally with
-`snapcraft pack` (in LXD, or `--destructive-mode` on Ubuntu 24.04). Each
+`snapcraft pack` (in LXD, or `--destructive-mode` on Ubuntu 22.04). Each
 architecture's upload is a revision of its own:
 
 ```bash
