@@ -215,7 +215,8 @@ jobs:
             --quick-generate-key 'WebSpace CI, this run only' ed25519 sign 1d
           fpr="$(gpg --with-colons --list-keys | awk -F: '$1 == "fpr" { print $10; exit }')"
           gpg --armor --export "$fpr" > "$RUNNER_TEMP/throwaway.asc"
-          info="gh-releases-zsync|${GITHUB_REPOSITORY%%/*}|${GITHUB_REPOSITORY#*/}|latest|WebSpace-*-${{ matrix.appimage_arch }}.AppImage.zsync"
+          . linux/appimage/release_names.sh
+          info="$(appimage_update_info "$GITHUB_REPOSITORY" "${{ matrix.appimage_arch }}")"
           bash linux/appimage/fetch_tools.sh "$RUNNER_TEMP/appimage-tools"
           bash linux/appimage/pack.sh --appdir AppDir --out "WebSpace-ci-${{ matrix.appimage_arch }}.AppImage" \
             --tools "$RUNNER_TEMP/appimage-tools" --key "$fpr" --update-info "$info"

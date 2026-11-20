@@ -29,6 +29,8 @@ pub="$root/linux/appimage/signing_key.asc"
 owed="$root/linux/appimage/licences_owed.tsv"
 uid='WebSpace AppImage releases'
 fail() { echo "release_appimage.sh: $1" >&2; exit 1; }
+# shellcheck source=linux/appimage/release_names.sh
+. "$root/linux/appimage/release_names.sh"
 need() { for c in "$@"; do command -v "$c" >/dev/null || fail "$c is not installed"; done; }
 
 make_key() {
@@ -99,8 +101,8 @@ publish() {
       || fail "$(basename "$tarball") has no provenance from $repo's Snap workflow at $tag"
     mkdir "$work/AppDir-$arch"
     zstd -dc "$tarball" | tar -x --no-same-owner -C "$work/AppDir-$arch"
-    name="WebSpace-$version-$arch.AppImage"
-    info="gh-releases-zsync|${repo%%/*}|${repo#*/}|latest|WebSpace-*-$arch.AppImage.zsync"
+    name="$(appimage_name "$version" "$arch")"
+    info="$(appimage_update_info "$repo" "$arch")"
     bash "$root/linux/appimage/pack.sh" --appdir "$work/AppDir-$arch" --out "$out/$name" \
       --tools "$work/tools" --key "$fpr" --update-info "$info"
     node "$root/tool/appimage_signature.js" "$out/$name" --key "$pub" --update-info "$info"
@@ -128,7 +130,7 @@ publish() {
   [ "$replace" = no ] || clobber=(--clobber)
   (cd "$out" && gh release upload "$tag" --repo "$repo" ${clobber[@]+"${clobber[@]}"} "${files[@]}")
   echo "Published. A download is checked with:"
-  echo "  node tool/appimage_signature.js WebSpace-$version-x86_64.AppImage --key linux/appimage/signing_key.asc"
+  echo "  node tool/appimage_signature.js $(appimage_name "$version" x86_64) --key linux/appimage/signing_key.asc"
 }
 
 case "${1:-}" in
