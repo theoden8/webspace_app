@@ -168,7 +168,7 @@ parts:
     # Clang and libc++ come from the llvm part: libc++ and libc++abi are
     # linked in statically at the end of every C++ link (CMake's standard
     # libraries) and kept out of what WebKit exports; unwinding stays the
-    # machine's libgcc_s.
+    # machine's libgcc_s, and 16-byte atomics its libatomic, as GCC links them.
     # WebKit's bubblewrap sandbox is off: strict confinement grants none of
     # the user namespaces it needs, and snapd confines the processes itself.
     # Its Swift back-forward list is off: WebKit turns it on wherever CMake
@@ -206,7 +206,7 @@ parts:
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_C_COMPILER_LAUNCHER=ccache \
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-        "-DCMAKE_CXX_STANDARD_LIBRARIES=-Wl,-Bstatic -lc++ -lc++abi -Wl,-Bdynamic -lm" \
+        "-DCMAKE_CXX_STANDARD_LIBRARIES=-Wl,-Bstatic -lc++ -lc++abi -Wl,-Bdynamic -latomic -lm" \
         -DPORT=WPE \
         -DENABLE_DOCUMENTATION=OFF \
         -DENABLE_INTROSPECTION=OFF \
