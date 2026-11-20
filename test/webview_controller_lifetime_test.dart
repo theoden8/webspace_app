@@ -342,6 +342,52 @@ void main() {
     expect(guardian.currentUrl, home);
   });
 
+  testWidgets('IMPORT-004: a file import renders its own HTML in the webview, '
+      'based at its file URL', (tester) async {
+    const home = 'file:///import/page.html';
+    const html = '<p>Imported page</p><a href="https://other.example/">out</a>';
+    final imported = WebViewModel(initUrl: home);
+    await tester.pumpWidget(MaterialApp(home: imported.getWebView(
+      _siteHooks(), cacheFirst: false, initialHtml: html,
+    )));
+    final view = tester.widget<inapp.InAppWebView>(find.byType(inapp.InAppWebView));
+    final data = view.platform.params.initialData;
+    expect(data, isNotNull, reason: 'the page is handed over as data');
+    expect(data!.data, html);
+    expect(data.mimeType, 'text/html');
+    expect(data.baseUrl.toString(), home);
+    expect(view.platform.params.initialUrlRequest, isNull,
+        reason: 'the synthetic file URL is never requested (IMPORT-005)');
+  });
+
+  testWidgets('IMPORT-004: a link out of a file import opens in a nested '
+      'screen', (tester) async {
+    const home = 'file:///import/page.html';
+    final imported = WebViewModel(initUrl: home);
+    final nested = <String>[];
+    await tester.pumpWidget(MaterialApp(home: imported.getWebView(
+      _siteHooks(
+        host: inertHostHooks(
+          vars: RuntimeVars.ofSet({imported.siteId}),
+          launchNested: (url, {required posture, homeTitle}) => nested.add(url),
+        ),
+      ),
+      cacheFirst: false,
+      initialHtml: '<a href="https://other.example/">out</a>',
+    )));
+    final (:params, :native) = await _attach(tester);
+    final policy = await tester.runAsync(() async =>
+        params.shouldOverrideUrlLoading!(native, inapp.NavigationAction(
+          request: inapp.URLRequest(url: inapp.WebUri('https://other.example/')),
+          isForMainFrame: true,
+          hasGesture: true,
+          navigationType: inapp.NavigationType.LINK_ACTIVATED,
+        )));
+    expect(policy, inapp.NavigationActionPolicy.CANCEL);
+    expect(nested, ['https://other.example/']);
+    expect(imported.currentUrl, home);
+  });
+
   testWidgets('initial Guardian redirect commits and keeps article URLs in the site',
       (tester) async {
     final guardian = WebViewModel(initUrl: 'https://theguardian.co.uk/');
