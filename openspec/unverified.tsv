@@ -19,7 +19,6 @@ A11Y-014	no check: Flutter's tap-target guidelines run in no test; the render ma
 A11Y-015	no check: no test checks that a teaching SnackBar carries an action or repeats a labelled control; the fullscreen hint is known to fail
 A11Y-016	process: reading the Play pre-launch report each release is a release step; nothing a test can run
 # archive
-ARCH-008	no check: no widget test covers the combined Restore action with its passphrase field, the no-match create prompt, the Close this archive menu item on archive webspaces, or when Close all archives shows
 # background-audio
 # block-statistics
 STATS-003	no check: no test of the report's range total, per-day chart, category shares, all-time/since line, the empty state, or the badge using the accent rather than colorScheme.error (partly: test/block_stats_service_test.dart, "reset zeroes the persisted payload")
