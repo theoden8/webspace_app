@@ -5117,6 +5117,30 @@
   "@tabsUnfoldSite": {
     "description": "Tooltip of the arrow beside a folded site's heading in the tab sidebar that shows the site's tabs again"
   },
+  "stripShowSiteTabs": "Show {site}'s tabs",
+  "@stripShowSiteTabs": {
+    "description": "Tooltip of the small arrow beside a site's chip in the site strip that shows that site's tabs after its chip, without switching to the site. {site} is the site's name",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "Mail"
+      }
+    }
+  },
+  "stripHideSiteTabs": "Hide {site}'s tabs",
+  "@stripHideSiteTabs": {
+    "description": "Tooltip of the small arrow beside a site's chip in the site strip that hides that site's tabs again. {site} is the site's name",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "Mail"
+      }
+    }
+  },
+  "tabsAllTabsMenu": "All tabs",
+  "@tabsAllTabsMenu": {
+    "description": "Item of a site's overflow menu, shown while the site strip or the sidebar shows the tabs: opens the full list of tabs, which shows which tab was opened from which and the tabs other sites opened from this one"
+  },
   "tabsHiddenChildren": "{count, plural, =1{1 tab hidden} other{{count} tabs hidden}}",
   "@tabsHiddenChildren": {
     "description": "Shown under a collapsed tab, saying how many tabs opened from it are hidden.",

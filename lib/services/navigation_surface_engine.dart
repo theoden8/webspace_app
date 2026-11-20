@@ -13,6 +13,11 @@ typedef NavigationQuery = ({
   bool revealed,
 });
 
+/// Whether a window this wide docks the sidebar beside the page; a
+/// narrower one is a phone's, where open is a drawer over the page (the
+/// width Material's expanded windows start at).
+bool isWideNavigation(double width) => width >= 840;
+
 /// What the sidebar docks beside the page.
 enum SidebarDock { none, rail, full }
 
