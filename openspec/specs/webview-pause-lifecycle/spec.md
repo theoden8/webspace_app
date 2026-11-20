@@ -126,9 +126,10 @@ The `WebViewController` interface SHALL expose `pause()`/`resume()` and `pauseAl
 #### Scenario: Future contributor reads the interface
 
 **Given** a contributor adds a new pause call site
-**When** they read [lib/services/webview.dart:332-390](../../lib/services/webview.dart)
+**When** they read the `WebViewController` interface in [lib/services/webview_controller.dart](../../../lib/services/webview_controller.dart)
 **Then** the doc on `pause()` plainly warns it is **not a security boundary**
 **And** the doc on `pauseAllJsTimers()` plainly warns it is process-global on Android and must not be used for single-site pausing
+**And** `test/js/pause_api_docs.test.js` holds both doc comments and the four methods
 
 ---
 
