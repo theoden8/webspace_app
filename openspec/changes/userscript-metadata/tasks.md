@@ -35,7 +35,7 @@
 - [ ] 6.1 Add `integration_test/userscript_match_test.dart`: a fixture-server site with `/a/` and `/b/`, a script with `@match` for `/a/*` that sets a DOM marker, the marker present on `/a/` only; verify it passes locally on Linux (`fvm flutter test integration_test/userscript_match_test.dart -d linux`)
 - [x] 6.2 Remove US-008 to US-012 from `openspec/unverified.tsv` as their tests land; verify `node --test test/js/spec_verification.test.js` passes
 - [ ] 6.3 Note the narrowing in the release's fastlane changelog when this ships; verify `scripts/validate_fastlane_metadata.sh` passes
-- [ ] 6.4 Run `./scripts/test_all.sh` and `npx openspec validate --no-interactive --all`; verify both exit 0
+- [x] 6.4 Run `./scripts/test_all.sh` and `npx openspec validate --no-interactive --all`; verify both exit 0
 
 ## Workflow follow-up
 
