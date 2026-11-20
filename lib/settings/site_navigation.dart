@@ -1,50 +1,26 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/navigation_choices.dart';
 import 'package:webspace/settings/pref_read.dart';
 
-/// How the sites and their tabs are reached: the app bar's tab-count button
-/// alone, the site strip, or the sidebar. One choice, so the strip and the
-/// sidebar never show together.
-enum SiteNavigation {
-  tabButton,
-  strip,
-  sidebar;
+export 'package:webspace/settings/navigation_choices.dart';
 
-  static SiteNavigation get current =>
-      values.asNameMap()[AppPref.siteNavigation.value] ?? tabButton;
-}
+/// The chosen navigation, as the app runs with it.
+SiteNavigation get currentSiteNavigation =>
+    SiteNavigation.parse(AppPref.siteNavigation.value);
 
-/// What full screen does with the chosen navigation: hides it, keeps it, or
-/// leaves a small control that brings it back.
-enum FullscreenNavigation {
-  hidden,
-  kept,
-  button;
+/// What full screen does with it.
+FullscreenNavigation get currentFullscreenNavigation =>
+    FullscreenNavigation.parse(AppPref.fullscreenNavigation.value);
 
-  static FullscreenNavigation get current =>
-      values.asNameMap()[AppPref.fullscreenNavigation.value] ?? hidden;
-}
+/// The sidebar's state, one for the app.
+SidebarState get currentSidebarState =>
+    SidebarState.parse(AppPref.sidebarState.value);
 
-/// The sidebar's state, one for the app: open, collapsed to a rail, hidden.
-enum SidebarState {
-  open,
-  collapsed,
-  hidden;
-
-  static SidebarState get current =>
-      values.asNameMap()[AppPref.sidebarState.value] ?? open;
-}
-
-/// What the open sidebar shows: the sites as squares, their tabs opening
-/// out under them, or the tab tree.
-enum SidebarStyle {
-  squares,
-  tree;
-
-  static SidebarStyle get current =>
-      values.asNameMap()[AppPref.sidebarStyle.value] ?? squares;
-}
+/// What the open sidebar shows.
+SidebarStyle get currentSidebarStyle =>
+    SidebarStyle.parse(AppPref.sidebarStyle.value);
 
 typedef SiteNavigationChoice = ({
   SiteNavigation navigation,

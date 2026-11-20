@@ -28,7 +28,7 @@ enum TabStrip {
   pinned,
   button;
 
-  static TabStrip get current => switch ((SiteNavigation.current, FullscreenNavigation.current)) {
+  static TabStrip get current => switch ((currentSiteNavigation, currentFullscreenNavigation)) {
         (SiteNavigation.strip, FullscreenNavigation.button) => button,
         (SiteNavigation.strip, _) => pinned,
         (SiteNavigation.tabButton || SiteNavigation.sidebar, _) => hidden,
@@ -117,7 +117,7 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
   /// Whether the site strip can appear at all (pinned out of fullscreen, pinned
   /// in fullscreen, or revealed by the tab-bar button), so its position and
   /// width limit are meaningful.
-  bool get _siteStripCanShow => SiteNavigation.current == SiteNavigation.strip;
+  bool get _siteStripCanShow => currentSiteNavigation == SiteNavigation.strip;
 
   Localized? get _webSearchDefaultName {
     final site = widget.webSearchSites
@@ -186,7 +186,7 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
               Text(loc.appSettingsFullscreenSiteStrip),
               trailing: IconSegments(
                 segments: [TabStrip.hidden.segment(loc), TabStrip.pinned.segment(loc)],
-                selected: FullscreenNavigation.current == FullscreenNavigation.kept
+                selected: currentFullscreenNavigation == FullscreenNavigation.kept
                     ? TabStrip.pinned
                     : TabStrip.hidden,
                 onChanged: (mode) => AppPref.fullscreenNavigation.set(

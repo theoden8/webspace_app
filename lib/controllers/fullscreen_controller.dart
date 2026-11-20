@@ -62,8 +62,8 @@ class FullscreenController {
 
   /// Whether full screen leaves the strip's button to bring the strip back.
   static bool get _stripButton =>
-      SiteNavigation.current == SiteNavigation.strip &&
-      FullscreenNavigation.current == FullscreenNavigation.button;
+      currentSiteNavigation == SiteNavigation.strip &&
+      currentFullscreenNavigation == FullscreenNavigation.button;
 
   void _onSiteStripPrefChanged() {
     if (!_stripButton) {
