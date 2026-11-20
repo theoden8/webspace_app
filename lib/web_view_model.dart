@@ -1,5 +1,6 @@
 import 'package:webspace/services/model_names.dart';
 import 'package:webspace/services/engine_site.dart';
+import 'package:webspace/services/launch_timeline.dart';
 import 'package:webspace/services/step_table.dart';
 import 'dart:async';
 import 'dart:typed_data';
@@ -1421,7 +1422,12 @@ bool dispatch(NavigationDecision decision,
             // surface; the host repaints there rather than at reload-issue
             // time, when there is nothing yet to paint (PAUSE-021).
             if (!loading) {
-              if (!_firstLoadSettled.isCompleted) _firstLoadSettled.complete();
+              if (!_firstLoadSettled.isCompleted) {
+                _firstLoadSettled.complete();
+                // The page-settled phase of this activation's timeline, for
+                // the launch and every later switch (DEVTOOLS-013).
+                LaunchTimeline.reached(LaunchMark.pageSettled);
+              }
               onLoadSettled?.call();
             }
             // Trigger a UI rebuild so the URL-bar action button can

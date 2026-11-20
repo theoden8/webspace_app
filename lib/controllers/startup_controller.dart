@@ -347,12 +347,9 @@ class StartupController implements DeferredStartupHost {
   /// The launch's timeline, once the launched page has settled or is no
   /// longer waited for (DEVTOOLS-013).
   Future<void> _reportLaunch() async {
-    final site = _launchedSite;
-    if (site != null) {
-      unawaited(site.firstLoadSettled
-          .then((_) => LaunchTimeline.reached(LaunchMark.pageSettled)));
-      await launchedSiteLoaded();
-    }
+    // pageSettled is marked once, at the webview's first-load settle
+    // (web_view_model.dart), for the launch and every later switch.
+    if (_launchedSite != null) await launchedSiteLoaded();
     LaunchTimeline.end();
   }
 
