@@ -1161,8 +1161,6 @@
       }
     }
   },
-  "appSettingsExperimentalExtensionSearch": "የቅጥያ ፍለጋ",
-  "appSettingsExperimentalExtensionSearchHint": "addons.mozilla.org ን መፈለግ ወደ \"ቅጥያዎች\" ማያ ገጽ ያክላል፤ እያንዳንዱ ውጤት WebKit ምን ያህል በደንብ ያስኬደዋል ተብሎ እንደሚጠበቅ ያሳያል። የሚቀርበው ከ App Store ውጭ በሚመጡ ግንባታዎች ብቻ ነው።",
   "networkInterfaceTitle": "የአውታረ መረብ በይነገጽ",
   "networkInterfaceHint": "የዚህን ጣቢያ ትራፊክ በአንድ የአውታረ መረብ በይነገጽ ብቻ ይልካል፣ ለምሳሌ በVPN ዋሻ፣ በሌላ በማንኛውም አይደለም። ያ በይነገጽ ሲጠፋ ጣቢያው ሌላ ግንኙነት ከመጠቀም ይልቅ ምንም አይጭንም። የአስተናጋጅ ስሞች በበይነገጹ የራሱ DNS አገልጋዮች ይፈለጋሉ፣ ስለዚህ የስርዓቱ ፈቺ (systemd-resolved) ሊያውቃቸው ይገባል። ከላይ የተቀመጠ ተኪ በበይነገጹ በኩል ይደረሳል። የWebRTC ጥሪዎች አይጠቀሙበትም።",
   "networkInterfaceSystem": "የስርዓት ማዘዋወር",

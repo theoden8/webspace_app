@@ -1161,8 +1161,6 @@
       }
     }
   },
-  "appSettingsExperimentalExtensionSearch": "Luzapenen bilaketa",
-  "appSettingsExperimentalExtensionSearchHint": "addons.mozilla.org-en bilaketa gehitzen dio \"Luzapenak\" pantailari, eta emaitza bakoitzak WebKit-ek zein ondo exekutatzea espero den adierazten du. App Storetik kanpoko konpilazioetan soilik eskaintzen da.",
   "networkInterfaceTitle": "Sare-interfazea",
   "networkInterfaceHint": "Gune honen trafikoa sare-interfaze bakar batetik bidaltzen du, adibidez VPN baten tuneletik, eta ez beste inondik. Interfaze hori erorita dagoen bitartean, guneak ez du ezer kargatzen beste konexio bat erabili beharrean. Ostalari-izenak interfazearen beraren DNS zerbitzarien bidez bilatzen dira, beraz sistemaren ebazleak (systemd-resolved) ezagutu behar ditu. Goian ezarritako proxyra interfazearen bidez iristen da. WebRTC deiek ez dute erabiltzen.",
   "networkInterfaceSystem": "Sistemaren bideratzea",

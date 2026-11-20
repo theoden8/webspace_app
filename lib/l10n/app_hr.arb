@@ -1161,8 +1161,6 @@
       }
     }
   },
-  "appSettingsExperimentalExtensionSearch": "Pretraživanje proširenja",
-  "appSettingsExperimentalExtensionSearchHint": "Dodaje pretraživanje stranice addons.mozilla.org na zaslon \"Proširenja\", a svaki je rezultat označen prema tome koliko bi ga dobro WebKit trebao pokretati. Nudi se samo u verzijama aplikacije izvan App Storea.",
   "networkInterfaceTitle": "Mrežno sučelje",
   "networkInterfaceHint": "Šalje promet ove stranice samo kroz jedno mrežno sučelje, poput tunela VPN-a, i nijedno drugo. Dok to sučelje ne radi, stranica ne učitava ništa umjesto da koristi drugu vezu. Nazivi hostova traže se putem vlastitih DNS poslužitelja sučelja, pa ih sustavski razlučivač (systemd-resolved) mora poznavati. Proxyju postavljenom gore pristupa se kroz sučelje. WebRTC pozivi ga ne koriste.",
   "networkInterfaceSystem": "Usmjeravanje sustava",

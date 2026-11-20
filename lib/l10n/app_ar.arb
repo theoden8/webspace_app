@@ -1161,8 +1161,6 @@
       }
     }
   },
-  "appSettingsExperimentalExtensionSearch": "البحث عن الإضافات",
-  "appSettingsExperimentalExtensionSearchHint": "يضيف البحث في addons.mozilla.org إلى شاشة \"الإضافات\"، مع وسم كل نتيجة بحسب مدى جودة تشغيل WebKit المتوقَّع لها. متاح فقط في الإصدارات المبنية خارج App Store.",
   "networkInterfaceTitle": "واجهة الشبكة",
   "networkInterfaceHint": "يرسل حركة مرور هذا الموقع عبر واجهة شبكة واحدة فقط، مثل نفق شبكة VPN، ولا غيرها. أثناء تعطل تلك الواجهة لا يحمّل الموقع شيئًا بدلًا من استخدام اتصال آخر. يُبحث عن أسماء المضيفين عبر خوادم DNS الخاصة بالواجهة، لذا يجب أن يعرفها محلل النظام (systemd-resolved). يُوصَل إلى الوكيل المعيّن أعلاه عبر الواجهة. لا تستخدمها مكالمات WebRTC.",
   "networkInterfaceSystem": "توجيه النظام",

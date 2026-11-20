@@ -1161,8 +1161,6 @@
       }
     }
   },
-  "appSettingsExperimentalExtensionSearch": "Tilläggssökning",
-  "appSettingsExperimentalExtensionSearchHint": "Lägger till en sökning på addons.mozilla.org på skärmen \"Tillägg\", där varje resultat är märkt med hur väl WebKit förväntas köra det. Erbjuds bara i versioner utanför App Store.",
   "networkInterfaceTitle": "Nätverksgränssnitt",
   "networkInterfaceHint": "Skickar webbplatsens trafik genom endast ett nätverksgränssnitt, till exempel en VPN-tunnel, och inget annat. Medan gränssnittet är nere läser webbplatsen inte in något i stället för att använda en annan anslutning. Värdnamn slås upp via gränssnittets egna DNS-servrar, så systemets namnuppslag (systemd-resolved) måste känna till dem. En proxy som angetts ovan nås genom gränssnittet. WebRTC-samtal använder det inte.",
   "networkInterfaceSystem": "Systemets routning",

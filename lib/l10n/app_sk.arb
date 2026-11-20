@@ -1161,8 +1161,6 @@
       }
     }
   },
-  "appSettingsExperimentalExtensionSearch": "Vyhľadávanie rozšírení",
-  "appSettingsExperimentalExtensionSearchHint": "Pridá na obrazovku „Rozšírenia“ vyhľadávanie na addons.mozilla.org a pri každom výsledku uvedie, ako dobre ho WebKit pravdepodobne spúšťa. Ponúka sa len v zostaveniach mimo App Store.",
   "networkInterfaceTitle": "Sieťové rozhranie",
   "networkInterfaceHint": "Posiela prevádzku tejto stránky len cez jedno sieťové rozhranie, napríklad tunel VPN, a cez žiadne iné. Kým toto rozhranie nefunguje, stránka nenačíta nič namiesto použitia iného pripojenia. Názvy hostiteľov sa vyhľadávajú cez vlastné servery DNS rozhrania, takže systémový resolver (systemd-resolved) ich musí poznať. K proxy nastavenému vyššie sa pripája cez rozhranie. Hovory WebRTC ho nepoužívajú.",
   "networkInterfaceSystem": "Smerovanie systému",

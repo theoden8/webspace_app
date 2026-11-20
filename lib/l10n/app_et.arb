@@ -1161,8 +1161,6 @@
       }
     }
   },
-  "appSettingsExperimentalExtensionSearch": "Laienduste otsing",
-  "appSettingsExperimentalExtensionSearchHint": "Lisab ekraanile „Laiendused“ otsingu saidilt addons.mozilla.org ning iga tulemuse juures on märgitud, kui hästi WebKit seda eeldatavasti käitab. Pakutakse ainult väljaspool App Store'i levitatavates versioonides.",
   "networkInterfaceTitle": "Võrguliides",
   "networkInterfaceHint": "Saadab selle saidi liikluse ainult ühe võrguliidese kaudu, näiteks VPN-i tunneli kaudu, ja mitte ühegi teise. Kui see liides ei tööta, ei laadi sait midagi, selle asemel et kasutada teist ühendust. Hostinimesid otsitakse liidese enda DNS-serverite kaudu, seega peab süsteemi lahendaja (systemd-resolved) neid teadma. Ülal määratud proksini jõutakse liidese kaudu. WebRTC kõned seda ei kasuta.",
   "networkInterfaceSystem": "Süsteemi marsruutimine",

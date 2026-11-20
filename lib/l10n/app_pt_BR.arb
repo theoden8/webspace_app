@@ -1161,8 +1161,6 @@
       }
     }
   },
-  "appSettingsExperimentalExtensionSearch": "Pesquisa de extensões",
-  "appSettingsExperimentalExtensionSearchHint": "Adiciona à tela \"Extensões\" uma pesquisa no addons.mozilla.org, com cada resultado indicando o quanto se espera que o WebKit consiga executá-la. Disponível apenas em builds de fora da App Store.",
   "networkInterfaceTitle": "Interface de rede",
   "networkInterfaceHint": "Envia o tráfego deste site só por uma interface de rede, como o túnel de uma VPN, e por nenhuma outra. Enquanto essa interface estiver fora do ar, o site não carrega nada em vez de usar outra conexão. Os nomes de host são consultados pelos servidores DNS da própria interface, então o resolvedor do sistema (systemd-resolved) precisa conhecê-los. Um proxy definido acima é alcançado pela interface. As chamadas WebRTC não a usam.",
   "networkInterfaceSystem": "Roteamento do sistema",

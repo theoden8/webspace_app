@@ -1161,8 +1161,6 @@
       }
     }
   },
-  "appSettingsExperimentalExtensionSearch": "拡張機能の検索",
-  "appSettingsExperimentalExtensionSearchHint": "「拡張機能」画面に addons.mozilla.org の検索を追加し、各結果に WebKit でどの程度動作する見込みかを表示します。App Store 以外から入手したビルドでのみ利用できます。",
   "networkInterfaceTitle": "ネットワークインターフェース",
   "networkInterfaceHint": "このサイトの通信を 1 つのネットワークインターフェース（VPN のトンネルなど）だけから送り、他は使いません。そのインターフェースが停止している間、サイトは別の接続を使わずに何も読み込みません。ホスト名はそのインターフェース自身の DNS サーバーで解決されるため、システムのリゾルバー（systemd-resolved）がそれを把握している必要があります。上で設定したプロキシにはこのインターフェース経由で接続します。WebRTC の通話はこれを使いません。",
   "networkInterfaceSystem": "システムのルーティング",

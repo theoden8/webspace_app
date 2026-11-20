@@ -1161,8 +1161,6 @@
       }
     }
   },
-  "appSettingsExperimentalExtensionSearch": "חיפוש תוספים",
-  "appSettingsExperimentalExtensionSearchHint": "מוסיף למסך \"תוספים\" חיפוש ב-addons.mozilla.org, וכל תוצאה מסומנת לפי המידה שבה WebKit צפוי להריץ אותה. מוצע רק בגרסאות שאינן מ-App Store.",
   "networkInterfaceTitle": "ממשק רשת",
   "networkInterfaceHint": "שולח את התעבורה של אתר זה דרך ממשק רשת אחד בלבד, כמו המנהרה של VPN, ולא דרך אף ממשק אחר. כל עוד הממשק הזה מושבת, האתר לא טוען דבר במקום להשתמש בחיבור אחר. שמות מארחים נבדקים דרך שרתי ה-DNS של הממשק עצמו, ולכן מנגנון הפענוח של המערכת (systemd-resolved) צריך להכיר אותם. לפרוקסי שהוגדר למעלה מגיעים דרך הממשק. שיחות WebRTC לא משתמשות בו.",
   "networkInterfaceSystem": "ניתוב המערכת",

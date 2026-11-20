@@ -1161,8 +1161,6 @@
       }
     }
   },
-  "appSettingsExperimentalExtensionSearch": "Bővítménykeresés",
-  "appSettingsExperimentalExtensionSearchHint": "Hozzáadja az addons.mozilla.org keresését a „Bővítmények” képernyőhöz, és minden találatnál jelzi, várhatóan mennyire jól futtatja a WebKit. Csak az App Store-on kívülről származó változatokban érhető el.",
   "networkInterfaceTitle": "Hálózati csatoló",
   "networkInterfaceHint": "A webhely forgalmát csak egy hálózati csatolón keresztül küldi, például egy VPN alagútján, és semmilyen máson. Amíg ez a csatoló nem működik, a webhely nem tölt be semmit ahelyett, hogy másik kapcsolatot használna. A gépneveket a csatoló saját DNS-kiszolgálóin keresztül keresi meg, ezért a rendszer névfeloldójának (systemd-resolved) ismernie kell őket. A fent beállított proxy a csatolón keresztül érhető el. A WebRTC-hívások nem használják.",
   "networkInterfaceSystem": "Rendszerútválasztás",

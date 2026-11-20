@@ -1161,8 +1161,6 @@
       }
     }
   },
-  "appSettingsExperimentalExtensionSearch": "Laajennushaku",
-  "appSettingsExperimentalExtensionSearchHint": "Lisää \"Laajennukset\"-näkymään haun addons.mozilla.orgista, ja jokaisessa tuloksessa kerrotaan, miten hyvin WebKitin odotetaan suorittavan sen. Tarjolla vain App Storen ulkopuolelta tulevissa versioissa.",
   "networkInterfaceTitle": "Verkkoliitäntä",
   "networkInterfaceHint": "Lähettää tämän sivuston liikenteen vain yhden verkkoliitännän kautta, kuten VPN:n tunnelin, eikä minkään muun. Kun liitäntä ei ole käytössä, sivusto ei lataa mitään sen sijaan, että käyttäisi toista yhteyttä. Isäntänimet haetaan liitännän omien DNS-palvelimien kautta, joten järjestelmän nimipalvelun (systemd-resolved) täytyy tuntea ne. Yllä asetettu välityspalvelin tavoitetaan liitännän kautta. WebRTC-puhelut eivät käytä sitä.",
   "networkInterfaceSystem": "Järjestelmän reititys",

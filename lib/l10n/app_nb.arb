@@ -1161,8 +1161,6 @@
       }
     }
   },
-  "appSettingsExperimentalExtensionSearch": "Utvidelsessøk",
-  "appSettingsExperimentalExtensionSearchHint": "Legger til et søk på addons.mozilla.org på skjermen \"Utvidelser\", der hvert resultat er merket med hvor godt WebKit forventes å kjøre det. Tilbys bare i utgaver utenfor App Store.",
   "networkInterfaceTitle": "Nettverksgrensesnitt",
   "networkInterfaceHint": "Sender trafikken til dette nettstedet ut gjennom bare ett nettverksgrensesnitt, for eksempel tunnelen til et VPN, og ingen andre. Mens grensesnittet er nede, laster nettstedet ingenting i stedet for å bruke en annen tilkobling. Vertsnavn slås opp via grensesnittets egne DNS-servere, så systemets navneoppslag (systemd-resolved) må kjenne dem. En proxy angitt ovenfor nås gjennom grensesnittet. WebRTC-samtaler bruker det ikke.",
   "networkInterfaceSystem": "Systemets ruting",

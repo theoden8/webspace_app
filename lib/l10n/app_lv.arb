@@ -1161,8 +1161,6 @@
       }
     }
   },
-  "appSettingsExperimentalExtensionSearch": "Paplašinājumu meklēšana",
-  "appSettingsExperimentalExtensionSearchHint": "Pievieno ekrānam \"Paplašinājumi\" meklēšanu addons.mozilla.org, un katram rezultātam norādīts, cik labi WebKit to, paredzams, palaidīs. Pieejams tikai versijās, kas nav no App Store.",
   "networkInterfaceTitle": "Tīkla saskarne",
   "networkInterfaceHint": "Sūta šīs vietnes datplūsmu tikai caur vienu tīkla saskarni, piemēram, VPN tuneli, un ne caur citu. Kamēr šī saskarne nedarbojas, vietne neko neielādē, nevis izmanto citu savienojumu. Resursdatoru nosaukumi tiek meklēti caur pašas saskarnes DNS serveriem, tāpēc sistēmas atrisinātājam (systemd-resolved) tie jāzina. Augstāk iestatītais starpniekserveris tiek sasniegts caur saskarni. WebRTC zvani to neizmanto.",
   "networkInterfaceSystem": "Sistēmas maršrutēšana",

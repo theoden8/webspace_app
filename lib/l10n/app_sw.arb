@@ -1161,8 +1161,6 @@
       }
     }
   },
-  "appSettingsExperimentalExtensionSearch": "Utafutaji wa viendelezi",
-  "appSettingsExperimentalExtensionSearchHint": "Huongeza utafutaji wa addons.mozilla.org kwenye skrini ya \"Viendelezi\", na kila tokeo huonyesha jinsi WebKit inavyotarajiwa kukiendesha vizuri. Inapatikana tu katika matoleo ya nje ya App Store.",
   "networkInterfaceTitle": "Kiolesura cha mtandao",
   "networkInterfaceHint": "Hutuma trafiki ya tovuti hii kupitia kiolesura kimoja tu cha mtandao, kama handaki la VPN, na si kingine chochote. Wakati kiolesura hicho kimezimwa, tovuti haipakii chochote badala ya kutumia muunganisho mwingine. Majina ya seva pangishi hutafutwa kupitia seva za DNS za kiolesura chenyewe, kwa hivyo kitatuzi cha mfumo (systemd-resolved) lazima kizijue. Proksi iliyowekwa hapo juu hufikiwa kupitia kiolesura. Simu za WebRTC hazikitumii.",
   "networkInterfaceSystem": "Uelekezaji wa mfumo",

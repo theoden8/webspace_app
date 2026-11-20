@@ -1161,8 +1161,6 @@
       }
     }
   },
-  "appSettingsExperimentalExtensionSearch": "Cerca d'extensions",
-  "appSettingsExperimentalExtensionSearchHint": "Afegeix una cerca a addons.mozilla.org a la pantalla \"Extensions\", amb cada resultat etiquetat segons fins a quin punt s'espera que WebKit l'executi. Només s'ofereix en compilacions de fora de l'App Store.",
   "networkInterfaceTitle": "Interfície de xarxa",
   "networkInterfaceHint": "Envia el trànsit d'aquest lloc només per una interfície de xarxa, com ara el túnel d'una VPN, i per cap altra. Mentre aquesta interfície estigui inactiva, el lloc no carrega res en lloc de fer servir una altra connexió. Els noms d'amfitrió es cerquen a través dels servidors DNS de la mateixa interfície, de manera que el resolutor del sistema (systemd-resolved) els ha de conèixer. El servidor intermediari definit més amunt s'assoleix a través de la interfície. Les trucades WebRTC no la fan servir.",
   "networkInterfaceSystem": "Encaminament del sistema",

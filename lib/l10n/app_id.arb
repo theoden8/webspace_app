@@ -1161,8 +1161,6 @@
       }
     }
   },
-  "appSettingsExperimentalExtensionSearch": "Pencarian ekstensi",
-  "appSettingsExperimentalExtensionSearchHint": "Menambahkan pencarian addons.mozilla.org ke layar \"Ekstensi\", dengan setiap hasil diberi label seberapa baik WebKit diperkirakan menjalankannya. Hanya tersedia di build dari luar App Store.",
   "networkInterfaceTitle": "Antarmuka jaringan",
   "networkInterfaceHint": "Mengirim lalu lintas situs ini hanya melalui satu antarmuka jaringan, seperti terowongan VPN, dan tidak melalui yang lain. Selama antarmuka itu mati, situs tidak memuat apa pun alih-alih memakai koneksi lain. Nama host dicari melalui server DNS milik antarmuka itu sendiri, jadi resolver sistem (systemd-resolved) harus mengenalnya. Proxy yang diatur di atas dicapai melalui antarmuka. Panggilan WebRTC tidak memakainya.",
   "networkInterfaceSystem": "Perutean sistem",
