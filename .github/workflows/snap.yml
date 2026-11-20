@@ -145,6 +145,17 @@ jobs:
           # prints CMake's errors, not its checks.
           sudo find parts -path '*/CMakeFiles/CMakeError.log' -print0 2>/dev/null \
             | while IFS= read -r -d '' f; do echo "== $f"; sudo tail -n 120 "$f"; done
+          # What the app part's plugins look WPE WebKit up by, from the stage.
+          pc="$(ls -d stage/usr/lib/*/pkgconfig 2>/dev/null | head -n 1)"
+          if [ -n "$pc" ]; then
+            ls "$pc"
+            for m in wpe-webkit-2.0 wpe-platform-2.0 wpe-platform-headless-2.0; do
+              echo "== pkg-config $m"
+              PKG_CONFIG_PATH="$pc" pkg-config --print-errors --cflags --libs "$m" || true
+            done
+          fi
+          sudo find parts/webspace -name CMakeCache.txt -print0 2>/dev/null \
+            | while IFS= read -r -d '' f; do echo "== $f"; sudo grep -E '^(WPE_|WEBKIT_HAS)' "$f" || true; done
 
       # Saved even when a later part fails, so the next run starts from the
       # WPE objects this one compiled.
