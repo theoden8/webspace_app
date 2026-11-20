@@ -26,6 +26,10 @@ typedef UserscriptHeader = ({
 /// One `// @key value` line of a header.
 typedef HeaderEntry = ({String key, String value});
 
+/// [entry] as the header wrote it, for the editor to show.
+String headerLine(HeaderEntry entry) =>
+    entry.value.isEmpty ? '@${entry.key}' : '@${entry.key} ${entry.value}';
+
 /// An anchored regular expression the page tests a URL with, its flags, and
 /// the header value it was compiled from, which the editor shows.
 typedef UrlPattern = ({String source, String flags, String written});
