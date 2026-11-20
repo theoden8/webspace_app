@@ -990,3 +990,32 @@ asked for (NAV-014).
 - **GIVEN** the user closed the tab on screen with Ctrl-W
 - **WHEN** they press Ctrl-Shift-T
 - **THEN** the tab is back and on screen, on the page it was on
+
+### Requirement: TAB-029 - A modifier click opens a link in a new tab
+
+A click on an http(s) link in the top document of a site's own webview, with
+Command held on macOS, Control held on Linux and Android, or with the middle
+button, SHALL do what the link menu's "Open in new tab" does (TAB-006): a
+parked child of the tab on screen for a link inside the site's domain, a tab
+running as another of the user's sites that can take it (LIR-032), with the
+LIR-016 picker first when several can. Where no tab can take it, or the site
+has no tabs, the link SHALL open as a tap on it would (TAB-006's "Open"). The
+engine SHALL NOT open its own window for such a click, so the page never gets
+a window it did not ask for.
+
+The click is caught by a top-document page script (`PageJs.linkNewTabClick`),
+which hands the link to the host's `linkNewTab`; a subframe's link, a popup and
+the nested screen keep the click as the engine takes it. iOS takes no such
+click: it has no key convention, and a long press opens the menu instead.
+
+#### Scenario: Command-click a link on a Mac
+
+- **GIVEN** a site with tabs on screen on macOS
+- **WHEN** the user Command-clicks a link inside the site's domain
+- **THEN** a parked child tab opens at that link, and the tab on screen stays
+
+#### Scenario: Middle-click a link no tab can take
+
+- **GIVEN** a site with tabs on screen on Linux
+- **WHEN** the user middle-clicks a link to a domain none of their sites claims
+- **THEN** the link opens as a plain click on it would, in the nested screen

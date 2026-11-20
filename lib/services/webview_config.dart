@@ -139,6 +139,10 @@ class WebViewConfig {
   /// is no macOS or Linux equivalent, so those platforms reach the same
   /// actions from the tab list instead.
   final void Function(String url)? onLinkLongPress;
+  /// A link clicked with `KeyConvention.newTabClickKey` or the middle button
+  /// (`PageJs.linkNewTabClick`): the host opens it as the link menu's "Open
+  /// in new tab" does (TAB-029).
+  final void Function(String url)? onLinkNewTab;
   /// Pull-to-refresh, with the gate that keeps a pinch from firing it
   /// (NAV-006); the factory feeds it from a [Listener] around the webview.
   final PullToRefreshGate? pullToRefreshGate;
@@ -202,6 +206,7 @@ class WebViewConfig {
     this.initialHtml,
     this.onConsoleMessage,
     this.onLinkLongPress,
+    this.onLinkNewTab,
     this.pullToRefreshGate,
     this.onRendererGone,
     this.onPageCommitVisible,

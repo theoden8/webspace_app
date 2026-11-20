@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:math' as math;
+import 'package:webspace/services/link_new_tab_click.dart';
 import 'package:webspace/services/container_names.dart';
 import 'package:webspace/platform/host_platform.dart';
 
@@ -903,6 +904,9 @@ class WebViewFactory {
             document: () => phases.page(controller),
           ),
         );
+        if (config.onLinkNewTab case final open?) {
+          answerLinkNewTabClicks(controller, open: open);
+        }
         if (iconEngine != null) {
           // Frame-aware, all three: Blink and WebKit take icons from the top
           // document only, so a subframe has nothing to say about them.

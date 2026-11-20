@@ -17,7 +17,10 @@ void main() {
   late String links;
 
   setUpAll(() {
-    source = File('lib/screens/webspace_page.dart').readAsStringSync();
+    source = [
+      for (final f in ['webspace_page', 'webspace_page_links'])
+        File('lib/screens/$f.dart').readAsStringSync(),
+    ].join('\n');
     menu = File('lib/widgets/site_menu.dart').readAsStringSync();
     tabs = [
       for (final f in ['tabs_controller', 'tab_table'])
@@ -123,15 +126,26 @@ void main() {
       }
     });
 
-    test('the link menu offers New tab only while the site has tabs', () {
-      final start = source.indexOf('Future<void> _showLinkLongPressMenu(');
-      expect(start, isNot(-1));
-      final menu = source.substring(start, source.indexOf('\n  }\n', start));
-      expect(menu, contains('final tabs = _tabs.enabledFor(model);'));
-      expect(RegExp(r'newTab: !tabs\s*\?\s*null').hasMatch(menu), isTrue,
-          reason: 'the New tab row is the menu\'s one way into tabs');
-      expect(menu, contains('tabRoute = !tabs ||'),
+    test('the link menu and a new-tab click open a tab only while the site '
+        'has tabs (TAB-029)', () {
+      String body(String signature) {
+        final start = source.indexOf(signature);
+        expect(start, isNot(-1), reason: '$signature not found');
+        return source.substring(start, source.indexOf('\n  }\n', start));
+      }
+
+      expect(firstStatement(source, signature: '_NewTab? _newTabFor('),
+          contains('!_tabs.enabledFor(model)'),
           reason: 'a site without tabs looks for no site to host its link');
+      final menu = body('Future<void> _showLinkLongPressMenu(');
+      expect(menu, contains('_newTabFor(model, url: url)'));
+      expect(RegExp(r'newTab: newTab == null\s*\?\s*null').hasMatch(menu),
+          isTrue,
+          reason: 'the New tab row is the menu\'s one way into tabs');
+      final click = body('Future<void> _openLinkInNewTab(');
+      expect(click, contains('_newTabFor(model, url: url)'));
+      expect(click, contains('newTab != null && newTab.enabled'),
+          reason: 'a click no tab can take opens as a tap');
     });
 
     test('a hosted tab returns links to its owner only while it has tabs',

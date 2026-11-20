@@ -123,6 +123,7 @@ import 'package:webspace/services/step_table.dart';
 
 part 'webspace_page_residency.dart';
 part 'webspace_page_seams.dart';
+part 'webspace_page_links.dart';
 
 class WebSpacePage extends StatefulWidget {
   final Function(AppThemeSettings) onThemeSettingsChanged;
@@ -665,6 +666,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     onScreen: (slot) => identical(_sites.shown, slot),
     routeOutbound: _links.routeOutbound,
     linkMenu: _showLinkLongPressMenu,
+    linkNewTab: _openLinkInNewTab,
     firstPageLoaded: _editing.offerRedirectHome,
     rendererGone: _lifecycle.rendererGone,
   );
@@ -916,76 +918,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (from < 0 || to < 0 || from == to) return null;
     _webspaces.reorderSite(from, newListIndex: to);
     return _tabs.sheetSites();
-  }
-
-  /// A long press that landed on a link. In-domain links can become a tab of
-  /// this site; anything else keeps today's behaviour, and the sheet says why
-  /// rather than silently offering nothing. A site without tabs gets the sheet
-  /// without its New tab row.
-  Future<void> _showLinkLongPressMenu(WebViewModel model,
-      {required String url}) async {
-    if (_kioskLocked) return;
-    if (!identical(model, _sites.shown)) return;
-    final tabs = _tabs.enabledFor(model);
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    final identity = model.runningIdentity;
-    final inDomain =
-        getNormalizedDomain(url) == getNormalizedDomain(model.navigationHomeUrl);
-    // A link into another of the user's sites becomes that site's tab, as a
-    // tap would open it (LIR-032).
-    final tabRoute = !tabs || inDomain
-        ? null
-        : _links.tabRouteFor(model,
-            source: identity, url: url, hadGesture: true);
-    final tabHost = switch (tabRoute) {
-      DispatchOpenInTab(:final siteId) => _sites.byId(siteId),
-      _ => null,
-    };
-    final choice = await showLinkMenu(
-      context,
-      url: url,
-      newTab: !tabs
-          ? null
-          : (
-              enabled: inDomain || tabRoute != null,
-              note: (loc) => inDomain
-                  ? null
-                  : tabHost != null
-                      ? loc.tabsRunsAs(tabHost.getDisplayName())
-                      : tabRoute == null
-                          ? loc.tabsLinkOutsideSite(uri.host)
-                          : null,
-            ),
-    );
-    switch (choice) {
-      case null:
-        return;
-      case LinkMenuChoice.newTab:
-        if (tabRoute is DispatchShowPicker) {
-          unawaited(_links.showOutboundPicker(model,
-              source: identity, action: tabRoute, url: uri, parked: true));
-        } else if (inDomain) {
-          // A sibling of the tab on screen: same container, and when that tab
-          // follows an opener's switch (LIR-034), so does it.
-          final active = model.activeTab;
-          unawaited(_tabs.openLinkInNewTab(model, url: url,
-              hostSiteId: active.hostSiteId,
-              openerSiteId: active.openerSiteId,
-              homeUrl: active.homeUrl));
-        } else {
-          unawaited(_tabs.openLinkInNewTab(model, url: url,
-              hostSiteId: tabHost?.siteId,
-              openerSiteId: identity.siteId,
-              homeUrl: url));
-        }
-      case LinkMenuChoice.open:
-        unawaited(_links.openLinkAsTapped(model, url: url));
-      case LinkMenuChoice.copy:
-        await Clipboard.setData(ClipboardData(text: url));
-      case LinkMenuChoice.share:
-        unawaited(SharePlus.instance.share(ShareParams(uri: uri)));
-    }
   }
 
   /// The one way the theme changes: the app, its saved settings and the

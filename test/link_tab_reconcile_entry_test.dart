@@ -15,7 +15,10 @@ void main() {
   late String links;
 
   setUpAll(() {
-    main = File('lib/screens/webspace_page.dart').readAsStringSync();
+    main = [
+      for (final f in ['webspace_page', 'webspace_page_links'])
+        File('lib/screens/$f.dart').readAsStringSync(),
+    ].join('\n');
     tabs = [
       for (final f in ['tabs_controller', 'tab_table'])
         File('lib/controllers/$f.dart').readAsStringSync(),

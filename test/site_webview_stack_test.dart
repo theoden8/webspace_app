@@ -18,6 +18,7 @@ SiteHooks _hooks() => SiteHooks(
       routeOutbound:
           (_, {required url, required decision, required hadGesture}) => false,
       linkMenu: (_, {required url}) async {},
+      linkNewTab: (_, {required url}) async {},
       firstPageLoaded: (_, {required url}) async {},
       rendererGone: (_, {required didCrash}) {},
     );

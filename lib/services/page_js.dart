@@ -32,6 +32,7 @@ enum PageJs {
   genericCosmetic('generic_cosmetic'),
   iconLinkWatcher('icon_link_watcher'),
   language('language'),
+  linkNewTabClick('link_new_tab_click'),
   locationSpoof('location_spoof'),
   mediaPause('media_pause'),
   mediaSession('media_session'),

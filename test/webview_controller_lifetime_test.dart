@@ -173,6 +173,7 @@ SiteHooks _siteHooks({
       routeOutbound:
           (_, {required url, required decision, required hadGesture}) => false,
       linkMenu: (_, {required url}) async {},
+      linkNewTab: (_, {required url}) async {},
       firstPageLoaded: firstPageLoaded ?? (_, {required url}) async {},
       rendererGone: (_, {required didCrash}) {},
     );

@@ -1358,6 +1358,7 @@ bool dispatch(NavigationDecision decision,
           deferInitialLoad: deferRestoreLoad || deferForProxy,
           backgroundAudioEnabled: effectiveBackgroundAudioEnabled,
           onLinkLongPress: (url) => unawaited(hooks.linkMenu(this, url: url)),
+          onLinkNewTab: (url) => unawaited(hooks.linkNewTab(this, url: url)),
           grants: runsForeignTab
               ? InMemoryGrantStore(
                   posture.media,

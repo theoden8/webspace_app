@@ -28,6 +28,8 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/icon_link_watcher_shim.dart';
 import 'package:webspace/services/search_link_watcher_shim.dart';
 import 'package:webspace/services/page_focus.dart';
+import 'package:webspace/services/keyboard_shortcuts.dart';
+import 'package:webspace/services/link_new_tab_click.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/services/page_js.dart';
 import 'package:webspace/services/webkit_block_reports.dart';
@@ -180,6 +182,11 @@ final class _PageShims {
         // Cross-domain taps then reach shouldOverrideUrlLoading, which has a
         // reliable gesture, instead of onCreateWindow (issue #405).
         ShimGroup.targetBlankRewrite => [PageJs.targetBlankRewrite.script],
+        ShimGroup.linkNewTabClick => [
+            if ((own, config.onLinkNewTab, KeyConvention.host)
+                case (_?, _?, final convention?))
+              linkNewTabClickScript(convention),
+          ],
         ShimGroup.antiFingerprinting => [?scoped.antiFingerprinting],
         // The capture serves a site whose CSP `connect-src` refuses
         // `fetch(blob:)`: [WebViewDownloads.handleBlobDownload] reads the
