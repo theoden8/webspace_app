@@ -97,6 +97,7 @@ Future<void> prepareRealApp(
   webViewCanGoBack = false;
   webViewTitle = null;
   webViewUserScripts.clear();
+  webViewLoads.clear();
   _freshDocuments();
   useFakePathProvider(_documents);
   PackageInfo.setMockInitialValues(
@@ -280,6 +281,14 @@ Future<void> attachWebViews(WidgetTester tester) async {
   await settleRealApp(tester);
 }
 
+/// The controller the platform handed [view], which every callback of that
+/// view is passed; reported first if it was not yet.
+Future<inapp.InAppWebViewController> webViewControllerOf(
+  WidgetTester tester, {
+  required inapp.InAppWebView view,
+}) =>
+    _controllerOf(tester, view: view);
+
 /// [view]'s controller, created and reported the first time it is asked
 /// for: the platform reports a view created before any other callback, and
 /// passes every callback that view's own controller.
@@ -303,6 +312,9 @@ final Map<inapp.InAppWebView, _FakeWebViewController> _attached =
 /// The methods the app has called on its webviews' controllers since the app
 /// was pumped, in order: `#reload` for a reload.
 final List<Symbol> webViewCalls = [];
+
+/// Each `loadUrl` the app has sent a webview since the app was pumped.
+final List<inapp.URLRequest> webViewLoads = [];
 
 /// What every webview's `canGoBack` answers; false unless a test sets it.
 bool webViewCanGoBack = false;
@@ -364,6 +376,11 @@ class _FakeWebViewController implements inapp.InAppWebViewController {
         case final inapp.UserScript script
         when invocation.memberName == #addUserScript) {
       (webViewUserScripts[opens] ??= []).add(script);
+    }
+    if (invocation.namedArguments[#urlRequest]
+        case final inapp.URLRequest request
+        when invocation.memberName == #loadUrl) {
+      webViewLoads.add(request);
     }
     if (invocation.namedArguments[#settings]
         case final inapp.InAppWebViewSettings settings
