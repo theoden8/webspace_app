@@ -111,6 +111,18 @@ jobs:
             snap-ccache-${{ matrix.arch }}-
             ${{ matrix.fallback }}
 
+      # The runner image's LLVM libunwind, which only its libc++ needs, breaks
+      # Ubuntu's libunwind-dev, which GStreamer's headers need; nothing the
+      # snap builds links libc++, and a plain Ubuntu 22.04 has neither.
+      - name: Remove the runner's LLVM libunwind
+        run: |
+          llvm="$(dpkg-query -W -f '${db:Status-Abbrev} ${Package}\n' 'libunwind-*-dev' 2>/dev/null \
+            | awk '$1 == "ii" && $2 ~ /^libunwind-[0-9]+-dev$/ { print $2 }')"
+          if [ -n "$llvm" ]; then
+            # shellcheck disable=SC2086 # one word per package
+            sudo apt-get remove -y $llvm
+          fi
+
       - name: Build
         run: sudo snapcraft pack --destructive-mode
 
