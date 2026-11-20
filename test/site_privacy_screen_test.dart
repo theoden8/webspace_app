@@ -3,12 +3,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/screens/site_privacy.dart';
+import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/screen_capture_guard.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/widgets/dirty_guard.dart' show ValueSet;
 import 'package:webspace/widgets/level_slider.dart';
+import 'package:webspace/widgets/stat_chip.dart';
 import 'package:webspace/settings/filter_list_id.dart';
 
 import 'helpers/localized.dart';
@@ -438,5 +440,47 @@ void main() {
     expect(seen!.choices.clearUrlEnabled, isFalse);
     // Unrelated fields ride along untouched: the caller applies one value.
     expect(seen!.choices.incognito, isTrue);
+  });
+
+  group('DNS stats below the blocklist (DNS-015)', () {
+    setUp(() => DnsBlockService.instance
+        .loadLevelsFromStrings({2: 'blocked.example'}, globalLevel: 2));
+    tearDown(DnsBlockService.instance.resetForTest);
+
+    String chip(WidgetTester tester, {required String label}) {
+      final value = find.descendant(
+        of: find.ancestor(of: find.text(label), matching: find.byType(StatChip)),
+        matching: find.byType(Text),
+      );
+      return tester.widgetList<Text>(value).first.data!;
+    }
+
+    testWidgets('a site with recorded requests shows total, allowed, blocked '
+        'and the block rate (DNS-015)', (tester) async {
+      final stats = DnsBlockService.instance.statsForSite(SiteId('site-1'));
+      stats.record('ok.example', verdict: const Allowed(), count: 3);
+      stats.record('blocked.example', verdict: const Blocked(BlockSource.dns));
+      await _pump(tester, values: _values(dnsBlock: true));
+
+      expect(find.byType(DnsStatChips), findsOneWidget);
+      expect(chip(tester, label: 'Total'), '4');
+      expect(chip(tester, label: 'Allowed'), '3');
+      expect(chip(tester, label: 'Blocked'), '1');
+      expect(chip(tester, label: 'Block %'), '25.0%');
+      final level = find.byType(LevelSlider);
+      expect(tester.getTopLeft(find.byType(DnsStatChips)).dy,
+          greaterThan(tester.getTopLeft(level).dy),
+          reason: 'the stats sit below the DNS Blocklist rows');
+    });
+
+    testWidgets('a site with nothing recorded shows no stats (DNS-015)',
+        (tester) async {
+      DnsBlockService.instance
+          .statsForSite(SiteId('another-site'))
+          .record('ok.example', verdict: const Allowed());
+      await _pump(tester, values: _values(dnsBlock: true));
+      expect(find.byType(DnsStatChips), findsNothing);
+      expect(find.byType(StatChip), findsNothing);
+    });
   });
 }
