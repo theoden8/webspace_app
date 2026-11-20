@@ -326,8 +326,11 @@ void main() {
       await archive.close(reopened);
 
       expect(mock.storage.keys.toSet(), equals(poolKeys()));
+      // The slots hold about 2.8 million characters of base64 ciphertext,
+      // which spell a five-letter word by chance about once in 400 runs.
       for (final value in mock.storage.values) {
-        expect(value.contains('kiosk'), isFalse);
+        expect(value.contains('kioskMode'), isFalse);
+        expect(value.contains('kiosk.test'), isFalse);
       }
       expect((await SharedPreferences.getInstance()).getKeys(), isEmpty);
     });
