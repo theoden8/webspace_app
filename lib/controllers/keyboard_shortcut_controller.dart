@@ -26,6 +26,10 @@ abstract interface class KeyboardShortcutHost {
 
   /// What a tap on [site] in the site strip does.
   Future<void> openSite(WebViewModel site);
+
+  /// Cycles the sidebar open, collapsed and hidden; false where it is not
+  /// the chosen navigation.
+  bool toggleSidebar();
 }
 
 /// The page's answers to the desktop keyboard shortcuts (NAV-014), each the
@@ -87,6 +91,7 @@ class KeyboardShortcutController implements ShortcutScreen {
       PreviousSite() => _step(site, by: -1),
       SiteAt(:final place) => _openAt(place),
       LastSite() => _openAt(_strip.length - 1),
+      ToggleSidebar() => _host.toggleSidebar(),
       QuitApp() => _run(_quit),
     };
   }

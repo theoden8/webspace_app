@@ -14,6 +14,7 @@ NavigationSurfaces surfaces({
   bool wide = true,
   bool kioskLocked = false,
   bool siteOnScreen = true,
+  bool legacyWebspace = false,
   bool revealed = false,
 }) =>
     navigationSurfaces((
@@ -24,6 +25,7 @@ NavigationSurfaces surfaces({
       wide: wide,
       kioskLocked: kioskLocked,
       siteOnScreen: siteOnScreen,
+      legacyWebspace: legacyWebspace,
       revealed: revealed,
     ));
 
@@ -213,5 +215,38 @@ void main() {
     expect(sidebarOnNarrowing(SidebarState.open), SidebarState.collapsed);
     expect(sidebarOnNarrowing(SidebarState.collapsed), SidebarState.collapsed);
     expect(sidebarOnNarrowing(SidebarState.hidden), SidebarState.hidden);
+  });
+
+  test('full screen set to Button gives a floating control with the strip or '
+      'the sidebar, and the bars stay revealable for it', () {
+    for (final navigation in SiteNavigation.values) {
+      for (final inFullscreen in FullscreenNavigation.values) {
+        expect(
+            floatsInFullscreen(
+                navigation: navigation, inFullscreen: inFullscreen),
+            navigation != SiteNavigation.tabButton &&
+                inFullscreen == FullscreenNavigation.button,
+            reason: '${navigation.name}, ${inFullscreen.name}');
+      }
+    }
+  });
+
+  test('the legacy design lists a picked webspace in its sidebar with no '
+      'site on screen, as its drawer did; nothing else shows there', () {
+    final listed = surfaces(siteOnScreen: false, legacyWebspace: true);
+    expect(listed.dock, SidebarDock.full);
+    for (final navigation in [SiteNavigation.tabButton, SiteNavigation.strip]) {
+      expect(
+          surfaces(
+              navigation: navigation,
+              siteOnScreen: false,
+              legacyWebspace: true),
+          nothing,
+          reason: navigation.name);
+    }
+    expect(
+        surfaces(
+            siteOnScreen: false, legacyWebspace: true, kioskLocked: true),
+        nothing);
   });
 }

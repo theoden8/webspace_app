@@ -100,6 +100,12 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/site_navigation.dart';
 import 'package:webspace/widgets/tab_chips.dart';
+import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/widgets/sidebar_squares.dart';
+import 'package:webspace/widgets/sidebar_rail.dart';
+import 'package:webspace/widgets/site_sidebar.dart';
+import 'package:webspace/widgets/site_navigation_frame.dart';
+import 'package:webspace/controllers/sidebar_controller.dart';
 import 'package:webspace/services/open_sites.dart';
 import 'package:webspace/services/navigation_surface_engine.dart';
 import 'package:webspace/settings/external_tor.dart';
@@ -842,6 +848,15 @@ class _WebSpacePageState extends State<WebSpacePage>
   OpenSites _openSites = const OpenSites();
   SiteId? _openSitesFor;
 
+  /// The sidebar's state, one for the app, and its frame; the window width
+  /// and the navigation the last build saw, so a narrowing window or a
+  /// switch to the sidebar on a phone starts at the rail.
+  final SidebarController _sidebar = SidebarController();
+  final GlobalKey<SiteNavigationFrameState> _frame = GlobalKey();
+  bool? _wasWide;
+  bool _wasSidebar = false;
+  bool _wasDrawer = false;
+
   /// [to] puts [site] on screen; in the library it runs behind the
   /// site's card, grown from the site's icon where the library shows it and
   /// faded in where sites show elsewhere, so every switch looks the same.
@@ -948,14 +963,12 @@ class _WebSpacePageState extends State<WebSpacePage>
               progress: currentModel.loadingProgress,
             ),
       // KIOSK-002: no leading menu button when locked.
-      automaticallyImplyLeading: !_kioskLocked && !_libraryDesign,
-      leading: !_kioskLocked && _libraryDesign
-          ? IconButton(
-              icon: const Icon(Icons.apps_rounded),
-              tooltip: loc.homeBackToWebspaces,
-              onPressed: () => unawaited(_onSiteMenuAction(SiteMenuAction.backToWebspaces)),
-            )
+      automaticallyImplyLeading:
+          !_kioskLocked && !_libraryDesign && !_sidebarChosen,
+      leadingWidth: _surfaces.appBarSidebarIcon && _libraryDesign
+          ? kToolbarHeight * 2 - Spacing.sm
           : null,
+      leading: _appBarLeading(loc),
       title: currentModel != null
           ? GestureDetector(
               onDoubleTap: _fullscreen.toggle,
@@ -1262,8 +1275,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       // Use Stack + PageLayer so the IndexedStack (and its webview States)
       // stay mounted when showing the webspace list. Removing the
       // IndexedStack from the tree destroys webview States, losing
-      // navigation history and scroll position.
-      child: Column(
+      // navigation history and scroll position. The sidebar's frame is
+      // always there for the same reason.
+      child: _navigationFrame(Column(
         children: [
           ?topStrip,
           // Keyed: the strip above and the input bar below come and go in
@@ -1356,7 +1370,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                   Positioned.fill(
                     child: TabBarCornerOverlay(
                       corner: _tabBarButtonCornerEffective,
-                      onTap: _fullscreen.revealSiteStrip,
+                      onTap: _fullscreen.revealNavigation,
                       // Remembered on the site on screen.
                       onCornerChosen: (corner) {
                         final site = _sites.shown;
@@ -1375,7 +1389,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           // SafeArea naturally adds 0 padding when keyboard is open.
           if (inputBar != null) SafeArea(top: false, child: inputBar),
         ],
-      ),
+      )),
     );
   }
 
@@ -1448,7 +1462,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       appBar: _fullscreen.active || (_libraryDesign && !webviewIsVisible)
           ? null : _buildAppBar(),
       // KIOSK-002: a locked shell exposes neither navigation surface.
-      drawer: _kioskLocked || _libraryDesign ? null : SiteDrawer(
+      drawer: _kioskLocked || _libraryDesign || _sidebarChosen ? null : SiteDrawer(
         accentColor: _shell.theme.accentColor,
         webspace: _selectedWebspace,
         models: _sites.models,
@@ -1596,14 +1610,21 @@ class _PageHost
   @override
   void resetForEntry() {
     Navigator.of(_s.context).popUntil((route) => route.isFirst);
-    _s._fullscreen.hideSiteStrip();
+    _s._fullscreen.hideNavigation();
   }
 
   @override
   Future<void> activate(WebViewModel? site) => _s._activation.activate(site);
 
   @override
-  ScaffoldState? get scaffold => _s._scaffoldKey.currentState;
+  bool get drawerOpen =>
+      (_s._scaffoldKey.currentState?.isDrawerOpen ?? false) ||
+      _s._surfaces.float == SidebarFloat.drawer;
+
+  @override
+  bool get navigationIsDrawer =>
+      (_s._scaffoldKey.currentState?.hasDrawer ?? false) ||
+      (_s._sidebarChosen && !_s._wideNavigation);
 
   @override
   WebViewController? get shownController => _s.getController();
@@ -1618,7 +1639,10 @@ class _PageHost
   Future<void> activateRouter({required LaunchedSite launch}) => _s._network.activateRouter(launch: launch);
 
   @override
-  void closeDrawer() => _s._scaffoldKey.currentState?.closeDrawer();
+  void closeDrawer() {
+    _s._scaffoldKey.currentState?.closeDrawer();
+    if (_s._surfaces.float == SidebarFloat.drawer) _s._sidebar.collapse();
+  }
 
   @override
   void openDrawer() {
@@ -1633,6 +1657,9 @@ class _PageHost
   Future<void> openNavigationMenu() async {
     if (_s._libraryDesign) {
       await _s._onSiteMenuAction(SiteMenuAction.backToWebspaces);
+    } else if (_s._sidebarChosen) {
+      // The legacy design's sidebar is its drawer.
+      _s._sidebar.openFully();
     } else {
       _s._scaffoldKey.currentState?.openDrawer();
     }
@@ -1792,4 +1819,11 @@ class _PageHost
 
   @override
   Future<void> openSite(WebViewModel site) => _s._openSite(site);
+
+  @override
+  bool toggleSidebar() {
+    if (!_s._sidebarChosen) return false;
+    _s._sidebar.cycle();
+    return true;
+  }
 }

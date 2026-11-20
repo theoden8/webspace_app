@@ -59,68 +59,10 @@ class SiteDrawer extends StatelessWidget {
         children: [
           SafeArea(
             bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  InkWell(
-                    onTap: onBackToWebspaces,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8.0,
-                        vertical: 4.0,
-                      ),
-                      child: Column(
-                        children: [
-                          AccentLogo(
-                            accentColor: accentColor,
-                            size: 72,
-                            brightness: Theme.of(context).brightness,
-                          ),
-                          SizedBox(height: 4),
-                          webspace == null
-                              ? Text(
-                                  loc.homeNoWebspace,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                )
-                              : WebspaceName(
-                                  webspace!,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Semantics(
-                    label: loc.homeBackToWebspaces,
-                    button: true,
-                    enabled: true,
-                    child: TextButton.icon(
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12.0,
-                          vertical: 0,
-                        ),
-                        minimumSize: Size(0, 32),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      onPressed: onBackToWebspaces,
-                      icon: Icon(Icons.arrow_back, size: 16),
-                      label: Text(
-                        loc.homeBackToWebspaces,
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            child: SiteDrawerHeader(
+              accentColor: accentColor,
+              webspace: webspace,
+              onBackToWebspaces: onBackToWebspaces,
             ),
           ),
           Expanded(
@@ -223,23 +165,114 @@ class SiteDrawer extends StatelessWidget {
                     );
                   }(),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 8.0,
-            ),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: onAddSite,
-                icon: Icon(Icons.add),
-                label: Text(loc.homeAddSite),
-              ),
-            ),
-          ),
+          AddSiteButton(onAddSite: onAddSite),
           SizedBox(height: 8.0 + MediaQuery.of(context).padding.bottom),
         ],
       ),
     );
   }
+}
+
+/// The drawer's header: the logo over the webspace's name, both a way back
+/// to the webspaces, and Back to Webspaces under them. The legacy design's
+/// sidebar keeps it too.
+class SiteDrawerHeader extends StatelessWidget {
+  const SiteDrawerHeader({
+    super.key,
+    required this.accentColor,
+    required this.webspace,
+    required this.onBackToWebspaces,
+  });
+
+  final AccentColor accentColor;
+  final Webspace? webspace;
+  final VoidCallback onBackToWebspaces;
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InkWell(
+            onTap: onBackToWebspaces,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8.0,
+                vertical: 4.0,
+              ),
+              child: Column(
+                children: [
+                  AccentLogo(
+                    accentColor: accentColor,
+                    size: 72,
+                    brightness: Theme.of(context).brightness,
+                  ),
+                  SizedBox(height: 4),
+                  webspace == null
+                      ? Text(
+                          loc.homeNoWebspace,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : WebspaceName(
+                          webspace!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ],
+              ),
+            ),
+          ),
+          Semantics(
+            label: loc.homeBackToWebspaces,
+            button: true,
+            enabled: true,
+            child: TextButton.icon(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12.0,
+                  vertical: 0,
+                ),
+                minimumSize: Size(0, 32),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              onPressed: onBackToWebspaces,
+              icon: Icon(Icons.arrow_back, size: 16),
+              label: Text(
+                loc.homeBackToWebspaces,
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The drawer's Add Site, which the legacy design's sidebar keeps too.
+class AddSiteButton extends StatelessWidget {
+  const AddSiteButton({super.key, required this.onAddSite});
+
+  final VoidCallback onAddSite;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+    child: SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: onAddSite,
+        icon: Icon(Icons.add),
+        label: Text(AppLocalizations.of(context).homeAddSite),
+      ),
+    ),
+  );
 }
