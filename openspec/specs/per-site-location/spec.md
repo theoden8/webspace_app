@@ -489,6 +489,7 @@ The tile URL used by the picker SHALL come from a global app pref (`osmTileUrl`,
 **Then** no tile requests have been made
 **And** the placeholder view is shown with the configured tile host name
 **And** latitude, longitude, and accuracy inputs are already editable
+**And** `test/location_picker_tiles_test.dart` ("LOC-006: the map waits for the user") holds it
 
 #### Scenario: User enters coordinates without loading the map
 
@@ -496,6 +497,7 @@ The tile URL used by the picker SHALL come from a global app pref (`osmTileUrl`,
 **When** the user types coordinates into the inputs and taps "Done"
 **Then** still no tile requests have been made
 **And** the picker returns the typed coordinates to the caller
+**And** `test/location_picker_tiles_test.dart` ("LOC-006: the map waits for the user") holds it
 
 #### Scenario: User loads the map
 
@@ -504,12 +506,14 @@ The tile URL used by the picker SHALL come from a global app pref (`osmTileUrl`,
 **Then** the map is mounted
 **And** tile requests begin to the URL configured in `osmTileUrl`
 **And** tapping anywhere on the map updates the coordinate inputs and moves the pin
+**And** `test/location_picker_tiles_test.dart` ("LOC-006: the map waits for the user") holds it
 
 #### Scenario: Tile URL is swappable
 
 **Given** the user has opened the app settings and changed "Tile URL" to a self-hosted tile server
 **When** the user later opens the location picker and taps "Load map"
 **Then** tile requests go to the configured server, not to openstreetmap.org
+**And** `test/location_picker_tiles_test.dart` ("LOC-006: the map waits for the user") holds it
 
 #### Scenario: OSM Tile Usage Policy and Attribution Guidelines compliance
 
@@ -531,6 +535,7 @@ When the picker is configured to use the default `tile.openstreetmap.org` URL it
 **And** the link SHALL be the word `OpenStreetMap` itself, not just the surrounding `©` glyph or the entire string (per the Attribution Guidelines, "by making the text 'OpenStreetMap' a link to openstreetmap.org/copyright")
 **And** the font size SHALL be at least 12 points and contrast with its background to meet WCAG legibility expectations (the guidelines reference WCAG)
 **And** a "Report a map issue" link to https://www.openstreetmap.org/fixthemap SHALL be visible adjacent to the attribution
+**And** `test/location_picker_tiles_test.dart` ("LOC-006: the map waits for the user") holds it
 
 **License documentation:**
 
