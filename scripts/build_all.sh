@@ -6,7 +6,8 @@
 #
 #   scripts/build_all.sh
 #     On Linux, the AppImage for this machine's architecture (x86_64 or
-#     aarch64), from snapcraft's build here: Ubuntu 24.04 and sudo, and a
+#     aarch64), from snapcraft's build: on Ubuntu 24.04 here, with sudo;
+#     elsewhere in LXD or Multipass, with podman or docker for the AppDir. A
 #     cold WebKit build takes hours.
 #
 #   APPIMAGE_RUN=<run id> scripts/build_all.sh
@@ -42,23 +43,47 @@ ios() {
   cp build/ios/ipa/*.ipa "$OUT/webspace.ipa"
 }
 
-# The AppDir from snapcraft's prime/, as the Snap workflow makes it.
+# The AppDir from the tree snapcraft primed, as the Snap workflow makes it.
+# On Ubuntu 24.04, the snap's base, snapcraft builds here and leaves it in
+# prime/. Elsewhere snapcraft builds in its own LXD or Multipass instance, the
+# tree is the snap's contents (the same files), and build_appdir.sh, which
+# takes the base's libraries, runs in an Ubuntu 24.04 container.
 appdir_here() {
-  local work=$1 arch
+  local work=$1 arch snap_arch snap engine
   arch="$(uname -m)"
   case "$arch" in
-    x86_64|aarch64) ;;
+    x86_64) snap_arch=amd64 ;;
+    aarch64) snap_arch=arm64 ;;
     *) fail "no AppImage is made for $arch" ;;
   esac
+  command -v snapcraft >/dev/null \
+    || fail "snapcraft is not installed (snap install snapcraft --classic); or take CI's AppDirs with APPIMAGE_RUN=<run id>"
+  rm -f ./*_"$snap_arch".snap
   # shellcheck disable=SC1091
-  (. /etc/os-release && [ "$ID" = ubuntu ] && [ "$VERSION_ID" = 24.04 ]) \
-    || fail "the snap builds on Ubuntu 24.04 only (its base); on another host take CI's AppDirs with APPIMAGE_RUN=<run id>"
-  command -v snapcraft >/dev/null || fail "snapcraft is not installed: sudo snap install snapcraft --classic"
-  # The ccache directory the wpewebkit part names.
-  sudo mkdir -p /var/cache/webspace-snap-ccache
-  sudo snapcraft pack --destructive-mode
-  sudo bash linux/appimage/build_appdir.sh prime "$work/AppDir-$arch"
-  sudo chown -R "$(id -u):$(id -g)" "$work/AppDir-$arch"
+  if (. /etc/os-release && [ "$ID" = ubuntu ] && [ "$VERSION_ID" = 24.04 ]); then
+    # The ccache directory the wpewebkit part names.
+    sudo mkdir -p /var/cache/webspace-snap-ccache
+    sudo snapcraft pack --destructive-mode
+    sudo bash linux/appimage/build_appdir.sh prime "$work/AppDir-$arch"
+  else
+    engine="$(command -v podman || command -v docker)" \
+      || fail "building the AppDir off Ubuntu 24.04 needs podman or docker"
+    snapcraft pack
+    snap="$(compgen -G "./*_$snap_arch.snap" | head -1)" || fail "snapcraft made no $snap_arch snap"
+    # shellcheck disable=SC2016 # the container's shell expands them
+    "$engine" run --rm -v "$PWD:/src:ro,z" -v "$PWD/$work:/work:z" -w /src \
+      docker.io/library/ubuntu:24.04 bash -euc '
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -qq
+        apt-get install -y -qq --no-install-recommends squashfs-tools \
+          $(bash linux/appimage/build_appdir.sh packages) >/dev/null
+        unsquashfs -q -d /work/snap-root "$1"
+        bash linux/appimage/build_appdir.sh /work/snap-root "/work/AppDir-$2"
+        rm -rf /work/snap-root
+      ' _ "$snap" "$arch"
+  fi
+  # Root's in the container or under sudo; a rootless podman's is already ours.
+  [ -O "$work/AppDir-$arch" ] || sudo chown -R "$(id -u):$(id -g)" "$work/AppDir-$arch"
 }
 
 appdirs_of_run() {
