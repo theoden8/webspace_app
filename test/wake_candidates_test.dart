@@ -89,6 +89,33 @@ void main() {
     );
   });
 
+  group('TOR-006: a wake gives Tor time before it plans', () {
+    final tor = site('https://a.test',
+        proxy: UserProxySettings(type: ProxyType.TOR));
+
+    test('TOR-006: a Tor notification site with Tor down waits', () {
+      expect(wakeWaitsForTor([site('https://b.test'), tor], torUp: false),
+          isTrue);
+    });
+
+    test('TOR-006: nothing waits once Tor is up', () {
+      expect(wakeWaitsForTor([tor], torUp: true), isFalse);
+    });
+
+    test('TOR-006: a Tor site the wake does not check, or no Tor site, '
+        'does not wait', () {
+      final silent = site('https://c.test',
+          notifications: false, proxy: UserProxySettings(type: ProxyType.TOR));
+      expect(wakeWaitsForTor([silent, site('https://b.test')], torUp: false),
+          isFalse);
+    });
+
+    test('TOR-006: once Tor came up the plan checks the site it would '
+        'have skipped', () {
+      expect(planFor([tor]).single.skip, isNull);
+    });
+  });
+
   test('the plan leaves the route to each check, which asks it as it opens',
       () {
     final entries = planFor(

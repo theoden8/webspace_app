@@ -76,6 +76,10 @@ class BackgroundSitesController {
   /// the app's lifecycle as the wake's table hears it (NOTIF-016).
   late final _WakeHost _wakeHost = _WakeHost(_sites, host: _host);
 
+  /// Longest a wake waits for Tor to come up before it plans: inside iOS's
+  /// refresh budget with the loads' settle still to come (TOR-006).
+  static const Duration _torWakeDeadline = Duration(seconds: 8);
+
   /// The desktop's status icon, whose sites open as a notification's do.
   late final DesktopTray _tray = DesktopTray(_sites, open: _openFromOutside);
 
@@ -220,14 +224,22 @@ class BackgroundSitesController {
       message: 'background wake: notif sites ${c.enabled} enabled, '
           '${c.loaded} loaded, ${c.live} with a live webview',
     );
+    final began = _wakeHost.now();
     // A wake resumes the process without the app coming back to the
     // foreground, so the resume check tor's listener needs has not run yet
     // (TOR-024), and a Tor notification site would reload through a dead one.
     await TorService.instance.revive();
+    // A process the OS started for the wake has Tor still coming up: the
+    // plan waits for it, out of the task's budget (TOR-006).
+    if (TorService.instance.isAvailable &&
+        wakeWaitsForTor(_sites.models,
+            torUp: TorService.instance.status.isUp)) {
+      await _WakeHost._torUpWithin(_torWakeDeadline);
+    }
     // The OS wakes the app only off screen; a process it started for the
     // wake has heard no lifecycle event to say so.
     if (_sites.fore) _wakeEngine.background(_wakeHost);
-    final report = await _wakeEngine.wake(_wakeHost);
+    final report = await _wakeEngine.wake(_wakeHost, since: began);
     for (var i = 0; i < report.sites.length; i++) {
       final o = report.sites[i];
       final line =

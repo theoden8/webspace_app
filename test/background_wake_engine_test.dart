@@ -369,6 +369,20 @@ void main() {
             lessThanOrEqualTo(task.budget + engine.poll));
       });
 
+      test('${task.name}: TOR-006: time spent before the wake comes out of the '
+          'task\'s budget', () async {
+        final page =
+            _Page(titleBefore: null, titleAfter: null, loadTicks: 1000);
+        final host = _Host({'a': page});
+        final engine = BackgroundWakeEngine<SiteId>(task: task);
+        const spent = Duration(seconds: 8);
+        final start = host.now();
+        await engine.wake(host, since: start.subtract(spent));
+        expect(host.now().difference(start),
+            lessThanOrEqualTo(task.budget - spent + engine.poll),
+            reason: 'Tor coming up before the plan spent part of the OS task');
+      });
+
       test('${task.name}: a page that posts 10 s after its load is still open '
           'to post', () async {
         final page = _Page(

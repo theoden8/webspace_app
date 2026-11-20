@@ -390,14 +390,17 @@ class BackgroundWakeEngine<S extends Object> {
 
   /// Runs one wake and reports what each site did. Every headless webview it
   /// opened is closed before it returns, however it returns. A wake asked
-  /// for while one runs joins it: one at a time.
-  Future<WakeReport> wake(BackgroundWakeHost<S> host) =>
-      _flight.run((), call: () => _wake(host));
+  /// for while one runs joins it: one at a time. [since] is when the OS task
+  /// began, when work before the wake (Tor coming up, TOR-006) spent part of
+  /// [task]'s budget; the wake keeps to what is left.
+  Future<WakeReport> wake(BackgroundWakeHost<S> host, {DateTime? since}) =>
+      _flight.run((), call: () => _wake(host, since: since));
 
-  Future<WakeReport> _wake(BackgroundWakeHost<S> host) async {
+  Future<WakeReport> _wake(BackgroundWakeHost<S> host,
+      {required DateTime? since}) async {
     final flow = WakeFlow<S>(this, host: host)
       ..plan = plan(host.wakeCandidates())
-      ..started = host.now();
+      ..started = since ?? host.now();
     final c = StepContext(flow);
     final next = table.runInput(c, from: WakePlace.wake);
     _waking = true;
