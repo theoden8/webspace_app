@@ -11,10 +11,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { REPO, read } = require('./helpers/source');
+const { REPO, read, files } = require('./helpers/source');
 
 const BUNDLE = 'tool/design_gallery/bundle.js';
 
@@ -23,15 +22,15 @@ const PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
   'base64');
 
-function tree(dir, rel = '') {
-  return fs.readdirSync(path.join(dir, rel), { withFileTypes: true }).flatMap((e) => {
-    const child = rel ? `${rel}/${e.name}` : e.name;
-    return e.isDirectory() ? tree(dir, child) : [child];
-  });
-}
+/** Every file under the repo-relative [dir], relative to it. */
+const tree = (dir) => files(dir, /./).map((f) => f.slice(dir.length + 1));
 
 test('DESIGN-009: the bundle ships README.md and its pages, never the mailbox', () => {
-  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'design-bundle-'));
+  // Under the repo's build/, so its files are listed the way every gate
+  // lists files (helpers/source.js).
+  fs.mkdirSync(path.join(REPO, 'build'), { recursive: true });
+  const work = fs.mkdtempSync(path.join(REPO, 'build', 'design-bundle-test-'));
+  const workRel = path.relative(REPO, work);
   try {
     const cards = path.join(work, 'build', 'design_cards');
     fs.mkdirSync(cards, { recursive: true });
@@ -44,7 +43,7 @@ test('DESIGN-009: the bundle ships README.md and its pages, never the mailbox', 
       stdio: 'pipe',
     });
     const out = path.join(work, 'out');
-    const shipped = tree(out).sort();
+    const shipped = tree(`${workRel}/out`).sort();
     const manifest = JSON.parse(fs.readFileSync(path.join(out, '_ds_manifest.json'), 'utf8'));
     assert.deepEqual(shipped, [...manifest.cards.map((c) => c.path), 'README.md', '_ds_manifest.json'].sort(),
       'the bundle is the cards its manifest lists, the manifest and README.md: anything else is uploaded over the project');
