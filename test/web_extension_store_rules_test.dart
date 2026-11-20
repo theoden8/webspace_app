@@ -7,10 +7,12 @@ import 'package:webspace/platform/app_distribution.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/screens/app_extensions.dart';
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/web_extension_library.dart';
 import 'package:webspace/services/web_extension_package_engine.dart';
 import 'package:webspace/services/web_extension_source_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/settings/web_extension_source.dart';
 
 import 'helpers/amo_search_reply.dart';
@@ -101,7 +103,7 @@ void main() {
       debugHostDistribution = AppDistribution.appStore;
       await pumpLocalized(
         tester,
-        home: AppExtensionsScreen(pick: () async => null),
+        home: AppExtensionsScreen(sites: const [], pick: () async => null),
       );
       expect(find.byType(SearchBar), findsNothing);
       expect(find.text('Install updates without asking'), findsNothing);
@@ -114,7 +116,7 @@ void main() {
       debugHostDistribution = AppDistribution.direct;
       await pumpLocalized(
         tester,
-        home: AppExtensionsScreen(pick: () async => null),
+        home: AppExtensionsScreen(sites: const [], pick: () async => null),
       );
       expect(find.byType(SearchBar), findsNothing);
       expect(find.text('Install updates without asking'), findsOneWidget);
@@ -127,7 +129,7 @@ void main() {
       DeveloperModeService.instance.debugSet(on: false);
       await pumpLocalized(
         tester,
-        home: AppExtensionsScreen(pick: () async => null),
+        home: AppExtensionsScreen(sites: const [], pick: () async => null),
       );
       expect(find.byType(SearchBar), findsOneWidget);
       expect(find.text('Install updates without asking'), findsOneWidget);
@@ -142,7 +144,7 @@ void main() {
       );
       await pumpLocalized(
         tester,
-        home: AppExtensionsScreen(pick: () async => null),
+        home: AppExtensionsScreen(sites: const [], pick: () async => null),
       );
       expect(find.text('Install updates without asking'), findsOneWidget);
       await tester.enterText(
@@ -160,12 +162,23 @@ void main() {
         reason: 'the results screen keeps the query to refine',
       );
       expect(find.text('uBlock Origin'), findsOneWidget);
-      expect(find.text('Runs in part'), findsWidgets);
+      expect(
+        find.text("Runs in part · can't block requests"),
+        findsWidgets,
+      );
       expect(find.text('Runs'), findsWidgets);
       expect(find.textContaining('Recommended by Mozilla'), findsWidgets);
       expect(find.textContaining('11,346,172 users'), findsOneWidget);
 
       await tester.tap(find.text('uBlock Origin'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Add AdNauseam?'),
+        findsNothing,
+        reason: 'a result opens its page before anything is added',
+      );
+      expect(find.textContaining('Not given here:'), findsWidgets);
+      await tester.tap(find.text('Add anyway'));
       await tester.pumpAndSettle();
       expect(find.text('Add AdNauseam?'), findsOneWidget);
       await tester.tap(find.widgetWithText(TextButton, 'Add'));
@@ -173,6 +186,96 @@ void main() {
       final source = _library.installed.value.single.entry.source;
       expect(source, isA<AmoSource>());
       expect((source! as AmoSource).slug, 'ublock-origin');
+    });
+
+    testWidgets('a result\'s page names where it runs among the user\'s '
+        'sites, and the hosts no site claims', (tester) async {
+      debugHostDistribution = AppDistribution.direct;
+      final sponsorBlock = (amoSearchReply['results']! as List<Object?>)
+          .cast<Map<String, Object?>>()
+          .singleWhere((r) => r['slug'] == 'sponsorblock');
+      fetch.replies['https://addons.mozilla.org/api/v5/addons/addon/'
+          'sponsorblock/'] = {
+        ...sponsorBlock,
+        'description': {
+          'en-US': '<p>Skips sponsors.</p><ol><li>Crowdsourced</li></ol>',
+        },
+        'current_version': {
+          ...sponsorBlock['current_version']! as Map<String, Object?>,
+          'license': {
+            'name': {'en-US': 'GNU Lesser General Public License v3.0 only'},
+          },
+        },
+      };
+      final youTube = (
+        id: SiteId.parse('youtube')!,
+        name: 'YouTube',
+        claims: [DomainClaim.baseDomain('youtube.com')],
+      );
+      await pumpLocalized(
+        tester,
+        home: AppExtensionsScreen(sites: [youTube], pick: () async => null),
+      );
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(SearchBar),
+          matching: find.byType(TextField),
+        ),
+        'adblock',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+      expect(find.text('Runs · on YouTube'), findsOneWidget);
+
+      await tester.tap(find.text('SponsorBlock - Skip Sponsorships on YouTube'));
+      await tester.pumpAndSettle();
+      expect(find.text('Runs fully here'), findsOneWidget);
+      expect(find.text('It can run here'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('www.youtube-nocookie.com'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('sponsor.ajay.app'), findsOneWidget);
+      expect(find.text('No site of yours claims it'), findsNWidgets(2));
+      await tester.scrollUntilVisible(
+        find.text('Skips sponsors.\n• Crowdsourced'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.scrollUntilVisible(
+        find.text('Licence: GNU Lesser General Public License v3.0 only'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(_library.installed.value, isEmpty);
+    });
+
+    testWidgets('only those that run fully, when the user asks for them', (
+      tester,
+    ) async {
+      debugHostDistribution = AppDistribution.direct;
+      await pumpLocalized(
+        tester,
+        home: AppExtensionsScreen(sites: const [], pick: () async => null),
+      );
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(SearchBar),
+          matching: find.byType(TextField),
+        ),
+        'adblock',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+      expect(find.text('uBlock Origin'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilterChip, 'Runs fully here'));
+      await tester.pumpAndSettle();
+      expect(find.text('uBlock Origin'), findsNothing);
+      expect(
+        find.text('SponsorBlock - Skip Sponsorships on YouTube'),
+        findsOneWidget,
+      );
     });
 
     test('with the switch on outside the App Store, an update asking for '

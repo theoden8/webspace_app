@@ -35,7 +35,7 @@ void main() {
   late Directory docs;
   late File dataset;
 
-  Widget host() => localizedApp(AppSettingsScreen(
+  Widget host() => localizedApp(AppSettingsScreen(extensionSites: const [],
           currentSettings: AppThemeSettings(),
           containersRunHere: true,
           onSettingsChanged: (_) {},

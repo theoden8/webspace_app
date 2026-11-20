@@ -941,6 +941,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           externalTorRunsHere: externalTorRunsHere,
           containersRunHere: _sites.useContainers,
           siteNames: _siteNames(),
+          extensionSites: [for (final m in _sites.models) ?m.extensionSite],
           torSites: _network.torSites(),
           onSettingsChanged: _applyThemeSettings,
           onExportSettings: _backup.export,

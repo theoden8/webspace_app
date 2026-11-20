@@ -901,6 +901,7 @@ Widget _protectionCategory(BuildContext _) {
 Widget _appSettings(BuildContext _) => AppSettingsScreen(
       currentSettings: const AppThemeSettings(),
       containersRunHere: true,
+      extensionSites: const [],
       onSettingsChanged: (_) {},
       onExportSettings: () {},
       onImportSettings: () {},
@@ -913,6 +914,7 @@ Widget _appSettings(BuildContext _) => AppSettingsScreen(
 Widget _appSettingsNoContainers(BuildContext _) => AppSettingsScreen(
       currentSettings: const AppThemeSettings(),
       containersRunHere: false,
+      extensionSites: const [],
       onSettingsChanged: (_) {},
       onExportSettings: () {},
       onImportSettings: () {},

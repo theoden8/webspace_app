@@ -1,5 +1,7 @@
 import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/web_extension_attach_engine.dart';
+import 'package:webspace/services/web_extension_grants_engine.dart'
+    show ExtensionSite;
 import 'package:webspace/services/web_extension_library.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -16,6 +18,16 @@ extension WebViewModelExtensions on WebViewModel {
         library: WebExtensionLibrary.instance.loadable,
         claims: effectiveDomainClaims,
       ));
+
+  /// The site as an extension's listing names it (WEBEXT-019); null for one
+  /// that runs none whatever it switches on (WEBEXT-009).
+  ExtensionSite? get extensionSite => switch (extensionPlan) {
+        NoExtensions(
+          reason: NoExtensionsReason.archive || NoExtensionsReason.kiosk,
+        ) =>
+          null,
+        _ => (id: siteId, name: getDisplayName(), claims: effectiveDomainClaims),
+      };
 
   /// Where this site's extensions keep what they store and open their pages
   /// under [isolation] (WEBEXT-008); null where they keep nothing.

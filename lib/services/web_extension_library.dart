@@ -546,12 +546,14 @@ class WebExtensionLibrary {
     String text, {
     required bool recommendedOnly,
     required int page,
+    required AmoSort sort,
   }) async {
     assert(extensionSearchOffered, 'search runs only where it is offered');
     final query = amoSearchQuery(
       text,
       recommendedOnly: recommendedOnly,
       page: page,
+      sort: sort,
     );
     switch (await _fetch(query, maxBytes: _releaseBytes)) {
       case FetchRefused(:final reason) || FetchFailed(:final reason):
@@ -566,6 +568,38 @@ class WebExtensionLibrary {
         }
     }
   }
+
+  /// [source]'s listing, read for its page before it is added (WEBEXT-019).
+  Future<SourceFetch<ListingRead>> listing(AmoSource source) async {
+    assert(extensionSearchOffered, 'a listing opens only from a search');
+    switch (await _fetch(releaseQuery(source), maxBytes: _releaseBytes)) {
+      case FetchRefused(:final reason) || FetchFailed(:final reason):
+        return SourceFailed(reason);
+      case Fetched(:final response):
+        try {
+          return SourceGot(
+            readAmoListing(jsonDecode(utf8.decode(response.bodyBytes))),
+          );
+        } on FormatException {
+          return SourceGot(readAmoListing(null));
+        }
+    }
+  }
+
+  /// An icon or a screenshot a listing names on addons.mozilla.org, through
+  /// the app's proxy; null when it could not be fetched.
+  Future<Uint8List?> listingImage(Uri url) async {
+    assert(
+      url.isScheme('https') && url.host == 'addons.mozilla.org',
+      "a listing's image is fetched from addons.mozilla.org only: $url",
+    );
+    return switch (await _fetch(url, maxBytes: _imageBytes)) {
+      Fetched(:final response) => response.bodyBytes,
+      FetchRefused() || FetchFailed() => null,
+    };
+  }
+
+  static const _imageBytes = 4 << 20;
 
   /// [id]'s update downloaded and read, with what it asks for beyond the
   /// installed version, ready for [install] once the user accepts any of

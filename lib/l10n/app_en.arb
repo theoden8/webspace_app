@@ -5809,6 +5809,170 @@
   "@extensionsSearchUnreadable": {
     "description": "Line on the addons.mozilla.org search screen when the site answered with something the app could not read."
   },
+  "extensionsFitWorksHere": "Runs fully here",
+  "@extensionsFitWorksHere": {
+    "description": "Title of a card on an extension's page, and the label of a filter on the search results, for an extension that asks only for what an extension is given in this app. Short."
+  },
+  "extensionsFitWorksBody": "Everything it asks for is given here.",
+  "@extensionsFitWorksBody": {
+    "description": "Explanation under 'Runs fully here' on a browser extension's page: every permission it asks for is one this app gives extensions."
+  },
+  "extensionsFitUnknownBody": "Its listing does not say what it asks for.",
+  "@extensionsFitUnknownBody": {
+    "description": "Explanation under 'Unknown' on a browser extension's page: its listing on addons.mozilla.org names none of the permissions it asks for, so the app cannot tell whether it runs here."
+  },
+  "extensionsFitNoBlocking": "can't block requests",
+  "@extensionsFitNoBlocking": {
+    "description": "Short reason after 'Runs in part' on a search result for a browser extension that needs to block web requests, which extensions cannot do in this app. Lower case where the language allows; it follows 'Runs in part · '."
+  },
+  "extensionsSortUsers": "Most used",
+  "@extensionsSortUsers": {
+    "description": "Order of the extension search results: the most used extensions first. Short label in a menu."
+  },
+  "extensionsSortRating": "Top rated",
+  "@extensionsSortRating": {
+    "description": "Order of the extension search results: the best rated extensions first. Short label in a menu."
+  },
+  "extensionsSortUpdated": "Recently updated",
+  "@extensionsSortUpdated": {
+    "description": "Order of the extension search results: the most recently updated extensions first. Short label in a menu."
+  },
+  "extensionsSortTooltip": "Order of results",
+  "@extensionsSortTooltip": {
+    "description": "Tooltip of the button that changes the order of the extension search results."
+  },
+  "extensionsRatings": "{count, plural, =1{1 rating} other{{ratings} ratings}}",
+  "@extensionsRatings": {
+    "description": "How many people rated a browser extension on addons.mozilla.org, under its average rating on its page. {ratings} is {count} written as the locale writes numbers.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "ratings": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsUsersADay": "users a day",
+  "@extensionsUsersADay": {
+    "description": "Caption under a number on a browser extension's page: how many people use it on an average day, as addons.mozilla.org counts them. Lower case where the language allows."
+  },
+  "extensionsSizeCaption": "size",
+  "@extensionsSizeCaption": {
+    "description": "Caption under a file size (such as 1.9 MB) on a browser extension's page: the size of its package. Lower case where the language allows."
+  },
+  "extensionsAddToLibrary": "Add to library",
+  "@extensionsAddToLibrary": {
+    "description": "Button on a browser extension's page that adds it to the app's extensions, after the usual confirmation."
+  },
+  "extensionsAddAnyway": "Add anyway",
+  "@extensionsAddAnyway": {
+    "description": "Button on the page of a browser extension that only partly works in this app; it adds it even so, after the usual confirmation."
+  },
+  "extensionsOffUntilSwitched": "It runs on no site until you switch it on, for one site or for every site.",
+  "@extensionsOffUntilSwitched": {
+    "description": "Note under the Add button on a browser extension's page: adding it does not turn it on anywhere."
+  },
+  "extensionsOnYourSites": "On your sites",
+  "@extensionsOnYourSites": {
+    "description": "Section title on a browser extension's page listing which of the user's saved sites it could run on."
+  },
+  "extensionsCanRunHere": "It can run here",
+  "@extensionsCanRunHere": {
+    "description": "Under a site's name on a browser extension's page: the extension asks for this site's pages, so it can run on it once switched on."
+  },
+  "extensionsAsksEverySite": "It asks for every site.",
+  "@extensionsAsksEverySite": {
+    "description": "On a browser extension's page, under 'On your sites': it asks to reach the pages of every website."
+  },
+  "extensionsRunsOnNoSite": "None of your sites has pages it asks for.",
+  "@extensionsRunsOnNoSite": {
+    "description": "On a browser extension's page, under 'On your sites': no site the user saved has the pages this extension asks to reach."
+  },
+  "extensionsNoSiteClaims": "No site of yours claims it",
+  "@extensionsNoSiteClaims": {
+    "description": "Under a host name on a browser extension's page: the extension asks for this host, but none of the user's sites covers it, so the extension does not reach it."
+  },
+  "extensionsRunsOnSite": "on {site}",
+  "@extensionsRunsOnSite": {
+    "description": "Short note after 'Runs' on an extension search result: the one site of the user's it can run on. {site} is the site's name.",
+    "placeholders": {
+      "site": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsRunsOnSites": "{count, plural, =1{on 1 of your sites} other{on {count} of your sites}}",
+  "@extensionsRunsOnSites": {
+    "description": "Short note after 'Runs' on an extension search result: how many of the user's sites it can run on.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "extensionsScreenshots": "Screenshots",
+  "@extensionsScreenshots": {
+    "description": "Section title on a browser extension's page above its screenshots."
+  },
+  "extensionsScreenshotOf": "Screenshot {index} of {count}",
+  "@extensionsScreenshotOf": {
+    "description": "Spoken description of one screenshot on a browser extension's page.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "extensionsAbout": "About",
+  "@extensionsAbout": {
+    "description": "Section title on a browser extension's page above its description."
+  },
+  "extensionsShowMore": "Show more",
+  "@extensionsShowMore": {
+    "description": "Button that shows the rest of a browser extension's long description."
+  },
+  "extensionsShowLess": "Show less",
+  "@extensionsShowLess": {
+    "description": "Button that folds a browser extension's description back to its first lines."
+  },
+  "extensionsDetails": "Details",
+  "@extensionsDetails": {
+    "description": "Section title on a browser extension's page above its version, update date, licence and links."
+  },
+  "extensionsUpdatedOn": "Updated {date}",
+  "@extensionsUpdatedOn": {
+    "description": "On a browser extension's page: when its current version was published. {date} is a date written as the locale writes dates.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsLicence": "Licence: {licence}",
+  "@extensionsLicence": {
+    "description": "On a browser extension's page: the software licence it is published under. {licence} is the licence's name, such as GNU General Public License v3.0.",
+    "placeholders": {
+      "licence": {
+        "type": "String"
+      }
+    }
+  },
+  "extensionsHomepage": "Homepage",
+  "@extensionsHomepage": {
+    "description": "Row on a browser extension's page that opens its developer's website."
+  },
+  "extensionsSupport": "Support",
+  "@extensionsSupport": {
+    "description": "Row on a browser extension's page that opens where its developer answers questions."
+  },
+  "extensionsOpenListing": "Open on addons.mozilla.org",
+  "@extensionsOpenListing": {
+    "description": "Button on a browser extension's page that opens its listing on addons.mozilla.org, Firefox's add-on site, in the browser. Keep addons.mozilla.org as it is."
+  },
   "extensionsSearchMore": "More results",
   "@extensionsSearchMore": {
     "description": "Button at the end of the addons.mozilla.org search results that loads the next page."

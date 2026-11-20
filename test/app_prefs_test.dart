@@ -96,7 +96,7 @@ void main() {
       installerStore: null,
     );
     isDemoMode = true;
-    await tester.pumpWidget(localizedApp(AppSettingsScreen(
+    await tester.pumpWidget(localizedApp(AppSettingsScreen(extensionSites: const [],
         currentSettings: const AppThemeSettings(),
         containersRunHere: true,
         onSettingsChanged: (_) {},

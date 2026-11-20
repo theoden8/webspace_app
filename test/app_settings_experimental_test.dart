@@ -54,7 +54,7 @@ void main() {
     List<PickableSearchSite> webSearchSites =
         const [],
   }) =>
-      localizedApp(AppSettingsScreen(
+      localizedApp(AppSettingsScreen(extensionSites: const [],
           currentSettings: AppThemeSettings(),
           containersRunHere: true,
           externalTorRunsHere: externalTorRunsHere,

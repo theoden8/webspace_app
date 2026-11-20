@@ -15,7 +15,7 @@ import 'helpers/localized.dart';
 /// exists, that taps reach the engine, and that the seventh flips the service
 /// the Repaint Screen menu entry reads (`webview-pause-lifecycle` PAUSE-028).
 void main() {
-  Widget host() => localizedApp(AppSettingsScreen(
+  Widget host() => localizedApp(AppSettingsScreen(extensionSites: const [],
     currentSettings: AppThemeSettings(),
     containersRunHere: true,
     onSettingsChanged: (_) {},
