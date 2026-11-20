@@ -1,18 +1,22 @@
 #!/usr/bin/env bash
-# Builds the release files this machine can make into build/release: the Play
-# APKs and bundle anywhere, the iOS ipa on macOS, and on Linux the AppImage
-# (PLATFORM-013), unsigned, packed by linux/appimage/pack.sh as
-# scripts/release_appimage.sh packs the signed one.
+# Builds release files into build/release: the Play APKs and bundle
+# (android) anywhere, the iOS ipa (ios) on macOS, and the AppImage (appimage,
+# PLATFORM-013) on Linux, unsigned, packed by linux/appimage/pack.sh as
+# scripts/release_appimage.sh packs the signed one. A target replaces only its
+# own files there.
 #
-#   scripts/build_all.sh
-#     On Linux, the AppImage for this machine's architecture (x86_64 or
-#     aarch64), from snapcraft's build: on Ubuntu 24.04 here, with sudo;
-#     elsewhere in LXD or Multipass, with podman or docker for the AppDir. A
-#     cold WebKit build takes hours.
+#   scripts/build_all.sh [android] [ios] [appimage]
+#     The targets named, or every one this machine builds.
 #
-#   APPIMAGE_RUN=<run id> scripts/build_all.sh
-#     On Linux, an AppImage for every architecture, from the AppDirs that run
-#     of the Snap workflow kept; needs gh signed in, tar and zstd.
+#     The AppImage is this machine's architecture's (x86_64 or aarch64), from
+#     snapcraft's build: on Ubuntu 24.04 here, with sudo; elsewhere in LXD or
+#     Multipass, with podman or docker for the AppDir. A cold WebKit build
+#     takes hours.
+#
+#   APPIMAGE_RUN=<run id> scripts/build_all.sh appimage
+#     An AppImage for every architecture, from the AppDirs that run of the
+#     Snap workflow kept (the number in its URL, .../actions/runs/<run id>, or
+#     `gh run list --workflow snap.yml`); needs gh signed in, tar and zstd.
 set -euxo pipefail
 
 cd "$(dirname "$0")/.."
@@ -20,12 +24,12 @@ cd "$(dirname "$0")/.."
 fail() { echo "build_all.sh: $1" >&2; exit 1; }
 
 OUT=build/release
-rm -rf "$OUT"
 mkdir -p "$OUT"
 
 # Flutter's Gradle plugin names every APK app[-<abi>]-<flavor>-<mode>.apk
 # whatever outputFileName says, so the release names are given here.
 android() {
+  rm -f "$OUT"/*.apk "$OUT/webspace.aab"
   fvm flutter build apk --flavor fmain --release
   fvm flutter build apk --flavor fmain --release --split-per-abi
   fvm flutter build appbundle --flavor fmain --release
@@ -38,6 +42,7 @@ android() {
 }
 
 ios() {
+  rm -f "$OUT/webspace.ipa"
   rm -rf build/ios/ipa
   fvm flutter build ipa --release
   cp build/ios/ipa/*.ipa "$OUT/webspace.ipa"
@@ -103,6 +108,7 @@ appdirs_of_run() {
 
 appimage() {
   local work=build/appimage appdir arch
+  rm -f "$OUT"/*.AppImage
   # A failed local build leaves its AppDir root-owned.
   rm -rf "$work" 2>/dev/null || sudo rm -rf "$work"
   mkdir -p "$work"
@@ -118,9 +124,19 @@ appimage() {
   done
 }
 
-android
 case "$(uname -s)" in
-  Darwin) ios ;;
-  Linux) appimage ;;
+  Darwin) here=(android ios) ;;
+  Linux) here=(android appimage) ;;
+  *) here=(android) ;;
 esac
+[ $# -gt 0 ] || set -- "${here[@]}"
+for target in "$@"; do
+  case " ${here[*]} " in
+    *" $target "*) ;;
+    *) fail "this machine builds ${here[*]}, not $target" ;;
+  esac
+done
+for target in "$@"; do
+  "$target"
+done
 ls -l "$OUT"
