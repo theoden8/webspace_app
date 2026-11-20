@@ -53,8 +53,8 @@ void main() {
     });
   }
 
-  testWidgets('a site without Always open Home opened from the app after a '
-      'cold start is where it was left (HS-006)', (tester) async {
+  testWidgets('a cold start opens a site without Always open Home where it '
+      'was left (HS-006)', (tester) async {
     final site = WebViewModel(initUrl: home, name: 'Bank');
     final state = await savedStack(site);
 

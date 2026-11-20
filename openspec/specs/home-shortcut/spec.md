@@ -189,7 +189,7 @@ Available on iOS 16+ / macOS 13+. On older OS versions the intent type is compil
 **When** the user taps the Shortcut tile on their home screen
 **Then** WebSpace launches (or comes to the foreground)
 **And** the chosen site is selected and loaded
-**And** the site opens at its `initUrl` (HS-006)
+**And** the site opens where it was left, or at its `initUrl` with Always open Home on (HS-006)
 
 #### Scenario: Cold launch via Shortcut
 
@@ -290,9 +290,9 @@ A "sibling" is any site that shares at least one named webspace with
 the launched site. The full cold/warm, "All"-webspace, and scenario
 detail lives in [always-open-home/AOH-004](../always-open-home/spec.md).
 
-This requirement layers on top of HS-006: HS-006 sends the launched
-site itself home whatever its flag; HS-007 governs the propagation to
-flagged siblings in any webspace containing the launched site.
+This requirement layers on top of HS-006: HS-006 governs the launched
+site itself; HS-007 governs the propagation to siblings in any webspace
+containing the launched site.
 
 #### Scenario: Sibling resets cross-reference
 
@@ -627,43 +627,49 @@ The tile is the site icon HS-003 and HS-016 choose, centred on an opaque plate a
 
 ---
 
-### Requirement: HS-006 - A Shortcut Opens The Site At Home
+### Requirement: HS-006 - A Shortcut Opens The Site Where It Was Left
 
-A pinned shortcut SHALL open the targeted site at its home page, the page the shortcut was made for, with nothing of the page it was left on (issue #1046). A site without tabs SHALL be sent home in place: it loads at its `initUrl` and the back stack saved for its tab SHALL be forgotten, so no restore puts the old page back. A site with tabs SHALL land on a tab at home (TAB-014), and the tab it was on SHALL stay in its list. Always open Home is not needed for this; it decides only what a cold start from the app icon and a shortcut's siblings do (AOH-002, AOH-004).
+A pinned shortcut SHALL open the targeted site where it was left: a site with tabs on the tab it was on (TAB-014), a site without tabs at its last `currentUrl`. Only Always open Home SHALL send it home (AOH-004; incognito implies it, AOH-005): a site without tabs then loads at its `initUrl`, and a site with tabs lands on a tab at home (TAB-014). A site whose URL gathers state it should not keep, such as a map or search site that encodes coordinates or a query in the URL (issue #298), keeps it out of the next launch by turning Always open Home on.
 
-The rule is the same for a cold launch (including after the app was killed) and a warm tap: a warm tap discards the live page of the site it opens. A warm tap the app sees while the cold launch is still restoring is handled once the launched site is up, so the cold launch's own activation cannot undo it.
+The rule is the same for a cold launch (including after the app was killed) and a warm tap. A warm tap the app sees while the cold launch is still restoring is handled once the launched site is up, so the cold launch's own activation cannot undo it. A warm tap of a site without Always open Home keeps the live session, matching HS-002's "App already running" scenario.
 
-#### Scenario: A cold launch opens the site at home
+#### Scenario: A cold launch opens where the site was left
 
 **Given** site A's `initUrl` is `https://www.google.com/maps` and Always open Home is off
-**And** the previous session ended with A at `https://www.google.com/maps/@40.7,-74.0,15z`, its back stack saved
+**And** the previous session ended with A at `https://www.google.com/maps/@40.7,-74.0,15z`
 **And** the user has force-killed the app
 **When** the user taps A's home shortcut
 **Then** the app starts up
-**And** A opens at `https://www.google.com/maps` with no history: in place when A has no tabs, on a tab at home when it has tabs (TAB-014)
+**And** A opens at `https://www.google.com/maps/@40.7,-74.0,15z`, on the tab it was on when A has tabs
 **And** the webspace list is never shown on the way: a launch is covered by a plain surface until it has read the shortcut, lifted at once when no site is named and once A's activation ends otherwise (at most `Motion.launchHold` after the read)
 
-#### Scenario: A warm tap sends the site home
+#### Scenario: Always open Home sends it home
+
+**Given** the same site A with Always open Home on
+**When** the user taps A's home shortcut after the app was killed
+**Then** A opens at `https://www.google.com/maps`: in place when A has no tabs, on a tab at home when it has tabs (TAB-014)
+
+#### Scenario: Warm tap leaves running session intact
 
 **Given** the app is already running
 **And** site A's webview has navigated to `https://www.google.com/maps/@40.7,-74.0,15z`
 **When** the user taps A's home shortcut from the launcher
 **Then** the app comes to the foreground
 **And** A is selected
-**And** A's webview is at `https://www.google.com/maps`
+**And** A's webview is at `https://www.google.com/maps/@40.7,-74.0,15z` (no reset)
 
 #### Scenario: A warm tap does not show the site the app was left on
 
 **Given** the app is running, left in the background with site B (GitHub) on screen
 **When** the user taps site A's (DDG) home shortcut
 **Then** a cover hides the page from the first frame the app paints after reading the shortcut, with no fade in: A's card in the library design, a plain surface in the legacy one
-**And** B is sent away and A sent home and switched to under it
+**And** B is sent away and A switched to under it, at home only if its Always open Home is on
 **And** the card fades only once A is on screen (or at `Motion.launchHold`, as every switch's card)
 **And** what the app paints before it reads the shortcut, and the snapshot iOS shows while it brings the app forward, are outside this: the app does not know the shortcut until the OS has handed it over
 
 #### Scenario: Non-shortcut cold launch is unchanged
 
-**Given** the previous session ended with site A active at a deep `currentUrl` and Always open Home off
+**Given** the previous session ended with site A active at a deep `currentUrl`
 **When** the user opens WebSpace from its app icon (no shortcut intent)
 **Then** the app starts on the home screen with no site activated
 **And** if A is later opened, A's webview loads its persisted `currentUrl`
@@ -770,8 +776,8 @@ no widget tree required.
 | [test/startup_restore_engine_test.dart](../../../test/startup_restore_engine_test.dart) | the resolution rules themselves: `resolveLaunch` (HS-002/HS-011), ledger reconcile (HS-012), `sitesOpened` / `tilesReaching` (HS-005/HS-013/HS-017), tombstone add + prune (HS-014), `sitesOfTiles` / `staleTiles` (HS-016) |
 | [test/shortcut_service_test.dart](../../../test/shortcut_service_test.dart) | the Dart channel surface: argument shapes, per-platform no-ops, degradation on `PlatformException`; `ShortcutId` parsing; that `MainActivity.kt` builds a tile under the id Dart gives it and reads its site from the intent (HS-015/HS-017) |
 | [test/home_shortcuts_settings_test.dart](../../../test/home_shortcuts_settings_test.dart) | the shortcuts list and its Behaviour row against a fake host: listing, reassign, Disable with its confirmation, the count (HS-017) |
-| [integration_test/shortcut_behavior_test.dart](../../../integration_test/shortcut_behavior_test.dart) (run by [scripts/run_android_shortcut_tests.sh](../../../scripts/run_android_shortcut_tests.sh)) | the wiring in `lib/main.dart` on an Android emulator (INTEG-013): cold launch at home, tabs on or off and with Always open Home (HS-002/HS-006), menu gating incl. the rebound site (HS-004/HS-005), pin under a fresh id + ledger record (HS-001/HS-012/HS-015), orphan confirm / reroute / create rewriting the tile (HS-011), the shortcuts list's reassign and Disable (HS-017), delete-time Keep/Reassign/Disable (HS-013) |
-| [scripts/run_android_lifecycle_tests.sh](../../../scripts/run_android_lifecycle_tests.sh) | what needs a real intent: cold launch through the launcher `siteId` extra, warm tap switching sites (HS-002), warm tap sending the site home (HS-006) |
+| [integration_test/shortcut_behavior_test.dart](../../../integration_test/shortcut_behavior_test.dart) (run by [scripts/run_android_shortcut_tests.sh](../../../scripts/run_android_shortcut_tests.sh)) | the wiring in `lib/main.dart` on an Android emulator (INTEG-013): cold launch where the site was left, and home with Always open Home (HS-002/HS-006), menu gating incl. the rebound site (HS-004/HS-005), pin under a fresh id + ledger record (HS-001/HS-012/HS-015), orphan confirm / reroute / create rewriting the tile (HS-011), the shortcuts list's reassign and Disable (HS-017), delete-time Keep/Reassign/Disable (HS-013) |
+| [scripts/run_android_lifecycle_tests.sh](../../../scripts/run_android_lifecycle_tests.sh) | what needs a real intent: cold launch through the launcher `siteId` extra, warm tap switching sites (HS-002), warm tap preserving the live session (HS-006) |
 
 iOS/macOS App Intents (HS-008/HS-009/HS-010/HS-014) stay manual plus
 the structural `%@`-key check in `test/shortcut_service_test.dart`:

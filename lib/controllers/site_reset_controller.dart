@@ -95,10 +95,10 @@ class SiteResetController {
     await _sites.models[_sites.current!].userStopLoading();
   }
 
-  /// Send [launched] home with no history (HS-006), and every "Always open
-  /// Home" / incognito site that shares a named webspace with it (HS-007):
-  /// its live webview goes so the next paint loads at home. Called from
-  /// both the cold and the warm shortcut entrypoints.
+  /// Send every "Always open Home" / incognito site among [launched] and the
+  /// sites sharing a named webspace with it home with no history (HS-006,
+  /// HS-007): its live webview goes so the next paint loads at home. Called
+  /// from both the cold and the warm shortcut entrypoints.
   ///
   /// A site with tabs is not sent home in place: it lands on a tab at home,
   /// and the tab it was on stays in its list (TAB-014).

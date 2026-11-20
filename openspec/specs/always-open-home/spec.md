@@ -5,9 +5,8 @@
 A per-site `alwaysOpenHome` toggle that makes the site's *navigation
 URL* ephemeral while keeping its persistent state (cookies,
 localStorage, IndexedDB, HTTP cache) intact. The site reverts to its
-`initUrl` on **app restart** (cold start) and on a **home-shortcut
-tap** of a site sharing a webspace with it (a shortcut sends its own
-site home whatever this toggle says, HS-006), but the user's logged-in session, preferences,
+`initUrl` on **app restart** (cold start) and on **Android
+home-shortcut tap**, but the user's logged-in session, preferences,
 and other cookie-backed state survive both events. Switching between
 sites *within* the app is not a reset trigger, and neither is a
 transient background — leaving the app to fetch an emailed 2FA code
@@ -111,12 +110,13 @@ The system SHALL reset `currentUrl` to `initUrl` for every flagged
 site that shares at least one named webspace with the launched site
 when the user taps an Android home-shortcut. A site is "flagged"
 when `alwaysOpenHome = true` or `incognito = true`. The launched site
-itself is reset whatever its flag ([HS-006](../home-shortcut/spec.md)).
-The synthetic "All" webspace MUST NOT count as shared membership for
-this rule.
+itself is reset whenever it is flagged. The synthetic "All" webspace
+MUST NOT count as shared membership for this rule.
 
 The reset SHALL apply to both cold launches via shortcut and warm taps
-while the app is already running.
+while the app is already running. It is the only reset a shortcut makes:
+an unflagged launched site opens where it was left
+([HS-006](../home-shortcut/spec.md)).
 
 #### Scenario: Warm shortcut tap resets banking siblings
 
@@ -140,13 +140,12 @@ while the app is already running.
 **Then** A resets to its initUrl
 **And** C's currentUrl is unchanged
 
-#### Scenario: Unflagged launched site still goes home
+#### Scenario: Unflagged launched site keeps its page
 
 **Given** site A has `alwaysOpenHome = false` and `incognito = false`
 **And** the user cold-launches the app via A's home shortcut
-**Then** A opens at its `initUrl` per [HS-006](../home-shortcut/spec.md)
-**And** flagged sites sharing a named webspace with A reset: the propagation is anchored on the launched site, not gated by its own flag
-**And** unflagged sites sharing a webspace with A keep their pages
+**Then** A opens where it was left per [HS-006](../home-shortcut/spec.md)
+**And** flagged sites sharing a named webspace with A still reset: the propagation is anchored on the launched site, not gated by its own flag
 
 ---
 

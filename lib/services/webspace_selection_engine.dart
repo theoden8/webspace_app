@@ -90,11 +90,12 @@ class WebspaceSelectionEngine {
   }
 
   /// Site indices that should reset to their `initUrl` when the user taps
-  /// a home-shortcut for [launchedIndex]: the launched site, whatever its
-  /// flag (HS-006), and every site flagged (predicate true) that shares at
-  /// least one named webspace with it (HS-007). The synthetic "All"
-  /// webspace is ignored: it has no stored `siteIndices` so it never
-  /// anchors the propagation.
+  /// an Android home-shortcut for [launchedIndex]: every site flagged
+  /// (predicate true) that shares at least one named webspace with the
+  /// launched site. The launched site itself is included if it satisfies
+  /// the predicate. The synthetic "All" webspace is ignored — it has no
+  /// stored `siteIndices` so it never anchors the reset (a flagged site
+  /// only living in "All" still resets via its own toJson trip).
   ///
   /// Pure: no `setState`, no controller calls, no IO. The caller maps
   /// the returned indices back to webview disposal + persistence.
@@ -113,6 +114,6 @@ class WebspaceSelectionEngine {
       if (!ws.siteIndices.contains(launchedIndex)) continue;
       candidates.addAll(ws.siteIndices);
     }
-    return {launchedIndex, for (final i in candidates) if (flag(i)) i};
+    return {for (final i in candidates) if (flag(i)) i};
   }
 }

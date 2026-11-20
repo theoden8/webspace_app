@@ -47,8 +47,8 @@ class _Residency extends Fake implements ResidencyHost {
   );
 }
 
-/// A home shortcut opens its site at home with nothing of the page it was
-/// left on, whether or not Always open Home is on (HS-006, #1046).
+/// A home shortcut opens an Always open Home site at home with nothing of the
+/// page it was left on (HS-006, AOH-004, #1046).
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -58,7 +58,8 @@ void main() {
 
   Future<({WebViewModel site, InMemoryWebViewStateStorage files})> launch(
       {required bool tabsEnabled}) async {
-    final site = WebViewModel(initUrl: home, tabsEnabled: tabsEnabled)
+    final site = WebViewModel(
+        initUrl: home, tabsEnabled: tabsEnabled, alwaysOpenHome: true)
       ..currentUrl = deep;
     final sites = SiteRuntime()
       ..isolation = fakeContainers()
@@ -86,7 +87,7 @@ void main() {
     return (site: site, files: files);
   }
 
-  test('a site without tabs or Always open Home is sent home in place, its '
+  test('an Always open Home site without tabs is sent home in place, its '
       'saved back stack forgotten (HS-006)', () async {
     final (:site, :files) = await launch(tabsEnabled: false);
 
@@ -94,7 +95,7 @@ void main() {
     expect(await files.loadState(site.activeStateKey), isNull);
   });
 
-  test('a site with tabs and no Always open Home lands on a tab at home, the '
+  test('an Always open Home site with tabs lands on a tab at home, the '
       'tab it was on kept (HS-006, TAB-014)', () async {
     final (:site, :files) = await launch(tabsEnabled: true);
 
