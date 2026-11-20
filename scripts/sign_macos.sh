@@ -23,8 +23,10 @@
 #   WEBSPACE_TEAM_ID            team the entitlements are prefixed with
 #   MACOS_SIGN_IDENTITY         codesign identity (defaults per mode)
 #   MACOS_INSTALLER_IDENTITY    mas: productbuild identity
-#   MACOS_PROVISION_PROFILE     mas: .provisionprofile for the app
-#   MACOS_EXT_PROVISION_PROFILE mas: .provisionprofile for the share extension
+#   MACOS_PROVISION_PROFILE     mas, devid: .provisionprofile for the app
+#   MACOS_EXT_PROVISION_PROFILE mas, devid: .provisionprofile for the share
+#                               extension (Mac App Store type for mas,
+#                               Developer ID for devid)
 #   NOTARY_PROFILE              devid: notarytool keychain profile name
 #   NOTARY_KEY/_ID/_ISSUER      devid: App Store Connect API key instead
 #
@@ -157,13 +159,27 @@ case "$MODE" in
   mas)   IDENTITY="${MACOS_SIGN_IDENTITY:-Apple Distribution}" ;;
 esac
 
-if [[ "$MODE" == "mas" ]]; then
-  : "${MACOS_PROVISION_PROFILE:?set MACOS_PROVISION_PROFILE to the app's .provisionprofile}"
-  : "${MACOS_EXT_PROVISION_PROFILE:?set MACOS_EXT_PROVISION_PROFILE to the extension's .provisionprofile}"
-  # ITSAppUsesNonExemptEncryption without its matching compliance code is
-  # rejected by App Store Connect at upload, after the build (EXPORT-001).
-  "$REPO_ROOT/scripts/check_export_compliance.sh" "$REPO_ROOT/macos/Runner/Info.plist"
-  cp "$MACOS_PROVISION_PROFILE" "$APP/Contents/embedded.provisionprofile"
+# The keychain group and application identifier are restricted entitlements:
+# macOS launches the app only when its embedded profile grants them to the
+# signing certificate, and the development profile the build embedded names
+# only the Apple Development one ("Launchd job spawn failed").
+if [[ "$MODE" != "adhoc" ]]; then
+  : "${MACOS_PROVISION_PROFILE:?set MACOS_PROVISION_PROFILE to the .provisionprofile for the app}"
+  : "${MACOS_EXT_PROVISION_PROFILE:?set MACOS_EXT_PROVISION_PROFILE to the .provisionprofile for the share extension}"
+  for profile in "$MACOS_PROVISION_PROFILE" "$MACOS_EXT_PROVISION_PROFILE"; do
+    security cms -D -i "$profile" > "$WORK/profile.plist"
+    if /usr/libexec/PlistBuddy -c 'Print :ProvisionedDevices' "$WORK/profile.plist" >/dev/null 2>&1; then
+      echo "ERROR: $profile lists devices: it is a development profile." >&2
+      echo "See docs/releasing-macos.md for the profiles $MODE takes." >&2
+      exit 1
+    fi
+  done
+  if [[ "$MODE" == "mas" ]]; then
+    # ITSAppUsesNonExemptEncryption without its matching compliance code is
+    # rejected by App Store Connect at upload, after the build (EXPORT-001).
+    "$REPO_ROOT/scripts/check_export_compliance.sh" "$REPO_ROOT/macos/Runner/Info.plist"
+  fi
+  cp -f "$MACOS_PROVISION_PROFILE" "$APP/Contents/embedded.provisionprofile"
 fi
 
 materialize_entitlements "$APP" "$APP_ENTITLEMENTS" "$WORK/app.entitlements"
@@ -175,7 +191,7 @@ while IFS= read -r -d '' nested; do
 done < <(find "$APP/Contents/Frameworks" -depth \( -name '*.framework' -o -name '*.dylib' \) -print0 2>/dev/null)
 
 while IFS= read -r -d '' appex; do
-  [[ "$MODE" == "mas" ]] && cp "$MACOS_EXT_PROVISION_PROFILE" "$appex/Contents/embedded.provisionprofile"
+  [[ "$MODE" != "adhoc" ]] && cp -f "$MACOS_EXT_PROVISION_PROFILE" "$appex/Contents/embedded.provisionprofile"
   materialize_entitlements "$appex" "$EXT_ENTITLEMENTS" "$WORK/ext.entitlements"
   sign_one "$appex" "$WORK/ext.entitlements"
 done < <(find "$APP/Contents/PlugIns" -maxdepth 1 -name '*.appex' -print0 2>/dev/null)
