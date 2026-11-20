@@ -271,7 +271,7 @@ Shims that wrap APIs whose behaviour jsdom cannot honestly simulate (real CSS `m
 ### Requirement: SHIM-TEST-006 — Tier 2 boots a per-file Chromium with documented timing
 
 Tests under `test/browser/` MUST boot a fresh Chromium process per
-file via `setupBrowser()` and inject the script via
+file via `setupBrowser()` (two proxy tests launch per test instead, each with its own `--proxy-server`, and are named in the gate) and inject the script via
 `page.evaluateOnNewDocument`, which is the closest Puppeteer analogue
 to a production WebView's DOCUMENT_START injection point.
 
@@ -283,6 +283,7 @@ to a production WebView's DOCUMENT_START injection point.
   `--no-sandbox --disable-setuid-sandbox`
 - **AND** `after` closes it, so each test file is isolated from the
   next
+- **AND** `test/js/browser_tier_conventions.test.js` holds it
 
 #### Scenario: Pre-injection hooks run before the shim
 
@@ -293,6 +294,7 @@ to a production WebView's DOCUMENT_START injection point.
   `page.evaluateOnNewDocument` BEFORE the shim, so the shim's
   `_RealRTC = window.RTCPeerConnection` capture sees the test's fake
   rather than Chromium's real `RTCPeerConnection`
+- **AND** `test/js/browser_tier_conventions.test.js` holds it
 
 #### Scenario: Documented Puppeteer-vs-WebView timing mismatch
 
@@ -311,6 +313,7 @@ to a production WebView's DOCUMENT_START injection point.
 - **AND** a comment in the test acknowledges the difference so the
   reason the test diverges from the production injection model is
   not lost
+- **AND** `test/js/browser_tier_conventions.test.js` holds it
 
 ---
 
