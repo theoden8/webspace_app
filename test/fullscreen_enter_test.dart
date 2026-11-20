@@ -118,6 +118,28 @@ void main() {
     expectLeft();
   });
 
+  testWidgets('FS-002: under a status bar that stays, the handle is the 20px '
+      'below its inset, 96px wide at the centre', (tester) async {
+    addTearDown(tester.view.reset);
+    const statusBar = 24.0;
+    final dpr = tester.view.devicePixelRatio;
+    tester.view.padding = FakeViewPadding(top: statusBar * dpr);
+    tester.view.viewPadding = FakeViewPadding(top: statusBar * dpr);
+    await openSite(tester);
+    await enterFromMenu(tester);
+    final band = tester.getRect(find.descendant(
+        of: find.byType(FullscreenExitHandle),
+        matching: find.byType(GestureDetector)));
+    final width = tester.view.physicalSize.width / tester.view.devicePixelRatio;
+    expect(band.top, statusBar, reason: 'the body keeps the bar\'s inset');
+    expect(band.height, 20);
+    expect(band.width, 96);
+    expect(band.center.dx, width / 2);
+    await tester.tapAt(band.center);
+    await settleRealApp(tester);
+    expectLeft();
+  });
+
   testWidgets('FS-002: the kept tab strip\'s menu reads Exit Full Screen and '
       'leaves', (tester) async {
     await openSite(tester,
