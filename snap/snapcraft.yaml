@@ -289,6 +289,17 @@ parts:
       rm -rf build .dart_tool linux/flutter/ephemeral \
         rust/webspace_adblock/target linux/lib/libwebspace_adblock.so
 
+      # Against Ubuntu 22.04's libraries alone, as WebKit is: the GNOME 42 SDK
+      # the extension points every part at carries a newer GLib, whose headers
+      # compile in calls 22.04's GLib lacks (g_string_free_and_steal), and the
+      # AppImage bundles the build host's. The snap's GNOME runtime is newer
+      # still, so either runs there. /snap/bin keeps the go snap's go.
+      export PATH=/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+      export PKG_CONFIG_PATH="$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig"
+      export CMAKE_PREFIX_PATH="$CRAFT_STAGE/usr"
+      unset LD_LIBRARY_PATH PYTHONPATH GI_TYPELIB_PATH ACLOCAL_PATH \
+        GDK_PIXBUF_MODULE_FILE GETTEXTDATADIRS XDG_DATA_DIRS
+
       # Flutter at the version .fvmrc pins.
       flutter_version="$(sed -n 's/.*"flutter": *"\([^"]*\)".*/\1/p' .fvmrc)"
       export FLUTTER_ROOT="$CRAFT_PART_BUILD/../flutter"
