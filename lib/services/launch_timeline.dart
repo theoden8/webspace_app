@@ -70,8 +70,8 @@ class _Segment {
   final int _startMs;
   final Map<LaunchMark, int> _phases = {};
 
-  void reached(LaunchMark mark, int nowMs) =>
-      _phases.putIfAbsent(mark, () => nowMs - _startMs);
+  void reached(LaunchMark mark, {required int at}) =>
+      _phases.putIfAbsent(mark, () => at - _startMs);
 
   bool get isEmpty => _phases.isEmpty;
 
@@ -128,7 +128,7 @@ abstract final class LaunchTimeline {
       return;
     }
     if (!_switchPhases.contains(mark)) return;
-    _switch?.reached(mark, _clock.elapsedMilliseconds);
+    _switch?.reached(mark, at: _clock.elapsedMilliseconds);
     if (mark == LaunchMark.pageSettled) _emitSwitch();
   }
 
@@ -149,7 +149,7 @@ abstract final class LaunchTimeline {
       return;
     }
     if (step == _activatedStep) {
-      _switch?.reached(LaunchMark.activated, _clock.elapsedMilliseconds);
+      _switch?.reached(LaunchMark.activated, at: _clock.elapsedMilliseconds);
     }
   }
 
