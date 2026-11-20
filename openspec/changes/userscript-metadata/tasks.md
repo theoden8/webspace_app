@@ -15,8 +15,8 @@
 
 ## 3. Page gate
 
-- [ ] 3.1 Add `lib/js/userscript_gate.js`, its `PageJs.userscriptGate` value and a sample config in `test/js/helpers/page_js_samples.js`; verify `npm run test:js` passes, including `page_js.test.js` and `page_js_lint.test.js`
-- [ ] 3.2 Add `test/js/userscript_gate.test.js` in jsdom: include and exclude over a URL matrix, a regex the engine rejects counts as no match (typed catch), and the planted mutant "gate ignores exclude"; verify `npm run test:js` passes
+- [x] 3.1 Add `lib/js/userscript_gate.js`, its `PageJs.userscriptGate` value and a sample config in `test/js/helpers/page_js_samples.js`; verify `npm run test:js` passes, including `page_js.test.js` and `page_js_lint.test.js`
+- [x] 3.2 Add `test/js/userscript_gate.test.js` in jsdom: include and exclude over a URL matrix, a regex the engine rejects counts as no match (typed catch), and the planted mutant "gate ignores exclude"; verify `npm run test:js` passes
 
 ## 4. Run paths
 

@@ -50,6 +50,7 @@ enum PageJs {
   themeColorScheme('theme_color_scheme'),
   uaIdentity('ua_identity'),
   userScript('user_script'),
+  userscriptGate('userscript_gate'),
   webGlKillSwitch('webgl_kill_switch'),
   workerPayload('worker_payload'),
   workerShim('worker_shim');
