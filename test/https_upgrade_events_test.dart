@@ -27,9 +27,9 @@ class _Site {
   final HttpsUpgradeEngine engine;
   final bool enabled;
 
-  /// The site's accepted onion endpoint while it is on Tor, as the posture
+  /// The site's accepted onion route while it is on Tor, as the posture
   /// hands it to the real call site.
-  final OnionEndpoint? onion;
+  final OnionRoute? onion;
 
   /// What the webview was told to load, in order. The first entry is the URL
   /// the user asked for only if nothing upgraded it.
@@ -242,15 +242,20 @@ void main() {
     });
   });
 
-  group('the onion endpoint', () {
-    const proton =
-        'protonmailrmez3lotccipshtkleegetolb73fuirgj7r4o4vfu7ozyd.onion';
+  const proton =
+      'protonmailrmez3lotccipshtkleegetolb73fuirgj7r4o4vfu7ozyd.onion';
+  OnionRoute protonRoute(OnionFallback fallback) => (
+        endpoint: OnionEndpoint.of(
+            from: 'https://proton.me', to: 'https://$proton/')!,
+        fallback: fallback,
+      );
+
+  group('the onion route, falling back to clearnet (ONION-006)', () {
     late _Site tor;
 
     setUp(() {
       tor = _Site(engine,
-          onion: OnionEndpoint.of(
-              from: 'https://proton.me', to: 'https://$proton/'));
+          onion: protonRoute(OnionFallback.clearnet));
     });
 
     test('the announcing origin moves to the onion, with the longer deadline',
@@ -266,8 +271,7 @@ void main() {
 
     test('a plain-http clearnet URL goes to the onion, not through https', () {
       final http = _Site(engine,
-          onion: OnionEndpoint.of(
-              from: 'https://proton.me', to: 'https://$proton/'));
+          onion: protonRoute(OnionFallback.clearnet));
       expect(http.navigate('http://proton.me/'), isTrue);
       expect(http.loaded, ['https://proton.me/']);
       expect(http.navigate('https://proton.me/'), isTrue);
@@ -299,8 +303,7 @@ void main() {
       expect(tor.loaded.last, 'https://proton.me/a');
 
       final slow = _Site(HttpsUpgradeEngine(),
-          onion: OnionEndpoint.of(
-              from: 'https://proton.me', to: 'https://$proton/'));
+          onion: protonRoute(OnionFallback.clearnet));
       slow.navigate('https://proton.me/b');
       slow.loadStarted('https://$proton/b');
       slow.deadlineFires('https://$proton/b');
@@ -312,6 +315,38 @@ void main() {
           '2gzyxa5ihm7nsggfxnu52rck2vv4rvmdlkiu3zzui5du4xyclen53wid.onion';
       expect(site.navigate('http://$torProject/'), isFalse);
       expect(site.loaded, ['http://$torProject/']);
+    });
+  });
+
+  group('the onion route with no fallback (ONION-006)', () {
+    late _Site tor;
+
+    setUp(() {
+      tor = _Site(engine, onion: protonRoute(OnionFallback.none));
+    });
+
+    test('the move arms no deadline', () {
+      expect(tor.navigate('https://proton.me/mail'), isTrue);
+      expect(tor.loaded, ['https://$proton/mail']);
+      expect(tor.hasArmedDeadline, isFalse);
+      expect(engine.onFirstLoad('https://proton.me/',
+              onion: protonRoute(OnionFallback.none)).armDeadlineFor,
+          isNull);
+    });
+
+    test('a failure stays on the onion, and the next load moves again', () {
+      tor.navigate('https://proton.me/mail');
+      tor.loadFailed('https://$proton/mail');
+      expect(tor.loaded, ['https://$proton/mail']);
+      expect(tor.navigate('https://proton.me/inbox'), isTrue);
+      expect(tor.loaded.last, 'https://$proton/inbox');
+    });
+
+    test('a rejected certificate is the TLS prompt\'s, not a fallback', () {
+      tor.navigate('https://proton.me/');
+      final out = engine.onCertificateRejected(proton);
+      expect(out.cancel, isFalse);
+      expect(out.load, isNull);
     });
   });
 }

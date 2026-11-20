@@ -34,9 +34,9 @@ typedef SiteContainer = ({
   bool thirdPartyCookies,
   HttpAuthMemory httpAuthMemory,
   bool passkeys,
-  // The onion origin its clearnet origin moves to: accepted, and only while
-  // the route is Tor (ONION-004, ONION-007).
-  OnionEndpoint? onion,
+  // The onion origin its clearnet origin moves to and what a failure there
+  // does: accepted, and only while the route is Tor (ONION-004, ONION-007).
+  OnionRoute? onion,
 });
 
 /// What is refused or rewritten before it reaches the network.

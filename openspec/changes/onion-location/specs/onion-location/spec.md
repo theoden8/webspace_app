@@ -129,23 +129,37 @@ posture and SHALL NOT be written into the user's domain claims.
 
 ---
 
-### Requirement: ONION-006 - A failing onion falls back silently
+### Requirement: ONION-006 - A failing onion falls back only where the user chose it
 
 When a navigation rewritten to the onion origin fails to load, is rejected by
-TLS, or has no answer from the server within 30 seconds, the app SHALL load
-the clearnet URL it rewrote and SHALL NOT rewrite to that onion origin again in
-the same run. This state SHALL be kept in memory only.
+TLS, or has no answer from the server within 30 seconds, what follows SHALL be
+the site's fallback choice (ONION-009):
 
-#### Scenario: The onion is down
+- **None**: the failure SHALL stay on screen as any failed load does, a TLS
+  rejection SHALL reach the trust prompt as any other, no deadline SHALL be
+  armed, and the next navigation to the announcing origin SHALL be rewritten
+  again.
+- **Clearnet**: the app SHALL load the clearnet URL it rewrote, with no trust
+  prompt for the onion host, and SHALL NOT rewrite to that onion origin again
+  in the same run. This state SHALL be kept in memory only.
 
-**Given** a site whose onion address is its endpoint
+#### Scenario: The onion is down, no fallback
+
+**Given** a site whose onion address is its endpoint, with no fallback
+**When** the onion load fails
+**Then** the failure shows and nothing is loaded through an exit
+**And** the next navigation to the clearnet origin goes to the onion again
+
+#### Scenario: The onion is down, falling back
+
+**Given** a site whose onion address is its endpoint, falling back to clearnet
 **When** the onion load fails
 **Then** the clearnet URL loads
 **And** later navigations in the same run are not rewritten
 
-#### Scenario: A lapsed certificate on the onion
+#### Scenario: A lapsed certificate on the onion, falling back
 
-**Given** the onion service presents an expired certificate
+**Given** the onion service presents an expired certificate, and the site falls back to clearnet
 **When** the rewritten navigation is rejected by TLS
 **Then** the clearnet URL loads without a trust prompt for the onion host
 
@@ -196,3 +210,24 @@ service's key, so a changed certificate on the onion is no reason to ask.
 **Given** a site whose onion load just fell back to its clearnet address
 **When** the clearnet page loads
 **Then** the site is checked again, and a withdrawn address is forgotten (ONION-003)
+
+---
+
+### Requirement: ONION-009 - The fallback is the user's explicit choice
+
+A site's onion address SHALL carry a fallback choice, None or Clearnet, which
+SHALL be None until the user picks Clearnet on the site's Network screen, and
+SHALL be saved with the learned address (ONION-008). A saved address with no
+choice SHALL read as None.
+
+#### Scenario: A new onion address does not fall back
+
+**Given** the user accepts a site's onion address
+**When** the onion fails to load
+**Then** the failure shows, as ONION-006 says for None
+
+#### Scenario: The user opts into the fallback
+
+**Given** a site whose onion address is accepted
+**When** the user picks Clearnet as its fallback on the site's Network screen
+**Then** a failed onion load goes to the clearnet URL from then on

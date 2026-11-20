@@ -37,7 +37,7 @@
 - [ ] 4.2 The offer, a `confirm()` naming the site and the address; the answer saved
   on the site (ONION-003). Code with `app_en.arb`; translations in their own commit.
 - [ ] 4.3 A row on the site Network screen showing the address and its state, with a
-  way to forget it.
+  way to forget it, and the fallback choice: None (the default) or Clearnet (ONION-009).
 
 ## 5. Wire and verify
 
@@ -47,4 +47,7 @@
   HTTPS upgrade already forwards (ONION-006). An onion host is never upgraded to https.
 - [ ] 5.2 Archive-tier audit (ARCH-006): the new fields live in the site JSON, which
   the archive keeps under its key; nothing else touches disk.
+- [x] 4.4 `OnionFallback` on `SiteOnion`, carried to the engine as `OnionRoute`: with
+  None the move puts nothing in flight and arms no deadline, so a failure is the page's
+  (ONION-006).
 - [ ] 5.3 Name each ONION requirement in its test and drop it from `unverified.tsv`.

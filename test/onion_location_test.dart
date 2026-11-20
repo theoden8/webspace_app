@@ -150,19 +150,29 @@ void main() {
   group('SiteOnion', () {
     final endpoint =
         OnionEndpoint.of(from: 'https://proton.me', to: 'https://$_proton/')!;
-    SiteOnion learned(OnionAnswer? answer) => SiteOnion(
-        endpoint: endpoint, checked: DateTime.utc(2026, 11, 19), answer: answer);
+    SiteOnion learned(OnionAnswer? answer,
+            {OnionFallback fallback = OnionFallback.none}) =>
+        SiteOnion(
+            endpoint: endpoint,
+            checked: DateTime.utc(2026, 11, 19),
+            answer: answer,
+            fallback: fallback);
 
-    test('only an accepted address is used', () {
-      expect(learned(null).endpointOn(tor: true), isNull);
-      expect(learned(OnionAnswer.declined).endpointOn(tor: true), isNull);
-      expect(learned(OnionAnswer.accepted).endpointOn(tor: true), endpoint);
+    test('only an accepted address is used, with the fallback chosen', () {
+      expect(learned(null).routeOn(tor: true), isNull);
+      expect(learned(OnionAnswer.declined).routeOn(tor: true), isNull);
+      for (final fallback in OnionFallback.values) {
+        expect(
+            learned(OnionAnswer.accepted, fallback: fallback)
+                .routeOn(tor: true),
+            (endpoint: endpoint, fallback: fallback));
+      }
     });
 
     test('off Tor the endpoint is not used and a saved onion URL '
         'starts on the clearnet origin', () {
       final accepted = learned(OnionAnswer.accepted);
-      expect(accepted.endpointOn(tor: false), isNull);
+      expect(accepted.routeOn(tor: false), isNull);
       expect(accepted.startUrl('https://$_proton/mail', inUse: null),
           'https://proton.me/mail');
       expect(accepted.startUrl('https://$_proton/mail', inUse: endpoint),
@@ -173,11 +183,23 @@ void main() {
 
     test('saved and read back; a wrong shape reads as absent', () {
       for (final answer in [null, ...OnionAnswer.values]) {
-        final back = SiteOnion.fromJson(learned(answer).toJson());
-        expect(back?.endpoint, endpoint);
-        expect(back?.answer, answer);
-        expect(back?.checked, DateTime.utc(2026, 11, 19));
+        for (final fallback in OnionFallback.values) {
+          final back = SiteOnion.fromJson(
+              learned(answer, fallback: fallback).toJson());
+          expect(back?.endpoint, endpoint);
+          expect(back?.answer, answer);
+          expect(back?.fallback, fallback);
+          expect(back?.checked, DateTime.utc(2026, 11, 19));
+        }
       }
+      expect(
+          SiteOnion.fromJson({
+            'from': 'https://proton.me',
+            'to': 'https://$_proton',
+            'checked': '2026-11-19',
+          })?.fallback,
+          OnionFallback.none,
+          reason: 'no saved choice means no fallback');
       for (final json in [
         null,
         'x',
@@ -206,12 +228,12 @@ void main() {
     test('the model resolves the endpoint only on a Tor route', () {
       final direct = WebViewModel(initUrl: 'https://proton.me/')
         ..onionLocation = learned(OnionAnswer.accepted);
-      expect(direct.onionEndpoint, isNull);
+      expect(direct.onionRoute, isNull);
       final tor = WebViewModel(
           initUrl: 'https://proton.me/',
           proxySettings: UserProxySettings(type: ProxyType.TOR))
         ..onionLocation = learned(OnionAnswer.accepted);
-      expect(tor.onionEndpoint, endpoint);
+      expect(tor.onionRoute?.endpoint, endpoint);
     });
   });
 

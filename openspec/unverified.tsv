@@ -87,9 +87,9 @@ NETIF-014	no check: not built yet; an import that names an interface this device
 # onion-location
 ONION-001	not implemented: onion-location task 4.1 open, the check through the site's route (partly: test/onion_location_test.dart, "announcedEndpoint")
 ONION-003	not implemented: onion-location task 4.2 open, the offer (partly: test/onion_location_test.dart, "only an accepted address is used")
-ONION-006	no check: the engine's fallback is tested (test/https_upgrade_events_test.dart, "the onion endpoint"), but nothing drives it through webview.dart's error, TLS and deadline handlers on a device
 ONION-007	not implemented: onion-location task 4.1 open, the check must skip a site off Tor (partly: test/onion_location_test.dart, "the model resolves the endpoint only on a Tor route")
 ONION-008	not implemented: onion-location task 4.1 open, the rechecks (partly: test/onion_location_test.dart, "a site saves it, and neither a backup nor a QR carries it")
+ONION-009	not implemented: onion-location task 4.3 open, the Network row where the user picks the fallback (partly: test/onion_location_test.dart, "saved and read back; a wrong shape reads as absent")
 # passkey-support
 # per-site-containers
 # per-site-cookie-isolation

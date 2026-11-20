@@ -114,19 +114,27 @@ class HttpsUpgradeEngine {
     return upgraded;
   }
 
-  /// [url] on the onion origin [endpoint] names, or null to leave it: no
-  /// endpoint (the site is not on Tor or has none accepted, ONION-007), a URL
-  /// off the announcing origin, or a service that failed this run
-  /// (ONION-006). Called where [upgradeFor] is, and before it (ONION-004).
-  String? onionFor(String url, {required OnionEndpoint? endpoint}) {
-    if (endpoint == null || _failedOnions.contains(endpoint.service)) {
-      return null;
-    }
+  /// [url] on the onion origin [route] names, or null to leave it: no route
+  /// (the site is not on Tor or has none accepted, ONION-007), a URL off the
+  /// announcing origin, or a service that failed this run where the user
+  /// chose to fall back (ONION-006). Only that choice puts the move in
+  /// flight, so only then does a failure load the clearnet URL; otherwise
+  /// the failure is the page's. Called where [upgradeFor] is, and before it
+  /// (ONION-004).
+  String? onionFor(String url, {required OnionRoute? route}) {
+    if (route == null) return null;
+    final endpoint = route.endpoint;
     final moved = endpoint.rewrite(url);
     if (moved == null) return null;
-    _inFlight[moved] = url;
-    _onionInFlight[moved] = endpoint.service;
-    return moved;
+    switch (route.fallback) {
+      case OnionFallback.none:
+        return moved;
+      case OnionFallback.clearnet:
+        if (_failedOnions.contains(endpoint.service)) return null;
+        _inFlight[moved] = url;
+        _onionInFlight[moved] = endpoint.service;
+        return moved;
+    }
   }
 
   /// How long the call site waits on [upgradedUrl] before [onDeadline].
@@ -242,28 +250,37 @@ class HttpsUpgradeEngine {
   /// A main-frame navigation the routing decision has already allowed
   /// (HTTPS-004).
   ///
-  /// [onion] is the site's accepted onion endpoint while it is on Tor, else
+  /// [onion] is the site's accepted onion route while it is on Tor, else
   /// null. A move onto it comes first, so a plain-http clearnet URL goes to
-  /// the onion rather than through an https upgrade (ONION-004).
+  /// the onion rather than through an https upgrade (ONION-004). A deadline
+  /// is armed only for a rewrite that can fall back.
   UpgradeOutcome onNavigation(
     String url, {
     required bool enabled,
-    required OnionEndpoint? onion,
+    required OnionRoute? onion,
   }) {
     final upgraded =
-        onionFor(url, endpoint: onion) ?? upgradeFor(url, enabled: enabled);
+        onionFor(url, route: onion) ?? upgradeFor(url, enabled: enabled);
     if (upgraded == null) return _nothing;
-    return (load: upgraded, cancel: true, armDeadlineFor: upgraded);
+    return (
+      load: upgraded,
+      cancel: true,
+      armDeadlineFor: _inFlight.containsKey(upgraded) ? upgraded : null,
+    );
   }
 
   /// A webview's first load, which reaches no navigation callback on
   /// Android: only the move onto the site's onion origin applies to it
   /// (ONION-004), [onion] as [onNavigation] takes it. The call site loads
   /// [UpgradeOutcome.load] in its place and arms the deadline.
-  UpgradeOutcome onFirstLoad(String url, {required OnionEndpoint? onion}) {
-    final moved = onionFor(url, endpoint: onion);
+  UpgradeOutcome onFirstLoad(String url, {required OnionRoute? onion}) {
+    final moved = onionFor(url, route: onion);
     if (moved == null) return _nothing;
-    return (load: moved, cancel: false, armDeadlineFor: moved);
+    return (
+      load: moved,
+      cancel: false,
+      armDeadlineFor: _inFlight.containsKey(moved) ? moved : null,
+    );
   }
 
   /// The main frame began loading [url]: for an upgrade of ours that is the
