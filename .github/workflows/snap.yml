@@ -155,7 +155,10 @@ jobs:
             done
           fi
           sudo find parts/webspace -name CMakeCache.txt -print0 2>/dev/null \
-            | while IFS= read -r -d '' f; do echo "== $f"; sudo grep -E '^(WPE_|WEBKIT_HAS)' "$f" || true; done
+            | while IFS= read -r -d '' f; do echo "== $f"; sudo grep -E '^(WPE_|WEBKIT_HAS|CMAKE_COMMAND)' "$f" || true; done
+          # CMake 3.26 and later log a failed check here instead of in CMakeError.log.
+          sudo find parts/webspace -name CMakeConfigureLog.yaml -print0 2>/dev/null \
+            | while IFS= read -r -d '' f; do echo "== $f"; sudo grep -n -B2 -A60 'WEBKIT_HAS_WPE_PLATFORM_API' "$f" | head -n 160 || true; done
 
       # Saved even when a later part fails, so the next run starts from the
       # WPE objects this one compiled.
