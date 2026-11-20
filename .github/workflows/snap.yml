@@ -115,10 +115,20 @@ jobs:
         run: sudo snapcraft pack --destructive-mode
 
       # snapcraft prints one line for a failed step (for apt, a guess at the
-      # package) and leaves what the step said in its log, as root.
+      # package) and leaves what the step said in its log, as root; of a
+      # failed apt resolution it keeps only the exit status, so apt is asked
+      # again for its reason, with the packages snapcraft asked for.
       - name: Show snapcraft's log
         if: failure()
-        run: sudo sh -c 'tail -n 300 "$(ls -t /root/.local/state/snapcraft/log/*.log | head -n 1)"'
+        run: |
+          log="$(sudo sh -c 'ls -t /root/.local/state/snapcraft/log/*.log | head -n 1')"
+          sudo tail -n 300 "$log"
+          packages="$(sudo sed -n "s/.*Installing packages using apt: \[\(.*\)\]$/\1/p" "$log" | tail -n 1 | tr -d "',")"
+          if [ -n "$packages" ]; then
+            # shellcheck disable=SC2086 # one word per package
+            sudo apt-get --simulate --no-install-recommends --allow-downgrades install $packages 2>&1 \
+              | grep -v '^\(Inst\|Conf\) ' || true
+          fi
 
       # Saved even when a later part fails, so the next run starts from the
       # WPE objects this one compiled.
