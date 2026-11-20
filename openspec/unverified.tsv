@@ -29,7 +29,6 @@ ARCH-008	no check: no widget test covers the combined Restore action with its pa
 # cookie-secure-storage
 # design-gallery
 DESIGN-002	no check: the web compile is checked only by the CI design-web job running scripts/design_web.sh; no counted check builds either entrypoint or asserts --no-web-resources-cdn and the Roboto sync (partly: test/browser/design_app_packaging.test.js, "it boots inside an iframe served from a subdirectory")
-DESIGN-009	no check: mostly a protocol between sessions; its one mechanical rule (bundle.js ships only README.md, never _requests/refresh.md) has no test
 # developer-tools
 DEVTOOLS-003	no check: no test drives Share/Save/Copy HTML or the concurrent-fetch guard
 DEVTOOLS-004	no check: copy and sensitive-copy are tested, but no test checks live streaming, auto-scroll or the App Settings entry (partly: test/dev_tools_copy_test.dart, "App Logs copy")

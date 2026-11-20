@@ -286,6 +286,9 @@ The design project cannot rebuild itself, so the loop needs a channel back.
 - **WHEN** the bundle is uploaded
 - **THEN** `_requests/refresh.md` MUST NOT be part of it; `bundle.js` ships only
   `README.md`, and the mailbox is seeded once
+- **AND** `test/js/design_bundle_mailbox.test.js` runs `bundle.js` on stub
+  cards and fails on any file it writes beyond the manifest's cards, the
+  manifest and `README.md`
 
 #### Scenario: A request asks for a code change
 
