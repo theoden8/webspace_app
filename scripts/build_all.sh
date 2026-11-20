@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # Builds release files into build/release: the Play APKs and bundle
 # (android) anywhere, the iOS ipa (ios) on macOS, and the AppImage (appimage,
-# PLATFORM-013) on Linux, unsigned, packed by linux/appimage/pack.sh as
-# scripts/release_appimage.sh packs the signed one. A target replaces only its
-# own files there.
+# PLATFORM-013) on Linux. A target replaces only its own files there.
+#
+# The AppImage is packed by linux/appimage/pack.sh as
+# scripts/release_appimage.sh packs it: signed by the release key
+# linux/appimage/signing_key.asc names, whose secret half must be in this
+# user's gpg, and pointing its updates, with the .zsync beside it, at the
+# latest GitHub release of origin's repository (GH_REPO=owner/name for
+# another). Each signature is checked against that key. Needs gpg and node.
 #
 #   scripts/build_all.sh [android] [ios] [appimage]
 #     The targets named, or every one this machine builds.
@@ -22,6 +27,8 @@ set -euxo pipefail
 cd "$(dirname "$0")/.."
 
 fail() { echo "build_all.sh: $1" >&2; exit 1; }
+# shellcheck source=linux/appimage/release_names.sh
+. linux/appimage/release_names.sh
 
 OUT=build/release
 mkdir -p "$OUT"
@@ -112,21 +119,54 @@ appdirs_of_run() {
   done
 }
 
+# What signs the AppImage and where its updates come from, read before a
+# build that takes hours.
+appimage_signer() {
+  local c
+  for c in gpg node git; do
+    command -v "$c" >/dev/null || fail "$c is not installed"
+  done
+  KEY=linux/appimage/signing_key.asc
+  [ -f "$KEY" ] || fail "no $KEY: make the release key with scripts/release_appimage.sh key"
+  FPR="$(gpg --with-colons --show-keys "$KEY" | awk -F: '$1 == "fpr" { print $10; exit }')"
+  gpg --list-secret-keys "$FPR" >/dev/null 2>&1 \
+    || fail "this machine holds no secret key for $FPR: gpg --import your backup of it"
+  local owed
+  owed="$(node tool/check_bundle_licences.js --count-owed linux/appimage/licences_owed.tsv)"
+  [ "$owed" -eq 0 ] || fail "$owed bundled packages are still owed, each waiting on what linux/appimage/licences_owed.tsv says"
+  REPO="${GH_REPO:-$(git remote get-url origin | sed -n -E 's#^(https://|git@)github\.com[:/]([^/]+/[^/]+)$#\2#p' | sed 's/\.git$//')}"
+  [[ "$REPO" == */* ]] || fail "origin is not on GitHub: name the repository updates come from with GH_REPO=owner/name"
+}
+
 appimage() {
-  local work=build/appimage appdir arch
-  rm -f "$OUT"/*.AppImage
+  local work=build/appimage appdir arch commit pubspec version name info
+  rm -f "$OUT"/*.AppImage "$OUT"/*.AppImage.zsync
   # A failed local build leaves its AppDir root-owned.
   rm -rf "$work" 2>/dev/null || sudo rm -rf "$work"
   mkdir -p "$work"
   if [ -n "${APPIMAGE_RUN:-}" ]; then
     appdirs_of_run "$work" "$APPIMAGE_RUN"
+    commit="$(gh run view "$APPIMAGE_RUN" --json headSha --jq .headSha)"
+    git cat-file -e "$commit^{commit}" 2>/dev/null || git fetch --quiet origin "$commit"
+    pubspec="$(git show "$commit:pubspec.yaml")"
   else
     appdir_here "$work"
+    commit=HEAD
+    pubspec="$(cat pubspec.yaml)"
   fi
+  version="$(sed -n 's/^version: *\([^+]*\)+.*$/\1/p' <<<"$pubspec")"
+  [ -n "$version" ] || fail "no version in $commit's pubspec.yaml"
+  # Dates the image's files, so the same AppDir packs to the same bytes.
+  SOURCE_DATE_EPOCH="$(git show -s --format=%ct "$commit")"
+  export SOURCE_DATE_EPOCH
   bash linux/appimage/fetch_tools.sh "$work/tools" >/dev/null
   for appdir in "$work"/AppDir-*; do
     arch="${appdir##*/AppDir-}"
-    bash linux/appimage/pack.sh --appdir "$appdir" --out "$OUT/webspace-$arch.AppImage" --tools "$work/tools"
+    name="$(appimage_name "$version" "$arch")"
+    info="$(appimage_update_info "$REPO" "$arch")"
+    bash linux/appimage/pack.sh --appdir "$appdir" --out "$OUT/$name" --tools "$work/tools" \
+      --key "$FPR" --update-info "$info"
+    node tool/appimage_signature.js "$OUT/$name" --key "$KEY" --update-info "$info"
   done
 }
 
@@ -141,6 +181,9 @@ for target in "$@"; do
     *" $target "*) ;;
     *) fail "this machine builds ${here[*]}, not $target" ;;
   esac
+done
+for target in "$@"; do
+  [ "$target" != appimage ] || appimage_signer
 done
 for target in "$@"; do
   "$target"
