@@ -283,6 +283,35 @@ test('the proof cache is keyed on the pinned TLAPS build, never on its version s
     /^tlapm-\$\{\{ runner\.os \}\}-\$\{\{ steps\.tools\.outputs\.tlapm-pin \}\}-/);
 });
 
+// Upstream keeps only the newest build of the rolling asset, so once the
+// Actions cache evicts the pinned tarball nothing else holds it (#1086).
+test('the pinned TLAPS tarball falls back to the artifact master keeps of it', () => {
+  const steps = setup.runs.steps;
+  const dist = setupStep('dist');
+  const fallback = steps.find((s) => (s.run ?? '').includes('restore_formal_artifact.sh'));
+  assert.ok(steps.indexOf(dist) < steps.indexOf(fallback));
+  assert.ok(steps.indexOf(fallback) < steps.indexOf(setupStep('tlapm')), 'before the download');
+  assert.equal(fallback.if, "inputs.proofs == 'true' && steps.dist.outputs.cache-hit != 'true'");
+  assert.equal(fallback.env.GH_TOKEN, '${{ github.token }}');
+  assert.equal(fallback.run.trim(),
+    'scripts/restore_formal_artifact.sh "formal-tlapm-${{ steps.pin.outputs.sha256 }}" "$HOME/tlapm-dist"');
+  assert.equal(setup.outputs['tlapm-cached'].value, '${{ steps.dist.outputs.cache-hit }}');
+  const proofs = jobs.proofs.steps;
+  const upload = proofs.find((s) => s.uses === 'actions/upload-artifact@v4' &&
+    s.with.path === '~/tlapm-dist/tlapm.tar.gz');
+  assert.equal(upload.with.name, 'formal-tlapm-${{ steps.tools.outputs.tlapm-pin }}');
+  assert.ok(proofs.indexOf(upload) > proofs.indexOf(proofs.find((s) => s.id === 'tools')));
+  const guard = upload.if.trim().slice(3, -2)
+    .replaceAll('strategy.job-index', 'jobIndex')
+    .replaceAll('steps.tools.outputs.tlapm-cached', 'cached');
+  const run = (event, ref, jobIndex, cached) => vm.runInNewContext(guard, {
+    github: { event_name: event, ref }, jobIndex, cached });
+  assert.equal(run('push', 'refs/heads/master', 0, ''), true, 'master keeps a build its cache lost');
+  assert.equal(run('push', 'refs/heads/master', 0, 'true'), false, 'not one the cache still holds');
+  assert.equal(run('push', 'refs/heads/master', 1, ''), false, 'one shard uploads it');
+  assert.equal(run('pull_request', 'refs/pull/1/merge', 0, ''), false, 'never a pull request');
+});
+
 test('a TLAPS tarball that is not the pinned build fails the install, and the pinned one installs', () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tlapm-pin-'));
   const build = path.join(home, 'build');

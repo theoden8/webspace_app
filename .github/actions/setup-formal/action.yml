@@ -17,6 +17,9 @@ outputs:
       The SHA-256 of the TLAPS build installed: the key its proof cache is
       kept under, since the release's version string stays the same when
       upstream rebuilds it.
+  tlapm-cached:
+    value: ${{ steps.dist.outputs.cache-hit }}
+    description: Whether the TLAPS tarball came from the Actions cache.
 runs:
   using: composite
   steps:
@@ -78,11 +81,20 @@ runs:
       run: |
         echo "url=https://github.com/tlaplus/tlapm/releases/download/1.6.0-pre/tlapm-1.6.0-pre-x86_64-linux-gnu.tar.gz" >> "$GITHUB_OUTPUT"
         echo "sha256=79c3d888352e96afd5e00aea623f5ce9dce2ee6d7bafa82ea8d2bc73d936211a" >> "$GITHUB_OUTPUT"
-    - uses: ./.github/actions/master-cache
+    - id: dist
+      uses: ./.github/actions/master-cache
       if: inputs.proofs == 'true'
       with:
         path: ~/tlapm-dist
         key: tlapm-dist-${{ runner.os }}-${{ steps.pin.outputs.sha256 }}
+    # The cache budget evicts the least recently used entry, and once the
+    # pinned build is gone from the cache it is gone upstream too, so master
+    # keeps it as an artifact as well (formal.yml's proofs job).
+    - shell: bash
+      if: inputs.proofs == 'true' && steps.dist.outputs.cache-hit != 'true'
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: scripts/restore_formal_artifact.sh "formal-tlapm-${{ steps.pin.outputs.sha256 }}" "$HOME/tlapm-dist"
     - id: tlapm
       shell: bash
       if: inputs.proofs == 'true'
