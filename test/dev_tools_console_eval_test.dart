@@ -82,7 +82,7 @@ void main() {
       (tester) async {
     final host = _host()..controller = FakeWebViewController();
     await _open(tester, host: host);
-    host.appendConsole('Unexpected token', level: ConsoleMessageLevel.ERROR);
+    host.console.append('Unexpected token', level: ConsoleMessageLevel.ERROR);
     await tester.pump();
     final line = find.ancestor(
         of: find.textContaining('Unexpected token'),

@@ -57,8 +57,7 @@ abstract class DevToolsHost {
   /// Per-site proxy the favicon must be fetched through, or null for global.
   OutboundProxy get proxy;
   WebViewController? get controller;
-  List<ConsoleLogEntry> get consoleLogs;
-  set onConsoleLogChanged(VoidCallback? cb);
+  ConsoleLog get console;
   List<Cookie> get cookies;
   set cookies(List<Cookie> value);
   Set<BlockedCookie>? get blockedCookies;
@@ -86,9 +85,7 @@ class WebViewModelDevToolsHost implements DevToolsHost {
   @override
   WebViewController? get controller => model.controller;
   @override
-  List<ConsoleLogEntry> get consoleLogs => model.consoleLogs;
-  @override
-  set onConsoleLogChanged(VoidCallback? cb) => model.onConsoleLogChanged = cb;
+  ConsoleLog get console => model.console;
   @override
   List<Cookie> get cookies => model.cookies;
   @override
@@ -117,9 +114,7 @@ class NestedDevToolsHost implements DevToolsHost {
   @override
   WebViewController? controller;
   @override
-  final List<ConsoleLogEntry> consoleLogs = [];
-  @override
-  VoidCallback? onConsoleLogChanged;
+  final ConsoleLog console = ConsoleLog();
   @override
   List<Cookie> cookies = const [];
 
@@ -135,20 +130,6 @@ class NestedDevToolsHost implements DevToolsHost {
   Uint8List? get customIcon => null;
   @override
   OutboundProxy get proxy => OutboundProxy.app;
-
-  static const _maxConsoleLogs = 500;
-
-  void appendConsole(String message, {required ConsoleMessageLevel level}) {
-    consoleLogs.add(ConsoleLogEntry(
-      timestamp: DateTime.now(),
-      message: message,
-      level: level,
-    ));
-    if (consoleLogs.length > _maxConsoleLogs) {
-      consoleLogs.removeAt(0);
-    }
-    onConsoleLogChanged?.call();
-  }
 
   @override
   Set<BlockedCookie>? get blockedCookies => null;
@@ -249,14 +230,14 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     _initialBlockedCookies = {...?widget.host?.blockedCookies};
     LogService.instance.addListener(_rebuild);
     DnsBlockService.instance.addDnsLogListener(_rebuild);
-    widget.host?.onConsoleLogChanged = _rebuild;
+    widget.host?.console.onChanged = _rebuild;
   }
 
   @override
   void dispose() {
     LogService.instance.removeListener(_rebuild);
     DnsBlockService.instance.removeDnsLogListener(_rebuild);
-    widget.host?.onConsoleLogChanged = null;
+    widget.host?.console.onChanged = null;
     // If blocked cookies changed while DevTools was open, reload the page
     // so the webview re-fetches cookies with the new rules applied.
     if (_hasSiteState &&
@@ -396,14 +377,14 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   Widget _buildConsoleTab() {
     final loc = AppLocalizations.of(context);
-    final logs = widget.host!.consoleLogs
+    final logs = widget.host!.console.entries
         .where((e) => _matchesSearch(e.message))
         .toList();
     return Column(
       children: [
         ToolActions([
           toolButton(Icons.delete_outline, label: loc.devToolsClear,
-              onPressed: () => setState(widget.host!.consoleLogs.clear)),
+              onPressed: widget.host!.console.clear),
           toolButton(Icons.copy, label: loc.devToolsCopy, onPressed: logs.isEmpty ? null : () {
             final text = logs
                 .map((e) => '[${_formatTime(e.timestamp)}] [${_consoleLevelName(e.level)}] ${e.message}')
@@ -547,13 +528,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       }
       _evalHistoryIndex = -1;
 
-      widget.host!.consoleLogs.add(ConsoleLogEntry(
-        timestamp: DateTime.now(),
-        message: source,
-        level: ConsoleMessageLevel.LOG,
-        isEvalInput: true,
-      ));
-      _rebuild();
+      widget.host!.console
+          .append(source, level: ConsoleMessageLevel.LOG, isEvalInput: true);
 
       // Directly embed code (no eval/Function) to respect CSP.
       // Phase 1: set sentinel. Phase 2: try as expression.

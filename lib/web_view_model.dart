@@ -801,9 +801,7 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
     );
   }
 
-  final List<ConsoleLogEntry> consoleLogs = [];
-  static const _maxConsoleLogs = 500;
-  VoidCallback? onConsoleLogChanged;
+  final ConsoleLog console = ConsoleLog();
 
   String? defaultUserAgent;
   Function? stateSetterF;
@@ -1569,17 +1567,7 @@ bool dispatch(NavigationDecision decision,
                   },
                 )
               : null,
-          onConsoleMessage: (message, {required level}) {
-            consoleLogs.add(ConsoleLogEntry(
-              timestamp: DateTime.now(),
-              message: message,
-              level: level,
-            ));
-            if (consoleLogs.length > _maxConsoleLogs) {
-              consoleLogs.removeAt(0);
-            }
-            onConsoleLogChanged?.call();
-          },
+          onConsoleMessage: console.append,
         ),
         onControllerCreated: (ctrl) {
           // The slot's own load, not the posture's site: a hosted tab runs

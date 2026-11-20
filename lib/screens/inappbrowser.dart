@@ -361,7 +361,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           if (!mounted || _loadingProgress == progress) return;
           setState(() => _loadingProgress = progress);
         },
-        onConsoleMessage: _devToolsHost.appendConsole,
+        onConsoleMessage: _devToolsHost.console.append,
         onFindResult: (activeMatch, {required totalMatches}) {
           if (!mounted) return;
           setState(() {

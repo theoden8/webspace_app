@@ -25,6 +25,7 @@ The app SHALL capture JS console messages (log, warn, error) from webviews and d
 **When** the user opens Developer Tools
 **Then** the Console tab shows timestamped, color-coded messages
 **And** warnings are amber and errors are red
+**And** `test/dev_tools_console_test.dart` holds it
 
 #### Scenario: Clear and copy console
 
@@ -34,6 +35,7 @@ The app SHALL capture JS console messages (log, warn, error) from webviews and d
 **When** the user taps "Copy"
 **Then** only the currently visible (filtered) messages are copied to clipboard as formatted text
 **And** the snackbar shows the count of copied entries
+**And** `test/dev_tools_console_test.dart` holds it
 
 ---
 
