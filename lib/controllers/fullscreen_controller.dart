@@ -6,6 +6,7 @@ import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/services/fullscreen_system_ui.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/site_navigation.dart';
 import 'package:webspace/settings/site_strip_edge.dart';
 
 /// What full screen asks of the page.
@@ -40,8 +41,8 @@ class FullscreenController {
   Timer? _revealedBarsHideTimer;
 
   void start() {
-    AppPref.tabStripInFullscreen.listenable.addListener(_onSiteStripPrefChanged);
-    AppPref.tabBarButton.listenable.addListener(_onSiteStripPrefChanged);
+    AppPref.siteNavigation.listenable.addListener(_onSiteStripPrefChanged);
+    AppPref.fullscreenNavigation.listenable.addListener(_onSiteStripPrefChanged);
     AppPref.tabStripEdge.listenable.addListener(_onSiteStripPrefChanged);
     // Only Android's embedder implements the listener; elsewhere registering
     // it throws MissingPluginException.
@@ -52,15 +53,20 @@ class FullscreenController {
 
   void dispose() {
     _revealedBarsHideTimer?.cancel();
-    AppPref.tabStripInFullscreen.listenable
+    AppPref.siteNavigation.listenable.removeListener(_onSiteStripPrefChanged);
+    AppPref.fullscreenNavigation.listenable
         .removeListener(_onSiteStripPrefChanged);
-    AppPref.tabBarButton.listenable.removeListener(_onSiteStripPrefChanged);
     AppPref.tabStripEdge.listenable.removeListener(_onSiteStripPrefChanged);
     unawaited(SystemChrome.setSystemUIChangeCallback(null));
   }
 
+  /// Whether full screen leaves the strip's button to bring the strip back.
+  static bool get _stripButton =>
+      SiteNavigation.current == SiteNavigation.strip &&
+      FullscreenNavigation.current == FullscreenNavigation.button;
+
   void _onSiteStripPrefChanged() {
-    if (!AppPref.tabBarButton.value) {
+    if (!_stripButton) {
       _setSiteStripRevealed(revealed: false, nudge: 'tab-overlay-hide');
     }
     if (active) apply();
@@ -141,7 +147,7 @@ class FullscreenController {
   FullscreenSystemUi get _systemUi => FullscreenSystemUi.of(
         kioskLocked: _host.kioskLocked,
         siteStripEdge: _host.siteStripEdge,
-        floatingControl: AppPref.tabBarButton.value,
+        floatingControl: _stripButton,
       );
 
   /// Asks for the system UI full screen holds now.

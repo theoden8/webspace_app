@@ -867,7 +867,7 @@ void main() {
         sites: [first, second],
         prefs: {
           AppPref.legacyDesign.key: false,
-          AppPref.showTabStrip.key: true,
+          AppPref.siteNavigation.key: 'strip',
         },
       );
       await openWebspace(tester, name: 'All');

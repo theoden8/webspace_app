@@ -154,7 +154,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(summaryText(tester, title: 'Behaviour'), 'Nothing enabled');
 
-    AppPref.showTabStrip.debugValue = true;
+    AppPref.siteNavigation.debugValue = 'strip';
     AppPref.fullscreenOnShortcut.debugValue = true;
     AppPref.linkHandlingEnabled.debugValue = true;
     await tester.pumpAndSettle();

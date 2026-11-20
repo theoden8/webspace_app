@@ -26,6 +26,7 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/site_navigation.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -939,7 +940,7 @@ Widget _appBehaviour(BuildContext _) => AppBehaviourScreen(
 /// keeps what a designer toggles out of the browser's storage.
 void _seedAppPrefs() {
   isDemoMode = true;
-  AppPref.showTabStrip.debugValue = true;
+  AppPref.siteNavigation.debugValue = SiteNavigation.strip.name;
   AppPref.tabMaxWidth.debugValue = 180;
   AppPref.fullscreenOnShortcut.debugValue = false;
   ShortcutService.debugOfferedOverride = true;

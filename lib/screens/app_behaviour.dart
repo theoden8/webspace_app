@@ -10,6 +10,7 @@ import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/site_navigation.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/settings/site_strip_edge.dart';
@@ -27,9 +28,11 @@ enum TabStrip {
   pinned,
   button;
 
-  static TabStrip get current => AppPref.tabBarButton.value
-      ? button
-      : (AppPref.showTabStrip.value ? pinned : hidden);
+  static TabStrip get current => switch ((SiteNavigation.current, FullscreenNavigation.current)) {
+        (SiteNavigation.strip, FullscreenNavigation.button) => button,
+        (SiteNavigation.strip, _) => pinned,
+        (SiteNavigation.tabButton || SiteNavigation.sidebar, _) => hidden,
+      };
 }
 
 extension on TabStrip {
@@ -95,12 +98,14 @@ class AppBehaviourScreen extends StatefulWidget {
 class _AppBehaviourScreenState extends State<AppBehaviourScreen>
     with SettingsOpenGuard, RebuildOnAppPref {
   void _setTabStrip(TabStrip mode) {
-    unawaited(AppPref.showTabStrip.set(mode == TabStrip.pinned));
-    unawaited(AppPref.tabBarButton.set(mode == TabStrip.button));
-    // "Keep in full screen" only applies to a pinned strip. Leaving it set
-    // in button mode would pin the strip in full screen and hide the button
-    // there; clear it whenever we leave the pinned mode.
-    if (mode != TabStrip.pinned) unawaited(AppPref.tabStripInFullscreen.set(false));
+    unawaited(AppPref.siteNavigation.set(switch (mode) {
+      TabStrip.hidden => SiteNavigation.tabButton,
+      TabStrip.pinned || TabStrip.button => SiteNavigation.strip,
+    }.name));
+    unawaited(AppPref.fullscreenNavigation.set(switch (mode) {
+      TabStrip.button => FullscreenNavigation.button,
+      TabStrip.hidden || TabStrip.pinned => FullscreenNavigation.hidden,
+    }.name));
   }
 
   /// A title with its control at the end of the row.
@@ -112,10 +117,7 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
   /// Whether the site strip can appear at all (pinned out of fullscreen, pinned
   /// in fullscreen, or revealed by the tab-bar button), so its position and
   /// width limit are meaningful.
-  bool get _siteStripCanShow =>
-      AppPref.showTabStrip.value ||
-      AppPref.tabStripInFullscreen.value ||
-      AppPref.tabBarButton.value;
+  bool get _siteStripCanShow => SiteNavigation.current == SiteNavigation.strip;
 
   Localized? get _webSearchDefaultName {
     final site = widget.webSearchSites
@@ -184,11 +186,14 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
               Text(loc.appSettingsFullscreenSiteStrip),
               trailing: IconSegments(
                 segments: [TabStrip.hidden.segment(loc), TabStrip.pinned.segment(loc)],
-                selected: AppPref.tabStripInFullscreen.value
+                selected: FullscreenNavigation.current == FullscreenNavigation.kept
                     ? TabStrip.pinned
                     : TabStrip.hidden,
-                onChanged: (mode) =>
-                    AppPref.tabStripInFullscreen.set(mode == TabStrip.pinned),
+                onChanged: (mode) => AppPref.fullscreenNavigation.set(
+                    (mode == TabStrip.pinned
+                            ? FullscreenNavigation.kept
+                            : FullscreenNavigation.hidden)
+                        .name),
               ),
             ),
           _row(
