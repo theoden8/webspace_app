@@ -21,7 +21,7 @@ void main() {
     expect(open(const OpenSites(), current: docs), [docs]);
   });
 
-  test('a second tap on the site on screen closes them (TAB-030)', () {
+  test('a second tap on the site on screen closes them (TAB-031)', () {
     final sites = const OpenSites().toggle(docs, current: docs, single: false);
     expect(open(sites, current: docs), isEmpty);
     expect(open(sites.toggle(docs, current: docs, single: false), current: docs),

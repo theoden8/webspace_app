@@ -124,11 +124,6 @@ class StartupController implements DeferredStartupHost {
   /// launch would undo (a warm shortcut, a share intent).
   Future<Reached<Launched>?> launched() => _launched.future;
 
-  /// Whether the stored prefs have been read; before, a pref holds its
-  /// default, or in a test what the last run left.
-  bool get prefsLoaded => _prefsLoaded;
-  bool _prefsLoaded = false;
-
   /// Each step takes the proofs of the steps it follows and returns its own,
   /// so a step called before its prerequisites does not compile; steps that
   /// take nothing in common run at once.
@@ -199,7 +194,6 @@ class StartupController implements DeferredStartupHost {
     await FaviconUrlCache.initialize();
     _shell.loadTheme(prefs);
     _shortcuts.load(prefs);
-    _prefsLoaded = true;
     _host.themeChanged();
     _host.rebuild();
     LaunchTimeline.reached(LaunchMark.prefsLoaded);

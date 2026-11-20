@@ -5,7 +5,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/screens/webspaces_list.dart';
-import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/sidebar_squares.dart';
 import 'package:webspace/widgets/site_drawer.dart';
@@ -35,7 +34,7 @@ Finder inSidebar(Finder matching) =>
     find.descendant(of: find.byType(SiteSidebar).first, matching: matching);
 
 void main() {
-  testWidgets('TAB-035: legacy sidebar keeps the header and Add site, squares by '
+  testWidgets('TAB-036: legacy sidebar keeps the header and Add site, squares by '
       'default, no webspaces button in the app bar', (tester) async {
     await start(tester);
     expect(
@@ -51,6 +50,13 @@ void main() {
     expect(inSidebar(find.text('Back to Webspaces')), findsOneWidget);
     expect(inSidebar(find.byType(SidebarSquares)), findsOneWidget);
     expect(inSidebar(find.text('Add Site')), findsOneWidget);
+
+    await tester.longPress(inSidebar(find.text('Mail')));
+    await settleRealApp(tester);
+    expect(find.text('Delete'), findsOneWidget,
+        reason: "a long press gives the site's menu, as the drawer's did");
+    await tester.tapAt(const Offset(1100, 850));
+    await settleRealApp(tester);
 
     await tester.tap(inSidebar(find.text('Mail')));
     await settleRealApp(tester);
@@ -73,13 +79,13 @@ void main() {
     );
   });
 
-  testWidgets('the tree, when chosen, keeps the legacy header (TAB-035)', (tester) async {
+  testWidgets('the tree, when chosen, keeps the legacy header (TAB-036)', (tester) async {
     await start(tester, prefs: {'sidebarStyle': 'tree'});
     expect(inSidebar(find.byType(SiteDrawerHeader)), findsOneWidget);
     expect(inSidebar(find.byType(SidebarSquares)), findsNothing);
   });
 
-  testWidgets('NAV-009, TAB-032 on a phone: Back at the start of the page opens the '
+  testWidgets('NAV-009, TAB-033 on a phone: Back at the start of the page opens the '
       'sidebar over it, as it opened the drawer, and the next Back closes it', (
     tester,
   ) async {
@@ -88,24 +94,18 @@ void main() {
       size: const Size(360, 740),
       prefs: {'backOpensMenu': true},
     );
-    if (AppPref.sidebarState.value == 'open') {
-      await tester.tap(find.byTooltip('Put the sidebar away'));
-      await settleRealApp(tester);
-    }
-    await tester.tap(find.byTooltip('Expand the sidebar'));
-    await settleRealApp(tester);
+    // On a phone the squares show only in the drawer over the page.
+    final drawer = find.byType(SidebarSquares);
+    expect(drawer, findsOneWidget,
+        reason: 'a picked webspace opens the drawer, as it did the old one');
     await tester.tap(inSidebar(find.text('Docs')));
     await settleRealApp(tester);
     await attachWebViews(tester);
-    expect(
-      AppPref.sidebarState.value,
-      'collapsed',
-      reason: 'a pick drops the drawer back to the rail',
-    );
+    expect(drawer, findsNothing, reason: 'a pick drops it back to the rail');
 
     await pressBack(tester);
-    expect(AppPref.sidebarState.value, 'open');
+    expect(drawer, findsOneWidget);
     await pressBack(tester);
-    expect(AppPref.sidebarState.value, 'collapsed');
+    expect(drawer, findsNothing);
   });
 }

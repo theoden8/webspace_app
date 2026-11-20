@@ -91,6 +91,7 @@ extension _PageNavigation on _WebSpacePageState {
         inFullscreen: currentFullscreenNavigation,
         fullscreen: _fullscreen.active,
         sidebar: currentSidebarState,
+        drawerShown: _sidebar.drawerShown,
         wide: _wideNavigation,
         kioskLocked: _kioskLocked,
         siteOnScreen: _sites.shown != null && _sites.filteredIndices().isNotEmpty,
@@ -119,7 +120,6 @@ extension _PageNavigation on _WebSpacePageState {
         MediaQuery.of(context).viewInsets.bottom > 0) {
       return null;
     }
-    _stripFollows(_sites.shown);
     return SiteStrip(
       edge: at,
       models: _sites.models,
@@ -219,7 +219,7 @@ extension _PageNavigation on _WebSpacePageState {
             icon: const SidebarIcon(),
             tooltip: loc.sidebarOpen,
             color: Theme.of(context).colorScheme.primary,
-            onPressed: _sidebar.openFully,
+            onPressed: () => _sidebar.openFully(wide: _wideNavigation),
           )
         : null;
     final webspaces = _libraryDesign
@@ -234,24 +234,9 @@ extension _PageNavigation on _WebSpacePageState {
     return Row(mainAxisSize: MainAxisSize.min, children: [sidebar, webspaces]);
   }
 
-  /// Starts a phone at the rail when the window narrows or the sidebar is
-  /// chosen there; an open sidebar would cover the page.
-  void _followWidth() {
-    if (!_startup.prefsLoaded) return;
-    final wide = _wideNavigation;
-    final sidebar = _sidebarChosen;
-    final narrowed = _wasWide == true && !wide;
-    final chosen = sidebar && !_wasSidebar && !wide;
-    _wasWide = wide;
-    _wasSidebar = sidebar;
-    if (sidebar && (narrowed || chosen)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _sidebar.narrowed());
-    }
-  }
-
   /// The page laid out with its sidebar.
   Widget _navigationFrame(Widget main) {
-    _followWidth();
+    _stripFollows(_sites.shown);
     final surfaces = _surfaces;
     // The phone's sidebar drawer closing is a drawer closing to the back
     // gesture, as the Scaffold's reports its own.
@@ -273,7 +258,7 @@ extension _PageNavigation on _WebSpacePageState {
       expandsOnHover: AppPref.sidebarExpandOnHover.value,
       onArrowTap: () =>
           _revealsOverlay ? _fullscreen.revealNavigation() : _sidebar.restore(),
-      onSettle: _sidebar.settle,
+      onSettle: (to) => _sidebar.settle(to, wide: _wideNavigation),
       onReveal: (shown) =>
           shown ? _fullscreen.revealNavigation() : _fullscreen.hideNavigation(),
       onDismissFloat: _putFloatAway,
@@ -284,12 +269,12 @@ extension _PageNavigation on _WebSpacePageState {
   }
 
   /// A sidebar over the page goes: the full-screen one is put away, the
-  /// phone's drawer drops back to the rail.
+  /// phone's drawer leaves the rail.
   void _putFloatAway() {
     if (_revealsOverlay) {
       _fullscreen.hideNavigation();
     } else {
-      _sidebar.collapse();
+      _sidebar.closeDrawer();
     }
   }
 
@@ -327,6 +312,7 @@ extension _PageNavigation on _WebSpacePageState {
             close: actions.close,
             add: actions.add,
           ),
+          onMenu: _showSiteContextMenu,
         ),
       SidebarStyle.tree => _sidebarTree(floating: floating, picked: picked),
     };
@@ -401,7 +387,7 @@ extension _PageNavigation on _WebSpacePageState {
         onOpen: (site) => unawaited(_openSite(site)),
         onOpenTab: (site, {required tabId}) =>
             _tabChipActions.open(site, tabId: tabId),
-        onExpand: _sidebar.expand,
+        onExpand: () => _sidebar.expand(wide: _wideNavigation),
         onHide: _sidebar.hide,
       );
 }

@@ -143,7 +143,7 @@ The system SHALL exit full screen when navigating to the webspaces list.
 
 ### Requirement: FS-007 - What Full Screen Keeps of the Site Navigation
 
-The system SHALL offer, with the site strip or the sidebar chosen (TAB-029), one
+The system SHALL offer, with the site strip or the sidebar chosen (TAB-030), one
 app-wide choice of what full screen keeps of it (`fullscreenNavigation`):
 
 - **Hidden** (the default): nothing of the app; the system bars stay sticky.
@@ -303,9 +303,9 @@ SHALL stay revealable rather than sticky while it shows (`floatsInFullscreen`):
   setting). A site that was never dragged falls back to the legacy app-wide
   `tabBarButtonOnRight` preference mapped to the matching bottom corner (kept
   read-only for migration; there is no settings control for the corner).
-- **Sidebar**: the arrow tab on the left edge (TAB-031) shows the sidebar over
+- **Sidebar**: the arrow tab on the left edge (TAB-032) shows the sidebar over
   the page, never beside it: on a wide window an overlay as wide as the
-  docked sidebar, on a phone the drawer (TAB-032). Its collapse button puts it
+  docked sidebar, on a phone the drawer (TAB-033). Its collapse button puts it
   away and leaves the sidebar's state as it was.
 
 Out of full screen there SHALL be no such control: the strip is pinned and the
@@ -464,7 +464,7 @@ The control is shown in App Settings > Behaviour under "Site strip" and is inact
 
 **_WebSpacePageState** (`lib/main.dart`):
 - `FullscreenController.active` - Current fullscreen state (not persisted; runtime only)
-- `AppPref.siteNavigation` (default `tabButton`) and `AppPref.fullscreenNavigation` (default `hidden`) - Global prefs (`lib/settings/navigation_choices.dart`): which navigation shows (TAB-029) and what full screen keeps of it (FS-007). `loadSiteNavigation` maps the earlier `showTabStrip`, `tabStripInFullscreen`, `tabBarButton` and `tabBarButtonInFullscreen` keys onto them once, and `withSiteNavigation` does the same for an old backup.
+- `AppPref.siteNavigation` (default `tabButton`) and `AppPref.fullscreenNavigation` (default `hidden`) - Global prefs (`lib/settings/navigation_choices.dart`): which navigation shows (TAB-030) and what full screen keeps of it (FS-007). `loadSiteNavigation` maps the earlier `showTabStrip`, `tabStripInFullscreen`, `tabBarButton` and `tabBarButtonInFullscreen` keys onto them once, and `withSiteNavigation` does the same for an old backup.
 - `AppPref.tabStripEdge` (default empty) - Global pref under the `tabStripEdge` SharedPreferences key: `top`, `bottom`, or empty to follow the platform. Read as `SiteStripEdge.current` (`lib/settings/site_strip_edge.dart`, FS-012), which resolves it through the pure `SiteStripEdge.of(stored, desktop:)`; round-trips through settings backup
 - `AppPref.tabBarButtonOnRight` is the legacy app-wide corner default, mapped to a bottom corner via `_tabBarButtonCornerEffective` only for sites whose per-site `tabBarButtonCorner` is null (still read from prefs/backups, never written by UI anymore). `FullscreenController.navigationRevealed` is the runtime-only flag for "the full-screen control has revealed the strip or the sidebar", never persisted; only the controller writes it (`revealNavigation`, `hideNavigation`, and entering or leaving full screen), and the page's `resetForEntry` hides it on a shortcut or notification tap.
 - `AppPref.fullscreenOnShortcut` (on by default) - Global pref under the `fullscreenOnShortcut` SharedPreferences key. Both shortcut launch paths — `_openShortcutIndex` (warm) and the cold-launch restore path (`indexToRestore != null`) — route the decision through the pure `StartupRestoreEngine.shouldEnterFullscreen(viaShortcut, fullscreenOnShortcut, perSiteFullscreenMode)` policy and call `FullscreenController.enter()` when it returns true. The policy returns `perSiteFullscreenMode || (viaShortcut && fullscreenOnShortcut)`, so a normal in-app switch (`viaShortcut: false`) is never pulled into fullscreen by the global option. Covered by `test/startup_restore_engine_test.dart`.
