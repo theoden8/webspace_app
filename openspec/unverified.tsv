@@ -158,6 +158,5 @@ WEBEXT-007	no check: the native refusal of messages to apps needs an end-to-end 
 # web-screen-sharing
 # webspaces
 # webview-hints
-HINTS-005	no check: no tier runs the theme hint on more than one platform or asserts setThemePreference takes no platform branch
 # webview-pause-lifecycle
 PAUSE-003	process: a documentation rule (doc comments on WebViewController.pause/pauseAllJsTimers saying which is per-instance and which is process-global); no test or gate reads those comments
