@@ -452,7 +452,9 @@ For each extension with a source the app SHALL check the source's latest release
 
 ### Requirement: WEBEXT-019 - Search, and installs without asking, only outside the App Store
 
-A build for outside the App Store, an iOS or macOS build made with `--flavor direct` (one the user builds and installs themselves, CI's unsigned IPA, the Developer ID download), SHALL offer, as a search bar at the top of App Settings > Extensions and only while its own Experimental switch (Extension search, off by default) is on, a search of addons.mozilla.org whose results add as WEBEXT-017 does and say whether WebKit is expected to run each (works, partly, unknown) without hiding any, and a switch that installs an update asking for nothing new, without asking, as soon as a check (WEBEXT-018) finds it. An App Store build SHALL offer neither: App Review Guidelines 3.2.2(i) rejects an in-app collection of extensions and 2.5.2 code the app downloads on its own. The flavor SHALL be the one thing that decides it: an iOS or macOS build made without `--flavor direct`, as every App Store build is, SHALL count itself an App Store build, carry none of the search's code and offer neither its bar nor its switch, wherever it was installed from, and signing a build for the Mac App Store SHALL refuse one that carries the search.
+A build for outside the App Store, an iOS or macOS build made with `--flavor direct` (one the user builds and installs themselves, CI's unsigned IPA, the Developer ID download), SHALL offer, as a search bar at the top of App Settings > Extensions with developer mode on or off, a search of addons.mozilla.org whose results add as WEBEXT-017 does and say whether WebKit is expected to run each (works, partly, unknown) without hiding any, and a switch that installs an update asking for nothing new, without asking, as soon as a check (WEBEXT-018) finds it. An App Store build SHALL offer neither: App Review Guidelines 3.2.2(i) rejects an in-app collection of extensions and 2.5.2 code the app downloads on its own. The flavor SHALL be the one thing that decides it: an iOS or macOS build made without `--flavor direct`, as every App Store build is, SHALL count itself an App Store build, carry none of the search's code and offer neither its bar nor the switch to install updates without asking, wherever it was installed from, and signing a build for the Mac App Store SHALL refuse one that carries the search.
+
+The search was an Experimental switch (DEVTOOLS-011), Extension search, which defaulted off; it graduated. The switch's pref (`experimentalExtensionSearch`) is no longer read.
 
 #### Scenario: A build from the App Store
 
@@ -463,14 +465,14 @@ A build for outside the App Store, an iOS or macOS build made with `--flavor dir
 #### Scenario: A build made without the direct flavor
 
 - **GIVEN** a build made without `--flavor direct`, installed from outside the App Store
-- **WHEN** the user opens App Settings > Developer > Experimental and App Settings > Extensions
-- **THEN** there is no Extension search switch and no search bar, and the build's binary holds none of the search's code
-
-#### Scenario: Search behind its switch
-
-- **GIVEN** a build made with `--flavor direct`, with Extension search off in App Settings > Developer > Experimental, as it is by default
 - **WHEN** the user opens App Settings > Extensions
-- **THEN** there is no search, and the switch to install updates without asking is still there
+- **THEN** there is no search bar, and the build's binary holds none of the search's code
+
+#### Scenario: Search with developer mode off
+
+- **GIVEN** a build made with `--flavor direct`, with developer mode off
+- **WHEN** the user opens App Settings > Extensions
+- **THEN** the search bar is at the top, and the switch to install updates without asking is there
 
 #### Scenario: A search result WebKit runs only in part
 

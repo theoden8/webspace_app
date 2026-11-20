@@ -12,7 +12,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/platform/app_distribution.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 import 'package:webspace/platform/host_platform.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/file_store.dart' show StoreKind;
 import 'package:webspace/services/host_storage.dart';
 import 'package:webspace/services/log_service.dart';
@@ -51,22 +50,13 @@ bool get _searchBuilt =>
     extensionSearchBuilt ||
     (kDebugMode && (debugExtensionSearchBuilt ?? false));
 
-/// Whether the Experimental group offers the Extension search switch: in a
-/// build that carries the search, on a host that runs extensions, installed
-/// from outside the App Store.
-bool get extensionSearchSwitchOffered =>
-    _searchBuilt &&
-    hostRunsWebExtensions &&
-    hostDistribution == AppDistribution.direct;
-
-/// Whether the search of addons.mozilla.org is offered (WEBEXT-019): where
-/// its switch is offered and on, and extensions are.
+/// Whether the search of addons.mozilla.org is offered (WEBEXT-019): in a
+/// build that carries it, where extensions are offered, installed from
+/// outside the App Store, with developer mode on or off.
 bool get extensionSearchOffered =>
-    extensionSearchSwitchOffered &&
+    _searchBuilt &&
     webExtensionsOffered &&
-    ExperimentalFeaturesService.instance.isEnabled(
-      ExperimentalFeature.extensionSearch,
-    );
+    hostDistribution == AppDistribution.direct;
 
 /// What reading from an extension's source brought back: [value], or why
 /// nothing could be read (WEBEXT-017).

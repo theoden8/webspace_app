@@ -5577,14 +5577,6 @@
       }
     }
   },
-  "appSettingsExperimentalExtensionSearch": "Extension search",
-  "@appSettingsExperimentalExtensionSearch": {
-    "description": "Title of the switch in App Settings > Developer > Experimental that adds a search of addons.mozilla.org (Firefox's add-on site) to the Extensions screen."
-  },
-  "appSettingsExperimentalExtensionSearchHint": "Adds a search of addons.mozilla.org to the Extensions screen, each result labelled by how well WebKit is expected to run it. Offered only in builds from outside the App Store.",
-  "@appSettingsExperimentalExtensionSearchHint": {
-    "description": "Explanation behind the hint button of the Extension search experiment switch. addons.mozilla.org is a website and WebKit is the browser engine; keep those names as they are."
-  },
   "networkInterfaceTitle": "Network interface",
   "@networkInterfaceTitle": {
     "description": "Title of the row on a site's Network screen that picks which network interface (for example a VPN's tunnel, such as wg0) the site's traffic leaves the device by."

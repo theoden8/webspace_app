@@ -12,10 +12,6 @@ enum ExperimentalFeature {
   /// default: every release before it drew pages with hybrid composition.
   textureRendering(AppPref.experimentalTextureRendering),
 
-  /// A search of addons.mozilla.org on the Extensions screen, in a build
-  /// from outside the App Store (WEBEXT-019). New, so off by default.
-  extensionSearch(AppPref.experimentalExtensionSearch),
-
   /// A site's traffic bound to a network interface it names, refused when
   /// that interface is down (network-interface NETIF-013). New, so off by
   /// default.

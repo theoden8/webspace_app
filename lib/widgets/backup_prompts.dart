@@ -1016,8 +1016,6 @@ String _prefTitle(AppPref pref, {required AppLocalizations loc}) =>
       AppPref.developerMode => loc.appSettingsDeveloperMode,
       AppPref.experimentalTextureRendering =>
         loc.appSettingsExperimentalTextureRendering,
-      AppPref.experimentalExtensionSearch =>
-        loc.appSettingsExperimentalExtensionSearch,
       AppPref.webExtensionsCheckUpdates => loc.extensionsCheckDaily,
       AppPref.webExtensionsAutoUpdate => loc.extensionsAutoUpdate,
       AppPref.experimentalNetworkInterface =>

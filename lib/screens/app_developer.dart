@@ -9,7 +9,6 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/egress_relay.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
-import 'package:webspace/services/web_extension_library.dart' show extensionSearchSwitchOffered;
 import 'package:webspace/services/webkit_block_reports.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
@@ -37,10 +36,6 @@ List<(ExperimentalFeature, IconData, Localized title, Localized hint)>
         (ExperimentalFeature.textureRendering, Icons.layers_outlined,
             loc.appSettingsExperimentalTextureRendering,
             loc.appSettingsExperimentalTextureRenderingHint),
-      if (extensionSearchSwitchOffered)
-        (ExperimentalFeature.extensionSearch, Icons.search,
-            loc.appSettingsExperimentalExtensionSearch,
-            loc.appSettingsExperimentalExtensionSearchHint),
       if (EgressRelay.instance.offered)
         (ExperimentalFeature.networkInterface, Icons.alt_route,
             loc.appSettingsExperimentalNetworkInterface,

@@ -5,10 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/platform/app_distribution.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
-import 'package:webspace/screens/app_developer.dart';
 import 'package:webspace/screens/app_extensions.dart';
 import 'package:webspace/services/developer_mode_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/web_extension_library.dart';
 import 'package:webspace/services/web_extension_package_engine.dart';
 import 'package:webspace/services/web_extension_source_engine.dart';
@@ -70,12 +68,7 @@ void main() {
     debugHostDistribution = null;
     debugExtensionSearchBuilt = null;
     DeveloperModeService.instance.debugSet(on: false);
-    ExperimentalFeaturesService.instance
-        .debugSet(ExperimentalFeature.extensionSearch, on: false);
   });
-
-  void searchSwitch({required bool on}) => ExperimentalFeaturesService.instance
-      .debugSet(ExperimentalFeature.extensionSearch, on: on);
 
   /// AdNauseam added from its listing at [version], as the add flow does.
   Future<void> addAt({required String version}) async {
@@ -106,7 +99,6 @@ void main() {
 
     testWidgets('a build from the App Store offers neither', (tester) async {
       debugHostDistribution = AppDistribution.appStore;
-      searchSwitch(on: true);
       await pumpLocalized(
         tester,
         home: AppExtensionsScreen(pick: () async => null),
@@ -116,61 +108,34 @@ void main() {
       expect(find.text('Add from a link'), findsOneWidget);
     });
 
-    testWidgets('a build made without the direct flavor carries neither the '
-        'bar nor its switch, wherever it was installed from', (tester) async {
+    testWidgets('a build made without the direct flavor carries no bar, '
+        'wherever it was installed from', (tester) async {
       debugExtensionSearchBuilt = false;
       debugHostDistribution = AppDistribution.direct;
-      searchSwitch(on: true);
       await pumpLocalized(
         tester,
         home: AppExtensionsScreen(pick: () async => null),
       );
       expect(find.byType(SearchBar), findsNothing);
       expect(find.text('Install updates without asking'), findsOneWidget);
-      await pumpLocalized(tester, home: const AppDeveloperScreen());
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Reset icon cache'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('Extension search'), findsNothing);
     });
 
-    testWidgets('outside it, the search waits for its Experimental switch', (
+    testWidgets('outside it, the bar is there with developer mode off', (
       tester,
     ) async {
       debugHostDistribution = AppDistribution.direct;
+      DeveloperModeService.instance.debugSet(on: false);
       await pumpLocalized(
         tester,
         home: AppExtensionsScreen(pick: () async => null),
       );
-      expect(find.byType(SearchBar), findsNothing);
+      expect(find.byType(SearchBar), findsOneWidget);
       expect(find.text('Install updates without asking'), findsOneWidget);
     });
-
-    for (final (distribution, offered) in [
-      (AppDistribution.direct, findsOneWidget),
-      (AppDistribution.appStore, findsNothing),
-    ]) {
-      testWidgets('the Experimental group offers the switch outside the App '
-          'Store only: ${distribution.name}', (tester) async {
-        debugHostDistribution = distribution;
-        await pumpLocalized(tester, home: const AppDeveloperScreen());
-        await tester.pumpAndSettle();
-        await tester.scrollUntilVisible(
-          find.text('Reset icon cache'),
-          200,
-          scrollable: find.byType(Scrollable).first,
-        );
-        expect(find.text('Extension search'), offered);
-      });
-    }
 
     testWidgets('a build from outside it searches from the bar, labels each '
         'result and hides none, and adds the one picked', (tester) async {
       debugHostDistribution = AppDistribution.direct;
-      searchSwitch(on: true);
       fetch.replies['https://addons.mozilla.org/api/v5/addons/addon/'
           'ublock-origin/'] = amoAddonReply(
         fileUrl: _amoFile,
