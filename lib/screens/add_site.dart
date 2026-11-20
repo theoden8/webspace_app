@@ -569,40 +569,51 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
         .toast(AppLocalizations.of(context).topSitesOfferDismissed);
   }
 
-  /// The popular sites list offered where it is used (SUGGEST-012).
-  Widget _topSitesOffer(AppLocalizations loc) => Padding(
-        padding: const EdgeInsets.only(top: Spacing.sm),
-        child: Row(
-          children: [
-            Icon(Icons.public,
-                size: IconSizes.action,
-                color: Theme.of(context).colorScheme.primary),
-            const SizedBox(width: Spacing.sm),
-            Expanded(
-              child: HintedTitle(
-                loc.topSitesOffer,
-                hint: loc.topSitesHint,
-                hintTitle: loc.topSitesTitle,
-              ),
-            ),
-            if (_downloadingTopSites)
-              const SizedBox.square(
-                dimension: IconSizes.action,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            else
-              TextButton(
-                onPressed: () => unawaited(_downloadTopSites()),
-                child: Text(loc.appSettingsDownload),
-              ),
-            IconButton(
-              icon: const Icon(Icons.close, size: IconSizes.action),
-              tooltip: loc.commonClose,
-              onPressed: _downloadingTopSites ? null : _dismissTopSitesOffer,
-            ),
-          ],
+  /// The popular sites list offered where it is used (SUGGEST-012). Its
+  /// actions go under the title once the text is too large to share its row.
+  Widget _topSitesOffer(AppLocalizations loc) {
+    final title = [
+      Icon(Icons.public,
+          size: IconSizes.action,
+          color: Theme.of(context).colorScheme.primary),
+      const SizedBox(width: Spacing.sm),
+      Expanded(
+        child: HintedTitle(
+          loc.topSitesOffer,
+          hint: loc.topSitesHint,
+          hintTitle: loc.topSitesTitle,
         ),
-      );
+      ),
+    ];
+    final actions = [
+      if (_downloadingTopSites)
+        const SizedBox.square(
+          dimension: IconSizes.action,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        )
+      else
+        TextButton(
+          onPressed: () => unawaited(_downloadTopSites()),
+          child: Text(loc.appSettingsDownload),
+        ),
+      IconButton(
+        icon: const Icon(Icons.close, size: IconSizes.action),
+        tooltip: loc.commonClose,
+        onPressed: _downloadingTopSites ? null : _dismissTopSitesOffer,
+      ),
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(top: Spacing.sm),
+      child: TextSizes.crowded(context)
+          ? Column(
+              children: [
+                Row(children: title),
+                Row(mainAxisAlignment: MainAxisAlignment.end, children: actions),
+              ],
+            )
+          : Row(children: [...title, ...actions]),
+    );
+  }
 
   void _onUrlChanged() {
     _debounceTimer?.cancel();
@@ -801,6 +812,36 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     ));
   }
 
+  /// Add and Import side by side, or one above the other once the system
+  /// text size is too large for both labels to fit half the width (A11Y-006).
+  Widget _addButtons(AppLocalizations loc) {
+    final add = ElevatedButton(
+      onPressed: () => Navigator.pop(context, {
+        'url': ensureUrlScheme(_urlController.text.trim()),
+        'name': '',
+      }),
+      child: Text(loc.addSiteAddSiteButton),
+    );
+    final import = OutlinedButton.icon(
+      onPressed: _importHtmlFile,
+      icon: Icon(Icons.file_open),
+      label: Text(loc.addSiteImportFileButton),
+    );
+    if (TextSizes.crowded(context)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [add, SizedBox(height: 8), import],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(child: add),
+        SizedBox(width: 8),
+        Expanded(child: import),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
@@ -866,27 +907,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                         WebspaceChips(pick: pick),
                       ],
                       SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: () => Navigator.pop(context, {
-                                'url': ensureUrlScheme(_urlController.text.trim()),
-                                'name': '',
-                              }),
-                              child: Text(loc.addSiteAddSiteButton),
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _importHtmlFile,
-                              icon: Icon(Icons.file_open),
-                              label: Text(loc.addSiteImportFileButton),
-                            ),
-                          ),
-                        ],
-                      ),
+                      _addButtons(loc),
                       SizedBox(height: 8),
                       Text(
                         loc.addSiteSchemeTip,

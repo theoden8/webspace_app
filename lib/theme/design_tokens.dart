@@ -408,4 +408,10 @@ abstract final class ContainerColors {
 abstract final class TextSizes {
   /// The URL bar's editable text.
   static const double url = 14;
+
+  /// Whether the system text size is too large for two labelled controls to
+  /// share a row of a phone's width, so a row that holds them stacks
+  /// (A11Y-006).
+  static bool crowded(BuildContext context) =>
+      MediaQuery.textScalerOf(context).scale(1) >= 1.5;
 }
