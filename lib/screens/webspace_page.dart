@@ -1065,7 +1065,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             onPressed: _openAppSettings,
           ),
         if (currentModel != null &&
-            SiteNavigation.current != SiteNavigation.strip)
+            currentSiteNavigation != SiteNavigation.strip)
           _siteMenu(SiteMenuPlacement.appBar),
       ],
     ));
@@ -1079,9 +1079,9 @@ class _WebSpacePageState extends State<WebSpacePage>
     // fullscreen — no switching away from the kiosk site.
     if (_kioskLocked || _sites.shown == null) return false;
     if (_sites.filteredIndices().isEmpty) return false;
-    if (SiteNavigation.current != SiteNavigation.strip) return false;
+    if (currentSiteNavigation != SiteNavigation.strip) return false;
     if (!_fullscreen.active) return true;
-    return switch (FullscreenNavigation.current) {
+    return switch (currentFullscreenNavigation) {
       FullscreenNavigation.kept => true,
       FullscreenNavigation.button => _fullscreen.siteStripRevealed,
       FullscreenNavigation.hidden => false,
@@ -1092,8 +1092,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Button, until it reveals the strip, which then carries its own dismiss
   /// control.
   bool get _tabBarButtonShown {
-    if (SiteNavigation.current != SiteNavigation.strip ||
-        FullscreenNavigation.current != FullscreenNavigation.button) {
+    if (currentSiteNavigation != SiteNavigation.strip ||
+        currentFullscreenNavigation != FullscreenNavigation.button) {
       return false;
     }
     // KIOSK-002: a locked session must not expose tab switching.

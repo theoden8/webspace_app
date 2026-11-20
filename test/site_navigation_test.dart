@@ -68,27 +68,27 @@ void main() {
 
     test('reads the strip prefs once into the new choice', () async {
       final prefs = await launch({'tabBarButton': true});
-      expect(SiteNavigation.current, SiteNavigation.strip);
-      expect(FullscreenNavigation.current, FullscreenNavigation.button);
+      expect(currentSiteNavigation, SiteNavigation.strip);
+      expect(currentFullscreenNavigation, FullscreenNavigation.button);
       expect(prefs.get(AppPref.siteNavigation.key), 'strip');
       expect(prefs.get(AppPref.fullscreenNavigation.key), 'button');
     });
 
     test('reads the strip button under its name before v0.2.7', () async {
       await launch({'tabBarButtonInFullscreen': true});
-      expect(SiteNavigation.current, SiteNavigation.strip);
-      expect(FullscreenNavigation.current, FullscreenNavigation.button);
+      expect(currentSiteNavigation, SiteNavigation.strip);
+      expect(currentFullscreenNavigation, FullscreenNavigation.button);
     });
 
     test('leaves a choice already made', () async {
       await launch({'siteNavigation': 'sidebar', 'tabBarButton': true});
-      expect(SiteNavigation.current, SiteNavigation.sidebar);
+      expect(currentSiteNavigation, SiteNavigation.sidebar);
     });
 
     test('a new install starts on the tab button', () async {
       final prefs = await launch({});
-      expect(SiteNavigation.current, SiteNavigation.tabButton);
-      expect(FullscreenNavigation.current, FullscreenNavigation.hidden);
+      expect(currentSiteNavigation, SiteNavigation.tabButton);
+      expect(currentFullscreenNavigation, FullscreenNavigation.hidden);
       expect(prefs.get(AppPref.siteNavigation.key), 'tabButton');
     });
   });
@@ -107,15 +107,15 @@ void main() {
   });
 
   test('the open sidebar shows squares by default, in an open state', () {
-    expect(SidebarStyle.current, SidebarStyle.squares);
-    expect(SidebarState.current, SidebarState.open);
+    expect(currentSidebarStyle, SidebarStyle.squares);
+    expect(currentSidebarState, SidebarState.open);
   });
 
   test('a stored value no build wrote reads as the default', () async {
     SharedPreferences.setMockInitialValues(
         {'siteNavigation': 'carousel', 'sidebarState': 'folded'});
     AppPref.loadAll(await SharedPreferences.getInstance());
-    expect(SiteNavigation.current, SiteNavigation.tabButton);
-    expect(SidebarState.current, SidebarState.open);
+    expect(currentSiteNavigation, SiteNavigation.tabButton);
+    expect(currentSidebarState, SidebarState.open);
   });
 }

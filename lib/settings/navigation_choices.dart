@@ -1,0 +1,47 @@
+// The site navigation choices as plain values, read by the engines that
+// decide what shows; the app's current ones are in site_navigation.dart.
+
+/// How the sites and their tabs are reached: the app bar's tab-count button
+/// alone, the site strip, or the sidebar. One choice, so the strip and the
+/// sidebar never show together.
+enum SiteNavigation {
+  tabButton,
+  strip,
+  sidebar;
+
+  /// The value [raw] names; anything else, the default.
+  static SiteNavigation parse(String raw) =>
+      values.asNameMap()[raw] ?? tabButton;
+}
+
+/// What full screen does with the chosen navigation: hides it, keeps it, or
+/// leaves a small control that brings it back.
+enum FullscreenNavigation {
+  hidden,
+  kept,
+  button;
+
+  /// The value [raw] names; anything else, the default.
+  static FullscreenNavigation parse(String raw) =>
+      values.asNameMap()[raw] ?? hidden;
+}
+
+/// The sidebar's state, one for the app: open, collapsed to a rail, hidden.
+enum SidebarState {
+  open,
+  collapsed,
+  hidden;
+
+  /// The value [raw] names; anything else, the default.
+  static SidebarState parse(String raw) => values.asNameMap()[raw] ?? open;
+}
+
+/// What the open sidebar shows: the sites as squares, their tabs opening
+/// out under them, or the tab tree.
+enum SidebarStyle {
+  squares,
+  tree;
+
+  /// The value [raw] names; anything else, the default.
+  static SidebarStyle parse(String raw) => values.asNameMap()[raw] ?? squares;
+}
