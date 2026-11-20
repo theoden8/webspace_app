@@ -20,9 +20,9 @@
 
 ## 4. Run paths
 
-- [ ] 4.1 Add the single builder `_runnable(script, header:, once:)` to `UserScriptService` and route `buildInitialUserScripts`, `reinjectOnLoadStart`, `reinjectOnLoadStop` and `reinjectOnSpaNavigation` through it (design D3); take the injection time from `header.runAt` when set (US-010); verify `fvm flutter test test/user_script_build_test.dart` passes
-- [ ] 4.2 Extend `test/user_script_build_test.dart`: each run path emits the gate with the header's rules, a script without a header emits an include-all gate, `@run-at` moves a script between start and end, and the planted mutant "SPA path built without the gate" fails; test names cite US-002, US-009, US-010; verify it passes
-- [ ] 4.3 Assert no `GM_*` or `GM.*` name is defined by any page script the app installs (US-012), as a jsdom test over every `PageJs` value's sample; verify `npm run test:js` passes
+- [x] 4.1 Add the single builder `_runnable(script, header:, once:)` to `UserScriptService` and route `buildInitialUserScripts`, `reinjectOnLoadStart`, `reinjectOnLoadStop` and `reinjectOnSpaNavigation` through it (design D3); take the injection time from `header.runAt` when set (US-010); verify `fvm flutter test test/user_script_build_test.dart` passes
+- [x] 4.2 Extend `test/user_script_build_test.dart`: each run path emits the gate with the header's rules, a script without a header emits an include-all gate, `@run-at` moves a script between start and end, and the planted mutant "SPA path built without the gate" fails; test names cite US-002, US-009, US-010; verify it passes
+- [x] 4.3 Assert no `GM_*` or `GM.*` name is defined by any page script the app installs (US-012), as a jsdom test over every `PageJs` value's sample; verify `npm run test:js` passes
 
 ## 5. Editor
 
