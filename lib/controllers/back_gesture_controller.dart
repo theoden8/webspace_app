@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/webview_back.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/reentry_guard.dart';
@@ -132,16 +133,15 @@ class BackGestureController {
           // iOS/macOS: canGoBack() can return false for pushState
           // entries, so attempt goBack() unconditionally and use URL
           // comparison as the authoritative check.
-          final urlBefore = (await controller!.getUrl())?.toString();
-          await controller.goBack();
-          // Give the native webview time to process the navigation
-          await Future.delayed(const Duration(milliseconds: 150));
-          if (!_host.mounted) return;
-          final urlAfter = (await controller.getUrl())?.toString();
-          final urlChanged = urlBefore != urlAfter;
+          final step = await stepBack(controller!,
+              trustsCanGoBack: false,
+              goBack: () => _goBackAndRepaint(controller),
+              live: () => _host.mounted);
+          if (step == BackStep.abandoned) return;
+          final urlChanged = step == BackStep.moved;
           LogTag.navigation.debug(urlChanged
-              ? 'Back gesture: navigated back from $urlBefore to $urlAfter'
-              : 'Back gesture: URL unchanged ($urlAfter)', sensitive: true);
+              ? 'Back gesture: navigated back'
+              : 'Back gesture: URL unchanged');
           if (!urlChanged) {
             // Same rule as the Android branch above, reached the only way
             // Apple can reach it: the URL did not move, so the tab is at the

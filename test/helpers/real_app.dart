@@ -270,6 +270,17 @@ Future<void> pageHistoryChanged(
   });
 }
 
+/// The page on screen moving on to [url], leaving the one before it in its
+/// history, with no navigation the app is asked about (a same-site link the
+/// page follows, or a `pushState`).
+Future<void> pageMovesTo(WidgetTester tester, {required String url}) async {
+  final views = find.byType(inapp.InAppWebView).evaluate().toList();
+  expect(views, hasLength(1), reason: 'one page on screen');
+  final controller = await _controllerOf(tester,
+      view: views.single.widget as inapp.InAppWebView);
+  controller.pages.add(url);
+}
+
 /// Hand every webview the app has built a controller, as the platform does
 /// once a webview exists. The page treats a site without one as still
 /// loading, so Back, for one, is not spent on its tabs until this runs.
@@ -334,6 +345,9 @@ class _FakeWebViewController implements inapp.InAppWebViewController {
   /// The address its view was built to open.
   final String opens;
 
+  /// The pages it has shown, oldest first; the last is on screen.
+  late final List<String> pages = [opens];
+
   @override
   final inapp.PlatformInAppWebViewController platform =
       FakePlatformController();
@@ -352,6 +366,16 @@ class _FakeWebViewController implements inapp.InAppWebViewController {
 
   @override
   Future<bool> isLoading() async => false;
+
+  @override
+  Future<inapp.WebUri?> getUrl() async => inapp.WebUri(pages.last);
+
+  /// One page back where there is one, as the platform's own history step.
+  @override
+  Future<void> goBack() async {
+    webViewCalls.add(#goBack);
+    if (pages.length > 1) pages.removeLast();
+  }
 
   @override
   Future<String?> getTitle() async => webViewTitle;
