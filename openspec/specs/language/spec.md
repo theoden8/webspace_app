@@ -185,6 +185,7 @@ script.
   `Accept-Language` header
 **And** the `DOCUMENT_START` override script sees `es`
 **And** the site reloads; where supported, content appears in Spanish
+**And** `test/site_language_picker_test.dart` holds the picker's options, the save storing the pick on the site alone, and the webview let go of
 
 ---
 
