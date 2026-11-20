@@ -341,6 +341,30 @@ void main() {
     expect(guardian.currentUrl, home);
   });
 
+  testWidgets('DEVTOOLS-001: what the page writes to its console reaches the '
+      'site\'s console log, each line with its level', (tester) async {
+    final site = WebViewModel(initUrl: 'https://example.com/');
+    var changes = 0;
+    site.onConsoleLogChanged = () => changes++;
+    await tester.pumpWidget(MaterialApp(
+        home: site.getWebView(_siteHooks(), cacheFirst: false)));
+    final (:params, :native) = await _attach(tester);
+    for (final (message, level) in [
+      ('loaded', inapp.ConsoleMessageLevel.LOG),
+      ('slow', inapp.ConsoleMessageLevel.WARNING),
+      ('broken', inapp.ConsoleMessageLevel.ERROR),
+    ]) {
+      params.onConsoleMessage!(
+          native, inapp.ConsoleMessage(message: message, messageLevel: level));
+    }
+    expect([for (final e in site.consoleLogs) (e.message, e.level)], [
+      ('loaded', inapp.ConsoleMessageLevel.LOG),
+      ('slow', inapp.ConsoleMessageLevel.WARNING),
+      ('broken', inapp.ConsoleMessageLevel.ERROR),
+    ]);
+    expect(changes, 3, reason: 'an open console redraws on each line');
+  });
+
   testWidgets('initial Guardian redirect commits and keeps article URLs in the site',
       (tester) async {
     final guardian = WebViewModel(initUrl: 'https://theguardian.co.uk/');
