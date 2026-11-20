@@ -26,14 +26,14 @@
 
 ## 5. Editor
 
-- [ ] 5.1 Add the header summary, the `@run-at` lock (`Lock.because`) and the `@name` prefill to the editor in `lib/screens/user_scripts.dart` (design D5), with new keys and descriptions in `lib/l10n/app_en.arb`; verify `fvm dart tool/gen_l10n.dart` and `fvm flutter analyze` are clean and `npm run test:js` passes `l10n_no_hardcoded_text` and `settings_hint_placement`
-- [ ] 5.2 Add `test/user_script_editor_header_test.dart` (through `pumpLocalized`): the summary lists pages, exclusions and what is not provided; the lock names the header; prefill fills an empty name and keeps a typed one; test names cite US-010, US-011, US-012; verify it passes
-- [ ] 5.3 Commit the 66 translated `app_*.arb` files in their own commit on top of 5.1; verify `npm run test:js` passes `l10n_coverage` and `l10n_language`
+- [x] 5.1 Add the header summary, the `@run-at` lock (`Lock.because`) and the `@name` prefill to the editor in `lib/screens/user_scripts.dart` (design D5), with new keys and descriptions in `lib/l10n/app_en.arb`; verify `fvm dart tool/gen_l10n.dart` and `fvm flutter analyze` are clean and `npm run test:js` passes `l10n_no_hardcoded_text` and `settings_hint_placement`
+- [x] 5.2 Add `test/user_script_editor_header_test.dart` (through `pumpLocalized`): the summary lists pages, exclusions and what is not provided; the lock names the header; prefill fills an empty name and keeps a typed one; test names cite US-010, US-011, US-012; verify it passes
+- [x] 5.3 Commit the 66 translated `app_*.arb` files in their own commit on top of 5.1; verify `npm run test:js` passes `l10n_coverage` and `l10n_language`
 
 ## 6. End to end and bookkeeping
 
 - [ ] 6.1 Add `integration_test/userscript_match_test.dart`: a fixture-server site with `/a/` and `/b/`, a script with `@match` for `/a/*` that sets a DOM marker, the marker present on `/a/` only; verify it passes locally on Linux (`fvm flutter test integration_test/userscript_match_test.dart -d linux`)
-- [ ] 6.2 Remove US-008 to US-012 from `openspec/unverified.tsv` as their tests land; verify `node --test test/js/spec_verification.test.js` passes
+- [x] 6.2 Remove US-008 to US-012 from `openspec/unverified.tsv` as their tests land; verify `node --test test/js/spec_verification.test.js` passes
 - [ ] 6.3 Note the narrowing in the release's fastlane changelog when this ships; verify `scripts/validate_fastlane_metadata.sh` passes
 - [ ] 6.4 Run `./scripts/test_all.sh` and `npx openspec validate --no-interactive --all`; verify both exit 0
 

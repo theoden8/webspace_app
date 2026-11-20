@@ -2911,6 +2911,71 @@
   "@userScriptsAtDocumentEnd": {
     "description": "Dropdown option for injecting a user script at document end"
   },
+  "userScriptHeaderTitle": "Script header",
+  "@userScriptHeaderTitle": {
+    "description": "Heading above the summary of a user script's // ==UserScript== header in the script editor: which pages it runs on, what the app does not provide, and problems found."
+  },
+  "userScriptHeaderEveryPage": "Runs on every page of the site",
+  "@userScriptHeaderEveryPage": {
+    "description": "Line in the script editor's header summary when the script's header names no @match or @include line, so the script runs on every page of the sites that use it."
+  },
+  "userScriptHeaderNoPage": "Runs on no page: none of its patterns is valid",
+  "@userScriptHeaderNoPage": {
+    "description": "Line in the script editor's header summary when every @match or @include pattern in the header is invalid, so the script runs nowhere."
+  },
+  "userScriptHeaderRunsOn": "Runs on: {pages}",
+  "@userScriptHeaderRunsOn": {
+    "description": "Line in the script editor's header summary listing the URL patterns (from @match and @include) the script runs on. {pages} is the list of patterns exactly as written, e.g. https://*.example.com/watch*.",
+    "placeholders": {
+      "pages": {
+        "type": "String"
+      }
+    }
+  },
+  "userScriptHeaderExcludes": "Not on: {pages}",
+  "@userScriptHeaderExcludes": {
+    "description": "Line in the script editor's header summary listing the URL patterns (from @exclude-match and @exclude) the script never runs on. {pages} is the list of patterns exactly as written.",
+    "placeholders": {
+      "pages": {
+        "type": "String"
+      }
+    }
+  },
+  "userScriptHeaderNotProvided": "WebSpace does not provide: {keys}",
+  "@userScriptHeaderNotProvided": {
+    "description": "Line in the script editor's header summary listing header lines the app does not act on, such as @grant GM_xmlhttpRequest or @require. The script still runs without them. {keys} is the list of those lines exactly as written.",
+    "placeholders": {
+      "keys": {
+        "type": "String"
+      }
+    }
+  },
+  "userScriptHeaderUnclosed": "The header has no closing line, so it is ignored",
+  "@userScriptHeaderUnclosed": {
+    "description": "Problem shown in the script editor when the source has a // ==UserScript== line but no // ==/UserScript== closing line; the app then treats the script as having no header."
+  },
+  "userScriptHeaderInvalidPattern": "Not a valid pattern: {line}",
+  "@userScriptHeaderInvalidPattern": {
+    "description": "Problem shown in the script editor for a @match, @exclude-match, @include or @exclude line whose pattern names no page. {line} is the header line exactly as written, e.g. @match https://example.com.",
+    "placeholders": {
+      "line": {
+        "type": "String"
+      }
+    }
+  },
+  "userScriptHeaderUnknownRunAt": "@run-at {value} is not supported; the injection time below applies",
+  "@userScriptHeaderUnknownRunAt": {
+    "description": "Problem shown in the script editor when the header's @run-at value is not one the app reads (document-start, document-end, document-idle, document-body). {value} is the value as written; @run-at is a code keyword and stays untranslated.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "userScriptHeaderSetsRunAt": "Set by the script's header (@run-at)",
+  "@userScriptHeaderSetsRunAt": {
+    "description": "Helper text under the injection time picker in the script editor when the script's header sets the time with @run-at, explaining why the picker cannot be changed. @run-at is a code keyword and stays untranslated."
+  },
   "userScriptsSourceLabel": "JavaScript source",
   "@userScriptsSourceLabel": {
     "description": "Label for the user script JavaScript source code input field"
