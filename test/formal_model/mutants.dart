@@ -857,6 +857,22 @@ Tables mutated(Mutant m) => switch (m) {
       ),
     ),
   ),
+  // A switch that pauses the site it leaves again on every answer: each
+  // step is taken and no state is wrong, but the flow never ends.
+  Mutant.repause => _with(
+    activation: _withArms(
+      tables.activation,
+      step: ActivationStep.quiesceReply,
+      arms: (s) => s.withArms(
+        branches: [s.branches.first],
+        otherwise: Otherwise(
+          StepOutcome.go,
+          then: const [],
+          next: to(ActivationPlace.quiesce),
+        ),
+      ),
+    ),
+  ),
   // A superseded switch's conflict unload still disposes, taking the site a
   // newer tap opens (BUG-033).
   Mutant.staleplan => _with(

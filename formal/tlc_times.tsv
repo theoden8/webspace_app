@@ -188,6 +188,7 @@ activation_rebindskipsclose	28
 activation_recapture	146
 activation_reframeunbound	4
 activation_reopenbesidenested	252
+activation_repause	8
 activation_rerouteinplace	408
 activation_reset	596
 activation_router_containers	88
@@ -225,6 +226,7 @@ activation_tabs_router_containers	224
 activation_tabs_spaces	36
 activation_tabs_warm_one	1026
 activation_takeany	194
+activation_terminates	18
 activation_tierearly	202
 activation_toast	104
 activation_toast_ignoretab	10
