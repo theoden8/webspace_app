@@ -541,6 +541,14 @@ expect process_route_reach_claimedagain.cfg process_route.tla "Reach_ClaimedAgai
 expect process_route_reach_heldforgone.cfg process_route.tla "Reach_HeldForGone is violated" \
   "a vacate holding the turn for a page still sending, a claim on another route behind it, is reachable"
 
+section "LOCK ORDER" "a lock's turn serves each waiter within the flows ahead of it (ISO-003, DNS-019)"
+expect lock_order.cfg lock_order.tla "No error has been found" \
+  "no waiter on the jar's or the DNS lists' turn is passed over more often than the flows ahead of it"
+expect lock_order_outoforder.cfg lock_order.tla "Inv_Bounded is violated" \
+  "a turn that goes to any flow waiting passes the first one over (caught)"
+expect lock_order_reach_behindtwo.cfg lock_order.tla "Reach_BehindTwo is violated" \
+  "a flow served from behind two others is reachable"
+
 section "RELAY ROUTES" "the router relay's route tables and the challenges they answer (PROXY-034)"
 expect relay_routes.cfg relay_routes.tla "No error has been found" \
   "the relay ends on the last table, and a challenge is refused only for a site it does not route"

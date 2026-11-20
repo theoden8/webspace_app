@@ -117,6 +117,15 @@ class.
   `midwrite`, `noturn` and `quietonly` demonstrators list a released occupant, void a claim
   only during its write, let two writes out at once, and end a vacate before the native
   destroy. Standalone: which sites run when is `activation.tla`'s.
+- **`lock_order.tla`** + `lock_order*.cfg` — bounded bypass of a lock's turn, over the one
+  definition every lock of the activation model instantiates (`activation_lock.tla`: the
+  shared jar, ISO-003, and the DNS lists, DNS-019). `Inv_Bounded`: a flow is served within
+  as many grants as there were flows ahead of it when it asked, each grant to another flow
+  while it waits spending one. The `outoforder` demonstrator hands the turn to any waiter.
+  Standalone: the turn's operators touch only its holder and queue (`footprint.py` holds
+  them to that), so what holds here holds of each instance, at no cost to `activation.tla`'s
+  states or proofs. The tab gate has no waiters to bound: an input that finds it held ends
+  at once (`Inv_OneTabFlow`).
 - **`relay_routes.tla`** + `relay_routes*.cfg` — the router relay's route tables and the
   challenges they answer (PROXY-034), as `ProxyRouterService` runs them: tables asked for
   and installed through one queue, a credential's challenge waiting in the same queue.

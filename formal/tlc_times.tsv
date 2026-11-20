@@ -266,6 +266,9 @@ kiosk	4
 kiosk_leak_chrome	4
 kiosk_leak_fs	4
 kiosk_reach	4
+lock_order	2
+lock_order_outoforder	2
+lock_order_reach_behindtwo	2
 process_route	4
 process_route_midwrite	8
 process_route_noturn	4
