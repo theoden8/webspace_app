@@ -26,8 +26,11 @@ typedef UserscriptHeader = ({
 /// One `// @key value` line of a header.
 typedef HeaderEntry = ({String key, String value});
 
-/// An anchored regular expression the page tests a URL with, and its flags.
-typedef UrlPattern = ({String source, String flags});
+/// An anchored regular expression the page tests a URL with, its flags, and
+/// the header value it was compiled from, which the editor shows.
+typedef UrlPattern = ({String source, String flags, String written});
+
+typedef _Compiled = ({String source, String flags});
 
 /// Which pages a script runs on.
 sealed class Pages {
@@ -186,16 +189,20 @@ UserscriptHeader _read(List<HeaderEntry> entries) {
 /// boundary, any port is taken, and the path is a `*` glob over the rest of
 /// the URL. An include is a `*` glob over the whole URL, or a `/regex/flags`
 /// the page's engine reads as the user wrote it.
-UrlPattern? compileUserscriptMatch(HeaderEntry entry) => switch (entry.key) {
-      'match' || 'exclude-match' => _matchPattern(entry.value),
-      'include' || 'exclude' => _includePattern(entry.value),
-      _ => null,
-    };
+UrlPattern? compileUserscriptMatch(HeaderEntry entry) {
+  final _Compiled? compiled = switch (entry.key) {
+    'match' || 'exclude-match' => _matchPattern(entry.value),
+    'include' || 'exclude' => _includePattern(entry.value),
+    _ => null,
+  };
+  if (compiled == null) return null;
+  return (source: compiled.source, flags: compiled.flags, written: entry.value);
+}
 
 final _matchShape = RegExp(r'^(\*|https?|wss?|ftp|file)://([^/]*)(/.*)$');
 final _userRegex = RegExp(r'^/(.+)/([a-z]*)$');
 
-UrlPattern? _matchPattern(String value) {
+_Compiled? _matchPattern(String value) {
   if (value == '<all_urls>') {
     return (source: r'^(?:https?|wss?|ftp|file)://.*$', flags: '');
   }
@@ -226,7 +233,7 @@ UrlPattern? _matchPattern(String value) {
   );
 }
 
-UrlPattern? _includePattern(String value) {
+_Compiled? _includePattern(String value) {
   if (value.isEmpty) return null;
   if (_userRegex.firstMatch(value) case final m?) {
     final flags = m.group(2)!;

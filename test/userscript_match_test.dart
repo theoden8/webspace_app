@@ -228,7 +228,7 @@ final List<_Row> _table = [
 ];
 
 UrlPattern _rewrite(UrlPattern p, {required String Function(String) f}) =>
-    (source: f(p.source), flags: p.flags);
+    (source: f(p.source), flags: p.flags, written: p.written);
 
 UserscriptHeader _mapPatterns(
   UserscriptHeader h, {
