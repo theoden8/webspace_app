@@ -47,7 +47,7 @@ The system SHALL allow the user to exit full screen by tapping the top edge of t
 #### Scenario: Exit via top edge tap
 
 **Given** the user is in full screen mode
-**When** the user taps the top edge of the screen (status bar / notch safe area + 20px)
+**When** the user taps the top edge of the page (the 20px just below the status bar / notch inset)
 **Then** full screen mode is exited
 
 #### Scenario: Exit via tab strip menu
@@ -72,7 +72,7 @@ The system SHALL allow the user to exit full screen by tapping the top edge of t
 **Then** a brief SnackBar is shown: "Tap the top of the screen to exit full screen"
 **And** a visible translucent handle is displayed just below the status bar / notch area
 
-**Rationale:** The exit zone spans `MediaQuery.padding.top + 20px` vertically but only a centered 96px-wide band catches the tap; the top corners stay transparent to pointers so web-app controls there (e.g. a sidebar toggle) receive the tap instead of exiting fullscreen. The back gesture is not consumed by fullscreen so users can navigate normally while immersed.
+**Rationale:** The exit zone is the 20px at the top of the page, just below the top inset the body keeps for a status bar or notch that stays (FS-006), and only a centered 96px-wide band catches the tap; the top corners stay transparent to pointers so web-app controls there (e.g. a sidebar toggle) receive the tap instead of exiting fullscreen. The back gesture is not consumed by fullscreen so users can navigate normally while immersed.
 
 #### Scenario: Web control in top corner stays tappable
 
