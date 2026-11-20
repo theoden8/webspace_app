@@ -125,6 +125,7 @@ The system SHALL maintain the correct full screen state across app lifecycle tra
 **Given** the user is in full screen mode
 **When** the app is backgrounded and then resumed
 **Then** the immersive system UI mode is re-applied
+**And** `test/fullscreen_system_bars_test.dart` ("FS-004: a resume in full screen asks for its system UI again") holds it
 
 ---
 
@@ -213,12 +214,14 @@ The system SHALL keep the site's content reachable in full screen even when the 
 **Given** the user is in full screen mode on a device where a system bar remains visible
 **When** the user taps the site's controls near the top or bottom edge
 **Then** the body is inset by the system bar's safe area so the controls are not hidden behind the bar and remain tappable
+**And** `test/fullscreen_system_bars_test.dart` ("FS-006: the page sits inside the bars left on screen") holds it
 
 #### Scenario: System bars fully hidden
 
 **Given** the user is in full screen mode on a device where `immersiveSticky` hides both bars
 **Then** the body safe-area inset is ~0
 **And** the webview fills the entire screen
+**And** `test/fullscreen_system_bars_test.dart` holds it
 
 ---
 
@@ -233,12 +236,14 @@ The system SHALL render the webview into the display cutout (notch) region on th
 **Then** the window extends into the cutout strip (`LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`)
 **And** the webview fills the space beside the notch with no black bar
 **And** the top/bottom safe-area insets still keep top/bottom controls clear of any persistent system bar
+**And** `test/js/display_cutout_mode.test.js` holds the window's cutout mode and `test/fullscreen_system_bars_test.dart` the page filling the strip
 
 #### Scenario: Cutout out of full screen
 
 **Given** a device with a landscape display cutout
 **And** the user is NOT in full screen
 **Then** the body insets around the cutout (left/right `SafeArea` active) so the app bar and content avoid the notch
+**And** `test/fullscreen_system_bars_test.dart` holds it
 
 ---
 

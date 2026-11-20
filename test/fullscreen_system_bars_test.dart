@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/fullscreen_system_ui.dart';
 import 'package:webspace/settings/tab_strip_edge.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/site_menu.dart';
 import 'package:webspace/widgets/site_tab_strip.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 
@@ -208,6 +210,49 @@ void main() {
       expect(modes.last, immersive, reason: 'the status bar hides again');
     });
 
+    // FS-006: whatever bars the platform leaves on screen in full screen,
+    // the page sits inside them; with none left it fills the screen.
+    for (final (top, bottom) in [(statusBar, navBar), (0.0, 0.0)]) {
+      testWidgets('FS-006: the page sits inside the bars left on screen, '
+          '$top at the top and $bottom at the bottom', (tester) async {
+        addTearDown(tester.view.reset);
+        await enterFullscreenOn(tester, prefs: const {});
+        await showSystemBars(tester, top: top, bottom: bottom);
+        await tester.pumpAndSettle();
+        final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+        final page = tester.getRect(find.byType(inapp.InAppWebView));
+        expect(page.top, top);
+        expect(page.bottom, screen.height - bottom);
+        expect(page.width, screen.width);
+      });
+    }
+
+    // FS-010: a cutout on a short edge. Full screen draws the page beside
+    // it; out of full screen the body insets around it.
+    testWidgets('FS-010: full screen draws into a short-edge cutout that the '
+        'page otherwise avoids', (tester) async {
+      addTearDown(tester.view.reset);
+      const cutout = 40.0;
+      final dpr = tester.view.devicePixelRatio;
+      tester.view.padding = const FakeViewPadding(left: cutout * 3);
+      tester.view.viewPadding = const FakeViewPadding(left: cutout * 3);
+      expect(dpr, 3.0, reason: 'the cutout above is given in physical pixels');
+      final site = WebViewModel(initUrl: 'https://example.com', name: 'Example');
+      await pumpRealApp(tester, sites: [site]);
+      await openWebspace(tester, name: 'All');
+      await openSiteFromDrawer(tester, name: 'Example');
+      expect(tester.getRect(find.byType(inapp.InAppWebView)).left, cutout,
+          reason: 'out of full screen the page keeps clear of the notch');
+
+      await tester.tap(find.byType(PopupMenuButton<SiteMenuAction>).first);
+      await settleRealApp(tester);
+      await tester.tap(find.text('Full Screen'));
+      await settleRealApp(tester);
+      expect(find.byTooltip('Open navigation menu'), findsNothing);
+      expect(tester.getRect(find.byType(inapp.InAppWebView)).left, 0,
+          reason: 'in full screen it fills the strip beside the notch');
+    });
+
     testWidgets('without the app controls full screen stays sticky',
         (tester) async {
       addTearDown(tester.view.reset);
@@ -219,6 +264,34 @@ void main() {
       await tester.pump(kRevealedSystemBarsHideDelay);
       expect(modes.sublist(before), isEmpty,
           reason: 'sticky bars hide themselves');
+    });
+
+    testWidgets('FS-004: a resume in full screen asks for its system UI again',
+        (tester) async {
+      addTearDown(tester.view.reset);
+      await enterFullscreenOn(tester, prefs: {'showTabStrip': true});
+      expect(modes.last, immersiveSticky);
+
+      final binding = tester.binding;
+      for (final state in const [
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+      ]) {
+        binding.handleAppLifecycleStateChanged(state);
+      }
+      await settleRealApp(tester);
+      final before = modes.length;
+      for (final state in const [
+        AppLifecycleState.hidden,
+        AppLifecycleState.inactive,
+        AppLifecycleState.resumed,
+      ]) {
+        binding.handleAppLifecycleStateChanged(state);
+      }
+      await settleRealApp(tester);
+      expect(modes.sublist(before), [immersiveSticky],
+          reason: 'the OS can drop the immersive mode while the app is away');
     });
   });
 }

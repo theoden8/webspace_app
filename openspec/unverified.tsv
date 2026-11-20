@@ -44,9 +44,6 @@ IMPORT-004	no check: no test builds a file-import webview through createWebView 
 # fullscreen-mode
 FS-001	no check: no test enters full screen from either overflow menu or by double-tapping the app bar title
 FS-002	no check: no test covers the top-edge exit handle (the centered 96px band, corners passing taps through), the Exit Full Screen menu toggle, the hint SnackBar, or back keeping full screen
-FS-004	no check: AppLifecycleController calls host.reapplyFullscreen() on resume, but no test asserts the immersive mode is re-applied
-FS-006	no check: no test checks the body's top/bottom SafeArea inset in full screen under a persistent system bar (partly: test/fullscreen_system_bars_test.dart, "a kept tab strip moves above a revealed navigation bar, which is hidden again")
-FS-010	no check: LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES in MainActivity and dropping the left/right SafeArea in full screen are both untested
 # home-shortcut
 HS-009	no check: no test that persisting sites and the startup restore call ShortcutService.syncSites, nor of the Swift App Group write; shortcut_service_test only checks syncSites is a no-op off Apple
 HS-010	no check: no test of the iOS/macOS instructional dialog, its ShortcutsUIButton or Open Shortcuts button
