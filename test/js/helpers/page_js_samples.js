@@ -58,6 +58,10 @@ const SAMPLES = {
   text_zoom: pageJs('text_zoom', { zoomPercent: 150 }),
   theme_color_scheme: pageJs('theme_color_scheme', { theme: 'dark' }),
   ua_identity: FX_ANDROID,
+  userscript_gate: pageJs('userscript_gate', {
+    include: [{ source: '^https://example\\.com/a/.*$', flags: '' }],
+    exclude: [{ source: '^https://example\\.com/a/private.*$', flags: '' }],
+  }),
   user_script: pageJs('user_script', {
     scriptHandler: '__ws_s_test',
     fetchHandler: '__ws_f_test',
