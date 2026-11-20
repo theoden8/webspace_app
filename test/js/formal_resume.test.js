@@ -20,6 +20,8 @@ function repository(t, { plant = null } = {}) {
   fs.mkdirSync(path.join(root, 'lib'));
   fs.mkdirSync(bin);
   fs.copyFileSync(path.join(formalDir, 'verify.sh'), path.join(formal, 'verify.sh'));
+  fs.copyFileSync(path.join(formalDir, 'await_ceilings.py'), path.join(formal, 'await_ceilings.py'));
+  fs.writeFileSync(path.join(formal, 'await_ceilings.tsv'), 'Tap\t2\t-\n');
   const key = fs.readFileSync(path.join(formalDir, 'input_key.py'), 'utf8');
   fs.writeFileSync(path.join(formal, 'input_key.py'), plant === null ? key
     : `import sys\nsys.argv += ['--plant', ${JSON.stringify(plant)}]\n` + key);
@@ -48,6 +50,8 @@ function repository(t, { plant = null } = {}) {
     if (process.env.FORMAL_OUT) {
       fs.mkdirSync(process.env.FORMAL_OUT, { recursive: true });
       fs.writeFileSync(path.join(process.env.FORMAL_OUT, 'models.json'), '{}');
+      fs.writeFileSync(path.join(process.env.FORMAL_OUT, 'activation_awaits.tsv'), 'Tap\t2\t-\tplan\n');
+      fs.writeFileSync(path.join(process.env.FORMAL_OUT, 'activation_awaits_planted.tsv'), 'Tap\t3\t-\tplan\n');
       fs.appendFileSync(log, 'print\n');
       process.exitCode = 79;
       return;

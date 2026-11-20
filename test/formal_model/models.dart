@@ -2,6 +2,7 @@
 // extend, the planted mistakes TLC must catch, and every engine's declared
 // model as JSON for the tools that are not TLA+. main.dart writes them; the
 // files are derivatives, written under build/formal/ and never committed.
+import 'awaits.dart';
 import 'dart:convert';
 
 import 'checks.dart';
@@ -319,6 +320,13 @@ List<PrintedFile> printedModels({required List<String> handWritten}) => [
   ),
   (path: 'activation_footprints.tsv', text: activationFootprints(tables)),
   (path: 'activation_calm.tsv', text: activationCalm(tables)),
+  (path: 'activation_awaits.tsv', text: activationAwaits(_footprintsOf(tables))),
+  (
+    path: 'activation_awaits_planted.tsv',
+    text: activationAwaits(
+      oneMoreAwait(_footprintsOf(tables), on: ActivationStep.tap),
+    ),
+  ),
   (path: 'activation_base_ops.tsv', text: activationBaseOps()),
   (
     path: 'lean/Footprints.lean',
