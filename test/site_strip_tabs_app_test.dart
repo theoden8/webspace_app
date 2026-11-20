@@ -55,14 +55,14 @@ void main() {
     expect(find.byType(SiteStrip), findsOneWidget);
   });
 
-  testWidgets('the strip shows the tabs of the site on screen',
+  testWidgets('the strip shows the tabs of the site on screen (TAB-030)',
       (tester) async {
     await start(tester, navigation: 'strip');
     expect(find.widgetWithText(TabChip, 'Q3 plan'), findsOneWidget);
     expect(find.widgetWithText(TabChip, 'Budget 2027'), findsOneWidget);
   });
 
-  testWidgets('the site menu offers All tabs with the strip, opening the '
+  testWidgets('TAB-029: the site menu offers All tabs with the strip, opening the '
       'Tabs sheet', (tester) async {
     await start(tester, navigation: 'strip');
     await tester.tap(find.byType(PopupMenuButton<SiteMenuAction>));
@@ -94,7 +94,7 @@ void main() {
     expect(appSite('Docs').tabs.length, 2);
   });
 
-  testWidgets('a phone keeps one site open', (tester) async {
+  testWidgets('a phone keeps one site open (TAB-030)', (tester) async {
     await start(tester, navigation: 'strip', size: const Size(400, 800));
     expect(find.widgetWithText(TabChip, 'Q3 plan'), findsOneWidget);
     await tester.dragUntilVisible(find.byTooltip("Show Mail's tabs"),

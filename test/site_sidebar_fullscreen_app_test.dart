@@ -50,7 +50,7 @@ Finder floating() => find.descendant(
 );
 
 void main() {
-  testWidgets('full screen hidden shows nothing', (tester) async {
+  testWidgets('full screen hidden shows nothing (FS-007)', (tester) async {
     await start(tester, inFullscreen: 'hidden');
     expect(find.byType(AppBar), findsNothing);
     expect(find.byType(SidebarArrowTab), findsNothing);
@@ -58,7 +58,7 @@ void main() {
     expect(pageLeft(tester), 0);
   });
 
-  testWidgets('kept keeps the sidebar docked', (tester) async {
+  testWidgets('kept keeps the sidebar docked (FS-007)', (tester) async {
     await start(tester, inFullscreen: 'kept');
     expect(find.byType(AppBar), findsNothing);
     expect(find.byType(SidebarSquares), findsOneWidget);
@@ -66,7 +66,7 @@ void main() {
     expect(find.byType(SidebarArrowTab), findsNothing);
   });
 
-  testWidgets('button: arrow tab reveals the sidebar over the page, collapse '
+  testWidgets('FS-009 button: arrow tab reveals the sidebar over the page, collapse '
       'button puts it away, leaving restores', (tester) async {
     await start(tester, inFullscreen: 'button');
     expect(find.byType(SidebarSquares), findsNothing);

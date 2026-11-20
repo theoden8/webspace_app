@@ -35,7 +35,7 @@ Finder inSidebar(Finder matching) =>
     find.descendant(of: find.byType(SiteSidebar).first, matching: matching);
 
 void main() {
-  testWidgets('legacy sidebar keeps the header and Add site, squares by '
+  testWidgets('TAB-035: legacy sidebar keeps the header and Add site, squares by '
       'default, no webspaces button in the app bar', (tester) async {
     await start(tester);
     expect(
@@ -73,13 +73,13 @@ void main() {
     );
   });
 
-  testWidgets('the tree, when chosen, keeps the legacy header', (tester) async {
+  testWidgets('the tree, when chosen, keeps the legacy header (TAB-035)', (tester) async {
     await start(tester, prefs: {'sidebarStyle': 'tree'});
     expect(inSidebar(find.byType(SiteDrawerHeader)), findsOneWidget);
     expect(inSidebar(find.byType(SidebarSquares)), findsNothing);
   });
 
-  testWidgets('NAV-009 on a phone: Back at the start of the page opens the '
+  testWidgets('NAV-009, TAB-032 on a phone: Back at the start of the page opens the '
       'sidebar over it, as it opened the drawer, and the next Back closes it', (
     tester,
   ) async {
