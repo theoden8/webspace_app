@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/services/fullscreen_system_ui.dart';
+import 'package:webspace/services/navigation_surface_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/site_navigation.dart';
 import 'package:webspace/settings/site_strip_edge.dart';
@@ -32,11 +33,12 @@ class FullscreenController {
   /// Hides the app bar, the site strip and the system UI.
   bool active = false;
 
-  /// Whether the tab-bar button has revealed the site strip (FS-009). Runtime
-  /// only. A site switch out of full screen keeps it; its dismiss control,
-  /// full screen and an app entry point end it.
-  bool get siteStripRevealed => _siteStripRevealed;
-  bool _siteStripRevealed = false;
+  /// Whether full screen's floating control has revealed the site strip or
+  /// the sidebar (FS-009). Runtime only. A site switch out of full screen
+  /// keeps it; its dismiss control, full screen and an app entry point end
+  /// it.
+  bool get navigationRevealed => _navigationRevealed;
+  bool _navigationRevealed = false;
 
   Timer? _revealedBarsHideTimer;
 
@@ -60,14 +62,15 @@ class FullscreenController {
     unawaited(SystemChrome.setSystemUIChangeCallback(null));
   }
 
-  /// Whether full screen leaves the strip's button to bring the strip back.
-  static bool get _stripButton =>
-      currentSiteNavigation == SiteNavigation.strip &&
-      currentFullscreenNavigation == FullscreenNavigation.button;
+  /// Whether full screen leaves a control to bring the strip or the sidebar
+  /// back.
+  static bool get _floats => floatsInFullscreen(
+      navigation: currentSiteNavigation,
+      inFullscreen: currentFullscreenNavigation);
 
   void _onSiteStripPrefChanged() {
-    if (!_stripButton) {
-      _setSiteStripRevealed(revealed: false, nudge: 'tab-overlay-hide');
+    if (!_floats) {
+      _setNavigationRevealed(revealed: false, nudge: 'tab-overlay-hide');
     }
     if (active) apply();
   }
@@ -75,24 +78,24 @@ class FullscreenController {
   /// A strip revealed along the top edge brings the status bar with it
   /// (FS-012), so in full screen a reveal or a dismiss re-asks for the
   /// system UI.
-  void revealSiteStrip() {
-    if (_setSiteStripRevealed(revealed: true, nudge: 'tab-overlay-show') &&
+  void revealNavigation() {
+    if (_setNavigationRevealed(revealed: true, nudge: 'tab-overlay-show') &&
         active) {
       apply();
     }
   }
 
-  void hideSiteStrip() {
-    if (_setSiteStripRevealed(revealed: false, nudge: 'tab-overlay-hide') &&
+  void hideNavigation() {
+    if (_setNavigationRevealed(revealed: false, nudge: 'tab-overlay-hide') &&
         active) {
       apply();
     }
   }
 
   /// Whether it changed.
-  bool _setSiteStripRevealed({required bool revealed, required String nudge}) {
-    if (_siteStripRevealed == revealed) return false;
-    _siteStripRevealed = revealed;
+  bool _setNavigationRevealed({required bool revealed, required String nudge}) {
+    if (_navigationRevealed == revealed) return false;
+    _navigationRevealed = revealed;
     _host.rebuild();
     _surface.nudge(nudge);
     return true;
@@ -102,7 +105,7 @@ class FullscreenController {
     if (active) {
       // A site or tab landing in full screen: there a revealed strip lasts
       // one pick.
-      _setSiteStripRevealed(revealed: false, nudge: 'tab-overlay-hide');
+      _setNavigationRevealed(revealed: false, nudge: 'tab-overlay-hide');
       // The system UI depends on the kiosk lock, the site strip prefs and
       // the strip's edge, which a shortcut launch or an import can change
       // while already full screen.
@@ -110,7 +113,7 @@ class FullscreenController {
       return;
     }
     active = true;
-    _siteStripRevealed = false;
+    _navigationRevealed = false;
     _host.rebuild();
     apply();
     // Removing the app bar / changing the bottom bar resizes the webview; on
@@ -130,7 +133,7 @@ class FullscreenController {
     if (!active) return;
     _revealedBarsHideTimer?.cancel();
     active = false;
-    _siteStripRevealed = false;
+    _navigationRevealed = false;
     _host.rebuild();
     unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
     _surface.nudge('fullscreen-exit');
@@ -147,7 +150,7 @@ class FullscreenController {
   FullscreenSystemUi get _systemUi => FullscreenSystemUi.of(
         kioskLocked: _host.kioskLocked,
         siteStripEdge: _host.siteStripEdge,
-        floatingControl: _stripButton,
+        floatingControl: _floats,
       );
 
   /// Asks for the system UI full screen holds now.

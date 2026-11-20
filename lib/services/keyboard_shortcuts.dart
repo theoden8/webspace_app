@@ -128,6 +128,12 @@ sealed class KeyboardShortcut {
         (command(digit), SiteAt(place)),
       (command(LogicalKeyboardKey.digit9), const LastSite()),
       if (on.quits) (command(LogicalKeyboardKey.keyQ), const QuitApp()),
+      // Firefox's key for its sidebar.
+      (
+        SingleActivator(LogicalKeyboardKey.keyZ,
+            meta: mac, control: !mac, alt: true, includeRepeats: false),
+        const ToggleSidebar(),
+      ),
     ];
   }
 
@@ -162,6 +168,7 @@ sealed class KeyboardShortcut {
     PreviousSite() ||
     SiteAt() ||
     LastSite() ||
+    ToggleSidebar() ||
     QuitApp() => false,
   };
 }
@@ -223,6 +230,11 @@ final class SiteAt extends KeyboardShortcut {
 
 final class LastSite extends KeyboardShortcut {
   const LastSite();
+}
+
+/// Cycles the tab sidebar open, collapsed and hidden.
+final class ToggleSidebar extends KeyboardShortcut {
+  const ToggleSidebar();
 }
 
 /// Leaves the app, where closing its window may only hide it (NOTIF-018).

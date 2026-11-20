@@ -21,36 +21,6 @@ import 'package:webspace/widgets/search_site_picker.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
 
-/// How the site site strip is reached. The floating button is the on-demand
-/// presentation of the strip, so the three are one choice, not two toggles.
-enum TabStrip {
-  hidden,
-  pinned,
-  button;
-
-  static TabStrip get current => switch ((currentSiteNavigation, currentFullscreenNavigation)) {
-        (SiteNavigation.strip, FullscreenNavigation.button) => button,
-        (SiteNavigation.strip, _) => pinned,
-        (SiteNavigation.tabButton || SiteNavigation.sidebar, _) => hidden,
-      };
-}
-
-extension on TabStrip {
-  ButtonSegment<TabStrip> segment(AppLocalizations loc) => ButtonSegment(
-        value: this,
-        icon: Icon(switch (this) {
-          TabStrip.hidden => Icons.visibility_off,
-          TabStrip.pinned => Icons.visibility,
-          TabStrip.button => Icons.smart_button,
-        }),
-        tooltip: switch (this) {
-          TabStrip.hidden => loc.appSettingsFullscreenSiteStripHidden,
-          TabStrip.pinned => loc.appSettingsFullscreenSiteStripAlways,
-          TabStrip.button => loc.appSettingsFullscreenSiteStripButton,
-        },
-      );
-}
-
 extension on SiteStripEdge {
   ButtonSegment<SiteStripEdge> segment(AppLocalizations loc) => ButtonSegment(
         value: this,
@@ -97,27 +67,11 @@ class AppBehaviourScreen extends StatefulWidget {
 
 class _AppBehaviourScreenState extends State<AppBehaviourScreen>
     with SettingsOpenGuard, RebuildOnAppPref {
-  void _setTabStrip(TabStrip mode) {
-    unawaited(AppPref.siteNavigation.set(switch (mode) {
-      TabStrip.hidden => SiteNavigation.tabButton,
-      TabStrip.pinned || TabStrip.button => SiteNavigation.strip,
-    }.name));
-    unawaited(AppPref.fullscreenNavigation.set(switch (mode) {
-      TabStrip.button => FullscreenNavigation.button,
-      TabStrip.hidden || TabStrip.pinned => FullscreenNavigation.hidden,
-    }.name));
-  }
-
   /// A title with its control at the end of the row.
   Widget _row(Widget title, {required Widget trailing}) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
         child: Row(children: [Expanded(child: title), trailing]),
       );
-
-  /// Whether the site strip can appear at all (pinned out of fullscreen, pinned
-  /// in fullscreen, or revealed by the tab-bar button), so its position and
-  /// width limit are meaningful.
-  bool get _siteStripCanShow => currentSiteNavigation == SiteNavigation.strip;
 
   Localized? get _webSearchDefaultName {
     final site = widget.webSearchSites
@@ -168,54 +122,64 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
       appBar: AppBar(title: Text(loc.appSettingsBehaviour)),
       body: ListView(
         children: [
-          SettingsSection(loc.appSettingsGroupSiteStrip),
-          _row(
-            HintedTitle(loc.appSettingsSiteStrip,
-                hint: loc.appSettingsSiteStripHint),
-            trailing: IconSegments(
-              segments: [for (final m in TabStrip.values) m.segment(loc)],
-              selected: TabStrip.current,
-              onChanged: _setTabStrip,
-            ),
+          SettingsSection(loc.appSettingsGroupNavigation),
+          ChoiceTile<SiteNavigation>(
+            title: loc.appSettingsSiteNavigation,
+            hint: loc.appSettingsSiteNavigationHint,
+            values: SiteNavigation.values,
+            label: (navigation) => navigation.label(loc),
+            value: currentSiteNavigation,
+            onChanged: (navigation) =>
+                AppPref.siteNavigation.set(navigation.name),
           ),
-          // Pinned mode only: whether the pinned strip stays visible in full
-          // screen. Button mode reveals the strip in full screen on its own;
-          // hidden mode has nothing to keep.
-          if (TabStrip.current == TabStrip.pinned)
+          // Each row only where the chosen navigation has something for it
+          // to set: the tab button shows nothing in full screen.
+          if (currentSiteNavigation != SiteNavigation.tabButton)
+            ChoiceTile<FullscreenNavigation>(
+              title: loc.appSettingsFullscreenNavigation,
+              hint: loc.appSettingsFullscreenNavigationHint,
+              values: FullscreenNavigation.values,
+              label: (choice) => choice.label(loc),
+              value: currentFullscreenNavigation,
+              onChanged: (choice) =>
+                  AppPref.fullscreenNavigation.set(choice.name),
+            ),
+          if (currentSiteNavigation == SiteNavigation.sidebar) ...[
+            ChoiceTile<SidebarStyle>(
+              title: loc.appSettingsSidebarStyle,
+              hint: null,
+              values: SidebarStyle.values,
+              label: (style) => style.label(loc),
+              value: currentSidebarStyle,
+              onChanged: (style) => AppPref.sidebarStyle.set(style.name),
+            ),
+            SettingTile(
+              title: loc.appSettingsSidebarExpandOnHover,
+              hint: loc.appSettingsSidebarExpandOnHoverHint,
+              control: const PrefToggle(AppPref.sidebarExpandOnHover),
+            ),
+          ],
+          if (currentSiteNavigation == SiteNavigation.strip) ...[
             _row(
-              Text(loc.appSettingsFullscreenSiteStrip),
-              trailing: IconSegments(
-                segments: [TabStrip.hidden.segment(loc), TabStrip.pinned.segment(loc)],
-                selected: currentFullscreenNavigation == FullscreenNavigation.kept
-                    ? TabStrip.pinned
-                    : TabStrip.hidden,
-                onChanged: (mode) => AppPref.fullscreenNavigation.set(
-                    (mode == TabStrip.pinned
-                            ? FullscreenNavigation.kept
-                            : FullscreenNavigation.hidden)
-                        .name),
+              Text(loc.appSettingsSiteStripPosition),
+              trailing: IconSegments<SiteStripEdge>(
+                segments: [
+                  for (final e in SiteStripEdge.values) e.segment(loc)
+                ],
+                selected: SiteStripEdge.current,
+                onChanged: (edge) => AppPref.tabStripEdge.set(edge.name),
               ),
             ),
-          _row(
-            Text(loc.appSettingsSiteStripPosition),
-            trailing: IconSegments<SiteStripEdge>(
-              segments: [for (final e in SiteStripEdge.values) e.segment(loc)],
-              selected: SiteStripEdge.current,
-              onChanged: _siteStripCanShow
-                  ? (edge) => AppPref.tabStripEdge.set(edge.name)
-                  : null,
+            PrefSlider(
+              AppPref.tabMaxWidth,
+              title: loc.appSettingsTabMaxWidth,
+              hint: loc.appSettingsTabMaxWidthHint,
+              min: 80,
+              max: 320,
+              step: 10,
+              label: (width) => '$width px',
             ),
-          ),
-          PrefSlider(
-            AppPref.tabMaxWidth,
-            title: loc.appSettingsTabMaxWidth,
-            hint: loc.appSettingsTabMaxWidthHint,
-            min: 80,
-            max: 320,
-            step: 10,
-            label: (width) => '$width px',
-            enabled: _siteStripCanShow,
-          ),
+          ],
           SettingsSection(loc.appSettingsGroupOpening),
           SettingTile(
             title: loc.siteSettingsTabs,

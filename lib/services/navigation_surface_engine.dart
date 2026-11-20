@@ -9,9 +9,22 @@ typedef NavigationQuery = ({
   bool wide,
   bool kioskLocked,
   bool siteOnScreen,
+  // The legacy design has a webspace picked, whose sites its sidebar lists
+  // as its drawer did, with a site on screen or not.
+  bool legacyWebspace,
   // The full-screen control has shown its strip or sidebar.
   bool revealed,
 });
+
+/// Whether full screen shows a floating control (the strip's button or the
+/// sidebar's arrow tab), so the system bars stay revealable rather than
+/// sticky, as they are with nothing of the app's on screen.
+bool floatsInFullscreen({
+  required SiteNavigation navigation,
+  required FullscreenNavigation inFullscreen,
+}) =>
+    navigation != SiteNavigation.tabButton &&
+    inFullscreen == FullscreenNavigation.button;
 
 /// Whether a window this wide docks the sidebar beside the page; a
 /// narrower one is a phone's, where open is a drawer over the page (the
@@ -48,9 +61,14 @@ const NavigationSurfaces _none = (
 
 /// The one decision of which navigation surfaces show (the site navigation
 /// design's tables): a locked kiosk and a page with no site on screen show
-/// none; otherwise the chosen navigation, as full screen leaves it.
+/// none, but for the legacy design's sidebar; otherwise the chosen
+/// navigation, as full screen leaves it.
 NavigationSurfaces navigationSurfaces(NavigationQuery q) {
-  if (q.kioskLocked || !q.siteOnScreen) return _none;
+  if (q.kioskLocked) return _none;
+  if (!q.siteOnScreen &&
+      !(q.legacyWebspace && q.navigation == SiteNavigation.sidebar)) {
+    return _none;
+  }
   return switch (q.navigation) {
     SiteNavigation.tabButton => q.fullscreen ? _none : _tabButton,
     SiteNavigation.strip => _strip(q),
