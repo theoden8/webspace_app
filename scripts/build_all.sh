@@ -54,26 +54,32 @@ ios() {
 # tree is the snap's contents (the same files), and build_appdir.sh, which
 # takes the base's libraries, runs in an Ubuntu 24.04 container.
 appdir_here() {
-  local work=$1 arch snap_arch snap engine
+  local work=$1 arch snap_arch snap engine snapcraft
   arch="$(uname -m)"
   case "$arch" in
     x86_64) snap_arch=amd64 ;;
     aarch64) snap_arch=arm64 ;;
     *) fail "no AppImage is made for $arch" ;;
   esac
-  command -v snapcraft >/dev/null \
+  # snapd puts its bin directory on PATH from the next login.
+  snapcraft="$(command -v snapcraft || compgen -G '/snap/bin/snapcraft' || compgen -G '/var/lib/snapd/snap/bin/snapcraft')" \
     || fail "snapcraft is not installed (snap install snapcraft --classic); or take CI's AppDirs with APPIMAGE_RUN=<run id>"
   rm -f ./*_"$snap_arch".snap
   # shellcheck disable=SC1091
   if (. /etc/os-release && [ "$ID" = ubuntu ] && [ "$VERSION_ID" = 24.04 ]); then
     # The ccache directory the wpewebkit part names.
     sudo mkdir -p /var/cache/webspace-snap-ccache
-    sudo snapcraft pack --destructive-mode
+    sudo "$snapcraft" pack --destructive-mode
     sudo bash linux/appimage/build_appdir.sh prime "$work/AppDir-$arch"
   else
     engine="$(command -v podman || command -v docker)" \
       || fail "building the AppDir off Ubuntu 24.04 needs podman or docker"
-    snapcraft pack
+    # A user added to the lxd group has it from the next login; sg gives it now.
+    if [[ " $(id -nG "$(id -un)") " == *" lxd "* && " $(id -nG) " != *" lxd "* ]]; then
+      sg lxd -c "$(printf '%q ' "$snapcraft" pack)"
+    else
+      "$snapcraft" pack
+    fi
     snap="$(compgen -G "./*_$snap_arch.snap" | head -1)" || fail "snapcraft made no $snap_arch snap"
     # shellcheck disable=SC2016 # the container's shell expands them
     "$engine" run --rm -v "$PWD:/src:ro,z" -v "$PWD/$work:/work:z" -w /src \
