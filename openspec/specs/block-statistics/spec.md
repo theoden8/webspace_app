@@ -149,6 +149,7 @@ reads as a fault the user has to deal with.
 **Given** a non-zero count for the last 7 days
 **When** the webspaces app bar renders the protection shield
 **Then** the badge is drawn in the accent role, not `colorScheme.error`
+**And** `test/block_stats_report_test.dart` holds it
 
 #### Scenario: Nothing blocked yet
 
@@ -156,6 +157,7 @@ reads as a fault the user has to deal with.
 **When** the user opens the report
 **Then** an empty state explains that per-site tracking protection has to be on
 **And** the reset action is disabled
+**And** `test/block_stats_report_test.dart` holds it
 
 #### Scenario: Reset
 
@@ -164,6 +166,7 @@ reads as a fault the user has to deal with.
 **Then** every counter is zero
 **And** the "since" date is today
 **And** the zeroed state is persisted immediately
+**And** `test/block_stats_report_test.dart` holds it
 
 ### Requirement: STATS-004 - Bounded Retention
 
