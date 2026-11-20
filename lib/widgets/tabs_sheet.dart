@@ -46,6 +46,7 @@ class TabsSheetSite {
     required this.isCurrent,
     required this.isLoaded,
     this.inView = true,
+    this.tabsOn = true,
   });
 
   final WebViewModel model;
@@ -63,7 +64,16 @@ class TabsSheetSite {
   /// no heading or rows of its own; it is listed so that the tabs in its tree
   /// that run as the site on screen are (TAB-017).
   final bool inView;
+
+  /// Whether the site keeps tabs. One that does not is listed in the
+  /// sidebar as a single row that opens it, with nothing to close.
+  final bool tabsOn;
 }
+
+/// Where the sheet's tree shows: the bottom sheet, the sidebar beside the
+/// page, or the drawer a phone opens over it. The sidebar and the drawer
+/// list every tree at once and stay up after a pick.
+enum TabsSheetHost { sheet, sidebar, drawer }
 
 /// What the sheet lists that a change made from it can move: the sites, and
 /// the way back from the tab on screen (TAB-019).
@@ -96,6 +106,7 @@ class TabsSheet extends StatefulWidget {
     this.onMoveSite,
     this.wayBack,
     this.title,
+    this.host = TabsSheetHost.sheet,
   }) : assert(currentIndex >= 0 || title != null,
             'a sheet with no site on screen names what it lists');
 
@@ -138,6 +149,8 @@ class TabsSheet extends StatefulWidget {
   /// came from is marked as where the user was, and its tree is listed.
   final TabReturn? wayBack;
 
+  final TabsSheetHost host;
+
   @override
   State<TabsSheet> createState() => _TabsSheetState();
 }
@@ -173,10 +186,29 @@ class _TabsSheetState extends State<TabsSheet> {
 
   List<TabsSheetSite> get _sites => _listing.sites;
 
-  late final SiteId? _currentId = widget.currentIndex >= 0 &&
-          widget.currentIndex < widget.sites.length
-      ? widget.sites[widget.currentIndex].model.siteId
-      : null;
+  late SiteId? _currentId = _currentOf(widget);
+
+  static SiteId? _currentOf(TabsSheet sheet) =>
+      sheet.currentIndex >= 0 && sheet.currentIndex < sheet.sites.length
+          ? sheet.sites[sheet.currentIndex].model.siteId
+          : null;
+
+  /// Whether the tree shows beside the page rather than as the sheet.
+  bool get _docked => widget.host != TabsSheetHost.sheet;
+
+  /// Sites the sidebar shows folded to their heading.
+  final Set<SiteId> _foldedSites = <SiteId>{};
+
+  @override
+  void didUpdateWidget(TabsSheet old) {
+    super.didUpdateWidget(old);
+    // The sheet is modal and keeps the listing its own changes handed back;
+    // the sidebar follows the page, which rebuilds it with each change.
+    if (_docked) {
+      _listing = (sites: widget.sites, wayBack: widget.wayBack);
+      _currentId = _currentOf(widget);
+    }
+  }
   final Set<String> _collapsed = <String>{};
 
   /// Other sites' trees shown whole rather than folded around the tabs that
@@ -202,7 +234,11 @@ class _TabsSheetState extends State<TabsSheet> {
   Timer? _undoEnds;
 
   TabRowDensity? _density;
-  TabRowDensity get _rows => _density ?? TabRowDensity.comfortable;
+  TabRowDensity get _rows => switch (widget.host) {
+        TabsSheetHost.sheet => _density ?? TabRowDensity.comfortable,
+        TabsSheetHost.sidebar => TabRowDensity.compact,
+        TabsSheetHost.drawer => TabRowDensity.comfortable,
+      };
   bool _densityAsked = false;
 
   void _settleDensity() {
@@ -239,6 +275,7 @@ class _TabsSheetState extends State<TabsSheet> {
     final site = _site;
     final title = widget.title;
     if (site == null && title == null) return const SizedBox.shrink();
+    if (_docked) return _dockedTree(loc, theme: theme);
     if (_density == null && !_densityAsked) {
       _densityAsked = true;
       WidgetsBinding.instance.addPostFrameCallback((_) => _settleDensity());
@@ -319,6 +356,30 @@ class _TabsSheetState extends State<TabsSheet> {
       ),
     );
   }
+
+  /// The sidebar's or the drawer's tree: every tree at once, scrolling in
+  /// the room the host gives it, with the undo bar under it.
+  Widget _dockedTree(AppLocalizations loc, {required ThemeData theme}) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: ListView(
+              key: _listKey,
+              controller: _scroll,
+              padding: const EdgeInsets.symmetric(horizontal: Spacing.xs),
+              children: _allSitesRows(loc, theme: theme),
+            ),
+          ),
+          AnimatedSwitcher(
+            duration: Motion.reveal,
+            child: switch (_undo) {
+              final kept? => _undoBar(kept, loc: loc, theme: theme),
+              null => const SizedBox.shrink(),
+            },
+          ),
+        ],
+      );
 
   /// The title, then Web search and New tab. A label that leaves the title
   /// too little room drops to its icon, Web search first, so the row fits a
@@ -427,12 +488,15 @@ class _TabsSheetState extends State<TabsSheet> {
       // TAB-021: a site with one tab is one row, which names the site as
       // its heading would have; it has nothing to drag within its tree, so
       // a long press on it moves the site (TAB-016).
-      if (s.model.tabs.length == 1) {
+      // A site with tabs off is one row too, on the tab it shows.
+      if (s.model.tabs.length == 1 || !s.tabsOn) {
         if (afterTree && widget.onMoveTab == null) {
           out.add(SizedBox(height: _rows.headingTop));
         }
         final row = _row(s,
-            row: TabLifecycleEngine.treeOrder(s.model.tabs).single,
+            row: TabLifecycleEngine.treeOrder(s.model.tabs).firstWhere(
+                (r) => r.tab.id == s.model.activeTabId,
+                orElse: () => TabLifecycleEngine.treeOrder(s.model.tabs).first),
             loc: loc,
             theme: theme,
             shape: (draggable: false, gutter: false, asSite: true));
@@ -445,11 +509,13 @@ class _TabsSheetState extends State<TabsSheet> {
       }
       final label =
           loc.tabsSheetTitle(s.model.getDisplayName(), s.model.tabs.length);
-      final heading = _heading(label, theme: theme, site: s);
+      final folded = _docked && _foldedSites.contains(s.model.siteId);
+      final heading = _heading(label,
+          theme: theme, site: s, fold: _docked ? _siteFold(s, loc: loc) : null);
       out.add(widget.onMoveSite == null
           ? heading
           : _siteDragAndDrop(s, drawn: heading, label: label, theme: theme));
-      out.addAll(_rowsFor(s, loc: loc, theme: theme));
+      if (!folded) out.addAll(_rowsFor(s, loc: loc, theme: theme));
       afterTree = true;
     }
     return out;
@@ -457,13 +523,30 @@ class _TabsSheetState extends State<TabsSheet> {
 
   /// A heading over a site's rows, marked with the site's own container when
   /// it heads that site's tree.
+  /// The sidebar's control that folds [site] to its heading and back.
+  Widget _siteFold(TabsSheetSite site, {required AppLocalizations loc}) {
+    final id = site.model.siteId;
+    final folded = _foldedSites.contains(id);
+    return IconButton(
+      padding: EdgeInsets.zero,
+      visualDensity: VisualDensity.compact,
+      iconSize: IconSizes.inline,
+      tooltip: folded ? loc.tabsUnfoldSite : loc.tabsFoldSite,
+      icon: Icon(folded ? Icons.chevron_right : Icons.keyboard_arrow_down),
+      onPressed: () => setState(() {
+        if (!_foldedSites.remove(id)) _foldedSites.add(id);
+      }),
+    );
+  }
+
   Widget _heading(String label,
-          {required ThemeData theme, TabsSheetSite? site}) =>
+          {required ThemeData theme, TabsSheetSite? site, Widget? fold}) =>
       Padding(
         padding: EdgeInsets.fromLTRB(
             Spacing.sm, _rows.headingTop, Spacing.sm, _rows.headingBottom),
         child: Row(
           children: [
+            ?fold,
             if (site != null) ...[
               ContainerMark(site: site.model),
               const SizedBox(width: Spacing.sm),
@@ -613,9 +696,10 @@ class _TabsSheetState extends State<TabsSheet> {
     if (_dropKey == key) setState(() => _dropKey = _dropZone = null);
   }
 
-  /// Closes the sheet, then hands [action] to the host.
+  /// Closes the sheet, then hands [action] to the host. The sidebar and
+  /// the drawer stay where they are: the host decides what a pick does.
   VoidCallback _closing(VoidCallback action) => () {
-        Navigator.of(context).pop();
+        if (!_docked) Navigator.of(context).pop();
         action();
       };
 
@@ -860,10 +944,11 @@ class _TabsSheetState extends State<TabsSheet> {
                 ),
               ),
             ),
-            if (row.childCount > 0)
+            if (site.tabsOn && row.childCount > 0)
               close(loc.tabsCloseSubtree, icon: Icons.layers_clear_outlined,
                   onClose: widget.onCloseSubtree),
-            close(loc.tabsCloseTab, icon: Icons.close, onClose: widget.onCloseTab),
+            if (site.tabsOn)
+              close(loc.tabsCloseTab, icon: Icons.close, onClose: widget.onCloseTab),
           ],
         ),
       ),

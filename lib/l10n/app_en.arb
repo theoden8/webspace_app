@@ -5109,6 +5109,14 @@
   "@tabsCollapse": {
     "description": "Tooltip on the control that hides a tab's children in the list."
   },
+  "tabsFoldSite": "Hide this site's tabs",
+  "@tabsFoldSite": {
+    "description": "Tooltip of the arrow beside a site's heading in the tab sidebar that folds the site's tabs away under its heading"
+  },
+  "tabsUnfoldSite": "Show this site's tabs",
+  "@tabsUnfoldSite": {
+    "description": "Tooltip of the arrow beside a folded site's heading in the tab sidebar that shows the site's tabs again"
+  },
   "tabsHiddenChildren": "{count, plural, =1{1 tab hidden} other{{count} tabs hidden}}",
   "@tabsHiddenChildren": {
     "description": "Shown under a collapsed tab, saying how many tabs opened from it are hidden.",
