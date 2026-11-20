@@ -15,13 +15,13 @@ Allow users to add a site by importing a local HTML file (.html/.htm) from their
 
 ### Requirement: IMPORT-001 - Import Button on Add Site Screen
 
-An "Import HTML file" button SHALL be shown on the "Add new site" screen.
+An "Import File" button SHALL be shown on the "Add new site" screen.
 
 #### Scenario: Button visibility
 
 **Given** the user opens the "Add new site" screen
 **When** the screen is displayed
-**Then** an "Import HTML file" button is visible below the "Add Site" button
+**Then** an "Import File" button is visible beside the "Add Site" button
 
 ---
 
