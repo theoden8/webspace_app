@@ -372,7 +372,6 @@ Known failures at `5e1788f`:
 | `main.dart:9879` | drawer site tile opens on a raw `Listener`; its `Semantics(button: true)` has no `onTap`, so activation depends on the OS synthesising a touch |
 | `main.dart:8503` | tab chip: the same, and no `selected` |
 | `main.dart:9920` | site menu button: unlabelled, about 24x24, the only non-long-press route to the site menu |
-| `main.dart:10431` | fullscreen exit handle: unlabelled |
 | `stats_banner.dart:80` | expand/collapse with no button role or expanded state |
 | `main.dart:8128-8200` | back, home, share and refresh inside one `PopupMenuItem`, whose `MergeSemantics` makes them one node |
 | drawer grid, site strip | reorder by drag only (the drawer's Move up/down sits behind the site menu); no custom action on the site strip |
@@ -714,18 +713,18 @@ setting (`AccessibilityManager.getRecommendedTimeoutMillis`) never reaches
 Flutter. A snack bar that teaches SHALL either carry an action or repeat
 what a labelled control or hint already says.
 
-Status: the fullscreen exit hint (FS-002, `FullscreenController.enter`)
-is a two-second `SnackBar` without an action. The app bar is hidden in
-fullscreen, so the exits it leaves are the top-edge handle and, when shown,
-the floating tabs button that opens the site strip and its menu. Both are
-unlabelled (A11Y-005), so once the hint is gone nothing a screen reader
-reaches says what leaves fullscreen.
+The fullscreen exit hint (FS-002, `FullscreenController.enter`) is a
+two-second `SnackBar` without an action. The app bar is hidden in fullscreen,
+so the exit it describes, the top-edge handle, is a button named as the
+menu's exit is ("Exit Full Screen"), and the hint repeats what that control
+says.
 
 #### Scenario: Leaving fullscreen with TalkBack
 
 **Given** TalkBack is on and a site is in fullscreen
 **When** the user explores the screen by touch
 **Then** a control labelled for leaving fullscreen is found and works
+**And** `test/fullscreen_exit_label_test.dart` holds it in the real app, through the handle's semantic tap
 
 ---
 
