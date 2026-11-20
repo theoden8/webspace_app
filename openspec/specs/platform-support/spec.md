@@ -344,7 +344,9 @@ desktop entry and metainfo are the bundle's (PLATFORM-008).
   at Clang 15 and libstdc++ 12, so it builds with LLVM's release toolchain
   (the `llvm` part, pinned by SHA-256 per architecture, nothing of it primed)
   and links LLVM's libc++ in statically with its symbols hidden; every other
-  library, and the snap, use the machine's libstdc++.
+  library, and the snap, use the machine's libstdc++. The app builds with the
+  same Clang, against the machine's libstdc++ and Ubuntu 22.04's libraries
+  alone, not the GNOME SDK's.
 - **WebKit:** the snap builds libwpe from git at its 1.16.3 tag's commit,
   and WebKit at 323622@main, the merge that added `WebKitFrameInfo` (first
   released in 2.56), which the plugin reads through weak symbols, for `/usr`. A release build of WebKit runs its helper
