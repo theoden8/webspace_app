@@ -227,7 +227,11 @@ without tabs keeps the menu with these rows (TAB-012).
 The long press is delivered by the plugin's `onLongPressHitTestResult`
 (`View.setOnLongClickListener` on Android, `UILongPressGestureRecognizer` on
 iOS) filtered to `SRC_ANCHOR_TYPE` / `SRC_IMAGE_ANCHOR_TYPE` and to http(s)
-targets. The plugin exposes no macOS or Linux equivalent, so on those platforms
+targets. On iOS `disableLongPressContextMenuOnLinks` hides WebKit's own menu
+for the top document's links: the fork sets `-webkit-touch-callout: none` on
+them, since WebKit's menu is a context menu interaction that claims the touch
+before the plugin's recognizer. An image inside a link keeps WebKit's menu,
+since the hit test reports the image, not the link. The plugin exposes no macOS or Linux equivalent, so on those platforms
 a tab is created from the tab list's "New tab" instead; this is a platform
 reach gap, not a behaviour difference in the model. The nested screen passes no
 handler: it has no tab list of its own to add to.

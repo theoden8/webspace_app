@@ -137,7 +137,7 @@ void main() {
       expect(firstStatement(source, signature: '_NewTab? _newTabFor('),
           contains('!_tabs.enabledFor(model)'),
           reason: 'a site without tabs looks for no site to host its link');
-      final menu = body('Future<void> _showLinkLongPressMenu(');
+      final menu = body('Future<void> _linkMenu(');
       expect(menu, contains('_newTabFor(model, url: url)'));
       expect(RegExp(r'newTab: newTab == null\s*\?\s*null').hasMatch(menu),
           isTrue,

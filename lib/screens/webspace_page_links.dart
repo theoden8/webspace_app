@@ -51,7 +51,10 @@ extension _PageLinks on _WebSpacePageState {
   /// rather than silently offering nothing. A site without tabs gets the sheet
   /// without its New tab row.
   Future<void> _showLinkLongPressMenu(WebViewModel model,
-      {required String url}) async {
+          {required String url}) =>
+      _linkMenuGuard.run(() => _linkMenu(model, url: url));
+
+  Future<void> _linkMenu(WebViewModel model, {required String url}) async {
     if (_kioskLocked) return;
     if (!identical(model, _sites.shown)) return;
     final uri = Uri.tryParse(url);
