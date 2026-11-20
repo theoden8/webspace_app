@@ -340,9 +340,11 @@ desktop entry and metainfo are the bundle's (PLATFORM-008).
 
 - **Base:** core22, the base of the oldest Ubuntu LTS still supported, so
   the AppImage made from it runs there (PLATFORM-013). WebKit at that commit
-  needs libstdc++ 13, where Ubuntu 22.04 stops at 12, so it builds with GCC 13
-  from the `ubuntu-toolchain-r/test` PPA, and the snap carries that GCC's
-  libstdc++ and libgcc_s, first on its library path.
+  needs Clang 18 and a C++ library with `<format>`, where Ubuntu 22.04 stops
+  at Clang 15 and libstdc++ 12, so it builds with LLVM's release toolchain
+  (the `llvm` part, pinned by SHA-256 per architecture, nothing of it primed)
+  and links LLVM's libc++ in statically with its symbols hidden; every other
+  library, and the snap, use the machine's libstdc++.
 - **WebKit:** the snap builds libwpe from git at its 1.16.3 tag's commit,
   and WebKit at 323622@main, the merge that added `WebKitFrameInfo` (first
   released in 2.56), which the plugin reads through weak symbols, for `/usr`. A release build of WebKit runs its helper
@@ -411,11 +413,8 @@ keeps them. It runs as `org.codeberg.theoden8.webspace` (PLATFORM-009).
   build machine's directory is searched. The AppImage mounts somewhere new
   each run, so `AppRun` names the bundle to WebKit (`WEBSPACE_WPE_ROOT`), GIO,
   gdk-pixbuf and GStreamer.
-- **libstdc++:** the snap's GCC 13 libstdc++ and libgcc_s sit apart in
-  `usr/lib/<triplet>/compat`. `AppRun` puts that directory first on the
-  library path, which WebKit's processes inherit, only where the machine's
-  libstdc++ is older or absent; where it is newer, its own is loaded, since
-  the machine's GPU driver may need it.
+- **C++ library:** WebKit carries LLVM's libc++ inside it, so the AppImage
+  needs no libstdc++ newer than Ubuntu 22.04's and leaves it to the machine.
 - **Desktop entry and metainfo:** they pass `desktop-file-validate` and
   `appstreamcli validate`, as AppImageHub requires
   (`test/js/linux_desktop_files.test.js`, which CI runs with both installed).
@@ -456,8 +455,7 @@ running from the AppImage
 **Given** the AppImage's AppDir and a plain Ubuntu 22.04 with the libraries
 `linux/appimage/excludelist` leaves to a desktop machine
 **When** it runs with one site saved
-**Then** the bundled libstdc++ is loaded in place of the machine's older one
-**And** every library in it resolves inside it or is one the machine keeps
+**Then** every library in it resolves inside it or is one the machine keeps
 **And** the site's page is requested
 
 #### Scenario: Check a release

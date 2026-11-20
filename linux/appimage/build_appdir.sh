@@ -92,26 +92,6 @@ for p in "${gst_plugins[@]}"; do
   install -m 644 "$host_lib/gstreamer-1.0/libgst$p.so" "$libdir/gstreamer-1.0/"
   taken+=("$host_lib/gstreamer-1.0/libgst$p.so")
 done
-# GCC 13's libstdc++ and its libgcc_s, which the app and WebKit are built
-# against and an Ubuntu 22.04 machine lacks, as the snap stages them (their
-# copyright files came with usr/), apart from the RUNPATH's libraries: AppRun
-# puts them first only where the machine's are older, since a newer machine's
-# GPU driver may need its own newer libstdc++.
-compat="$libdir/compat"
-rm -f "$libdir"/libstdc++.so.6* "$libdir"/libgcc_s.so.1
-mkdir -p "$compat"
-for soname in libstdc++.so.6 libgcc_s.so.1; do
-  path="$(compgen -G "$prime/usr/lib/$triplet/$soname" || compgen -G "$prime/lib/$triplet/$soname")" \
-    || fail "$prime holds no $soname: the snap stages GCC 13's"
-  real="$(readlink -f "$path")"
-  install -m 644 "$real" "$compat/${real##*/}"
-  [ "${real##*/}" = "$soname" ] || ln -s "${real##*/}" "$compat/$soname"
-done
-case "$(readlink "$compat/libstdc++.so.6")" in
-  libstdc++.so.6.0.*) ;;
-  *) fail "$prime's libstdc++ names no version" ;;
-esac
-
 scanner="$host_lib/gstreamer1.0/gstreamer-1.0/gst-plugin-scanner"
 install -m 755 "$scanner" "$libdir/gstreamer1.0/gstreamer-1.0/"
 taken+=("$scanner")

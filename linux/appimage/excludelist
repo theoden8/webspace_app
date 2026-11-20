@@ -22,8 +22,8 @@ libresolv.so.2	glibc
 librt.so.1	glibc
 libthread_db.so.1	glibc
 libutil.so.1	glibc
-libstdc++.so.6	the GPU driver links the machine's; where that is older than the build's GCC 13, AppRun puts usr/lib/<triplet>/compat's first
-libgcc_s.so.1	as libstdc++, beside it in compat
+libstdc++.so.6	the GPU driver links the machine's, which is never older than the one built against (WebKit carries its own libc++)
+libgcc_s.so.1	as libstdc++
 libGL.so.1	the GPU driver's
 libEGL.so.1	the GPU driver's
 libGLESv2.so.2	the GPU driver's
