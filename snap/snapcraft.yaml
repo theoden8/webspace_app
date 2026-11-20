@@ -282,7 +282,7 @@ parts:
       - -usr/lib/*/cmake
 
   webspace:
-    after: [wpewebkit]
+    after: [wpewebkit, llvm]
     plugin: nil
     source: .
     parse-info:
@@ -297,7 +297,6 @@ parts:
     build-packages:
       - build-essential
       - ca-certificates
-      - clang
       - cmake
       - curl
       - git
@@ -308,7 +307,6 @@ parts:
       - libpipewire-0.3-dev
       - libsecret-1-dev
       - libssl-dev
-      - lld
       - ninja-build
       - pkg-config
       - unzip
@@ -327,9 +325,11 @@ parts:
       # the extension points every part at carries a newer GLib, whose headers
       # compile in calls 22.04's GLib lacks (g_string_free_and_steal), and the
       # AppImage bundles the build host's. The snap's GNOME runtime is newer
-      # still, so either runs there. /snap/bin first, for the cmake and go
-      # snaps.
-      export PATH=/snap/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      # still, so either runs there. The llvm part's clang compiles the app
+      # (against the machine's libstdc++): 22.04's Clang 14 cannot read its
+      # libstdc++'s ranges, which flutter_zxing's zxing-cpp uses. /snap/bin
+      # before /usr/bin, for the cmake and go snaps.
+      export PATH="$CRAFT_STAGE/llvm/bin:/snap/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       export PKG_CONFIG_PATH="$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig"
       export CMAKE_PREFIX_PATH="$CRAFT_STAGE/usr"
       unset LD_LIBRARY_PATH PYTHONPATH GI_TYPELIB_PATH ACLOCAL_PATH \
