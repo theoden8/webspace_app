@@ -52,7 +52,7 @@ The system SHALL allow the user to exit full screen by tapping the top edge of t
 
 #### Scenario: Exit via site strip menu
 
-**Given** "Keep Site Strip in Full Screen" is enabled
+**Given** Site navigation is Site strip and In full screen is Always visible (FS-007)
 **And** the user is in full screen mode with the site strip visible
 **When** the user opens the site strip overflow menu and taps "Exit Full Screen"
 **Then** full screen mode is exited
@@ -141,28 +141,37 @@ The system SHALL exit full screen when navigating to the webspaces list.
 
 ---
 
-### Requirement: FS-007 - Keep Site Strip in Full Screen
+### Requirement: FS-007 - What Full Screen Keeps of the Site Navigation
 
-The system SHALL support a global option to keep the site site strip visible in full screen while the app bar and URL bar stay hidden, giving more screen space without losing quick site switching. The option only applies when the site strip is enabled.
+The system SHALL offer, with the site strip or the sidebar chosen (TAB-029), one
+app-wide choice of what full screen keeps of it (`fullscreenNavigation`):
 
-#### Scenario: Site strip kept in full screen
+- **Hidden** (the default): nothing of the app; the system bars stay sticky.
+- **Always visible** (kept): the strip at its edge (FS-012), or the sidebar
+  docked as it was out of full screen, while the app bar and URL bar stay
+  hidden; along the top edge the strip keeps the status bar above it.
+- **Reveal with button**: a small control that shows it on demand (FS-009).
 
-**Given** "Site Site Strip" is enabled
-**And** "Keep Site Strip in Full Screen" is enabled
+With Tab button chosen, full screen SHALL show nothing of the app, and the
+choice SHALL not be offered.
+
+#### Scenario: The sidebar kept in full screen
+
+**Given** Site navigation is Sidebar and In full screen is Always visible
 **When** the user enters full screen mode
-**Then** the app bar, URL bar, find toolbar, and system UI are hidden
-**And** the site strip remains visible at its edge (FS-012); along the top edge it keeps the status bar above it
+**Then** the app bar, URL bar and system UI are hidden
+**And** the sidebar stays docked beside the page
 
-#### Scenario: Site strip hidden in full screen (default)
+#### Scenario: Nothing kept in full screen (default)
 
-**Given** "Keep Site Strip in Full Screen" is disabled
+**Given** In full screen is Hidden
 **When** the user enters full screen mode
-**Then** the site strip is hidden along with the app bar and URL bar
+**Then** neither the strip, the sidebar nor a control to bring them back shows
 
-#### Scenario: Option gated on site strip
+#### Scenario: Offered only with the strip or the sidebar
 
-**Given** "Site Site Strip" is disabled
-**Then** the "Keep Site Strip in Full Screen" toggle is disabled (no site strip to keep)
+**Given** Site navigation is Tab button
+**Then** App Settings > Behaviour shows no In full screen row
 
 ---
 
@@ -255,7 +264,7 @@ The system SHALL keep the site strip and the tab-bar button usable while the use
 
 #### Scenario: Navigation bar swiped in over a kept site strip
 
-**Given** "Keep Site Strip in Full Screen" is enabled
+**Given** Site navigation is Site strip and In full screen is Always visible (FS-007)
 **And** the user is in full screen mode
 **When** the user swipes the navigation bar in
 **Then** the site strip moves above the navigation bar and its tabs and menu stay tappable
@@ -264,71 +273,70 @@ The system SHALL keep the site strip and the tab-bar button usable while the use
 
 #### Scenario: Tab-bar button in full screen
 
-**Given** the site strip presentation is set to Button
+**Given** In full screen is Reveal with button (FS-009)
 **And** the user is in full screen mode
 **When** the user swipes the system bars in
 **Then** the button, and the strip if it was revealed, inset around the bars instead of sitting under them
 
 #### Scenario: Full screen without app controls
 
-**Given** "Keep Site Strip in Full Screen" is disabled and the site strip presentation is not Button
+**Given** In full screen is Hidden, or Site navigation is Tab button
 **And** the user is in full screen mode
 **When** the user swipes the system bars in
 **Then** the bars overlay the content transiently and hide on their own, as before
 
 ---
 
-### Requirement: FS-009 - Site Strip Presentation (Hidden / Pinned / Button)
+### Requirement: FS-009 - Reveal the Site Navigation in Full Screen
 
-The site site strip's presentation SHALL be a single mutually-exclusive choice, not independent toggles, because the floating button is simply the on-demand presentation of the same strip:
+With In full screen set to Reveal with button (FS-007), full screen SHALL leave
+a small control that shows the chosen navigation on demand, and the system bars
+SHALL stay revealable rather than sticky while it shows (`floatsInFullscreen`):
 
-- **Hidden** — no site strip and no button.
-- **Always visible** — the strip is pinned at its edge (FS-012). Its full-screen behavior is a sub-choice ("Keep Site Strip in Full Screen", FS-007).
-- **Button** — the strip is hidden, and a small floating button reveals it (together with its overflow menu) on demand. The button works both in and out of full screen, so the user reaches tabs and the menu without pinning the strip. Its corner (any of the four) is chosen by dragging the button itself — either immediately (press-and-move) or after a long-press hold: while dragging it follows the finger freely, and on release it glides (animated, not teleported) to the nearest corner. The corner is remembered **per site** (`WebViewModel.tabBarButtonCorner`, riding the site's JSON like any per-site setting), so each site can keep the button out of the way of its own controls. A site that was never dragged falls back to the legacy app-wide `tabBarButtonOnRight` preference mapped to the matching bottom corner (kept read-only for migration; there is no settings control for the corner).
+- **Site strip**: a floating button reveals the strip (together with its
+  overflow menu), which then carries its own dismiss control. Its corner (any
+  of the four) is chosen by dragging the button itself, either at once
+  (press-and-move) or after a long-press hold: while dragging it follows the
+  finger freely, and on release it glides (animated, not teleported) to the
+  nearest corner. The corner is remembered **per site**
+  (`WebViewModel.tabBarButtonCorner`, riding the site's JSON like any per-site
+  setting). A site that was never dragged falls back to the legacy app-wide
+  `tabBarButtonOnRight` preference mapped to the matching bottom corner (kept
+  read-only for migration; there is no settings control for the corner).
+- **Sidebar**: the arrow tab on the left edge (TAB-031) shows the sidebar over
+  the page, never beside it: on a wide window an overlay as wide as the
+  docked sidebar, on a phone the drawer (TAB-032). Its collapse button puts it
+  away and leaves the sidebar's state as it was.
 
-Selecting Hidden or Button clears the "Keep Site Strip in Full Screen" sub-choice (it only applies to a pinned strip). The "Keep Site Strip in Full Screen" control is shown only for the pinned mode it belongs to; the button's corner has no settings control (it is placed by dragging the button itself).
+Out of full screen there SHALL be no such control: the strip is pinned and the
+sidebar is docked as its state says. The control SHALL be suppressed while
+what it reveals is on screen, and in a locked kiosk session (KIOSK-002).
 
-The button is suppressed while the strip is already on screen: in Always mode, or in either mode while a button-revealed strip is still showing (the revealed strip then carries its own inline dismiss control), or in a locked kiosk session (KIOSK-002).
+A revealed strip or sidebar SHALL be dismissed by its own dismiss control, by a
+pick from it, by leaving full screen, by an app entry point (a home-shortcut or
+notification tap), and by a change of the choice.
 
-Out of full screen a revealed strip is the user's tab bar until they put it away: switching sites, from the strip or any other way, keeps it on screen. It is dismissed by its own dismiss control, by full screen (entering it, leaving it, or a site or tab landing in it, where a revealed strip lasts one pick), by an app entry point (a home-shortcut or notification tap), and by leaving Button mode.
+#### Scenario: Reveal the strip in full screen
 
-The presentation is backed by two booleans, `showTabStrip` (pinned) and `tabBarButton` (on-demand), which the single control keeps mutually exclusive. The legacy `tabBarButtonInFullscreen` preference (full-screen-only button) is migrated to `tabBarButton` on upgrade and from imported backups.
-
-#### Scenario: Reveal tab bar out of full screen (Button mode)
-
-**Given** the site strip presentation is set to Button
-**And** the user is not in full screen
-**When** the user taps the floating button
-**Then** the site strip is shown with its overflow menu and a dismiss control
-**When** the user taps the dismiss control
-**Then** the site strip is hidden and the floating button reappears
-
-#### Scenario: Reveal tab bar in full screen (Button mode)
-
-**Given** the site strip presentation is set to Button
+**Given** Site navigation is Site strip and In full screen is Reveal with button
 **And** the user is in full screen
 **When** the user taps the floating button
 **Then** the site strip is shown with its overflow menu while the app bar and URL bar stay hidden
 
-#### Scenario: Button and pinned strip are mutually exclusive
+#### Scenario: Reveal the sidebar in full screen
 
-**Given** the site strip presentation is set to Always visible
-**When** the user changes it to Button
-**Then** the pinned strip is no longer shown
-**And** the "Keep Site Strip in Full Screen" sub-choice is cleared
+**Given** Site navigation is Sidebar and In full screen is Reveal with button
+**And** the user is in full screen
+**When** the user taps the arrow tab
+**Then** the sidebar shows over the page, which keeps its width
+**When** the user taps its collapse button
+**Then** it is put away, the arrow tab shows again, and the sidebar's state is unchanged
 
-#### Scenario: Button suppressed when strip already pinned
+#### Scenario: Out of full screen the strip is pinned
 
-**Given** the site strip presentation is set to Always visible
-**Then** the floating button is not shown
-
-#### Scenario: Switching sites keeps the revealed strip
-
-**Given** the user revealed the site strip via the floating button
+**Given** Site navigation is Site strip and In full screen is Reveal with button
 **And** the user is not in full screen
-**When** the user taps another site in the revealed strip, or opens one from the drawer
-**And** that site does not open in full screen
-**Then** the app switches to that site and the revealed strip stays on screen
+**Then** the strip is pinned and no floating button shows
 
 #### Scenario: A pick in full screen dismisses the revealed strip
 
@@ -336,11 +344,11 @@ The presentation is backed by two booleans, `showTabStrip` (pinned) and `tabBarB
 **When** the user taps a site in the revealed strip
 **Then** the app switches to that site and the revealed strip is dismissed, whether or not the site stays in full screen
 
-#### Scenario: Entering full screen dismisses the revealed strip
+#### Scenario: Leaving full screen restores the docked sidebar
 
-**Given** the user revealed the site strip via the floating button out of full screen
-**When** the app enters full screen (from the menu, or for a site that opens in full screen)
-**Then** the revealed strip is dismissed and the floating button shows instead
+**Given** the user revealed the sidebar in full screen
+**When** the user picks a site in it that does not open in full screen
+**Then** full screen ends and the sidebar is docked as its state says
 
 #### Scenario: An app entry point dismisses the revealed strip
 
@@ -456,16 +464,16 @@ The control is shown in App Settings > Behaviour under "Site strip" and is inact
 
 **_WebSpacePageState** (`lib/main.dart`):
 - `FullscreenController.active` - Current fullscreen state (not persisted; runtime only)
-- `AppPref.tabStripInFullscreen` (`lib/settings/app_prefs.dart`, default off) - Global pref under the `tabStripInFullscreen` SharedPreferences key; round-trips through settings backup
+- `AppPref.siteNavigation` (default `tabButton`) and `AppPref.fullscreenNavigation` (default `hidden`) - Global prefs (`lib/settings/navigation_choices.dart`): which navigation shows (TAB-029) and what full screen keeps of it (FS-007). `loadSiteNavigation` maps the earlier `showTabStrip`, `tabStripInFullscreen`, `tabBarButton` and `tabBarButtonInFullscreen` keys onto them once, and `withSiteNavigation` does the same for an old backup.
 - `AppPref.tabStripEdge` (default empty) - Global pref under the `tabStripEdge` SharedPreferences key: `top`, `bottom`, or empty to follow the platform. Read as `SiteStripEdge.current` (`lib/settings/site_strip_edge.dart`, FS-012), which resolves it through the pure `SiteStripEdge.of(stored, desktop:)`; round-trips through settings backup
-- `AppPref.tabBarButton` (default off) - Global pref under the `tabBarButton` SharedPreferences key. When set, a floating button reveals the site strip (and its overflow menu) on demand, in and out of full screen (FS-009). Read falls back to the legacy `tabBarButtonInFullscreen` key (and backup field) once on upgrade. `AppPref.tabBarButtonOnRight` is the legacy app-wide corner default, mapped to a bottom corner via `_tabBarButtonCornerEffective` only for sites whose per-site `tabBarButtonCorner` is null (still read from prefs/backups, never written by UI anymore); `FullscreenController.siteStripRevealed` is the runtime-only flag for "the button has revealed the strip", never persisted; only the controller writes it (`revealSiteStrip`, `hideSiteStrip`, and entering or leaving full screen), and the page's `resetForEntry` hides it on a shortcut or notification tap.
+- `AppPref.tabBarButtonOnRight` is the legacy app-wide corner default, mapped to a bottom corner via `_tabBarButtonCornerEffective` only for sites whose per-site `tabBarButtonCorner` is null (still read from prefs/backups, never written by UI anymore). `FullscreenController.navigationRevealed` is the runtime-only flag for "the full-screen control has revealed the strip or the sidebar", never persisted; only the controller writes it (`revealNavigation`, `hideNavigation`, and entering or leaving full screen), and the page's `resetForEntry` hides it on a shortcut or notification tap.
 - `AppPref.fullscreenOnShortcut` (on by default) - Global pref under the `fullscreenOnShortcut` SharedPreferences key. Both shortcut launch paths — `_openShortcutIndex` (warm) and the cold-launch restore path (`indexToRestore != null`) — route the decision through the pure `StartupRestoreEngine.shouldEnterFullscreen(viaShortcut, fullscreenOnShortcut, perSiteFullscreenMode)` policy and call `FullscreenController.enter()` when it returns true. The policy returns `perSiteFullscreenMode || (viaShortcut && fullscreenOnShortcut)`, so a normal in-app switch (`viaShortcut: false`) is never pulled into fullscreen by the global option. Covered by `test/startup_restore_engine_test.dart`.
 
 ### UI Changes
 
 - **App bar**: Hidden when `FullscreenController.active` is true (`appBar: _fullscreen.active ? null : _buildAppBar()`)
-- **Site strip**: `_buildSiteStrip(at:)` builds the strip for one edge and returns null unless `_siteStripEdge` (the edge it is on screen at, or null while `_siteStripShown` is false) is that edge. The bottom one sits in `bottomNavigationBar` and owns the bottom safe-area inset; the top one leads the body `Column`, above the keyed site stack, so the body `SafeArea` gives it the top inset in full screen, where the status bar it keeps is that inset (FS-012). `_siteStripShown` is false in full screen unless the global `tabStripInFullscreen` pref is set. The `_siteStripShown` getter also renders it on demand in either mode when `_tabBarButton && FullscreenController.siteStripRevealed`; the revealed strip carries an inline close button.
-- **Tab bar button**: the `_tabBarButtonShown` getter places `TabBarCornerOverlay` (`lib/widgets/tab_bar_corner_button.dart`, a hit-test-transparent `Padding > AnimatedAlign` around `TabBarCornerButton`) in the body `Stack` inside a `Positioned.fill`, resting at the corner from `_tabBarButtonCornerEffective` (the active site's `tabBarButtonCorner`, or the legacy app-wide default mapped to a bottom corner when null). Shown when `_tabBarButton` is on, a site is loaded, the overlay is not already revealed, and the strip is not pinned for the current mode (`_showTabStrip` out of fullscreen / `_tabStripInFullscreen` in fullscreen). Tapping calls `FullscreenController.revealSiteStrip` (FS-009). The widget recognizes both an immediate pan and a long-press drag (same callbacks; one recognizer wins per gesture); the drag tracks the finger through the overlay's runtime-only drag alignment (fractional position from `tabBarCornerDragFraction`, measured against the area the overlay fills; `AnimatedAlign` runs with `Duration.zero` while dragging so the button follows instantly). On release the overlay picks `tabBarCornerNearest` (quadrant of the drop point) and reports it through `onCornerChosen`; the page stores it on the current site's model and persists it through `_commitSites`, and the `AnimatedAlign` glides the button to its corner (`Motion.settle`, 250ms ease-out). Corner math is pure and covered by `test/tab_bar_corner_test.dart`; gesture recognition by `test/tab_bar_corner_button_test.dart`.
+- **Site strip**: `_buildSiteStrip(at:)` builds the strip for one edge and returns null unless `_siteStripEdge` (the edge it is on screen at, or null while `_siteStripShown` is false) is that edge. The bottom one sits in `bottomNavigationBar` and owns the bottom safe-area inset; the top one leads the body `Column`, above the keyed site stack, so the body `SafeArea` gives it the top inset in full screen, where the status bar it keeps is that inset (FS-012). Whether it shows is `navigationSurfaces(...).strip` (`lib/services/navigation_surface_engine.dart`), the one decision of every navigation surface; a revealed strip carries an inline close button.
+- **Tab bar button**: the `_tabBarButtonShown` getter places `TabBarCornerOverlay` (`lib/widgets/tab_bar_corner_button.dart`, a hit-test-transparent `Padding > AnimatedAlign` around `TabBarCornerButton`) in the body `Stack` inside a `Positioned.fill`, resting at the corner from `_tabBarButtonCornerEffective` (the active site's `tabBarButtonCorner`, or the legacy app-wide default mapped to a bottom corner when null). Shown when `navigationSurfaces(...).stripButton` says so: the strip chosen, full screen set to Reveal with button, and nothing revealed. Tapping calls `FullscreenController.revealNavigation` (FS-009). The widget recognizes both an immediate pan and a long-press drag (same callbacks; one recognizer wins per gesture); the drag tracks the finger through the overlay's runtime-only drag alignment (fractional position from `tabBarCornerDragFraction`, measured against the area the overlay fills; `AnimatedAlign` runs with `Duration.zero` while dragging so the button follows instantly). On release the overlay picks `tabBarCornerNearest` (quadrant of the drop point) and reports it through `onCornerChosen`; the page stores it on the current site's model and persists it through `_commitSites`, and the `AnimatedAlign` glides the button to its corner (`Motion.settle`, 250ms ease-out). Corner math is pure and covered by `test/tab_bar_corner_test.dart`; gesture recognition by `test/tab_bar_corner_button_test.dart`.
 - **Input bar**: `_buildInputBar()` returns null when `_fullscreen.active`
 - **Body insets**: The fullscreen body keeps top/bottom `SafeArea` active (`top: _fullscreen.active`, `bottom: _fullscreen.active || ...`). `immersiveSticky` does not reliably hide the system bars on Android 15 (edge-to-edge enforced); when a bar persists, the inset keeps the site's top/bottom controls clear of it. When the bars are truly hidden the inset is ~0 and the webview still fills the screen. Left/right insets are dropped in fullscreen (`left: !_fullscreen.active`, `right: !_fullscreen.active`) so the webview uses the display-cutout strip beside a landscape notch (FS-010); out of fullscreen they stay active so chrome avoids the notch.
 - **Display cutout (FS-010)**: `MainActivity.onCreate` sets `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES` (API 28+) so the window may extend into the cutout on short edges. Without it, hiding the system bars makes Android letterbox the cutout strip black.
@@ -525,5 +533,5 @@ The back gesture/button is NOT consumed by fullscreen — it retains its normal 
 12. Verify: full screen is exited
 13. In full screen, background the app and resume
 14. Verify: immersive mode is re-applied
-15. Enable "Keep Site Strip in Full Screen", enter full screen, swipe the navigation bar in
+15. Choose Site strip and In full screen Always visible, enter full screen, swipe the navigation bar in
 16. Verify: the site strip sits above the navigation bar and both take taps; the bars hide again after about 3 seconds

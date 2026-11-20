@@ -143,3 +143,19 @@ prompt.
 **When** the user taps Export Settings twice
 **Then** the export runs once
 **And** the page App Settings was opened from is still shown
+
+### Requirement: APPSET-005 — Behaviour shows a navigation's rows only with it
+
+App Settings > Behaviour SHALL open with a Navigation section whose first row
+is Site navigation (TAB-029). Each row under it SHALL show only where the chosen
+navigation has something for it to set: In full screen (FS-007) with the site
+strip or the sidebar; Open sidebar shows (TAB-033) and Expand rail on hover
+(TAB-036) with the sidebar; the strip's position (FS-012) and its tab width
+limit with the strip. The Behaviour row of the index SHALL name the site strip
+or the sidebar when either is chosen (APPSET-002).
+
+#### Scenario: The sidebar's rows
+
+**Given** Site navigation is Sidebar
+**Then** Behaviour shows In full screen, Open sidebar shows and Expand rail on hover
+**And** it shows neither the strip's position nor its tab width limit

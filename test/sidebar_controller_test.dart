@@ -43,7 +43,7 @@ void main() {
     expect(sidebar.state, SidebarState.open);
   });
 
-  test('cycle goes open, collapsed, hidden, open', () {
+  test('cycle goes open, collapsed, hidden, open (TAB-031)', () {
     final seen = [
       for (var i = 0; i < 3; i++) (sidebar..cycle()).state,
     ];

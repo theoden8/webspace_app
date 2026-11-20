@@ -24,7 +24,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('Behaviour shows the rows for the chosen navigation only', (
+  testWidgets('Behaviour shows the rows for the chosen navigation only (APPSET-005)', (
     tester,
   ) async {
     addTearDown(() => AppPref.siteNavigation.debugValue = 'tabButton');

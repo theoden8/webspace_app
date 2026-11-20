@@ -66,7 +66,7 @@ void main() {
       return prefs;
     }
 
-    test('reads the strip prefs once into the new choice', () async {
+    test('reads the strip prefs once into the new choice (TAB-029)', () async {
       final prefs = await launch({'tabBarButton': true});
       expect(currentSiteNavigation, SiteNavigation.strip);
       expect(currentFullscreenNavigation, FullscreenNavigation.button);
@@ -93,7 +93,7 @@ void main() {
     });
   });
 
-  test('an old backup imports its strip choice', () {
+  test('an old backup imports its strip choice (TAB-029)', () {
     final prefs = resolveExportedAppPrefs(
         {'showTabStrip': true, 'tabStripInFullscreen': true});
     expect(prefs[AppPref.siteNavigation.key], 'strip');

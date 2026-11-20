@@ -41,7 +41,7 @@ const NavigationSurfaces nothing = (
 
 void main() {
   group('tab button', () {
-    test('shows only the tab count', () {
+    test('shows only the tab count (TAB-029)', () {
       expect(surfaces(navigation: SiteNavigation.tabButton),
           (
             strip: false,
@@ -193,7 +193,7 @@ void main() {
     });
   });
 
-  test('no site on screen or a locked kiosk shows nothing', () {
+  test('no site on screen or a locked kiosk shows nothing (TAB-029)', () {
     for (final navigation in SiteNavigation.values) {
       expect(surfaces(navigation: navigation, siteOnScreen: false), nothing,
           reason: '${navigation.name}, no site');
