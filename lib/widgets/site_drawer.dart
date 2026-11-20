@@ -77,7 +77,11 @@ class SiteDrawer extends StatelessWidget {
                     return LayoutBuilder(
                       builder: (context, constraints) {
                         final itemCount = filteredIndices.length;
-                        const itemHeight = 88.0;
+                        // 48 for the icon and padding, 40 for the name and
+                        // address under it, which grow with the system text
+                        // size (A11Y-006).
+                        final itemHeight =
+                            48 + MediaQuery.textScalerOf(context).scale(40);
                         final availableHeight =
                             constraints.maxHeight -
                             12; // padding (top: 4 + bottom: 8)

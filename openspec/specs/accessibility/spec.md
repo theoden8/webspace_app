@@ -423,15 +423,16 @@ in-app text size control in place of the system one, and per-site page zoom
 already covers web content that way, but the chrome has none. Larger Text on
 the Mac needs an app-wide UI scale setting.
 
-Status: nothing clamps. Fixed boxes that will clip: the drawer grid cell
-(`mainAxisExtent: 88`, `main.dart:10653`), the site strip (`height: 52`,
-`main.dart:8397`), the tab counter (22x22, `main.dart:7881`), the download
-badge (28x28). `test/design_render_matrix_test.dart` renders six widgets at
-2.0; none of the drawer, site strip, app bar or settings screens.
-
-Gate to add: extend the render matrix to the drawer tile, site strip, app bar,
-Add site and the settings screens, at 2.0 and 3.1, in English and in one
-locale with long words.
+Nothing clamps. The drawer grid cell grows with the text it holds, and a
+row of two labelled controls stacks once the text is too large to share it
+(`TextSizes.crowded`): Add site's Add and Import buttons, and its popular
+sites offer. `test/text_scale_test.dart` walks the real app on a phone-sized
+screen at 2.0 and 3.1, in English and in German: the webspaces, App Settings
+and each screen it opens, a site with its app bar and site strip, the drawer
+and Add site; an overflow anywhere fails it, and every control it taps must
+still be there, scrolled to if it went below the fold. The tab counter
+(22x22) and the download badge (28x28) are still fixed boxes, which clip
+their own glyph rather than overflow.
 
 #### Scenario: Largest accessibility size (iOS)
 
