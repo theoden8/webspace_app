@@ -60,7 +60,6 @@ HS-014	no check: the Swift SiteEntityQuery.entities(for:) live/tombstone/placeho
 ICON-005	no check: no test renders an SVG with @media (prefers-color-scheme: dark) in dark mode; only the rejection of display:none toggles is checked (partly: test/icon_svg_selection_test.dart, "flags CSS display:none theme toggle")
 # inactive-tabs
 # incognito-mode
-INC-007	no check: no test checks an incognito site keeps its URL and storage across a webspace switch or background-resume (partly: test/app_lifecycle_engine_test.dart, "URL-ephemeral active site is paused+captured, never reset")
 # integration-tests
 INTEG-001	no check: pass-secret-service is set up by a CI workflow step; no test or gate asserts the collection is unlocked or that no 'Failed to unlock the keyring' line is logged, and the integration tests fall back to an in-memory keychain when the real one throws (installInMemoryKeychainIfUnavailable)
 INTEG-002	no check: CI container choice in .github/workflows/build-and-test.yml; no gate reads the workflow for debian:sid-slim or the WPE >= 2.50 headers (only the Linux build failing would show it)

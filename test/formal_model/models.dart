@@ -89,6 +89,7 @@ Def<Object?, Object?> definition(ModelDef d) => switch (d) {
   ModelDef.routeFree => ActivationTable.routeFree,
   ModelDef.ruled => ActivationTable.ruled,
   ModelDef.kept => ActivationTable.kept,
+  ModelDef.switchSpares => ActivationTable.switchSpares,
   ModelDef.picked => SiteUnloadEngine.picked,
   ModelDef.spare => SiteUnloadEngine.spare,
   ModelDef.gone => SiteUnloadEngine.gone,

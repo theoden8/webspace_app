@@ -387,6 +387,7 @@ enum ModelDef {
   routeFree,
   ruled,
   kept,
+  switchSpares,
   picked,
   spare,
   gone,

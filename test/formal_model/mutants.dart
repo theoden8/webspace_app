@@ -201,6 +201,17 @@ Def<bool, SiteModels> _routeFreeAlways() {
   );
 }
 
+/// `SwitchSpares` sparing no site: a switch unloads an incognito site it
+/// stops showing.
+Def<bool, ActivationFlow> _switchSparesNone() {
+  const u = Bound<SiteId, ActivationFlow>('u');
+  return Def(
+    ModelDef.switchSpares,
+    params: const [u],
+    body: Expr.constant(false, tla: 'FALSE'),
+  );
+}
+
 /// `Reopens` without the nested screen: a retired slot opens again beside
 /// it.
 Def<bool, TabFlow> _reopensBesideNested() {
@@ -521,6 +532,11 @@ Tables mutated(Mutant m) => switch (m) {
   ),
   // The restore takes in only the sites it saves, so a loaded incognito
   // site's session goes with the emptied jar (INC-001), as before the fix.
+  // The switch unloads what it stops showing, incognito sites too, so an
+  // incognito site's session goes with its webview (INC-007).
+  Mutant.switchdropsincognito => _with(
+    ops: _withDef(tables.ops, def: _switchSparesNone()),
+  ),
   Mutant.incognitonuked => _with(
     restore: _withArms(
       tables.restore,

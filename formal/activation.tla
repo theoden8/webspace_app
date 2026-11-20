@@ -263,6 +263,12 @@ Inv_LeftHidden ==
     \A f \in Flows :
         (fl[f].kind = "space" /\ fl[f].v = version) => current \notin fl[f].away
 
+\* A webspace switch unloads no incognito site: its session lives only in
+\* memory, so leaving it loaded is what keeps it across the switch
+\* (INC-007). Stated over the switch's victims, not over SwitchSpares.
+Inv_SwitchSparesIncognito ==
+    \A f \in Flows : fl[f].kind = "space" => fl[f].victims \cap Incognito = {}
+
 \* The pressure plan picks only from PressureResident and PressureCleared,
 \* never a loaded site at "saved", so one left there is out of memory
 \* pressure's reach.

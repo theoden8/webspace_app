@@ -39,7 +39,7 @@ encrypted storage when that site is incognito.
 #### Scenario: Incognito site unloads without writing cookies
 
 **Given** an incognito site A is loaded and has accumulated session cookies in `CookieManager`
-**When** site A is unloaded (webspace switch, LRU eviction, conflict resolution)
+**When** site A is unloaded (LRU eviction, memory pressure, a home reset)
 **Then** no cookies are written to A's siteId-keyed encrypted storage
 
 #### Scenario: Incognito site keeps its session through a switch on the shared jar
@@ -184,6 +184,7 @@ forced restart).
 **When** the user switches to another webspace and back
 **Then** the incognito site is at the same URL
 **And** its in-memory cookies / localStorage are intact (within the live native session)
+**And** on the shared jar the switch leaves the incognito site loaded, though the new webspace does not show it, since it keeps nothing in the jar to save (`test/activation_schedules_test.dart`, "a switch keeps an incognito site it stops showing (INC-007)"; `formal/activation.tla`'s `Inv_SwitchSparesIncognito` and its `switchdropsincognito` mutant)
 
 #### Scenario: Incognito state preserved across app background-resume
 

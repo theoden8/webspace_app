@@ -88,6 +88,7 @@ enum Inv {
   nestedNoRestore(reads: {ModelVar.fl}),
   noShownEvicted(reads: {ModelVar.evictedShown}),
   leftHidden(reads: {ModelVar.current, ModelVar.fl, ModelVar.version}),
+  switchSparesIncognito(reads: {ModelVar.fl}),
   loadedNotSaved(atRest: true, reads: {ModelVar.loaded, ModelVar.tier}),
   places(reads: {ModelVar.dnsHolder, ModelVar.fl, ModelVar.holder}),
   oneRoute(
@@ -448,6 +449,21 @@ enum ActivationWorld {
     holds:
         'shared jar from launch, preloads beside webspace switches '
         '(WEBSPACE-013)',
+  ),
+  spacesIncognito(
+    cookies: Cookies.sharedJar,
+    coldStart: false,
+    inputs: 3,
+    env: {Env.awaySpaces, Env.incognitoOne},
+    invariants: [
+      ..._core,
+      ..._jar,
+      Inv.leftHidden,
+      Inv.switchSparesIncognito,
+    ],
+    holds:
+        'shared jar, an incognito site loaded and webspaces chosen on the '
+        'list: no switch unloads it (INC-007)',
   ),
   spacesContainers(
     cookies: Cookies.containers,
@@ -1208,6 +1224,13 @@ typedef Slice = ({Set<String> allowed});
 /// is violated in [world], within its [slice] when one is named, and in
 /// each world of [also].
 enum Mutant {
+  switchdropsincognito(
+    world: ActivationWorld.spacesIncognito,
+    by: Inv.switchSparesIncognito,
+    doc:
+        'a webspace switch that unloads an incognito site it stops showing, '
+        'which signs it out (INC-007, caught)',
+  ),
   incognitonuked(
     world: ActivationWorld.incognito,
     by: Inv.noSessionLoss,
