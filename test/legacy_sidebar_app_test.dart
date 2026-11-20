@@ -4,6 +4,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/screens/app_behaviour.dart';
 import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/sidebar_squares.dart';
@@ -103,8 +104,16 @@ void main() {
     await attachWebViews(tester);
     expect(drawer, findsNothing, reason: 'a pick drops it back to the rail');
 
+    // Apple offers no Back opens menu (NAV-009), so Back there opens
+    // nothing and the drawer is opened by hand; either way Back closes it.
+    final offered = backOpensMenuOffered();
     await pressBack(tester);
-    expect(drawer, findsOneWidget);
+    expect(drawer, offered ? findsOneWidget : findsNothing);
+    if (!offered) {
+      await tester.tap(find.byTooltip('Expand the sidebar'));
+      await settleRealApp(tester);
+      expect(drawer, findsOneWidget);
+    }
     await pressBack(tester);
     expect(drawer, findsNothing);
   });
