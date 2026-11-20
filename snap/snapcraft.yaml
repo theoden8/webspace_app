@@ -189,7 +189,9 @@ parts:
     override-build: |
       export PATH=/usr/sbin:/usr/bin:/sbin:/bin
       export CC="$CRAFT_STAGE/llvm/bin/clang" CXX="$CRAFT_STAGE/llvm/bin/clang++"
-      export CXXFLAGS="${CXXFLAGS:+$CXXFLAGS }-stdlib=libc++"
+      # libc++ in C++23 drops the headers libstdc++ includes along the way,
+      # and WebKit's Linux sources rely on some (WPESettings.cpp's std::vector).
+      export CXXFLAGS="${CXXFLAGS:+$CXXFLAGS }-stdlib=libc++ -include vector"
       export LDFLAGS="-fuse-ld=lld -stdlib=libc++ -nostdlib++ -Wl,--exclude-libs,libc++.a:libc++abi.a"
       changed="$(bash "$CRAFT_PROJECT_DIR/linux/pdfjs_fonts.sh" --src "$CRAFT_PART_SRC" \
         --fonts /usr/share/fonts/truetype/liberation2 \
@@ -220,7 +222,8 @@ parts:
         -DUSE_SYSTEM_SYSPROF_CAPTURE=OFF \
         -DUSE_SYSTEM_UNIFDEF=OFF \
         -DENABLE_PDFJS=ON
-      cmake --build wpe -- -j"$CRAFT_PARALLEL_BUILD_COUNT"
+      # -k 0: every file that fails is reported in one build, not the first.
+      cmake --build wpe -- -k 0 -j"$CRAFT_PARALLEL_BUILD_COUNT"
       ccache --show-stats
       DESTDIR="$CRAFT_PART_INSTALL" cmake --install wpe
       bash "$CRAFT_PROJECT_DIR/linux/install_notices.sh" \
