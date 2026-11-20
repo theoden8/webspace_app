@@ -1,7 +1,7 @@
 name: Snap
 
 # Builds the snap from snap/snapcraft.yaml for amd64 and arm64, each on a
-# runner of its own architecture (an ubuntu-24.04 runner is the core24 host
+# runner of its own architecture (an ubuntu-22.04 runner is the core22 host
 # --destructive-mode needs), installs it and runs it with one site (scripts/check_snap.sh, PLATFORM-012). Nothing
 # here logs in to the Snap Store or uploads: registering, uploading and
 # releasing are the maintainer's, by hand (docs/releasing.md). Kept out of
@@ -66,12 +66,12 @@ jobs:
         include:
           - arch: amd64
             appimage_arch: x86_64
-            runner: ubuntu-24.04
+            runner: ubuntu-22.04
             # amd64's caches were saved before they carried an architecture.
             fallback: snap-ccache-
           - arch: arm64
             appimage_arch: aarch64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-22.04-arm
             fallback: snap-ccache-arm64-
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 350
@@ -141,7 +141,7 @@ jobs:
       # itself, as it does for a user; this checks that it did.
       - name: Install the snap
         run: |
-          sudo snap install gnome-46-2404 mesa-2404 gtk-common-themes
+          sudo snap install gnome-42-2204 gtk-common-themes
           snap_name="$(sed -n 's/^name: \([a-z0-9-]*\)$/\1/p' snap/snapcraft.yaml)"
           sudo snap install --dangerous ./"$snap_name"_*_${{ matrix.arch }}.snap
           connections="$(snap connections "$snap_name")"
@@ -184,7 +184,7 @@ jobs:
           if-no-files-found: error
 
       # PLATFORM-013: the AppImage's AppDir, from the snap's primed tree and
-      # this Ubuntu 24.04 host's libraries.
+      # this Ubuntu 22.04 host's libraries.
       - name: Assemble the AppImage
         run: |
           [ -d prime ] || { echo "::error::snapcraft left no prime/ in the project directory" >&2; exit 1; }
@@ -228,6 +228,23 @@ jobs:
         run: |
           sudo apt-get install -y --no-install-recommends fuse3 xvfb libglib2.0-bin dbus
           bash scripts/check_appimage.sh AppDir "WebSpace-ci-${{ matrix.appimage_arch }}.AppImage"
+
+      # As AppImageHub runs it: on the oldest Ubuntu LTS still supported, with
+      # its own libstdc++, older than the build's, which this runner's toolchain
+      # upgrade replaced. The packages are what the excludelist leaves to a
+      # desktop machine, and what the check itself runs.
+      - name: Run the AppImage on a plain Ubuntu 22.04
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src ubuntu:22.04 bash -euc '
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -qq
+            apt-get install -y -qq --no-install-recommends xvfb python3 libglib2.0-bin dbus \
+              libgl1 libegl1 libgles2 libgbm1 libgl1-mesa-dri libasound2 libjack-jackd2-0 \
+              libpipewire-0.3-0 libfontconfig1 libharfbuzz0b libfribidi0 libice6 libsm6 \
+              libusb-1.0-0 libwayland-client0 libwayland-egl1 libwayland-cursor0 libp11-kit0 \
+              libx11-xcb1 libxcb-dri2-0 libxcb-dri3-0 fonts-dejavu-core >/dev/null
+            bash scripts/check_appimage.sh AppDir
+          '
 
       - name: Keep the AppDir for the release
         if: steps.appimage-licences.outputs.clear == 'true'

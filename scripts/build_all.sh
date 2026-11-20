@@ -14,7 +14,7 @@
 #     The targets named, or every one this machine builds.
 #
 #     The AppImage is this machine's architecture's (x86_64 or aarch64), from
-#     snapcraft's build: on Ubuntu 24.04 here, with sudo; elsewhere in LXD or
+#     snapcraft's build: on Ubuntu 22.04 here, with sudo; elsewhere in LXD or
 #     Multipass, with podman or docker for the AppDir. A cold WebKit build
 #     takes hours.
 #
@@ -56,10 +56,10 @@ ios() {
 }
 
 # The AppDir from the tree snapcraft primed, as the Snap workflow makes it.
-# On Ubuntu 24.04, the snap's base, snapcraft builds here and leaves it in
+# On Ubuntu 22.04, the snap's base, snapcraft builds here and leaves it in
 # prime/. Elsewhere snapcraft builds in its own LXD or Multipass instance, the
 # tree is the snap's contents (the same files), and build_appdir.sh, which
-# takes the base's libraries, runs in an Ubuntu 24.04 container.
+# takes the base's libraries, runs in an Ubuntu 22.04 container.
 appdir_here() {
   local work=$1 arch snap_arch snap engine snapcraft
   arch="$(uname -m)"
@@ -73,14 +73,14 @@ appdir_here() {
     || fail "snapcraft is not installed (snap install snapcraft --classic); or take CI's AppDirs with APPIMAGE_RUN=<run id>"
   rm -f ./*_"$snap_arch".snap
   # shellcheck disable=SC1091
-  if (. /etc/os-release && [ "$ID" = ubuntu ] && [ "$VERSION_ID" = 24.04 ]); then
+  if (. /etc/os-release && [ "$ID" = ubuntu ] && [ "$VERSION_ID" = 22.04 ]); then
     # The ccache directory the wpewebkit part names.
     sudo mkdir -p /var/cache/webspace-snap-ccache
     sudo "$snapcraft" pack --destructive-mode
     sudo bash linux/appimage/build_appdir.sh prime "$work/AppDir-$arch"
   else
     engine="$(command -v podman || command -v docker)" \
-      || fail "building the AppDir off Ubuntu 24.04 needs podman or docker"
+      || fail "building the AppDir off Ubuntu 22.04 needs podman or docker"
     # A user added to the lxd group has it from the next login; sg gives it now.
     if [[ " $(id -nG "$(id -un)") " == *" lxd "* && " $(id -nG) " != *" lxd "* ]]; then
       sg lxd -c "$(printf '%q ' "$snapcraft" pack)"
@@ -90,7 +90,7 @@ appdir_here() {
     snap="$(compgen -G "./*_$snap_arch.snap" | head -1)" || fail "snapcraft made no $snap_arch snap"
     # shellcheck disable=SC2016 # the container's shell expands them
     "$engine" run --rm -v "$PWD:/src:ro,z" -v "$PWD/$work:/work:z" -w /src \
-      docker.io/library/ubuntu:24.04 bash -euc '
+      docker.io/library/ubuntu:22.04 bash -euc '
         export DEBIAN_FRONTEND=noninteractive
         apt-get update -qq
         apt-get install -y -qq --no-install-recommends squashfs-tools \

@@ -15,7 +15,7 @@
 #   scripts/check_snap.sh
 #
 # Runs in a user session whose bus has the user's systemd on it: snap run puts
-# the app in a systemd scope, the cgroup a core24 snap's device rules attach
+# the app in a systemd scope, the cgroup a snap's device rules attach
 # to, and snap-confine refuses to start it anywhere else. A bare
 # dbus-run-session bus has no systemd. Needs the snap installed with its
 # content plugs connected, Xvfb, python3 and gdbus. Prints the AppArmor
