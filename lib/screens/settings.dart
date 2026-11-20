@@ -86,6 +86,9 @@ const List<MapEntry<String?, String>> _languages = [
   MapEntry('ar', 'العربية'),
   MapEntry('he', 'עברית'),
   MapEntry('hi', 'हिन्दी'),
+  MapEntry('id', 'Bahasa Indonesia'),
+  MapEntry('ms', 'Bahasa Melayu'),
+  MapEntry('th', 'ไทย'),
 ];
 
 /// Render a Firefox UA for a randomly chosen platform at the current Firefox

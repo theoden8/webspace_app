@@ -80,7 +80,6 @@ SHIM-TEST-002	no check: nothing stops a test from running its own copy of a scri
 SHIM-TEST-006	no check: no gate asserts each test/browser file uses setupBrowser and evaluateOnNewDocument, nor that a post-load injection carries its comment; preInit ordering is checked only indirectly (partly: test/browser/location_spoof_real.test.js, "WRTC=relay — config.iceTransportPolicy is forced to relay")
 # kiosk-mode
 # language
-LANG-003	no check: no widget test of the per-site language picker (System default plus 30+ options) or of the webview being disposed on save
 # lazy-webview-loading
 # legal
 EXPORT-002	no check: nothing fails a cryptographic primitive outside the listed ones; review is the gate
