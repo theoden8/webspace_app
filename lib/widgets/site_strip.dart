@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/services/page_focus.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/tab_strip_edge.dart';
+import 'package:webspace/settings/site_strip_edge.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/tab_count_pill.dart';
@@ -13,8 +13,8 @@ import 'package:webspace/widgets/tab_count_pill.dart';
 /// press drags a site to another place where the view can be reordered. Keys
 /// reach every chip and press it as a tap does, so a TV remote switches
 /// sites and opens tabs here too (NAV-016).
-class SiteTabStrip extends StatelessWidget {
-  const SiteTabStrip({
+class SiteStrip extends StatelessWidget {
+  const SiteStrip({
     super.key,
     required this.edge,
     required this.models,
@@ -28,7 +28,7 @@ class SiteTabStrip extends StatelessWidget {
     required this.menu,
   });
 
-  final TabStripEdge edge;
+  final SiteStripEdge edge;
   final List<WebViewModel> models;
 
   /// Positions in [models], in the order the strip shows them.
@@ -55,15 +55,15 @@ class SiteTabStrip extends StatelessWidget {
       width: Chrome.hairlineWidth,
     );
     return SafeArea(
-      top: edge == TabStripEdge.top,
-      bottom: edge == TabStripEdge.bottom,
+      top: edge == SiteStripEdge.top,
+      bottom: edge == SiteStripEdge.bottom,
       child: Container(
         height: 52,
         decoration: BoxDecoration(
           color: Chrome.bar(isDark: isDark),
           border: switch (edge) {
-            TabStripEdge.top => Border(bottom: hairline),
-            TabStripEdge.bottom => Border(top: hairline),
+            SiteStripEdge.top => Border(bottom: hairline),
+            SiteStripEdge.bottom => Border(top: hairline),
           },
         ),
         child: Row(
@@ -267,7 +267,7 @@ class _StripChipState extends State<_StripChip> {
           if (_focused)
             Positioned.fill(
               child: Padding(
-                padding: SiteTabStrip._chipMargin,
+                padding: SiteStrip._chipMargin,
                 child: IgnorePointer(
                   child: DecoratedBox(
                     decoration: BoxDecoration(

@@ -222,7 +222,7 @@ MUST render across the matrix that varies in the field.
 
 #### Scenario: A control shrinks without overflowing
 
-- **WHEN** a token change leaves the URL bar's submit button or the tab-strip
+- **WHEN** a token change leaves the URL bar's submit button or the site-strip
   corner button below `TapTargets.compact`
 - **THEN** the matrix's explicit tap-target assertions fail, because shrinking
   overflows nothing

@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/site_drawer.dart';
-import 'package:webspace/widgets/site_tab_strip.dart';
+import 'package:webspace/widgets/site_strip.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 
 import 'helpers/real_app.dart';
@@ -13,7 +13,7 @@ import 'helpers/real_app.dart';
 /// it away.
 void main() {
   Finder inStrip(Finder matching) =>
-      find.descendant(of: find.byType(SiteTabStrip), matching: matching);
+      find.descendant(of: find.byType(SiteStrip), matching: matching);
   Finder inAppBar(String text) =>
       find.descendant(of: find.byType(AppBar), matching: find.text(text));
 
@@ -42,7 +42,7 @@ void main() {
     }
     await tester.tap(find.byType(TabBarCornerButton));
     await settleRealApp(tester);
-    expect(find.byType(SiteTabStrip), findsOneWidget);
+    expect(find.byType(SiteStrip), findsOneWidget);
   }
 
   testWidgets('out of full screen it stays through a site switch until its '
@@ -52,7 +52,7 @@ void main() {
     await tester.tap(inStrip(find.text('B')));
     await settleRealApp(tester);
     expect(inAppBar('B'), findsOneWidget);
-    expect(find.byType(SiteTabStrip), findsOneWidget,
+    expect(find.byType(SiteStrip), findsOneWidget,
         reason: 'a pick from the strip keeps it');
 
     await tester.tap(find.byTooltip('Open navigation menu'));
@@ -61,12 +61,12 @@ void main() {
         of: find.byType(SiteDrawer), matching: find.text('A')));
     await settleRealApp(tester);
     expect(inAppBar('A'), findsOneWidget);
-    expect(find.byType(SiteTabStrip), findsOneWidget,
+    expect(find.byType(SiteStrip), findsOneWidget,
         reason: 'a switch from the drawer keeps it');
 
     await tester.tap(inStrip(find.byIcon(Icons.close)));
     await settleRealApp(tester);
-    expect(find.byType(SiteTabStrip), findsNothing);
+    expect(find.byType(SiteStrip), findsNothing);
     expect(find.byType(TabBarCornerButton), findsOneWidget);
   });
 
@@ -76,7 +76,7 @@ void main() {
     await tester.tap(inStrip(find.text('B')));
     await settleRealApp(tester);
     expect(find.byType(AppBar), findsNothing, reason: 'B opens in full screen');
-    expect(find.byType(SiteTabStrip), findsNothing);
+    expect(find.byType(SiteStrip), findsNothing);
     expect(find.byType(TabBarCornerButton), findsOneWidget);
   });
 
@@ -88,7 +88,7 @@ void main() {
     await tester.tap(find.text('Full Screen'));
     await settleRealApp(tester);
     expect(find.byType(AppBar), findsNothing);
-    expect(find.byType(SiteTabStrip), findsNothing);
+    expect(find.byType(SiteStrip), findsNothing);
   });
 
   testWidgets('a notification tap puts it away', (tester) async {
@@ -99,6 +99,6 @@ void main() {
     });
     await settleRealApp(tester);
     expect(inAppBar('B'), findsOneWidget);
-    expect(find.byType(SiteTabStrip), findsNothing);
+    expect(find.byType(SiteStrip), findsNothing);
   });
 }

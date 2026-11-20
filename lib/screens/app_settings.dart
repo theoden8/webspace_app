@@ -268,7 +268,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   Localized _behaviourSummary(AppLocalizations loc) => summariseSettings(
         loc,
         on: [
-          if (TabStrip.current != TabStrip.hidden) loc.appSettingsSiteTabStrip,
+          if (TabStrip.current != TabStrip.hidden) loc.appSettingsSiteStrip,
           if (ShortcutService.offered && AppPref.fullscreenOnShortcut.value)
             loc.appSettingsFullscreenOnShortcut,
           if (backOpensMenuOffered() && AppPref.backOpensMenu.value)

@@ -141,7 +141,7 @@ runs
 
 **Given** site "Acme" has proxy `HTTP 10.0.0.1:8080`
 **And** the winning favicon URL for "Acme" points at a host the page chose
-**When** the drawer, tab strip or site list renders that favicon
+**When** the drawer, site strip or site list renders that favicon
 **Then** the recording fake observes `clientFor(HTTP 10.0.0.1:8080)`
 **And** the image widget issues no HTTP request of its own
 
@@ -591,7 +591,7 @@ spec violation.
 | Webview navigation (HTTP/HTTPS/CONNECT) | Site load, in-page request | Per-site (DEFAULT → global) | `ProxyManager.setProxySettings`, `lib/services/webview.dart:164` |
 | Webview WebRTC | RTCPeerConnection / STUN | Per-site `webRtcPolicy`, raised to relay only behind a proxy under Tracking Protection (ETP-031) | `lib/services/location_spoof_service.dart`, `WebViewModel.effectiveWebRtcPolicy` |
 | Favicon: FaviconFinder, SVG body | `getFaviconUrl(Stream)`, `getSvgContent`, `FaviconFinder.getAll` | Per-site (DEFAULT → global) | `lib/services/icon_service.dart`, `lib/third_party/favicon/favicon.dart` |
-| Favicon raster render | Drawer / tab strip / site list paints an icon | Per-site (DEFAULT → global) | `getIconBytes` in `lib/services/icon_service.dart`, `lib/screens/favicon_image_io.dart` |
+| Favicon raster render | Drawer / site strip / site list paints an icon | Per-site (DEFAULT → global) | `getIconBytes` in `lib/services/icon_service.dart`, `lib/screens/favicon_image_io.dart` |
 | Per-site downloads (HTTP/HTTPS) | `onDownloadStartRequest` | Per-site (DEFAULT → global) | `DownloadEngine`, `lib/services/webview.dart:_handleHttpDownload` |
 | User-script remote fetches | `__ws_s_*` / `__ws_f_*` JS handlers | Per-site (DEFAULT → global) | `lib/services/user_script_service.dart` |
 | User-script URL-source download | Saving a script with a URL in the editor | Per-site (DEFAULT → global) | `fetchUserScriptSource`, `lib/screens/user_scripts.dart` |

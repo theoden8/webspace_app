@@ -9,7 +9,7 @@ macOS 14 and later), or an image or video the user picks, served as a
 A display capture is whole-surface by construction. `MediaProjection` mirrors
 the whole Android device (or one app, where Android 14+ lets the user pick
 one), the macOS picker hands over a display, a window or an app, the Linux
-desktop portal a display or a window, and this app's own window holds the drawer, the tab strip and whichever other site the
+desktop portal a display or a window, and this app's own window holds the drawer, the site strip and whichever other site the
 user switches to. So a real share is not scoped to the
 requesting site: while it runs, the site sees the user's other sites, other
 apps and any notification that appears. The feature therefore does not claim

@@ -61,7 +61,7 @@ abstract interface class ShortcutHost implements PageHost {
   bool get kioskLocked;
 
   /// A shortcut tap is an app entry point: the site it opens comes up with
-  /// nothing over the page, neither a pushed route nor a revealed tab strip.
+  /// nothing over the page, neither a pushed route nor a revealed site strip.
   void resetForEntry();
 
   Future<void> activate(WebViewModel site);

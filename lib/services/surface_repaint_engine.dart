@@ -114,7 +114,7 @@ class SurfaceRepaintEngine {
 
   /// Advance one tick. Toggles the inset until the budget drains, then settles
   /// at a zero inset (an odd refill mid-loop could otherwise strand the 1px
-  /// inset, leaving a thin sliver between the webview and the tab strip).
+  /// inset, leaving a thin sliver between the webview and the site strip).
   RepaintTick tick() {
     if (_ticksRemaining <= 0) {
       _looping = false;

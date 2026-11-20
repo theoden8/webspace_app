@@ -165,7 +165,7 @@ An open folder SHALL hold every group as a page, in the group grid's order, as a
 
 The open panel's top bar SHALL pull it down: the panel follows the finger, shrinking a little as the grid behind it brightens. Let go past a quarter of its height, or flung down, it SHALL close into its tile; let go short of that, it SHALL spring back.
 
-A site opened from the library SHALL open as a phone opens an app: a card in the site's colour, holding its icon, grows out of the site's icon until it covers the screen, the site is shown under it, and the card fades off it. A site or tab picked where no icon is (a tabs sheet, the tab strip) SHALL open through the same card faded in over where sites show, the top bar and the tab strip left in view. Returning to the library SHALL fade that card in over the site, bring the library back under it, and shrink the card into the site's icon, or fade it where no icon is in view. The card SHALL wait for the switch under it no longer than a fixed cap, SHALL take no input while it moves, and reduced motion SHALL show no card.
+A site opened from the library SHALL open as a phone opens an app: a card in the site's colour, holding its icon, grows out of the site's icon until it covers the screen, the site is shown under it, and the card fades off it. A site or tab picked where no icon is (a tabs sheet, the site strip) SHALL open through the same card faded in over where sites show, the top bar and the site strip left in view. Returning to the library SHALL fade that card in over the site, bring the library back under it, and shrink the card into the site's icon, or fade it where no icon is in view. The card SHALL wait for the switch under it no longer than a fixed cap, SHALL take no input while it moves, and reduced motion SHALL show no card.
 
 A site's top bar, held, SHALL fade the site's card in over it and bring the library back under the card, which SHALL then come off the screen by the point held, so the site is never seen around it, and follow the finger, smaller the further down it is pulled, even once the bar itself has left the screen. Let go past a quarter of the screen's height, or flung down, the card SHALL shrink into the site's icon as a return to the library does; let go short of that, or flung back up, it SHALL go back over the screen and the site SHALL be shown again once the library has been, or once the card's cap has passed. A pull on the bar with no hold first SHALL leave the site on screen, so a pull on the page still refreshes it. A locked kiosk session SHALL lift nothing, and with reduced motion no card SHALL lift: a let-go that would close returns to the library at once.
 
@@ -265,7 +265,7 @@ When a site is deleted, all webspace indices SHALL be automatically updated.
 ### Requirement: WEBSPACE-011 - Reorder Sites by Dragging
 
 Users SHALL be able to change the display order of sites by dragging, in
-a library folder, the bottom tab strip and the drawer grid. The new order SHALL persist
+a library folder, the bottom site strip and the drawer grid. The new order SHALL persist
 across app restarts. In the library and the drawer grid a long press lifts a site, as a
 phone lifts an icon: let go where it was without wandering off, it opens the site's menu;
 moved, it drags, the other icons make room wherever it hovers, and let go anywhere it keeps
@@ -280,7 +280,7 @@ does not move the webspace cards themselves (WEBSPACE-009 still holds — the
 #### Scenario: Reorder sites within a named webspace
 
 **Given** the "Work" webspace is selected with sites [A, B, C] in that order
-**When** the user long-presses site C in the tab strip, the drawer grid, or a library folder and drops it onto site A's position
+**When** the user long-presses site C in the site strip, the drawer grid, or a library folder and drops it onto site A's position
 **Then** "Work"'s membership order becomes [C, A, B]
 **And** the change is written to the webspace's persisted `siteIds`
 **And** the global order of other webspaces is unaffected
@@ -288,7 +288,7 @@ does not move the webspace cards themselves (WEBSPACE-009 still holds — the
 #### Scenario: Reorder sites within the "All" webspace
 
 **Given** the "All" webspace is selected showing every site in `_sites.models` order
-**When** the user drags a site to a new position in the tab strip or drawer grid
+**When** the user drags a site to a new position in the site strip or drawer grid
 **Then** `_sites.models` is reordered to match
 **And** the active site stays active (its `_sites.current` follows it to its new position)
 **And** any loaded webviews keep their in-memory state (each webview is keyed by its site, not its position: ISO-009)
