@@ -90,6 +90,7 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen>
               button: true,
               enabled: true,
               child: IconButton(
+                tooltip: loc.commonSave,
                 icon: Icon(Icons.check),
                 onPressed: _save,
               ),

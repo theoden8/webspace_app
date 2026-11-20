@@ -361,13 +361,15 @@ Every interactive element of the chrome SHALL:
 Status changing without focus (the find counter, Tor bootstrap progress)
 SHALL be announced, through `liveRegion` or `SemanticsService.announce`.
 
+An `IconButton` or `FloatingActionButton` with no `tooltip:` does not
+compile: `tool/webspace_lints`' `unnamed_button` rule is an analyzer error
+in `lib/`, and the FABs and icon buttons once listed below now carry one.
+
 Known failures at `5e1788f`:
 
 | Where | What |
 |---|---|
-| `main.dart:10703`, `user_scripts.dart:517` | FABs (add site, add script) with no tooltip |
-| `main.dart:4978`, `8413`; `inappbrowser.dart:1069`; `dev_tools.dart:380`; `link_handling_settings.dart:447`, `536`; `webspaces_list.dart:117`, `133`; `find_toolbar.dart:65`, `73`, `81` | icon buttons with no tooltip |
-| `http_auth_prompt.dart:101`, `proxy_auth_section.dart:111` | show/hide password: no name, no toggled state |
+| `http_auth_prompt.dart:101`, `proxy_auth_section.dart:111` | show/hide password: named by its tooltip, no toggled state |
 | `tab_bar_corner_button.dart:47` | floating tabs button: no name |
 | `main.dart:9879` | drawer site tile opens on a raw `Listener`; its `Semantics(button: true)` has no `onTap`, so activation depends on the OS synthesising a touch |
 | `main.dart:8503` | tab chip: the same, and no `selected` |

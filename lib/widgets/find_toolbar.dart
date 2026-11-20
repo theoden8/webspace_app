@@ -83,14 +83,19 @@ class _FindToolbarState extends State<FindToolbar> {
             ),
             Text(matchCounter),
             IconButton(
+              tooltip: loc.findPreviousMatch,
               icon: Icon(Icons.navigate_before),
               onPressed: () => controller?.findNext(forward: false),
             ),
             IconButton(
+              tooltip: loc.findNextMatch,
               icon: Icon(Icons.navigate_next),
               onPressed: () => controller?.findNext(forward: true),
             ),
-            IconButton(icon: Icon(Icons.close), onPressed: _close),
+            IconButton(
+                tooltip: loc.commonClose,
+                icon: Icon(Icons.close),
+                onPressed: _close),
           ],
         ),
       ),
