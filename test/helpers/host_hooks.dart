@@ -4,6 +4,7 @@ import 'package:webspace/services/isolation.dart';
 import 'package:webspace/services/network_sign_in.dart';
 import 'package:webspace/services/popup_webview.dart' show PopupKind;
 import 'package:webspace/services/runtime_vars.dart';
+import 'package:webspace/services/site_posture.dart' show LaunchUrlFunc;
 import 'package:webspace/services/webview_controller.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/settings/site_ids.dart';
@@ -26,6 +27,7 @@ WebViewHostHooks inertHostHooks({
           {required int port, required inapp.SslCertificate? certificate})?
       untrustedCertificate,
   Future<void> Function(SignInNotice notice)? networkSignIn,
+  LaunchUrlFunc? launchNested,
 }) =>
     WebViewHostHooks(
       isolation: isolation,
@@ -34,7 +36,7 @@ WebViewHostHooks inertHostHooks({
       globalUserScripts: () => const [],
       save: () async {},
       rebuild: () {},
-      launchNested: (_, {required posture, homeTitle}) {},
+      launchNested: launchNested ?? (_, {required posture, homeTitle}) {},
       openInBrowser: (_) async => false,
       openSiteSettings: (_) {},
       showPopup: showPopup ?? (_, {required url, required kind}) async {},

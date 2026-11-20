@@ -46,7 +46,6 @@ EXT-009	no check: not implemented: tasks 2.1 to 2.4 of upstream-webview-defects 
 # file-import-sites
 IMPORT-001	no check: no widget test pumps AddSiteScreen to find the 'Import HTML file' button
 IMPORT-002	no check: no test asserts the picker filters html/htm or that cancelling leaves the screen; the flow depends on FilePicker and is untested
-IMPORT-004	no check: no test builds a file-import webview through createWebView and asserts the import renders via initialHtml/initialData, nor that its links open nested (partly: test/webview_controller_lifetime_test.dart, "a load of an import's URL renders the import, however it is issued")
 # fullscreen-mode
 FS-001	no check: no test enters full screen from either overflow menu or by double-tapping the app bar title
 FS-002	no check: no test covers the top-edge exit handle (the centered 96px band, corners passing taps through), the Exit Full Screen menu toggle, the hint SnackBar, or back keeping full screen
