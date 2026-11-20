@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
 
 import 'package:flutter/material.dart';
@@ -859,7 +860,7 @@ class _SettingsScreenState extends State<SettingsScreen>
             if (v.effectiveClearUrl) loc.siteSettingsClearUrls,
             if (v.effectiveDnsBlock) loc.siteSettingsDnsBlocklist,
             if (v.effectiveContentBlock) loc.siteSettingsContentBlocker,
-            if (hostIsAndroid && v.effectiveLocalCdn) loc.siteSettingsLocalCdn,
+            if (LocalCdnService.offered && v.effectiveLocalCdn) loc.siteSettingsLocalCdn,
             if (v.effectiveIncognito) loc.siteSettingsIncognito,
             if (hostHasLockdownMode && v.effectiveLockdownMode)
               loc.siteSettingsLockdownMode,

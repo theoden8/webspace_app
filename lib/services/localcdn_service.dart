@@ -255,8 +255,25 @@ class LocalCdnService {
     ('gsap', '3.12.5', 'gsap.min.js'),
   ];
 
+  /// Whether this host serves LocalCDN at all: only the Android
+  /// interceptor answers a request with a cached file (LCDN-013), so every
+  /// screen shows its rows only here.
+  static bool get offered => debugOffered ?? hostIsAndroid;
+
+  @visibleForTesting
+  static bool? debugOffered;
+
   /// Cached resource index: cache key -> file path on disk.
   final Map<String, String> _cache = {};
+
+  /// Replaces the index with [index], as a download would leave it.
+  @visibleForTesting
+  void seedIndexForTest(Map<String, String> index) {
+    _cache
+      ..clear()
+      ..addAll(index);
+    _notifyCacheChanged();
+  }
   String? _cacheDir;
   bool _initialized = false;
 
