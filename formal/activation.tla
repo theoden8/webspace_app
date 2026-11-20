@@ -213,6 +213,23 @@ Next ==
 
 Spec == Init /\ [][Next]_vars
 
+\* The platform answers each call a flow waits on and the environment acts
+\* (a webview let go of, a frame unmounted), each where it stays enabled:
+\* weak fairness, no promise about inputs, which may stop at any point.
+Fairness ==
+    /\ \A f \in Flows : WF_vars(FlowStep(f))
+    /\ WF_vars(EnvTableStep)
+FairSpec == Spec /\ Fairness
+
+\* Every flow that starts ends, or waits where the bound on inputs cuts off
+\* the flow it would start (Done). Checked in one small world (the
+\* terminates world, test/formal_model/checks.dart): liveness costs more
+\* than an invariant per state.
+Prop_Terminates == \A f \in Flows :
+    [](fl[f].pc # "done" =>
+        <>(\/ fl[f].pc = "done"
+           \/ inputs = MaxInputs /\ fl[f].pc \in Spawning_Tables))
+
 \* What proofs/activation_turns.tla proves inductive; the tables' steps are
 \* its cases printed from them (activation_tables_proof). Good: the jar's
 \* turns are real, which the noturns mistake drops.
