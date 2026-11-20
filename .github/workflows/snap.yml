@@ -114,6 +114,12 @@ jobs:
       - name: Build
         run: sudo snapcraft pack --destructive-mode
 
+      # snapcraft prints one line for a failed step (for apt, a guess at the
+      # package) and leaves what the step said in its log, as root.
+      - name: Show snapcraft's log
+        if: failure()
+        run: sudo sh -c 'tail -n 300 "$(ls -t /root/.local/state/snapcraft/log/*.log | head -n 1)"'
+
       # Saved even when a later part fails, so the next run starts from the
       # WPE objects this one compiled.
       - name: Hand the ccache back to the runner
