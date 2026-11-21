@@ -13,12 +13,25 @@ const _host = 'addons.mozilla.org';
 const _app = 'firefox';
 const _locale = 'en-US';
 
+/// The order a search lists its results in.
+enum AmoSort {
+  /// The most used on an average day first.
+  users,
+
+  /// The best rated first.
+  rating,
+
+  /// The most recently updated first.
+  updated,
+}
+
 /// The request for [page], from 1, of the extensions listed for Firefox
-/// that match [text], the most used first.
+/// that match [text], in [sort]'s order.
 Uri amoSearchQuery(
   String text, {
   required bool recommendedOnly,
   required int page,
+  required AmoSort sort,
 }) {
   final q = text.trim();
   assert(q.isNotEmpty, 'a search names what it looks for');
@@ -27,7 +40,7 @@ Uri amoSearchQuery(
     'q': q,
     'type': 'extension',
     'app': _app,
-    'sort': 'users',
+    'sort': sort.name,
     'page': '$page',
     'page_size': '20',
     'lang': _locale,
@@ -57,17 +70,27 @@ WebKitFit webKitFitOf({required Set<String>? permissions}) {
       : WebKitFit.partly;
 }
 
+/// How a listing's users rated it.
+typedef AmoRating = ({double average, int count});
+
 /// An extension a search found.
 final class AmoResult {
   AmoResult._({
     required this.source,
     required this.name,
     required this.summary,
+    required this.authors,
+    required this.icon,
     required this.users,
+    required this.rating,
     required this.recommended,
-    required this.fit,
+    required this.asked,
     required this.listing,
-  }) : assert(listing.isScheme('https'), 'a listing opens over https');
+  }) : assert(listing.isScheme('https'), 'a listing opens over https'),
+       assert(
+         icon == null || _isAmoMedia(icon),
+         'an icon is fetched from addons.mozilla.org only: $icon',
+       );
 
   /// Where it is added from, as a link to its listing adds it (WEBEXT-017).
   final AmoSource source;
@@ -76,14 +99,44 @@ final class AmoResult {
   /// Empty where the listing has none.
   final String summary;
 
+  /// Its authors' names, as the listing gives them.
+  final List<String> authors;
+
+  /// Its icon on addons.mozilla.org, where the listing names one there.
+  final Uri? icon;
+
   /// How many use it on an average day, where the listing says.
   final int? users;
 
+  /// How its users rated it, where the listing says.
+  final AmoRating? rating;
+
   /// Whether Mozilla recommends it for Firefox.
   final bool recommended;
-  final WebKitFit fit;
+
+  /// What its current version asks for as it installs, API permissions and
+  /// host patterns together; null when its listing names nothing.
+  final Set<String>? asked;
   final Uri listing;
+
+  WebKitFit get fit => webKitFitOf(permissions: asked);
+
+  /// The API permissions it asks for that no extension is given here
+  /// (WEBEXT-015), blocking requests first, as the one most extensions miss,
+  /// then by name.
+  List<String> get refused {
+    final names = refusedPermissions(asked ?? const {}).toList()..sort();
+    return [if (names.remove(_blocking)) _blocking, ...names];
+  }
+
+  /// The host patterns it asks for, `<all_urls>` among them.
+  Set<String> get hosts => {
+    for (final permission in asked ?? const <String>{})
+      if (permission == '<all_urls>' || permission.contains('://')) permission,
+  };
 }
+
+const _blocking = 'webRequestBlocking';
 
 /// What a search's reply lists.
 sealed class SearchRead {
@@ -145,8 +198,21 @@ AmoResult? _result(Map<String, Object?> addon) {
     source: AmoSource(slug: slug),
     name: _translated(addon['name']) ?? slug,
     summary: _translated(addon['summary']) ?? '',
+    authors: [
+      if (addon['authors'] case final List<Object?> authors)
+        for (final author in authors)
+          if (author case {'name': final String name} when name.isNotEmpty)
+            name,
+    ],
+    icon: _iconOf(addon),
     users: switch (addon['average_daily_users']) {
       final int users when users >= 0 => users,
+      _ => null,
+    },
+    rating: switch (addon['ratings']) {
+      {'average': final num average, 'count': final int count}
+          when average >= 0 && average <= 5 && count >= 0 =>
+        (average: average.toDouble(), count: count),
       _ => null,
     },
     recommended: switch (addon['promoted']) {
@@ -159,9 +225,155 @@ AmoResult? _result(Map<String, Object?> addon) {
       ),
       _ => false,
     },
-    fit: webKitFitOf(permissions: _asked(addon['current_version'])),
+    asked: _asked(addon['current_version']),
     listing: _https(addon['url']) ?? Uri.https(_host, '/$_app/addon/$slug/'),
   );
+}
+
+/// The largest icon [addon] names on addons.mozilla.org, up to 128 pixels.
+Uri? _iconOf(Map<String, Object?> addon) {
+  final icons = switch (addon['icons']) {
+    final Map<String, Object?> sizes => [sizes['128'], sizes['64']],
+    _ => const <Object?>[],
+  };
+  return [
+    ...icons,
+    addon['icon_url'],
+  ].map(_https).nonNulls.where(_isAmoMedia).firstOrNull;
+}
+
+bool _isAmoMedia(Uri url) => url.isScheme('https') && url.host == _host;
+
+/// An extension's listing, read for its page before it is added
+/// (WEBEXT-019): what a search result says, and the rest of the listing.
+final class AmoListing {
+  AmoListing._({
+    required this.result,
+    required this.description,
+    required this.screenshots,
+    required this.version,
+    required this.size,
+    required this.updated,
+    required this.licence,
+    required this.homepage,
+    required this.support,
+  }) : assert(
+         screenshots.every(_isAmoMedia),
+         'a screenshot is fetched from addons.mozilla.org only',
+       );
+
+  final AmoResult result;
+
+  /// Its description as plain text, its markup dropped; empty where it has
+  /// none.
+  final String description;
+
+  /// Its screenshots on addons.mozilla.org, in the listing's order.
+  final List<Uri> screenshots;
+
+  /// Its current version, and that version's package size in bytes.
+  final String? version;
+  final int? size;
+  final DateTime? updated;
+
+  /// Its licence's name.
+  final String? licence;
+  final Uri? homepage;
+  final Uri? support;
+}
+
+/// What a listing's reply holds.
+sealed class ListingRead {
+  const ListingRead();
+}
+
+final class ListingFound extends ListingRead {
+  const ListingFound(this.listing);
+  final AmoListing listing;
+}
+
+final class ListingRefused extends ListingRead {
+  const ListingRefused(this.why);
+  final SearchProblem why;
+}
+
+/// [json], the decoded reply to an addons.mozilla.org source's listing
+/// request (`releaseQuery`). The caller passes null for a body that did not decode.
+ListingRead readAmoListing(Object? json) {
+  if (json is! Map<String, Object?>) {
+    return const ListingRefused(SearchProblem.notJson);
+  }
+  final result = _result(json);
+  if (result == null) return const ListingRefused(SearchProblem.noResults);
+  final file = switch (json['current_version']) {
+    {'file': final Map<String, Object?> file} => file,
+    _ => const <String, Object?>{},
+  };
+  return ListingFound(
+    AmoListing._(
+      result: result,
+      description: plainText(_translated(json['description']) ?? ''),
+      screenshots: [
+        if (json['previews'] case final List<Object?> previews)
+          for (final preview in previews)
+            if (preview case {'image_url': final Object? url})
+              if (_https(url) case final shot? when _isAmoMedia(shot)) shot,
+      ],
+      version: switch (json['current_version']) {
+        {'version': final String version} when version.isNotEmpty => version,
+        _ => null,
+      },
+      size: switch (file['size']) {
+        final int size when size >= 0 => size,
+        _ => null,
+      },
+      updated: switch (json['last_updated']) {
+        final String at => DateTime.tryParse(at),
+        _ => null,
+      },
+      licence: switch (json['current_version']) {
+        {'license': {'name': final Object? name}} => _translated(name),
+        _ => null,
+      },
+      homepage: _linkOf(json['homepage']),
+      support: _linkOf(json['support_url']),
+    ),
+  );
+}
+
+/// A listing's link, the site's own address and never the tracking
+/// redirect addons.mozilla.org wraps it in.
+Uri? _linkOf(Object? link) => switch (link) {
+  {'url': final Object? url} => _https(_translated(url)),
+  _ => null,
+};
+
+final _tag = RegExp(r'<[^>]*>');
+final _breakTag = RegExp(r'<(br\s*/?|/p|/li|/h\d)>', caseSensitive: false);
+final _itemTag = RegExp(r'<li[^>]*>', caseSensitive: false);
+final _blankRun = RegExp(r'\n{3,}');
+const _entities = {
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#39;': "'",
+  '&#x27;': "'",
+  '&nbsp;': ' ',
+  '&amp;': '&',
+};
+
+/// [html], a listing's description, as text: its markup dropped, a break or
+/// an item's end kept as a line, a list item led by a bullet, and the few
+/// entities a listing writes read back.
+String plainText(String html) {
+  var text = html
+      .replaceAll(_breakTag, '\n')
+      .replaceAll(_itemTag, '• ')
+      .replaceAll(_tag, '');
+  for (final MapEntry(:key, :value) in _entities.entries) {
+    text = text.replaceAll(key, value);
+  }
+  return text.replaceAll(_blankRun, '\n\n').trim();
 }
 
 /// A translated field's text. With `lang` the API sends a map holding the

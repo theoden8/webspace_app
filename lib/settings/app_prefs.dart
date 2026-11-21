@@ -83,8 +83,6 @@ enum AppPref<T extends Object> {
   // DEVTOOLS-011: the Experimental switches, each new when it was added, so
   // off.
   experimentalTextureRendering('experimentalTextureRendering', section: PrefSection.experimental, fallback: false),
-  // WEBEXT-019: the search of addons.mozilla.org, outside the App Store only.
-  experimentalExtensionSearch('experimentalExtensionSearch', section: PrefSection.experimental, fallback: false),
   // WEBEXT-018: the daily check of each extension's source. Off: no request
   // reaches a source the user did not ask to check.
   webExtensionsCheckUpdates('webExtensionsCheckUpdates', section: PrefSection.extensions, fallback: false),

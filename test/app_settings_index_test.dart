@@ -41,7 +41,7 @@ void main() {
   Widget settings({
     VoidCallback? onExportSettings,
     bool containersRunHere = true,
-  }) => AppSettingsScreen(
+  }) => AppSettingsScreen(extensionSites: const [],
         currentSettings: AppThemeSettings(),
         containersRunHere: containersRunHere,
         onSettingsChanged: (_) {},

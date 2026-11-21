@@ -92,6 +92,14 @@ void main() {
             'every platform (DEVTOOLS-011)');
   });
 
+  test('Extension search graduated: it has no switch (WEBEXT-019)', () {
+    expect(
+        ExperimentalFeature.values.map((f) => f.pref.key),
+        isNot(contains('experimentalExtensionSearch')),
+        reason: 'every build made with the direct flavor offers it, with '
+            'developer mode on or off (DEVTOOLS-011)');
+  });
+
   test('The tray icon graduated: it has no switch (NOTIF-019)', () {
     expect(
         ExperimentalFeature.values.map((f) => f.pref.key),
@@ -151,13 +159,13 @@ void main() {
   test('a switch defaults off and counts only with developer mode', () async {
     await ExperimentalFeaturesService.instance.initialize();
     DeveloperModeService.instance.debugSet(on: true);
-    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.extensionSearch), isFalse);
-    await ExperimentalFeaturesService.instance.setSwitch(ExperimentalFeature.extensionSearch, on: true);
-    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.extensionSearch), isTrue);
+    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.networkInterface), isFalse);
+    await ExperimentalFeaturesService.instance.setSwitch(ExperimentalFeature.networkInterface, on: true);
+    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.networkInterface), isTrue);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool(AppPref.experimentalExtensionSearch.key), isTrue);
+    expect(prefs.getBool(AppPref.experimentalNetworkInterface.key), isTrue);
     DeveloperModeService.instance.debugSet(on: false);
-    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.extensionSearch), isFalse);
+    expect(ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.networkInterface), isFalse);
   });
 
   test('a wrong-typed stored value reads as the default', () async {

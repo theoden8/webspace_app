@@ -12,7 +12,7 @@ import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/web_extension_grants_engine.dart'
-    show refusedPermissions;
+    show ExtensionSite;
 import 'package:webspace/services/web_extension_library.dart';
 import 'package:webspace/services/web_extension_package_engine.dart';
 import 'package:webspace/services/web_extension_source_engine.dart';
@@ -26,6 +26,7 @@ import 'package:webspace/widgets/extension_link_dialog.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/toast.dart';
+import 'package:webspace/widgets/extension_asks.dart';
 
 /// The bytes of a file the user picks, or null when they pick none. Fails
 /// with [FileDialogFailure] or an [IOException].
@@ -48,7 +49,15 @@ Future<Uint8List?> pickPackageFile() async {
 /// file the user picks, and removal. Reached only while
 /// [webExtensionsOffered].
 class AppExtensionsScreen extends StatefulWidget {
-  const AppExtensionsScreen({super.key, this.pick = pickPackageFile});
+  const AppExtensionsScreen({
+    super.key,
+    required this.sites,
+    this.pick = pickPackageFile,
+  });
+
+  /// The user's sites that can run extensions, which a search names where
+  /// each result would run (WEBEXT-019).
+  final List<ExtensionSite> sites;
 
   final PickPackage pick;
 
@@ -121,7 +130,10 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
       final source = await Navigator.push<ExtensionSource>(
         context,
         MaterialPageRoute(
-          builder: (_) => ExtensionSearchScreen(query: query.trim()),
+          builder: (_) => ExtensionSearchScreen(
+            query: query.trim(),
+            sites: widget.sites,
+          ),
         ),
       );
       if (source == null || !mounted) return;
@@ -250,9 +262,6 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
   Future<bool> _confirmAdd(ExtensionPackage package) {
     final loc = AppLocalizations.of(context);
     final manifest = package.manifest;
-    final permissions = manifest.permissions.toList()..sort();
-    final refused = refusedPermissions(manifest.permissions).toList()..sort();
-    final hosts = manifest.hosts.toList()..sort();
     return confirm(
       context,
       title: loc.extensionsAddTitle(manifest.name),
@@ -261,13 +270,11 @@ class _AppExtensionsScreenState extends State<AppExtensionsScreen> {
         if (manifest.description case final description?
             when description.isNotEmpty)
           Localized.verbatim(description),
-        permissions.isEmpty
-            ? loc.extensionsAsksNothing
-            : loc.extensionsAsks(permissions.join(', ')),
-        if (refused.isNotEmpty) loc.extensionsNotGiven(refused.join(', ')),
-        hosts.isEmpty
-            ? loc.extensionsReachesNothing
-            : loc.extensionsReaches(hosts.join(', ')),
+        ...extensionAsks(
+          permissions: manifest.permissions,
+          hosts: manifest.hosts,
+          loc: loc,
+        ),
         loc.extensionsOnlyItsSite,
         if (manifest.background == ExtensionBackground.persistentPage)
           loc.extensionsAlwaysLoaded,
