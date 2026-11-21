@@ -25,6 +25,7 @@ enum Env {
   dnsAsk(op: ModelConst.siteLevel, by: 'DnsAsk'),
   dnsTwo(op: ModelConst.dnsLevels, by: 'DnsTwo'),
   dnsFetchFails(op: ModelConst.dnsFetchFails, by: 'DnsFetchCanFail'),
+  archiveTooBig(op: ModelConst.archiveTooBig, by: 'ArchiveCanBeTooBig'),
   residentOne(op: ModelConst.maxResident, by: 'ResidentOne'),
   capTwo(op: ModelConst.maxLoaded, by: 'CapTwo'),
   warmOne(op: ModelConst.warmOwn, by: 'WarmOne'),
@@ -108,6 +109,7 @@ enum Inv {
   headlessOwned(reads: {ModelVar.fl, ModelVar.headless}),
   told(reads: {ModelVar.dns, ModelVar.told}),
   dnsTurnLive(reads: {ModelVar.dnsHolder, ModelVar.fl}),
+  fullArchiveKept(reads: {ModelVar.gone}),
   tabShown(reads: {ModelVar.built, ModelVar.hist}),
   tabFiles(reads: {ModelVar.file}),
   tabFilesHosted(atRest: true, reads: {ModelVar.file, ModelVar.host, ModelVar.tabs}),
@@ -848,6 +850,17 @@ enum ActivationWorld {
         'containers, a wake whose every open the platform refuses: each check '
         'is passed over and none is left running (NOTIF-016, NOTIF-021)',
   ),
+  archiveFullContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    inputs: 3,
+    env: {Env.archiveOne, Env.archiveTooBig},
+    allowed: {'CloseArchive', 'Pressure', 'Tap'},
+    invariants: [..._core, Inv.retired, Inv.fullArchiveKept],
+    holds:
+        'containers, an archive whose sites outgrew its slot: its close is '
+        'refused before anything moves, beside taps and pressure (ARCH-003)',
+  ),
   archiveContainers(
     cookies: Cookies.containers,
     coldStart: false,
@@ -1480,6 +1493,13 @@ enum Mutant {
     doc:
         'a fold that tells the views before the new app-wide level is in '
         'force (caught)',
+  ),
+  fullclosed(
+    world: ActivationWorld.archiveFullContainers,
+    by: Inv.fullArchiveKept,
+    doc:
+        'a close that goes on with an archive too large for its slot: its '
+        'sites leave the list with nothing saved (ARCH-003, caught)',
   ),
   failkeepsturn(
     world: ActivationWorld.dnsFailsContainers,
