@@ -1030,6 +1030,8 @@
   "unproxiedBlockWhy": "Saidile määratud puhverserver katab päringu, millega leht avatakse. See päring tuli hiljem, lehe seest, ja siin ei saa kuidagi näidata, et ka see läheks puhverserverist läbi.",
   "onionBlockBody": "Saidil {site} pole puhverserverit ning onion-aadressid avanevad ainult Tori või puhverserveri kaudu. Selle otse avamine oleks näidanud seda selle seadme DNS-lahendajale, seega jäi see avamata.",
   "onionBlockWhy": "Et sellel saidil onion-aadresse avada, määra selle puhverserveriks Tor või puhverserver, mis jõuab onion-teenusteni.",
+  "i2pBlockBody": "Saidil {site} pole puhverserverit ning I2P-aadressid avanevad ainult I2P-ruuteri puhverserveri kaudu. Selle otse avamine oleks näidanud seda selle seadme DNS-lahendajale, seega jäi see avamata.",
+  "i2pBlockWhy": "Et sellel saidil I2P-aadresse avada, määra selle puhverserveriks selles seadmes või sinu võrgus töötava I2P-ruuteri HTTP- või SOCKS-puhverserver.",
   "unproxiedBlockBack": "Tagasi",
   "unproxiedBlockProxySettings": "Puhverserveri seaded",
   "proxyTestOk": "Puhverserver töötab",

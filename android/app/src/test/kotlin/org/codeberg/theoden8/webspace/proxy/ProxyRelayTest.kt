@@ -552,7 +552,7 @@ class ProxyRelayTest {
 
     // LEAK-016
     @Test
-    fun directRoute_refusesAnOnionHostBeforeAnyConnect() {
+    fun directRoute_refusesAnOverlayHostBeforeAnyConnect() {
         val logs = java.util.Collections.synchronizedList(mutableListOf<String>())
         val relay = ProxyRelay(logger = { logs.add(it) })
         try {
@@ -563,6 +563,9 @@ class ProxyRelayTest {
                 "CONNECT duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion:443 HTTP/1.1\r\n" +
                     "Host: duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion:443\r\n\r\n",
                 "GET http://Forum.ONION./ HTTP/1.1\r\nHost: Forum.ONION.\r\n\r\n",
+                "CONNECT ukeu3k5oycgaauneqgtnvselmt4yemvoilkln7jpvamvfx7dnkdq.b32.i2p:80 HTTP/1.1\r\n" +
+                    "Host: ukeu3k5oycgaauneqgtnvselmt4yemvoilkln7jpvamvfx7dnkdq.b32.i2p:80\r\n\r\n",
+                "GET http://Forum.I2P./ HTTP/1.1\r\nHost: Forum.I2P.\r\n\r\n",
             )) {
                 Socket().use { c ->
                     c.connect(InetSocketAddress(relay.host, port), 2000)
@@ -572,7 +575,7 @@ class ProxyRelayTest {
                     assertTrue("expected 502, got: $status", status.contains("502"))
                 }
             }
-            assertEquals(2, logs.count { it.startsWith("onion host refused") })
+            assertEquals(4, logs.count { it.startsWith("overlay host refused") })
             assertFalse(
                 "nothing was dialled: ${logs.joinToString()}",
                 logs.any { it.startsWith("upstream connecting") },
@@ -583,13 +586,18 @@ class ProxyRelayTest {
     }
 
     @Test
-    fun isOnionHost_matchesTheDartRule() {
-        assertTrue(ProxyRelay.isOnionHost("abc.onion"))
-        assertTrue(ProxyRelay.isOnionHost("A.B.ONION."))
-        assertTrue(ProxyRelay.isOnionHost("onion"))
-        assertFalse(ProxyRelay.isOnionHost("onion.example.com"))
-        assertFalse(ProxyRelay.isOnionHost("myonion"))
-        assertFalse(ProxyRelay.isOnionHost("example.com"))
+    fun isOverlayHost_matchesTheDartRule() {
+        assertTrue(ProxyRelay.isOverlayHost("abc.onion"))
+        assertTrue(ProxyRelay.isOverlayHost("A.B.ONION."))
+        assertTrue(ProxyRelay.isOverlayHost("onion"))
+        assertTrue(ProxyRelay.isOverlayHost("abc.b32.i2p"))
+        assertTrue(ProxyRelay.isOverlayHost("Forum.I2P."))
+        assertTrue(ProxyRelay.isOverlayHost("i2p"))
+        assertFalse(ProxyRelay.isOverlayHost("onion.example.com"))
+        assertFalse(ProxyRelay.isOverlayHost("myonion"))
+        assertFalse(ProxyRelay.isOverlayHost("i2p.example.com"))
+        assertFalse(ProxyRelay.isOverlayHost("noti2p"))
+        assertFalse(ProxyRelay.isOverlayHost("example.com"))
     }
 
     // PROXY-012

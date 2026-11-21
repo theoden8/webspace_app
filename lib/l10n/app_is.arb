@@ -1030,6 +1030,8 @@
   "unproxiedBlockWhy": "Milliþjónn sem stilltur er fyrir vef nær yfir beiðnina sem síða opnast með. Þessi kom á eftir, innan úr síðunni, og hér er engin leið til að sýna að hún færi líka um milliþjóninn.",
   "onionBlockBody": "{site} er ekki með milliþjón, og onion-vistföng opnast aðeins um Tor eða milliþjón. Að opna þetta beint hefði sýnt það DNS-uppflettiþjóni þessa tækis, svo það var ekki opnað.",
   "onionBlockWhy": "Til að opna onion-vistföng á þessum vef skaltu stilla milliþjón hans á Tor, eða á milliþjón sem nær til onion-þjónusta.",
+  "i2pBlockBody": "{site} er ekki með milliþjón, og I2P-vistföng opnast aðeins um milliþjón I2P-beinis. Að opna þetta beint hefði sýnt það DNS-uppflettiþjóni þessa tækis, svo það var ekki opnað.",
+  "i2pBlockWhy": "Til að opna I2P-vistföng á þessum vef skaltu stilla milliþjón hans á HTTP- eða SOCKS-milliþjón I2P-beinis sem keyrir á þessu tæki eða netinu þínu.",
   "unproxiedBlockBack": "Til baka",
   "unproxiedBlockProxySettings": "Stillingar milliþjóns",
   "proxyTestOk": "Milliþjónninn virkar",

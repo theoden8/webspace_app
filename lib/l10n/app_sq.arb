@@ -1030,6 +1030,8 @@
   "unproxiedBlockWhy": "Një ndërmjetës i vendosur për një faqe mbulon kërkesën me të cilën hapet një faqe. Kjo erdhi më pas, nga brenda faqes, dhe këtu nuk ka mënyrë të tregohet se edhe ajo do të kalonte përmes ndërmjetësit.",
   "onionBlockBody": "{site} nuk ka ndërmjetës, dhe adresat onion hapen vetëm përmes Tor ose një ndërmjetësi. Hapja e kësaj drejtpërdrejt do t'ia tregonte zgjidhësit DNS të kësaj pajisjeje, prandaj nuk u hap.",
   "onionBlockWhy": "Për të hapur adresa onion në këtë sajt, vendoseni ndërmjetësin e tij në Tor, ose në një ndërmjetës që mund të arrijë shërbimet onion.",
+  "i2pBlockBody": "{site} nuk ka ndërmjetës, dhe adresat I2P hapen vetëm përmes ndërmjetësit të një rrugëzuesi I2P. Hapja e kësaj drejtpërdrejt do t'ia tregonte zgjidhësit DNS të kësaj pajisjeje, prandaj nuk u hap.",
+  "i2pBlockWhy": "Për të hapur adresa I2P në këtë sajt, vendoseni ndërmjetësin e tij në ndërmjetësin HTTP ose SOCKS të një rrugëzuesi I2P që punon në këtë pajisje ose në rrjetin tuaj.",
   "unproxiedBlockBack": "Kthehu",
   "unproxiedBlockProxySettings": "Cilësimet e ndërmjetësit",
   "proxyTestOk": "Proxy-i funksionon",

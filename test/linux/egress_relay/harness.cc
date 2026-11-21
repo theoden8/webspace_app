@@ -313,12 +313,19 @@ int Run(int argc, char** argv) {
     const int reply = Ask(*relay, r, &tunnel);
     return reply == 0x04 ? 0 : Fail("a name with no resolver answered " + std::to_string(reply));
   }
-  if (scenario == "onion") {
-    r.user = User("lo");
-    r.name = "expyuzz4wqqyqhjn.onion";
-    r.port = 80;
-    const int reply = Ask(*relay, r, &tunnel);
-    return reply == 0x04 ? 0 : Fail("an onion name answered " + std::to_string(reply));
+  if (scenario == "overlay") {
+    for (const char* name :
+         {"expyuzz4wqqyqhjn.onion",
+          "ukeu3k5oycgaauneqgtnvselmt4yemvoilkln7jpvamvfx7dnkdq.b32.i2p"}) {
+      r.user = User("lo");
+      r.name = name;
+      r.port = 80;
+      const int reply = Ask(*relay, r, &tunnel);
+      if (reply != 0x04) {
+        return Fail(std::string(name) + " answered " + std::to_string(reply));
+      }
+    }
+    return 0;
   }
   if (scenario == "socks_upstream" || scenario == "http_upstream") {
     const bool socks = scenario == "socks_upstream";

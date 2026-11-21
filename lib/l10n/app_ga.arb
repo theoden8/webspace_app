@@ -1030,6 +1030,8 @@
   "unproxiedBlockWhy": "Clúdaíonn seachfhreastalaí atá socraithe do shuíomh an t-iarratas a osclaítear leathanach leis. Tháinig an ceann seo ina dhiaidh sin, ó laistigh den leathanach, agus níl aon bhealach anseo chun a thaispeáint go rachadh sé tríd an seachfhreastalaí freisin.",
   "onionBlockBody": "Níl seachfhreastalaí ag {site}, agus ní osclaíonn seoltaí onion ach trí Tor nó trí sheachfhreastalaí. Dá n-osclófaí an ceann seo go díreach, thaispeánfaí é do réiteoir DNS an ghléis seo, mar sin níor osclaíodh é.",
   "onionBlockWhy": "Chun seoltaí onion a oscailt ar an suíomh seo, socraigh a sheachfhreastalaí ar Tor, nó ar sheachfhreastalaí ar féidir leis seirbhísí onion a bhaint amach.",
+  "i2pBlockBody": "Níl seachfhreastalaí ag {site}, agus ní osclaíonn seoltaí I2P ach trí sheachfhreastalaí ródaire I2P. Dá n-osclófaí an ceann seo go díreach, thaispeánfaí é do réiteoir DNS an ghléis seo, mar sin níor osclaíodh é.",
+  "i2pBlockWhy": "Chun seoltaí I2P a oscailt ar an suíomh seo, socraigh a sheachfhreastalaí ar sheachfhreastalaí HTTP nó SOCKS ródaire I2P atá ag rith ar an ngléas seo nó ar do líonra.",
   "unproxiedBlockBack": "Ar ais",
   "unproxiedBlockProxySettings": "Socruithe an tseachfhreastalaí",
   "proxyTestOk": "Tá an seachfhreastalaí ag obair",

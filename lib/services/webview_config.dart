@@ -79,8 +79,8 @@ class WebViewConfig {
       required bool replayable})? shouldOverrideUrlLoading;
   /// Fires when a main-frame navigation, the first load among them, was
   /// cancelled because the app could not establish that it would go through
-  /// this site's proxy (LEAK-010), or because it named an onion service and
-  /// the site has none (LEAK-016). Carries the destination that was not
+  /// this site's proxy (LEAK-010), or because it named an overlay network's
+  /// host and the site has none (LEAK-016). Carries the destination that was not
   /// requested and why, so the host can render the interstitial that says so.
   final void Function(BlockedNavigation blocked)? onUnproxiedNavigationBlocked;
   /// Fires when the page enters or exits a loading state. Driven by

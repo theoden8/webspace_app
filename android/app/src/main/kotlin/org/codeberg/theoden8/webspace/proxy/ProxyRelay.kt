@@ -631,12 +631,13 @@ class ProxyRelay(
             return null
         }
 
-        // An onion service on a direct route (LEAK-016). Only Tor resolves
-        // the name, so a direct connect would hand it to the device's
-        // resolver and reach nothing. Refused before anything resolves it,
-        // whatever asked: a page, a frame, a redirect, a restored entry.
-        if (cfg.type == UpstreamType.DIRECT && isOnionHost(host)) {
-            log("onion host refused on a direct route for ${route.siteId}")
+        // An overlay name on a direct route (LEAK-016). Only the network's
+        // own router resolves it, so a direct connect would hand it to the
+        // device's resolver and reach nothing. Refused before anything
+        // resolves it, whatever asked: a page, a frame, a redirect, a
+        // restored entry.
+        if (cfg.type == UpstreamType.DIRECT && isOverlayHost(host)) {
+            log("overlay host refused on a direct route for ${route.siteId}")
             writeStatus(cout, 502, "Bad Gateway")
             return null
         }
@@ -1441,13 +1442,19 @@ class ProxyRelay(
         const val PROBE_SUFFIX = ".webspace-probe.invalid"
 
         /**
-         * Whether [host] names an onion service (RFC 7686). The same test as
-         * `Host.isOnion` in lib/services/url_host.dart, over the same
-         * normalization; keep the two in step.
+         * The top-level labels of the overlay networks: `OverlayNetwork.tld`
+         * in lib/services/url_host.dart; keep the two in step.
          */
-        fun isOnionHost(host: String): Boolean {
+        val OVERLAY_TLDS = listOf("onion", "i2p")
+
+        /**
+         * Whether [host] names an overlay network's site, an onion service
+         * (RFC 7686) or an I2P one. The same test as `Host.overlay` in
+         * lib/services/url_host.dart, over the same normalization.
+         */
+        fun isOverlayHost(host: String): Boolean {
             val h = host.trim().lowercase().removeSurrounding("[", "]").removeSuffix(".")
-            return h == "onion" || h.endsWith(".onion")
+            return OVERLAY_TLDS.any { h == it || h.endsWith(".$it") }
         }
 
         // Stand-in siteId for single-upstream (non-router) mode, where

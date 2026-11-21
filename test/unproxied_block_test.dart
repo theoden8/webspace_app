@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/proxy_coverage_engine.dart';
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/widgets/unproxied_block.dart';
 import 'helpers/localized.dart';
 
@@ -80,7 +81,7 @@ void main() {
     var settings = 0;
     await t.pumpWidget(_host(UnproxiedNavigationBlock(
       siteName: 'Forum',
-      blocked: (url: 'http://$onion/thread/1', why: const OnionNeedsProxy()),
+      blocked: (url: 'http://$onion/thread/1', why: const OverlayNeedsProxy(OverlayNetwork.tor)),
       onGoBack: () {},
       onOpenProxySettings: () => settings++,
     )));
@@ -100,6 +101,24 @@ void main() {
     expect(settings, 1);
   });
 
+  testWidgets('LEAK-016: an I2P block names an I2P router, not Tor',
+      (t) async {
+    _tallView(t);
+    const i2p = 'ukeu3k5oycgaauneqgtnvselmt4yemvoilkln7jpvamvfx7dnkdq.b32.i2p';
+    await t.pumpWidget(_host(UnproxiedNavigationBlock(
+      siteName: 'Forum',
+      blocked: (url: 'http://$i2p/', why: const OverlayNeedsProxy(OverlayNetwork.i2p)),
+      onGoBack: () {},
+      onOpenProxySettings: () {},
+    )));
+
+    final loc = await AppLocalizations.delegate.load(const Locale('en'));
+    expect(find.text(loc.i2pBlockBody('Forum')), findsOneWidget);
+    expect(find.text(loc.i2pBlockWhy), findsOneWidget);
+    expect(find.text(loc.onionBlockBody('Forum')), findsNothing);
+    expect(find.textContaining(i2p), findsOneWidget);
+  });
+
   test('the copy says nothing failed, because nothing was tried', () async {
     final loc = await AppLocalizations.delegate.load(const Locale('en'));
     final copy = [
@@ -108,6 +127,8 @@ void main() {
       loc.unproxiedBlockWhy,
       loc.onionBlockBody('Acme'),
       loc.onionBlockWhy,
+      loc.i2pBlockBody('Acme'),
+      loc.i2pBlockWhy,
     ].join(' ').toLowerCase();
 
     for (final forbidden in [

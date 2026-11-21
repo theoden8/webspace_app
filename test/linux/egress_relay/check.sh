@@ -107,10 +107,10 @@ run() {
 # names the route, and the relay carries it); bad_secret, NETIF-004 and
 # LEAK-009 (an unattributable caller is refused); absent and down, NETIF-002
 # (no route while the interface is gone); leaves_by, NETIF-003 (bound to the
-# device, never by the source address); dns_on_link, no_resolver and onion,
+# device, never by the source address); dns_on_link, no_resolver and overlay,
 # NETIF-007 (names only through the link's own servers); socks_upstream and
 # http_upstream, NETIF-005 (a proxy dialled over the interface).
-scenarios=(vectors direct bad_secret absent dns_on_link no_resolver onion socks_upstream http_upstream)
+scenarios=(vectors direct bad_secret absent dns_on_link no_resolver overlay socks_upstream http_upstream)
 if [ "$links" = true ]; then
   scenarios+=(leaves_by down)
 else
@@ -162,6 +162,8 @@ plant percent_kept vectors \
   -e 's/^    route->password = Unescape(password.substr(dot + 1));/    route->password = password.substr(dot + 1); (void)\&Unescape;/'
 plant http_as_socks http_upstream \
   -e 's/^  if (route.kind == UpstreamKind::kHttp) {/  if (route.kind == UpstreamKind::kHttp \&\& false) {/'
-plant onion_direct onion \
-  -e 's/^  } else if (IsOnion(host)) {/  } else if (false \&\& IsOnion(host)) {/'
+plant overlay_direct overlay \
+  -e 's/^  } else if (IsOverlay(host)) {/  } else if (false \&\& IsOverlay(host)) {/'
+plant i2p_forgotten overlay \
+  -e 's/^  for (const std::string tld : {"onion", "i2p"}) {/  for (const std::string tld : {"onion"}) {/'
 echo "egress_relay check: passed, and caught every planted mistake it could run"

@@ -1,6 +1,7 @@
 // Shown in place of the page when a navigation was cancelled because the app
 // could not establish that it would go through the site's proxy (LEAK-010),
-// or because it named an onion service and the site has no proxy (LEAK-016).
+// or because it named an overlay network's host (an onion or I2P address)
+// and the site has no proxy (LEAK-016).
 //
 // It sits at the widget level for the same reason the Tor bootstrap
 // interstitial does: the navigation never happened, so there is no page to
@@ -21,6 +22,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/proxy_coverage_engine.dart';
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/theme/design_tokens.dart';
 
 /// Empty-state glyph, sized as on the Tor bootstrap interstitial: it is the
@@ -58,7 +60,10 @@ class UnproxiedNavigationBlock extends StatelessWidget {
     final destination = Uri.tryParse(blocked.url)?.host ?? blocked.url;
     final (body, why) = switch (blocked.why) {
       Unprovable() => (loc.unproxiedBlockBody(siteName), loc.unproxiedBlockWhy),
-      OnionNeedsProxy() => (loc.onionBlockBody(siteName), loc.onionBlockWhy),
+      OverlayNeedsProxy(overlay: OverlayNetwork.tor) =>
+        (loc.onionBlockBody(siteName), loc.onionBlockWhy),
+      OverlayNeedsProxy(overlay: OverlayNetwork.i2p) =>
+        (loc.i2pBlockBody(siteName), loc.i2pBlockWhy),
     };
 
     return Container(

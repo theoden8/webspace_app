@@ -1030,6 +1030,8 @@
   "unproxiedBlockWhy": "En proxy som ställts in för en webbplats täcker den begäran som en sida öppnas med. Den här kom efteråt, inifrån sidan, och här går det inte att visa att även den skulle gå genom proxyn.",
   "onionBlockBody": "{site} har ingen proxy, och onion-adresser öppnas bara via Tor eller en proxy. Att öppna den här direkt hade visat den för enhetens DNS-resolver, så den öppnades inte.",
   "onionBlockWhy": "Om du vill öppna onion-adresser på den här webbplatsen ställer du in dess proxy på Tor eller på en proxy som når onion-tjänster.",
+  "i2pBlockBody": "{site} har ingen proxy, och I2P-adresser öppnas bara via en I2P-routers proxy. Att öppna den här direkt hade visat den för enhetens DNS-resolver, så den öppnades inte.",
+  "i2pBlockWhy": "Om du vill öppna I2P-adresser på den här webbplatsen ställer du in dess proxy på HTTP- eller SOCKS-proxyn hos en I2P-router som körs på den här enheten eller i ditt nätverk.",
   "unproxiedBlockBack": "Tillbaka",
   "unproxiedBlockProxySettings": "Proxyinställningar",
   "proxyTestOk": "Proxyn fungerar",

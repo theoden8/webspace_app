@@ -59,7 +59,7 @@ class DownloadEngine {
   final OutboundClient _transport;
   final int _maxBytes;
 
-  /// The route is direct, so no onion service is reachable on it.
+  /// The route is direct, so no overlay name is reachable on it.
   final bool _direct;
 
   DownloadEngine({
@@ -296,7 +296,7 @@ class DownloadEngine {
   /// [target], parsed from [raw], when the client can request it: an http(s)
   /// URL with a host. dart:io refuses any other with an ArgumentError
   /// (`_http/http_impl.dart:2983-2990`), which would leave the download
-  /// running forever. Asked of every hop, so a redirect to an onion service
+  /// running forever. Asked of every hop, so a redirect to an overlay name
   /// on a direct route is refused before its name reaches the device's
   /// resolver (LEAK-016).
   Uri _fetchable(Uri? target, {required String raw}) {
@@ -305,9 +305,11 @@ class DownloadEngine {
       throw DownloadException('Unsupported scheme: ${target.scheme}');
     }
     if (target.host.isEmpty) throw DownloadException('No host in URL: $raw');
-    if (_direct && Host(target.host).isOnion) {
-      throw DownloadException(
-          'An onion service is reached only through Tor or a proxy: $raw');
+    if (_direct) {
+      if (Host(target.host).overlay case final overlay?) {
+        throw DownloadException('${overlay.what} is reached only through '
+            '${overlay.router} or a proxy: $raw');
+      }
     }
     return target;
   }

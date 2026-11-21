@@ -1030,6 +1030,8 @@
   "unproxiedBlockWhy": "Un servidor intermediari configurat per a un lloc cobreix la petició amb què s'obre una pàgina. Aquesta ha arribat després, des de dins de la pàgina, i aquí no hi ha manera de demostrar que també hi passaria.",
   "onionBlockBody": "{site} no té cap servidor intermediari, i les adreces onion només s'obren a través de Tor o d'un servidor intermediari. Obrir aquesta directament l'hauria mostrada al resolutor DNS d'aquest dispositiu, així que no s'ha obert.",
   "onionBlockWhy": "Per obrir adreces onion en aquest lloc, configureu-ne el servidor intermediari a Tor, o a un que pugui arribar a serveis onion.",
+  "i2pBlockBody": "{site} no té cap servidor intermediari, i les adreces I2P només s'obren a través del servidor intermediari d'un encaminador I2P. Obrir aquesta directament l'hauria mostrada al resolutor DNS d'aquest dispositiu, així que no s'ha obert.",
+  "i2pBlockWhy": "Per obrir adreces I2P en aquest lloc, configureu-ne el servidor intermediari al servidor intermediari HTTP o SOCKS d'un encaminador I2P que s'executi en aquest dispositiu o a la vostra xarxa.",
   "unproxiedBlockBack": "Enrere",
   "unproxiedBlockProxySettings": "Configuració del servidor intermediari",
   "proxyTestOk": "El servidor intermediari funciona",

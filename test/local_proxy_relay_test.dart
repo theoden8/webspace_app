@@ -240,7 +240,7 @@ void main() {
     expect(reply, contains('served /direct'));
   });
 
-  test('LEAK-016: a direct route never dials an onion service', () async {
+  test('LEAK-016: a direct route never dials an overlay name', () async {
     relay.setRoutes({
       'ws-site-a': LocalProxyRoute(
         identity: RouterIdentity.ofSite(SiteId('site-a')),
@@ -248,17 +248,21 @@ void main() {
         upstream: UserProxySettings(type: ProxyType.DEFAULT),
       ),
     });
-    final reply = await connectThroughRelay(
-      host: relay.host!,
-      port: relay.port!,
-      targetHost:
-          'duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion',
-      targetPort: 443,
-      username: 'ws-site-a',
-      token: 'token-a',
-    );
-    expect(reply, contains('502'));
-    expect(reply, isNot(contains('200')));
+    for (final name in [
+      'duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion',
+      'ukeu3k5oycgaauneqgtnvselmt4yemvoilkln7jpvamvfx7dnkdq.b32.i2p',
+    ]) {
+      final reply = await connectThroughRelay(
+        host: relay.host!,
+        port: relay.port!,
+        targetHost: name,
+        targetPort: 443,
+        username: 'ws-site-a',
+        token: 'token-a',
+      );
+      expect(reply, contains('502'), reason: name);
+      expect(reply, isNot(contains('200')), reason: name);
+    }
   });
 
   test('a SOCKS5 route reaches the origin through the SOCKS server', () async {

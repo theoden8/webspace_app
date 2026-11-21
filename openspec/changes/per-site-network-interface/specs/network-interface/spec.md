@@ -174,7 +174,8 @@ When the relay dials a bound site's destination itself, it SHALL resolve the
 name through the interface: on Linux, systemd-resolved's `ResolveHostname`
 with the interface's index, which asks only that link's servers. Where that is
 unavailable, the connection SHALL be refused; the system resolver SHALL NOT be
-asked. An onion name SHALL be refused without asking any resolver (LEAK-016).
+asked. An overlay name (onion or I2P) SHALL be refused without asking any
+resolver (LEAK-016).
 
 #### Scenario: The link's own servers
 

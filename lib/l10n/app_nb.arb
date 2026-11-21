@@ -1030,6 +1030,8 @@
   "unproxiedBlockWhy": "En mellomtjener satt opp for et nettsted dekker forespørselen en side åpnes med. Denne kom etterpå, innenfra siden, og her finnes ingen måte å vise at den også ville gå gjennom mellomtjeneren.",
   "onionBlockBody": "{site} har ingen mellomtjener, og onion-adresser åpnes bare gjennom Tor eller en mellomtjener. Å åpne denne direkte ville vist den til enhetens DNS-resolver, så den ble ikke åpnet.",
   "onionBlockWhy": "For å åpne onion-adresser på dette nettstedet, sett mellomtjeneren til Tor eller til en mellomtjener som når onion-tjenester.",
+  "i2pBlockBody": "{site} har ingen mellomtjener, og I2P-adresser åpnes bare gjennom mellomtjeneren til en I2P-ruter. Å åpne denne direkte ville vist den til enhetens DNS-resolver, så den ble ikke åpnet.",
+  "i2pBlockWhy": "For å åpne I2P-adresser på dette nettstedet, sett mellomtjeneren til HTTP- eller SOCKS-mellomtjeneren til en I2P-ruter som kjører på denne enheten eller i nettverket ditt.",
   "unproxiedBlockBack": "Tilbake",
   "unproxiedBlockProxySettings": "Innstillinger for mellomtjener",
   "proxyTestOk": "Proxyen virker",

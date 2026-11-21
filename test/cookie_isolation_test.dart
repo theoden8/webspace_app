@@ -249,6 +249,11 @@ void main() {
       expect(getBaseDomain('https://x.myshopify.com'), equals('x.myshopify.com'));
       expect(getBaseDomain('https://x.blogspot.com'), equals('x.blogspot.com'));
       expect(getBaseDomain('https://x.wordpress.com'), equals('x.wordpress.com'));
+      // Each b32 name is an I2P destination's key, so each is its own owner.
+      const a = 'ukeu3k5oycgaauneqgtnvselmt4yemvoilkln7jpvamvfx7dnkdq';
+      const b = 'zzz2mb3w5plcykdk2vsfmlqqtjkcd3kyxd5vvqfx4hcdzrnbatsa';
+      expect(getBaseDomain('http://$a.b32.i2p/'), equals('$a.b32.i2p'));
+      expect(getBaseDomain('http://$b.b32.i2p/'), equals('$b.b32.i2p'));
     });
 
     test('a private suffix still groups its own subdomains', () {
