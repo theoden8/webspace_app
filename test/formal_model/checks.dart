@@ -1506,7 +1506,7 @@ enum Mutant {
   ),
   failkeepsturn(
     world: ActivationWorld.dnsFailsContainers,
-    by: Inv.dnsTurnLive,
+    caught: Breaks(Inv.dnsTurnLive),
     doc:
         'a fetch no mirror answers that ends its flow holding the lists\' '
         'turn (caught)',
