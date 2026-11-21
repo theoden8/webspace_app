@@ -179,7 +179,7 @@ void main() {
     ) async {
       await pumpLocalized(
         tester,
-        home: AppExtensionsScreen(pick: () async => null),
+        home: AppExtensionsScreen(sites: const [], pick: () async => null),
       );
       await tester.tap(find.text('Add from a link'));
       await tester.pumpAndSettle();
@@ -210,7 +210,7 @@ void main() {
       );
       await pumpLocalized(
         tester,
-        home: AppExtensionsScreen(pick: () async => null),
+        home: AppExtensionsScreen(sites: const [], pick: () async => null),
       );
       await tester.tap(find.text('Add from a link'));
       await tester.pumpAndSettle();
@@ -320,7 +320,7 @@ void main() {
       fetch.asked.clear();
       await pumpLocalized(
         tester,
-        home: AppExtensionsScreen(pick: () async => null),
+        home: AppExtensionsScreen(sites: const [], pick: () async => null),
       );
       await tester.pumpAndSettle();
       expect(fetch.asked, isEmpty, reason: 'opening it sends nothing');

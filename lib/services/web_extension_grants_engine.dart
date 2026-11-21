@@ -6,6 +6,7 @@ library;
 
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/url_host.dart' show getBaseDomain;
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/settings/web_extension.dart';
 
 /// What one extension may reach on one site.
@@ -38,19 +39,65 @@ const Set<String> grantablePermissions = {
 ExtensionGrants planExtensionGrants(
   WebExtensionEntry entry, {
   required List<DomainClaim> claims,
+}) => (
+  matchPatterns: grantedPatterns(entry.hosts, claims: claims),
+  permissions: entry.permissions.intersection(grantablePermissions),
+);
+
+/// The pages both a pattern among [hosts] and a pattern [claims] cover
+/// name (WEBEXT-014).
+Set<String> grantedPatterns(
+  Iterable<String> hosts, {
+  required List<DomainClaim> claims,
 }) {
   final site = siteMatchPatterns(claims).map(parseMatchPattern).nonNulls;
-  final granted = <String>{};
-  for (final requested in entry.hosts.map(parseMatchPattern).nonNulls) {
-    for (final claimed in site) {
-      if (_overlap(requested, claimed: claimed) case final pattern?) {
-        granted.add(pattern.toString());
-      }
-    }
-  }
+  return {
+    for (final requested in hosts.map(parseMatchPattern).nonNulls)
+      for (final claimed in site)
+        if (_overlap(requested, claimed: claimed) case final pattern?)
+          pattern.toString(),
+  };
+}
+
+/// A site an extension's listing can name: one that runs extensions.
+typedef ExtensionSite = ({SiteId id, String name, List<DomainClaim> claims});
+
+/// Where an extension asking for some hosts would run among the user's
+/// sites (WEBEXT-019).
+typedef SiteReach = ({
+  /// The sites that grant it a page, in the order given.
+  List<ExtensionSite> runsOn,
+
+  /// Whether it asks for every site's pages.
+  bool everySite,
+
+  /// The hosts it asks for that no site claims, sorted.
+  List<String> unclaimed,
+});
+
+/// Where an extension asking for [hosts] would run among [sites]: each
+/// site that would grant it a page, and each host it names that none would.
+SiteReach siteReach(
+  Iterable<String> hosts, {
+  required List<ExtensionSite> sites,
+}) {
+  final patterns = hosts.map(parseMatchPattern).nonNulls.toList();
   return (
-    matchPatterns: granted,
-    permissions: entry.permissions.intersection(grantablePermissions),
+    runsOn: [
+      for (final site in sites)
+        if (grantedPatterns(hosts, claims: site.claims).isNotEmpty) site,
+    ],
+    everySite: patterns.any((p) => p.host == '*'),
+    unclaimed: {
+      for (final pattern in patterns)
+        if (pattern.host != '*' &&
+            !sites.any(
+              (site) => grantedPatterns([
+                pattern.toString(),
+              ], claims: site.claims).isNotEmpty,
+            ))
+          _domainOf(pattern.host) ?? pattern.host,
+    }.toList()..sort(),
   );
 }
 

@@ -13,6 +13,7 @@ import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/extension_asks.dart';
 
 /// [BackupPrompts] as a file picker and dialogs over the page that owns
 /// [context].
@@ -970,16 +971,11 @@ class DialogBackupPrompts implements BackupPrompts {
             Text(
               [
                 loc.extensionsVersion(manifest.version),
-                manifest.permissions.isEmpty
-                    ? loc.extensionsAsksNothing
-                    : loc.extensionsAsks(
-                        (manifest.permissions.toList()..sort()).join(', '),
-                      ),
-                manifest.hosts.isEmpty
-                    ? loc.extensionsReachesNothing
-                    : loc.extensionsReaches(
-                        (manifest.hosts.toList()..sort()).join(', '),
-                      ),
+                ...extensionAsks(
+                  permissions: manifest.permissions,
+                  hosts: manifest.hosts,
+                  loc: loc,
+                ),
                 if (signatureUnchecked) loc.extensionsSignatureUnchecked,
               ].join('\n'),
               style: theme.bodySmall,
@@ -1016,8 +1012,6 @@ String _prefTitle(AppPref pref, {required AppLocalizations loc}) =>
       AppPref.developerMode => loc.appSettingsDeveloperMode,
       AppPref.experimentalTextureRendering =>
         loc.appSettingsExperimentalTextureRendering,
-      AppPref.experimentalExtensionSearch =>
-        loc.appSettingsExperimentalExtensionSearch,
       AppPref.webExtensionsCheckUpdates => loc.extensionsCheckDaily,
       AppPref.webExtensionsAutoUpdate => loc.extensionsAutoUpdate,
       AppPref.experimentalNetworkInterface =>

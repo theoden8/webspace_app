@@ -2,11 +2,14 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show listEquals, mapEquals;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/web_extension_grants_engine.dart'
-    show grantablePermissions;
+    show ExtensionSite, SiteReach, grantablePermissions, siteReach;
 import 'package:webspace/services/web_extension_search_engine.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 import 'helpers/amo_search_reply.dart';
+import 'helpers/extension_sources.dart';
 
 /// [value] as `jsonDecode` hands a reply over.
 Object? _decoded(Object? value) => jsonDecode(jsonEncode(value));
@@ -16,16 +19,18 @@ typedef _Query =
       String text, {
       required bool recommendedOnly,
       required int page,
+      required AmoSort sort,
     });
 
 /// Each row: the text searched for, whether only recommended extensions
-/// are asked for, the page, and the query the request carries.
-const _queryRows = <(String, String, bool, int, Map<String, String>)>[
+/// are asked for, the page, the order, and the query the request carries.
+const _queryRows = <(String, String, bool, int, AmoSort, Map<String, String>)>[
   (
     'every listing',
     'adblock',
     false,
     1,
+    AmoSort.users,
     {
       'q': 'adblock',
       'type': 'extension',
@@ -41,6 +46,7 @@ const _queryRows = <(String, String, bool, int, Map<String, String>)>[
     'adblock',
     true,
     1,
+    AmoSort.users,
     {
       'q': 'adblock',
       'type': 'extension',
@@ -57,6 +63,7 @@ const _queryRows = <(String, String, bool, int, Map<String, String>)>[
     'adblock',
     false,
     3,
+    AmoSort.users,
     {
       'q': 'adblock',
       'type': 'extension',
@@ -72,6 +79,7 @@ const _queryRows = <(String, String, bool, int, Map<String, String>)>[
     '  ad block\n',
     true,
     2,
+    AmoSort.users,
     {
       'q': 'ad block',
       'type': 'extension',
@@ -83,11 +91,45 @@ const _queryRows = <(String, String, bool, int, Map<String, String>)>[
       'promoted': 'recommended',
     },
   ),
+  (
+    'the best rated first',
+    'dark mode',
+    false,
+    1,
+    AmoSort.rating,
+    {
+      'q': 'dark mode',
+      'type': 'extension',
+      'app': 'firefox',
+      'sort': 'rating',
+      'page': '1',
+      'page_size': '20',
+      'lang': 'en-US',
+    },
+  ),
+  (
+    'the most recently updated first',
+    'dark mode',
+    true,
+    1,
+    AmoSort.updated,
+    {
+      'q': 'dark mode',
+      'type': 'extension',
+      'app': 'firefox',
+      'sort': 'updated',
+      'page': '1',
+      'page_size': '20',
+      'lang': 'en-US',
+      'promoted': 'recommended',
+    },
+  ),
 ];
 
 List<String> _queryMisses(_Query query) => [
-  for (final (label, text, recommendedOnly, page, want) in _queryRows)
-    if (query(text, recommendedOnly: recommendedOnly, page: page) case final uri
+  for (final (label, text, recommendedOnly, page, sort, want) in _queryRows)
+    if (query(text, recommendedOnly: recommendedOnly, page: page, sort: sort)
+        case final uri
         when uri.scheme != 'https' ||
             uri.host != 'addons.mozilla.org' ||
             uri.path != '/api/v5/addons/search/' ||
@@ -100,11 +142,13 @@ Uri _forgetsType(
   String text, {
   required bool recommendedOnly,
   required int page,
+  required AmoSort sort,
 }) {
   final real = amoSearchQuery(
     text,
     recommendedOnly: recommendedOnly,
     page: page,
+    sort: sort,
   );
   return real.replace(
     queryParameters: {...real.queryParameters}..remove('type'),
@@ -530,6 +574,147 @@ SearchRead _dropsPartly(Object? json) => switch (readAmoSearch(json)) {
   final SearchRefused refused => refused,
 };
 
+AmoResult _one(Map<String, Object?> changes) =>
+    (readAmoSearch(_reply([_result(changes)])) as SearchFound).results.single;
+
+const _amo64 = 'https://addons.mozilla.org/user-media/addon_icons/1/1-64.png';
+const _amo128 = 'https://addons.mozilla.org/user-media/addon_icons/1/1-128.png';
+
+/// Each row: a description as a listing writes it, and the text its page
+/// shows.
+const _plainRows = <(String, String, String)>[
+  ('paragraphs are lines', '<p>One</p><p>Two</p>', 'One\nTwo'),
+  ('emphasis is its text', '<strong>What</strong> it does', 'What it does'),
+  (
+    'a list keeps its items',
+    '<ol><li>One</li><li>Two</li></ol>',
+    '• One\n• Two',
+  ),
+  ('a link is the text it shows', '<a href="https://x.org">x.org</a>', 'x.org'),
+  ('entities read back', 'a &amp; b &lt;c&gt; &quot;d&quot;', 'a & b <c> "d"'),
+  ('an escaped entity stays escaped', '&amp;lt;', '&lt;'),
+  ('blank runs close up', 'Line\n\n\n\nNext', 'Line\n\nNext'),
+  ('a break is a line', 'One<br>Two<br/>Three', 'One\nTwo\nThree'),
+];
+
+List<String> _plainMisses(String Function(String) plain) => [
+  for (final (label, html, want) in _plainRows)
+    if (plain(html) != want) label,
+];
+
+/// Planted mistake: entities read before the escaped ampersand's turn, so
+/// `&amp;lt;` reads twice.
+String _decodesTwice(String html) => plainText(html.replaceAll('&amp;', '&'));
+
+/// Planted mistake: markup kept.
+String _keepsMarkup(String html) => html.trim();
+
+final _youTube = (
+  id: SiteId.parse('youtube')!,
+  name: 'YouTube',
+  claims: [DomainClaim.baseDomain('youtube.com')],
+);
+final _gitHub = (
+  id: SiteId.parse('github')!,
+  name: 'GitHub',
+  claims: [DomainClaim.exactHost('github.com')],
+);
+final _tube = (
+  id: SiteId.parse('tube')!,
+  name: 'Tube',
+  claims: [DomainClaim.baseDomain('tube.com')],
+);
+final List<ExtensionSite> _sites = [_youTube, _gitHub, _tube];
+
+String _reachLine(SiteReach reach) =>
+    '${[for (final s in reach.runsOn) s.name].join(',')}'
+    '${reach.everySite ? ' every' : ''}'
+    ' | ${reach.unclaimed.join(',')}';
+
+/// Each row: the hosts a listing asks for, and where it runs among
+/// [_sites] with the hosts no site claims.
+const _reachRows = <(String, Set<String>, String)>[
+  (
+    "SponsorBlock runs on YouTube, and names its own server as no site's",
+    {
+      'storage',
+      'https://sponsor.ajay.app/*',
+      'https://*.youtube.com/*',
+      'https://www.youtube-nocookie.com/embed/*',
+    },
+    'YouTube | sponsor.ajay.app,www.youtube-nocookie.com',
+  ),
+  (
+    'every page runs on every site',
+    {'<all_urls>'},
+    'YouTube,GitHub,Tube every | ',
+  ),
+  (
+    'a pattern over every host runs on every site',
+    {'*://*/*'},
+    'YouTube,GitHub,Tube every | ',
+  ),
+  ('no host runs nowhere', {'storage'}, ' | '),
+  (
+    "a subdomain of a site's exact host is not that site's",
+    {'https://gist.github.com/*'},
+    ' | gist.github.com',
+  ),
+  (
+    'a domain covers a site claiming its host',
+    {'*://*.github.com/*'},
+    'GitHub | ',
+  ),
+  (
+    'a domain on a dot boundary only',
+    {'https://*.youtube.com/*'},
+    'YouTube | ',
+  ),
+];
+
+typedef _Reach =
+    SiteReach Function(
+      Iterable<String> hosts, {
+      required List<ExtensionSite> sites,
+    });
+
+List<String> _reachMisses(_Reach reach) => [
+  for (final (label, hosts, want) in _reachRows)
+    if (_reachLine(reach(hosts, sites: _sites)) != want) label,
+];
+
+/// Planted mistake: a site matched by the text of its claim, so tube.com
+/// takes youtube.com's pages.
+SiteReach _matchesByText(
+  Iterable<String> hosts, {
+  required List<ExtensionSite> sites,
+}) {
+  final real = siteReach(hosts, sites: sites);
+  return (
+    runsOn: [
+      for (final site in sites)
+        if (site.claims.any((c) => hosts.any((h) => h.contains(c.value))) ||
+            real.everySite)
+          site,
+    ],
+    everySite: real.everySite,
+    unclaimed: real.unclaimed,
+  );
+}
+
+/// Planted mistake: every site's pattern counted as a host no site claims.
+SiteReach _everySiteUnclaimed(
+  Iterable<String> hosts, {
+  required List<ExtensionSite> sites,
+}) {
+  final real = siteReach(hosts, sites: sites);
+  return (
+    runsOn: real.runsOn,
+    everySite: real.everySite,
+    unclaimed: [...real.unclaimed, if (real.everySite) '*'],
+  );
+}
+
 void main() {
   group('WEBEXT-019 a search of addons.mozilla.org', () {
     test('every query row asks for what it should', () {
@@ -575,7 +760,177 @@ void main() {
     });
   });
 
+  group('WEBEXT-019 a result names its authors, icon and rating', () {
+    test('the larger icon on addons.mozilla.org, and none elsewhere', () {
+      expect(
+        _one({
+          'icons': {'64': _amo64, '128': _amo128},
+        }).icon,
+        Uri.parse(_amo128),
+      );
+      expect(
+        _one({
+          'icons': {'128': 'https://evil.example/icon.png'},
+          'icon_url': _amo64,
+        }).icon,
+        Uri.parse(_amo64),
+      );
+      expect(
+        _one({'icon_url': 'http://addons.mozilla.org/x.png'}).icon,
+        isNull,
+      );
+      expect(_one({}).icon, isNull);
+    });
+
+    test('a rating out of range or mistyped reads as none', () {
+      expect(
+        _one({
+          'ratings': {'average': 4.8, 'count': 3256},
+        }).rating,
+        (average: 4.8, count: 3256),
+      );
+      expect(
+        _one({
+          'ratings': {'average': 4, 'count': 1},
+        }).rating,
+        (average: 4.0, count: 1),
+      );
+      expect(
+        _one({
+          'ratings': {'average': 7, 'count': 1},
+        }).rating,
+        isNull,
+      );
+      expect(
+        _one({
+          'ratings': {'average': 4.1, 'count': '3'},
+        }).rating,
+        isNull,
+      );
+    });
+
+    test('only named authors are read', () {
+      expect(
+        _one({
+          'authors': [
+            {'name': 'Ajay'},
+            {'name': ''},
+            3,
+          ],
+        }).authors,
+        ['Ajay'],
+      );
+    });
+
+    test('what is never given leads with blocking requests', () {
+      final result = _one({
+        'current_version': {
+          'file': {
+            'permissions': [
+              'storage',
+              'privacy',
+              'identity',
+              'webRequestBlocking',
+              '<all_urls>',
+              'https://*.youtube.com/*',
+            ],
+          },
+        },
+      });
+      expect(result.refused, ['webRequestBlocking', 'identity', 'privacy']);
+      expect(result.hosts, {'<all_urls>', 'https://*.youtube.com/*'});
+    });
+  });
+
+  group('WEBEXT-019 a listing is read for its page', () {
+    test('every field the page shows', () {
+      final listing = (readAmoListing(amoAddonReply()) as ListingFound).listing;
+      expect(listing.result.name, 'AdNauseam');
+      expect(listing.result.authors, ['Daniel C. Howe']);
+      expect(listing.result.rating, (average: 4.4, count: 512));
+      expect(listing.version, '3.24.2');
+      expect(listing.size, 3895342);
+      expect(listing.licence, 'GNU General Public License v3.0');
+      expect(listing.homepage, Uri.parse('https://adnauseam.io'));
+      expect(listing.updated, DateTime.utc(2025, 2, 11, 10, 2, 41));
+      expect(listing.description, startsWith('AdNauseam quietly clicks'));
+      expect(listing.screenshots, isEmpty);
+    });
+
+    test('screenshots elsewhere are dropped, and a link is never the '
+        'redirect addons.mozilla.org wraps it in', () {
+      final reply = {...amoAddonReply()! as Map<String, Object?>}
+        ..['previews'] = [
+          {
+            'image_url':
+                'https://addons.mozilla.org/user-media/previews/full/1/1.png',
+          },
+          {'image_url': 'https://evil.example/shot.png'},
+          {'caption': 'no image'},
+        ]
+        ..['support_url'] = {
+          'url': {'en-US': 'https://support.example'},
+          'outgoing': {
+            'en-US': 'https://prod.outgoing.prod.webservices.mozgcp.net/v1/x',
+          },
+        };
+      final listing = (readAmoListing(reply) as ListingFound).listing;
+      expect(listing.screenshots, [
+        Uri.parse(
+          'https://addons.mozilla.org/user-media/previews/full/1/1.png',
+        ),
+      ]);
+      expect(listing.support, Uri.parse('https://support.example'));
+    });
+
+    test('a reply that is not a listing is refused', () {
+      expect(readAmoListing(null), isA<ListingRefused>());
+      expect(
+        (readAmoListing({'name': 'no slug'}) as ListingRefused).why,
+        SearchProblem.noResults,
+      );
+    });
+
+    test('every description row reads as its page shows it', () {
+      expect(_plainMisses(plainText), isEmpty);
+    });
+  });
+
+  group('WEBEXT-019 where a listing would run among the user\'s sites', () {
+    test('every reach row lands where it should', () {
+      expect(_reachMisses(siteReach), isEmpty);
+    });
+  });
+
   group('WEBEXT-019 planted mistakes are caught', () {
+    test('a description read twice misses the escaped entity', () {
+      expect(_plainMisses(_decodesTwice), ['an escaped entity stays escaped']);
+    });
+
+    test('a description with its markup kept misses rows', () {
+      expect(
+        _plainMisses(_keepsMarkup),
+        containsAll(['paragraphs are lines', 'a list keeps its items']),
+      );
+    });
+
+    test('a site matched by its claim\'s text misses the dot boundary', () {
+      expect(
+        _reachMisses(_matchesByText),
+        contains('a domain on a dot boundary only'),
+      );
+    });
+
+    test('every site counted as unclaimed misses the every-site rows', () {
+      expect(
+        _reachMisses(_everySiteUnclaimed),
+        containsAll([
+          'every page runs on every site',
+          'a pattern over every host runs on every site',
+        ]),
+      );
+    });
+
     test('a query that forgets type=extension misses every row', () {
       expect(_queryMisses(_forgetsType), hasLength(_queryRows.length));
     });

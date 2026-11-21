@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import 'package:webspace/services/web_extension_grants_engine.dart'
+    show ExtensionSite;
 import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/app_theme.dart';
@@ -109,6 +111,10 @@ class AppSettingsScreen extends StatefulWidget {
   /// The sites the Tor status screen may list as using Tor.
   final Map<SiteId, TorSiteLabel> torSites;
 
+  /// The sites that can run extensions, which an extension's listing names
+  /// where it would run (WEBEXT-019).
+  final List<ExtensionSite> extensionSites;
+
   const AppSettingsScreen({
     super.key,
     required this.currentSettings,
@@ -116,6 +122,7 @@ class AppSettingsScreen extends StatefulWidget {
     required this.containersRunHere,
     this.siteNames = const {},
     this.torSites = const {},
+    required this.extensionSites,
     required this.onSettingsChanged,
     required this.onExportSettings,
     required this.onImportSettings,
@@ -372,7 +379,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 0 => loc.appSettingsExtensionsNone,
                 final count => loc.appSettingsExtensionsCount(count),
               },
-              onTap: () => _open(const AppExtensionsScreen()),
+              onTap: () => _open(
+                AppExtensionsScreen(sites: widget.extensionSites),
+              ),
             ),
           SettingsSection(loc.appSettingsData),
           SummaryNavRow(

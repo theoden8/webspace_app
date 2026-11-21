@@ -165,6 +165,9 @@ const Map<String, String> _retiredKeys = {
       'the Experimental group; the app and each site have their own switch',
   'experimentalDesktopTray': 'NOTIF-019: the tray icon graduated out of the '
       'Experimental group; Keep running when closed alone shows it',
+  'experimentalExtensionSearch': 'WEBEXT-019: extension search graduated '
+      'out of the Experimental group; every build made with the direct '
+      'flavor offers it, so there is no switch to restore',
   'experimentalFolderLibrary': 'WEBSPACE-019: Alternative design graduated '
       'out of the Experimental group; Legacy design is its switch, which a '
       'device decides from what it ran and a backup without it restores at '

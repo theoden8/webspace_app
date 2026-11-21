@@ -39,6 +39,8 @@ const RETIRED = {
     'NESTED-014: sign-in popups graduated out of the Experimental group; the app and each site have their own switch',
   experimentalDesktopTray:
     'NOTIF-019: the tray icon graduated out of the Experimental group; Keep running when closed alone shows it',
+  experimentalExtensionSearch:
+    'WEBEXT-019: extension search graduated out of the Experimental group; every build made with the direct flavor offers it, so there is no switch to restore',
   experimentalLinuxTor:
     'TOR-027: the built-in Tor on Linux graduated out of the Experimental group; there is no switch to restore',
   experimentalServiceWorkers:

@@ -38,7 +38,7 @@ Future<PackageRead> _readHere(Uint8List bytes) async =>
     readExtensionPackage(bytes);
 
 AppExtensionsScreen _library({required Uint8List? picked}) =>
-    AppExtensionsScreen(pick: () async => picked);
+    AppExtensionsScreen(sites: const [], pick: () async => picked);
 
 Future<WebExtensionEntry> _imported() async => WebExtensionLibrary.instance.add(
   switch (readExtensionPackage(sampleZip(manifest: _manifest))) {
@@ -48,7 +48,7 @@ Future<WebExtensionEntry> _imported() async => WebExtensionLibrary.instance.add(
 );
 
 Widget _appSettings() => localizedApp(
-  AppSettingsScreen(
+  AppSettingsScreen(extensionSites: const [],
     currentSettings: AppThemeSettings(),
     containersRunHere: true,
     externalTorRunsHere: false,
