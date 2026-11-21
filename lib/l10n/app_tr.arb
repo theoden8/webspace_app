@@ -1030,6 +1030,8 @@
   "unproxiedBlockWhy": "Bir site için ayarlanan vekil sunucu, bir sayfanın açıldığı isteği kapsar. Bu istek sonradan, sayfanın içinden geldi ve burada onun da vekil sunucudan geçeceğini gösterecek bir yol yok.",
   "onionBlockBody": "{site} için vekil sunucu yok ve onion adresleri yalnızca Tor ya da bir vekil sunucu üzerinden açılır. Bunu doğrudan açmak adresi bu cihazın DNS çözümleyicisine gösterirdi, bu yüzden açılmadı.",
   "onionBlockWhy": "Bu sitede onion adreslerini açmak için vekil sunucusunu Tor olarak ya da onion hizmetlerine ulaşabilen bir vekil sunucu olarak ayarlayın.",
+  "i2pBlockBody": "{site} için vekil sunucu yok ve I2P adresleri yalnızca bir I2P yönlendiricisinin vekil sunucusu üzerinden açılır. Bunu doğrudan açmak adresi bu cihazın DNS çözümleyicisine gösterirdi, bu yüzden açılmadı.",
+  "i2pBlockWhy": "Bu sitede I2P adreslerini açmak için vekil sunucusunu, bu cihazda ya da ağınızda çalışan bir I2P yönlendiricisinin HTTP veya SOCKS vekil sunucusu olarak ayarlayın.",
   "unproxiedBlockBack": "Geri dön",
   "unproxiedBlockProxySettings": "Vekil sunucu ayarları",
   "proxyTestOk": "Vekil sunucu çalışıyor",

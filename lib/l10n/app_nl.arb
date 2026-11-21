@@ -1030,6 +1030,8 @@
   "unproxiedBlockWhy": "Een voor een site ingestelde proxy dekt het verzoek waarmee een pagina wordt geopend. Dit kwam daarna, vanuit de pagina zelf, en hier is niet aan te tonen dat het ook via de proxy zou gaan.",
   "onionBlockBody": "{site} heeft geen proxy, en onion-adressen openen alleen via Tor of een proxy. Dit adres direct openen zou het aan de DNS-resolver van dit apparaat hebben getoond, dus het is niet geopend.",
   "onionBlockWhy": "Om onion-adressen op deze site te openen, stel je de proxy in op Tor of op een proxy die onion-diensten kan bereiken.",
+  "i2pBlockBody": "{site} heeft geen proxy, en I2P-adressen openen alleen via de proxy van een I2P-router. Dit adres direct openen zou het aan de DNS-resolver van dit apparaat hebben getoond, dus het is niet geopend.",
+  "i2pBlockWhy": "Om I2P-adressen op deze site te openen, stel je de proxy in op de HTTP- of SOCKS-proxy van een I2P-router die op dit apparaat of in je netwerk draait.",
   "unproxiedBlockBack": "Terug",
   "unproxiedBlockProxySettings": "Proxy-instellingen",
   "proxyTestOk": "De proxy werkt",

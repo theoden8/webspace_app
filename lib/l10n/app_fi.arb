@@ -1030,6 +1030,8 @@
   "unproxiedBlockWhy": "Sivustolle asetettu välityspalvelin kattaa pyynnön, jolla sivu avataan. Tämä tuli sen jälkeen, sivun sisältä, eikä täällä ole tapaa osoittaa, että sekin kulkisi välityspalvelimen kautta.",
   "onionBlockBody": "Sivustolla {site} ei ole välityspalvelinta, ja onion-osoitteet avautuvat vain Torin tai välityspalvelimen kautta. Tämän avaaminen suoraan olisi näyttänyt sen laitteen DNS-selvittimelle, joten sitä ei avattu.",
   "onionBlockWhy": "Jos haluat avata onion-osoitteita tällä sivustolla, aseta sen välityspalvelimeksi Tor tai välityspalvelin, joka tavoittaa onion-palvelut.",
+  "i2pBlockBody": "Sivustolla {site} ei ole välityspalvelinta, ja I2P-osoitteet avautuvat vain I2P-reitittimen välityspalvelimen kautta. Tämän avaaminen suoraan olisi näyttänyt sen laitteen DNS-selvittimelle, joten sitä ei avattu.",
+  "i2pBlockWhy": "Jos haluat avata I2P-osoitteita tällä sivustolla, aseta sen välityspalvelimeksi tällä laitteella tai verkossasi toimivan I2P-reitittimen HTTP- tai SOCKS-välityspalvelin.",
   "unproxiedBlockBack": "Takaisin",
   "unproxiedBlockProxySettings": "Välityspalvelimen asetukset",
   "proxyTestOk": "Välityspalvelin toimii",

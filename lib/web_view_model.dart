@@ -245,8 +245,8 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
 
   /// The last main-frame navigation this site's webview refused to make
   /// because the app could not establish that it would go through the site's
-  /// proxy (LEAK-010), or because it named an onion service and the site has
-  /// none (LEAK-016). Drives the interstitial over the page; deliberately not
+  /// proxy (LEAK-010), or because it named an overlay network's host and the
+  /// site has none (LEAK-016). Drives the interstitial over the page; deliberately not
   /// persisted, since it describes one navigation and not the site.
   BlockedNavigation? blockedNavigation;
 

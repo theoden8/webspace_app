@@ -514,7 +514,7 @@ Widget _onionBlock(BuildContext _) => const UnproxiedNavigationBlock(
   siteName: 'Forum',
   blocked: (
     url: 'http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/',
-    why: OnionNeedsProxy(),
+    why: OverlayNeedsProxy(OverlayNetwork.tor),
   ),
   onGoBack: _noop,
   onOpenProxySettings: _noop,

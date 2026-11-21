@@ -18,6 +18,7 @@ import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/services/proxy_coverage_engine.dart';
 import 'package:webspace/services/proxy_test_service.dart' show SiteOrigin;
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/settings/scoped.dart';
@@ -105,7 +106,17 @@ final Map<String, Widget Function()> _subjects = {
         siteName: 'Forum',
         blocked: (
           url: 'http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/',
-          why: const OnionNeedsProxy(),
+          why: const OverlayNeedsProxy(OverlayNetwork.tor),
+        ),
+        onGoBack: () {},
+        onOpenProxySettings: () {},
+      ),
+  // A b32 I2P name is 52 characters of base32 with no break in it.
+  'i2p-block': () => UnproxiedNavigationBlock(
+        siteName: 'Forum',
+        blocked: (
+          url: 'http://ukeu3k5oycgaauneqgtnvselmt4yemvoilkln7jpvamvfx7dnkdq.b32.i2p/',
+          why: const OverlayNeedsProxy(OverlayNetwork.i2p),
         ),
         onGoBack: () {},
         onOpenProxySettings: () {},

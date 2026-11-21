@@ -213,7 +213,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
 
   /// The navigation this screen refused because the app could not establish
   /// that it would go through the site's proxy (LEAK-010), or because it named
-  /// an onion service and the site has none (LEAK-016).
+  /// an overlay network's host and the site has none (LEAK-016).
   BlockedNavigation? _blockedNavigation;
 
   /// Same-domain gesture timestamp feeding `NavigationDecisionEngine`'s

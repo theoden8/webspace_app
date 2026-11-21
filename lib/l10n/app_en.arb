@@ -4987,6 +4987,19 @@
   "@onionBlockWhy": {
     "description": "Second paragraph of the blocked-navigation screen for an onion address, telling the user which setting lets the site open it. 'Proxy' is the site's own proxy setting; keep 'Tor' as it is."
   },
+  "i2pBlockBody": "{site} has no proxy, and I2P addresses open only through an I2P router's proxy. Opening this one directly would have shown it to this device's DNS resolver, so it was not opened.",
+  "@i2pBlockBody": {
+    "description": "Body of the blocked-navigation screen when the page asked for an I2P address (a site on the I2P anonymous network, ending in .i2p) on a site that has no proxy set. {site} is the name the user gave the site. Do not render this as a failure or the site being unreachable: the request was never sent. Keep 'I2P' as it is.",
+    "placeholders": {
+      "site": {
+        "type": "String"
+      }
+    }
+  },
+  "i2pBlockWhy": "To open I2P addresses on this site, set its proxy to the HTTP or SOCKS proxy of an I2P router running on this device or your network.",
+  "@i2pBlockWhy": {
+    "description": "Second paragraph of the blocked-navigation screen for an I2P address, telling the user which setting lets the site open it. 'Proxy' is the site's own proxy setting; an I2P router is the program that connects to the I2P network (such as i2pd or Java I2P). Keep 'I2P', 'HTTP' and 'SOCKS' as they are."
+  },
   "unproxiedBlockBack": "Go back",
   "@unproxiedBlockBack": {
     "description": "Button on the blocked-navigation screen that returns to the page the user was already on."

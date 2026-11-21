@@ -2,6 +2,29 @@
 /// engines and stores reach it without the model file.
 library;
 
+/// A network whose names only its own router resolves: asked of any other
+/// resolver, the name answers nothing and the resolver has learned it
+/// (LEAK-016).
+enum OverlayNetwork {
+  /// Tor's onion services (RFC 7686).
+  tor(tld: 'onion', what: 'an onion service', router: 'Tor'),
+
+  /// I2P's sites, which an I2P router's proxy resolves.
+  i2p(tld: 'i2p', what: 'an I2P site', router: 'I2P');
+
+  const OverlayNetwork(
+      {required this.tld, required this.what, required this.router});
+
+  /// The top-level label every name of this network ends in.
+  final String tld;
+
+  /// What a name of it is, for the log and a refused connection's message.
+  final String what;
+
+  /// What resolves its names.
+  final String router;
+}
+
 /// A host name as the services compare it: lowercase, without IPv6
 /// brackets or a trailing root dot. Only built through [Host.new], so a
 /// value of this type has been normalized; it is still a [String]
@@ -36,9 +59,14 @@ extension type const Host._(String name) implements String {
   /// `www.example.com` read as the same site.
   Host get withoutWww => startsWith('www.') ? Host._(substring(4)) : this;
 
-  /// Whether this names an onion service (RFC 7686). Only Tor resolves one:
-  /// any other resolver answers nothing and has learned the name (LEAK-016).
-  bool get isOnion => this == 'onion' || endsWith('.onion');
+  /// The overlay network this name belongs to, or null for a name any
+  /// resolver may be asked (LEAK-016).
+  OverlayNetwork? get overlay {
+    for (final o in OverlayNetwork.values) {
+      if (this == o.tld || endsWith('.${o.tld}')) return o;
+    }
+    return null;
+  }
 
   /// The four octets of this host when it is a canonical dotted-quad IPv4
   /// (`a.b.c.d`, each a plain decimal 0-255 with no leading zero), or null.
@@ -121,7 +149,8 @@ const Set<String> _multiPartTlds = {
 };
 
 /// Private suffixes: single registrants who hand out subdomains to mutually
-/// untrusting third parties. Without these, `victim.github.io` and
+/// untrusting third parties, and `b32.i2p`, under which each name is an I2P
+/// destination's own key. Without these, `victim.github.io` and
 /// `attacker.github.io` share a base domain — same cookie container, and
 /// `NavigationDecisionEngine` reads a hop between them as same-site.
 const Set<String> _privateSuffixes = {
@@ -138,6 +167,7 @@ const Set<String> _privateSuffixes = {
   'myshopify.com',
   'blogspot.com',
   'wordpress.com',
+  'b32.i2p',
 };
 
 /// Second-level labels that a two-letter ccTLD registry almost always

@@ -1030,6 +1030,8 @@
   "unproxiedBlockWhy": "Vietnei iestatīts starpniekserveris aptver pieprasījumu, ar kuru tiek atvērta lapa. Šis radās pēc tam, no pašas lapas, un šeit nav iespējams pierādīt, ka arī tas ietu caur starpniekserveri.",
   "onionBlockBody": "Vietnei {site} nav starpniekservera, un onion adreses atveras tikai caur Tor vai starpniekserveri. Ja šī tiktu atvērta tieši, tā tiktu parādīta šīs ierīces DNS atrisinātājam, tāpēc tā netika atvērta.",
   "onionBlockWhy": "Lai šajā vietnē atvērtu onion adreses, iestatiet tās starpniekserveri uz Tor vai uz starpniekserveri, kas var sasniegt onion pakalpojumus.",
+  "i2pBlockBody": "Vietnei {site} nav starpniekservera, un I2P adreses atveras tikai caur I2P maršrutētāja starpniekserveri. Ja šī tiktu atvērta tieši, tā tiktu parādīta šīs ierīces DNS atrisinātājam, tāpēc tā netika atvērta.",
+  "i2pBlockWhy": "Lai šajā vietnē atvērtu I2P adreses, iestatiet tās starpniekserveri uz tāda I2P maršrutētāja HTTP vai SOCKS starpniekserveri, kas darbojas šajā ierīcē vai jūsu tīklā.",
   "unproxiedBlockBack": "Atpakaļ",
   "unproxiedBlockProxySettings": "Starpniekservera iestatījumi",
   "proxyTestOk": "Starpniekserveris darbojas",

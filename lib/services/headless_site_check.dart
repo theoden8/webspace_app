@@ -45,10 +45,10 @@ abstract final class HeadlessSiteChecks {
     if (binding.proxyUnavailable || binding.relayDown) {
       return (null, WakeSkip.proxyUnavailable);
     }
-    // LEAK-016: nor an onion service a direct one.
+    // LEAK-016: nor an overlay name a direct one.
     if (WebViewFactory.refusesLoad(binding, url: config.initialUrl) !=
         null) {
-      return (null, WakeSkip.onionNeedsProxy);
+      return (null, WakeSkip.overlayNeedsProxy);
     }
     ProxyManager.noteStoreProxy(binding.containerId, proxy: binding.proxy);
     final posture = config.posture;

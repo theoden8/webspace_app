@@ -1,7 +1,8 @@
-// LEAK-016 at the Dart seams: a request with no proxy never goes to an onion
-// service, and nothing asks the device's resolver about one. Only Tor
-// resolves the name, so a direct attempt reaches nothing and tells the
-// resolver, and whoever runs it, which onion service is being opened.
+// LEAK-016 at the Dart seams: a request with no proxy never goes to an
+// overlay network's name (an onion service, an I2P site), and nothing asks
+// the device's resolver about one. Only the network's own router resolves the
+// name, so a direct attempt reaches nothing and tells the resolver, and
+// whoever runs it, which site is being opened.
 //
 // The refusals are asserted on real sockets: a direct attempt that got past
 // them would fail too, but as a host lookup, which is the leak.
@@ -27,14 +28,21 @@ import 'package:webspace/settings/site_ids.dart';
 import '../integration_test/self_signed_cert.dart';
 
 const _onion = 'duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion';
+const _i2p = 'ukeu3k5oycgaauneqgtnvselmt4yemvoilkln7jpvamvfx7dnkdq.b32.i2p';
 
-final _refusedAsOnion = throwsA(isA<SocketException>()
-    .having((e) => e.message, 'message', contains('onion service')));
+/// One name of each overlay network, so a check that forgets one fails.
+const _overlays = {OverlayNetwork.tor: _onion, OverlayNetwork.i2p: _i2p};
+
+// package:http rewraps the factory's failure as its own SocketException, so
+// the refusal is read by its words.
+Matcher _refusedAs(OverlayNetwork overlay) => throwsA(isA<SocketException>()
+    .having((e) => e.message, 'message', contains(overlay.what)));
 
 // The refusal's own words: a direct attempt that got past it fails too, and
-// its message carries the URL, onion and all.
-final _downloadRefusedAsOnion = throwsA(isA<DownloadException>().having(
-    (e) => e.message, 'message', contains('only through Tor or a proxy')));
+// its message carries the URL, name and all.
+Matcher _downloadRefusedAs(OverlayNetwork overlay) => throwsA(isA<DownloadException>()
+    .having((e) => e.message, 'message',
+        contains('only through ${overlay.router} or a proxy')));
 
 http.Client _direct() => (const DefaultOutboundHttpFactory()
         .clientFor(OutboundProxy.ofApp(UserProxySettings(type: ProxyType.DEFAULT)).resolved)
@@ -60,29 +68,42 @@ void main() {
     GlobalOutboundProxy.resetForTest();
   });
 
-  test('Host.isOnion is RFC 7686\'s name, normalized', () {
-    expect(Host(_onion).isOnion, isTrue);
-    expect(Host('Forum.ONION.').isOnion, isTrue);
-    expect(Host('onion').isOnion, isTrue);
-    expect(Host('onion.example.com').isOnion, isFalse);
-    expect(Host('myonion').isOnion, isFalse);
-    expect(Host('example.onions').isOnion, isFalse);
+  test('Host.overlay reads the last label, normalized', () {
+    expect(Host(_onion).overlay, OverlayNetwork.tor);
+    expect(Host('Forum.ONION.').overlay, OverlayNetwork.tor);
+    expect(Host('onion').overlay, OverlayNetwork.tor);
+    expect(Host(_i2p).overlay, OverlayNetwork.i2p);
+    expect(Host('Forum.I2P.').overlay, OverlayNetwork.i2p);
+    expect(Host('i2p').overlay, OverlayNetwork.i2p);
+    for (final clear in [
+      'onion.example.com',
+      'myonion',
+      'example.onions',
+      'i2p.example.com',
+      'noti2p',
+      'example.i2pd',
+      'example.com',
+    ]) {
+      expect(Host(clear).overlay, isNull, reason: clear);
+    }
   });
 
   group('the direct client (LEAK-016)', () {
-    test('refuses an onion service before anything resolves it', () async {
-      await expectLater(_direct().get(Uri.parse('http://$_onion/')),
-          _refusedAsOnion);
-      await expectLater(_direct().get(Uri.parse('https://www.$_onion/')),
-          _refusedAsOnion);
-    });
+    for (final MapEntry(key: overlay, value: name) in _overlays.entries) {
+      test('refuses ${overlay.what} before anything resolves it', () async {
+        await expectLater(_direct().get(Uri.parse('http://$name/')),
+            _refusedAs(overlay));
+        await expectLater(_direct().get(Uri.parse('https://www.$name/')),
+            _refusedAs(overlay));
+      });
 
-    test('refuses a redirect to one, on the hop', () async {
-      final server = await _redirectingTo('http://$_onion/next');
-      await expectLater(
-          _direct().get(Uri.parse('http://127.0.0.1:${server.port}/')),
-          _refusedAsOnion);
-    });
+      test('refuses a redirect to ${overlay.what}, on the hop', () async {
+        final server = await _redirectingTo('http://$name/next');
+        await expectLater(
+            _direct().get(Uri.parse('http://127.0.0.1:${server.port}/')),
+            _refusedAs(overlay));
+      });
+    }
 
     test('still reaches a clearnet host over http and https', () async {
       // The refusal sits in a connection factory that replaces dart:io's own
@@ -135,12 +156,14 @@ void main() {
 
     tearDown(resetHostLookup);
 
-    test('is never asked about an onion name', () async {
-      expect(await classifyResolvedHost(_onion), HostRangeVerdict.unresolvable);
-      expect(
-          await classifyOutboundTarget('http://$_onion/x',
-              effective: UserProxySettings(type: ProxyType.DEFAULT)),
-          HostRangeVerdict.unresolvable);
+    test('is never asked about an overlay name', () async {
+      for (final name in _overlays.values) {
+        expect(await classifyResolvedHost(name), HostRangeVerdict.unresolvable);
+        expect(
+            await classifyOutboundTarget('http://$name/x',
+                effective: UserProxySettings(type: ProxyType.DEFAULT)),
+            HostRangeVerdict.unresolvable);
+      }
       expect(asked, isEmpty);
     });
 
@@ -152,24 +175,28 @@ void main() {
   });
 
   group('downloads (LEAK-016)', () {
-    test('a direct download of an onion URL is refused before it starts',
-        () async {
-      final engine =
-          DownloadEngine(proxy: OutboundProxy.ofSite(UserProxySettings(type: ProxyType.DEFAULT), site: SiteId('test-site')));
-      await expectLater(
-        engine.fetch(url: 'http://$_onion/file.zip'),
-        _downloadRefusedAsOnion,
-      );
-    });
+    for (final MapEntry(key: overlay, value: name) in _overlays.entries) {
+      test('a direct download from ${overlay.what} is refused before it '
+          'starts', () async {
+        final engine = DownloadEngine(
+            proxy: OutboundProxy.ofSite(
+                UserProxySettings(type: ProxyType.DEFAULT),
+                site: SiteId('test-site')));
+        await expectLater(
+          engine.fetch(url: 'http://$name/file.zip'),
+          _downloadRefusedAs(overlay),
+        );
+      });
 
-    test('so is a redirect to one', () async {
-      final server = await _redirectingTo('http://$_onion/file.zip');
-      final engine = DownloadEngine(proxy: OutboundProxy.app);
-      await expectLater(
-        engine.fetch(url: 'http://127.0.0.1:${server.port}/start'),
-        _downloadRefusedAsOnion,
-      );
-    });
+      test('so is a redirect to ${overlay.what}', () async {
+        final server = await _redirectingTo('http://$name/file.zip');
+        final engine = DownloadEngine(proxy: OutboundProxy.app);
+        await expectLater(
+          engine.fetch(url: 'http://127.0.0.1:${server.port}/start'),
+          _downloadRefusedAs(overlay),
+        );
+      });
+    }
 
     test('a client the caller routes is the caller\'s to judge', () async {
       final engine = DownloadEngine(

@@ -1030,6 +1030,8 @@
   "unproxiedBlockWhy": "為網站設定的代理伺服器涵蓋頁面開啟時的那個請求。這一個是之後才出現的，來自頁面內部，而在這裡無法證明它也會經過代理伺服器。",
   "onionBlockBody": "{site} 沒有設定代理伺服器，而 onion 位址只能透過 Tor 或代理伺服器開啟。直接開啟這個位址會讓這部裝置的 DNS 解析器得知它，因此並未開啟。",
   "onionBlockWhy": "若要在這個網站開啟 onion 位址，請將它的代理伺服器設為 Tor，或設為能連上 onion 服務的代理伺服器。",
+  "i2pBlockBody": "{site} 沒有設定代理伺服器，而 I2P 位址只能透過 I2P 路由器的代理伺服器開啟。直接開啟這個位址會讓這部裝置的 DNS 解析器得知它，因此並未開啟。",
+  "i2pBlockWhy": "若要在這個網站開啟 I2P 位址，請將它的代理伺服器設為 I2P 路由器的 HTTP 或 SOCKS 代理伺服器，該路由器須在這部裝置或您的網路上執行。",
   "unproxiedBlockBack": "返回",
   "unproxiedBlockProxySettings": "代理伺服器設定",
   "proxyTestOk": "代理伺服器可正常運作",

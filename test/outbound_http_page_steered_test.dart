@@ -37,14 +37,14 @@ import 'package:webspace/services/outbound_http_io.dart'
         pageSteeredFindProxy,
         resetPageSteeredFindProxy,
         PageSteeredPrivateTarget,
-        OnionNeedsProxyFailure;
+        OverlayNeedsProxyFailure;
 import 'package:webspace/settings/proxy.dart';
 
 void main() {
   // No TestWidgetsFlutterBinding: it installs an HttpOverrides that stubs every
   // HttpClient request to 400 without calling the connection factory, which is
   // exactly the judge under test. These run on real loopback sockets, like
-  // onion_direct_route_test.
+  // overlay_direct_route_test.
 
   late ServerSocket privateListener;
   late int privatePort;
@@ -512,8 +512,8 @@ void main() {
     });
   });
 
-  group('an onion host never reaches the device resolver (LEAK-016)', () {
-    test('an onion favicon on a DEFAULT route behind an env proxy is refused '
+  group('an overlay host never reaches the device resolver (LEAK-016)', () {
+    test('an overlay favicon on a DEFAULT route behind an env proxy is refused '
         'before any lookup', () async {
       // The per-request env-proxy judge used to resolve the destination, which
       // leaked an onion name to the device resolver; the onion refusal now runs
@@ -526,10 +526,15 @@ void main() {
       pageSteeredFindProxy = (_) => 'PROXY 127.0.0.1:$privatePort';
       addTearDown(resetPageSteeredFindProxy);
 
-      final err = await fetch('http://abcdefghij.onion/i.png');
-      expect(err, isA<OnionNeedsProxyFailure>());
+      for (final url in [
+        'http://abcdefghij.onion/i.png',
+        'http://forum.i2p/i.png',
+      ]) {
+        final err = await fetch(url);
+        expect(err, isA<OverlayNeedsProxyFailure>(), reason: url);
+      }
       expect(looked, isEmpty,
-          reason: 'the onion name never reached the device resolver');
+          reason: 'no overlay name reached the device resolver');
       expect(privateConnections, 0);
     });
 
@@ -575,7 +580,7 @@ void main() {
           }
         },
       );
-      expect(err, isA<OnionNeedsProxyFailure>());
+      expect(err, isA<OverlayNeedsProxyFailure>());
       expect(looked, isNot(contains('abcdefghij.onion')),
           reason: 'the onion redirect target never reached the device resolver');
     });

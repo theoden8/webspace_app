@@ -11,6 +11,7 @@ import 'package:webspace/services/proxy_coverage_engine.dart';
 import 'package:webspace/services/url_host.dart';
 
 const _onion = 'duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion';
+const _i2p = 'ukeu3k5oycgaauneqgtnvselmt4yemvoilkln7jpvamvfx7dnkdq.b32.i2p';
 
 void main() {
   group('ProxyCoverageEngine', () {
@@ -132,10 +133,18 @@ void main() {
       }
     });
 
-    test('LEAK-016: an onion service needs a proxy on every binding', () {
+    test('LEAK-016: an overlay name needs a proxy on every binding', () {
+      const hosts = {
+        _onion: OverlayNetwork.tor,
+        'a.b.Onion.': OverlayNetwork.tor,
+        'onion': OverlayNetwork.tor,
+        _i2p: OverlayNetwork.i2p,
+        'forum.I2P.': OverlayNetwork.i2p,
+        'i2p': OverlayNetwork.i2p,
+      };
       for (final binding in ProxyBinding.values) {
         for (final isMount in [true, false]) {
-          for (final host in [_onion, 'a.b.Onion.', 'onion']) {
+          for (final MapEntry(key: host, value: overlay) in hosts.entries) {
             expect(
               ProxyCoverageEngine.coverageFor(
                 binding: binding,
@@ -144,7 +153,7 @@ void main() {
                 destination: Host(host),
                 isMountNavigation: isMount,
               ),
-              const OnionNeedsProxy(),
+              OverlayNeedsProxy(overlay),
               reason: 'binding=$binding isMount=$isMount host=$host',
             );
           }
@@ -152,26 +161,37 @@ void main() {
       }
     });
 
-    test('LEAK-016: any proxy carries an onion service', () {
-      // Tor, built in or external, resolves it; a user's own proxy is handed
-      // the name rather than an address, so it is that proxy's to resolve.
-      for (final binding in ProxyBinding.values) {
+    test('LEAK-016: any proxy carries an overlay name', () {
+      // Tor, built in or external, resolves an onion one, an I2P router's
+      // proxy an I2P one; a user's own proxy is handed the name rather than
+      // an address, so it is that proxy's to resolve.
+      for (final (binding, host) in [
+        for (final b in ProxyBinding.values) ...[(b, _onion), (b, _i2p)],
+      ]) {
         expect(
           ProxyCoverageEngine.coverageFor(
             binding: binding,
             proxyConfigured: true,
             relayDown: false,
-            destination: Host(_onion),
+            destination: Host(host),
             isMountNavigation: true,
           ),
           const Established(),
-          reason: 'binding=$binding',
+          reason: 'binding=$binding host=$host',
         );
       }
     });
 
-    test('LEAK-016: a name that only contains "onion" is not one', () {
-      for (final host in ['onion.example.com', 'myonion', 'onions']) {
+    test('LEAK-016: a name that only contains an overlay label is not one',
+        () {
+      for (final host in [
+        'onion.example.com',
+        'myonion',
+        'onions',
+        'i2p.example.com',
+        'noti2p',
+        'example.i2pd',
+      ]) {
         expect(
           ProxyCoverageEngine.coverageFor(
             binding: ProxyBinding.processWide,
@@ -228,7 +248,7 @@ void main() {
       }
     });
 
-    test('LEAK-016: a DEFAULT site refuses an onion page and frame', () {
+    test('LEAK-016: a DEFAULT site refuses an overlay page and frame', () {
       for (final binding in ProxyBinding.values) {
         final g = ProxyCoverageGate(
           binding: binding,
@@ -236,12 +256,15 @@ void main() {
           relayDown: false,
           mountUrl: 'http://$_onion/',
         );
-        expect(g.evaluate('http://$_onion/'), const OnionNeedsProxy(),
+        const tor = OverlayNeedsProxy(OverlayNetwork.tor);
+        expect(g.evaluate('http://$_onion/'), tor,
             reason: 'the mount itself');
-        expect(g.evaluate('https://www.$_onion/login'),
-            const OnionNeedsProxy());
-        expect(g.evaluateFrame('http://$_onion/embed'),
-            const OnionNeedsProxy());
+        expect(g.evaluate('https://www.$_onion/login'), tor);
+        expect(g.evaluateFrame('http://$_onion/embed'), tor);
+        expect(g.evaluate('http://$_i2p/'),
+            const OverlayNeedsProxy(OverlayNetwork.i2p));
+        expect(g.evaluateFrame('http://forum.i2p/embed'),
+            const OverlayNeedsProxy(OverlayNetwork.i2p));
         expect(g.evaluate('about:blank'), const NotClaimed(),
             reason: 'the page a refused first load shows instead');
       }

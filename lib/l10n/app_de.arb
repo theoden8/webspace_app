@@ -1030,6 +1030,8 @@
   "unproxiedBlockWhy": "Ein für eine Website eingestellter Proxy deckt die Anfrage ab, mit der eine Seite geöffnet wird. Diese kam danach, aus der Seite heraus, und hier lässt sich nicht zeigen, dass auch sie über den Proxy liefe.",
   "onionBlockBody": "Für {site} ist kein Proxy eingestellt, und Onion-Adressen öffnen sich nur über Tor oder einen Proxy. Sie direkt zu öffnen, hätte sie dem DNS-Resolver dieses Geräts gezeigt, also wurde sie nicht geöffnet.",
   "onionBlockWhy": "Um Onion-Adressen auf dieser Website zu öffnen, stelle ihren Proxy auf Tor oder auf einen Proxy, der Onion-Dienste erreichen kann.",
+  "i2pBlockBody": "Für {site} ist kein Proxy eingestellt, und I2P-Adressen öffnen sich nur über den Proxy eines I2P-Routers. Sie direkt zu öffnen, hätte sie dem DNS-Resolver dieses Geräts gezeigt, also wurde sie nicht geöffnet.",
+  "i2pBlockWhy": "Um I2P-Adressen auf dieser Website zu öffnen, stelle ihren Proxy auf den HTTP- oder SOCKS-Proxy eines I2P-Routers, der auf diesem Gerät oder in deinem Netzwerk läuft.",
   "unproxiedBlockBack": "Zurück",
   "unproxiedBlockProxySettings": "Proxy-Einstellungen",
   "proxyTestOk": "Der Proxy funktioniert",

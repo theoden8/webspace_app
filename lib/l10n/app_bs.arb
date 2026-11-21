@@ -1030,6 +1030,8 @@
   "unproxiedBlockWhy": "Proxy podešen za stranicu pokriva zahtjev kojim se stranica otvara. Ovaj je došao poslije, iz same stranice, i ovdje ne postoji način da se pokaže da bi i on išao kroz proxy.",
   "onionBlockBody": "{site} nema proxy, a onion adrese otvaraju se samo kroz Tor ili proxy. Da je ova otvorena direktno, bila bi pokazana DNS razrješivaču ovog uređaja, pa nije otvorena.",
   "onionBlockWhy": "Da biste otvarali onion adrese na ovoj stranici, postavite njen proxy na Tor ili na proxy koji može doći do onion usluga.",
+  "i2pBlockBody": "{site} nema proxy, a I2P adrese otvaraju se samo kroz proxy I2P rutera. Da je ova otvorena direktno, bila bi pokazana DNS razrješivaču ovog uređaja, pa nije otvorena.",
+  "i2pBlockWhy": "Da biste otvarali I2P adrese na ovoj stranici, postavite njen proxy na HTTP ili SOCKS proxy I2P rutera koji radi na ovom uređaju ili u vašoj mreži.",
   "unproxiedBlockBack": "Nazad",
   "unproxiedBlockProxySettings": "Postavke proxyja",
   "proxyTestOk": "Proxy radi",

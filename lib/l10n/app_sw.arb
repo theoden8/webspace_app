@@ -1030,6 +1030,8 @@
   "unproxiedBlockWhy": "Seva mbadala iliyowekwa kwa tovuti hufunika ombi linalofungua ukurasa. Hili lilikuja baadaye, kutoka ndani ya ukurasa, na hapa hakuna njia ya kuonyesha kwamba nalo lingepita kwenye seva mbadala.",
   "onionBlockBody": "{site} haina seva mbadala, na anwani za onion hufunguka kupitia Tor au seva mbadala pekee. Kuifungua hii moja kwa moja kungeionyesha kwa kitatuzi cha DNS cha kifaa hiki, hivyo haikufunguliwa.",
   "onionBlockWhy": "Ili kufungua anwani za onion kwenye tovuti hii, weka seva mbadala yake kuwa Tor, au seva mbadala inayoweza kufikia huduma za onion.",
+  "i2pBlockBody": "{site} haina seva mbadala, na anwani za I2P hufunguka kupitia seva mbadala ya kipanga njia cha I2P pekee. Kuifungua hii moja kwa moja kungeionyesha kwa kitatuzi cha DNS cha kifaa hiki, hivyo haikufunguliwa.",
+  "i2pBlockWhy": "Ili kufungua anwani za I2P kwenye tovuti hii, weka seva mbadala yake kuwa seva mbadala ya HTTP au SOCKS ya kipanga njia cha I2P kinachoendeshwa kwenye kifaa hiki au kwenye mtandao wako.",
   "unproxiedBlockBack": "Rudi nyuma",
   "unproxiedBlockProxySettings": "Mipangilio ya seva mbadala",
   "proxyTestOk": "Proksi inafanya kazi",

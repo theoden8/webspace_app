@@ -245,14 +245,22 @@ bool Literal(const std::string& host, int port, sockaddr_storage* out,
   return false;
 }
 
-bool IsOnion(const std::string& name) {
-  const std::string suffix = ".onion";
+// Whether [name] is an overlay network's: its last label is one of
+// `OverlayNetwork.tld` in lib/services/url_host.dart, kept in step by hand.
+bool IsOverlay(const std::string& name) {
   std::string lower(name);
   for (char& c : lower) c = static_cast<char>(g_ascii_tolower(c));
   while (!lower.empty() && lower.back() == '.') lower.pop_back();
-  return lower.size() >= suffix.size() &&
-         lower.compare(lower.size() - suffix.size(), suffix.size(), suffix) ==
-             0;
+  for (const std::string tld : {"onion", "i2p"}) {
+    if (lower == tld) return true;
+    const std::string suffix = "." + tld;
+    if (lower.size() > suffix.size() &&
+        lower.compare(lower.size() - suffix.size(), suffix.size(), suffix) ==
+            0) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // [name] through systemd-resolved, asking only [link]'s servers (NETIF-007):
@@ -384,9 +392,9 @@ int DialHost(Shared* shared, const std::string& host, int port,
       return -1;
     }
     candidates.emplace_back(literal, length);
-  } else if (IsOnion(host)) {
-    // Only Tor resolves an onion name, and Tor is not on this route
-    // (LEAK-016).
+  } else if (IsOverlay(host)) {
+    // Only an overlay network's own router resolves its names, and none is
+    // on this route (LEAK-016).
     *reply = kHostUnreachable;
     return -1;
   } else if (!ResolveOnLink(host, state, port, &candidates)) {

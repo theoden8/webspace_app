@@ -172,16 +172,18 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
     return client;
   }
 
-  /// A client no proxy carries. It refuses an onion service before anything
-  /// resolves it: only Tor does, so a direct connection would only hand the
-  /// name to the device's resolver (LEAK-016). Asked per connection, so a
+  /// A client no proxy carries. It refuses an overlay name before anything
+  /// resolves it: only its own network does, so a direct connection would
+  /// only hand the name to the device's resolver (LEAK-016). Asked per connection, so a
   /// redirect to one is refused too. Otherwise it connects as dart:io would
   /// without a factory.
   static HttpClient _directHttpClient({required BodyEncoding encoding}) {
     final client = _newHttpClient(encoding: encoding);
     client.connectionFactory = (uri, proxyHost, proxyPort) {
       final host = Host(uri.host);
-      if (host.isOnion) return Future.error(OnionNeedsProxyFailure(host));
+      if (host.overlay case final overlay?) {
+        return Future.error(OverlayNeedsProxyFailure(host, overlay: overlay));
+      }
       if (proxyHost != null && proxyPort != null) {
         return Socket.startConnect(proxyHost, proxyPort);
       }
@@ -222,11 +224,14 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
     final allow = allowPrivateHost?.toLowerCase();
     client.connectionFactory = (uri, proxyHost, proxyPort) async {
       final host = Host(uri.host);
-      // Defense in depth. The primary onion refusal is _PageSteeredLiteralGuard
-      // .send, which runs before this client is reached, so a page-steered onion
-      // is already refused there (LEAK-016); this backstop covers any later
-      // caller of this client that does not front it with the guard.
-      if (host.isOnion) throw OnionNeedsProxyFailure(host);
+      // Defense in depth. The primary overlay refusal is
+      // _PageSteeredLiteralGuard.send, which runs before this client is
+      // reached, so a page-steered overlay name is already refused there
+      // (LEAK-016); this backstop covers any later caller of this client that
+      // does not front it with the guard.
+      if (host.overlay case final overlay?) {
+        throw OverlayNeedsProxyFailure(host, overlay: overlay);
+      }
       final allowed = allow != null && uri.host.toLowerCase() == allow;
       // Judge the destination's local resolution before connecting, whichever
       // way it is carried. The old pre-flight classify judged a DEFAULT route's
@@ -417,16 +422,17 @@ OutboundClient buildPageSteeredClient(
           'a page-steered client needs the default outbound factory');
 }
 
-/// A direct client was asked to connect to an onion service: nothing was
+/// A direct client was asked to connect to an overlay name: nothing was
 /// sent, and the name never reached the device's resolver (LEAK-016). A
 /// [SocketException], so every caller reads it as the failed connection it
 /// is.
-final class OnionNeedsProxyFailure extends SocketException {
-  OnionNeedsProxyFailure(this.host)
-      : super('$host is an onion service, reached only through Tor or a '
-            'proxy');
+final class OverlayNeedsProxyFailure extends SocketException {
+  OverlayNeedsProxyFailure(this.host, {required this.overlay})
+      : super('$host is ${overlay.what}, reached only through '
+            '${overlay.router} or a proxy');
 
   final Host host;
+  final OverlayNetwork overlay;
 }
 
 /// A page-steered client refused to connect: [host] resolves to [address],
@@ -470,12 +476,15 @@ class _PageSteeredLiteralGuard extends http.BaseClient {
     if (!allowed && isPrivateOrLoopbackHost(host)) {
       throw PageSteeredPrivateTarget(Host(host), resolvedAddress: host);
     }
-    // An onion host must never reach the device's resolver (LEAK-016): refuse it
-    // before the per-request resolve below could look it up. On a DEFAULT route
-    // the destination is resolved on the device, so this is where the leak would
-    // be; a proxied route resolves at the far end and never calls this.
-    if (resolvesLocally && Host(host).isOnion) {
-      throw OnionNeedsProxyFailure(Host(host));
+    // An overlay name must never reach the device's resolver (LEAK-016):
+    // refuse it before the per-request resolve below could look it up. On a
+    // DEFAULT route the destination is resolved on the device, so this is
+    // where the leak would be; a proxied route resolves at the far end and
+    // never calls this.
+    if (resolvesLocally) {
+      if (Host(host).overlay case final overlay?) {
+        throw OverlayNeedsProxyFailure(Host(host), overlay: overlay);
+      }
     }
     // A DEFAULT page-steered request carried by an OS env proxy: dart:io pools
     // plain-http connections by the proxy's host:port, so a second destination

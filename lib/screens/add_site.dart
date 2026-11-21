@@ -122,10 +122,10 @@ class FaviconUrlCache {
 /// [host] on the device's own resolver. False as soon as any outbound proxy
 /// is configured — the preview is a convenience, and losing it costs the user
 /// nothing but a preview card that stays up for a host that turns out not to
-/// exist — and never for an onion service, which only Tor resolves
-/// (LEAK-016).
+/// exist — and never for an overlay name, which only its own network
+/// resolves (LEAK-016).
 bool addSitePreviewMayResolveLocally(String host) =>
-    !Host(host).isOnion &&
+    Host(host).overlay == null &&
     OutboundProxy.app.resolved.type ==
         ProxyType.DEFAULT;
 
