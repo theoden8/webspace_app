@@ -138,24 +138,28 @@ The app SHALL allow sharing, saving, or copying the current page's HTML source v
 **When** the user taps the share icon in the AppBar and selects "Share HTML"
 **Then** the page HTML is retrieved via `controller.getHtml()`
 **And** the OS share sheet opens with the HTML content
+**And** `test/dev_tools_share_html_test.dart` holds it
 
 #### Scenario: Save HTML to file
 
 **Given** a site is loaded
 **When** the user taps the share icon and selects "Save to file"
 **Then** a file save dialog appears with filename `{domain}_{timestamp}.html`
+**And** `test/dev_tools_share_html_test.dart` holds it
 
 #### Scenario: Copy HTML to clipboard
 
 **Given** a site is loaded
 **When** the user taps the share icon and selects "Copy to clipboard"
 **Then** the full HTML is copied to clipboard
+**And** `test/dev_tools_share_html_test.dart` holds it
 
 #### Scenario: Concurrent fetch guard
 
 **Given** an HTML fetch is already in progress
 **When** another share/save/copy action is triggered
-**Then** the second action reuses the cached HTML rather than starting a concurrent fetch
+**Then** the second action waits for that fetch and uses its HTML rather than starting a concurrent one (`SingleFlight`), and every later action reuses it
+**And** `test/dev_tools_share_html_test.dart` holds it
 
 ---
 
