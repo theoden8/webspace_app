@@ -565,6 +565,7 @@ This is a manual user action that fills inputs the user can still edit. It does 
 **Then** the system permission prompt appears
 **And** if the user grants permission, the latitude, longitude, and accuracy inputs are populated with the device's current fix within ~30 seconds
 **And** no map tile requests are made unless the user separately taps "Load map"
+**And** `test/location_picker_current_location_test.dart` holds what the picker does with the fix: the three inputs filled from one single-fix request, no network request, the map left unloaded, and no second request while one is out
 
 #### Scenario: Permission denied
 
@@ -572,6 +573,7 @@ This is a manual user action that fills inputs the user can still edit. It does 
 **When** the user taps "Use current location" and denies the permission prompt
 **Then** the inputs are unchanged
 **And** a message explains that location permission was not granted
+**And** `test/location_picker_current_location_test.dart` holds that each failure leaves the inputs and shows a message of its own
 
 #### Scenario: Permission permanently denied
 
@@ -597,6 +599,7 @@ This is a manual user action that fills inputs the user can still edit. It does 
 
 **Given** the picker is opened on a platform without a wired native location plugin (e.g. macOS, Linux)
 **Then** the "Use current location" button is not shown
+**And** `test/location_picker_current_location_test.dart` holds it
 
 #### Scenario: No GMS dependency on Android
 

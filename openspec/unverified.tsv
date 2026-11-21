@@ -90,7 +90,6 @@ NETIF-014	no check: not built yet; an import that names an interface this device
 # per-site-containers
 # per-site-cookie-isolation
 # per-site-location
-LOC-008	no check: no test drives the picker's 'Use current location' button, its distinct failure messages or its hiding; the service test checks only the Dart channel wrapper and the gate checks isSupported excludes macOS/Linux (partly: test/current_location_service_test.dart, "coarse + permission_denied surfaces as permissionDenied (no GPS escalation)")
 # platform-support
 PLATFORM-001	process: a support-scope statement (iOS, Android, macOS fully supported); CI's per-platform build and integration jobs carry it, no single check asserts 'all features work'
 PLATFORM-003	no check: no Linux-tier test checks per-container cookie/storage isolation; only the per-container proxy part runs on Linux (partly: integration_test/proxy_simultaneous_test.dart, "the first frame: four containers, three separate proxies")
