@@ -913,7 +913,7 @@
   },
   "appSettingsBehaviour": "Behaviour",
   "@appSettingsBehaviour": {
-    "description": "Title of the App Settings category, and of the screen it opens, holding how the app shows and opens sites: the site tab strip, full screen, the back gesture and link handling."
+    "description": "Title of the App Settings category, and of the screen it opens, holding how the app shows and opens sites: the site site strip, full screen, the back gesture and link handling."
   },
   "appSettingsNetwork": "Network",
   "@appSettingsNetwork": {
@@ -922,10 +922,6 @@
   "appSettingsBackupAndArchives": "Backup and archives",
   "@appSettingsBackupAndArchives": {
     "description": "Title of the App Settings category, and of the screen it opens, holding settings export and import and the passphrase-protected archived webspaces."
-  },
-  "appSettingsGroupTabStrip": "Tab strip",
-  "@appSettingsGroupTabStrip": {
-    "description": "Heading on the app Behaviour screen over the settings for the strip of site tabs shown along the top or bottom of the page: whether it shows, in full screen, which edge it runs along, and how wide a tab can be."
   },
   "appSettingsGroupOpening": "Opening and navigation",
   "@appSettingsGroupOpening": {
@@ -939,13 +935,9 @@
   "@appSettingsGroupWhatSitesLearn": {
     "description": "Heading on the app Privacy screen over the data that decides what websites are told about the user: the browser version in the user agent, the timezone dataset, and the map used to pick a spoofed location."
   },
-  "appSettingsSiteTabStrip": "Site Tab Strip",
-  "@appSettingsSiteTabStrip": {
-    "description": "Toggle title for showing the site tab strip"
-  },
-  "appSettingsSiteTabStripSubtitle": "Show a tab bar with all sites",
-  "@appSettingsSiteTabStripSubtitle": {
-    "description": "Explanation behind the hint button of the site tab strip setting. The bar sits at the top or the bottom of the screen, a separate setting, so this text names no edge."
+  "appSettingsSiteStrip": "Site strip",
+  "@appSettingsSiteStrip": {
+    "description": "Title of the setting for the site strip: the bar of the webspace's sites along the top or bottom of the page"
   },
   "appSettingsFullscreenOnShortcut": "Full screen on shortcut launch",
   "@appSettingsFullscreenOnShortcut": {
@@ -999,37 +991,93 @@
   "@trayQuitApp": {
     "description": "Last line in the menu of the app's icon in the macOS menu bar or the Linux system tray: quits the app. WebSpace is the app's name; keep it as written"
   },
-  "appSettingsFullscreenTabStrip": "In full screen, tab strip",
-  "@appSettingsFullscreenTabStrip": {
-    "description": "Group label for the choice of how the tab strip behaves in full screen (followed by the Hidden / Always visible options)"
+  "appSettingsFullscreenSiteStripHidden": "Hidden",
+  "@appSettingsFullscreenSiteStripHidden": {
+    "description": "Option: hide the site strip in full screen"
   },
-  "appSettingsFullscreenTabStripHidden": "Hidden",
-  "@appSettingsFullscreenTabStripHidden": {
-    "description": "Option: hide the tab strip in full screen"
+  "appSettingsFullscreenSiteStripAlways": "Always visible",
+  "@appSettingsFullscreenSiteStripAlways": {
+    "description": "Option: keep the site strip always visible in full screen"
   },
-  "appSettingsFullscreenTabStripAlways": "Always visible",
-  "@appSettingsFullscreenTabStripAlways": {
-    "description": "Option: keep the tab strip always visible in full screen"
+  "appSettingsFullscreenSiteStripButton": "Reveal with button",
+  "@appSettingsFullscreenSiteStripButton": {
+    "description": "Option: keep the site strip hidden but show a small floating button that reveals it (and its menu) on demand, in and out of full screen"
   },
-  "appSettingsFullscreenTabStripButton": "Reveal with button",
-  "@appSettingsFullscreenTabStripButton": {
-    "description": "Option: keep the tab strip hidden but show a small floating button that reveals it (and its menu) on demand, in and out of full screen"
+  "appSettingsSiteStripPosition": "Position",
+  "@appSettingsSiteStripPosition": {
+    "description": "Label on the app Behaviour screen, under the Site strip heading, for the choice of which screen edge the site strip (the bar of the webspace's sites) runs along. Followed by two icon buttons, Top and Bottom."
   },
-  "appSettingsTabStripPosition": "Position",
-  "@appSettingsTabStripPosition": {
-    "description": "Label on the app Behaviour screen, under the Tab strip heading, for the choice of which screen edge the strip of site tabs runs along. Followed by two icon buttons, Top and Bottom."
-  },
-  "appSettingsTabStripPositionTop": "Top",
-  "@appSettingsTabStripPositionTop": {
+  "appSettingsSiteStripPositionTop": "Top",
+  "@appSettingsSiteStripPositionTop": {
     "description": "Tooltip of an icon button. Option: the strip of site tabs runs along the top of the screen, under the app bar."
   },
-  "appSettingsTabStripPositionBottom": "Bottom",
-  "@appSettingsTabStripPositionBottom": {
+  "appSettingsSiteStripPositionBottom": "Bottom",
+  "@appSettingsSiteStripPositionBottom": {
     "description": "Tooltip of an icon button. Option: the strip of site tabs runs along the bottom of the screen."
+  },
+  "appSettingsSiteNavigation": "Site navigation",
+  "@appSettingsSiteNavigation": {
+    "description": "Title of the setting that chooses how the webspace's sites and their tabs are reached: the tab-count button in the app bar alone, the site strip (a bar of sites along the top or bottom), or the sidebar (sites and tabs down the left side)"
+  },
+  "appSettingsFullscreenNavigation": "In full screen",
+  "@appSettingsFullscreenNavigation": {
+    "description": "Title of the setting for what full screen does with the chosen site navigation (site strip or sidebar): hide it, keep it, or leave a small button that brings it back"
+  },
+  "backupPrefSidebarState": "Sidebar open, collapsed or hidden",
+  "@backupPrefSidebarState": {
+    "description": "Name of a saved setting in the list a settings backup shows before import: whether the tab sidebar was left open, collapsed to a narrow rail of site icons, or hidden"
+  },
+  "appSettingsSidebarStyle": "Open sidebar shows",
+  "@appSettingsSidebarStyle": {
+    "description": "Title of the setting for what the open sidebar shows: the sites as squares with their tabs opening out under them, or the tabs as a tree. Followed by those two options"
+  },
+  "backupPrefSidebarWidth": "Sidebar width",
+  "@backupPrefSidebarWidth": {
+    "description": "Name of a saved setting in the list a settings backup shows before import: how wide the user dragged the tab sidebar"
+  },
+  "appSettingsSidebarExpandOnHover": "Expand rail on hover",
+  "@appSettingsSidebarExpandOnHover": {
+    "description": "Title of the switch that, when the sidebar is collapsed to a narrow rail of site icons, shows the names over the page while the mouse pointer rests on the rail"
+  },
+  "appSettingsGroupNavigation": "Navigation",
+  "@appSettingsGroupNavigation": {
+    "description": "Section heading in App Settings > Behaviour over how the user moves between a webspace's sites and their tabs: the site navigation choice and its options."
+  },
+  "appSettingsSiteNavigationHint": "How you move between a webspace's sites and their tabs. The tab button opens the Tabs sheet. The site strip is a bar of the sites, each opening its tabs. The sidebar lists them beside the page, as squares or a tab tree.",
+  "@appSettingsSiteNavigationHint": {
+    "description": "Explanation behind the hint button of the Site navigation setting in App Settings > Behaviour. 'Tab button', 'site strip' and 'sidebar' are its three choices; 'Tabs sheet' is the sheet listing every tab."
+  },
+  "siteNavigationTabButton": "Tab button",
+  "@siteNavigationTabButton": {
+    "description": "One of the three Site navigation choices in App Settings > Behaviour: a button in the app bar showing the tab count, which opens the Tabs sheet. Today's default."
+  },
+  "siteNavigationSidebar": "Sidebar",
+  "@siteNavigationSidebar": {
+    "description": "One of the three Site navigation choices in App Settings > Behaviour: a panel along the left edge listing the webspace's sites and their tabs, which can be open, collapsed to a narrow rail, or hidden."
+  },
+  "appSettingsFullscreenNavigationHint": "What stays of the site strip or the sidebar when a site is in full screen: nothing, all of it, or a small control on the edge that shows it over the page.",
+  "@appSettingsFullscreenNavigationHint": {
+    "description": "Explanation behind the hint button of the In full screen setting in App Settings > Behaviour, whose choices are Hidden, Always visible and Reveal with button."
+  },
+  "sidebarStyleSquares": "Squares",
+  "@sidebarStyleSquares": {
+    "description": "A choice of the 'Open sidebar shows' setting: the sidebar lists the webspace's sites as a grid of square tiles, an open site's tabs under its row."
+  },
+  "sidebarStyleTree": "Tab tree",
+  "@sidebarStyleTree": {
+    "description": "A choice of the 'Open sidebar shows' setting: the sidebar lists every site with its tabs as a tree, a tab under the tab it was opened from."
+  },
+  "appSettingsSidebarExpandOnHoverHint": "With a mouse, the collapsed sidebar opens over the page while the pointer rests on it, and collapses when the pointer leaves.",
+  "@appSettingsSidebarExpandOnHoverHint": {
+    "description": "Explanation behind the hint button of the Expand rail on hover setting in App Settings > Behaviour. The rail is the sidebar collapsed to a narrow column of site icons."
+  },
+  "backupPrefSidebarHandle": "Sidebar arrow tab position",
+  "@backupPrefSidebarHandle": {
+    "description": "Name of a saved setting in the list a settings backup shows before import: where along the left screen edge the user moved the small arrow tab that brings the hidden sidebar back"
   },
   "appSettingsTabMaxWidth": "Tab Width Limit",
   "@appSettingsTabMaxWidth": {
-    "description": "Title for the slider that caps the maximum width of each tab in the tab bar"
+    "description": "Title for the slider that caps the maximum width of each chip in the site strip"
   },
   "appSettingsTabMaxWidthHint": "Limit how wide each tab can grow so long names stay compact",
   "@appSettingsTabMaxWidthHint": {
@@ -2404,7 +2452,7 @@
   "@siteSettingsFullscreenHintTitle": {
     "description": "Hint title for full screen mode."
   },
-  "siteSettingsFullscreenHint": "Automatically enters full screen when this site is selected. Hides the app bar, tab strip, and system UI for an immersive experience. Tap the edge of the screen or use the back gesture to exit full screen.",
+  "siteSettingsFullscreenHint": "Automatically enters full screen when this site is selected. Hides the app bar, site strip, and system UI for an immersive experience. Tap the edge of the screen or use the back gesture to exit full screen.",
   "@siteSettingsFullscreenHint": {
     "description": "Hint body describing full screen mode."
   },
@@ -5080,6 +5128,66 @@
   "tabsCollapse": "Hide the tabs opened from this one",
   "@tabsCollapse": {
     "description": "Tooltip on the control that hides a tab's children in the list."
+  },
+  "tabsFoldSite": "Hide this site's tabs",
+  "@tabsFoldSite": {
+    "description": "Tooltip of the arrow beside a site's heading in the tab sidebar that folds the site's tabs away under its heading"
+  },
+  "tabsUnfoldSite": "Show this site's tabs",
+  "@tabsUnfoldSite": {
+    "description": "Tooltip of the arrow beside a folded site's heading in the tab sidebar that shows the site's tabs again"
+  },
+  "stripShowSiteTabs": "Show {site}'s tabs",
+  "@stripShowSiteTabs": {
+    "description": "Tooltip of the small arrow beside a site's chip in the site strip that shows that site's tabs after its chip, without switching to the site. {site} is the site's name",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "Mail"
+      }
+    }
+  },
+  "stripHideSiteTabs": "Hide {site}'s tabs",
+  "@stripHideSiteTabs": {
+    "description": "Tooltip of the small arrow beside a site's chip in the site strip that hides that site's tabs again. {site} is the site's name",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "Mail"
+      }
+    }
+  },
+  "tabsAllTabsMenu": "All tabs",
+  "@tabsAllTabsMenu": {
+    "description": "Item of a site's overflow menu, shown while the site strip or the sidebar shows the tabs: opens the full list of tabs, which shows which tab was opened from which and the tabs other sites opened from this one"
+  },
+  "sidebarOpen": "Open the tab sidebar",
+  "@sidebarOpen": {
+    "description": "Tooltip of the sidebar icon at the top left of the app bar, shown while the tab sidebar is hidden: opens the sidebar of sites and their tabs fully"
+  },
+  "sidebarShow": "Show the tab sidebar",
+  "@sidebarShow": {
+    "description": "Tooltip of the small arrow tab on the left screen edge, shown while the tab sidebar is closed: brings it back (it can also be dragged out, or moved up and down the edge)"
+  },
+  "sidebarCollapse": "Collapse to the rail",
+  "@sidebarCollapse": {
+    "description": "Tooltip of the sidebar icon at the top right of the open tab sidebar: narrows it to a rail of site icons"
+  },
+  "sidebarPutAway": "Put the sidebar away",
+  "@sidebarPutAway": {
+    "description": "Tooltip of the sidebar icon at the top right of the tab sidebar while it shows over the page (on a phone, or in full screen): closes it"
+  },
+  "sidebarExpand": "Expand the sidebar",
+  "@sidebarExpand": {
+    "description": "Tooltip of the sidebar icon at the top of the collapsed tab sidebar (a narrow rail of site icons): opens it fully"
+  },
+  "sidebarHide": "Hide the sidebar",
+  "@sidebarHide": {
+    "description": "Tooltip of the cross at the bottom of the collapsed tab sidebar (a narrow rail of site icons): hides it"
+  },
+  "sidebarResize": "Drag to resize the sidebar",
+  "@sidebarResize": {
+    "description": "Spoken label of the right edge of the open tab sidebar, which can be dragged to make the sidebar wider or narrower"
   },
   "tabsHiddenChildren": "{count, plural, =1{1 tab hidden} other{{count} tabs hidden}}",
   "@tabsHiddenChildren": {

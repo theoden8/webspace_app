@@ -1,31 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/settings/tab_strip_edge.dart';
+import 'package:webspace/settings/site_strip_edge.dart';
 import 'package:webspace/web_view_model.dart';
-import 'package:webspace/widgets/site_tab_strip.dart';
+import 'package:webspace/widgets/site_strip.dart';
 import 'package:webspace/widgets/site_webview_stack.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 
 import 'helpers/real_app.dart';
 
-/// FS-012: the tab strip runs along the edge the user picked, else the
+/// FS-012: the site strip runs along the edge the user picked, else the
 /// platform's, with the page between it and the other edge.
 void main() {
-  group('TabStripEdge.of', () {
+  group('SiteStripEdge.of', () {
     test('top on a desktop, bottom elsewhere, until the user picks', () {
-      expect(TabStripEdge.of('', desktop: true), TabStripEdge.top);
-      expect(TabStripEdge.of('', desktop: false), TabStripEdge.bottom);
+      expect(SiteStripEdge.of('', desktop: true), SiteStripEdge.top);
+      expect(SiteStripEdge.of('', desktop: false), SiteStripEdge.bottom);
     });
 
     test('a choice holds on every platform', () {
       for (final desktop in [true, false]) {
-        expect(TabStripEdge.of('top', desktop: desktop), TabStripEdge.top);
-        expect(TabStripEdge.of('bottom', desktop: desktop), TabStripEdge.bottom);
+        expect(SiteStripEdge.of('top', desktop: desktop), SiteStripEdge.top);
+        expect(SiteStripEdge.of('bottom', desktop: desktop), SiteStripEdge.bottom);
       }
     });
 
     test('a value no edge is named reads as no choice', () {
-      expect(TabStripEdge.of('left', desktop: false), TabStripEdge.bottom);
+      expect(SiteStripEdge.of('left', desktop: false), SiteStripEdge.bottom);
     });
   });
 
@@ -40,7 +40,7 @@ void main() {
       await openWebspace(tester, name: 'All');
       await openSiteFromDrawer(tester, name: 'Site');
 
-      final strip = tester.getRect(find.byType(SiteTabStrip));
+      final strip = tester.getRect(find.byType(SiteStrip));
       final page = tester.getRect(find.byType(SiteWebViewStack));
       final screen = tester.getRect(find.byType(Scaffold).first);
       if (onTop) {
@@ -62,7 +62,7 @@ void main() {
         WebViewModel(
             initUrl: 'https://example.test', name: 'Site', fullscreenMode: true),
       ],
-      prefs: {'tabBarButton': true, 'tabStripEdge': 'top', 'showUrlBar': true},
+      prefs: {'siteNavigation': 'strip', 'fullscreenNavigation': 'button', 'tabStripEdge': 'top', 'showUrlBar': true},
     );
     await openWebspace(tester, name: 'All');
     await openSiteFromDrawer(tester, name: 'Site');
@@ -74,7 +74,7 @@ void main() {
     }
     await tester.tap(find.byType(TabBarCornerButton));
     await settleRealApp(tester);
-    expect(find.byType(SiteTabStrip), findsOneWidget);
+    expect(find.byType(SiteStrip), findsOneWidget);
     final before = tester.element(find.byType(SiteWebViewStack));
 
     // The strip leaves the top of the body as the URL bar joins its bottom.
@@ -82,7 +82,8 @@ void main() {
     await settleRealApp(tester);
     await tester.tap(find.text('Exit Full Screen'));
     await settleRealApp(tester);
-    expect(find.byType(SiteTabStrip), findsNothing);
+    expect(find.byType(SiteStrip), findsOneWidget,
+        reason: 'out of full screen the strip is pinned');
     expect(find.byType(AppBar), findsOneWidget);
 
     expect(tester.element(find.byType(SiteWebViewStack)), same(before),

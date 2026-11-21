@@ -12,6 +12,8 @@ import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/navigation_choices.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 
 import 'helpers/no_shortcuts.dart';
 import 'helpers/localized.dart';
@@ -129,7 +131,7 @@ void main() {
         reason: 'the categories keep their order: $titles');
 
     expect(find.byType(SwitchListTile, skipOffstage: false), findsNothing);
-    expect(find.byType(SegmentedButton<TabStrip>, skipOffstage: false),
+    expect(find.byType(ChoiceTile<SiteNavigation>, skipOffstage: false),
         findsNothing);
     expect(find.byType(Slider, skipOffstage: false), findsNothing);
     expect(find.byType(TextField, skipOffstage: false), findsNothing);
@@ -154,12 +156,17 @@ void main() {
     await tester.pumpAndSettle();
     expect(summaryText(tester, title: 'Behaviour'), 'Nothing enabled');
 
-    AppPref.showTabStrip.debugValue = true;
+    AppPref.siteNavigation.debugValue = 'strip';
     AppPref.fullscreenOnShortcut.debugValue = true;
     AppPref.linkHandlingEnabled.debugValue = true;
     await tester.pumpAndSettle();
     expect(summaryText(tester, title: 'Behaviour'),
-        'Site Tab Strip · Full screen on shortcut launch · 1 more');
+        'Site strip · Full screen on shortcut launch · 1 more');
+
+    AppPref.siteNavigation.debugValue = 'sidebar';
+    await tester.pumpAndSettle();
+    expect(summaryText(tester, title: 'Behaviour'),
+        'Sidebar · Full screen on shortcut launch · 1 more');
   });
 
   testWidgets('where no shortcut can be added, as on a TV, full screen on '
@@ -210,12 +217,12 @@ void main() {
     await tester.pumpAndSettle();
     await openRow(tester, title: 'Behaviour');
 
-    await tester.tap(find.byTooltip('Top'));
-    await tester.pumpAndSettle();
-    expect(AppPref.tabStripEdge.value, 'bottom',
-        reason: 'a hidden strip has no edge to pick');
+    expect(find.byTooltip('Top'), findsNothing,
+        reason: 'a strip not chosen has no edge to pick');
 
-    await tester.tap(find.byTooltip('Always visible'));
+    await tester.tap(find.text('Tab button'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Site strip').last);
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Top'));
     await tester.pumpAndSettle();

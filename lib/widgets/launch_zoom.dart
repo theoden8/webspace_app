@@ -98,7 +98,7 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
   /// Grows [site]'s card out of its icon at [from], in global coordinates,
   /// until it covers the screen, then switches [to] the site and fades off
   /// it once it is on screen. With no icon to grow from (a tab picked in a
-  /// list, a site picked in the tab strip) the card fades in over the
+  /// list, a site picked in the site strip) the card fades in over the
   /// [LaunchZoom.area] instead, so every switch passes through it.
   Future<void> open(
     WebViewModel site, {

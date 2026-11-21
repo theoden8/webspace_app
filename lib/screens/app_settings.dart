@@ -8,6 +8,7 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/screens/app_appearance.dart';
 import 'package:webspace/settings/setting_labels.dart';
+import 'package:webspace/settings/site_navigation.dart';
 import 'package:webspace/screens/app_backup.dart';
 import 'package:webspace/screens/app_behaviour.dart';
 import 'package:webspace/screens/home_shortcuts_settings.dart';
@@ -268,7 +269,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   Localized _behaviourSummary(AppLocalizations loc) => summariseSettings(
         loc,
         on: [
-          if (TabStrip.current != TabStrip.hidden) loc.appSettingsSiteTabStrip,
+          if (currentSiteNavigation != SiteNavigation.tabButton)
+            currentSiteNavigation.label(loc),
           if (ShortcutService.offered && AppPref.fullscreenOnShortcut.value)
             loc.appSettingsFullscreenOnShortcut,
           if (backOpensMenuOffered() && AppPref.backOpensMenu.value)

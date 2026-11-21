@@ -152,7 +152,7 @@ cleared by the same step as a virtual capture source's (SHARE-016).
 image (PNG/JPEG/WebP/GIF/BMP/ICO)
 **And** saves
 **Then** the chosen image is shown for that site everywhere the site icon
-renders (drawer list/grid, tab strip, webspace detail, site dispatch)
+renders (drawer list/grid, site strip, webspace detail, site dispatch)
 **And** no favicon fetch is performed for those renders
 **And** the icon persists across app restarts
 

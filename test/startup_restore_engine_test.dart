@@ -494,7 +494,7 @@ void main() {
     });
 
     test('normal in-app switch is unaffected by the global option', () {
-      // viaShortcut=false models a tab-strip / drawer switch: the global
+      // viaShortcut=false models a site-strip / drawer switch: the global
       // shortcut option must not pull a non-fullscreen site into fullscreen.
       expect(
         StartupRestoreEngine.shouldEnterFullscreen(

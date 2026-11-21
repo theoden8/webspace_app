@@ -139,7 +139,7 @@ class StartupRestoreEngine {
   /// forces fullscreen when the global option is on; every launch still
   /// honors the per-site flag. A normal in-app switch ([viaShortcut] false)
   /// depends on the per-site flag alone, so the global option never changes
-  /// the behavior of tab-strip / drawer navigation.
+  /// the behavior of site-strip / drawer navigation.
   static bool shouldEnterFullscreen({
     required bool viaShortcut,
     required bool fullscreenOnShortcut,

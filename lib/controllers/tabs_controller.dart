@@ -191,17 +191,30 @@ class TabsController {
     return sheetListing(scope: scope);
   }
 
-  List<TabsSheetSite> _sheetSitesOver(List<int> view) {
+  /// What the sidebar lists: every site the current webspace shows, one
+  /// with tabs off as a single row that opens it, then the other sites with
+  /// tabs, as the sheet lists them (TAB-017), and the way back from the
+  /// site on screen.
+  TabsSheetListing sidebarListing() => (
+        sites: _sheetSitesOver(_sites.filteredIndices(), everyInView: true),
+        wayBack: switch (_sites.shown) {
+          final shown? => wayBackFrom(shown),
+          null => null,
+        },
+      );
+
+  List<TabsSheetSite> _sheetSitesOver(List<int> view, {bool everyInView = false}) {
     final shown = view.toSet();
     TabsSheetSite site(int i) => TabsSheetSite(
           model: _sites.models[i],
           isCurrent: i == _sites.current,
           isLoaded: _sites.isLoadedAt(i),
           inView: shown.contains(i),
+          tabsOn: enabledFor(_sites.models[i]),
         );
     return [
       for (final i in view)
-        if (enabledFor(_sites.models[i])) site(i),
+        if (everyInView || enabledFor(_sites.models[i])) site(i),
       for (var i = 0; i < _sites.models.length; i++)
         if (!shown.contains(i) && enabledFor(_sites.models[i])) site(i),
     ];

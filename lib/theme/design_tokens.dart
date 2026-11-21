@@ -295,7 +295,7 @@ abstract final class Elevations {
   static const double floatingActive = 8;
 }
 
-/// The tab-strip button floats over site content, so it is translucent enough
+/// The site-strip button floats over site content, so it is translucent enough
 /// to show what it covers and grows while dragged.
 abstract final class FloatingButton {
   static const double surfaceOpacity = 0.85;

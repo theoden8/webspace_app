@@ -653,7 +653,7 @@ the tab.
 In the Tabs sheet's All sites view, a long press on a site's heading SHALL
 lift the site, and a drop on another site's heading SHALL put the site in that
 one's place: above it when dragged up, below it when dragged down, the rule the
-drawer grid and the tab strip follow. The move SHALL be the same reorder those
+drawer grid and the site strip follow. The move SHALL be the same reorder those
 make (`_reorderSite`), so all three show one order: a named webspace's
 `siteIds` order, or the global site order in "All". It SHALL be offered only
 where they offer it, and SHALL be refused while a tab is being opened,
@@ -670,7 +670,7 @@ or active site SHALL change.
 - **GIVEN** the All sites view lists GitHub, Mastodon and Wikipedia
 - **WHEN** the user long-presses Wikipedia's heading and drops it on GitHub's
 - **THEN** the sites are listed Wikipedia, GitHub, Mastodon, each with its tabs
-- **AND** the drawer and the tab strip show the same order
+- **AND** the drawer and the site strip show the same order
 
 #### Scenario: The rows follow the new numbering
 
@@ -863,7 +863,7 @@ While the screen is where the last jump landed, on the tab it opened:
   it left, when that webspace shows the site; neither tab SHALL close.
 
 Leaving that tab any other way SHALL drop the trail: another site from the
-drawer, the tab strip, a shortcut or a link, another tab of the same site, or
+drawer, the site strip, a shortcut or a link, another tab of the same site, or
 a jump from somewhere else, which starts a new trail. The trail SHALL NOT be
 stored.
 
@@ -1019,3 +1019,172 @@ click: it has no key convention, and a long press opens the menu instead.
 - **GIVEN** a site with tabs on screen on Linux
 - **WHEN** the user middle-clicks a link to a domain none of their sites claims
 - **THEN** the link opens as a plain click on it would, in the nested screen
+
+### Requirement: TAB-030 - Site navigation is one choice
+
+How the user moves between a webspace's sites and their tabs SHALL be one
+app-wide choice in App Settings > Behaviour (`siteNavigation`): **Tab button**
+(the default), **Site strip** or **Sidebar**. The strip and the sidebar SHALL
+never show together. With Tab button the app bar SHALL carry the tab-count
+button, which opens the Tabs sheet; with the strip or the sidebar it SHALL NOT,
+and the site menu SHALL offer **All tabs**, which opens the Tabs sheet. One
+decision (`navigationSurfaces`) SHALL say which surfaces show; a locked kiosk
+session and a page with no site on screen SHALL show none (KIOSK-002), but for
+the legacy design's sidebar (TAB-036).
+
+An upgrade and an old backup SHALL map the earlier strip settings onto the
+choice: a pinned strip or the strip's button to Site strip (the button to In
+full screen = Button, FS-009), anything else to Tab button. A choice already
+made, or named by a backup, SHALL be kept.
+
+#### Scenario: The strip replaces the tab button
+
+- **GIVEN** Site navigation is Site strip and a site is on screen
+- **THEN** the app bar has no tab-count button
+- **AND** the site menu offers All tabs, which opens the Tabs sheet
+
+#### Scenario: An earlier pinned strip becomes the Site strip
+
+- **GIVEN** a build that saved the site strip as pinned
+- **WHEN** the app starts after the upgrade, or a backup it wrote is imported
+- **THEN** Site navigation is Site strip
+
+### Requirement: TAB-031 - The site strip opens a site's tabs
+
+With Site strip chosen, the chip of the site on screen SHALL open out to show
+its tabs as chips, flat in opener order, a tab opened from another marked with
+a dot; a chip opens its tab and its cross closes it, with Undo (TAB-022), and a
++ opens a new tab. Another site's chip SHALL carry an arrow that opens or
+closes its tabs without switching to it. A second tap on the chip of the site
+on screen SHALL close its tabs. On a window narrower than 840 one site SHALL be
+open at a time. A site with tabs off SHALL show no tabs and no arrow.
+
+#### Scenario: Another site's tabs open without switching
+
+- **GIVEN** Docs on screen with its tabs open in the strip
+- **WHEN** the user taps the arrow on Mail's chip
+- **THEN** Mail's tabs show beside Docs' and Docs stays on screen
+
+#### Scenario: A phone keeps one open
+
+- **GIVEN** a phone, Docs on screen with its tabs open
+- **WHEN** the user opens Mail's tabs by its arrow
+- **THEN** Mail's tabs show and Docs' close
+
+### Requirement: TAB-032 - The sidebar's states and controls
+
+With Sidebar chosen, the sidebar SHALL be in one of three states, one for the
+app and remembered across restarts (`sidebarState`): **open**, **collapsed** (a
+rail of the sites' icons, the site on screen's tabs as stripes) or **hidden**.
+Its controls SHALL be:
+
+- the open sidebar's collapse button, the sidebar icon at its top right, which
+  collapses it to the rail;
+- the rail's sidebar icon at its top, which opens it, and its cross at its
+  bottom, which hides it;
+- while hidden, the app bar's sidebar icon, which opens it fully, and the arrow
+  tab on the left edge;
+- the arrow tab, shown only while the sidebar is closed: a tap brings it back
+  as it was left; a drag right pulls it out under the finger and lets go at
+  the nearest of hidden, the rail and open; a drag up or down moves the tab
+  along the edge, remembered (`sidebarHandleY`);
+- a keyboard shortcut (Ctrl/Cmd-Alt-Z) that cycles open, collapsed, hidden;
+- the open sidebar's right edge, whose drag shows a guide line and resizes it
+  on release, between 200 and 420 (`sidebarWidth`, 260 by default).
+
+#### Scenario: Collapse, hide, open fully
+
+- **GIVEN** the sidebar open on a wide window
+- **WHEN** the user taps its collapse button
+- **THEN** it is the rail
+- **WHEN** the user taps the rail's cross
+- **THEN** it is hidden and the arrow tab shows
+- **WHEN** the user taps the app bar's sidebar icon
+- **THEN** it is open, not the rail
+
+#### Scenario: The arrow tab brings back the rail it was hidden from
+
+- **GIVEN** the sidebar hidden from the rail
+- **WHEN** the user taps the arrow tab
+- **THEN** it is the rail again
+
+### Requirement: TAB-033 - The sidebar on a phone
+
+On a window narrower than 840 the rail (52 wide) SHALL stay docked beside the
+page and open SHALL be a 290-wide drawer over it, with a scrim whose tap puts
+it back to the rail. The drawer SHALL be the phone's alone and never stored:
+a phone SHALL start at the rail, a sidebar open when the window narrows SHALL
+show the rail, and widening SHALL show the app-wide state again. A pick of a
+site or a tab in the drawer SHALL drop it back to the rail. To the back gesture the drawer SHALL be
+a drawer: Back closes it, and from a drawer Back opened, leaves the app
+(NAV-009).
+
+#### Scenario: Narrowing keeps the app-wide state
+
+- **GIVEN** the sidebar open on a wide window
+- **WHEN** the window narrows below 840 and widens again
+- **THEN** the narrow window shows the rail, and the wide one the open sidebar
+
+#### Scenario: A pick drops the drawer back to the rail
+
+- **GIVEN** a phone with the sidebar drawer open
+- **WHEN** the user taps a tab in it
+- **THEN** that tab opens and the sidebar is the rail
+
+### Requirement: TAB-034 - The open sidebar shows squares or the tab tree
+
+The open sidebar SHALL show, by the user's choice (`sidebarStyle`), **Squares**
+(the default) or the **Tab tree**. Squares SHALL be the webspace's sites in a
+grid three wide, an open site's tabs as chips in a panel under its row,
+pointing at its square, opening as the strip's do (TAB-031). The tree SHALL be
+the Tabs sheet's tree of every site in view (TAB-005), each subtree folding with
+a count of what it holds, each site folding shut, a site with tabs off one row
+that opens it; a pick SHALL leave the sidebar where it is.
+
+#### Scenario: Squares open the site on screen's tabs
+
+- **GIVEN** the sidebar open with Squares and Docs on screen
+- **THEN** Docs' tabs show as chips under its row
+
+### Requirement: TAB-035 - The page takes its width once the sidebar's motion ends
+
+The page beside a docked sidebar SHALL take its new width when the sidebar's
+motion ends (420 ms), never each frame: resizing a webview each frame is
+costly and risks blank surfaces on Android (BUG-001, BUG-002). With reduced
+motion the change SHALL be immediate.
+
+#### Scenario: Reduced motion
+
+- **GIVEN** the system asks for reduced motion
+- **WHEN** the open sidebar collapses to the rail
+- **THEN** the page is beside the rail in the same frame
+
+### Requirement: TAB-036 - The legacy design's sidebar is its drawer
+
+In the legacy design with Sidebar chosen, the sidebar SHALL replace the drawer:
+it SHALL keep the drawer's header (the logo, the webspace's name, Back to
+Webspaces) and its Add Site, show the sites as squares unless the tree is
+chosen, and show whenever a webspace is picked, with a site on screen or not.
+The app bar SHALL carry no drawer button and no webspaces button. Picking a
+webspace and the back gesture's navigation (NAV-009) SHALL open the sidebar
+where they opened the drawer.
+
+#### Scenario: The header and Add Site stay
+
+- **GIVEN** the legacy design with Sidebar chosen
+- **WHEN** the user picks a webspace
+- **THEN** the sidebar shows its header, its sites as squares and Add Site
+
+### Requirement: TAB-037 - The rail opens on hover
+
+With **Expand rail on hover** on (`sidebarExpandOnHover`, off by default), a
+pointer resting on the rail SHALL open the sidebar over the page, which keeps
+its width, until the pointer leaves it.
+
+#### Scenario: Hover opens, leaving closes
+
+- **GIVEN** the rail and Expand rail on hover on
+- **WHEN** the mouse rests on the rail
+- **THEN** the open sidebar shows over the page
+- **WHEN** the mouse leaves it
+- **THEN** only the rail shows

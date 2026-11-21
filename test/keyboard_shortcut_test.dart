@@ -47,6 +47,18 @@ class _Page implements KeyboardShortcutHost {
 
   @override
   Future<void> openSite(WebViewModel site) async => opened.add(site);
+
+  var toggled = 0;
+
+  /// Whether the sidebar is the chosen navigation, so the key has one.
+  bool sidebar = true;
+
+  @override
+  bool toggleSidebar() {
+    if (!sidebar) return false;
+    toggled++;
+    return true;
+  }
 }
 
 /// A controller the shortcut under test must not reach.
@@ -184,6 +196,11 @@ void main() {
         expect(
           await chord(LogicalKeyboardKey.digit9, holding: [primary]),
           isA<LastSite>(),
+        );
+        expect(
+          await chord(LogicalKeyboardKey.keyZ, holding: [primary, alt]),
+          isA<ToggleSidebar>(),
+          reason: "the key Firefox's sidebar answers",
         );
       });
 
@@ -431,6 +448,17 @@ void main() {
           reason: 'the webspace list is where a hidden window comes back to');
       await pumpEventQueue();
       expect(quits, 2);
+    });
+
+    test('the sidebar key cycles the sidebar where it is the navigation',
+        () {
+      final page = _Page(kioskLocked: false);
+      expect(over(page).answerShortcut(const ToggleSidebar()), isTrue);
+      expect(page.toggled, 1);
+      page.sidebar = false;
+      expect(over(page).answerShortcut(const ToggleSidebar()), isFalse);
+      expect(over(_Page(kioskLocked: true)).answerShortcut(const ToggleSidebar()),
+          isFalse);
     });
 
     test('a locked kiosk keeps the app (KIOSK-002)', () async {

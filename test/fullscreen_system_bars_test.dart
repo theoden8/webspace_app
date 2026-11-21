@@ -3,16 +3,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/fullscreen_system_ui.dart';
-import 'package:webspace/settings/tab_strip_edge.dart';
+import 'package:webspace/settings/site_strip_edge.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/site_menu.dart';
-import 'package:webspace/widgets/site_tab_strip.dart';
+import 'package:webspace/widgets/site_strip.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 
 import 'helpers/real_app.dart';
 
 /// FS-011 (github #672). Under `immersiveSticky` a swiped-in navigation bar is
-/// a transient overlay with no insets, so it covers the tab strip kept in full
+/// a transient overlay with no insets, so it covers the site strip kept in full
 /// screen; under `immersive` it is a real bar the strip insets around. FS-012:
 /// a strip along the top edge keeps the status bar and sits below it.
 void main() {
@@ -20,7 +20,7 @@ void main() {
     test('sticky when full screen shows none of the app controls', () {
       expect(
         FullscreenSystemUi.of(
-            kioskLocked: false, tabStripEdge: null, tabBarButton: false),
+            kioskLocked: false, siteStripEdge: null, floatingControl: false),
         FullscreenSystemUi.barsHiddenSticky,
       );
     });
@@ -30,8 +30,8 @@ void main() {
       expect(
         FullscreenSystemUi.of(
             kioskLocked: false,
-            tabStripEdge: TabStripEdge.bottom,
-            tabBarButton: false),
+            siteStripEdge: SiteStripEdge.bottom,
+            floatingControl: false),
         FullscreenSystemUi.barsHidden,
       );
     });
@@ -40,7 +40,7 @@ void main() {
         'strip', () {
       expect(
         FullscreenSystemUi.of(
-            kioskLocked: false, tabStripEdge: null, tabBarButton: true),
+            kioskLocked: false, siteStripEdge: null, floatingControl: true),
         FullscreenSystemUi.barsHidden,
       );
     });
@@ -51,8 +51,8 @@ void main() {
         expect(
           FullscreenSystemUi.of(
               kioskLocked: false,
-              tabStripEdge: TabStripEdge.top,
-              tabBarButton: button),
+              siteStripEdge: SiteStripEdge.top,
+              floatingControl: button),
           FullscreenSystemUi.statusBarKept,
         );
       }
@@ -62,8 +62,8 @@ void main() {
       expect(
         FullscreenSystemUi.of(
             kioskLocked: true,
-            tabStripEdge: TabStripEdge.top,
-            tabBarButton: true),
+            siteStripEdge: SiteStripEdge.top,
+            floatingControl: true),
         FullscreenSystemUi.barsHiddenSticky,
       );
     });
@@ -170,7 +170,7 @@ void main() {
 
       // The status bar the platform keeps reports its inset.
       await showSystemBars(tester, top: statusBar);
-      expect(tester.getRect(find.byType(SiteTabStrip)).top, statusBar,
+      expect(tester.getRect(find.byType(SiteStrip)).top, statusBar,
           reason: 'the strip sits directly below the status bar');
 
       // A navigation bar swiped in meanwhile stays, and is hidden again, as
@@ -198,15 +198,15 @@ void main() {
       }
       await tester.tap(find.byType(TabBarCornerButton));
       await settleRealApp(tester);
-      expect(find.byType(SiteTabStrip), findsOneWidget);
+      expect(find.byType(SiteStrip), findsOneWidget);
       expect(modes.last, statusBarKept);
       await showSystemBars(tester, top: statusBar);
-      expect(tester.getRect(find.byType(SiteTabStrip)).top, statusBar);
+      expect(tester.getRect(find.byType(SiteStrip)).top, statusBar);
 
       await tester.tap(find.descendant(
-          of: find.byType(SiteTabStrip), matching: find.byIcon(Icons.close)));
+          of: find.byType(SiteStrip), matching: find.byIcon(Icons.close)));
       await settleRealApp(tester);
-      expect(find.byType(SiteTabStrip), findsNothing);
+      expect(find.byType(SiteStrip), findsNothing);
       expect(modes.last, immersive, reason: 'the status bar hides again');
     });
 

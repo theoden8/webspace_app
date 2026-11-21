@@ -612,8 +612,8 @@ it, with Command on macOS where the others take Control:
 | Ctrl/Cmd-F | the site menu's Find in page, out of full screen; Escape in its field closes it |
 | Alt-Left; Cmd-[ or Cmd-Left on macOS | the site menu's Back |
 | Alt-Right; Cmd-] or Cmd-Right on macOS | one step forward, where the page has one |
-| Ctrl-Tab, Ctrl-Shift-Tab; Ctrl-PageDown, Ctrl-PageUp off macOS | the next or previous site along the tab strip, round at either end |
-| Ctrl/Cmd-1 to 8, Ctrl/Cmd-9 | the site at that place along the tab strip, the last one |
+| Ctrl-Tab, Ctrl-Shift-Tab; Ctrl-PageDown, Ctrl-PageUp off macOS | the next or previous site along the site strip, round at either end |
+| Ctrl/Cmd-1 to 8, Ctrl/Cmd-9 | the site at that place along the site strip, the last one |
 | Ctrl-Q on Linux and Windows | leave the app, from any screen, a window a close only hides included (NOTIF-018); on macOS Command-Q is the app menu's, and an Android app does not quit itself |
 
 A key SHALL reach the shortcuts before the focused widget: Linux's webview keeps
@@ -774,7 +774,7 @@ reachable from it:
   Flutter focus move alone does not.
 - An arrow the page had no use for (it moved no focus, scrolled nothing and was not taken
   with `preventDefault`) SHALL move focus out of the page in that direction, to the app bar
-  above it or the tab strip below. In a text field the arrows SHALL stay with the caret, and
+  above it or the site strip below. In a text field the arrows SHALL stay with the caret, and
   a held arrow SHALL never leave the page.
 - The app SHALL appear in the Android TV launcher with a banner, and SHALL install on a
   device without a touchscreen.
@@ -794,7 +794,7 @@ since a remote has no long press, no Menu key and nothing to drag with:
   value. The app runs in Flutter's directional navigation there, which Flutter never picks
   itself, so a disabled control also takes focus and the D-pad can rest on it.
 - An outline SHALL mark whatever has focus, drawn inside the control. A site page (its
-  engine outlines the focused link), a launcher icon and a tab strip chip outline
+  engine outlines the focused link), a launcher icon and a site strip chip outline
   themselves, so no second outline is drawn over them.
 - A launcher icon pressed with OK or Enter SHALL open as a tap does; held, it SHALL open
   its menu as a long press does. This holds for any key, on every device.
@@ -802,7 +802,7 @@ since a remote has no long press, no Menu key and nothing to drag with:
   Move Down, the moves a drag makes; "All" never moves.
 - In an open library folder, a move down or up from the folder SHALL go into it, and the
   dimmed home screen behind it SHALL take no focus.
-- Every chip of the tab strip SHALL take focus: OK opens its site, or the Tabs sheet on the
+- Every chip of the site strip SHALL take focus: OK opens its site, or the Tabs sheet on the
   one on screen. Every row of the Tabs sheet and its web search are reachable as they are.
 
 A key reaches only the document of the frame holding focus, so the edge is read by a
@@ -844,9 +844,9 @@ before: no wrapper that takes keys, no page script. Popups opened by a page are 
 - **THEN** a site in that folder has focus, and OK opens it
 - **AND** OK held instead opens its menu, with the moves its folder allows
 
-#### Scenario: Another site from the tab strip
+#### Scenario: Another site from the site strip
 
-- **GIVEN** a TV with the tab strip on
+- **GIVEN** a TV with the site strip on
 - **WHEN** the user moves along the strip and presses OK on a site
 - **THEN** that site opens; OK on the site on screen opens its tabs
 
@@ -877,7 +877,7 @@ opens, a site's settings, the library, dialogs, sheets and menus.
 - A disabled control SHALL take focus, so the keys can rest on a locked row and its reason.
 - An outline SHALL mark whatever has focus once a key moved it, drawn inside the control,
   and none while the mouse drives the app. A site's page and what outlines itself (a
-  launcher icon, a tab strip chip, a text field, whose border and caret show its focus)
+  launcher icon, a site strip chip, a text field, whose border and caret show its focus)
   get no second outline.
 - The on-screen keyboard is not held back and Enter in a field is the field's: a desktop
   types with its own keys.
@@ -982,7 +982,7 @@ end with the page it began on, so its typed text never reaches another site (BUG
 #### Scenario: Switching sites while typing in the URL bar
 
 - **GIVEN** the user is typing in the URL bar of site A, keyboard up
-- **WHEN** they tap site B in the tab strip
+- **WHEN** they tap site B in the site strip
 - **THEN** the keyboard goes
 - **AND** the URL bar shows site B's URL, not the text typed for site A
 

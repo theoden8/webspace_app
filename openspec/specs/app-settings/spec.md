@@ -22,7 +22,7 @@ Each category screen SHALL hold:
 | Category | Rows |
 |---|---|
 | Appearance | app language; theme mode; accent colour; "Design": Legacy design, and the library's icon size while it is off (`webspaces` WEBSPACE-019, WEBSPACE-017) |
-| Behaviour | "Tab strip": the strip's mode, the full-screen choice while it is pinned, its edge (FS-012), the tab width limit; "Opening and navigation": app defaults for Tabs, External links and Route links to my sites (under in-app links, BEHAV-007), full screen on shortcut launch, back gesture opens the menu (where NAV-009 offers it), home screen shortcuts (Android, HS-017), link handling; "Search" (LIR-029): Default search, the site search list |
+| Behaviour | "Site strip": the strip's mode, the full-screen choice while it is pinned, its edge (FS-012), the tab width limit; "Opening and navigation": app defaults for Tabs, External links and Route links to my sites (under in-app links, BEHAV-007), full screen on shortcut launch, back gesture opens the menu (where NAV-009 offers it), home screen shortcuts (Android, HS-017), link handling; "Search" (LIR-029): Default search, the site search list |
 | Network | "Outbound proxy": saved proxies, the app-wide proxy and its status, fields and connection test, the Tor status card (TOR-004); "Certificates" on Android and Linux (TLS-009) |
 | Privacy | the protection report and the stats bar; "Trackers and ads": HTTPS upgrade, ClearURLs rules, the DNS blocklist and its level, the content blocker (a row opening its own screen), LocalCDN on Android; "What sites learn": the Firefox version, the timezone dataset, the location picker's map tiles; "Screen capture" where SCREENBLOCK-002 applies |
 | Backup and archives | export, import, restore archive, close all archives while one is open (ARCH-001) |
@@ -61,7 +61,7 @@ HINT-002 length cap.
 
 - Appearance: the theme mode, then the chosen language when one overrides the
   system's.
-- Behaviour: of the tab strip (when not hidden), full screen on shortcut
+- Behaviour: of the site strip (when not hidden), full screen on shortcut
   launch, back gesture opens the menu and link handling, the ones on; or
   "Nothing enabled".
 - Network: the app-wide route (the saved proxy's or gateway's name, the Tor
@@ -82,7 +82,7 @@ HINT-002 length cap.
 
 #### Scenario: More than two overflow
 
-**Given** the tab strip is pinned, full screen on shortcut launch is on and
+**Given** the site strip is pinned, full screen on shortcut launch is on and
 link handling is on
 **Then** the Behaviour row names two of them and then "1 more"
 
@@ -143,3 +143,19 @@ prompt.
 **When** the user taps Export Settings twice
 **Then** the export runs once
 **And** the page App Settings was opened from is still shown
+
+### Requirement: APPSET-005 — Behaviour shows a navigation's rows only with it
+
+App Settings > Behaviour SHALL open with a Navigation section whose first row
+is Site navigation (TAB-030). Each row under it SHALL show only where the chosen
+navigation has something for it to set: In full screen (FS-007) with the site
+strip or the sidebar; Open sidebar shows (TAB-034) and Expand rail on hover
+(TAB-037) with the sidebar; the strip's position (FS-012) and its tab width
+limit with the strip. The Behaviour row of the index SHALL name the site strip
+or the sidebar when either is chosen (APPSET-002).
+
+#### Scenario: The sidebar's rows
+
+**Given** Site navigation is Sidebar
+**Then** Behaviour shows In full screen, Open sidebar shows and Expand rail on hover
+**And** it shows neither the strip's position nor its tab width limit

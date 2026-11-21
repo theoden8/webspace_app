@@ -712,6 +712,7 @@ void main() {
                 state: () => (
                   loading: false,
                   tabsOn: false,
+                  allTabs: false,
                   fullscreen: false,
                   offersShortcut: false,
                   extensions: siteMenuExtensions(site),
