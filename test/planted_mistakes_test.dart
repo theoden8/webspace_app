@@ -585,6 +585,14 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [DnsDownload(0)],
     breaks: 'where its site resolves to',
   ),
+  // Every mirror is down: the download's turn outlives it, and the level
+  // asked after it waits on a flow that has ended.
+  Mutant.failkeepsturn => _By(
+    world: (d) => ActivationWorld(_mixedContainers, dns: _dnsSites, declared: d),
+    setup: const [Tap(0), Fails(Fault.dnsFetch)],
+    script: const [DnsDownload(0), DnsAddLevel(1)],
+    breaks: 'turn went to a flow out of the order asked',
+  ),
   // Site 2's DNS blocking is off: once a download makes level 1 app-wide,
   // its view built is told 1 where its site resolves to 0.
   Mutant.builtatglobal => _By(

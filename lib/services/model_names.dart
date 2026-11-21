@@ -329,6 +329,7 @@ enum ModelConst {
   waking(ConstKind.off, range: r'BOOLEAN'),
   siteLevel(ConstKind.uniform, range: r'[Sites -> -1..5]'),
   dnsLevels(ConstKind.set, range: r'SUBSET (1..5)'),
+  dnsFetchFails(ConstKind.off, range: r'BOOLEAN'),
   away(ConstKind.set, range: r'SUBSET SUBSET Sites'),
   online(ConstKind.on, range: r'BOOLEAN'),
   archive(ConstKind.set, range: r'SUBSET Sites'),

@@ -113,6 +113,10 @@ const _pauses = 'the pauses write nothing the model holds';
 /// across the writes, so no flow reads the jar between them (ISO-003).
 const _inTurn = 'the jar is written within one turn';
 
+/// Why a fold may try several mirrors in one step: a failed try writes
+/// nothing the model holds, and the lists' turn is held across them.
+const _mirrors = 'a failed mirror writes nothing the model holds';
+
 /// Why a wake's reloads, settle, reads and posts may be one step: they
 /// write nothing the model holds, so an input landing between two of them
 /// lands as well before the step or after it.
@@ -401,6 +405,7 @@ enum ActivationStep {
   dnsFolded(
     outcomes: {StepOutcome.go, StepOutcome.bail},
     calls: {PlatformCall.dnsFetch},
+    severalAwaits: _mirrors,
   ),
 
   /// DNS blocking turned off (level 0), and its lists deleted: then off is

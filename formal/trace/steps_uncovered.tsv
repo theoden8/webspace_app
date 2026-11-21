@@ -6,5 +6,4 @@ TabNavReply	gone	a tab leaves its site's list only by a close, which the tab gat
 DupInsert	gone	the source leaves the list only by a close, which the tab gate serialises with the duplicate; a delete takes its site off the list and leaves the site's own tabs as they are
 DupRemoveReply	-	follows DupInsert gone, which no schedule reaches
 CloseArchive	skip	an archive too large for its slot is refused before anything moves, which the model prints FALSE; the walk's archive holds one site, which fits
-DnsFolded	bail	the model's mirror always has the list (its failure is FALSE there): a fetch that fails writes nothing the model holds, and the walk's mirror serves every level it asks for
 Reroute	busy	a reroute asked while a tab handler holds the gate waits for it to let go (TabHandlingGate.deferUntilIdle), which the model takes as one dropped and one landing then; the walk asks for one only on a free gate
