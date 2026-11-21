@@ -1,0 +1,33 @@
+# input	most awaits to its end	loops (place:awaits a round)
+# A ceiling only falls: formal/await_ceilings.py prints a lower count to commit; raising one is a reviewed decision.
+Tap	24	nav:12 rSave:1 rSetO:1
+GoHome	4	-
+Pressure	24	nav:12 rSave:1 rSetO:1
+Preload	11	rSave:1 rSetO:1
+UnloadSite	24	nav:12 rSave:1 rSetO:1
+SpaceSwitch	25	nav:12 rSave:1 rSetO:1
+NestedOpen	25	nav:12 rSave:1 rSetO:1
+OpenTab	4	tRemove:1
+NewTab	4	tRemove:1
+CloseTab	4	tRemove:1
+DuplicateTab	3	-
+Reroute	1	rRemove:1
+HomeLanding	4	tRemove:1
+OwnerRun	4	tRemove:1
+ChildTab	4	tRemove:1
+ParkChild	0	-
+ReopenTab	1	-
+Wake	4	wAsk:2 wClose:1
+Background	0	-
+Foreground	0	-
+DnsDownload	2	-
+DnsAddLevel	2	-
+DnsClear	2	-
+DnsPrune	2	-
+DnsImport	2	-
+CloseArchive	5	-
+DeleteSite	3	-
+ImportSites	7	iSave:1
+Join	0	-
+Move	0	-
+Login	0	-

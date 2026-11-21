@@ -14,9 +14,10 @@ function verify(t, floor) {
   for (const folder of [formal, bin, ...['lean', 'trace', 'proofs'].map((s) => path.join(formal, s))]) {
     fs.mkdirSync(folder);
   }
-  for (const name of ['verify.sh', 'levels.py', 'model_shards.py']) {
+  for (const name of ['verify.sh', 'levels.py', 'model_shards.py', 'await_ceilings.py']) {
     fs.copyFileSync(path.resolve(__dirname, '../../formal', name), path.join(formal, name));
   }
+  fs.writeFileSync(path.join(formal, 'await_ceilings.tsv'), 'Tap\t2\t-\n');
   fs.writeFileSync(path.join(formal, 'levels.tsv'), Object.entries(floor)
     .map(([key, value]) => `${key}\t${value}\n`).join(''));
   for (const name of ['java', 'tlapm', 'lake']) {
@@ -28,6 +29,8 @@ function verify(t, floor) {
     if (process.env.FORMAL_OUT) {
       fs.mkdirSync(process.env.FORMAL_OUT, { recursive: true });
       fs.writeFileSync(path.join(process.env.FORMAL_OUT, 'models.json'), '{}');
+      fs.writeFileSync(path.join(process.env.FORMAL_OUT, 'activation_awaits.tsv'), 'Tap\t2\t-\tplan\n');
+      fs.writeFileSync(path.join(process.env.FORMAL_OUT, 'activation_awaits_planted.tsv'), 'Tap\t3\t-\tplan\n');
     } else {
       console.log('00:00 +0: loading schedules');
       console.log('REACHED sample\tends=3\tstates=5\truns=7');

@@ -636,6 +636,21 @@ plants (an input the code drops lowers them; a change to the reduction alone doe
 A fall of the steps by more than 3% under the same printed footprints warns, since only
 the code's own schedules shrinking explains it.
 
+### No flow waits longer
+
+`activation_awaits.tsv`, printed from the footprints, gives each input the most awaits its
+flow can take before it ends: a reply or a lock's turn costs one, code between two awaits
+none. Places a flow can go round between are one group costing every await in it once, so
+the count bounds every path that takes each place once, and each group whose round awaits
+is listed with its cost a round (the unload loop's rounds are bounded by the sites it
+walks, not by its places). `await_ceilings.py` holds the printed counts to
+`await_ceilings.tsv` in PRINT, before any TLC time is spent: a count over its line, a
+loop that awaits more a round, and an input or a loop the file does not name fail, and a
+count under its line is printed to commit. A new round trip on a hot flow is then a line
+raised in a reviewed diff. The printer also writes `activation_awaits_planted.tsv`, the
+tables with the first step on Tap's heaviest path that ran between two awaits made to
+wait on a reply, and `verify.sh` fails if the gate lets it through.
+
 ### Remembered runs
 
 A TLC run's verdict is a function of its inputs: the config, every module the spec reads

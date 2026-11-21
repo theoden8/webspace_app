@@ -4,7 +4,8 @@
 # run checks the code as it is now:
 #
 #   PRINT    test/formal_model/main.dart prints the modules the code
-#            defines (FORMAL_OUT)
+#            defines (FORMAL_OUT); await_ceilings.py holds each input's
+#            awaits to formal/await_ceilings.tsv
 #   SCHEDULES flutter test explores schedules and writes their traces
 #            (MODEL_STEPS_DIR)
 #   LEAN     formal/lean/check.sh: the theorems on how a check may be
@@ -80,6 +81,10 @@ prepare() {
   FORMAL_OUT="$OUT/model" $FLUTTER test test/formal_model/main.dart || status=$?
   [ "$status" -eq 0 ] || [ "$status" -eq 79 ] || return "$status"
   [ -f "$OUT/model/models.json" ] || { echo "test/formal_model/main.dart wrote nothing under $OUT/model" >&2; return 1; }
+  echo "══ AWAITS: no flow takes more awaits (formal/await_ceilings.tsv) ══"
+  python3 -I "$ROOT/formal/await_ceilings.py" "$ROOT/formal/await_ceilings.tsv" \
+    "$OUT/model/activation_awaits.tsv" --planted "$OUT/model/activation_awaits_planted.tsv" \
+    --out "$OUT/await_ceilings.tsv" || return 1
   FORMAL_MODEL="$OUT/model" TLA2TOOLS_JAR="$jar" "$ROOT/formal/check.sh" --jar
   if [ ! "$jar" -ef "$OUT/model/tla2tools.jar" ]; then
     cp "$jar" "$OUT/model/tla2tools.jar"
