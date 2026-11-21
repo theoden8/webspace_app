@@ -612,8 +612,9 @@ class WebViewFactory {
       textZoom: textZoom,
       desktopMode: desktopMode,
     )
-      // The app's link sheet includes the tab action. WebKit's own link
-      // menu can cover it on iOS; the long-press hit test still reaches us.
+      // The app's link sheet includes the tab action. On iOS the fork hides
+      // WebKit's own link menu for this (-webkit-touch-callout: none on the
+      // top document's links), so the long-press hit test reaches us.
       ..disableLongPressContextMenuOnLinks =
           hostIsIOS && config.onLinkLongPress != null
       // Keep the Dart shouldInterceptRequest callback disabled on Android:

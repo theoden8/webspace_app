@@ -267,6 +267,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   final _siteSettingsGuard = ReentryGuard();
+  /// iOS reports one long press from two recognizers; one sheet answers it.
+  final _linkMenuGuard = ReentryGuard();
   bool _isFindVisible = false;
   /// When true, a full-screen opaque mask covers every webview so the
   /// OS task-switcher / recents snapshot doesn't capture archive-tier
