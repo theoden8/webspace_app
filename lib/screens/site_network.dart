@@ -9,6 +9,7 @@ import 'package:webspace/services/egress_relay.dart';
 import 'package:webspace/services/egress_route_engine.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
+import 'package:webspace/services/onion_location.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/location.dart'
@@ -46,6 +47,11 @@ typedef NetworkChoices = ({
   /// The interface the site's traffic leaves by (NETIF-001).
   InterfaceChoice leavesBy,
   WebRtcPolicy webRtcPolicy,
+  /// What the user answered about the onion address the site announced, and
+  /// what a failure there does (ONION-003, ONION-009); meaningful only while
+  /// the site has one.
+  OnionAnswer? onionAnswer,
+  OnionFallback onionFallback,
 });
 
 /// Where a site's [NetworkChoices] are read from. The route is stored as a
@@ -68,6 +74,8 @@ extension SiteNetworkChoices on WebViewModel {
       credentialsId: proxy.credentialsId,
       leavesBy: proxy.leavesBy,
       webRtcPolicy: webRtcPolicy,
+      onionAnswer: onionLocation?.answer,
+      onionFallback: onionLocation?.fallback ?? OnionFallback.none,
     );
   }
 }
@@ -84,6 +92,8 @@ extension NetworkChoicesEdit on NetworkChoices {
     (CredentialsId?,)? credentialsId,
     InterfaceChoice? leavesBy,
     WebRtcPolicy? webRtcPolicy,
+    (OnionAnswer?,)? onionAnswer,
+    OnionFallback? onionFallback,
   }) =>
       (
         proxyType: proxyType ?? this.proxyType,
@@ -96,6 +106,8 @@ extension NetworkChoicesEdit on NetworkChoices {
             credentialsId == null ? this.credentialsId : credentialsId.$1,
         leavesBy: leavesBy ?? this.leavesBy,
         webRtcPolicy: webRtcPolicy ?? this.webRtcPolicy,
+        onionAnswer: onionAnswer == null ? this.onionAnswer : onionAnswer.$1,
+        onionFallback: onionFallback ?? this.onionFallback,
       );
 
   /// [proxy] with the route these choices pick, its typed fields kept. The
@@ -110,6 +122,8 @@ extension NetworkChoicesEdit on NetworkChoices {
       :credentialsId,
       :leavesBy,
       webRtcPolicy: _,
+      onionAnswer: _,
+      onionFallback: _,
     ) = this;
     return proxy.copyWith(
       type: proxyType,
@@ -157,6 +171,7 @@ class SiteNetworkScreen extends StatefulWidget {
     this.trackingProtectionEnabled = false,
     this.appProxySet = false,
     this.library,
+    this.onion,
   });
 
   final String host;
@@ -192,6 +207,10 @@ class SiteNetworkScreen extends StatefulWidget {
 
   /// The proxy library the pickers offer. Defaults to [ProxyLibrary]'s.
   final ProxyLibraryData? library;
+
+  /// The onion address the site last announced, which the onion rows answer
+  /// for; null hides them (ONION-003, ONION-009).
+  final OnionEndpoint? onion;
 
   @override
   State<SiteNetworkScreen> createState() => _SiteNetworkScreenState();
@@ -486,9 +505,37 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
     );
   }
 
+  /// The announced onion address, used while the site is on Tor
+  /// (ONION-003), and what a failure there does (ONION-009).
+  List<Widget> _onionRows(AppLocalizations loc, {required OnionEndpoint onion}) {
+    final used = _values.onionAnswer == OnionAnswer.accepted;
+    return [
+      SettingTile(
+        title: loc.siteNetworkOnion,
+        hint: loc.siteNetworkOnionHint,
+        subtitle: Localized.verbatim(Uri.parse(onion.to).host),
+        control: Toggle(
+          value: used,
+          onChanged: (on) => _update(_values.copyWith(
+              onionAnswer: (on ? OnionAnswer.accepted : OnionAnswer.declined,))),
+        ),
+      ),
+      if (used)
+        ChoiceTile<OnionFallback>(
+          title: loc.siteNetworkOnionFallback,
+          hint: loc.siteNetworkOnionFallbackHint,
+          values: OnionFallback.values,
+          label: (f) => f.label(loc),
+          value: _values.onionFallback,
+          onChanged: (f) => _update(_values.copyWith(onionFallback: f)),
+        ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
+    final onion = widget.onion;
     return Scaffold(
       appBar: AppBar(title: Text(loc.networkTitle)),
       body: ListView(
@@ -498,6 +545,7 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
           SettingsSection(loc.networkGroupConnection),
           if (EgressRelay.instance.state is! EgressOff) _networkInterface(loc),
           _webRtc(loc),
+          if (onion != null) ..._onionRows(loc, onion: onion),
           if (widget.showSavedSignIns) SavedSignInsTile(siteId: widget.siteId),
           const SizedBox(height: 24),
         ],

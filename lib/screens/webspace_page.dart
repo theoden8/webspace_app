@@ -15,6 +15,7 @@ import 'package:webspace/controllers/frame_table.dart';
 import 'package:webspace/controllers/let_go_table.dart';
 import 'package:webspace/controllers/app_lifecycle_controller.dart';
 import 'package:webspace/controllers/archive_controller.dart';
+import 'package:webspace/controllers/onion_location_controller.dart';
 import 'package:webspace/controllers/back_gesture_controller.dart';
 import 'package:webspace/controllers/background_sites_controller.dart';
 import 'package:webspace/controllers/startup_controller.dart';
@@ -46,6 +47,7 @@ import 'package:webspace/web_view_model_hooks.dart';
 import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/site_address.dart';
+import 'package:webspace/widgets/onion_prompts.dart';
 import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/widgets/toast_page_boundary.dart';
 import 'package:webspace/widgets/page_layer.dart';
@@ -221,6 +223,9 @@ class _WebSpacePageState extends State<WebSpacePage>
     deletion: _deletion,
   );
   late final SiteDeletion _deletion = SiteDeletion(_sites, host: _PageHost(this));
+  late final OnionLocationController _onions = OnionLocationController(_sites,
+      host: _PageHost(this), prompts: DialogOnionPrompts(context),
+      settingsSaved: _resets.settingsSaved);
   late final SiteImport _imports = SiteImport(_sites, host: _PageHost(this));
   late final SiteSetCommit _commit = SiteSetCommit(_sites, host: _PageHost(this));
   late final PageOrphanSweep _sweep = PageOrphanSweep(
@@ -688,7 +693,9 @@ class _WebSpacePageState extends State<WebSpacePage>
     routeOutbound: _links.routeOutbound,
     linkMenu: _showLinkLongPressMenu,
     linkNewTab: _openLinkInNewTab,
-    firstPageLoaded: _editing.offerRedirectHome,
+    firstPageLoaded: (source, {required url}) => _editing
+        .offerRedirectHome(source, url: url)
+        .then((_) => _onions.firstPageLoaded(source, url: url)),
     rendererGone: _lifecycle.rendererGone,
   );
 

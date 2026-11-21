@@ -12,6 +12,7 @@ import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/network_interface.dart';
+import 'package:webspace/settings/onion_choice.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
@@ -51,6 +52,8 @@ NetworkChoices _choices({
       credentialsId: credentialsId,
       leavesBy: const SystemRouting(),
       webRtcPolicy: webRtcPolicy,
+      onionAnswer: null,
+      onionFallback: OnionFallback.none,
     );
 
 ProxyLibraryData _library() => ProxyLibraryData(

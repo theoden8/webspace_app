@@ -29,25 +29,29 @@
 
 ## 4. Check and prompt
 
-- [ ] 4.1 The check: a GET of the home address through `model.outboundProxy`, redirects
-  within the site's claims and over https only, the body read up to the end of `<head>`
-  (ONION-001); run when the route becomes Tor, when the clearnet origin loads anyway
-  (a fallback, a load the rewrite left), and on a load over Tor 30 days after the
-  last check (ONION-008).
-- [ ] 4.2 The offer, a `confirm()` naming the site and the address; the answer saved
-  on the site (ONION-003). Code with `app_en.arb`; translations in their own commit.
-- [ ] 4.3 A row on the site Network screen showing the address and its state, with a
-  way to forget it, and the fallback choice: None (the default) or Clearnet (ONION-009).
-
+- [x] 4.1 The check (`checkOnionLocation`, `lib/services/onion_location_check.dart`): a GET
+  of the home address through `model.outboundProxy`, each redirect hop held to the site's
+  claims and to https by `followPageSteered`, the body read up to the end of `<head>`
+  (ONION-001). When it runs and what its answer does is `onion_location_engine.dart`'s
+  (`onionCheckDue`, `learnFrom`): once a run, on the first page a site loads over Tor
+  (`SiteHooks.firstPageLoaded`), on the onion only after 30 days (ONION-007, ONION-008).
+- [x] 4.2 The offer (`OnionLocationController`, `DialogOnionPrompts`): `choose` naming the
+  site and the address while the site is on screen; a dismissal answers nothing; accepting
+  rebuilds the site's webview through `SiteResetController.settingsSaved` (ONION-003).
+  Code with `app_en.arb`; translations in their own commit.
+- [x] 4.3 The site Network screen: the address with a switch to use it, and, while used,
+  the fallback choice, None first (ONION-009), carried in `NetworkChoices` so the dirty
+  snapshot and the save cover them.
 ## 5. Wire and verify
 
 - [x] 5.1 `webview.dart`: the rewrite in `shouldOverrideUrlLoading` after the routing
   decision and before the HTTPS upgrade, and for the first load (ONION-004); fallback
   from the load error, the TLS rejection and the deadline, through the handlers the
   HTTPS upgrade already forwards (ONION-006). An onion host is never upgraded to https.
-- [ ] 5.2 Archive-tier audit (ARCH-006): the new fields live in the site JSON, which
-  the archive keeps under its key; nothing else touches disk.
+- [x] 5.2 Archive-tier audit (ARCH-006): no override needed. The learned address and the
+  answers live in the site JSON, which an archive seals under its key; the check is a
+  request on the site's own route; the offer is an in-app dialog; nothing new is logged.
 - [x] 4.4 `OnionFallback` on `SiteOnion`, carried to the engine as `OnionRoute`: with
   None the move puts nothing in flight and arms no deadline, so a failure is the page's
   (ONION-006).
-- [ ] 5.3 Name each ONION requirement in its test and drop it from `unverified.tsv`.
+- [x] 5.3 Name each ONION requirement in its test and drop it from `unverified.tsv`.

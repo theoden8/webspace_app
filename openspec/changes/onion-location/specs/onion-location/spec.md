@@ -57,8 +57,11 @@ SHALL be ignored, as if nothing were announced.
 ### Requirement: ONION-003 - The user is asked once per address
 
 A newly learned onion address SHALL NOT be used until the user accepts it, in
-a prompt that names the site and the onion address. Declining SHALL be
-remembered for that address, which is not offered again. A different address
+a prompt that names the site and the onion address, shown while the site is
+on screen; on the site's Network screen the user can accept or decline it at
+any time (ONION-009). Declining SHALL be remembered for that address, which is
+not offered again; a dismissed prompt answers nothing and is shown again at
+the next check. A different address
 announced later SHALL be offered on its own, and the old one stops being used
 until the new one is answered. A check whose answer announces nothing SHALL
 forget the learned address and its answer; a check that fails SHALL keep them.
@@ -186,12 +189,14 @@ The learned onion address, when it was last checked and the user's answer
 SHALL be saved with the site and SHALL be left out of a settings backup and a
 QR share. A value of the wrong type in the saved site SHALL read as absent.
 
-The site SHALL be checked again, through its route, when its clearnet origin
-is loaded anyway (a fallback under ONION-006, or a top-frame load the rewrite
-left alone), and otherwise when its last successful check is more than 30
-days old. A recheck that finds the same address SHALL NOT ask again; only a
-different address is offered (ONION-003). The onion address is the onion
-service's key, so a changed certificate on the onion is no reason to ask.
+A site SHALL be checked, through its route, at most once a run, on the first
+page its webview loads while it is on Tor: always when that page is on its
+clearnet origin, which already goes through an exit (nothing learned yet, a
+declined address, a fallback under ONION-006), and when it is on the onion
+only if the last successful check is more than 30 days old. A recheck that
+finds the same address SHALL NOT ask again; only a different address is
+offered (ONION-003). The onion address is the onion service's key, so a
+changed certificate on the onion is no reason to ask.
 
 #### Scenario: A restored site asks again
 
@@ -205,11 +210,12 @@ service's key, so a changed certificate on the onion is no reason to ask.
 **When** the site loads over Tor and the check finds the same address
 **Then** the user is not asked and the check date moves to today
 
-#### Scenario: A fallback rechecks
+#### Scenario: A clearnet first page checks
 
-**Given** a site whose onion load just fell back to its clearnet address
-**When** the clearnet page loads
-**Then** the site is checked again, and a withdrawn address is forgotten (ONION-003)
+**Given** a site on Tor whose first page this run is on its clearnet origin
+**When** that page loads
+**Then** the site is checked, and a withdrawn address is forgotten (ONION-003)
+**And** it is not checked again in the same run
 
 ---
 

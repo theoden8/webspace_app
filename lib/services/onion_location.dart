@@ -8,6 +8,9 @@ import 'dart:typed_data';
 
 import 'package:pointycastle/digests/sha3.dart';
 import 'package:webspace/services/url_host.dart';
+import 'package:webspace/settings/onion_choice.dart';
+
+export 'package:webspace/settings/onion_choice.dart';
 
 /// A v3 onion service (rend-spec-v3, "Encoding onion addresses"): its
 /// 56-character label, which carries the service's ed25519 key, a checksum
@@ -179,15 +182,6 @@ String? _metaOnionLocation(String document) {
   return null;
 }
 
-/// What the user answered about an announced onion address (ONION-003).
-enum OnionAnswer { accepted, declined }
-
-/// What a load the move sent to the onion origin does when it fails, is
-/// rejected by TLS or says nothing (ONION-006): stay on the failure, or load
-/// the clearnet URL it moved, through an exit. The user chooses; staying is
-/// the default.
-enum OnionFallback { none, clearnet }
-
 /// The onion origin a site's webviews move onto while it is on Tor, and what
 /// a failure there does.
 typedef OnionRoute = ({OnionEndpoint endpoint, OnionFallback fallback});
@@ -208,6 +202,14 @@ final class SiteOnion {
   final DateTime checked;
   final OnionAnswer? answer;
   final OnionFallback fallback;
+
+  /// This address with the user's [answer] and [fallback], learned and
+  /// checked as before.
+  SiteOnion choosing({
+    required OnionAnswer? answer,
+    required OnionFallback fallback,
+  }) => SiteOnion(
+      endpoint: endpoint, checked: checked, answer: answer, fallback: fallback);
 
   /// The route a webview of the site moves onto: only an accepted endpoint,
   /// and only while the site's route is Tor (ONION-004, ONION-007).
@@ -256,4 +258,28 @@ final class SiteOnion {
     }
     return null;
   }
+}
+
+/// What a check of a site's home address found.
+sealed class OnionCheck {
+  const OnionCheck();
+}
+
+/// The site's https answer announced [endpoint].
+final class OnionAnnounced extends OnionCheck {
+  const OnionAnnounced(this.endpoint);
+  final OnionEndpoint endpoint;
+}
+
+/// The site answered and announced nothing usable: what it announced before
+/// is forgotten (ONION-003).
+final class NothingAnnounced extends OnionCheck {
+  const NothingAnnounced();
+}
+
+/// No answer to read: the route refused, a hop left the site, the server
+/// failed or said nothing in time. What was learned before is kept.
+final class OnionCheckFailed extends OnionCheck {
+  const OnionCheckFailed(this.reason);
+  final String reason;
 }

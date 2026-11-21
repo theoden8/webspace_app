@@ -7,6 +7,7 @@ import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/navigation_choices.dart';
+import 'package:webspace/settings/onion_choice.dart';
 import 'package:webspace/settings/origin_choices.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/site_permission_state.dart';
@@ -26,6 +27,13 @@ extension ExternalLinkModeLabel on ExternalLinkMode {
     ExternalLinkMode.inApp => null,
     ExternalLinkMode.browser => loc.siteSettingsExternalLinksInBrowser,
     ExternalLinkMode.block => loc.siteSettingsExternalLinksBlockedSummary,
+  };
+}
+
+extension OnionFallbackLabel on OnionFallback {
+  Localized label(AppLocalizations loc) => switch (this) {
+    OnionFallback.none => loc.onionFallbackNone,
+    OnionFallback.clearnet => loc.onionFallbackClearnet,
   };
 }
 

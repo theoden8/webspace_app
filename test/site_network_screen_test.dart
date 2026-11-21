@@ -11,6 +11,7 @@ import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/network_interface.dart';
+import 'package:webspace/services/onion_location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 
@@ -31,6 +32,8 @@ NetworkChoices _values({
       credentialsId: null,
       leavesBy: const SystemRouting(),
       webRtcPolicy: webRtcPolicy,
+      onionAnswer: null,
+      onionFallback: OnionFallback.none,
     );
 
 class _Form {
@@ -48,6 +51,7 @@ Future<_Form> _pump(
   String address = '',
   bool trackingProtectionEnabled = false,
   bool appProxySet = false,
+  OnionEndpoint? onion,
 }) async {
   tester.view.physicalSize = const Size(1000, 3000);
   tester.view.devicePixelRatio = 1.0;
@@ -69,6 +73,7 @@ Future<_Form> _pump(
       showSavedSignIns: false,
       trackingProtectionEnabled: trackingProtectionEnabled,
       appProxySet: appProxySet,
+      onion: onion,
     )));
   await tester.pumpAndSettle();
   return form;
@@ -357,6 +362,45 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('None'), findsOneWidget);
       expect(await tester.runAsync(() => store.countForSite(SiteId('site-1'))), 0);
+    });
+  });
+
+  group('the onion rows', () {
+    const proton =
+        'protonmailrmez3lotccipshtkleegetolb73fuirgj7r4o4vfu7ozyd.onion';
+    final onion =
+        OnionEndpoint.of(from: 'https://proton.me', to: 'https://$proton/')!;
+
+    testWidgets('no announced address, no rows', (tester) async {
+      await _pump(tester, values: _values(proxyType: ProxyType.TOR));
+      expect(find.text(loc.siteNetworkOnion), findsNothing);
+    });
+
+    testWidgets('ONION-009: the address is used by choice, and its fallback '
+        'is offered once it is, None first', (tester) async {
+      NetworkChoices? last;
+      var values = _values(proxyType: ProxyType.TOR);
+      await _pump(tester,
+          values: values, onion: onion, onChanged: (v) => last = v);
+      expect(find.text(loc.siteNetworkOnion), findsOneWidget);
+      expect(find.text(proton), findsOneWidget);
+      expect(find.text(loc.siteNetworkOnionFallback), findsNothing);
+
+      await tester.tap(find.byType(Switch).last);
+      await tester.pumpAndSettle();
+      expect(last?.onionAnswer, OnionAnswer.accepted);
+      expect(find.text(loc.siteNetworkOnionFallback), findsOneWidget);
+      expect(find.text(loc.onionFallbackNone), findsOneWidget);
+
+      await _pick(tester,
+          dropdown: find.byType(DropdownButton<OnionFallback>),
+          label: loc.onionFallbackClearnet);
+      expect(last?.onionFallback, OnionFallback.clearnet);
+
+      await tester.tap(find.byType(Switch).last);
+      await tester.pumpAndSettle();
+      expect(last?.onionAnswer, OnionAnswer.declined);
+      expect(find.text(loc.siteNetworkOnionFallback), findsNothing);
     });
   });
 }
