@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Atidaryti archyvus",
   "archiveManagementArchive": "Archyvas {index}",
   "archiveManagementRemove": "Pašalinkite archyvą ir palikite svetaines",
-  "archiveManagementRemoveBody": "Perkelti visas svetaines ir kolekcijas į įprastą biblioteką, tada pašalinti šį archyvą?"
+  "archiveManagementRemoveBody": "Perkelti visas svetaines ir kolekcijas į įprastą biblioteką, tada pašalinti šį archyvą?",
+  "siteNetworkOnion": "Onion adresas",
+  "siteNetworkOnionHint": "Kai kurios svetainės skelbia savo adresą Tor tinkle – onion adresą. Kol ši svetainė eina per Tor, programa gali ją įkelti iš ten, todėl jos srautas lieka Tor viduje, užuot išėjęs per išėjimo mazgą. Adresas sužinomas tik iš pačios svetainės saugaus atsakymo, niekada ne iš sąrašo.",
+  "onionOfferBody": "{site} skelbia onion adresą:\n{onion}\n\nĮkelti iš ten, kol ši svetainė eina per Tor?",
+  "onionOfferUse": "Naudoti",
+  "onionOfferDecline": "Nenaudoti",
+  "siteNetworkOnionFallback": "Jei onion adresas neveikia",
+  "siteNetworkOnionFallbackHint": "Onion paslauga gali neveikti arba jos sertifikato galiojimas gali baigtis. Rodant klaidą svetainė lieka Tor viduje. Įkeliant įprastą adresą ji siunčiama per išėjimo mazgą, kuris mato, kur eina srautas.",
+  "onionFallbackNone": "Rodyti klaidą",
+  "onionFallbackClearnet": "Įkelti įprastą adresą"
 }

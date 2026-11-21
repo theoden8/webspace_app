@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Ireki artxiboak",
   "archiveManagementArchive": "{index} artxiboa",
   "archiveManagementRemove": "Kendu artxiboa eta gorde guneak",
-  "archiveManagementRemoveBody": "Gune eta bilduma guztiak ohiko liburutegira eraman eta artxibo hau kendu?"
+  "archiveManagementRemoveBody": "Gune eta bilduma guztiak ohiko liburutegira eraman eta artxibo hau kendu?",
+  "siteNetworkOnion": "Onion helbidea",
+  "siteNetworkOnionHint": "Webgune batzuek beren helbidea iragartzen dute Tor sarean, onion helbide bat. Webgune hau Tor bidez doan bitartean, aplikazioak handik karga dezake, eta horrela haren trafikoa Tor barruan geratzen da irteera-errele batetik atera beharrean. Helbidea webgunearen beraren erantzun segurutik bakarrik ikasten da, inoiz ez zerrenda batetik.",
+  "onionOfferBody": "{site} webguneak onion helbide bat iragartzen du:\n{onion}\n\nHandik kargatu webgune hau Tor bidez doan bitartean?",
+  "onionOfferUse": "Erabili",
+  "onionOfferDecline": "Ez erabili",
+  "siteNetworkOnionFallback": "Onion helbideak huts egiten badu",
+  "siteNetworkOnionFallbackHint": "Onion zerbitzu bat erorita egon daiteke, edo bere ziurtagiria iraungi daiteke. Errorea erakusteak webgunea Tor barruan mantentzen du. Ohiko helbidea kargatzeak irteera-errele batetik bidaltzen du, eta horrek ikusten du trafikoa nora doan.",
+  "onionFallbackNone": "Erakutsi errorea",
+  "onionFallbackClearnet": "Kargatu ohiko helbidea"
 }

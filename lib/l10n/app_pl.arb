@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Otwórz archiwa",
   "archiveManagementArchive": "Archiwum {index}",
   "archiveManagementRemove": "Usuń archiwum i zachowaj witryny",
-  "archiveManagementRemoveBody": "Przenieść wszystkie witryny i zbiory do zwykłej biblioteki, a następnie usunąć to archiwum?"
+  "archiveManagementRemoveBody": "Przenieść wszystkie witryny i zbiory do zwykłej biblioteki, a następnie usunąć to archiwum?",
+  "siteNetworkOnion": "Adres onion",
+  "siteNetworkOnionHint": "Niektóre witryny ogłaszają własny adres w sieci Tor, tak zwany adres onion. Dopóki ta witryna przechodzi przez Tor, aplikacja może wczytywać ją stamtąd, dzięki czemu jej ruch pozostaje wewnątrz Tora, zamiast wychodzić przez przekaźnik wyjściowy. Adres jest poznawany wyłącznie z własnej bezpiecznej odpowiedzi witryny, nigdy z listy.",
+  "onionOfferBody": "{site} ogłasza adres onion:\n{onion}\n\nWczytywać ją stamtąd, dopóki ta witryna przechodzi przez Tor?",
+  "onionOfferUse": "Użyj go",
+  "onionOfferDecline": "Nie używaj",
+  "siteNetworkOnionFallback": "Gdy adres onion zawiedzie",
+  "siteNetworkOnionFallbackHint": "Usługa onion może nie działać albo jej certyfikat może wygasnąć. Pokazanie błędu zatrzymuje witrynę wewnątrz Tora. Wczytanie zwykłego adresu wysyła ją przez przekaźnik wyjściowy, który widzi, dokąd zmierza ruch.",
+  "onionFallbackNone": "Pokaż błąd",
+  "onionFallbackClearnet": "Wczytaj zwykły adres"
 }

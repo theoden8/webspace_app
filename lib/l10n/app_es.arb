@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Abrir archivos",
   "archiveManagementArchive": "Archivo {index}",
   "archiveManagementRemove": "Eliminar archivo y conservar sitios",
-  "archiveManagementRemoveBody": "¿Mover todos los sitios y colecciones a la biblioteca normal y luego eliminar este archivo?"
+  "archiveManagementRemoveBody": "¿Mover todos los sitios y colecciones a la biblioteca normal y luego eliminar este archivo?",
+  "siteNetworkOnion": "Dirección onion",
+  "siteNetworkOnionHint": "Algunos sitios anuncian una dirección propia en la red Tor, una dirección onion. Mientras este sitio pase por Tor, la aplicación puede cargarlo desde allí, de modo que su tráfico se queda dentro de Tor en lugar de salir por un relé de salida. La dirección solo se aprende de la respuesta segura del propio sitio, nunca de una lista.",
+  "onionOfferBody": "{site} anuncia una dirección onion:\n{onion}\n\n¿Cargarlo desde allí mientras este sitio pase por Tor?",
+  "onionOfferUse": "Usarla",
+  "onionOfferDecline": "No usarla",
+  "siteNetworkOnionFallback": "Si la dirección onion falla",
+  "siteNetworkOnionFallbackHint": "Un servicio onion puede estar caído o su certificado puede caducar. Mostrar el error mantiene el sitio dentro de Tor. Cargar la dirección habitual lo envía por un relé de salida, que ve adónde va el tráfico.",
+  "onionFallbackNone": "Mostrar el error",
+  "onionFallbackClearnet": "Cargar la dirección habitual"
 }

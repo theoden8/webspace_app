@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Iftaħ arkivji",
   "archiveManagementArchive": "Arkivju {index}",
   "archiveManagementRemove": "Neħħi l-arkivju u żomm is-siti",
-  "archiveManagementRemoveBody": "Iċċaqlaq is-siti u l-kollezzjonijiet kollha għal-librerija regolari, imbagħad tneħħi dan l-arkivju?"
+  "archiveManagementRemoveBody": "Iċċaqlaq is-siti u l-kollezzjonijiet kollha għal-librerija regolari, imbagħad tneħħi dan l-arkivju?",
+  "siteNetworkOnion": "Indirizz onion",
+  "siteNetworkOnionHint": "Xi siti jħabbru indirizz tagħhom stess fuq in-netwerk Tor, indirizz onion. Sakemm dan is-sit jgħaddi minn Tor, l-app tista' ttellgħu minn hemm, hekk it-traffiku tiegħu jibqa' ġewwa Tor minflok joħroġ minn relay tal-ħruġ. L-indirizz jitgħallem biss mit-tweġiba sigura tas-sit innifsu, qatt minn lista.",
+  "onionOfferBody": "{site} iħabbar indirizz onion:\n{onion}\n\nTellgħu minn hemm sakemm dan is-sit jgħaddi minn Tor?",
+  "onionOfferUse": "Użah",
+  "onionOfferDecline": "Tużahx",
+  "siteNetworkOnionFallback": "Jekk l-indirizz onion ifalli",
+  "siteNetworkOnionFallbackHint": "Servizz onion jista' jkun mitfi, jew iċ-ċertifikat tiegħu jista' jiskadi. Li turi l-iżball iżomm is-sit ġewwa Tor. Li ttella' l-indirizz tas-soltu jibagħtu minn relay tal-ħruġ, li jara fejn sejjer it-traffiku.",
+  "onionFallbackNone": "Uri l-iżball",
+  "onionFallbackClearnet": "Tella' l-indirizz tas-soltu"
 }

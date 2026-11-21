@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Open archives",
   "archiveManagementArchive": "Archivum {index}",
   "archiveManagementRemove": "Aufer archivum et custodias situs",
-  "archiveManagementRemoveBody": "Movere omnes sites et collectiones ad bibliothecam regularem, hoc archivum transfer?"
+  "archiveManagementRemoveBody": "Movere omnes sites et collectiones ad bibliothecam regularem, hoc archivum transfer?",
+  "siteNetworkOnion": "Inscriptio onion",
+  "siteNetworkOnionHint": "Quaedam situs inscriptionem suam in rete Tor nuntiant, inscriptionem onion. Dum hic situs per Tor transit, applicatio eum inde onerare potest, ut commeatus eius intra Tor maneat neque per nodum exitus egrediatur. Inscriptio ex responso tuto ipsius situs tantum discitur, numquam ex indice.",
+  "onionOfferBody": "{site} inscriptionem onion nuntiat:\n{onion}\n\nVisne eum inde onerare, dum hic situs per Tor transit?",
+  "onionOfferUse": "Utere",
+  "onionOfferDecline": "Noli uti",
+  "siteNetworkOnionFallback": "Si inscriptio onion deficit",
+  "siteNetworkOnionFallbackHint": "Ministerium onion interdum non operatur, aut testimonium eius exspirare potest. Errorem ostendere situm intra Tor retinet. Inscriptionem usitatam onerare eum per nodum exitus mittit, qui videt quo commeatus eat.",
+  "onionFallbackNone": "Errorem ostende",
+  "onionFallbackClearnet": "Inscriptionem usitatam onera"
 }

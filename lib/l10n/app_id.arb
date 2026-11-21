@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Buka arsip",
   "archiveManagementArchive": "Arsip {index}",
   "archiveManagementRemove": "Hapus arsip dan simpan situs",
-  "archiveManagementRemoveBody": "Pindahkan semua situs dan koleksi ke perpustakaan biasa, lalu hapus arsip ini?"
+  "archiveManagementRemoveBody": "Pindahkan semua situs dan koleksi ke perpustakaan biasa, lalu hapus arsip ini?",
+  "siteNetworkOnion": "Alamat onion",
+  "siteNetworkOnionHint": "Beberapa situs mengumumkan alamatnya sendiri di jaringan Tor, yaitu alamat onion. Selama situs ini melewati Tor, aplikasi dapat memuatnya dari sana, sehingga lalu lintasnya tetap berada di dalam Tor alih-alih keluar melalui relai keluar. Alamat hanya dipelajari dari jawaban aman situs itu sendiri, tidak pernah dari daftar.",
+  "onionOfferBody": "{site} mengumumkan alamat onion:\n{onion}\n\nMuat dari sana selama situs ini melewati Tor?",
+  "onionOfferUse": "Gunakan",
+  "onionOfferDecline": "Jangan gunakan",
+  "siteNetworkOnionFallback": "Jika alamat onion gagal",
+  "siteNetworkOnionFallbackHint": "Layanan onion bisa sedang mati, atau sertifikatnya bisa kedaluwarsa. Menampilkan galat menjaga situs tetap di dalam Tor. Memuat alamat biasa mengirimnya melalui relai keluar, yang dapat melihat ke mana lalu lintas pergi.",
+  "onionFallbackNone": "Tampilkan galat",
+  "onionFallbackClearnet": "Muat alamat biasa"
 }

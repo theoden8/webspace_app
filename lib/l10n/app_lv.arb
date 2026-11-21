@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Atvērt arhīvus",
   "archiveManagementArchive": "Arhīvs {index}",
   "archiveManagementRemove": "Noņemiet arhīvu un saglabājiet vietnes",
-  "archiveManagementRemoveBody": "Vai pārvietot visas vietnes un kolekcijas uz parasto bibliotēku un pēc tam noņemt šo arhīvu?"
+  "archiveManagementRemoveBody": "Vai pārvietot visas vietnes un kolekcijas uz parasto bibliotēku un pēc tam noņemt šo arhīvu?",
+  "siteNetworkOnion": "Onion adrese",
+  "siteNetworkOnionHint": "Dažas vietnes paziņo savu adresi Tor tīklā – onion adresi. Kamēr šī vietne iet caur Tor, lietotne to var ielādēt no turienes, tāpēc tās datplūsma paliek Tor iekšienē, nevis iziet caur izejas releju. Adrese tiek uzzināta tikai no pašas vietnes drošās atbildes, nekad no saraksta.",
+  "onionOfferBody": "{site} paziņo onion adresi:\n{onion}\n\nVai ielādēt no turienes, kamēr šī vietne iet caur Tor?",
+  "onionOfferUse": "Izmantot",
+  "onionOfferDecline": "Neizmantot",
+  "siteNetworkOnionFallback": "Ja onion adrese nedarbojas",
+  "siteNetworkOnionFallbackHint": "Onion pakalpojums var nedarboties, vai tā sertifikātam var beigties derīgums. Kļūdas rādīšana patur vietni Tor iekšienē. Parastās adreses ielāde to sūta caur izejas releju, kas redz, kurp dodas datplūsma.",
+  "onionFallbackNone": "Rādīt kļūdu",
+  "onionFallbackClearnet": "Ielādēt parasto adresi"
 }

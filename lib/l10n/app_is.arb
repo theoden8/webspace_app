@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Opna skjalasafn",
   "archiveManagementArchive": "Skjalasafn {index}",
   "archiveManagementRemove": "Fjarlægðu skjalasafn og geymdu síður",
-  "archiveManagementRemoveBody": "Færa allar síður og söfn í venjulegt bókasafn og fjarlægja síðan þetta skjalasafn?"
+  "archiveManagementRemoveBody": "Færa allar síður og söfn í venjulegt bókasafn og fjarlægja síðan þetta skjalasafn?",
+  "siteNetworkOnion": "Onion-vistfang",
+  "siteNetworkOnionHint": "Sumir vefir tilkynna eigið vistfang á Tor-netinu, onion-vistfang. Á meðan þessi vefur fer í gegnum Tor getur appið hlaðið honum þaðan, svo umferð hans helst innan Tor í stað þess að fara út um útgöngumiðlara. Vistfangið er aðeins lært af öruggu svari vefsins sjálfs, aldrei af lista.",
+  "onionOfferBody": "{site} tilkynnir onion-vistfang:\n{onion}\n\nHlaða honum þaðan á meðan þessi vefur fer í gegnum Tor?",
+  "onionOfferUse": "Nota það",
+  "onionOfferDecline": "Ekki nota",
+  "siteNetworkOnionFallback": "Ef onion-vistfangið bregst",
+  "siteNetworkOnionFallbackHint": "Onion-þjónusta getur legið niðri eða skilríki hennar runnið út. Að sýna villuna heldur vefnum innan Tor. Að hlaða venjulega vistfanginu sendir hann um útgöngumiðlara, sem sér hvert umferðin fer.",
+  "onionFallbackNone": "Sýna villuna",
+  "onionFallbackClearnet": "Hlaða venjulega vistfanginu"
 }

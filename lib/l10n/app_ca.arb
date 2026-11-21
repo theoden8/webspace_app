@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Arxius oberts",
   "archiveManagementArchive": "Arxiu {index}",
   "archiveManagementRemove": "Elimina l'arxiu i conserva els llocs",
-  "archiveManagementRemoveBody": "Voleu moure tots els llocs i col·leccions a la biblioteca normal i després suprimir aquest arxiu?"
+  "archiveManagementRemoveBody": "Voleu moure tots els llocs i col·leccions a la biblioteca normal i després suprimir aquest arxiu?",
+  "siteNetworkOnion": "Adreça onion",
+  "siteNetworkOnionHint": "Alguns llocs anuncien una adreça pròpia a la xarxa Tor, una adreça onion. Mentre aquest lloc passi per Tor, l'aplicació el pot carregar des d'allà, de manera que el seu trànsit es queda dins de Tor en lloc de sortir per un relé de sortida. L'adreça només s'aprèn de la resposta segura del mateix lloc, mai d'una llista.",
+  "onionOfferBody": "{site} anuncia una adreça onion:\n{onion}\n\nVols carregar-lo des d'allà mentre aquest lloc passi per Tor?",
+  "onionOfferUse": "Fes-la servir",
+  "onionOfferDecline": "No la facis servir",
+  "siteNetworkOnionFallback": "Si l'adreça onion falla",
+  "siteNetworkOnionFallbackHint": "Un servei onion pot estar caigut o el seu certificat pot caducar. Mostrar l'error manté el lloc dins de Tor. Carregar l'adreça habitual l'envia per un relé de sortida, que veu cap a on va el trànsit.",
+  "onionFallbackNone": "Mostra l'error",
+  "onionFallbackClearnet": "Carrega l'adreça habitual"
 }

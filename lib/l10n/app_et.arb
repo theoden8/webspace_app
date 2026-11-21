@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Avage arhiivid",
   "archiveManagementArchive": "Arhiiv {index}",
   "archiveManagementRemove": "Eemaldage arhiiv ja säilitage saidid",
-  "archiveManagementRemoveBody": "Kas teisaldada kõik saidid ja kogud tavalisse teeki ja seejärel eemaldada see arhiiv?"
+  "archiveManagementRemoveBody": "Kas teisaldada kõik saidid ja kogud tavalisse teeki ja seejärel eemaldada see arhiiv?",
+  "siteNetworkOnion": "Onion-aadress",
+  "siteNetworkOnionHint": "Mõned saidid kuulutavad Tori võrgus välja oma aadressi, onion-aadressi. Kuni see sait käib läbi Tori, saab rakendus selle sealt laadida, nii et selle liiklus jääb Tori sisse, selle asemel et lahkuda väljundsõlme kaudu. Aadress saadakse ainult saidi enda turvalisest vastusest, mitte kunagi loendist.",
+  "onionOfferBody": "{site} kuulutab välja onion-aadressi:\n{onion}\n\nKas laadida see sealt, kuni see sait käib läbi Tori?",
+  "onionOfferUse": "Kasuta seda",
+  "onionOfferDecline": "Ära kasuta",
+  "siteNetworkOnionFallback": "Kui onion-aadress ei tööta",
+  "siteNetworkOnionFallbackHint": "Onion-teenus võib olla maas või selle sertifikaat võib aeguda. Vea näitamine hoiab saidi Tori sees. Tavalise aadressi laadimine saadab selle väljundsõlme kaudu, mis näeb, kuhu liiklus läheb.",
+  "onionFallbackNone": "Näita viga",
+  "onionFallbackClearnet": "Laadi tavaline aadress"
 }

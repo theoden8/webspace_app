@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "פתח ארכיון",
   "archiveManagementArchive": "ארכיון {index}",
   "archiveManagementRemove": "הסר ארכיון ושמור אתרים",
-  "archiveManagementRemoveBody": "להעביר את כל האתרים והאוספים לספרייה הרגילה, ואז להסיר את הארכיון הזה?"
+  "archiveManagementRemoveBody": "להעביר את כל האתרים והאוספים לספרייה הרגילה, ואז להסיר את הארכיון הזה?",
+  "siteNetworkOnion": "כתובת Onion",
+  "siteNetworkOnionHint": "חלק מהאתרים מכריזים על כתובת משלהם ברשת Tor, כתובת Onion. כל עוד האתר הזה עובר דרך Tor, האפליקציה יכולה לטעון אותו משם, כך שהתעבורה שלו נשארת בתוך Tor במקום לצאת דרך ממסר יציאה. הכתובת נלמדת רק מהתשובה המאובטחת של האתר עצמו, אף פעם לא מרשימה.",
+  "onionOfferBody": "{site} מכריז על כתובת Onion:\n{onion}\n\nלטעון אותו משם כל עוד האתר הזה עובר דרך Tor?",
+  "onionOfferUse": "להשתמש",
+  "onionOfferDecline": "לא להשתמש",
+  "siteNetworkOnionFallback": "אם כתובת ה-Onion נכשלת",
+  "siteNetworkOnionFallbackHint": "שירות Onion עשוי להיות מושבת, או שתוקף האישור שלו יפוג. הצגת השגיאה משאירה את האתר בתוך Tor. טעינת הכתובת הרגילה שולחת אותו דרך ממסר יציאה, שרואה לאן התעבורה הולכת.",
+  "onionFallbackNone": "להציג את השגיאה",
+  "onionFallbackClearnet": "לטעון את הכתובת הרגילה"
 }

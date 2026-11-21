@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Archive öffnen",
   "archiveManagementArchive": "Archiv {index}",
   "archiveManagementRemove": "Archiv entfernen und Websites behalten",
-  "archiveManagementRemoveBody": "Alle Websites und Sammlungen in die reguläre Bibliothek verschieben und dann dieses Archiv entfernen?"
+  "archiveManagementRemoveBody": "Alle Websites und Sammlungen in die reguläre Bibliothek verschieben und dann dieses Archiv entfernen?",
+  "siteNetworkOnion": "Onion-Adresse",
+  "siteNetworkOnionHint": "Manche Websites kündigen eine eigene Adresse im Tor-Netzwerk an, eine Onion-Adresse. Solange diese Website über Tor läuft, kann die App sie von dort laden, sodass ihr Datenverkehr innerhalb von Tor bleibt, statt über ein Exit-Relay hinauszugehen. Die Adresse wird nur aus der eigenen sicheren Antwort der Website gelernt, nie aus einer Liste.",
+  "onionOfferBody": "{site} kündigt eine Onion-Adresse an:\n{onion}\n\nVon dort laden, solange diese Website über Tor läuft?",
+  "onionOfferUse": "Verwenden",
+  "onionOfferDecline": "Nicht verwenden",
+  "siteNetworkOnionFallback": "Wenn die Onion-Adresse fehlschlägt",
+  "siteNetworkOnionFallbackHint": "Ein Onion-Dienst kann ausfallen, oder sein Zertifikat kann ablaufen. Den Fehler anzuzeigen hält die Website innerhalb von Tor. Die übliche Adresse zu laden schickt sie stattdessen über ein Exit-Relay, das sieht, wohin der Datenverkehr geht.",
+  "onionFallbackNone": "Fehler anzeigen",
+  "onionFallbackClearnet": "Übliche Adresse laden"
 }

@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Archivi aperti",
   "archiveManagementArchive": "Archivio {index}",
   "archiveManagementRemove": "Rimuovi l'archivio e mantieni i siti",
-  "archiveManagementRemoveBody": "Spostare tutti i siti e le raccolte nella libreria normale e quindi rimuovere questo archivio?"
+  "archiveManagementRemoveBody": "Spostare tutti i siti e le raccolte nella libreria normale e quindi rimuovere questo archivio?",
+  "siteNetworkOnion": "Indirizzo onion",
+  "siteNetworkOnionHint": "Alcuni siti annunciano un proprio indirizzo sulla rete Tor, un indirizzo onion. Finché questo sito passa per Tor, l'app può caricarlo da lì, così il suo traffico resta dentro Tor invece di uscire da un relay di uscita. L'indirizzo viene appreso solo dalla risposta sicura del sito stesso, mai da un elenco.",
+  "onionOfferBody": "{site} annuncia un indirizzo onion:\n{onion}\n\nCaricarlo da lì finché questo sito passa per Tor?",
+  "onionOfferUse": "Usalo",
+  "onionOfferDecline": "Non usarlo",
+  "siteNetworkOnionFallback": "Se l'indirizzo onion non funziona",
+  "siteNetworkOnionFallbackHint": "Un servizio onion può essere fuori servizio o il suo certificato può scadere. Mostrare l'errore mantiene il sito dentro Tor. Caricare l'indirizzo abituale lo invia tramite un relay di uscita, che vede dove va il traffico.",
+  "onionFallbackNone": "Mostra l'errore",
+  "onionFallbackClearnet": "Carica l'indirizzo abituale"
 }

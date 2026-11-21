@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Buka arkib",
   "archiveManagementArchive": "Arkib {index}",
   "archiveManagementRemove": "Alih keluar arkib dan simpan tapak",
-  "archiveManagementRemoveBody": "Alihkan semua tapak dan koleksi ke pustaka biasa, kemudian alih keluar arkib ini?"
+  "archiveManagementRemoveBody": "Alihkan semua tapak dan koleksi ke pustaka biasa, kemudian alih keluar arkib ini?",
+  "siteNetworkOnion": "Alamat onion",
+  "siteNetworkOnionHint": "Sesetengah laman mengumumkan alamat mereka sendiri pada rangkaian Tor, iaitu alamat onion. Selagi laman ini melalui Tor, apl boleh memuatkannya dari sana, jadi trafiknya kekal di dalam Tor dan bukannya keluar melalui geganti keluar. Alamat itu hanya dipelajari daripada jawapan selamat laman itu sendiri, tidak sekali-kali daripada senarai.",
+  "onionOfferBody": "{site} mengumumkan alamat onion:\n{onion}\n\nMuatkan dari sana selagi laman ini melalui Tor?",
+  "onionOfferUse": "Gunakannya",
+  "onionOfferDecline": "Jangan guna",
+  "siteNetworkOnionFallback": "Jika alamat onion gagal",
+  "siteNetworkOnionFallbackHint": "Perkhidmatan onion mungkin tidak berfungsi, atau sijilnya mungkin tamat tempoh. Memaparkan ralat mengekalkan laman di dalam Tor. Memuatkan alamat biasa menghantarnya melalui geganti keluar, yang dapat melihat ke mana trafik pergi.",
+  "onionFallbackNone": "Paparkan ralat",
+  "onionFallbackClearnet": "Muatkan alamat biasa"
 }

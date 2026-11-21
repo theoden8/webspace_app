@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Hapni arkivat",
   "archiveManagementArchive": "Arkivi {index}",
   "archiveManagementRemove": "Hiqni arkivin dhe mbani sajtet",
-  "archiveManagementRemoveBody": "Të zhvendosen të gjitha sajtet dhe koleksionet në bibliotekën e zakonshme, më pas të hiqet ky arkiv?"
+  "archiveManagementRemoveBody": "Të zhvendosen të gjitha sajtet dhe koleksionet në bibliotekën e zakonshme, më pas të hiqet ky arkiv?",
+  "siteNetworkOnion": "Adresë onion",
+  "siteNetworkOnionHint": "Disa sajte shpallin një adresë të tyren në rrjetin Tor, një adresë onion. Për sa kohë ky sajt kalon përmes Tor, aplikacioni mund ta ngarkojë prej andej, kështu që trafiku i tij mbetet brenda Tor në vend që të dalë përmes një releje dalëse. Adresa mësohet vetëm nga përgjigjja e sigurt e vetë sajtit, kurrë nga një listë.",
+  "onionOfferBody": "{site} shpall një adresë onion:\n{onion}\n\nTa ngarkosh prej andej për sa kohë ky sajt kalon përmes Tor?",
+  "onionOfferUse": "Përdore",
+  "onionOfferDecline": "Mos e përdor",
+  "siteNetworkOnionFallback": "Nëse adresa onion dështon",
+  "siteNetworkOnionFallbackHint": "Një shërbim onion mund të jetë jashtë funksionit ose certifikata e tij mund të skadojë. Shfaqja e gabimit e mban sajtin brenda Tor. Ngarkimi i adresës së zakonshme e dërgon përmes një releje dalëse, e cila sheh se ku shkon trafiku.",
+  "onionFallbackNone": "Shfaq gabimin",
+  "onionFallbackClearnet": "Ngarko adresën e zakonshme"
 }

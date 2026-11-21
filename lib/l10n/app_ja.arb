@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "アーカイブを開く",
   "archiveManagementArchive": "アーカイブ {index}",
   "archiveManagementRemove": "アーカイブを削除してサイトを保持する",
-  "archiveManagementRemoveBody": "すべてのサイトとコレクションを通常のライブラリに移動してから、このアーカイブを削除しますか?"
+  "archiveManagementRemoveBody": "すべてのサイトとコレクションを通常のライブラリに移動してから、このアーカイブを削除しますか?",
+  "siteNetworkOnion": "Onion アドレス",
+  "siteNetworkOnionHint": "一部のサイトは Tor ネットワーク上に独自のアドレス(Onion アドレス)を公開しています。このサイトが Tor を経由している間、アプリはそこから読み込むことができ、通信は出口リレーから外に出ずに Tor の中にとどまります。アドレスはサイト自身の安全な応答からのみ取得し、リストから取ることはありません。",
+  "onionOfferBody": "{site} が Onion アドレスを公開しています:\n{onion}\n\nこのサイトが Tor を経由している間、そこから読み込みますか?",
+  "onionOfferUse": "使用する",
+  "onionOfferDecline": "使用しない",
+  "siteNetworkOnionFallback": "Onion アドレスが使えないとき",
+  "siteNetworkOnionFallbackHint": "Onion サービスは停止していることがあり、証明書の期限が切れることもあります。エラーを表示すると、サイトは Tor の中にとどまります。通常のアドレスを読み込むと、通信は出口リレーを通り、その行き先が出口リレーに見えます。",
+  "onionFallbackNone": "エラーを表示",
+  "onionFallbackClearnet": "通常のアドレスを読み込む"
 }

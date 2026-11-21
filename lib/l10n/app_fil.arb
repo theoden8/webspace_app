@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Buksan ang mga archive",
   "archiveManagementArchive": "Archive {index}",
   "archiveManagementRemove": "Alisin ang archive at panatilihin ang mga site",
-  "archiveManagementRemoveBody": "Ilipat ang lahat ng site at koleksyon sa regular na library, pagkatapos ay alisin ang archive na ito?"
+  "archiveManagementRemoveBody": "Ilipat ang lahat ng site at koleksyon sa regular na library, pagkatapos ay alisin ang archive na ito?",
+  "siteNetworkOnion": "Onion address",
+  "siteNetworkOnionHint": "May mga site na nag-aanunsyo ng sarili nilang address sa network ng Tor, isang onion address. Habang dumadaan sa Tor ang site na ito, maaari itong i-load ng app mula roon, kaya nananatili sa loob ng Tor ang trapiko nito sa halip na lumabas sa isang exit relay. Natututunan lamang ang address mula sa sariling ligtas na sagot ng site, hindi kailanman mula sa isang listahan.",
+  "onionOfferBody": "Nag-aanunsyo ang {site} ng onion address:\n{onion}\n\nI-load ito mula roon habang dumadaan sa Tor ang site na ito?",
+  "onionOfferUse": "Gamitin ito",
+  "onionOfferDecline": "Huwag gamitin",
+  "siteNetworkOnionFallback": "Kapag pumalya ang onion address",
+  "siteNetworkOnionFallbackHint": "Maaaring hindi gumagana ang isang onion service, o maaaring mag-expire ang sertipiko nito. Ang pagpapakita ng error ay nagpapanatili sa site sa loob ng Tor. Ang pag-load ng karaniwang address ay nagpapadala nito sa isang exit relay, na nakakakita kung saan papunta ang trapiko.",
+  "onionFallbackNone": "Ipakita ang error",
+  "onionFallbackClearnet": "I-load ang karaniwang address"
 }

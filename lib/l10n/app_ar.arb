@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "فتح المحفوظات",
   "archiveManagementArchive": "أرشيف {index}",
   "archiveManagementRemove": "إزالة الأرشيف والاحتفاظ بالمواقع",
-  "archiveManagementRemoveBody": "نقل كافة المواقع والمجموعات إلى المكتبة العادية، ثم إزالة هذا الأرشيف؟"
+  "archiveManagementRemoveBody": "نقل كافة المواقع والمجموعات إلى المكتبة العادية، ثم إزالة هذا الأرشيف؟",
+  "siteNetworkOnion": "عنوان Onion",
+  "siteNetworkOnionHint": "تعلن بعض المواقع عن عنوان خاص بها على شبكة Tor، يُسمّى عنوان Onion. ما دام هذا الموقع يمرّ عبر Tor، يمكن للتطبيق تحميله من هناك، فتبقى حركة مروره داخل Tor بدل أن تخرج عبر مُرحِّل خروج. لا يُعرف العنوان إلا من ردّ الموقع الآمن نفسه، وليس من أي قائمة.",
+  "onionOfferBody": "يعلن {site} عن عنوان Onion:\n{onion}\n\nهل تريد تحميله من هناك ما دام هذا الموقع يمرّ عبر Tor؟",
+  "onionOfferUse": "استخدمه",
+  "onionOfferDecline": "لا تستخدمه",
+  "siteNetworkOnionFallback": "إذا فشل عنوان Onion",
+  "siteNetworkOnionFallbackHint": "قد تتعطل خدمة Onion أو تنتهي صلاحية شهادتها. عرض الخطأ يُبقي الموقع داخل Tor. أمّا تحميل العنوان المعتاد فيرسله عبر مُرحِّل خروج يرى وجهة حركة المرور.",
+  "onionFallbackNone": "اعرض الخطأ",
+  "onionFallbackClearnet": "حمّل العنوان المعتاد"
 }
