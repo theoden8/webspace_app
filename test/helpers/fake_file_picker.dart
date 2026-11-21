@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
 // ignore: implementation_imports
 import 'package:file_picker/src/platform/file_picker_platform_interface.dart';
@@ -12,6 +14,12 @@ final class FakeFilePicker extends FilePickerPlatform {
 
   /// The filter of each pick, in order.
   final List<({FileType type, List<String>? extensions})> asked = [];
+
+  /// Where a save dialog answers it was put; null cancels.
+  String? savePath;
+
+  /// The file name each save dialog offered, in order.
+  final List<String?> offered = [];
 
   /// Installs a picker for the rest of the test.
   static FakeFilePicker install({PlatformFile? file}) {
@@ -40,5 +48,19 @@ final class FakeFilePicker extends FilePickerPlatform {
       final picked? => FilePickerResult([picked]),
       null => null,
     };
+  }
+
+  @override
+  Future<String?> saveFile({
+    String? dialogTitle,
+    String? fileName,
+    String? initialDirectory,
+    FileType type = FileType.any,
+    List<String>? allowedExtensions,
+    Uint8List? bytes,
+    bool lockParentWindow = false,
+  }) async {
+    offered.add(fileName);
+    return savePath;
   }
 }

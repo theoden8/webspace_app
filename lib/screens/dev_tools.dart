@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'dart:convert';
+import 'package:webspace/utils/concurrency.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 
@@ -180,8 +181,12 @@ class DevToolsScreen extends StatefulWidget {
 
 class _DevToolsScreenState extends State<DevToolsScreen> {
   bool _loadingCookies = false;
+  /// The page's HTML once fetched, which every later export reuses.
   String? _exportedHtml;
-  bool _isFetchingHtml = false;
+
+  /// The fetch in flight, which an export asked for meanwhile joins
+  /// (DEVTOOLS-003).
+  final _htmlFetch = SingleFlight<(), String?>();
   bool _isSavingIcon = false;
   final Set<LogLevel> _activeFilters = LogLevel.values.toSet();
 
@@ -974,22 +979,18 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     );
   }
 
+  Future<String?> _html() async =>
+      _exportedHtml ??= await _htmlFetch.run((), call: _fetchHtml);
+
   Future<String?> _fetchHtml() async {
-    if (_isFetchingHtml) return _exportedHtml;
     final controller = widget.host!.controller;
     if (controller == null) return null;
-
-    _isFetchingHtml = true;
-    try {
-      final html = await controller.getHtml();
-      if (html == null || html.isEmpty) {
-        _toast((loc) => loc.devToolsNoHtmlContent);
-        return null;
-      }
-      return _exportedHtml = html;
-    } finally {
-      _isFetchingHtml = false;
+    final html = await controller.getHtml();
+    if (html == null || html.isEmpty) {
+      _toast((loc) => loc.devToolsNoHtmlContent);
+      return null;
     }
+    return html;
   }
 
   String get _htmlFileName {
@@ -1020,13 +1021,13 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   Future<void> _shareHtml() async {
-    final html = _exportedHtml ?? await _fetchHtml();
+    final html = await _html();
     if (html == null || !mounted) return;
     unawaited(SharePlus.instance.share(ShareParams(text: html, title: _htmlFileName)));
   }
 
   Future<void> _saveHtmlToFile() async {
-    final html = _exportedHtml ?? await _fetchHtml();
+    final html = await _html();
     if (html == null || !mounted) return;
     final title = AppLocalizations.of(context).devToolsSaveHtmlDialogTitle;
     try {
@@ -1042,7 +1043,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   void _copyHtml() async {
-    final html = _exportedHtml ?? await _fetchHtml();
+    final html = await _html();
     if (html == null || !mounted) return;
     unawaited(Clipboard.setData(ClipboardData(text: html)));
     _toast((loc) => loc.devToolsHtmlCopied);
