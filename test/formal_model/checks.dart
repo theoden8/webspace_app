@@ -229,6 +229,16 @@ enum ActivationWorld {
         'containers: shown site loaded, no live target evicted, no loaded '
         'site saved',
   ),
+  terminates(
+    cookies: Cookies.sharedJar,
+    coldStart: false,
+    inputs: 2,
+    invariants: [],
+    live: true,
+    holds:
+        'shared jar, two inputs of any kind: every flow ends once the platform '
+        'answers and the environment acts, the jar\'s turns among them',
+  ),
   plain(
     cookies: Cookies.sharedJar,
     coldStart: false,
@@ -1004,6 +1014,7 @@ enum ActivationWorld {
     this.env = const {},
     this.allowed,
     required this.invariants,
+    this.live = false,
     required this.holds,
   });
 
@@ -1017,6 +1028,11 @@ enum ActivationWorld {
   /// The inputs that may land, null for every one.
   final Set<String>? allowed;
   final List<Inv> invariants;
+
+  /// Whether the world also holds every flow to ending (`Prop_Terminates`)
+  /// under the model's fairness (`FairSpec`): liveness, so a world kept
+  /// small.
+  final bool live;
   final String? holds;
 
   String get cfg => this == base ? 'activation' : 'activation_${_snake(name)}';
@@ -1224,16 +1240,23 @@ typedef Slice = ({Set<String> allowed});
 /// is violated in [world], within its [slice] when one is named, and in
 /// each world of [also].
 enum Mutant {
+  repause(
+    world: ActivationWorld.terminates,
+    caught: Stalls(),
+    doc:
+        'a switch that pauses the site it leaves again on every answer never '
+        'ends, though no state it reaches is wrong (caught)',
+  ),
   switchdropsincognito(
     world: ActivationWorld.spacesIncognito,
-    by: Inv.switchSparesIncognito,
+    caught: Breaks(Inv.switchSparesIncognito),
     doc:
         'a webspace switch that unloads an incognito site it stops showing, '
         'which signs it out (INC-007, caught)',
   ),
   incognitonuked(
     world: ActivationWorld.incognito,
-    by: Inv.noSessionLoss,
+    caught: Breaks(Inv.noSessionLoss),
     doc:
         'a restore that sets back only the sites it saves signs a loaded '
         'incognito site out (INC-001, caught)',
@@ -1241,7 +1264,7 @@ enum Mutant {
   recapture(
     world: ActivationWorld.reset,
     slice: (allowed: {'Tap', 'UnloadSite'}),
-    by: Inv.noSessionLoss,
+    caught: Breaks(Inv.noSessionLoss),
     doc:
         'an unload that captures a site no longer loaded loses its session '
         '(BUG-032, caught)',
@@ -1249,20 +1272,20 @@ enum Mutant {
   nohome(
     world: ActivationWorld.delete,
     slice: (allowed: {'Tap', 'DeleteSite'}),
-    by: Inv.shownLoaded,
+    caught: Breaks(Inv.shownLoaded),
     doc: 'a switch a delete of another site supersedes, staying on the site '
         'it unloaded (LAZY-007, caught)',
   ),
   markerbytarget(
     world: ActivationWorld.containers,
     slice: (allowed: {'Tap', 'Pressure'}),
-    by: Inv.noShownEvicted,
+    caught: Breaks(Inv.noShownEvicted),
     doc: 'a marker any activation of its target clears (CONT-003, caught)',
   ),
   noretry(
     world: ActivationWorld.base,
     slice: (allowed: {'Tap', 'Pressure'}),
-    by: Inv.noShownEvicted,
+    caught: Breaks(Inv.noShownEvicted),
     doc:
         'an eviction that does not ask again before it disposes (BUG-033, '
         'caught)',
@@ -1270,7 +1293,7 @@ enum Mutant {
   staleplan(
     world: ActivationWorld.base,
     slice: (allowed: {'Tap'}),
-    by: Inv.noShownEvicted,
+    caught: Breaks(Inv.noShownEvicted),
     doc:
         "a superseded switch's unload that disposes the site a newer tap "
         'opens (BUG-033, caught)',
@@ -1278,14 +1301,14 @@ enum Mutant {
   tierearly(
     world: ActivationWorld.base,
     slice: (allowed: {'Tap', 'GoHome'}),
-    by: Inv.loadedNotSaved,
+    caught: Breaks(Inv.loadedNotSaved),
     doc:
         "a spared site left at savedForRestore, out of pressure's reach "
         '(BUG-033, caught)',
   ),
   pointerearly(
     world: ActivationWorld.tabs,
-    by: Inv.tabBound,
+    caught: Breaks(Inv.tabBound),
     doc:
         'a switch moving the pointer before its nav read (BUG-036 attempt 1, '
         'caught)',
@@ -1293,42 +1316,42 @@ enum Mutant {
   takeany(
     world: ActivationWorld.tabs,
     slice: (allowed: {'Tap', 'CloseTab'}),
-    by: Inv.tabShown,
+    caught: Breaks(Inv.tabShown),
     doc: 'a build taking bytes queued for another tab (caught)',
   ),
   warmnolimit(
     world: ActivationWorld.tabsWarmOne,
-    by: Inv.warmLimit,
+    caught: Breaks(Inv.warmLimit),
     doc: 'a switch keeping every view warm past the limit (TAB-023, caught)',
   ),
   capignoreswarm(
     world: ActivationWorld.tabsCapTwo,
     slice: (allowed: {'OpenTab', 'Tap'}),
-    by: Inv.viewsCapped,
+    caught: Breaks(Inv.viewsCapped),
     doc: 'a cap that counts no warm views (TAB-024, caught)',
   ),
   warmanysite(
     world: ActivationWorld.tabsOwnerRunContainers,
-    by: Inv.warmOneSite,
+    caught: Breaks(Inv.warmOneSite),
     doc:
         'a switch keeping warm a view that runs as another site than the '
         'slot (TAB-026, caught)',
   ),
   closekeepswarm(
     world: ActivationWorld.tabs,
-    by: Inv.warmListed,
+    caught: Breaks(Inv.warmListed),
     doc: "a close leaving a closed tab's warm view (TAB-023, caught)",
   ),
   captureatreply(
     world: ActivationWorld.tabs,
-    by: Inv.tabFiles,
+    caught: Breaks(Inv.tabFiles),
     doc:
         'a capture keyed at its reply, after a rebind (BUG-036 attempt 1, '
         'caught)',
   ),
   nukeignored(
     world: ActivationWorld.jarRefuses,
-    by: Inv.noForeignSession,
+    caught: Breaks(Inv.noForeignSession),
     doc:
         'a restore that refills a jar whose nuke was refused shows its target '
         'on the session of a site it unloaded (ISO-014, caught)',
@@ -1336,7 +1359,7 @@ enum Mutant {
   preloadmismatch(
     world: ActivationWorld.proxy,
     slice: (allowed: {'Preload'}),
-    by: Inv.oneRoute,
+    caught: Breaks(Inv.oneRoute),
     doc: 'a preload loading a site on another route than a loaded one (caught)',
     also: {
       ActivationWorld.torContainers:
@@ -1346,7 +1369,7 @@ enum Mutant {
   ),
   reopenbesidenested(
     world: ActivationWorld.tabsChildNestedContainers,
-    by: Inv.oneRoute,
+    caught: Breaks(Inv.oneRoute),
     doc:
         "a slot a tab's rebind moves to another site under one process-wide "
         'proxy opening again while its own nested screen is up on another '
@@ -1354,7 +1377,7 @@ enum Mutant {
   ),
   sessionkeepsslot(
     world: ActivationWorld.tabsRerouteRouterContainers,
-    by: Inv.oneRoute,
+    caught: Breaks(Inv.oneRoute),
     doc:
         "a slot that moves into the router's shared session staying "
         'loaded: an activation planned while it ran outside commits beside '
@@ -1362,7 +1385,7 @@ enum Mutant {
   ),
   savekeepsgone(
     world: ActivationWorld.tabsRerouteContainers,
-    by: Inv.tabFilesHosted,
+    caught: Breaks(Inv.tabFilesHosted),
     doc:
         "a capture whose save lands after a reroute moved its tab keeping "
         "the file under the key the tab left, which a move back restores "
@@ -1370,14 +1393,14 @@ enum Mutant {
   ),
   rebindskipsclose(
     world: ActivationWorld.tabs,
-    by: Inv.tabFilesListed,
+    caught: Breaks(Inv.tabFilesListed),
     doc:
         "a close of the active tab whose rebind ends the flow, so the closed "
         "tab's file outlives it (BUG-036, caught)",
   ),
   subtreekeepsslot(
     world: ActivationWorld.tabs,
-    by: Inv.tabBound,
+    caught: Breaks(Inv.tabBound),
     doc:
         "a close's rebind that asks whether the tab asked for is the active "
         'one: a live slot whose active tab closes beside it keeps its webview '
@@ -1386,7 +1409,7 @@ enum Mutant {
   ),
   torkeepsslot(
     world: ActivationWorld.tabsChildNestedTorContainers,
-    by: Inv.oneRoute,
+    caught: Breaks(Inv.oneRoute),
     doc:
         'a slot that runs as another site under a Tor runtime staying '
         'loaded: its webview is built again on another exit beside its '
@@ -1399,7 +1422,7 @@ enum Mutant {
   ),
   screenskipsslot(
     world: ActivationWorld.tabsChildNestedContainers,
-    by: Inv.oneRoute,
+    caught: Breaks(Inv.oneRoute),
     doc:
         "a proxy rule that skips the asking site's own slot: a nested screen "
         'goes up beside its site\'s slot running as another site on another '
@@ -1407,13 +1430,13 @@ enum Mutant {
   ),
   nestedonce(
     world: ActivationWorld.nestedContainers,
-    by: Inv.oneRoute,
+    caught: Breaks(Inv.oneRoute),
     doc: 'a nested open that does not ask again once the proxy moved (caught)',
   ),
   nestedrestores(
     world: ActivationWorld.nested,
     slice: (allowed: {'NestedOpen', 'Tap'}),
-    by: Inv.nestedNoRestore,
+    caught: Breaks(Inv.nestedNoRestore),
     doc:
         'a nested open that unloads a site on another route and goes on as '
         "a tap restores its site's cookies into the shared jar (ISO-007, "
@@ -1421,33 +1444,33 @@ enum Mutant {
   ),
   preloadunchecked(
     world: ActivationWorld.nestedContainers,
-    by: Inv.oneRoute,
+    caught: Breaks(Inv.oneRoute),
     doc:
         'a preload that commits beside a nested screen without asking again '
         '(caught)',
   ),
   spaceold(
     world: ActivationWorld.spaces,
-    by: Inv.leftHidden,
+    caught: Breaks(Inv.leftHidden),
     doc:
         'a switch that supersedes nothing: a tap in flight opens a site it '
         'left (caught)',
   ),
   wakeunchecked(
     world: ActivationWorld.wakeContainers,
-    by: Inv.oneRoute,
+    caught: Breaks(Inv.oneRoute),
     doc: "a wake's check that does not ask the rule (BUG-037 attempt 8, caught)",
   ),
   wakeendsearly(
     world: ActivationWorld.wakeArchiveContainers,
-    by: Inv.headlessOwned,
+    caught: Breaks(Inv.headlessOwned),
     doc:
         "a wake that ends once one check closes while others still run: a "
         'site left running unattended in the background (caught)',
   ),
   wakebesidenested(
     world: ActivationWorld.nestedWakeContainers,
-    by: Inv.oneRoute,
+    caught: Breaks(Inv.oneRoute),
     doc:
         "a wake's check beside a nested open in flight, whose pop brings the "
         'site on screen back on another route (BUG-037, caught)',
@@ -1455,21 +1478,21 @@ enum Mutant {
   wakebesidetap(
     world: ActivationWorld.wakeContainers,
     slice: (allowed: {'Tap', 'Background', 'Wake'}),
-    by: Inv.oneRoute,
+    caught: Breaks(Inv.oneRoute),
     doc:
         "a wake's check beside a tap in flight, whose plan ran before it "
         '(caught)',
   ),
   foldbeforelevel(
     world: ActivationWorld.dnsContainers,
-    by: Inv.told,
+    caught: Breaks(Inv.told),
     doc:
         'a fold that tells the views before the new app-wide level is in '
         'force (caught)',
   ),
   builtatglobal(
     world: ActivationWorld.dnsContainers,
-    by: Inv.told,
+    caught: Breaks(Inv.told),
     doc:
         "a site's first view built told the app-wide level, not the one its "
         'site resolves to: a site off, or asking for a level it holds, runs '
@@ -1478,14 +1501,14 @@ enum Mutant {
   preloadunbound(
     world: ActivationWorld.tabsCold,
     slice: (allowed: {'Preload'}),
-    by: Inv.tabActive,
+    caught: Breaks(Inv.tabActive),
     doc:
         "a preload's frame that sees its site unloaded binds no tab, so the "
         'webview it builds shows none (caught)',
   ),
   reframeunbound(
     world: ActivationWorld.tabsRebuild,
-    by: Inv.tabActive,
+    caught: Breaks(Inv.tabActive),
     doc:
         "a let-go webview's frame that shows the active tab and takes the "
         'queue but binds no tab: a loaded site with no webview shows a '
@@ -1493,14 +1516,14 @@ enum Mutant {
   ),
   rebuildwarm(
     world: ActivationWorld.tabsRebuildSwitch,
-    by: Inv.warmNotRebuilt,
+    caught: Breaks(Inv.warmNotRebuilt),
     doc:
         'a switch back to a tab that kept a warm view that builds the tab '
         'a new one, as the switch did before TAB-023 showed it (caught)',
   ),
   letgodrops(
     world: ActivationWorld.tabsRebuildSwitch,
-    by: Inv.heldBuilt,
+    caught: Breaks(Inv.heldBuilt),
     doc:
         'a let-go before its build\'s controller came that leaves the back '
         'stack the build took held for no build, queued for none: the '
@@ -1508,14 +1531,14 @@ enum Mutant {
   ),
   letgobound(
     world: ActivationWorld.tabsRebuild,
-    by: Inv.tabShown,
+    caught: Breaks(Inv.tabShown),
     doc:
         "a let-go that drops the webview's history but leaves its tab "
         'bound: a site bound to a tab shows no history (caught)',
   ),
   joinkeepsid(
     world: ActivationWorld.joins,
-    by: Inv.idsUnique,
+    caught: Breaks(Inv.idsUnique),
     slice: (allowed: {'Join'}),
     doc:
         'a site that joins under the id a listed site holds shares it, so a '
@@ -1523,7 +1546,7 @@ enum Mutant {
   ),
   lateclear(
     world: ActivationWorld.coldstart,
-    by: Inv.noSessionLoss,
+    caught: Breaks(Inv.noSessionLoss),
     slice: (allowed: {'Preload'}),
     doc:
         "a launch clear outside the jar's turns empties a restored session "
@@ -1531,21 +1554,21 @@ enum Mutant {
   ),
   preloadbare(
     world: ActivationWorld.coldstart,
-    by: Inv.noForeignSession,
+    caught: Breaks(Inv.noForeignSession),
     doc:
         "a preload loaded over the last session's jar runs on another site's "
         'session (NOTIF-017, caught)',
   ),
   closenoframe(
     world: ActivationWorld.archiveContainers,
-    by: Inv.retired,
+    caught: Breaks(Inv.retired),
     doc:
         'a close deleting containers before the frame unmounts their '
         'webviews leaves one on disk (ARCH-014, caught)',
   ),
   deletenoframe(
     world: ActivationWorld.deleteContainers,
-    by: Inv.retired,
+    caught: Breaks(Inv.retired),
     doc:
         'a delete deleting its container before the frame unmounts its '
         'webview leaves it on disk (CONT-010, caught)',
@@ -1553,7 +1576,7 @@ enum Mutant {
   importnocapture(
     world: ActivationWorld.imports,
     slice: (allowed: {'ImportSites'}),
-    by: Inv.noSessionLoss,
+    caught: Breaks(Inv.noSessionLoss),
     doc:
         'an import that empties the jar without saving the share of a '
         'loaded site it carries again loses that session (ISO-015, caught)',
@@ -1561,7 +1584,7 @@ enum Mutant {
   importmergedrops(
     world: ActivationWorld.importsMerge,
     slice: (allowed: {'Tap', 'Login', 'ImportSites'}),
-    by: Inv.noSessionLoss,
+    caught: Breaks(Inv.noSessionLoss),
     doc:
         'a partial restore that saves only the shares of the sites it carries '
         'again, then empties the jar: a loaded site it keeps listed loses its '
@@ -1570,7 +1593,7 @@ enum Mutant {
   importkeepsbox(
     world: ActivationWorld.importsContainers,
     slice: (allowed: {'ImportSites', 'Tap'}),
-    by: Inv.retired,
+    caught: Breaks(Inv.retired),
     doc:
         'an import that leaves the containers of the sites it drops leaves '
         'them on disk (CONT-010, caught)',
@@ -1578,28 +1601,28 @@ enum Mutant {
   importnoframe(
     world: ActivationWorld.importsContainers,
     slice: (allowed: {'ImportSites', 'Tap'}),
-    by: Inv.retired,
+    caught: Breaks(Inv.retired),
     doc:
         'an import deleting containers before the frame unmounts the '
         'webviews that bind them leaves one on disk (CONT-010, caught)',
   ),
   deletekeepsopener(
     world: ActivationWorld.tabsChildDeleteContainers,
-    by: Inv.openerListed,
+    caught: Breaks(Inv.openerListed),
     doc:
         'a delete whose drop leaves the tabs its site opened following it '
         'leaves a tab following a site no longer listed (LIR-034, caught)',
   ),
   noreopen(
     world: ActivationWorld.tabsRerouteContainers,
-    by: Inv.shownLoaded,
+    caught: Breaks(Inv.shownLoaded),
     doc:
         'a rebind that reroutes the slot on screen and starts no activation '
         'leaves it unloaded (LIR-024, caught)',
   ),
   rerouteinplace(
     world: ActivationWorld.tabsRerouteContainers,
-    by: Inv.oneRoute,
+    caught: Breaks(Inv.oneRoute),
     doc:
         'a reroute that moves a loaded slot to another site under one '
         'process-wide proxy and keeps it loaded runs two routes (LIR-024, '
@@ -1607,14 +1630,14 @@ enum Mutant {
   ),
   landinplace(
     world: ActivationWorld.tabsResetContainers,
-    by: Inv.tabBound,
+    caught: Breaks(Inv.tabBound),
     doc:
         "a landing that moves a loaded site's pointer without switching its "
         'webview leaves it built for another tab (TAB-014, caught)',
   ),
   ownerruninplace(
     world: ActivationWorld.tabsOwnerRunContainers,
-    by: Inv.tabBound,
+    caught: Breaks(Inv.tabBound),
     doc:
         "an owner-run move that moves a loaded site's pointer without "
         'switching its webview leaves it built for another tab (LIR-018, '
@@ -1622,7 +1645,7 @@ enum Mutant {
   ),
   childinplace(
     world: ActivationWorld.tabsChildContainers,
-    by: Inv.tabBound,
+    caught: Breaks(Inv.tabBound),
     doc:
         "a child tab opened by moving a loaded site's pointer to it, "
         'without the switch that rebinds its webview, leaves the webview '
@@ -1630,7 +1653,7 @@ enum Mutant {
   ),
   navtagatreply(
     world: ActivationWorld.tabsResetContainers,
-    by: Inv.tabShown,
+    caught: Breaks(Inv.tabShown),
     doc:
         "an activation's back stack queued for the tab active at its read's "
         'reply, after a landing moved it: the build shows the tab the read '
@@ -1639,7 +1662,7 @@ enum Mutant {
   tabgateopen(
     world: ActivationWorld.tabs,
     slice: (allowed: {'Tap', 'OpenTab', 'CloseTab'}),
-    by: Inv.oneTabFlow,
+    caught: Breaks(Inv.oneTabFlow),
     doc:
         'a close that does not wait for the tab gate, starting beside a '
         'switch in flight (TAB-003, caught)',
@@ -1647,14 +1670,14 @@ enum Mutant {
 
   const Mutant({
     required this.world,
-    required this.by,
+    required this.caught,
     required this.doc,
     this.slice,
     this.also = const {},
   });
 
   final ActivationWorld world;
-  final Inv by;
+  final Caught caught;
   final String doc;
   final Slice? slice;
   final Map<ActivationWorld, String> also;
@@ -1690,6 +1713,13 @@ WorldSpec _sliced(
 /// How TLC shows a planted mistake.
 sealed class Caught {
   const Caught();
+
+  /// The line TLC prints when it catches the mistake.
+  String get expect => switch (this) {
+    Breaks(:final inv) => '${inv.tla} is violated',
+    Deadlocks() => 'Deadlock reached',
+    Stalls() => 'Temporal properties were violated',
+  };
 }
 
 /// An invariant is violated.
@@ -1702,6 +1732,12 @@ final class Breaks extends Caught {
 /// A behavior ends outside `Done`: every config checks for one.
 final class Deadlocks extends Caught {
   const Deadlocks();
+}
+
+/// A flow never ends though every step it may take is taken
+/// (`Prop_Terminates`, under the model's fairness, `FairSpec`).
+final class Stalls extends Caught {
+  const Stalls();
 }
 
 /// A mistake of `activation.tla`'s hand-written environment, planted by
@@ -1778,6 +1814,7 @@ List<Check> activationChecks({
           cfg: w.cfg,
           world: w.spec,
           invariants: [for (final i in w.invariants) i.tla],
+          live: w.live,
           expect: 'No error has been found',
           label: holds,
         ),
@@ -1806,8 +1843,12 @@ List<Check> activationChecks({
         _check(
           cfg: 'activation_${m.name}${i == 0 ? '' : '_${_snake(world.name)}'}',
           world: spec,
-          invariants: [m.by.tla],
-          expect: '${m.by.tla} is violated',
+          invariants: switch (m.caught) {
+            Breaks(:final inv) => [inv.tla],
+            Deadlocks() || Stalls() => [Inv.typeOK.tla],
+          },
+          live: m.caught is Stalls,
+          expect: m.caught.expect,
           label: doc,
           mutant: m,
         ),
@@ -1818,12 +1859,10 @@ List<Check> activationChecks({
         mistake: h,
         invariants: switch (h.caught) {
           Breaks(:final inv) => [inv.tla],
-          Deadlocks() => [Inv.typeOK.tla],
+          Deadlocks() || Stalls() => [Inv.typeOK.tla],
         },
-        expect: switch (h.caught) {
-          Breaks(:final inv) => '${inv.tla} is violated',
-          Deadlocks() => 'Deadlock reached',
-        },
+        live: h.caught is Stalls,
+        expect: h.caught.expect,
         label: h.doc,
       ),
   ];
@@ -1849,6 +1888,7 @@ Check _check({
   required WorldSpec world,
   HandMistake? mistake,
   required List<String> invariants,
+  bool live = false,
   required String expect,
   required String label,
   Mutant? mutant,
@@ -1872,10 +1912,17 @@ Check _check({
     },
     for (final e in Env.values)
       if (world.env.contains(e)) '    ${e.op.tla} <- ${e.by}',
-    'SPECIFICATION Spec',
-    'VIEW View',
+    // Liveness is checked over the states themselves: a view that merges
+    // two of them could hide a cycle a flow never leaves.
+    if (live)
+      'SPECIFICATION FairSpec'
+    else ...[
+      'SPECIFICATION Spec',
+      'VIEW View',
+    ],
     'INVARIANTS',
     for (final i in invariants) '    $i',
+    if (live) ...['PROPERTY', '    Prop_Terminates'],
     '',
   ].join('\n');
   return (
