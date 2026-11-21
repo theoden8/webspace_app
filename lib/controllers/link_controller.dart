@@ -4,7 +4,6 @@ import 'package:webspace/services/container_native.dart';
 import 'package:webspace/settings/site_ids.dart';
 
 import 'package:webspace/controllers/startup_controller.dart' show Launched, Reached;
-import 'package:webspace/controllers/let_go_table.dart';
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_route.dart';
 import 'package:webspace/controllers/site_runtime.dart';
@@ -27,7 +26,6 @@ import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/share_intent_service.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
-import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
@@ -112,7 +110,8 @@ abstract interface class LinkHost implements PageHost {
   /// [source] when routed.
   Future<void> openNested(DispatchOpenNested action, {WebViewModel? source});
 
-  Future<void> unloadSite(WebViewModel site, {required UnloadReason reason});
+  /// [site] sent home in place (`SiteActivationController.sendHome`).
+  Future<void> sendHome(WebViewModel site);
 
   Future<void> wipeContainer(ContainerKey key);
 
@@ -799,13 +798,8 @@ class LinkController {
       if (!_host.mounted) return;
     }
     if (a.disposeBeforeLoad) {
-      if (_sites.loaded.holdsObject(model)) {
-        await _host.unloadSite(model, reason: UnloadReason.homeReset);
-        if (!_host.mounted) return;
-      } else {
-        LetGoTable.letGo(_sites, site: model);
-      }
-      model.currentUrl = model.initUrl;
+      await _host.sendHome(model);
+      if (!_host.mounted) return;
     }
     if (a.wipeContainer) {
       await _host.wipeContainer(model.containerKey);

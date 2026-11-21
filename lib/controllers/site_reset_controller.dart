@@ -6,7 +6,6 @@ import 'package:webspace/controllers/site_activation_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
-import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/services/step_table.dart';
 import 'package:webspace/web_view_model.dart';
@@ -96,13 +95,10 @@ class SiteResetController {
     await _sites.models[_sites.current!].userStopLoading();
   }
 
-  /// Reset every "Always open Home" / incognito site that shares a named
-  /// webspace with [launchedIndex] back to its `initUrl` and tear down its
-  /// live webview so the next paint reloads at home. Called from both the
-  /// cold and warm shortcut entrypoints — on cold launch most flagged
-  /// sites already had `currentUrl` dropped during `fromJson`, so the
-  /// pass is mostly a no-op there; on warm launch it is the only thing
-  /// that resets siblings.
+  /// Send every "Always open Home" / incognito site among [launched] and the
+  /// sites sharing a named webspace with it home with no history (HS-006,
+  /// HS-007): its live webview goes so the next paint loads at home. Called
+  /// from both the cold and the warm shortcut entrypoints.
   ///
   /// A site with tabs is not sent home in place: it lands on a tab at home,
   /// and the tab it was on stays in its list (TAB-014).
@@ -127,11 +123,14 @@ class SiteResetController {
     ];
     for (final m in sites) {
       if (withTabs.holdsObject(m)) continue;
-      if (m.currentUrl == m.initUrl && m.webview == null) continue;
+      if (m.currentUrl == m.initUrl && m.webview == null) {
+        await _activation.forgetHistory(m);
+        if (!_host.mounted) return;
+        continue;
+      }
       await _tabs.bindOwnerRunTab(m);
       if (!_host.mounted) return;
-      m.currentUrl = m.initUrl;
-      await _activation.unload(m, reason: UnloadReason.homeReset);
+      await _activation.sendHome(m);
       if (!_host.mounted) return;
     }
     for (final m in withTabs) {
@@ -148,6 +147,7 @@ class SiteResetController {
     final model = _sites.models[_sites.current!];
     model.currentUrl = model.navigationHomeUrl;
     LetGoTable.letGo(_sites, site: model);
+    unawaited(_activation.forgetHistory(model));
     _host.rebuild();
     // Re-apply fullscreen for sites with auto-fullscreen after webview recreation
     if (model.fullscreenMode) {

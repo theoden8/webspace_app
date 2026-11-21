@@ -245,7 +245,7 @@ WebViewModel webViewModelFromJson(
   // Loading a site is a fresh entry to it, so an always-home site lands at
   // home here (AOH-002, TAB-014), before anything can build its webview.
   // Opening an archive is not one: it restores what it sealed (ARCH-012).
-  if (read.alwaysOpenHome && !read.incognito && !isArchiveTier) {
+  if (model.landsAtHomeOnLoad) {
     model.landAtHome(fresh: const Unpublished._());
   }
   return model;
