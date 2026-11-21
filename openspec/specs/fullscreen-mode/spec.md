@@ -29,6 +29,7 @@ The system SHALL allow users to enter full screen mode from the overflow menu or
 **When** the user opens the overflow menu (app bar or tab strip) and taps "Full Screen"
 **Then** the app bar, tab strip, URL bar, find toolbar, and system UI are hidden
 **And** the webview fills the entire screen
+**And** `test/fullscreen_enter_test.dart` holds it
 
 #### Scenario: Toggle full screen by double-tapping title
 
@@ -37,6 +38,7 @@ The system SHALL allow users to enter full screen mode from the overflow menu or
 **Then** the app enters full screen mode
 **When** the user exits full screen and double-taps the title again
 **Then** the app enters full screen mode again
+**And** `test/fullscreen_enter_test.dart` holds it
 
 ---
 
@@ -47,8 +49,9 @@ The system SHALL allow the user to exit full screen by tapping the top edge of t
 #### Scenario: Exit via top edge tap
 
 **Given** the user is in full screen mode
-**When** the user taps the top edge of the screen (status bar / notch safe area + 20px)
+**When** the user taps the top edge of the page (the 20px just below the status bar / notch inset)
 **Then** full screen mode is exited
+**And** `test/fullscreen_enter_test.dart` holds it
 
 #### Scenario: Exit via tab strip menu
 
@@ -56,6 +59,7 @@ The system SHALL allow the user to exit full screen by tapping the top edge of t
 **And** the user is in full screen mode with the tab strip visible
 **When** the user opens the tab strip overflow menu and taps "Exit Full Screen"
 **Then** full screen mode is exited
+**And** `test/fullscreen_enter_test.dart` holds it
 
 **Rationale:** With the tab strip kept in full screen, its overflow menu is the only chrome reachable while immersed. The "Full Screen" menu item reflects the current state ("Exit Full Screen" when already full screen) and toggles rather than re-entering.
 
@@ -65,14 +69,16 @@ The system SHALL allow the user to exit full screen by tapping the top edge of t
 **When** the user performs a back gesture (swipe or button)
 **Then** the back gesture behaves normally (web history back, open drawer, etc.)
 **And** full screen mode remains active
+**And** `test/fullscreen_enter_test.dart` holds it
 
 #### Scenario: Fullscreen hint
 
 **Given** the user enters full screen mode
 **Then** a brief SnackBar is shown: "Tap the top of the screen to exit full screen"
 **And** a visible translucent handle is displayed just below the status bar / notch area
+**And** `test/fullscreen_enter_test.dart` holds it
 
-**Rationale:** The exit zone spans `MediaQuery.padding.top + 20px` vertically but only a centered 96px-wide band catches the tap; the top corners stay transparent to pointers so web-app controls there (e.g. a sidebar toggle) receive the tap instead of exiting fullscreen. The back gesture is not consumed by fullscreen so users can navigate normally while immersed.
+**Rationale:** The exit zone is the 20px at the top of the page, just below the top inset the body keeps for a status bar or notch that stays (FS-006), and only a centered 96px-wide band catches the tap; the top corners stay transparent to pointers so web-app controls there (e.g. a sidebar toggle) receive the tap instead of exiting fullscreen. The back gesture is not consumed by fullscreen so users can navigate normally while immersed.
 
 #### Scenario: Web control in top corner stays tappable
 
@@ -80,6 +86,7 @@ The system SHALL allow the user to exit full screen by tapping the top edge of t
 **When** the user taps that corner
 **Then** the tap reaches the web content (full screen is not exited)
 **And** tapping the centered handle still exits full screen
+**And** `test/fullscreen_enter_test.dart` holds it
 
 ---
 
