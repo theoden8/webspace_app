@@ -1236,11 +1236,11 @@ typedef DnsTrim = ({
   Future<void> Function() import,
 });
 
-final _dnsFails = Expr.op<bool, DnsFlow>(
-  HandPaired.dnsFails,
-  tla: 'FALSE',
+/// Whether the fetch failed: in the model, a world whose every mirror
+/// fails (`DnsFetchFails`).
+final _dnsFails = Expr.ofConstant<bool, DnsFlow>(
+  ModelConst.dnsFetchFails,
   run: (c) => _dnsFold.from(c).failed(),
-  reads: Reads.none,
 );
 
 /// The levels a download may pick (`DnsLevels`): the one asked, in the
@@ -1441,8 +1441,8 @@ final StepTable<DnsFlow, DnsPlace> _dnsTable = StepTable(
     ),
     // The list fetched and folded in: the partition and the app-wide level
     // in force together, so every live view is told the level its site
-    // resolves to now (DNS-022). One the mirrors do not have changes
-    // nothing.
+    // resolves to now (DNS-022). One no mirror answers changes nothing and
+    // lets the turn go.
     DnsPlace.dFold => Step(
       ActivationStep.dnsFolded,
       holds: _dnsTurns.held,

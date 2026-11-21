@@ -532,6 +532,12 @@ final _failing =
         setup: const [Fails(Fault.headlessClose)],
         script: const [Background(), Wake()],
       ),
+      'a download no mirror answers changes no list and lets the next have '
+          'its turn (DNS-022)': (
+        world: () => ActivationWorld(_mixedContainers, dns: _dnsSites),
+        setup: const [Tap(0), Fails(Fault.dnsFetch)],
+        script: const [DnsDownload(0), DnsAddLevel(1)],
+      ),
       'a webspace switch offline unloads nothing (WEBSPACE-013)': (
         world: () => ActivationWorld(_mixed, spaces: _spaces),
         setup: [

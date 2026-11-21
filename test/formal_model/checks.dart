@@ -24,6 +24,7 @@ enum Env {
   wakesUp(op: ModelConst.waking, by: 'WakesUp'),
   dnsAsk(op: ModelConst.siteLevel, by: 'DnsAsk'),
   dnsTwo(op: ModelConst.dnsLevels, by: 'DnsTwo'),
+  dnsFetchFails(op: ModelConst.dnsFetchFails, by: 'DnsFetchCanFail'),
   residentOne(op: ModelConst.maxResident, by: 'ResidentOne'),
   capTwo(op: ModelConst.maxLoaded, by: 'CapTwo'),
   warmOne(op: ModelConst.warmOwn, by: 'WarmOne'),
@@ -106,6 +107,7 @@ enum Inv {
   ),
   headlessOwned(reads: {ModelVar.fl, ModelVar.headless}),
   told(reads: {ModelVar.dns, ModelVar.told}),
+  dnsTurnLive(reads: {ModelVar.dnsHolder, ModelVar.fl}),
   tabShown(reads: {ModelVar.built, ModelVar.hist}),
   tabFiles(reads: {ModelVar.file}),
   tabFilesHosted(atRest: true, reads: {ModelVar.file, ModelVar.host, ModelVar.tabs}),
@@ -187,6 +189,7 @@ const _core = [
   Inv.noShownEvicted,
   Inv.loadedNotSaved,
   Inv.places,
+  Inv.dnsTurnLive,
   Inv.idsUnique,
 ];
 const _jar = [Inv.oneSitePerBase, Inv.noSessionLoss, Inv.noForeignSession];
@@ -522,6 +525,17 @@ enum ActivationWorld {
     holds:
         "containers, two DNS levels a download picks: every live view runs "
         "its site's level (DNS-022)",
+  ),
+  dnsFailsContainers(
+    cookies: Cookies.containers,
+    coldStart: false,
+    inputs: 3,
+    env: {Env.dnsAsk, Env.dnsTwo, Env.dnsFetchFails},
+    allowed: {'DnsAddLevel', 'DnsClear', 'DnsDownload', 'DnsPrune', 'Tap'},
+    invariants: [..._core, Inv.told],
+    holds:
+        'containers, every mirror failing: a download changes no list and '
+        'lets the turn go to the next (DNS-022)',
   ),
   dns(
     cookies: Cookies.sharedJar,
@@ -1466,6 +1480,13 @@ enum Mutant {
     doc:
         'a fold that tells the views before the new app-wide level is in '
         'force (caught)',
+  ),
+  failkeepsturn(
+    world: ActivationWorld.dnsFailsContainers,
+    by: Inv.dnsTurnLive,
+    doc:
+        'a fetch no mirror answers that ends its flow holding the lists\' '
+        'turn (caught)',
   ),
   builtatglobal(
     world: ActivationWorld.dnsContainers,

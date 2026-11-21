@@ -1410,6 +1410,25 @@ Tables mutated(Mutant m) => switch (m) {
       ),
     ),
   ),
+  // A fetch no mirror answers that ends its flow still holding the lists'
+  // turn, so every later change of the lists waits on a flow that is gone.
+  Mutant.failkeepsturn => _with(
+    dns: _withArms(
+      tables.dns,
+      step: ActivationStep.dnsFolded,
+      arms: (s) => s.withArms(
+        branches: [
+          for (final b in s.branches)
+            Branch(
+              b.outcome,
+              when: b.when,
+              then: const [],
+              next: b.next,
+            ),
+        ],
+      ),
+    ),
+  ),
   // A site's first view built is told the app-wide level, not the one its
   // site resolves to: its attach runs at the level the write gives.
   Mutant.builtatglobal => _with(

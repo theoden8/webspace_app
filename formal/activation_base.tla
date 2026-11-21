@@ -88,6 +88,9 @@ Waking == FALSE
 \* unbuilt and the DNS inputs off.
 SiteLevel == [s \in Sites |-> -1]
 DnsLevels == {}
+\* Whether every mirror fails a fetch, which leaves the lists as they were
+\* (DNS-022); the pages' mirrors always answer.
+DnsFetchFails == FALSE
 \* What a webspace switch may stop showing (WEBSPACE-013), any of these,
 \* and whether the device answers its check online; the pages switch
 \* none.

@@ -287,11 +287,11 @@ final class Login extends SiteAction {
 /// What the platform fails at once a setup step says so: a read, a write
 /// or the clear of the shared jar (ISO-014), the process-wide proxy rule
 /// (PROXY-008), the network (WEBSPACE-013).
-enum Fault { jarRead, jarWrite, jarClear, proxy, network, headlessClose }
+enum Fault { jarRead, jarWrite, jarClear, proxy, network, headlessClose, dnsFetch }
 
 /// From here on the platform fails at [fault]: a setup step, before the
 /// script the trace records, whose world then lets the model's step fail
-/// there too (`JarRefuses`, `ProxyRefused`, `Online`).
+/// there too (`JarRefuses`, `ProxyRefused`, `Online`, `DnsFetchFails`).
 final class Fails extends SiteAction {
   const Fails(this.fault);
   final Fault fault;
@@ -945,9 +945,13 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   final WalkDns? dns;
 
   /// A mirror's answer for one of the page's levels: a list long enough to
-  /// pass as one (`looksLikeDomainList`), after the gate lets it through.
+  /// pass as one (`looksLikeDomainList`), after the gate lets it through;
+  /// under a [Fault.dnsFetch], a mirror that is down.
   Future<http.Response> _servedList(http.Request request) async {
     await gate.pace(PlatformCall.dnsFetch);
+    if (_faults.contains(Fault.dnsFetch)) {
+      return http.Response('unavailable', 503);
+    }
     for (final level in dns!.levels) {
       if (dnsMirrorUrlsForLevel(level).contains(request.url.toString())) {
         return http.Response(
@@ -2002,6 +2006,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         _ => [for (final _ in every) -1],
       }),
       ModelConst.dnsLevels => set(dns?.levels ?? const <int>[]),
+      ModelConst.dnsFetchFails =>
+        _faults.contains(Fault.dnsFetch) ? 'TRUE' : null,
       ModelConst.away => set([for (final a in _away) set(a)]),
       ModelConst.online => _faults.contains(Fault.network) ? 'FALSE' : null,
       ModelConst.archive => set([for (final m in _archived) _siteNumber(m)]),
@@ -2425,7 +2431,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   bool get _jarFails => _faults.any(
     (f) => switch (f) {
       Fault.jarRead || Fault.jarWrite || Fault.jarClear => true,
-      Fault.proxy || Fault.network || Fault.headlessClose => false,
+      Fault.proxy ||
+      Fault.network ||
+      Fault.headlessClose ||
+      Fault.dnsFetch => false,
     },
   );
 
@@ -2824,7 +2833,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           Fault.jarRead => JarCall.read,
           Fault.jarWrite => JarCall.write,
           Fault.jarClear => JarCall.clear,
-          Fault.proxy || Fault.network || Fault.headlessClose => null,
+          Fault.proxy ||
+          Fault.network ||
+          Fault.headlessClose ||
+          Fault.dnsFetch => null,
         } case final call?) {
           jar.failing.add(call);
         }

@@ -308,6 +308,11 @@ Inv_HeadlessOwned == headless # {} => \E g \in Flows : fl[g].kind = "wake"
 \* together.
 Inv_Told == \A s \in Sites : told[s] \in {-1, Eff(s)}
 
+\* The lists' turn is held only by a DNS flow in flight: a flow lets it go
+\* as it ends, the fetch no mirror answered among them, or every change of
+\* the lists after it waits on a flow that is gone (DNS-022).
+Inv_DnsTurnLive == dnsHolder # 0 => fl[dnsHolder].kind = "dns"
+
 \* The proxy configs' environment: every site in the one process-global
 \* scope, which one rule covers, sites 1 and 2 on one route and site 3 on
 \* another.
@@ -350,6 +355,8 @@ Offline == FALSE
 \* DNS blocking off; downloads pick level 1 or 2.
 DnsAsk == <<-1, 2, 0>>
 DnsTwo == {1, 2}
+\* The failing mirror's config: every fetch of a list fails.
+DnsFetchCanFail == TRUE
 \* The cap config's: two sites loaded, one of them resident.
 CapTwo == 2
 WarmOne == 1
