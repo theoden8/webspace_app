@@ -1087,10 +1087,19 @@ Its controls SHALL be:
 - the arrow tab, shown only while the sidebar is closed: a tap brings it back
   as it was left; a drag right pulls it out under the finger and lets go at
   the nearest of hidden, the rail and open; a drag up or down moves the tab
-  along the edge, remembered (`sidebarHandleY`);
+  along the edge, remembered (`sidebarHandleY`); on Android 10 and later the
+  tab SHALL keep its own strip of the edge from the system back swipe (a
+  system gesture exclusion over the tab alone), so a drag from the edge pulls
+  the sidebar out and the rest of the edge still goes back;
 - a keyboard shortcut (Ctrl/Cmd-Alt-Z) that cycles open, collapsed, hidden;
 - the open sidebar's right edge, whose drag shows a guide line and resizes it
   on release, between 200 and 420 (`sidebarWidth`, 260 by default).
+
+#### Scenario: A drag from the edge pulls the sidebar out on Android
+
+- **GIVEN** Android with gesture navigation, the sidebar hidden
+- **WHEN** the user drags right from the arrow tab at the screen's edge
+- **THEN** the sidebar pulls out under the finger, and the page does not go back
 
 #### Scenario: Collapse, hide, open fully
 

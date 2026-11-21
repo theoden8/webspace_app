@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/services/back_swipe_exclusion.dart';
 import 'package:webspace/theme/design_tokens.dart';
 
 /// The small tab on the left edge that brings a closed sidebar back: a tap
 /// brings it back as it was left; a drag right pulls it out under the
-/// finger; a drag up or down moves the tab along the edge.
+/// finger; a drag up or down moves the tab along the edge. On Android it
+/// keeps its own strip of the edge from the system back swipe (TAB-032).
 class SidebarArrowTab extends StatefulWidget {
   const SidebarArrowTab({
     super.key,
@@ -14,6 +18,7 @@ class SidebarArrowTab extends StatefulWidget {
     required this.onPullEnd,
     required this.onMove,
     required this.onMoveEnd,
+    this.exclusion,
   });
 
   static const Size size = Size(18, 60);
@@ -28,6 +33,9 @@ class SidebarArrowTab extends StatefulWidget {
   final ValueChanged<double> onMove;
   final VoidCallback onMoveEnd;
 
+  /// Where the tab claims its strip of the edge; the app's own by default.
+  final BackSwipeExclusion? exclusion;
+
   @override
   State<SidebarArrowTab> createState() => _SidebarArrowTabState();
 }
@@ -38,8 +46,29 @@ class _SidebarArrowTabState extends State<SidebarArrowTab> {
   _Drag _drag = _Drag.none;
   Offset _travelled = Offset.zero;
 
+  BackSwipeExclusion get _exclusion =>
+      widget.exclusion ?? BackSwipeExclusion.instance;
+
+  /// Claims the strip the tab was laid out on, in the window's device pixels.
+  void _claim() {
+    if (!mounted) return;
+    final box = context.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return;
+    final ratio = View.of(context).devicePixelRatio;
+    final rect = (box.localToGlobal(Offset.zero) & box.size);
+    unawaited(_exclusion.keep(Rect.fromLTRB(rect.left * ratio,
+        rect.top * ratio, rect.right * ratio, rect.bottom * ratio)));
+  }
+
+  @override
+  void dispose() {
+    unawaited(_exclusion.release());
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _claim());
     final scheme = Theme.of(context).colorScheme;
     return Tooltip(
       message: AppLocalizations.of(context).sidebarShow,
