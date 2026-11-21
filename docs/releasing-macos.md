@@ -41,8 +41,14 @@ Do not point users at it. The two signed channels below are the product.
 2. **App group** `group.org.codeberg.theoden8.webspace`, enabled for both IDs.
 3. **Certificates**. Developer ID Application for the direct build; Apple
    Distribution plus Mac Installer Distribution for the App Store build.
-4. **Provisioning profiles** (Mac App Store type) for the app and the
-   extension. The Developer ID channel needs none.
+4. **Provisioning profiles** for the app and the extension, one pair per
+   channel: Mac App Store type for the App Store build, Developer ID type for
+   the direct one. The keychain group and application identifier are
+   restricted entitlements, so macOS launches the app only when its embedded
+   profile grants them to the signing certificate; a Developer ID build that
+   keeps the development profile Xcode embedded fails at launch with
+   "Launchd job spawn failed". `sign_macos.sh` refuses a profile that lists
+   devices, which only a development one does.
 5. **App Store Connect**. Add the macOS platform to the existing app record
    rather than creating a second one: the bundle identifier matches the iOS
    app, so macOS joins it as a universal purchase and inherits the listing.
@@ -66,13 +72,15 @@ release artifacts are signed after the build:
 ```bash
 # Developer ID: hardened runtime, notarized, stapled -> build/macos/*.zip, *.dmg
 fvm flutter build macos --release --flavor direct
+MACOS_PROVISION_PROFILE=~/profiles/devid-app.provisionprofile \
+MACOS_EXT_PROVISION_PROFILE=~/profiles/devid-ext.provisionprofile \
 NOTARY_PROFILE=webspace-notary \
   ./scripts/sign_macos.sh devid
 
 # Mac App Store: profiles embedded, packaged -> build/macos/*.pkg
 fvm flutter build macos --release
-MACOS_PROVISION_PROFILE=~/profiles/app.provisionprofile \
-MACOS_EXT_PROVISION_PROFILE=~/profiles/ext.provisionprofile \
+MACOS_PROVISION_PROFILE=~/profiles/appstore-app.provisionprofile \
+MACOS_EXT_PROVISION_PROFILE=~/profiles/appstore-ext.provisionprofile \
   ./scripts/sign_macos.sh mas
 ```
 
@@ -166,10 +174,8 @@ launch. Until then passkeys do nothing on macOS: WebKit refuses every site.
    - `adhoc` has to drop the key alongside the app group and keychain group,
      both in `materialize_entitlements` and in `assert_grants_present`'s
      ad-hoc exclusions, or the CI artifact is SIGKILLed at launch.
-   - `devid` embeds no profile today, and a restricted entitlement needs one:
-     it needs a Developer ID provisioning profile carrying the capability,
-     copied to `Contents/embedded.provisionprofile` as `mas` does.
-   - `mas` works unchanged once the profile carries it.
+   - `devid` and `mas` both embed the profiles they are given: regenerate
+     the Developer ID and Mac App Store profiles so they carry it.
 4. **Check it.** A signed build registers and signs in at
    <https://webauthn.io>; an archived site gets NotAllowedError from the block
    shim.
