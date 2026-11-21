@@ -264,6 +264,9 @@ not forced to migrate.
   the grace window is open
 - **AND** notifications from site N continue to be delivered through
   Tor
+- **AND** `test/js/wake_tor_prewarm.test.js` holds that Tor's holders
+  follow the site list and no path to the background releases one, so the
+  idle stop never starts while a Tor site exists
 
 #### Scenario: BGAppRefreshTask pre-warms Tor
 
@@ -272,6 +275,12 @@ not forced to migrate.
 - **WHEN** the task handler runs
 - **THEN** `TorService.maybeStart` is awaited until `up` (or fails)
 - **AND** only then does the handler trigger site N's reload
+- **AND** the wait comes out of the OS task's budget: the wake keeps to
+  what is left (`BackgroundWakeEngine.wake(since:)`), and waits less than
+  half of the shortest budget
+- **AND** `wakeWaitsForTor` in `test/wake_candidates_test.dart`, the budget
+  in `test/background_wake_engine_test.dart` and the controller's order in
+  `test/js/wake_tor_prewarm.test.js` hold it
 
 ---
 

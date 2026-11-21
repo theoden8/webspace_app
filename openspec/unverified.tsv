@@ -119,7 +119,6 @@ QR-007	process: records a known limitation (no per-field type validation) rather
 # tls-trust-prompt
 # tor-proxy
 TOR-005	no check: nothing checks that the Rebuild circuits button calls the engine, that the native side sends SIGNAL NEWNYM, or that the exit changes while non-Tor sites are untouched (partly: test/tor_engine_test.dart, "rebuildCircuits is a no-op unless the runtime is up")
-TOR-006	no check: no test covers TorService staying up through the iOS grace window, or a wake awaiting Tor before reloading a Tor notification site (partly: test/background_wake_engine_test.dart, "a route that will not apply starts no headless load")
 # tracking-protection
 ETP-029	no check: not implemented: task 6.3 of upstream-webview-defects is open and no shim or test registers or probes the plugin's console wrappers
 # user-scripts

@@ -15,6 +15,15 @@ class WakeEnvironment {
   const WakeEnvironment({required this.containers, required this.torUp});
 }
 
+/// Whether a wake gives Tor time to come up before it plans (TOR-006): a
+/// notification site it would check routes through Tor, and Tor is not up.
+/// A process the OS started for the wake has Tor still bootstrapping, and a
+/// plan made then would skip every such site as [WakeSkip.torDown].
+bool wakeWaitsForTor(Iterable<WebViewModel> sites, {required bool torUp}) =>
+    sites.any((m) =>
+        m.effectiveNotificationsEnabled &&
+        waitsForTor(m.outboundProxy, torUp: torUp));
+
 /// [m] as a background wake sees it. [loaded] and [hasWebview] are the slot's
 /// state; [proxyBindable] is false when the site's proxy cannot be bound to a
 /// webview (SEC-009).
