@@ -478,9 +478,13 @@ The App Logs ring (DEVTOOLS-004) cannot answer that question. It lives in memory
 
 ---
 
-### Requirement: DEVTOOLS-013 - Launch Timeline
+### Requirement: DEVTOOLS-013 - Activation Timeline
 
-Each launch SHALL write one App Logs line, tagged Startup, giving the time from `main()` to each launch phase it reached (`LaunchMark`), in the order this launch reached them, then the first time it marked each activation step (`ActivationStep`, named as `formal/activation.tla` names it). The line SHALL be written when the launched site's first load settles or stops being waited for (`kLaunchLoadWait`), or as soon as the activation ends when the launch opened no site. It names no site and is not sensitive, so a launch can be timed on a device with no debugger attached ([launch_timeline.dart](../../../lib/services/launch_timeline.dart)).
+Each launch SHALL write one App Logs line, tagged Startup, giving the time from `main()` to each launch phase it reached (`LaunchMark`), in the order this launch reached them, then the first time it marked each activation step (`ActivationStep`, named as `formal/activation.tla` names it). The launch line SHALL be written when the launched site's first load settles or stops being waited for (`kLaunchLoadWait`), or as soon as the activation ends when the launch opened no site.
+
+After the launch, each user-visible switch — a site, a tab or a webspace — SHALL write one Startup line of its own, giving the time from its tap to the phases it reached (activated, webview built, page started, page settled), in the order reached. A switch's line SHALL be written when its page settles, or when the next switch supersedes it; an off-screen flow (a preload, a background wake) writes no line.
+
+The same owner times the launch and the switches, reusing the activation-step marks ([launch_timeline.dart](../../../lib/services/launch_timeline.dart)). A line names no site and is not sensitive, so an activation can be timed on a device with no debugger attached, and nothing the timeline keeps is persisted, so an archive-tier site varies no stored state through it (ARCH-001).
 
 #### Scenario: A shortcut launch is timed on the device
 
@@ -488,11 +492,17 @@ Each launch SHALL write one App Logs line, tagged Startup, giving the time from 
 **When** the site's first load settles
 **Then** App Logs carries one Startup line listing each phase reached with its milliseconds from `main()`, in the order reached, and each activation step the launch marked
 
-#### Scenario: One line per process
+#### Scenario: One launch line per process
 
 **Given** the launch line has been written
 **When** another webview is built or loads
 **Then** no second launch line is written
+
+#### Scenario: A site switch is timed from the tap
+
+**Given** the launch line has been written
+**When** the user switches to another site and its first load settles
+**Then** App Logs carries one Startup line timing that switch from its tap through activated, webview built, page started and page settled, naming no site
 
 ---
 
