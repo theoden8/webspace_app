@@ -78,8 +78,9 @@ class _Page implements LinkHost {
       calls.add('openNested ${action.siteId} ${action.url}');
 
   @override
-  Future<void> unloadSite(WebViewModel site, {required UnloadReason reason}) async {
-    calls.add('unload ${sites.models.indexOf(site)} ${reason.name}');
+  Future<void> sendHome(WebViewModel site) async {
+    calls.add('home ${sites.models.indexOf(site)}');
+    site.currentUrl = site.initUrl;
     sites.retiredInTest(site);
   }
 
@@ -163,7 +164,7 @@ void main() {
 
     expect(page.calls, [
       'reveal 0',
-      'unload 0 homeReset',
+      'home 0',
       'wipe ${github.siteId}',
       'activate 0',
       'commit SitesEdited',

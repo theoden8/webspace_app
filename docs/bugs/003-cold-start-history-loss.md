@@ -71,8 +71,11 @@ a restart must pair a capture point (before death) with a restore queue
 - App-version upgrades intentionally wipe all saved state and rotate the
   AES key (`_clearCacheOnUpgrade`, PAUSE-008) — history is expected to
   reset on the first launch after an update.
-- `alwaysOpenHome` / incognito / archive-tier sites intentionally forget
-  (AOH-002, `persistsNavState`).
+- Incognito and archive-tier sites intentionally forget (`persistsNavState`).
+  An `alwaysOpenHome` site persists its stack within a session (AOH-006) and
+  forgets its landed tab's on a fresh entry (`landsAtHomeOnLoad`,
+  `SiteActivationController.forgetHistory`); until issue #1046 it did not,
+  and attempt 3's cold restore put the page it was left on back over home.
 - Sites loaded but never navigated after their last capture keep a stale
   stack (no event to debounce); harmless in practice since nothing changed.
 - Nested `InAppWebViewScreen` browsers have no persistence at all — their
