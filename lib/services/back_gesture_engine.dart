@@ -44,7 +44,10 @@ enum BackAtHistoryStart { ignore, openMenu }
 /// the user opened via the AppBar menu button: only the former escalates to
 /// leaving the app, so back never quits from a deliberately opened menu.
 /// [drawerAvailable] is false while the kiosk shell is locked (KIOSK-002),
-/// which pins the gesture to the default behaviour.
+/// which pins the gesture to the default behaviour. [navigationShown] says
+/// the menu is already on screen beside the page (a docked sidebar,
+/// TAB-036), so at the start of history the gesture leaves the app as it
+/// would from a drawer it opened.
 BackGestureAction decideBackGesture({
   required bool drawerOpen,
   required bool drawerOpenedByGesture,
@@ -54,6 +57,7 @@ BackGestureAction decideBackGesture({
   required bool canGoBack,
   required BackAtHistoryStart atHistoryStart,
   required bool canExitApp,
+  required bool navigationShown,
 }) {
   final openMenu = atHistoryStart == BackAtHistoryStart.openMenu && drawerAvailable;
   if (drawerOpen) {
@@ -68,7 +72,9 @@ BackGestureAction decideBackGesture({
   }
   if (!trustsCanGoBack) return BackGestureAction.attemptGoBack;
   if (canGoBack) return BackGestureAction.goBack;
-  return openMenu ? BackGestureAction.openDrawer : BackGestureAction.ignore;
+  if (!openMenu) return BackGestureAction.ignore;
+  if (!navigationShown) return BackGestureAction.openDrawer;
+  return canExitApp ? BackGestureAction.exitApp : BackGestureAction.ignore;
 }
 
 /// Decides what remains to be done after [BackGestureAction.attemptGoBack]
@@ -77,9 +83,12 @@ BackGestureAction decideAfterAttemptedGoBack({
   required bool urlChanged,
   required bool drawerAvailable,
   required BackAtHistoryStart atHistoryStart,
+  required bool navigationShown,
 }) {
   if (urlChanged) return BackGestureAction.ignore;
-  return atHistoryStart == BackAtHistoryStart.openMenu && drawerAvailable
+  return atHistoryStart == BackAtHistoryStart.openMenu &&
+          drawerAvailable &&
+          !navigationShown
       ? BackGestureAction.openDrawer
       : BackGestureAction.ignore;
 }

@@ -179,3 +179,9 @@ bool backOpensDrawer({
   required bool wide,
 }) =>
     !libraryDesign && (navigation != SiteNavigation.sidebar || !wide);
+
+/// Whether the menu the back gesture would open (NAV-009) is already on
+/// screen beside the page: the legacy design's sidebar docked open, which
+/// Back then leaves the app from as from a drawer it opened (TAB-036).
+bool backMenuShown({required bool libraryDesign, required SidebarDock dock}) =>
+    !libraryDesign && dock == SidebarDock.full;

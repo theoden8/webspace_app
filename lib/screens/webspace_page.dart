@@ -1628,6 +1628,12 @@ class _PageHost
       _s._surfaces.float == SidebarFloat.drawer;
 
   @override
+  bool get navigationShown => backMenuShown(
+        libraryDesign: _s._libraryDesign,
+        dock: _s._surfaces.dock,
+      );
+
+  @override
   bool get navigationIsDrawer => backOpensDrawer(
         libraryDesign: _s._libraryDesign,
         navigation: currentSiteNavigation,

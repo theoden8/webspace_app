@@ -20,6 +20,10 @@ abstract interface class BackGestureHost {
   /// Whether opening navigation opens a drawer over the page, which the
   /// next gesture may escalate from.
   bool get navigationIsDrawer;
+
+  /// The menu the gesture would open is already on screen beside the page:
+  /// a docked sidebar (TAB-036).
+  bool get navigationShown;
   void closeDrawer();
 
   /// The controller of the site on screen, or null.
@@ -98,6 +102,7 @@ class BackGestureController {
         canGoBack: canGoBack,
         atHistoryStart: _backAtHistoryStart,
         canExitApp: hostIsAndroid,
+        navigationShown: _host.navigationShown,
       );
       // At the start of the page history the gesture is still spendable: a
       // tab the user opened from another tab closes and hands back to it
@@ -128,7 +133,7 @@ class BackGestureController {
           await _openNavigationFromBackGesture();
           break;
         case BackGestureAction.exitApp:
-          LogTag.navigation.debug('Back gesture: no site shown, leaving app');
+          LogTag.navigation.debug('Back gesture: nothing left to go back to, leaving app');
           await SystemNavigator.pop();
           break;
         case BackGestureAction.goBack:
@@ -159,6 +164,7 @@ class BackGestureController {
             urlChanged: urlChanged,
             drawerAvailable: !_host.kioskLocked,
             atHistoryStart: _backAtHistoryStart,
+            navigationShown: _host.navigationShown,
           );
           if (next == BackGestureAction.openDrawer) {
             LogTag.navigation.debug('Back gesture: no history, opening navigation');

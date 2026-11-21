@@ -1167,7 +1167,20 @@ Webspaces) and its Add Site, show the sites as squares unless the tree is
 chosen, and show whenever a webspace is picked, with a site on screen or not.
 The app bar SHALL carry no drawer button and no webspaces button. Picking a
 webspace and the back gesture's navigation (NAV-009) SHALL open the sidebar
-where they opened the drawer.
+where they opened the drawer. On a wide window, where the open sidebar is
+docked beside the page rather than over it, the open sidebar SHALL be the
+menu the gesture opened: at the start of a page's history the gesture SHALL
+open a collapsed or hidden sidebar, and with the sidebar open SHALL leave the
+app where the platform lets it, so the gesture never stops answering.
+
+#### Scenario: Back on a wide window opens the sidebar, then leaves
+
+- **GIVEN** the legacy design on a wide Android window, Sidebar chosen and
+  collapsed, Back opens menu on, a page at the start of its history
+- **WHEN** the user presses Back
+- **THEN** the sidebar opens
+- **WHEN** the user presses Back again
+- **THEN** the app leaves
 
 #### Scenario: The header and Add Site stay
 

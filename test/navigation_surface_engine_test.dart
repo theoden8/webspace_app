@@ -264,4 +264,12 @@ void main() {
       }
     }
   });
+
+  test('TAB-036: the legacy design\'s docked open sidebar is the menu Back '
+      'would open; the library\'s, the rail and a drawer are not', () {
+    expect(backMenuShown(libraryDesign: false, dock: SidebarDock.full), isTrue);
+    expect(backMenuShown(libraryDesign: true, dock: SidebarDock.full), isFalse);
+    expect(backMenuShown(libraryDesign: false, dock: SidebarDock.rail), isFalse);
+    expect(backMenuShown(libraryDesign: false, dock: SidebarDock.none), isFalse);
+  });
 }
