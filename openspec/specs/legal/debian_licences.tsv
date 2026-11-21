@@ -326,3 +326,68 @@ GPL-2+	LicenseRef-build-only	libunwind8	debian/*	Debian packaging
 RFC-special	LicenseRef-build-only	libvorbis0a	doc/rfc5215.*	the RFC's text in doc/, not in the package
 RFC-special	LicenseRef-build-only	libvorbisenc2	doc/rfc5215.*	the RFC's text in doc/, not in the package
 MIT-1	X11	libxml2		the X11 licence with Daniel Veillard for the X Consortium (MIT's grant, then "the name of Daniel Veillard shall not be used in advertising"); Debian's own comment: not Expat
+
+# The same packages as Ubuntu 22.04 names them, for the snap and the AppImage
+# built on core22 (PLATFORM-012, PLATFORM-013): no t64 suffix, 22.04's sonames,
+# and libevent's and libjpeg-turbo's files as 22.04 writes them.
+custom-1	IJG	libavif13		apps/shared/iccjpeg, IJG's terms, a tool's file
+Artistic	LicenseRef-build-only	libssl3	external/perl/Text-Template-1.56/*	a Perl module OpenSSL's build runs
+GPL-1+	LicenseRef-build-only	libssl3	external/perl/Text-Template-1.56/*	a Perl module OpenSSL's build runs
+GPL-2	LicenseRef-build-only	libatk-bridge2.0-0	debian/*	Debian packaging
+GPL-2	LicenseRef-build-only	libatk1.0-0	debian/*	Debian packaging
+GPL-2	LicenseRef-build-only	libatspi2.0-0	debian/*	Debian packaging
+GFDL-NIV-1.3	LicenseRef-build-only	libdw1	doc/readelf.1	a manual page
+GPL-3+	LicenseRef-build-only	libdw1	* debian/po/de.po debian/po/es.po debian/po/fr.po debian/po/nl.po debian/po/pt_BR.po debian/po/pt.po	the catch-all stanza: the programs (src/), tests and Debian translations; every file libdw and libelf compile is under backends/* or lib* (from their debug info)
+GPL-3+ with Bison exception	LicenseRef-build-only	libdw1	libcpu/i386_parse.*	the parser of i386_gendis, a program run at build time to write i386_dis.h; not in libdw (checked against its debug info)
+GFDL-NIV-1.3	LicenseRef-build-only	libelf1	doc/readelf.1	a manual page
+GPL-3+	LicenseRef-build-only	libelf1	* debian/po/de.po debian/po/es.po debian/po/fr.po debian/po/nl.po debian/po/pt_BR.po debian/po/pt.po	the catch-all stanza: the programs (src/), tests and Debian translations; every file libdw and libelf compile is under backends/* or lib* (from their debug info)
+GPL-3+ with Bison exception	LicenseRef-build-only	libelf1	libcpu/i386_parse.*	the parser of i386_gendis, a program run at build time to write i386_dis.h; not in libdw (checked against its debug info)
+CC-BY-SA-3.0	LicenseRef-build-only	libglib2.0-0	docs/reference/gio/menu-model.png docs/reference/glib/gvariant-*.svg	documentation images
+FSFULLR	LicenseRef-build-only	libglib2.0-0	glib/gnulib/gl_cv_cc_double_expbit0/meson.build glib/gnulib/gl_cv_func_frexp_works/meson.build glib/gnulib/gl_cv_func_frexpl_works/meson.build glib/gnulib/gl_cv_func_ldexpl_works/meson.build glib/gnulib/gl_cv_func_printf_directive_a/meson.build glib/gnulib/gl_cv_func_printf_directive_f/meson.build glib/gnulib/gl_cv_func_printf_directive_ls/meson.build glib/gnulib/gl_cv_func_printf_enomem/meson.build glib/gnulib/gl_cv_func_printf_flag_grouping/meson.build glib/gnulib/gl_cv_func_printf_flag_leftadjust/meson.build glib/gnulib/gl_cv_func_printf_flag_zero/meson.build glib/gnulib/gl_cv_func_printf_infinite/meson.build glib/gnulib/gl_cv_func_printf_infinite_long_double/meson.build glib/gnulib/gl_cv_func_printf_long_double/meson.build glib/gnulib/gl_cv_func_printf_precision/meson.build glib/gnulib/gl_cv_long_double_equals_double/meson.build glib/gnulib/gl_extern_inline/meson.build glib/libcharset/codeset.m4 glib/libcharset/glibc21.m4	meson configure checks and m4 macros that build the library and are not in it
+GPL-2+	LicenseRef-build-only	libglib2.0-0	glib/gen-unicode-tables.pl glib/tests/gen-casefold-txt.py glib/tests/gen-casemap-txt.py po/po2tbl.sed.in tools/glib-gettextize.in	generator and gettext scripts run at build time; their output tables carry the Unicode data, not the scripts
+Iconv-PD	LicenseRef-build-only	libglib2.0-0	glib/win_iconv.c	the Windows iconv, not compiled on Linux
+Janik-permissive	LicenseRef-build-only	libglib2.0-0	gobject/tests/closure-refcount.c	a test program, not built into the libraries
+Janik-permissive	LicenseRef-Janik-permissive	libglib2.0-0		glib/gbsearcharray.h, compiled into libgobject: redistribution and modification permitted if the disclaimer is retained; no SPDX id
+Kuchling-PD	LicenseRef-public-domain	libglib2.0-0	glib/gchecksum.c	A.M. Kuchling's SHA code in gchecksum.c: use and distribute freely, no restrictions
+Mingw-PD	LicenseRef-build-only	libglib2.0-0	gio/gwin32api-application-activation-manager.h gio/gwin32api-iterator.h gio/gwin32api-misc.h gio/gwin32api-package.h gio/gwin32api-storage.h glib/dirent/dirent.c glib/dirent/dirent.h	Windows-only headers, not compiled on Linux
+Plumb-PD	LicenseRef-public-domain	libglib2.0-0	glib/gchecksum.c	Colin Plumb's MD5 in gchecksum.c, placed in the public domain
+cmph	LicenseRef-build-only	libglib2.0-0	girepository/cmph/*	built into libgirepository-2.0, a separate binary package this one does not ship
+old-glib-tests	LicenseRef-build-only	libglib2.0-0	gio/tests/async-close-output-stream.c gio/tests/async-splice-output-stream.c gio/tests/buffered-input-stream.c gio/tests/converter-stream.c gio/tests/credentials.c gio/tests/data-input-stream.c gio/tests/data-output-stream.c gio/tests/g-file-info-filesystem-readonly.c gio/tests/g-file-info.c gio/tests/g-file.c gio/tests/g-icon.c gio/tests/giomodule.c gio/tests/inet-address.c gio/tests/io-stream.c gio/tests/live-g-file.c gio/tests/memory-input-stream.c gio/tests/memory-output-stream.c gio/tests/modules/test-module-a.c gio/tests/modules/test-module-b.c gio/tests/permission.c gio/tests/srvtarget.c gio/tests/thumbnail-verification.c gio/tests/unix-streams.c gio/tests/vfs.c gio/tests/win32-appinfo.c gio/tests/win32-streams.c glib/tests/asyncqueue.c glib/tests/cond.c glib/tests/fileutils.c glib/tests/hook.c glib/tests/mainloop.c glib/tests/markup.c glib/tests/mem-overflow.c glib/tests/mutex.c glib/tests/once.c glib/tests/onceinit.c glib/tests/option-argv0.c glib/tests/option-context.c glib/tests/private.c glib/tests/protocol.c glib/tests/rand.c glib/tests/rec-mutex.c glib/tests/rwlock.c glib/tests/spawn-multithreaded.c glib/tests/spawn-singlethread.c glib/tests/strfuncs.c glib/tests/string.c glib/tests/strvbuilder.c glib/tests/test-printf.c glib/tests/test-spawn-echo.c glib/tests/test-spawn-sleep.c glib/tests/testing.c glib/tests/testutils.h glib/tests/thread-pool.c glib/tests/thread.c glib/tests/timer.c glib/tests/unicode.c glib/tests/unix.c glib/tests/utf8-misc.c glib/tests/utils.c glib/tests/win32.c gobject/tests/autoptr.c gobject/tests/custom-dispatch.c gobject/tests/dynamictests.c gobject/tests/notify-init.c gobject/tests/notify-init2.c gobject/tests/threadtests.c gobject/tests/closure-refcount.c	GLib's old test programs, not built into the libraries
+CC-BY-SA-4.0	LicenseRef-build-only	libgtk-3-0	gtk/icons/scalable/status/*.svg	scalable icons neither the library's compiled resources (gresource list) nor the package carry
+GPL-3+	LicenseRef-build-only	libgtk-3-0	debian/tests/run-with-display	an autopkgtest script, not in the package
+LGPL-2+ and ZPL-2.1	LicenseRef-build-only	libgtk-3-0	gdk/win32/winpointer.h	a Windows backend header, not built on Linux
+SWL	TCL	libgtk-3-0		GTK's text widget files from Tk, under the Tcl/Tk licence; compiled into libgtk-3
+X11R5-permissive	HPND-sell-variant	libgtk-3-0		the Wayland text-input-v3 protocol's notice (permission to use, copy, modify, distribute, and sell); compiled only into im-wayland.so
+check-gdk-cairo-permissive	LicenseRef-build-only	libgtk-3-0	testsuite/gdk/check-gdk-cairo.c	a test
+other	LicenseRef-build-only	libgtk-3-0	gdk/win32/wintab.h gdk/win32/pktdef.h	Windows backend headers, not built on Linux
+unencumbered	LicenseRef-build-only	libgtk-3-0	gdk/win32/cursor.bdf	the Windows backend, not built on Linux
+GAP	LicenseRef-build-only	libhogweed6	debian/pkcs1-conv.1 debian/nettle-lfib-stream.1	manual pages the nettle-bin package installs
+GPL-2	LicenseRef-build-only	libhogweed6	debian/sexp-conv.1	a manual page the nettle-bin package installs
+GPL-2+	LicenseRef-build-only	libhogweed6	getopt*	GNU getopt, compiled only into the nettle-bin programs (sexp-conv, nettle-hash, pkcs1-conv); the library's sources do not include it and the stripped library has no getopt code
+GPL-3+ with Autoconf exception	LicenseRef-build-only	libhogweed6	config.guess config.sub	autoconf's host-detection scripts
+GPL-3	LicenseRef-build-only	libicu70	debian/*	Debian packaging
+GAP	LicenseRef-build-only	libnettle8	debian/pkcs1-conv.1 debian/nettle-lfib-stream.1	manual pages the nettle-bin package installs
+GPL-2	LicenseRef-build-only	libnettle8	debian/sexp-conv.1	a manual page the nettle-bin package installs
+GPL-2+	LicenseRef-build-only	libnettle8	getopt*	GNU getopt, compiled only into the nettle-bin programs (sexp-conv, nettle-hash, pkcs1-conv); the library's sources do not include it and the stripped library has no getopt code
+GPL-3+ with Autoconf exception	LicenseRef-build-only	libnettle8	config.guess config.sub	autoconf's host-detection scripts
+BSD-like-with-advertising-clause	LicenseRef-build-only	libpng16-16	contrib/gregbook/* contrib/visupng/resource.h contrib/visupng/cexcept.h	the book's demo programs (rpng, wpng) and VisualPng, which are not in libpng16.so
+GPL-2+	LicenseRef-build-only	libpng16-16	contrib/gregbook/* contrib/visupng/resource.h contrib/visupng/cexcept.h	the book's demo programs (rpng, wpng) and VisualPng, which are not in libpng16.so
+GPL-2+	LicenseRef-build-only	libpng16-16	debian/*	Debian's packaging, which is not in the binary package
+libpng	Libpng	libpng16-16		the libpng licence (versions through 1.6.35, Group 42 and the Contributing Authors), SPDX Libpng
+Chromium	BSD-3-Clause	libpsl5		Chromium's BSD-3-Clause; lookup_string_in_fixed_set.c is compiled in
+gnulib	LicenseRef-build-only	libpsl5	debian/patches/0003-Add-m4-visibility.m4-from-gnulib-20230113-stable-1.patch	a patch adding an m4 macro
+FreeSoftware	LicenseRef-build-only	libunistring2	gnulib-m4/* m4/*.m4	gnulib m4 macros
+GFDL-NIV-1.2+	LicenseRef-build-only	libunistring2	doc/*	the manual
+GPL-2+	LicenseRef-build-only	libunistring2	build-aux/* build-aux/texi2html build-aux/ltmain.sh	build-aux scripts
+GPL-2+ with distribution exception	LicenseRef-build-only	libunistring2	m4/init-package-version.m4 build-aux/ltmain.sh	an m4 macro and ltmain.sh
+GPL-3+	LicenseRef-build-only	libunistring2	doc/* tests/* woe32dll/* autogen.sh debian/*	the manual, tests, Windows DLL helpers, autogen.sh and Debian packaging
+X11	LicenseRef-build-only	libunistring2	build-aux/install-sh	the install script
+JPEG	IJG	libjpeg-turbo8		the Independent JPEG Group's licence, which Ubuntu 22.04's file names JPEG
+FSFULLR	LicenseRef-build-only	libevent-2.1-7	./m4/ltoptions.m4 ./m4/ltsugar.m4 ./m4/lt~obsolete.m4	libtool's macros, which build the library and are not in it
+FSFULLR-No-Warranty	LicenseRef-build-only	libevent-2.1-7	./Makefile.in ./aclocal.m4 ./m4/ltversion.m4	generated build files
+FSFUL	LicenseRef-build-only	libevent-2.1-7	./configure	the generated configure script
+BSL	LicenseRef-build-only	libevent-2.1-7	./cmake/CodeCoverage.cmake	a build script
+BSD-3-Clause~Kitware	LicenseRef-build-only	libevent-2.1-7	./cmake/CheckFunctionExistsEx.cmake ./cmake/FindGit.cmake	CMake modules from Kitware that the build reads
+curl	LicenseRef-build-only	libevent-2.1-7	./sample/hostcheck.c	a sample program
+GPL-2+	LicenseRef-build-only	libevent-2.1-7	./compile ./depcomp ./ltmain.sh ./missing ./test-driver ./m4/libtool.m4	automake's and libtool's build scripts and macros
+GPL-3+	LicenseRef-build-only	libevent-2.1-7	./config.guess ./config.sub ./m4/acx_pthread.m4	autoconf's host-detection scripts and an autoconf macro

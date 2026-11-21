@@ -101,7 +101,7 @@ snapcraft register webspace-app
 ```
 
 Each release, upload the workflow's artifacts, or snaps built locally with
-`snapcraft pack` (in LXD, or `--destructive-mode` on Ubuntu 24.04). Each
+`snapcraft pack` (in LXD, or `--destructive-mode` on Ubuntu 22.04). Each
 architecture's upload is a revision of its own:
 
 ```bash
@@ -149,3 +149,8 @@ files, and uploads them to the tag's GitHub release once you answer `y`,
 making the release from the build's changelog if there is none. Installed
 copies update from the latest release. It needs `gh` signed in, `gpg`, `node`,
 `curl`, `tar` and `zstd`.
+
+`scripts/build_all.sh appimage` packs and signs the same way into
+`build/release`, from a snap built on your machine or, with
+`APPIMAGE_RUN=<run id>`, from a run's AppDirs, but checks no provenance and
+uploads nothing: publish a release with the command above.

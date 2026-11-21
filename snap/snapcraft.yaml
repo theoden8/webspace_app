@@ -1,17 +1,19 @@
-# The snap: built from source by snapcraft on core24 under strict confinement,
+# The snap: built from source by snapcraft on core22 under strict confinement,
 # on the GNOME extension's runtime. `snapcraft pack` builds it (in LXD, or with
-# --destructive-mode on an Ubuntu 24.04 host). Registering the name, uploading
+# --destructive-mode on an Ubuntu 22.04 host). core22, not a newer base, so
+# the AppImage made from it runs on the oldest Ubuntu LTS still supported
+# (PLATFORM-013). Registering the name, uploading
 # and releasing are the maintainer's (docs/releasing.md).
 name: webspace-app
 title: WebSpace
-base: core24
+base: core22
 adopt-info: webspace
 grade: stable
 confinement: strict
 
-platforms:
-  amd64:
-  arm64:
+architectures:
+  - build-on: [amd64]
+  - build-on: [arm64]
 
 # WebKit compiles in where its helper processes, injected bundle and inspector
 # resources live (PKGLIBEXECDIR, PKGLIBDIR, PKGDATADIR), and a release build
@@ -97,13 +99,51 @@ parts:
       - -usr/include
       - -usr/lib/*/pkgconfig
 
+  # Clang and libc++ for WebKit: LLVM's release toolchain, pinned by SHA-256
+  # per architecture, of which only what builds WebKit is kept and nothing is
+  # primed. Ubuntu 22.04's newest Clang (15) is older than WebKit needs (18),
+  # and its libstdc++ (12) has no <format>; WebKit links this libc++ in
+  # statically with its symbols hidden, so the machine's libstdc++ is the one
+  # every other library uses. Debian's libc++ packages cannot be installed
+  # here: they depend on LLVM's libunwind, which conflicts with the
+  # libunwind-dev GStreamer's headers need. Its clang needs glibc 2.34 and
+  # libstdc++ 12, which Ubuntu 22.04 has.
+  llvm:
+    plugin: nil
+    override-pull: |
+      case "$CRAFT_ARCH_BUILD_FOR" in
+        amd64)
+          url=https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.6/LLVM-23.1.6-Linux-X64.tar.xz
+          sum=bd4d1c434ff69ef06d19e7934c04708da677e5f2eb51f5bcf052ab91818f0094 ;;
+        arm64)
+          url=https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.6/LLVM-23.1.6-Linux-ARM64.tar.xz
+          sum=e9daa167da28b9e31d30046f05f98e3e7da3647cdbe1c1863e8b223c07ccf291 ;;
+        *) echo "no LLVM toolchain for $CRAFT_ARCH_BUILD_FOR" >&2; exit 1 ;;
+      esac
+      top="$(basename "$url" .tar.xz)"
+      curl --proto '=https' --tlsv1.2 -fsSL --retry 4 --retry-delay 2 -o llvm.tar.xz "$url"
+      echo "$sum  llvm.tar.xz" | sha256sum --check --status || { echo "$url is not the toolchain pinned" >&2; exit 1; }
+      tar -xJf llvm.tar.xz --strip-components=1 --wildcards \
+        "$top/bin/clang" "$top/bin/clang++" "$top/bin/clang-[0-9]*" "$top/bin/ld.lld" "$top/bin/lld" \
+        "$top/lib/clang/*" "$top/lib/*-unknown-linux-gnu/libc++*" \
+        "$top/include/c++/*" "$top/include/*-unknown-linux-gnu/c++/*"
+      rm llvm.tar.xz
+    override-build: |
+      mkdir -p "$CRAFT_PART_INSTALL/llvm"
+      cp -a "$CRAFT_PART_SRC"/. "$CRAFT_PART_INSTALL/llvm/"
+    build-packages:
+      - curl
+      - xz-utils
+    prime:
+      - -*
+
   # WebKit main at 323622@main, the merge of WebKit PR 69204 (WebKitFrameInfo,
   # first released in 2.56), as the flatpak builds it; the plugin reads it
   # through weak symbols. The checkout leaves out LayoutTests and JSTests, most
   # of the tree and read by no build step, since the nil plugin copies the
   # source into the build directory.
   wpewebkit:
-    after: [libwpe]
+    after: [libwpe, llvm]
     plugin: nil
     override-pull: |
       [ -d .git ] || git init -q .
@@ -113,8 +153,6 @@ parts:
       git fetch --depth 1 --filter=blob:none origin c22ba3278caac6a1fc8b0c7a10f04db1ffc44982
       git -c advice.detachedHead=false checkout FETCH_HEAD
     build-environment:
-      - CC: clang
-      - CXX: clang++
       # Debug info makes WebKit's link outgrow a CI runner's memory and disk.
       - CFLAGS: -g0
       - CXXFLAGS: -g0
@@ -124,9 +162,13 @@ parts:
     # The GNOME extension points every part at its SDK, whose glibc headers
     # clang then reads as ordinary headers (its own posix_memalign clashes
     # with them), with the SDK's libraries mixed into Ubuntu's. WebKit builds
-    # against Ubuntu 24.04's alone, the release the GNOME 46 runtime and the
-    # GPU provider are built from, and libwpe from the stage. Set here, not
-    # around `craftctl default`, which sets the extension's environment again.
+    # against Ubuntu 22.04's alone, the release the GNOME 42 runtime is built
+    # from, and libwpe from the stage. Set here, not around `craftctl
+    # default`, which sets the extension's environment again.
+    # Clang and libc++ come from the llvm part: libc++ and libc++abi are
+    # linked in statically at the end of every C++ link (CMake's standard
+    # libraries) and kept out of what WebKit exports; unwinding stays the
+    # machine's libgcc_s, and 16-byte atomics its libatomic, as GCC links them.
     # WebKit's bubblewrap sandbox is off: strict confinement grants none of
     # the user namespaces it needs, and snapd confines the processes itself.
     # Its Swift back-forward list is off: WebKit turns it on wherever CMake
@@ -137,16 +179,23 @@ parts:
     # loses.
     # PDF.js's Liberation Sans fonts are 1.07.4, under GPL-2.0, and WebKit
     # compiles them into the library; linux/pdfjs_fonts.sh replaces them with
-    # Ubuntu's 2.x release, under the OFL, before the build (LICENSE-001).
+    # Ubuntu's 2.x release (fonts-liberation2), under the OFL, before the
+    # build (LICENSE-001).
+    # Ubuntu 22.04 has no libjxl, so JPEG XL is off.
     # linux/wpe_root.sh lets the same build run moved whole, as the AppImage
     # the Snap workflow makes from this part runs it (PLATFORM-013); the snap
     # sets no WEBSPACE_WPE_ROOT and reads the configured paths, which its
     # layout binds.
     override-build: |
       export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+      export CC="$CRAFT_STAGE/llvm/bin/clang" CXX="$CRAFT_STAGE/llvm/bin/clang++"
+      # libc++ in C++23 drops the headers libstdc++ includes along the way,
+      # and WebKit's Linux sources rely on some (WPESettings.cpp's std::vector).
+      export CXXFLAGS="${CXXFLAGS:+$CXXFLAGS }-stdlib=libc++ -include vector"
+      export LDFLAGS="-fuse-ld=lld -stdlib=libc++ -nostdlib++ -Wl,--exclude-libs,libc++.a:libc++abi.a"
       changed="$(bash "$CRAFT_PROJECT_DIR/linux/pdfjs_fonts.sh" --src "$CRAFT_PART_SRC" \
-        --fonts /usr/share/fonts/truetype/liberation \
-        --copyright /usr/share/doc/fonts-liberation/copyright)"
+        --fonts /usr/share/fonts/truetype/liberation2 \
+        --copyright /usr/share/doc/fonts-liberation2/copyright)"
       changed="$changed; $(bash "$CRAFT_PROJECT_DIR/linux/wpe_root.sh" --src "$CRAFT_PART_SRC")"
       export PKG_CONFIG_PATH="$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig"
       export CMAKE_PREFIX_PATH="$CRAFT_STAGE/usr"
@@ -157,6 +206,7 @@ parts:
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_C_COMPILER_LAUNCHER=ccache \
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+        "-DCMAKE_CXX_STANDARD_LIBRARIES=-Wl,-Bstatic -lc++ -lc++abi -Wl,-Bdynamic -latomic -lm" \
         -DPORT=WPE \
         -DENABLE_DOCUMENTATION=OFF \
         -DENABLE_INTROSPECTION=OFF \
@@ -168,10 +218,12 @@ parts:
         -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON \
         -DENABLE_WPE_PLATFORM_DRM=OFF \
         -DUSE_LIBBACKTRACE=OFF \
+        -DUSE_JPEGXL=OFF \
         -DUSE_SYSTEM_SYSPROF_CAPTURE=OFF \
         -DUSE_SYSTEM_UNIFDEF=OFF \
         -DENABLE_PDFJS=ON
-      cmake --build wpe -- -j"$CRAFT_PARALLEL_BUILD_COUNT"
+      # -k 0: every file that fails is reported in one build, not the first.
+      cmake --build wpe -- -k 0 -j"$CRAFT_PARALLEL_BUILD_COUNT"
       ccache --show-stats
       DESTDIR="$CRAFT_PART_INSTALL" cmake --install wpe
       bash "$CRAFT_PROJECT_DIR/linux/install_notices.sh" \
@@ -184,8 +236,7 @@ parts:
       install -m 644 "$CRAFT_PROJECT_DIR/linux/wpe_root.patch" "$CRAFT_PART_INSTALL/usr/share/doc/wpewebkit/"
     build-packages:
       - ccache
-      - clang
-      - fonts-liberation
+      - fonts-liberation2
       - git
       - gperf
       - ninja-build
@@ -209,7 +260,6 @@ parts:
       - libhyphen-dev
       - libicu-dev
       - libjpeg-dev
-      - libjxl-dev
       - liblcms2-dev
       - libmanette-0.2-dev
       - libpng-dev
@@ -225,30 +275,31 @@ parts:
       - libxslt1-dev
       - wayland-protocols
       - zlib1g-dev
-    # The one library WebKit links that neither core24, the GNOME runtime nor
-    # the GPU provider (mesa-2404) ships. ICU, libxml2 and Wayland come from
-    # the GPU provider, as they do for the GNOME runtime's own WebKitGTK.
+    # The one library WebKit links that neither core22 nor the GNOME runtime
+    # ships.
     stage-packages:
-      - libavif16
+      - libavif13
     prime:
       - -usr/include
       - -usr/lib/*/pkgconfig
       - -usr/lib/*/cmake
 
   webspace:
-    after: [wpewebkit]
+    after: [wpewebkit, llvm]
     plugin: nil
     source: .
     parse-info:
       - usr/share/metainfo/org.codeberg.theoden8.webspace.metainfo.xml
     # A go command for the lyrebird linux/tor.cmake builds beside tor
-    # (TOR-016), which fetches the Go go/iptproxy/.go-version names.
+    # (TOR-016), which fetches the Go go/iptproxy/.go-version names; and a
+    # CMake newer than Ubuntu 22.04's 3.22, which the WebView plugin's
+    # FetchContent (DOWNLOAD_EXTRACT_TIMESTAMP, 3.24) needs.
     build-snaps:
       - go/latest/stable
+      - cmake/latest/stable
     build-packages:
       - build-essential
       - ca-certificates
-      - clang
       - cmake
       - curl
       - git
@@ -259,7 +310,6 @@ parts:
       - libpipewire-0.3-dev
       - libsecret-1-dev
       - libssl-dev
-      - lld
       - ninja-build
       - pkg-config
       - unzip
@@ -273,6 +323,20 @@ parts:
       # host-built adblock library would be installed instead of one built here.
       rm -rf build .dart_tool linux/flutter/ephemeral \
         rust/webspace_adblock/target linux/lib/libwebspace_adblock.so
+
+      # Against Ubuntu 22.04's libraries alone, as WebKit is: the GNOME 42 SDK
+      # the extension points every part at carries a newer GLib, whose headers
+      # compile in calls 22.04's GLib lacks (g_string_free_and_steal), and the
+      # AppImage bundles the build host's. The snap's GNOME runtime is newer
+      # still, so either runs there. The llvm part's clang compiles the app
+      # (against the machine's libstdc++): 22.04's Clang 14 cannot read its
+      # libstdc++'s ranges, which flutter_zxing's zxing-cpp uses. /snap/bin
+      # before /usr/bin, for the cmake and go snaps.
+      export PATH="$CRAFT_STAGE/llvm/bin:/snap/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      export PKG_CONFIG_PATH="$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig"
+      export CMAKE_PREFIX_PATH="$CRAFT_STAGE/usr"
+      unset LD_LIBRARY_PATH PYTHONPATH GI_TYPELIB_PATH ACLOCAL_PATH \
+        GDK_PIXBUF_MODULE_FILE GETTEXTDATADIRS XDG_DATA_DIRS
 
       # Flutter at the version .fvmrc pins.
       flutter_version="$(sed -n 's/.*"flutter": *"\([^"]*\)".*/\1/p' .fvmrc)"

@@ -96,11 +96,11 @@ test("WebKit's compiled-in directories are bound to the snap's copies (PLATFORM-
   }
 });
 
-// The manifest's platforms are the snap's architectures: CI builds and runs
-// each on a runner of its own, and the app part knows where Flutter puts each
-// one's bundle.
+// The manifest's architectures, each built where it runs (core22's
+// `- build-on: [arch]`): CI builds and runs each on a runner of its own, and
+// the app part knows where Flutter puts each one's bundle.
 test('every platform the snap names is built in CI and has a bundle directory', () => {
-  const platforms = block('platforms').map((l) => l.match(/^ {2}([a-z0-9]+):$/)?.[1]).filter(Boolean);
+  const platforms = block('architectures').map((l) => l.match(/^ {2}- build-on: \[([a-z0-9]+)\]$/)?.[1]).filter(Boolean);
   assert.ok(platforms.length > 0, `${MANIFEST} names no platform`);
   const workflow = read('.github/workflows/snap.yml');
   const built = [...workflow.matchAll(/^ {10}- arch: ([a-z0-9]+)$/gm)].map((m) => m[1]);
@@ -200,7 +200,7 @@ function webkitBuildRefusals(text) {
   if (/^ {8}-DENABLE_PDFJS=ON$/m.test(part)) {
     const swap = part.indexOf('bash "$CRAFT_PROJECT_DIR/linux/pdfjs_fonts.sh" --src "$CRAFT_PART_SRC"');
     if (swap < 0 || swap > part.indexOf('cmake -S')) out.push('PDF.js ships its fonts as WebKit has them');
-    if (!/^ {6}- fonts-liberation$/m.test(part)) out.push('fonts-liberation is not a build package');
+    if (!/^ {6}- fonts-liberation2$/m.test(part)) out.push('fonts-liberation2 is not a build package');
   }
   return out;
 }
@@ -215,8 +215,8 @@ test('WebKit is built without the parts whose licence it may not ship (LICENSE-0
   const unswapped = manifest.replace(/^ {6}changed="\$\(bash "\$CRAFT_PROJECT_DIR\/linux\/pdfjs_fonts\.sh"[^\n]*\n/m, '');
   assert.deepEqual(webkitBuildRefusals(unswapped), ['PDF.js ships its fonts as WebKit has them'],
     'PDF.js with its own fonts');
-  assert.deepEqual(webkitBuildRefusals(manifest.replace(/^ {6}- fonts-liberation\n/m, '')),
-    ['fonts-liberation is not a build package'], 'the replacement fonts not installed');
+  assert.deepEqual(webkitBuildRefusals(manifest.replace(/^ {6}- fonts-liberation2\n/m, '')),
+    ['fonts-liberation2 is not a build package'], 'the replacement fonts not installed');
   assert.deepEqual(webkitBuildRefusals(manifest.replace(/^ {8}-DENABLE_PDFJS=ON\n/m, '')),
     ['ENABLE_PDFJS is left to its default'], 'PDF.js on by WebKit\'s default, unseen');
   assert.deepEqual(webkitBuildRefusals(manifest.replace('-DUSE_SYSTEM_UNIFDEF=OFF', '-DUSE_SYSTEM_UNIFDEF=OFF -DENABLE_WEB_RTC=ON')),

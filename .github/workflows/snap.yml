@@ -1,7 +1,7 @@
 name: Snap
 
 # Builds the snap from snap/snapcraft.yaml for amd64 and arm64, each on a
-# runner of its own architecture (an ubuntu-24.04 runner is the core24 host
+# runner of its own architecture (an ubuntu-22.04 runner is the core22 host
 # --destructive-mode needs), installs it and runs it with one site (scripts/check_snap.sh, PLATFORM-012). Nothing
 # here logs in to the Snap Store or uploads: registering, uploading and
 # releasing are the maintainer's, by hand (docs/releasing.md). Kept out of
@@ -66,12 +66,12 @@ jobs:
         include:
           - arch: amd64
             appimage_arch: x86_64
-            runner: ubuntu-24.04
+            runner: ubuntu-22.04
             # amd64's caches were saved before they carried an architecture.
             fallback: snap-ccache-
           - arch: arm64
             appimage_arch: aarch64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-22.04-arm
             fallback: snap-ccache-arm64-
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 350
@@ -111,8 +111,54 @@ jobs:
             snap-ccache-${{ matrix.arch }}-
             ${{ matrix.fallback }}
 
+      # The runner image's LLVM libunwind, which only its libc++ needs, breaks
+      # Ubuntu's libunwind-dev, which GStreamer's headers need; nothing the
+      # snap builds links libc++, and a plain Ubuntu 22.04 has neither.
+      - name: Remove the runner's LLVM libunwind
+        run: |
+          llvm="$(dpkg-query -W -f '${db:Status-Abbrev} ${Package}\n' 'libunwind-*-dev' 2>/dev/null \
+            | awk '$1 == "ii" && $2 ~ /^libunwind-[0-9]+-dev$/ { print $2 }')"
+          if [ -n "$llvm" ]; then
+            # shellcheck disable=SC2086 # one word per package
+            sudo apt-get remove -y $llvm
+          fi
+
       - name: Build
         run: sudo snapcraft pack --destructive-mode
+
+      # snapcraft prints one line for a failed step (for apt, a guess at the
+      # package) and leaves what the step said in its log, as root; of a
+      # failed apt resolution it keeps only the exit status, so apt is asked
+      # again for its reason, with the packages snapcraft asked for.
+      - name: Show snapcraft's log
+        if: failure()
+        run: |
+          log="$(sudo sh -c 'ls -t /root/.local/state/snapcraft/log/*.log | head -n 1')"
+          sudo tail -n 300 "$log"
+          packages="$(sudo sed -n "s/.*Installing packages using apt: \[\(.*\)\]$/\1/p" "$log" | tail -n 1 | tr -d "',")"
+          if [ -n "$packages" ]; then
+            # shellcheck disable=SC2086 # one word per package
+            sudo apt-get --simulate --no-install-recommends --allow-downgrades install $packages 2>&1 \
+              | grep -v '^\(Inst\|Conf\) ' || true
+          fi
+          # A configure check that failed says why only here; Flutter's build
+          # prints CMake's errors, not its checks.
+          sudo find parts -path '*/CMakeFiles/CMakeError.log' -print0 2>/dev/null \
+            | while IFS= read -r -d '' f; do echo "== $f"; sudo tail -n 120 "$f"; done
+          # What the app part's plugins look WPE WebKit up by, from the stage.
+          pc="$(ls -d stage/usr/lib/*/pkgconfig 2>/dev/null | head -n 1)"
+          if [ -n "$pc" ]; then
+            ls "$pc"
+            for m in wpe-webkit-2.0 wpe-platform-2.0 wpe-platform-headless-2.0; do
+              echo "== pkg-config $m"
+              PKG_CONFIG_PATH="$pc" pkg-config --print-errors --cflags --libs "$m" || true
+            done
+          fi
+          sudo find parts/webspace -name CMakeCache.txt -print0 2>/dev/null \
+            | while IFS= read -r -d '' f; do echo "== $f"; sudo grep -E '^(WPE_|WEBKIT_HAS|CMAKE_COMMAND)' "$f" || true; done
+          # CMake 3.26 and later log a failed check here instead of in CMakeError.log.
+          sudo find parts/webspace -name CMakeConfigureLog.yaml -print0 2>/dev/null \
+            | while IFS= read -r -d '' f; do echo "== $f"; sudo grep -n -B2 -A60 'WEBKIT_HAS_WPE_PLATFORM_API' "$f" | head -n 160 || true; done
 
       # Saved even when a later part fails, so the next run starts from the
       # WPE objects this one compiled.
@@ -141,7 +187,7 @@ jobs:
       # itself, as it does for a user; this checks that it did.
       - name: Install the snap
         run: |
-          sudo snap install gnome-46-2404 mesa-2404 gtk-common-themes
+          sudo snap install gnome-42-2204 gtk-common-themes
           snap_name="$(sed -n 's/^name: \([a-z0-9-]*\)$/\1/p' snap/snapcraft.yaml)"
           sudo snap install --dangerous ./"$snap_name"_*_${{ matrix.arch }}.snap
           connections="$(snap connections "$snap_name")"
@@ -184,7 +230,7 @@ jobs:
           if-no-files-found: error
 
       # PLATFORM-013: the AppImage's AppDir, from the snap's primed tree and
-      # this Ubuntu 24.04 host's libraries.
+      # this Ubuntu 22.04 host's libraries.
       - name: Assemble the AppImage
         run: |
           [ -d prime ] || { echo "::error::snapcraft left no prime/ in the project directory" >&2; exit 1; }
@@ -215,7 +261,8 @@ jobs:
             --quick-generate-key 'WebSpace CI, this run only' ed25519 sign 1d
           fpr="$(gpg --with-colons --list-keys | awk -F: '$1 == "fpr" { print $10; exit }')"
           gpg --armor --export "$fpr" > "$RUNNER_TEMP/throwaway.asc"
-          info="gh-releases-zsync|${GITHUB_REPOSITORY%%/*}|${GITHUB_REPOSITORY#*/}|latest|WebSpace-*-${{ matrix.appimage_arch }}.AppImage.zsync"
+          . linux/appimage/release_names.sh
+          info="$(appimage_update_info "$GITHUB_REPOSITORY" "${{ matrix.appimage_arch }}")"
           bash linux/appimage/fetch_tools.sh "$RUNNER_TEMP/appimage-tools"
           bash linux/appimage/pack.sh --appdir AppDir --out "WebSpace-ci-${{ matrix.appimage_arch }}.AppImage" \
             --tools "$RUNNER_TEMP/appimage-tools" --key "$fpr" --update-info "$info"
@@ -227,6 +274,23 @@ jobs:
         run: |
           sudo apt-get install -y --no-install-recommends fuse3 xvfb libglib2.0-bin dbus
           bash scripts/check_appimage.sh AppDir "WebSpace-ci-${{ matrix.appimage_arch }}.AppImage"
+
+      # As AppImageHub runs it: on the oldest Ubuntu LTS still supported, with
+      # its own libstdc++, older than the build's, which this runner's toolchain
+      # upgrade replaced. The packages are what the excludelist leaves to a
+      # desktop machine, and what the check itself runs.
+      - name: Run the AppImage on a plain Ubuntu 22.04
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src ubuntu:22.04 bash -euc '
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -qq
+            apt-get install -y -qq --no-install-recommends xvfb python3 libglib2.0-bin dbus \
+              libgl1 libegl1 libgles2 libgbm1 libgl1-mesa-dri libasound2 libjack-jackd2-0 \
+              libpipewire-0.3-0 libfontconfig1 libharfbuzz0b libfribidi0 libice6 libsm6 \
+              libusb-1.0-0 libwayland-client0 libwayland-egl1 libwayland-cursor0 libp11-kit0 \
+              libx11-xcb1 libxcb-dri2-0 libxcb-dri3-0 fonts-dejavu-core >/dev/null
+            bash scripts/check_appimage.sh AppDir
+          '
 
       - name: Keep the AppDir for the release
         if: steps.appimage-licences.outputs.clear == 'true'

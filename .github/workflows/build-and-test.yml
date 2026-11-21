@@ -275,6 +275,10 @@ jobs:
         run: fvm flutter pub get --enforce-lockfile
       - name: Generate localizations
         run: fvm dart tool/gen_l10n.dart
+      # What AppImageHub validates the Linux desktop entry and metainfo with
+      # (test/js/linux_desktop_files.test.js, PLATFORM-013).
+      - name: Install the desktop file validators
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends desktop-file-utils appstream
       # JS shim + localization tests (jsdom + node:test). Node-only, so
       # they belong in this lightweight checks job rather than gated behind
       # a platform build. After pub get: the licence gate reads the packages

@@ -332,12 +332,21 @@ as on a resume (LIR-004).
 
 ### Requirement: PLATFORM-012 - The snap
 
-The snap SHALL be built from source by `snap/snapcraft.yaml` on core24, under
+The snap SHALL be built from source by `snap/snapcraft.yaml` on core22, under
 strict confinement, on the GNOME extension's runtime, and SHALL run as
 `org.codeberg.theoden8.webspace`, the ID every native build keeps
 (PLATFORM-009): the Snap Store sets no naming rule that would move it, and its
 desktop entry and metainfo are the bundle's (PLATFORM-008).
 
+- **Base:** core22, the base of the oldest Ubuntu LTS still supported, so
+  the AppImage made from it runs there (PLATFORM-013). WebKit at that commit
+  needs Clang 18 and a C++ library with `<format>`, where Ubuntu 22.04 stops
+  at Clang 15 and libstdc++ 12, so it builds with LLVM's release toolchain
+  (the `llvm` part, pinned by SHA-256 per architecture, nothing of it primed)
+  and links LLVM's libc++ in statically with its symbols hidden; every other
+  library, and the snap, use the machine's libstdc++. The app builds with the
+  same Clang, against the machine's libstdc++ and Ubuntu 22.04's libraries
+  alone, not the GNOME SDK's.
 - **WebKit:** the snap builds libwpe from git at its 1.16.3 tag's commit,
   and WebKit at 323622@main, the merge that added `WebKitFrameInfo` (first
   released in 2.56), which the plugin reads through weak symbols, for `/usr`. A release build of WebKit runs its helper
@@ -361,7 +370,7 @@ desktop entry and metainfo are the bundle's (PLATFORM-008).
   directory, other users' files or removable media. Files reach the app
   through the desktop portals.
 - **Tor (TOR-027):** the snap's tor is the one the app's own build makes from
-  source (`linux/tor.cmake`), with Ubuntu 24.04's libevent and OpenSSL and
+  source (`linux/tor.cmake`), with Ubuntu 22.04's libevent and OpenSSL and
   their notices beside it in the bundle's `lib/tor/`, and so is the lyrebird
   beside it, built with the go snap's `go`, which fetches the Go
   `go/iptproxy/.go-version` names; the snap has no part of its own for
@@ -390,7 +399,8 @@ running from the snap
 ### Requirement: PLATFORM-013 - The AppImage
 
 The AppImage SHALL run on a desktop Linux whose glibc is at least the build
-host's (Ubuntu 24.04's 2.39) with nothing installed for it, carrying every
+host's (Ubuntu 22.04's 2.35, the oldest Ubuntu LTS still supported, which
+AppImageHub tests on) with nothing installed for it, carrying every
 library it links but those `linux/appimage/excludelist` leaves to the machine:
 glibc, the GPU driver's and the display server's client libraries, the sound
 server's, fontconfig with the font libraries, and p11-kit, through which the
@@ -401,11 +411,15 @@ keeps them. It runs as `org.codeberg.theoden8.webspace` (PLATFORM-009).
   for the snap, the app's bundle and the WebKit and libwpe it built, with the
   rest of its libraries from the build host
   (`linux/appimage/build_appdir.sh`). Every ELF file in it finds the bundled
-  libraries by a RUNPATH relative to itself, and keeps no absolute one, so
-  nothing the app starts inherits a library path and no build machine's
-  directory is searched. The AppImage mounts somewhere new each run, so
-  `AppRun` names the bundle to WebKit (`WEBSPACE_WPE_ROOT`), GIO, gdk-pixbuf
-  and GStreamer.
+  libraries by a RUNPATH relative to itself, and keeps no absolute one, so no
+  build machine's directory is searched. The AppImage mounts somewhere new
+  each run, so `AppRun` names the bundle to WebKit (`WEBSPACE_WPE_ROOT`), GIO,
+  gdk-pixbuf and GStreamer.
+- **C++ library:** WebKit carries LLVM's libc++ inside it, so the AppImage
+  needs no libstdc++ newer than Ubuntu 22.04's and leaves it to the machine.
+- **Desktop entry and metainfo:** they pass `desktop-file-validate` and
+  `appstreamcli validate`, as AppImageHub requires
+  (`test/js/linux_desktop_files.test.js`, which CI runs with both installed).
 - **Licences (LICENSE-001):** each bundled package's copyright file goes with
   it and `tool/check_bundle_licences.js` reads them all, through
   `debian_licences.tsv` and, for a file that is not machine-readable, a
@@ -425,7 +439,9 @@ keeps them. It runs as `org.codeberg.theoden8.webspace` (PLATFORM-009).
   pinned key.
 
 CI packs it as the release does, signed with a key made for the run, checks
-that signature, and runs it.
+that signature, and runs it on its build host and in a plain Ubuntu 22.04
+container. `scripts/build_all.sh appimage` packs and signs it with the release
+key as the release does, from a local snap build or a run's AppDirs.
 
 #### Scenario: Run the AppImage
 
@@ -435,6 +451,14 @@ that signature, and runs it.
 **And** the second launch exits
 **And** the site's page is requested, with WebKit's web and network processes
 running from the AppImage
+
+#### Scenario: Run the AppImage on the oldest supported Ubuntu LTS
+
+**Given** the AppImage's AppDir and a plain Ubuntu 22.04 with the libraries
+`linux/appimage/excludelist` leaves to a desktop machine
+**When** it runs with one site saved
+**Then** every library in it resolves inside it or is one the machine keeps
+**And** the site's page is requested
 
 #### Scenario: Check a release
 
