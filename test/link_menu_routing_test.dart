@@ -81,7 +81,7 @@ void main() {
     }
 
     for (final signature in [
-      'Future<void> _showLinkLongPressMenu(',
+      'Future<void> _linkMenu(',
       'Future<void> _openLinkInNewTab(',
     ]) {
       final menu =
