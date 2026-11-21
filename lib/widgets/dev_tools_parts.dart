@@ -67,7 +67,12 @@ class SensitiveSwitch extends StatelessWidget {
 
 /// A log's lines, newest at the bottom where the view opens; while a search
 /// is on, newest at the top. [empty] is what the log says with no lines.
-class LogLines<T> extends StatelessWidget {
+///
+/// At the bottom it follows the log as lines arrive. Scrolled up, it holds
+/// the lines it showed when the reader left the bottom, so a line arriving
+/// moves nothing they are reading; back at the bottom it shows the log as it
+/// stands and follows it again (DEVTOOLS-004).
+class LogLines<T> extends StatefulWidget {
   const LogLines({
     super.key,
     required this.lines,
@@ -84,19 +89,69 @@ class LogLines<T> extends StatelessWidget {
   final ScrollController? controller;
 
   @override
-  Widget build(BuildContext context) => lines.isEmpty
-      ? Center(
-          child: Text(
-            searching ? AppLocalizations.of(context).devToolsNoMatches : empty,
-          ),
-        )
-      : ListView.builder(
-          controller: controller,
-          reverse: !searching,
-          itemCount: lines.length,
-          itemBuilder: (context, index) =>
-              line(lines[lines.length - 1 - index]),
-        );
+  State<LogLines<T>> createState() => _LogLinesState<T>();
+}
+
+class _LogLinesState<T> extends State<LogLines<T>> {
+  ScrollController? _own;
+  ScrollController get _scroll => widget.controller ?? (_own ??= ScrollController());
+
+  /// What the view showed when the reader scrolled away from the bottom;
+  /// null while it follows the log.
+  List<T>? _held;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_onScroll);
+  }
+
+  @override
+  void didUpdateWidget(LogLines<T> old) {
+    super.didUpdateWidget(old);
+    if (old.controller != widget.controller) {
+      (old.controller ?? _own)?.removeListener(_onScroll);
+      _scroll.addListener(_onScroll);
+    }
+    if (widget.searching) _held = null;
+  }
+
+  @override
+  void dispose() {
+    _scroll.removeListener(_onScroll);
+    _own?.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (widget.searching || !_scroll.hasClients) return;
+    final away = _scroll.offset > 0;
+    if (away && _held == null) {
+      _held = List.of(widget.lines);
+    } else if (!away && _held != null) {
+      setState(() => _held = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lines = widget.searching ? widget.lines : (_held ?? widget.lines);
+    return lines.isEmpty
+        ? Center(
+            child: Text(
+              widget.searching
+                  ? AppLocalizations.of(context).devToolsNoMatches
+                  : widget.empty,
+            ),
+          )
+        : ListView.builder(
+            controller: _scroll,
+            reverse: !widget.searching,
+            itemCount: lines.length,
+            itemBuilder: (context, index) =>
+                widget.line(lines[lines.length - 1 - index]),
+          );
+  }
 }
 
 /// Copies [entries] as [format] renders them. Sensitive entries reach the

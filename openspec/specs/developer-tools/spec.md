@@ -225,6 +225,7 @@ The app SHALL maintain a ring buffer of app-level log entries accessible from bo
 **Then** timestamped log entries are shown with tag and message
 **And** the view scrolls to the bottom to show the most recent entries
 **And** filter chips allow filtering by level (debug, info, warning, error)
+**And** `test/dev_tools_app_logs_test.dart` holds it
 
 #### Scenario: Live log streaming
 
@@ -232,20 +233,23 @@ The app SHALL maintain a ring buffer of app-level log entries accessible from bo
 **When** new log entries are produced by the app
 **Then** they appear in the list in real time without manual refresh
 **And** if the user is scrolled to the bottom, the view auto-scrolls to show new entries
+**And** `test/dev_tools_app_logs_test.dart` holds it
 
 #### Scenario: Auto-scroll pause on manual scroll
 
 **Given** the App Logs tab is open and auto-scrolling
 **When** the user scrolls up to view older entries
-**Then** auto-scroll is paused so the view does not jump
+**Then** auto-scroll is paused so the view does not jump: the list keeps the lines it showed when the reader left the bottom (`LogLines`)
 **When** the user scrolls back to the bottom
 **Then** auto-scroll resumes
+**And** `test/dev_tools_app_logs_test.dart` holds it
 
 #### Scenario: Export logs for issue reporting
 
 **Given** the App Logs tab has entries
 **When** the user taps "Export"
 **Then** all logs are saved as a .txt file via file picker (ignoring filters)
+**And** `test/dev_tools_app_logs_test.dart` holds it
 **When** the user taps "Copy"
 **Then** only the currently visible (filtered by level chips and search query) log entries are copied to clipboard
 **And** the snackbar shows the count of copied entries
@@ -265,12 +269,14 @@ The app SHALL maintain a ring buffer of app-level log entries accessible from bo
 **Given** the show-sensitive toggle is on
 **When** the user taps "Export"
 **Then** the written file carries only non-sensitive entries, whatever the toggle says
+**And** `test/dev_tools_app_logs_test.dart` holds it
 
 #### Scenario: Access from App Settings
 
 **Given** no site is loaded
 **When** the user opens App Settings and taps "App Logs"
 **Then** DevToolsScreen opens with only the App Logs tab visible
+**And** `test/dev_tools_app_logs_test.dart` holds it
 
 ---
 
