@@ -179,6 +179,12 @@ _Catch _catching(Mutant m) => switch (m) {
     script: const [Tap(1)],
     breaks: "the jar holds another site's cookies under loaded",
   ),
+  Mutant.repause => _By(
+    world: (d) => ActivationWorld(_mixed, declared: d),
+    setup: _slot0Behind,
+    script: const [Tap(1)],
+    breaks: 'a flow never finished, though every reply it waited on landed',
+  ),
   Mutant.joinkeepsid => const _Owed(
     "the walk's joining site never holds a listed site's id (its worlds "
     'leave Clashing empty), so its land renames none; TLC catches it in the '

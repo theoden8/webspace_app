@@ -458,6 +458,18 @@ final class _Search implements _Chooser {
   }
 }
 
+/// More choices than any schedule of the walk's scripts makes: one past it
+/// has a flow that answers every reply with another call and never ends,
+/// which no invariant sees (formal/activation.tla's Prop_Terminates).
+const _endless = 5000;
+
+/// More marked steps than any schedule takes: a flow past it goes round
+/// without waiting on anything the walk holds, so no choice comes to count.
+const _endlessMarks = 50000;
+
+const _neverEnds =
+    'a flow never finished, though every reply it waited on landed';
+
 Future<({List<String> trace, _Outcome outcome})> _runSchedule<A>({
   required ScheduledWorld<A> Function() world,
   required List<A> setup,
@@ -495,8 +507,12 @@ Future<({List<String> trace, _Outcome outcome})> _runSchedule<A>({
     try {
       final w = world();
       final inner = restore = ActivationSteps.sink;
+      var marks = 0;
       ActivationSteps.sink =
           (step, {required outcome, required site, required tab}) {
+            if (++marks == _endlessMarks) {
+              throw TestFailure('$_neverEnds (past $_endlessMarks steps)');
+            }
             if (!onTheClock) _log?.add((flow: currentFlow(), what: step));
             inner?.call(step, outcome: outcome, site: site, tab: tab);
           };
@@ -513,6 +529,12 @@ Future<({List<String> trace, _Outcome outcome})> _runSchedule<A>({
       await quiesce(w);
       visited?.add(w.snapshot());
       for (var at = 0;; at++) {
+        if (at == _endless) {
+          return finish(
+            ended ??
+                const _Broke('$_neverEnds (past $_endless choices)'),
+          );
+        }
         if (ended == null && escaped.isNotEmpty) {
           ended = _Broke('${escaped.first}');
         }
