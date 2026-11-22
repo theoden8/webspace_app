@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// TAB-005 / TAB-010 / TAB-020: where "New tab", "Duplicate tab" and the
 /// page Back would go to in a new tab are reached from. The app has two
-/// overflow menus (app bar, and the tab strip's when the strip is on), and a
+/// overflow menus (app bar, and the site strip's when the strip is on), and a
 /// spec that names "the overflow menu" means both. "Duplicate tab" is a long
 /// press on refresh only, and the back page a long press on back, never a
 /// menu row.
@@ -17,8 +17,13 @@ void main() {
   late String links;
 
   setUpAll(() {
+    // The page and its parts, which hold its links and its navigation.
     source = [
-      for (final f in ['webspace_page', 'webspace_page_links'])
+      for (final f in [
+        'webspace_page',
+        'webspace_page_links',
+        'webspace_page_navigation',
+      ])
         File('lib/screens/$f.dart').readAsStringSync(),
     ].join('\n');
     menu = File('lib/widgets/site_menu.dart').readAsStringSync();
@@ -251,9 +256,12 @@ void main() {
       expect(start, isNot(-1));
       final body = tabs.substring(start, tabs.indexOf('\n  }\n', start));
       expect(
-        RegExp(r'for \(final i in view\)\s*if \(enabledFor\(_sites\.models\[i\]\)\)')
+        RegExp(r'for \(final i in view\)\s*'
+                r'if \(everyInView \|\| enabledFor\(_sites\.models\[i\]\)\)')
             .hasMatch(body),
         isTrue,
+        reason: 'only the sidebar lists a site without tabs, as one row that '
+            'opens the site, never a tab it stored',
       );
       expect(
         RegExp(r'if \(!shown\.contains\(i\) && enabledFor\(_sites\.models\[i\]\)\)')
@@ -267,7 +275,8 @@ void main() {
     test('nothing tab-shaped is drawn while they are off', () {
       expect(
         RegExp(r'if \(currentModel != null && '
-                r'_tabs\.enabledFor\(currentModel\)\)\s*TabCountButton\(')
+                r'_tabs\.enabledFor\(currentModel\) &&\s*'
+                r'_surfaces\.tabCountButton\)\s*TabCountButton\(')
             .hasMatch(source),
         isTrue,
         reason: 'the tab count in the app bar',
@@ -291,7 +300,7 @@ void guarded(String src,
   }
 }
 
-      guarded(File('lib/widgets/site_tab_strip.dart').readAsStringSync(),
+      guarded(File('lib/widgets/site_strip.dart').readAsStringSync(),
           count: 1,
           guard: RegExp(r'^if \(site\.effectiveTabsEnabled && '),
           reason: 'the strip chip counts tabs only where the site has them');

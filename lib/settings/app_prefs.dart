@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/settings/external_links.dart';
+import 'package:webspace/settings/site_navigation.dart';
 
 /// A global app-level preference: its SharedPreferences key, its default,
 /// and the value the app runs with. Every entry rides settings
@@ -41,17 +42,24 @@ enum AppPref<T extends Object> {
   // NESTED-014: a sign-in window a tap opened shows as a real popup; a site
   // may keep its own choice.
   signInPopups('signInPopups', section: PrefSection.behaviour, fallback: true),
-  showTabStrip('showTabStrip', section: PrefSection.appearance, fallback: false),
-  // Keep the site tab strip visible in fullscreen (top bar still hidden).
-  // Only meaningful when showTabStrip is on.
-  tabStripInFullscreen('tabStripInFullscreen', section: PrefSection.appearance, fallback: false),
-  // FS-012: the edge the tab strip runs along, 'top' or 'bottom'; empty
+  // How sites and tabs are reached: 'tabButton', 'strip' or 'sidebar'
+  // (SiteNavigation), and what full screen does with it: 'hidden', 'kept' or
+  // 'button' (FullscreenNavigation). Decided once from an earlier build's
+  // strip prefs by loadSiteNavigation, so no layout changes on upgrade.
+  siteNavigation('siteNavigation', section: PrefSection.behaviour, fallback: 'tabButton'),
+  fullscreenNavigation('fullscreenNavigation', section: PrefSection.behaviour, fallback: 'hidden'),
+  // The sidebar, one for the app: its state ('open', 'collapsed', 'hidden';
+  // SidebarState), what it shows open ('squares' or 'tree'; SidebarStyle),
+  // its width, whether hovering the rail shows the names, and the height of
+  // its arrow tab along the left edge, in percent of the page's.
+  sidebarState('sidebarState', section: PrefSection.behaviour, fallback: 'open'),
+  sidebarStyle('sidebarStyle', section: PrefSection.behaviour, fallback: 'squares'),
+  sidebarWidth('sidebarWidth', section: PrefSection.behaviour, fallback: 260),
+  sidebarExpandOnHover('sidebarExpandOnHover', section: PrefSection.behaviour, fallback: false),
+  sidebarHandleY('sidebarHandleY', section: PrefSection.behaviour, fallback: 55),
+  // FS-012: the edge the site strip runs along, 'top' or 'bottom'; empty
   // follows the platform, so a backup carries only a choice the user made.
   tabStripEdge('tabStripEdge', section: PrefSection.appearance, fallback: ''),
-  // Floating button that opens the tab strip (and its overflow menu) on
-  // demand. Superseded `tabBarButtonInFullscreen` in v0.2.7; a device or a
-  // backup from a build in between names only the old key.
-  tabBarButton('tabBarButton', section: PrefSection.appearance, fallback: false, legacyKey: 'tabBarButtonInFullscreen'),
   // Legacy app-wide default corner for the tab-bar button (true = right).
   // The corner is now remembered per site (WebViewModel.tabBarButtonCorner);
   // this is only the fallback for sites never dragged. No settings UI writes
@@ -61,7 +69,7 @@ enum AppPref<T extends Object> {
   // point, so the chrome-free view matches the expectation. Per-site
   // `fullscreenMode` still applies independently on every activation.
   fullscreenOnShortcut('fullscreenOnShortcut', section: PrefSection.appearance, fallback: true),
-  // Max width (logical px) of each tab in the tab strip.
+  // Max width (logical px) of each tab in the site strip.
   tabMaxWidth('tabMaxWidth', section: PrefSection.appearance, fallback: 140),
   showStatsBanner('showStatsBanner', section: PrefSection.privacy, fallback: true),
   // Tile server for the location picker map. Only queried after the user
@@ -267,15 +275,19 @@ Future<void> writeExportedAppPrefs(
   SharedPreferences prefs, {
   required Map<String, Object?> values,
 }) async {
+  final upgraded = withSiteNavigation(values);
   for (final pref in AppPref.values) {
-    await pref._restore(prefs, globalPrefs: values);
+    await pref._restore(prefs, globalPrefs: upgraded);
   }
 }
 
 /// What [writeExportedAppPrefs] would apply, keyed like `globalPrefs`.
-Map<String, Object> resolveExportedAppPrefs(Map<String, Object?> values) => {
-      for (final pref in AppPref.values) pref.key: pref.fromBackup(values),
-    };
+Map<String, Object> resolveExportedAppPrefs(Map<String, Object?> values) {
+  final upgraded = withSiteNavigation(values);
+  return {
+    for (final pref in AppPref.values) pref.key: pref.fromBackup(upgraded),
+  };
+}
 
 /// v0.2.2 encoded the app-wide proxy's password too, and
 /// `UserProxySettings.fromJson` reads one back, so a password in the file

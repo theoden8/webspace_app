@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/platform/host_platform.dart';
@@ -13,7 +12,19 @@ import 'package:webspace/settings/app_prefs.dart';
 abstract interface class BackGestureHost {
   bool get mounted;
   bool get kioskLocked;
-  ScaffoldState? get scaffold;
+
+  /// A drawer is over the page: the legacy drawer, or a phone's sidebar
+  /// opened over it.
+  bool get drawerOpen;
+
+  /// Whether opening navigation opens a drawer over the page, which the
+  /// next gesture may escalate from.
+  bool get navigationIsDrawer;
+
+  /// The menu the gesture would open is already on screen beside the page:
+  /// a docked sidebar (TAB-036).
+  bool get navigationShown;
+  void closeDrawer();
 
   /// The controller of the site on screen, or null.
   WebViewController? get shownController;
@@ -63,7 +74,7 @@ class BackGestureController {
   bool _drawerOpenedByBackGesture = false;
 
   Future<void> _openNavigationFromBackGesture() async {
-    _drawerOpenedByBackGesture = _host.scaffold?.hasDrawer ?? false;
+    _drawerOpenedByBackGesture = _host.navigationIsDrawer;
     await _host.openNavigationMenu();
   }
 
@@ -71,8 +82,7 @@ class BackGestureController {
   /// route's pop.
   Future<void> handle() async {
     await _backGuard.run(() async {
-      final scaffoldState = _host.scaffold;
-      final drawerOpen = scaffoldState?.isDrawerOpen ?? false;
+      final drawerOpen = _host.drawerOpen;
       final controller = _host.shownController;
       // Android's canGoBack() is reliable (including for pushState/SPA
       // entries on Chromium). Trust it directly: URL-comparison can
@@ -92,6 +102,7 @@ class BackGestureController {
         canGoBack: canGoBack,
         atHistoryStart: _backAtHistoryStart,
         canExitApp: hostIsAndroid,
+        navigationShown: _host.navigationShown,
       );
       // At the start of the page history the gesture is still spendable: a
       // tab the user opened from another tab closes and hands back to it
@@ -109,12 +120,12 @@ class BackGestureController {
           break;
         case BackGestureAction.closeDrawer:
           LogTag.navigation.debug('Back gesture: closing open drawer');
-          _host.scaffold?.closeDrawer();
+          _host.closeDrawer();
           break;
         case BackGestureAction.closeDrawerAndExit:
           LogTag.navigation.debug(
               'Back gesture: closing drawer and leaving app');
-          _host.scaffold?.closeDrawer();
+          _host.closeDrawer();
           await SystemNavigator.pop();
           break;
         case BackGestureAction.openDrawer:
@@ -122,7 +133,7 @@ class BackGestureController {
           await _openNavigationFromBackGesture();
           break;
         case BackGestureAction.exitApp:
-          LogTag.navigation.debug('Back gesture: no site shown, leaving app');
+          LogTag.navigation.debug('Back gesture: nothing left to go back to, leaving app');
           await SystemNavigator.pop();
           break;
         case BackGestureAction.goBack:
@@ -153,6 +164,7 @@ class BackGestureController {
             urlChanged: urlChanged,
             drawerAvailable: !_host.kioskLocked,
             atHistoryStart: _backAtHistoryStart,
+            navigationShown: _host.navigationShown,
           );
           if (next == BackGestureAction.openDrawer) {
             LogTag.navigation.debug('Back gesture: no history, opening navigation');

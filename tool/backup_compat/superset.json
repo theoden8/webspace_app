@@ -228,6 +228,13 @@
     "tabBarButtonOnRight": false,
     "fullscreenOnShortcut": false,
     "tabMaxWidth": 200,
+    "siteNavigation": "sidebar",
+    "fullscreenNavigation": "kept",
+    "sidebarState": "collapsed",
+    "sidebarStyle": "tree",
+    "sidebarWidth": 300,
+    "sidebarExpandOnHover": true,
+    "sidebarHandleY": 40,
     "showStatsBanner": false,
     "osmTileUrl": "https://tiles.example.org/{z}/{x}/{y}.png",
     "globalOutboundProxy": {

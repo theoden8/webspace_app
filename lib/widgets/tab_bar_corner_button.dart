@@ -6,7 +6,7 @@ import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/theme/design_tokens.dart';
 
-/// Floating circular button that reveals the tab strip on demand.
+/// Floating circular button that reveals the site strip on demand.
 ///
 /// Tap fires [onTap]. Dragging the button — either immediately
 /// (press-and-move, the natural mouse gesture on emulators/desktops) or

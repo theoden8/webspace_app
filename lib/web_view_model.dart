@@ -284,7 +284,7 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
   /// by [incognito], which adds the cookie/storage wipe on top.
   bool alwaysOpenHome;
   /// When true and the site is launched via a home-screen shortcut, the app
-  /// shell opens chrome-less: no drawer, tab strip, app-bar actions, or
+  /// shell opens chrome-less: no drawer, site strip, app-bar actions, or
   /// context menus, so the site can't be reconfigured, deleted, or navigated
   /// away from. Opening the app normally (launcher icon, no shortcut) restores
   /// full access. Pure UI state, derived at launch; never gates the webview

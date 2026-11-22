@@ -11,6 +11,7 @@ import 'package:webspace/settings_import_engine.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/trusted_hosts_service.dart' show kTrustedHostsKey;
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/site_navigation.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/site_permission_state.dart';
@@ -296,8 +297,13 @@ final Set<String> _legacyPrefKeys = {
   for (final p in AppPref.values) ?p.legacyKey,
 };
 
-/// `globalPrefs` keys an import applies.
-final Set<String> _prefKeysRead = {..._defaults.keys, ..._legacyPrefKeys};
+/// `globalPrefs` keys an import applies; the site strip's old keys reach it
+/// as the site navigation choice they made (`withSiteNavigation`).
+final Set<String> _prefKeysRead = {
+  ..._defaults.keys,
+  ..._legacyPrefKeys,
+  ...siteNavigationLegacyKeys,
+};
 
 SettingsBackup _reexport(SettingsImportPlan plan) =>
     SettingsBackupService.createBackup(
@@ -546,10 +552,16 @@ void main() {
 
       test('app prefs keep every value the release wrote', () {
         final want = _superset['globalPrefs'] as Map<String, dynamic>;
+        // A release before site navigation saved the strip's own keys; the
+        // choice they made stands in for the default.
+        final made = withSiteNavigation(backup.globalPrefs);
         for (final e in _defaults.entries) {
           final key = e.key;
           final got = plan.appPrefs[key];
-          if (!backup.globalPrefs.containsKey(key)) {
+          if (!backup.globalPrefs.containsKey(key) && made.containsKey(key)) {
+            expect(got, made[key],
+                reason: '$tag: "$key" is the choice its strip keys made');
+          } else if (!backup.globalPrefs.containsKey(key)) {
             expect(got, e.value,
                 reason: '$tag: "$key" is absent and must take the default');
           } else if (key == AppPref.globalOutboundProxy.key) {
@@ -727,16 +739,14 @@ void main() {
       expect(plan.sites[1].liveLocationGranularity, LocationGranularity.gsm);
     });
 
-    test('tabBarButtonInFullscreen stands in for tabBarButton', () {
-      final plan = _planFromJson(backupOf(const [],
-          globalPrefs: {'tabBarButtonInFullscreen': true}));
-      expect(plan.appPrefs['tabBarButton'], isTrue);
-      final newer = _planFromJson(backupOf(const [], globalPrefs: {
-        'tabBarButtonInFullscreen': true,
-        'tabBarButton': false,
-      }));
-      expect(newer.appPrefs['tabBarButton'], isFalse,
-          reason: 'the current key wins when both are present');
+    test('the strip button under either of its names becomes the strip with '
+        'its button in full screen', () {
+      for (final key in ['tabBarButtonInFullscreen', 'tabBarButton']) {
+        final plan = _planFromJson(
+            backupOf(const [], globalPrefs: {key: true}));
+        expect(plan.appPrefs['siteNavigation'], 'strip', reason: key);
+        expect(plan.appPrefs['fullscreenNavigation'], 'button', reason: key);
+      }
     });
 
     test('a secure cookie in a hand-written file is kept, then never exported',
@@ -891,14 +901,14 @@ void main() {
         'globalPrefs': {
           'showUrlBar': 'true',
           'tabMaxWidth': 180.0,
-          'showTabStrip': 1,
+          'siteNavigation': 1,
           'appLocaleOverride': 5,
           'osmTileUrl': null,
         },
       }));
       expect(p.appPrefs['showUrlBar'], false);
       expect(p.appPrefs['tabMaxWidth'], 180);
-      expect(p.appPrefs['showTabStrip'], false);
+      expect(p.appPrefs['siteNavigation'], 'tabButton');
       expect(p.appPrefs['appLocaleOverride'], '');
       expect(p.appPrefs['osmTileUrl'], _defaults['osmTileUrl']);
       // A file can spell a number JSON-encoding cannot produce.

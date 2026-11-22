@@ -10,6 +10,7 @@ BackGestureAction decide({
   bool canGoBack = false,
   BackAtHistoryStart atHistoryStart = BackAtHistoryStart.ignore,
   bool canExitApp = true,
+  bool navigationShown = false,
 }) =>
     decideBackGesture(
       drawerOpen: drawerOpen,
@@ -20,6 +21,7 @@ BackGestureAction decide({
       canGoBack: canGoBack,
       atHistoryStart: atHistoryStart,
       canExitApp: canExitApp,
+      navigationShown: navigationShown,
     );
 
 void main() {
@@ -56,6 +58,7 @@ void main() {
           urlChanged: false,
           drawerAvailable: true,
           atHistoryStart: BackAtHistoryStart.ignore,
+          navigationShown: false,
         ),
         BackGestureAction.ignore,
       );
@@ -122,6 +125,7 @@ void main() {
           urlChanged: false,
           drawerAvailable: true,
           atHistoryStart: opt,
+          navigationShown: false,
         ),
         BackGestureAction.openDrawer,
       );
@@ -130,8 +134,41 @@ void main() {
           urlChanged: true,
           drawerAvailable: true,
           atHistoryStart: opt,
+          navigationShown: false,
         ),
         BackGestureAction.ignore,
+      );
+    });
+
+    test('TAB-036: a docked sidebar already showing is the open menu, so '
+        'back leaves the app, or stops where the app may not quit', () {
+      expect(
+        decide(canGoBack: false, atHistoryStart: opt, navigationShown: true),
+        BackGestureAction.exitApp,
+      );
+      expect(
+        decide(
+          canGoBack: false,
+          atHistoryStart: opt,
+          navigationShown: true,
+          canExitApp: false,
+        ),
+        BackGestureAction.ignore,
+      );
+      expect(
+        decide(canGoBack: true, atHistoryStart: opt, navigationShown: true),
+        BackGestureAction.goBack,
+        reason: 'history still wins',
+      );
+      expect(
+        decideAfterAttemptedGoBack(
+          urlChanged: false,
+          drawerAvailable: true,
+          atHistoryStart: opt,
+          navigationShown: true,
+        ),
+        BackGestureAction.ignore,
+        reason: 'where an attempt runs the app cannot quit, and the menu shows',
       );
     });
 
@@ -158,6 +195,7 @@ void main() {
           urlChanged: false,
           drawerAvailable: false,
           atHistoryStart: opt,
+          navigationShown: false,
         ),
         BackGestureAction.ignore,
       );

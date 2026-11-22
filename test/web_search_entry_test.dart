@@ -14,7 +14,11 @@ void main() {
   late String links;
 
   setUpAll(() {
-    main = File('lib/screens/webspace_page.dart').readAsStringSync();
+    // The page and its parts, read as the one library they are.
+    main = [
+      'lib/screens/webspace_page.dart',
+      'lib/screens/webspace_page_navigation.dart',
+    ].map((path) => File(path).readAsStringSync()).join('\n');
     model = File('lib/web_view_model.dart').readAsStringSync();
     tabs = [
       for (final f in ['tabs_controller', 'tab_table'])

@@ -62,7 +62,7 @@ A tap on the site that is **already active** is not a switch and SHALL quiesce n
 #### Scenario: Tapping the site already on screen
 
 **Given** site A is the currently active site
-**When** the user taps A in the drawer or tab strip
+**When** the user taps A in the drawer or site strip
 **Then** no site is quiesced — A is not paused, its media keeps playing and a camera capture it is running is not ended
 **And** A is still resumed and re-added to `_sites.loaded` as the activation completes
 **And** no empty system dialog appears on iOS

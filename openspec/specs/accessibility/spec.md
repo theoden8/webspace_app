@@ -7,7 +7,7 @@ what App Store Connect's Accessibility Nutrition Labels may claim for it.
 
 The app has two surfaces with different owners:
 
-- **The chrome** (drawer, tab strip, URL bar, settings screens, dialogs) is
+- **The chrome** (drawer, site strip, URL bar, settings screens, dialogs) is
   the app's own Flutter UI. Its accessibility is entirely ours.
 - **Web content** belongs to the site. The engine (WKWebView, Android
   WebView, WPE WebKit) already implements accessibility for it: a screen
@@ -52,7 +52,7 @@ every one of these works with the feature on.
 
 1. First launch: the empty state, the suggested sites, adding a first site.
 2. Add, edit and delete a site.
-3. Switch sites: drawer, tab strip, tabs sheet.
+3. Switch sites: drawer, site strip, tabs sheet.
 4. Use a site: read and operate the page, back, reload, URL bar, find in page.
 5. Webspaces: create, select, change membership.
 6. Settings: a site's screen and its Behaviour, Network, Privacy and
@@ -196,7 +196,7 @@ Why each is No today, in one line each:
   the add-site FAB included (first launch); the drawer's site tile has no
   tap action; several actions exist only as long press, drag or swipe. On
   the Mac the page itself is unreachable (A11Y-004).
-- **Larger Text**: nothing clamps the scale, but the drawer tile, tab strip
+- **Larger Text**: nothing clamps the scale, but the drawer tile, site strip
   and tab counter are fixed-size boxes that no test renders at 200%. On the
   Mac Flutter reports 1.0 and there is no in-app text size.
 - **Dark Interface**: the chrome is ready; whether a webview paints white
@@ -375,7 +375,7 @@ Known failures at `5e1788f`:
 | `main.dart:10431` | fullscreen exit handle: unlabelled |
 | `stats_banner.dart:80` | expand/collapse with no button role or expanded state |
 | `main.dart:8128-8200` | back, home, share and refresh inside one `PopupMenuItem`, whose `MergeSemantics` makes them one node |
-| drawer grid, tab strip | reorder by drag only (the drawer's Move up/down sits behind the site menu); no custom action on the tab strip |
+| drawer grid, site strip | reorder by drag only (the drawer's Move up/down sits behind the site menu); no custom action on the site strip |
 | `user_scripts.dart:379-442` | in the global library, swipe is the only way to delete a script |
 | `add_site.dart:880`; `main.dart:8177` | remove a suggestion, duplicate a tab: long press only |
 | `tor_bridge_settings.dart:209` | bridge CAPTCHA image: no label and no alternative challenge |
@@ -389,7 +389,7 @@ device check.
 Gates to add: a structural test under `test/js/` that fails an `IconButton`
 or `FloatingActionButton` with neither `tooltip:` nor an enclosing
 `Semantics(label:)`, and a `Listener` or `GestureDetector` with a tap
-handler and no `Semantics(onTap:)`; widget tests of the drawer, tab strip,
+handler and no `Semantics(onTap:)`; widget tests of the drawer, site strip,
 app bar and settings screens against `labeledTapTargetGuideline`,
 `androidTapTargetGuideline` and `iOSTapTargetGuideline`.
 
@@ -422,12 +422,12 @@ already covers web content that way, but the chrome has none. Larger Text on
 the Mac needs an app-wide UI scale setting.
 
 Status: nothing clamps. Fixed boxes that will clip: the drawer grid cell
-(`mainAxisExtent: 88`, `main.dart:10653`), the tab strip (`height: 52`,
+(`mainAxisExtent: 88`, `main.dart:10653`), the site strip (`height: 52`,
 `main.dart:8397`), the tab counter (22x22, `main.dart:7881`), the download
 badge (28x28). `test/design_render_matrix_test.dart` renders six widgets at
-2.0; none of the drawer, tab strip, app bar or settings screens.
+2.0; none of the drawer, site strip, app bar or settings screens.
 
-Gate to add: extend the render matrix to the drawer tile, tab strip, app bar,
+Gate to add: extend the render matrix to the drawer tile, site strip, app bar,
 Add site and the settings screens, at 2.0 and 3.1, in English and in one
 locale with long words.
 
@@ -717,7 +717,7 @@ what a labelled control or hint already says.
 Status: the fullscreen exit hint (FS-002, `FullscreenController.enter`)
 is a two-second `SnackBar` without an action. The app bar is hidden in
 fullscreen, so the exits it leaves are the top-edge handle and, when shown,
-the floating tabs button that opens the tab strip and its menu. Both are
+the floating tabs button that opens the site strip and its menu. Both are
 unlabelled (A11Y-005), so once the hint is gone nothing a screen reader
 reaches says what leaves fullscreen.
 

@@ -10,6 +10,16 @@
 // Workflow and constraints: tool/design_gallery/CLAUDE.md
 
 import 'package:flutter/material.dart';
+import 'package:webspace/widgets/tab_chips.dart';
+import 'package:webspace/widgets/site_strip.dart';
+import 'package:webspace/widgets/site_sidebar.dart';
+import 'package:webspace/widgets/site_navigation_frame.dart';
+import 'package:webspace/widgets/sidebar_squares.dart';
+import 'package:webspace/widgets/sidebar_rail.dart';
+import 'package:webspace/settings/site_strip_edge.dart';
+import 'package:webspace/settings/navigation_choices.dart';
+import 'package:webspace/services/open_sites.dart';
+import 'package:webspace/services/navigation_surface_engine.dart';
 import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/services/egress_relay.dart';
 import 'package:webspace/services/egress_route_engine.dart';
@@ -26,6 +36,7 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/site_navigation.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -140,6 +151,11 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'tabs-sheet', label: 'Tabs sheet', fullBleed: true, builder: _tabsSheet),
   GalleryCard(id: 'tabs-sheet-in-site', label: 'Tabs sheet, a site in other trees', fullBleed: true, builder: _tabsSheetInSite),
   GalleryCard(id: 'tabs-sheet-way-back', label: 'Tabs sheet, after a jump to another tree', fullBleed: true, builder: _tabsSheetWayBack),
+  GalleryCard(id: 'site-strip-tabs', label: 'Site strip, the site on screen showing its tabs', builder: _siteStripTabs),
+  GalleryCard(id: 'sidebar-squares', label: 'Sidebar, open as squares', fullBleed: true, builder: (c) => _sidebarFrame(dock: SidebarDock.full, style: SidebarStyle.squares)),
+  GalleryCard(id: 'sidebar-tree', label: 'Sidebar, open as the tab tree', fullBleed: true, builder: (c) => _sidebarFrame(dock: SidebarDock.full, style: SidebarStyle.tree)),
+  GalleryCard(id: 'sidebar-rail', label: 'Sidebar, collapsed to the rail', fullBleed: true, builder: (c) => _sidebarFrame(dock: SidebarDock.rail, style: SidebarStyle.squares)),
+  GalleryCard(id: 'sidebar-drawer', label: 'Sidebar on a phone, open as a drawer over the rail', fullBleed: true, builder: (c) => _sidebarFrame(dock: SidebarDock.rail, style: SidebarStyle.squares, drawer: true)),
   GalleryCard(id: 'web-search-sheet', label: 'Web search sheet', fullBleed: true, builder: _webSearchSheet),
   GalleryCard(id: 'web-search-empty', label: 'Web search sheet, no search sites', fullBleed: true, builder: _webSearchEmpty),
   GalleryCard(id: 'web-search-default', label: 'Default search picker, two sites with one name', builder: _webSearchDefault),
@@ -928,20 +944,20 @@ Widget _appAppearance(BuildContext _) => AppAppearanceScreen(
       onSettingsChanged: (_) {},
     );
 
-/// App behaviour, with the tab strip pinned by [_seedAppPrefs] so the
+/// App behaviour, with the site strip pinned by [_seedAppPrefs] so the
 /// full-screen choice under it shows.
 Widget _appBehaviour(BuildContext _) => AppBehaviourScreen(
       onOpenLinkHandlingSettings: () {},
       homeShortcuts: null,
     );
 
-/// Off their defaults where that shows more of App settings: the tab strip
+/// Off their defaults where that shows more of App settings: the site strip
 /// pinned, so Behaviour shows its full-screen choice, with a width set, and
 /// full screen on shortcut off, on a device that takes shortcuts. Demo mode
 /// keeps what a designer toggles out of the browser's storage.
 void _seedAppPrefs() {
   isDemoMode = true;
-  AppPref.showTabStrip.debugValue = true;
+  AppPref.siteNavigation.debugValue = SiteNavigation.strip.name;
   AppPref.tabMaxWidth.debugValue = 180;
   AppPref.fullscreenOnShortcut.debugValue = false;
   ShortcutService.debugOfferedOverride = true;
@@ -1542,5 +1558,111 @@ Widget _tabsSheetWayBack(BuildContext _) {
     ],
     wayBack: TabReturn(
         fromSiteId: SiteId('ddg'), fromTabId: kPrimaryTabId, toSiteId: SiteId('gh'), toTabId: TabId('search')),
+  );
+}
+
+/// What a tab chip asks, answered by nothing in the gallery.
+final TabChipActions _noChipActions = (
+  open: (_, {required tabId}) {},
+  close: (_, {required tabId}) {},
+  add: (_) {},
+);
+
+/// The site strip with GitHub on screen, its tabs open beside its chip
+/// (TAB-031); the other sites carry their arrows.
+Widget _siteStripTabs(BuildContext _) {
+  _TabsDemo.bindLookup();
+  final sites = _TabsDemo.all;
+  return SiteStrip(
+    edge: SiteStripEdge.top,
+    models: sites,
+    order: [for (var i = 0; i < sites.length; i++) i],
+    current: 0,
+    revealed: false,
+    onHide: _noop,
+    onOpen: (_) {},
+    onShowTabs: _noop,
+    onToggleOpen: (_) {},
+    tabs: _noChipActions,
+    onReorder: null,
+    menu: const Icon(Icons.more_vert),
+  );
+}
+
+/// The page laid out with its sidebar, as the real frame lays it out: open
+/// (TAB-032) as squares or the tree (TAB-034), the rail, or on a phone the
+/// drawer over the rail (TAB-033). GitHub is on screen.
+Widget _sidebarFrame({
+  required SidebarDock dock,
+  required SidebarStyle style,
+  bool drawer = false,
+}) {
+  _TabsDemo.bindLookup();
+  final sites = _TabsDemo.all;
+  final github = sites.first;
+  Widget panel(double width, {required bool floating}) => SiteSidebar(
+        width: width,
+        title: const Text('Work'),
+        body: switch (style) {
+          SidebarStyle.squares => SidebarSquares(
+              sites: sites,
+              current: github,
+              open: const OpenSites(),
+              onSquare: (_) {},
+              onToggleOpen: (_) {},
+              actions: _noChipActions,
+              onMenu: (_, {required site, required position}) {},
+            ),
+          SidebarStyle.tree => TabsSheet(
+              host: floating ? TabsSheetHost.drawer : TabsSheetHost.sidebar,
+              sites: _TabsDemo.sites(current: github),
+              currentIndex: 0,
+              onOpenTab: (_, {required tabId}) {},
+              onNewTab: (_) {},
+              onCloseTab: (_, {required tabId}) async =>
+                  (listing: (sites: _TabsDemo.sites(current: github), wayBack: null), kept: null),
+              onCloseSubtree: (_, {required tabId}) async =>
+                  (listing: (sites: _TabsDemo.sites(current: github), wayBack: null), kept: null),
+            ),
+        },
+        onCollapse: _noop,
+        collapseTooltip: floating ? 'Put the sidebar away' : 'Collapse to the rail',
+      );
+  return Scaffold(
+    appBar: AppBar(title: const Text('GitHub')),
+    body: SiteNavigationFrame(
+      surfaces: (
+        strip: false,
+        dock: dock,
+        float: drawer ? SidebarFloat.drawer : SidebarFloat.none,
+        arrowTab: false,
+        appBarSidebarIcon: false,
+        tabCountButton: false,
+        stripButton: false,
+      ),
+      main: const ColoredBox(color: Color(0xFFF4F1EA), child: SizedBox.expand()),
+      panelWidth: 260,
+      floatWidth: drawer ? 290 : 260,
+      railWidth: drawer ? 52 : 60,
+      panel: panel,
+      rail: SidebarRail(
+        sites: sites,
+        current: github,
+        width: drawer ? 52 : 60,
+        onOpen: (_) {},
+        onOpenTab: (_, {required tabId}) {},
+        onExpand: _noop,
+        onHide: _noop,
+      ),
+      handleFraction: 0.55,
+      revealsOverlay: false,
+      expandsOnHover: false,
+      onArrowTap: _noop,
+      onSettle: (_) {},
+      onReveal: (_) {},
+      onDismissFloat: _noop,
+      onHandleMoved: (_) {},
+      onResize: (_) {},
+    ),
   );
 }

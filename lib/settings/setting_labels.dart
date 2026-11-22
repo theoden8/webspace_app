@@ -6,6 +6,7 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/location.dart';
+import 'package:webspace/settings/navigation_choices.dart';
 import 'package:webspace/settings/origin_choices.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/site_permission_state.dart';
@@ -189,5 +190,28 @@ extension UserScriptInjectionTimeLabel on UserScriptInjectionTime {
   Localized label(AppLocalizations loc) => switch (this) {
     UserScriptInjectionTime.atDocumentStart => loc.userScriptsAtDocumentStart,
     UserScriptInjectionTime.atDocumentEnd => loc.userScriptsAtDocumentEnd,
+  };
+}
+
+extension SiteNavigationLabel on SiteNavigation {
+  Localized label(AppLocalizations loc) => switch (this) {
+    SiteNavigation.tabButton => loc.siteNavigationTabButton,
+    SiteNavigation.strip => loc.appSettingsSiteStrip,
+    SiteNavigation.sidebar => loc.siteNavigationSidebar,
+  };
+}
+
+extension FullscreenNavigationLabel on FullscreenNavigation {
+  Localized label(AppLocalizations loc) => switch (this) {
+    FullscreenNavigation.hidden => loc.appSettingsFullscreenSiteStripHidden,
+    FullscreenNavigation.kept => loc.appSettingsFullscreenSiteStripAlways,
+    FullscreenNavigation.button => loc.appSettingsFullscreenSiteStripButton,
+  };
+}
+
+extension SidebarStyleLabel on SidebarStyle {
+  Localized label(AppLocalizations loc) => switch (this) {
+    SidebarStyle.squares => loc.sidebarStyleSquares,
+    SidebarStyle.tree => loc.sidebarStyleTree,
   };
 }

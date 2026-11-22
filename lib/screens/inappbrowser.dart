@@ -545,7 +545,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           NextSite() ||
           PreviousSite() ||
           SiteAt() ||
-          LastSite():
+          LastSite() ||
+          ToggleSidebar():
         return false;
     }
     return true;

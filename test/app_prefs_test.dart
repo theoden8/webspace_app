@@ -12,6 +12,7 @@ import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/site_navigation.dart';
 import 'package:webspace/settings/proxy.dart';
 
 import 'helpers/localized.dart';
@@ -64,13 +65,13 @@ void main() {
     expect(AppPref.osmTileUrl.value, AppPref.osmTileUrl.fallback);
   });
 
-  test('the tab-bar button still reads the key it had before v0.2.7',
+  test('the strip button stored before v0.2.7 exports as the choice it made',
       () async {
     SharedPreferences.setMockInitialValues({'tabBarButtonInFullscreen': true});
     final prefs = await SharedPreferences.getInstance();
     AppPref.loadAll(prefs);
-    expect(AppPref.tabBarButton.value, isTrue);
-    expect(readExportedAppPrefs(prefs)['tabBarButton'], isTrue,
+    await loadSiteNavigation(prefs);
+    expect(readExportedAppPrefs(prefs)['siteNavigation'], 'strip',
         reason: 'the export names what the app runs with');
   });
 

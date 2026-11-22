@@ -32,6 +32,7 @@ class MainActivity: FlutterActivity() {
     private var remoteInputPlugin: RemoteInputPlugin? = null
     private var keyboardInputPlugin: KeyboardInputPlugin? = null
     private var windowCaptionPlugin: WindowCaptionPlugin? = null
+    private var backSwipeExclusionPlugin: BackSwipeExclusionPlugin? = null
     private var networkSignInPlugin: NetworkSignInPlugin? = null
     private var pendingShareUrl: String? = null
     private var pendingShareHtml: HtmlPayload? = null
@@ -94,6 +95,7 @@ class MainActivity: FlutterActivity() {
         remoteInputPlugin = RemoteInputPlugin(this, flutterEngine)
         keyboardInputPlugin = KeyboardInputPlugin(this, flutterEngine)
         windowCaptionPlugin = WindowCaptionPlugin(this, flutterEngine)
+        backSwipeExclusionPlugin = BackSwipeExclusionPlugin(this, flutterEngine)
         networkSignInPlugin = NetworkSignInPlugin(this, flutterEngine)
         captureSharePayload(intent)
         LaunchChannels.register(

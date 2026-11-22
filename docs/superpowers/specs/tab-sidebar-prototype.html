@@ -1,0 +1,985 @@
+<title>Tab Sidebar Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+/* Layout: a settings bar of switches above one device frame that behaves like the app. */
+:root {
+  --bg: #eceef3; --panel: #ffffff; --fg: #1c1d22; --muted: #5d6170; --line: #d9dce4;
+  --chrome: #f4f5f8; --chip: #ffffff; --page: #fbfbfd; --skeleton: #e4e6ec;
+  --accent: #3f51b5; --accent-soft: #dfe5ff; --accent-fg: #ffffff; --hover: #e8eaf0;
+  --danger: #c62828; --scrim: rgba(20, 22, 30, .38); --shadow: 0 2px 12px rgba(20, 22, 40, .14);
+  --display: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15161b; --panel: #1e2027; --fg: #e9eaf0; --muted: #a2a6b5; --line: #343744;
+  --chrome: #1f2128; --chip: #2a2c35; --page: #191a20; --skeleton: #2c2e38;
+  --accent: #8c9eff; --accent-soft: #2c3566; --accent-fg: #10132a; --hover: #2b2e38;
+  --danger: #ef6b6b; --scrim: rgba(0, 0, 0, .55); --shadow: 0 2px 14px rgba(0, 0, 0, .5);
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #15161b; --panel: #1e2027; --fg: #e9eaf0; --muted: #a2a6b5; --line: #343744;
+  --chrome: #1f2128; --chip: #2a2c35; --page: #191a20; --skeleton: #2c2e38;
+  --accent: #8c9eff; --accent-soft: #2c3566; --accent-fg: #10132a; --hover: #2b2e38;
+  --danger: #ef6b6b; --scrim: rgba(0, 0, 0, .55); --shadow: 0 2px 14px rgba(0, 0, 0, .5);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px; }
+button { font: inherit; color: inherit; }
+button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1140px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+header h1 { font-family: var(--display); font-size: 24px; margin: 0 0 4px; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 70ch; line-height: 1.5; }
+kbd { font-family: ui-monospace, monospace; font-size: 12px; padding: 1px 5px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); }
+
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.ctl { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.ctl > span { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 6px 11px; cursor: pointer; font-size: 13px; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); font-weight: 600; }
+.hint { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+.stage { overflow-x: auto; }
+#frame { width: 100%; display: flex; justify-content: center; }
+.frame { position: relative; background: var(--page); border: 1px solid var(--line); box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column; flex: none; }
+.frame.wide { width: min(1100px, 100%); min-width: 720px; height: 640px; border-radius: 10px; }
+.frame.phone { width: 360px; height: 720px; border-radius: 30px; border: 9px solid #1b1c20; }
+.titlebar { height: 28px; flex: none; background: var(--chrome); border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 7px; padding: 0 10px; }
+.titlebar i { width: 11px; height: 11px; border-radius: 50%; }
+.status { height: 24px; flex: none; background: var(--chrome); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.appbar { height: 52px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 8px; background: var(--chrome); border-bottom: 1px solid var(--line); }
+.appbar .title { flex: 1; font-weight: 600; font-size: 16px; padding-left: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.iconbtn { width: 36px; height: 36px; border: 0; background: transparent; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--muted); flex: none; }
+.iconbtn:hover { background: var(--hover); color: var(--fg); }
+.countbtn { min-width: 26px; height: 22px; border: 2px solid currentColor; border-radius: 6px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; padding: 0 4px; }
+
+.body { flex: 1; display: flex; min-height: 0; position: relative; }
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
+.strip { height: 52px; flex: none; display: flex; align-items: center; gap: 4px; padding: 0 6px; background: var(--chrome); overflow-x: auto; scrollbar-width: none; }
+.strip.top { border-bottom: 1px solid var(--line); }
+.strip.bottom { border-top: 1px solid var(--line); }
+.sgroup { display: inline-flex; align-items: center; gap: 3px; padding: 3px 4px 3px 3px; border-radius: 10px; background: var(--hover); flex: none; overflow: hidden; }
+.sgroup .chip { height: 36px; }
+.scaret { width: 20px; height: 26px; border: 0; background: transparent; color: var(--muted); border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; margin: 0 -4px 0 -2px; }
+.scaret:hover { background: var(--line); color: var(--fg); }
+.scaret svg { transform: rotate(-90deg); transition: transform .15s; }
+.scaret.open svg { transform: rotate(90deg); }
+.stab { height: 30px; display: inline-flex; align-items: center; gap: 5px; padding: 0 8px; border-radius: 7px; border: 1px solid transparent; background: var(--chip); cursor: pointer; white-space: nowrap; font-size: 12px; flex: none; position: relative; max-width: 160px; }
+.stab .name { overflow: hidden; text-overflow: ellipsis; }
+.stab.on { border-color: var(--accent); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
+.stab.cold .name { opacity: .55; }
+.stab .kid { width: 5px; height: 5px; border-radius: 50%; background: var(--muted); opacity: .6; flex: none; }
+.stab .rowbtn { width: 18px; height: 18px; }
+.stab:hover .rowbtn { display: inline-flex; }
+.splus { width: 28px; height: 30px; border: 0; border-radius: 7px; background: transparent; color: var(--accent); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; flex: none; }
+.splus:hover { background: var(--chip); }
+.chip { height: 40px; display: inline-flex; align-items: center; gap: 6px; padding: 0 9px; border-radius: 8px; border: 1px solid var(--line); background: var(--chip); cursor: pointer; white-space: nowrap; font-size: 12.5px; flex: none; }
+.chip.on { background: var(--accent-soft); border: 1.5px solid var(--accent); font-weight: 600; }
+.fav { width: 16px; height: 16px; border-radius: 4px; color: #fff; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.pill { font-size: 10.5px; font-weight: 600; padding: 1px 6px; border-radius: 9px; background: var(--hover); color: var(--muted); font-variant-numeric: tabular-nums; }
+.on > .pill, .pill.on { background: var(--accent); color: var(--accent-fg); }
+
+.page { flex: 1; overflow: hidden; padding: 0; display: flex; flex-direction: column; }
+.page .band { height: 70px; display: flex; align-items: flex-end; padding: 0 28px 12px; color: #fff; font-family: var(--display); font-size: 20px; font-weight: 600; }
+.page .content { padding: 22px 28px; display: flex; flex-direction: column; gap: 11px; }
+.page .content h2 { margin: 0 0 6px; font-family: var(--display); font-size: 22px; }
+.page .content p { margin: 0 0 6px; color: var(--muted); }
+.sk { height: 10px; border-radius: 4px; background: var(--skeleton); }
+.sk.block { height: 120px; border-radius: 8px; }
+.url { height: 48px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 10px; background: var(--chrome); border-top: 1px solid var(--line); }
+.url .field { flex: 1; min-width: 0; height: 32px; border-radius: 16px; background: var(--chip); border: 1px solid var(--line); display: flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.lock { width: 9px; height: 11px; border-radius: 2px; background: #3a9a45; flex: none; }
+
+.side { flex: none; background: var(--chrome); border-right: 1px solid var(--line); display: flex; flex-direction: column; position: relative; min-height: 0; }
+.tree { flex: 1; overflow-y: auto; padding: 6px 6px 8px; display: flex; flex-direction: column; gap: 1px; min-height: 0; }
+.tree > * { flex: none; }
+.tree .head { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); padding: 8px 8px 4px; }
+.row { display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 6px 0 2px; border-radius: 7px; cursor: pointer; user-select: none; position: relative; }
+.row:hover { background: var(--hover); }
+.row .name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.row.site { font-size: 13.5px; }
+.row.site.on { background: var(--accent-soft); box-shadow: inset 0 0 0 1.5px var(--accent); font-weight: 600; }
+.row.tab { font-size: 12.5px; height: 28px; }
+.row.tab.on { background: var(--chip); font-weight: 600; box-shadow: inset 2px 0 0 var(--accent); }
+.row.cold .name, .row.cold .fav { opacity: .55; }
+.caret { width: 16px; height: 22px; flex: none; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; cursor: pointer; color: var(--muted); border-radius: 4px; padding: 0; }
+.caret:hover { background: var(--line); }
+.caret svg { transition: transform .12s; }
+.caret.shut svg { transform: rotate(-90deg); }
+.nocaret { width: 16px; flex: none; }
+.rowbtn { width: 24px; height: 24px; border: 0; background: transparent; border-radius: 5px; display: none; align-items: center; justify-content: center; cursor: pointer; color: var(--muted); flex: none; padding: 0; }
+.rowbtn:hover { background: var(--line); color: var(--fg); }
+.rowbtn.plus { color: var(--accent); }
+.row:hover .rowbtn, .row:focus-within .rowbtn { display: inline-flex; }
+.foot { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: 2px; padding: 6px; border-top: 1px solid var(--line); }
+.body > .side > .tree, .body > .side > .foot { min-width: var(--w); }
+.grip { position: absolute; top: 0; bottom: 0; right: -4px; width: 8px; cursor: col-resize; z-index: 3; }
+.grip::after { content: ""; position: absolute; left: 3px; top: calc(50% - 18px); height: 36px; width: 2px; border-radius: 1px; background: var(--line); }
+.grip:hover::after, .grip.drag::after { background: var(--accent); }
+
+.railwrap { position: relative; flex: none; display: flex; z-index: 4; }
+.frame.phone .rail { width: 52px; } .frame.phone .rbtn { width: 38px; height: 38px; }
+.rail { width: 60px; background: var(--chrome); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 0 6px; overflow-y: auto; }
+.rbtn { width: 42px; height: 42px; flex: none; border-radius: 9px; border: 1px solid var(--line); background: var(--chip); display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; padding: 0; }
+.rbtn.on { background: var(--accent-soft); border: 1.5px solid var(--accent); }
+.rbtn .fav { width: 22px; height: 22px; font-size: 12px; }
+.rbtn .badge { position: absolute; top: -5px; right: -5px; font-size: 9.5px; font-weight: 700; padding: 1px 4px; border-radius: 8px; background: var(--muted); color: var(--panel); }
+.rbtn.on .badge { background: var(--accent); color: var(--accent-fg); }
+.ticks { display: flex; flex-direction: column; gap: 3px; margin: -2px 0 2px; }
+.ticks button { width: 24px; height: 6px; border-radius: 3px; border: 0; background: var(--line); cursor: pointer; padding: 0; }
+.ticks button.on { background: var(--accent); }
+.rail .spacer { flex: 1; }
+.flyout { position: absolute; left: 60px; top: 0; bottom: 0; display: none; box-shadow: 6px 0 18px rgba(0,0,0,.18); }
+.railwrap.hoverx:hover .flyout { display: flex; }
+
+.handle { position: absolute; z-index: 8; left: 0; width: 18px; height: 60px; border: 0; border-radius: 0 12px 12px 0; background: var(--accent); color: var(--accent-fg); box-shadow: 2px 2px 10px rgba(0,0,0,.25); display: flex; align-items: center; justify-content: center; cursor: grab; touch-action: none; padding: 0; }
+.handle:hover { width: 22px; }
+.sidecollapse { position: absolute; top: 4px; right: 6px; z-index: 2; color: var(--accent); }
+.handle svg { transition: transform .2s; }
+.handle.open svg { transform: rotate(180deg); }
+.stripbtn { position: absolute; z-index: 8; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-fg); box-shadow: 0 4px 12px rgba(0,0,0,.3); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.stripclose { flex: none; }
+.overlay { position: absolute; left: 0; top: 0; bottom: 0; z-index: 7; display: flex; box-shadow: 6px 0 20px rgba(0,0,0,.25); }
+.scrim { position: absolute; inset: 0; background: var(--scrim); z-index: 6; }
+.drawer { position: absolute; left: 0; top: 0; bottom: 0; width: 290px; background: var(--chrome); z-index: 7; display: flex; flex-direction: column; box-shadow: 6px 0 20px rgba(0,0,0,.3); }
+.drawer .row { height: 48px; }
+.drawer .row.tab { height: 46px; font-size: 14px; }
+.drawer .row.site { font-size: 15px; }
+.drawer .rowbtn.plus { display: inline-flex; width: 36px; height: 36px; }
+.drawer .rowbtn.x { display: none; }
+.drawer .caret { width: 30px; height: 36px; }
+.lgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 8px 12px; }
+.ltile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px; border-radius: 10px; border: 1px solid var(--line); background: var(--chip); cursor: pointer; font-size: 12px; }
+.ltile.cold .fav, .ltile.cold > span:not(.pill) { opacity: .55; }
+.side .lgrid { padding: 8px 6px; gap: 8px; }
+.lcaret { position: absolute; top: 4px; left: 4px; width: 18px; height: 18px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); }
+.lcaret:hover { background: var(--line); color: var(--fg); }
+.lcaret svg { transition: transform .15s; }
+.lcaret.open svg { transform: rotate(180deg); }
+.lpanel { grid-column: 1 / -1; position: relative; display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; border-radius: 10px; background: var(--hover); margin-top: 2px; }
+.lpanel::before { content: ""; position: absolute; top: -7px; left: calc(var(--notch) - 7px); border: 7px solid transparent; border-top: 0; border-bottom-color: var(--hover); }
+.lpanel .stab { max-width: 100%; }
+.drawer .lpanel .stab { height: 38px; font-size: 13px; }
+.ltile.on { background: var(--accent-soft); border: 1.5px solid var(--accent); font-weight: 600; }
+.ltile .fav { width: 30px; height: 30px; font-size: 15px; border-radius: 8px; }
+.lhead { padding: 18px 16px 10px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--line); }
+.lhead .logo { font-family: var(--display); font-weight: 600; font-size: 18px; }
+.lback { display: flex; align-items: center; gap: 8px; color: var(--accent); cursor: pointer; font-size: 13px; border: 0; background: transparent; padding: 0; }
+.ladd { margin: 10px 12px; height: 40px; border-radius: 20px; border: 1px dashed var(--accent); background: transparent; color: var(--accent); cursor: pointer; font-weight: 600; }
+.swipe { position: relative; border-radius: 7px; overflow: hidden; flex: none; }
+.swipe .behind { position: absolute; inset: 0; background: var(--danger); color: #fff; font-weight: 600; font-size: 13px; display: none; align-items: center; justify-content: flex-end; padding-right: 14px; }
+.swipe .row { background: var(--chrome); touch-action: pan-y; }
+.swipe .row.on { background: var(--chip); }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; max-height: 72%; background: var(--panel); z-index: 7; border-radius: 16px 16px 0 0; display: flex; flex-direction: column; box-shadow: 0 -6px 20px rgba(0,0,0,.25); }
+.sheet .grab { width: 36px; height: 4px; border-radius: 2px; background: var(--line); margin: 8px auto 2px; }
+.sheet .sheethead { padding: 4px 16px 6px; font-weight: 600; font-family: var(--display); }
+.menu { position: absolute; right: 8px; top: 4px; z-index: 9; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 6px 0; min-width: 200px; display: flex; flex-direction: column; }
+.menu button { border: 0; background: transparent; text-align: left; padding: 9px 16px; cursor: pointer; font-size: 13.5px; }
+.menu button:hover { background: var(--hover); }
+.fsexit { position: absolute; top: 0; left: calc(50% - 48px); width: 96px; height: 22px; z-index: 9; border: 0; background: transparent; cursor: pointer; display: flex; align-items: flex-end; justify-content: center; padding: 0 0 6px; }
+.fsexit span { width: 36px; height: 5px; border-radius: 3px; background: var(--muted); opacity: .7; }
+.fsexit:hover span { opacity: 1; }
+.toast { position: absolute; left: 50%; bottom: 62px; transform: translateX(-50%); z-index: 9; background: var(--fg); color: var(--bg); border-radius: 8px; padding: 9px 12px; display: flex; gap: 14px; align-items: center; font-size: 13px; white-space: nowrap; box-shadow: var(--shadow); }
+.toast button { border: 0; background: transparent; color: var(--accent-soft); font-weight: 700; cursor: pointer; padding: 0; }
+.note { font-size: 12.5px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .caret svg { transition: none; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-sidebar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.5 4h4.5v16H5.5A2.5 2.5 0 0 1 3 17.5v-11A2.5 2.5 0 0 1 5.5 4z" fill="currentColor"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+    <symbol id="i-apps" viewBox="0 0 24 24"><g fill="currentColor"><rect x="4" y="4" width="4.5" height="4.5" rx="1.2"/><rect x="9.75" y="4" width="4.5" height="4.5" rx="1.2"/><rect x="15.5" y="4" width="4.5" height="4.5" rx="1.2"/><rect x="4" y="9.75" width="4.5" height="4.5" rx="1.2"/><rect x="9.75" y="9.75" width="4.5" height="4.5" rx="1.2"/><rect x="15.5" y="9.75" width="4.5" height="4.5" rx="1.2"/><rect x="4" y="15.5" width="4.5" height="4.5" rx="1.2"/><rect x="9.75" y="15.5" width="4.5" height="4.5" rx="1.2"/><rect x="15.5" y="15.5" width="4.5" height="4.5" rx="1.2"/></g></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+    <symbol id="i-strip" viewBox="0 0 24 24"><g fill="currentColor"><rect x="2" y="9" width="6" height="6" rx="1.5"/><rect x="9" y="9" width="6" height="6" rx="1.5"/><rect x="16" y="9" width="6" height="6" rx="1.5"/></g></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="19" r="1.8" fill="currentColor"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header>
+    <h1>Tab sidebar</h1>
+    <p>A clickable prototype of the design. Pick how sites are shown under <b>Site navigation</b>: the <b>Tab button</b> (today's: the tab count in the app bar opens the Tabs sheet), the <b>Site strip</b>, where each site opens out to show its tabs, or the <b>Sidebar</b>, the same tabs as a tree down the left. <b>In full screen</b> picks whether it hides, stays, or comes back through a small accessory. Double-tap the site's name, or use the ⋮ menu, for full screen; the handle at the top centre or <kbd>Esc</kbd> leaves it, as in the app. Animations use the app's timings; set them to Slow to study them. Example sites, not your data.</p>
+  </header>
+  <div class="controls" id="controls"></div>
+  <div class="hint" id="hint"></div>
+  <div class="stage"><div id="frame"></div></div>
+</div>
+
+<script>
+(function () {
+const svg = (id, size = 20) => `<svg width="${size}" height="${size}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+const sites = [
+  { id: 'mail', ws: 'work', name: 'Mail', letter: 'M', color: '#d93a3a', host: 'mail.example.com', tabsOn: true,
+    tabs: [{ id: 'm1', t: 'Inbox', p: null }, { id: 'm2', t: 'Re: Q3 plan', p: 'm1' }], active: 'm1' },
+  { id: 'cal', ws: 'work', name: 'Calendar', letter: 'C', color: '#2f7fdc', host: 'calendar.example.com', tabsOn: false,
+    tabs: [{ id: 'c1', t: 'Week 47', p: null }], active: 'c1' },
+  { id: 'docs', ws: 'work', name: 'Docs', letter: 'D', color: '#2e9d55', host: 'docs.example.com', tabsOn: true,
+    tabs: [{ id: 'd1', t: 'Q3 plan', p: null }, { id: 'd2', t: 'Budget 2027', p: 'd1' }, { id: 'd3', t: 'Hiring sheet', p: 'd1' },
+           { id: 'd4', t: 'Design notes', p: null }, { id: 'd5', t: 'Icon review', p: 'd4' }], active: 'd1' },
+  { id: 'chat', ws: 'work', name: 'Chat', letter: 'C', color: '#8a3fb0', host: 'chat.example.com', tabsOn: true,
+    tabs: [{ id: 'h1', t: '#general', p: null }, { id: 'h2', t: '#design', p: null }, { id: 'h3', t: 'Thread: icons', p: 'h2' }], active: 'h1' },
+  { id: 'news', ws: 'work', name: 'News', letter: 'N', color: '#e8820c', host: 'news.example.com', tabsOn: true,
+    tabs: [{ id: 'n1', t: 'Front page', p: null }, { id: 'n2', t: 'Long read', p: 'n1' }], active: 'n1' },
+  { id: 'bank', ws: 'work', name: 'Bank', letter: 'B', color: '#0f8a7d', host: 'bank.example.com', tabsOn: false,
+    tabs: [{ id: 'b1', t: 'Accounts', p: null }], active: 'b1' },
+  { id: 'forum', ws: 'personal', name: 'Forum', letter: 'F', color: '#c2410c', host: 'forum.example.org', tabsOn: true,
+    tabs: [{ id: 'f1', t: 'Front page', p: null }, { id: 'f2', t: 'Bike repair thread', p: 'f1' }, { id: 'f3', t: 'Saved', p: null }], active: 'f2' },
+  { id: 'maps', ws: 'personal', name: 'Maps', letter: 'M', color: '#4b7d1f', host: 'maps.example.org', tabsOn: true,
+    tabs: [{ id: 'p1', t: 'Route home', p: null }], active: 'p1' },
+  { id: 'music', ws: 'personal', name: 'Music', letter: 'M', color: '#b5179e', host: 'music.example.org', tabsOn: true,
+    tabs: [{ id: 'u1', t: 'Library', p: null }, { id: 'u2', t: 'Album: Night drive', p: 'u1' }], active: 'u2' },
+];
+const byId = Object.fromEntries(sites.map((s) => [s.id, s]));
+const narrowViewport = window.matchMedia('(max-width: 760px)').matches;
+
+const st = {
+  device: narrowViewport ? 'phone' : 'wide',
+  sidebarOn: false, edge: 'top', fullscreen: false, hoverExpand: false, perWebspace: false,
+  ws: 'work', current: { work: 'docs', personal: 'forum' },
+  side: { app: 'open', work: 'open', personal: 'hidden' }, before: { app: 'open', work: 'open', personal: 'open' },
+  width: 260, drawer: false, sheet: false, fsReveal: false,
+  folded: new Set(['chat']), loaded: new Set(['docs', 'mail', 'forum']),
+  corner: 'bl', toast: null, nextId: 1, slow: false, sideLayout: 'grid', design: 'alt', legacyDrawer: false, stripRevealed: false, handleY: 55, nav: 'strip', fsMode: 'button', menu: false, tabFolded: new Set(), stripOpen: new Set(), stripShut: new Set(),
+};
+try { const w = parseInt(localStorage.getItem('tsp-width'), 10); if (w >= 200 && w <= 420) st.width = w; } catch (e) { /* storage off */ }
+
+const sideKey = () => 'app';
+const sideState = () => st.side[sideKey()];
+const setSide = (v) => { const k = sideKey(); if (v === 'hidden' && st.side[k] !== 'hidden') st.before[k] = st.side[k]; st.side[k] = v; };
+const cur = () => byId[st.current[st.ws]];
+const wsSites = () => sites.filter((s) => s.ws === st.ws);
+const wide = () => st.device === 'wide';
+const hasTabs = (s) => s.tabsOn && s.tabs.length > 1;
+
+function stripShown() {
+  if (st.nav !== 'strip') return false;
+  if (st.fullscreen) return st.fsMode === 'kept' || st.stripRevealed;
+  return true;
+}
+function stripBtnShown() { return st.nav === 'strip' && st.fullscreen && st.fsMode === 'button' && !st.stripRevealed; }
+const DRAWER_W = 290;
+const PHONE_RAIL_W = 52;
+const fsButton = () => st.fullscreen && st.fsMode === 'button';
+const fsHidden = () => st.fullscreen && st.fsMode === 'hidden';
+Object.defineProperty(st, 'drawer', {
+  get() { return !wide() && st.sidebarOn && (fsButton() ? st.fsReveal : (!fsHidden() && sideState() === 'open')); },
+  set(v) {
+    if (wide() || !st.sidebarOn) return;
+    if (fsButton()) { st.fsReveal = v; return; }
+    if (v) setSide('open'); else if (sideState() === 'open') setSide('collapsed');
+  },
+});
+function squareShown() {
+  if (!st.sidebarOn) return false;
+  if (st.fullscreen && st.fsMode === 'hidden') return false;
+  return panelEdge() === 0;
+}
+function railOnPhone() {
+  if (wide() || !st.sidebarOn || sideState() === 'hidden') return false;
+  return !st.fullscreen || st.fsMode === 'kept';
+}
+function panelEdge() {
+  if (!wide()) return st.drawer ? DRAWER_W : (railOnPhone() ? PHONE_RAIL_W : 0);
+  if (st.fullscreen && st.fsMode === 'button') return st.fsReveal ? st.width : 0;
+  const sd = sideState();
+  return sd === 'open' ? st.width : sd === 'collapsed' ? 60 : 0;
+}
+
+function openSite(id, tab) {
+  if (st.ws !== byId[id].ws) st.ws = byId[id].ws;
+  st.current[st.ws] = id; st.loaded.add(id); st.folded.delete(id);
+  if (tab) {
+    byId[id].active = tab;
+    for (let t = byId[id].tabs.find((x) => x.id === tab); t && t.p; t = byId[id].tabs.find((x) => x.id === t.p)) st.tabFolded.delete(t.p);
+  }
+}
+function afterPick() { st.drawer = false; st.sheet = false; st.legacyDrawer = false; if (st.fullscreen) st.fsReveal = false; }
+
+function waysIn() {
+  if (!cur().tabsOn) { toast(`${cur().name} has tabs off, so there is nothing to list (TAB-012).`); return; }
+  if (!st.sidebarOn) st.sheet = !st.sheet;
+  else if (!wide() && !st.fullscreen) setSide(sideState() === 'open' ? 'collapsed' : 'open');
+  else if (!wide()) st.drawer = !st.drawer;
+  else if (st.fullscreen) st.fsReveal = !st.fsReveal;
+  else setSide(sideState() === 'open' ? 'collapsed' : 'open');
+}
+function squareTap() {
+  if (st.fullscreen && st.fsMode === 'button') { st.fsReveal = !st.fsReveal; return; }
+  if (sideState() === 'hidden') setSide(st.before[sideKey()] || 'open'); else setSide('hidden');
+}
+function cycle() {
+  if (!st.sidebarOn) return;
+  if (!wide()) { st.drawer = !st.drawer; return; }
+  if (st.fullscreen) { st.fsReveal = !st.fsReveal; return; }
+  const s = sideState();
+  setSide(s === 'open' ? 'collapsed' : s === 'collapsed' ? 'hidden' : 'open');
+}
+
+function ordered(site) {
+  const out = [];
+  const walk = (parent, depth) => site.tabs.filter((t) => t.p === parent).forEach((t) => { out.push({ tab: t, depth }); walk(t.id, depth + 1); });
+  walk(null, 0);
+  return out;
+}
+const kidsOf = (site, id) => site.tabs.filter((t) => t.p === id);
+function descendants(site, id) { const out = []; const walk = (p) => kidsOf(site, p).forEach((t) => { out.push(t.id); walk(t.id); }); walk(id); return out; }
+// the tree as the sidebar shows it: a folded tab keeps its subtree out of view
+function visibleOrdered(site) {
+  const out = [];
+  const walk = (parent, depth) => kidsOf(site, parent).forEach((t) => {
+    const kids = kidsOf(site, t.id).length;
+    const shut = kids > 0 && st.tabFolded.has(t.id);
+    out.push({ tab: t, depth, kids, hidden: shut ? descendants(site, t.id).length : 0 });
+    if (!shut) walk(t.id, depth + 1);
+  });
+  walk(null, 0);
+  return out;
+}
+function closeTab(siteId, tabId) {
+  const s = byId[siteId];
+  if (s.tabs.length < 2) return;
+  const snapshot = { tabs: s.tabs.map((t) => ({ ...t })), active: s.active };
+  const gone = s.tabs.find((t) => t.id === tabId);
+  s.tabs.forEach((t) => { if (t.p === tabId) t.p = gone.p; });
+  s.tabs = s.tabs.filter((t) => t.id !== tabId);
+  if (s.active === tabId) s.active = (gone.p && s.tabs.some((t) => t.id === gone.p)) ? gone.p : s.tabs[0].id;
+  toast(`Closed ${gone.t}`, () => { s.tabs = snapshot.tabs; s.active = snapshot.active; });
+}
+function newTab(siteId) {
+  const s = byId[siteId];
+  const id = 'x' + st.nextId++;
+  s.tabs.push({ id, t: 'New tab', p: null });
+  openSite(siteId, id);
+}
+
+let toastTimer = null;
+function toast(text, undo) {
+  st.toast = { text, undo };
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => commit(() => { st.toast = null; }), 4000);
+}
+
+/* ---------- rendering ---------- */
+const fav = (s, size) => `<span class="fav" style="background:${s.color}${size ? `;width:${size}px;height:${size}px;font-size:${Math.round(size * .55)}px` : ''}">${s.letter}</span>`;
+
+function gridHtml(ctx) {
+  const c = cur();
+  const cols = 3;
+  const list = wsSites();
+  const tile = (s) => {
+    const open = stripIsOpen(s);
+    const caret = hasTabs(s) ? `<span class="lcaret${open ? ' open' : ''}" data-act="stripfold" data-site="${s.id}" role="button" aria-label="${open ? 'Close' : 'Open'} ${esc(s.name)}'s tabs" aria-expanded="${open}">${svg('caret', 12)}</span>` : '';
+    return `<button class="ltile${s.id === c.id ? ' on' : ''}${st.loaded.has(s.id) ? '' : ' cold'}" data-anim="${ctx}|s|${s.id}" data-act="chip" data-site="${s.id}">${fav(s)}<span>${esc(s.name)}</span>${hasTabs(s) && !open ? `<span class="pill${s.id === c.id ? ' on' : ''}" style="position:absolute;top:5px;right:5px">${s.tabs.length}</span>` : ''}${caret}</button>`;
+  };
+  const panel = (s, col) => {
+    const isCur = s.id === c.id;
+    const tabs = ordered(s).map(({ tab, depth }) => {
+      const on = isCur && s.active === tab.id;
+      const warm = st.loaded.has(s.id) && s.active === tab.id;
+      return `<span class="stab${on ? ' on' : ''}${warm ? '' : ' cold'}" data-anim="${ctx}|t|${s.id}|${tab.id}" data-act="tab" data-site="${s.id}" data-tab="${tab.id}" role="button" tabindex="0" title="${esc(tab.t)}">${depth ? '<span class="kid"></span>' : ''}<span class="name">${esc(tab.t)}</span><button class="rowbtn x" data-act="close" data-site="${s.id}" data-tab="${tab.id}" aria-label="Close ${esc(tab.t)}">${svg('close', 12)}</button></span>`;
+    }).join('');
+    return `<div class="lpanel" data-anim="${ctx}|p|${s.id}" style="--notch:${((col + 0.5) / cols) * 100}%">${tabs}<button class="splus" data-act="new" data-site="${s.id}" title="New tab in ${esc(s.name)}" aria-label="New tab in ${esc(s.name)}">${svg('plus', 16)}</button></div>`;
+  };
+  let cells = '';
+  for (let r = 0; r < list.length; r += cols) {
+    const row = list.slice(r, r + cols);
+    cells += row.map(tile).join('');
+    row.forEach((s, k) => { if (stripIsOpen(s)) cells += panel(s, k); });
+  }
+  const head = st.design === 'legacy' ? '' : `<div class="head">${st.ws === 'work' ? 'Work' : 'Personal'}</div>`;
+  if (st.design !== 'legacy') return `${head}<div class="lgrid">${cells}</div>`;
+  return `<div class="lgrid">${cells}</div><button class="ladd" data-act="toast" data-msg="Add site, as the legacy drawer offers it (not part of this prototype).">+ Add site</button>`;
+}
+function treeHtml(ctx) {
+  const phone = ctx === 'drawer';
+  const c = cur();
+  const legacy = st.design === 'legacy' && ctx !== 'sheet';
+  if (st.sideLayout === 'grid' && ctx !== 'flyout' && ctx !== 'sheet') return gridHtml(ctx);
+  let h = legacy ? '' : `<div class="head">${st.ws === 'work' ? 'Work' : 'Personal'}</div>`;
+  for (const s of wsSites()) {
+    const isCur = s.id === c.id;
+    const cold = !st.loaded.has(s.id);
+    const tree = hasTabs(s);
+    const shut = st.folded.has(s.id);
+    const caret = tree
+      ? `<button class="caret${shut ? ' shut' : ''}" data-anim="${ctx}|c|${s.id}" data-rot="${shut ? -90 : 0}" data-act="fold" data-site="${s.id}" aria-label="${shut ? 'Unfold' : 'Fold'} ${esc(s.name)}" aria-expanded="${!shut}">${svg('caret', 14)}</button>`
+      : `<span class="nocaret"></span>`;
+    const plus = s.tabsOn ? `<button class="rowbtn plus" data-act="new" data-site="${s.id}" aria-label="New tab in ${esc(s.name)}">${svg('plus', 16)}</button>` : '';
+    const pill = tree ? `<span class="pill${isCur ? ' on' : ''}">${s.tabs.length}</span>` : '';
+    h += `<div class="row site${isCur ? ' on' : ''}${cold ? ' cold' : ''}" data-anim="${ctx}|s|${s.id}" data-act="site" data-site="${s.id}" tabindex="0" role="button">${caret}${fav(s)}<span class="name">${esc(s.name)}</span>${plus}${pill}</div>`;
+    if (tree && !shut) {
+      for (const { tab, depth, kids, hidden } of visibleOrdered(s)) {
+        const on = isCur && s.active === tab.id;
+        const warm = st.loaded.has(s.id) && s.active === tab.id;
+        const pad = 8 + depth * 15;
+        const shut = hidden > 0;
+        const tcaret = kids
+          ? `<button class="caret${shut ? ' shut' : ''}" data-act="tabfold" data-site="${s.id}" data-tab="${tab.id}" data-anim="${ctx}|tc|${tab.id}" data-rot="${shut ? -90 : 0}" aria-label="${shut ? 'Show' : 'Hide'} the tabs opened from ${esc(tab.t)}" aria-expanded="${!shut}">${svg('caret', 14)}</button>`
+          : '<span class="nocaret"></span>';
+        const more = shut ? `<span class="pill" title="${hidden} tab${hidden > 1 ? 's' : ''} folded under it">+${hidden}</span>` : '';
+        const x = `<button class="rowbtn x" data-act="close" data-site="${s.id}" data-tab="${tab.id}" aria-label="Close ${esc(tab.t)}">${svg('close', 14)}</button>`;
+        const row = `<div class="row tab${on ? ' on' : ''}${warm ? '' : ' cold'}" style="padding-left:${pad}px" data-act="tab" data-site="${s.id}" data-tab="${tab.id}" tabindex="0" role="button">${tcaret}<span class="name">${esc(tab.t)}</span>${more}${x}</div>`;
+        const key = `${ctx}|t|${s.id}|${tab.id}`;
+        h += phone ? `<div class="swipe" data-anim="${key}"><div class="behind">Close</div>${row}</div>` : row.replace('<div class="row tab', `<div data-anim="${key}" class="row tab`);
+      }
+    }
+  }
+  if (st.ws === 'work' && c.id === 'docs') {
+    h += `<div class="head" style="margin-top:6px">Opened from here</div>
+      <div class="row tab cold" style="padding-left:8px" data-act="toast" data-msg="Opens Wiki on that tab (TAB-017)." tabindex="0" role="button"><span class="fav" style="background:#5e35b1">W</span><span class="name">Wiki: Q3 glossary</span></div>`;
+  }
+  if (legacy) h += `<button class="ladd" data-act="toast" data-msg="Add site, as the legacy drawer offers it (not part of this prototype).">+ Add site</button>`;
+  return h;
+}
+
+function sidebarHtml({ overlay } = {}) {
+  return `<div class="side"${overlay ? '' : ' data-anim="leftcol"'} style="width:${st.width}px;--w:${st.width}px">
+    <button class="iconbtn sidecollapse" data-act="${overlay ? 'fsclose' : 'collapse'}" title="${overlay ? 'Put away' : 'Collapse to the rail'}" aria-label="${overlay ? 'Put the sidebar away' : 'Collapse the sidebar to the rail'}">${svg('sidebar')}</button>
+    ${legacyHead()}<div class="tree">${treeHtml(overlay ? 'overlay' : 'side')}</div>
+    ${overlay ? '' : '<div class="grip" data-grip="1" title="Drag to resize"></div>'}
+  </div>`;
+}
+
+function railHtml() {
+  const c = cur();
+  let h = '';
+  for (const s of wsSites()) {
+    const on = s.id === c.id;
+    h += `<button class="rbtn${on ? ' on' : ''}" data-act="site" data-site="${s.id}" title="${esc(s.name)}" aria-label="${esc(s.name)}">${fav(s, 22)}${hasTabs(s) ? `<span class="badge">${s.tabs.length}</span>` : ''}</button>`;
+    if (on && hasTabs(s)) {
+      h += `<div class="ticks">${ordered(s).map(({ tab }) => `<button class="${s.active === tab.id ? 'on' : ''}" data-act="tab" data-site="${s.id}" data-tab="${tab.id}" title="${esc(tab.t)}" aria-label="${esc(tab.t)}"></button>`).join('')}</div>`;
+    }
+  }
+  return `<div class="railwrap${st.hoverExpand ? ' hoverx' : ''}" data-anim="leftcol">
+    <div class="rail"><button class="iconbtn" data-act="expand" title="Expand" aria-label="Expand the sidebar" style="color:var(--accent);flex:none">${svg('sidebar')}</button>${h}<div class="spacer"></div>
+      ${addSiteBtn()}
+      <button class="iconbtn" data-act="hide" title="Hide the sidebar" aria-label="Hide the sidebar">${svg('close')}</button>
+    </div>
+    <div class="flyout"><div class="side" style="width:${st.width}px"><div class="tree">${treeHtml('flyout')}</div></div></div>
+  </div>`;
+}
+
+const stripIsOpen = (s) => hasTabs(s) && (s.id === cur().id ? !st.stripShut.has(s.id) : st.stripOpen.has(s.id));
+function stripHtml(edge) {
+  const c = cur();
+  const close = st.stripRevealed ? `<button class="iconbtn stripclose" data-act="hidestrip" title="Hide the site strip" aria-label="Hide the site strip">${svg('close', 18)}</button>` : '';
+  const items = wsSites().map((s) => {
+    const isCur = s.id === c.id;
+    const open = stripIsOpen(s);
+    const caret = hasTabs(s) ? `<span class="scaret${open ? ' open' : ''}" data-act="stripfold" data-site="${s.id}" role="button" aria-label="${open ? 'Close' : 'Open'} ${esc(s.name)}'s tabs" aria-expanded="${open}">${svg('caret', 14)}</span>` : '';
+    const chip = `<button class="chip${isCur ? ' on' : ''}" data-act="chip" data-site="${s.id}">${fav(s)}${esc(s.name)}${hasTabs(s) && !open ? `<span class="pill">${s.tabs.length}</span>` : ''}${caret}</button>`;
+    if (!open) return chip;
+    const tabs = ordered(s).map(({ tab, depth }) => {
+      const on = isCur && s.active === tab.id;
+      const warm = st.loaded.has(s.id) && s.active === tab.id;
+      return `<span class="stab${on ? ' on' : ''}${warm ? '' : ' cold'}" data-anim="strip|t|${s.id}|${tab.id}" data-act="tab" data-site="${s.id}" data-tab="${tab.id}" role="button" tabindex="0" title="${esc(tab.t)}">${depth ? '<span class="kid"></span>' : ''}<span class="name">${esc(tab.t)}</span><button class="rowbtn x" data-act="close" data-site="${s.id}" data-tab="${tab.id}" aria-label="Close ${esc(tab.t)}">${svg('close', 12)}</button></span>`;
+    }).join('');
+    return `<div class="sgroup" data-anim="strip|g|${s.id}">${chip}${tabs}<button class="splus" data-act="new" data-site="${s.id}" title="New tab in ${esc(s.name)}" aria-label="New tab in ${esc(s.name)}">${svg('plus', 16)}</button></div>`;
+  }).join('');
+  return `<div class="strip ${edge}" data-anim="strip-${edge}">${close}${items}</div>`;
+}
+
+function pageHtml() {
+  const c = cur();
+  const tab = c.tabs.find((t) => t.id === c.active);
+  return `<div class="page" data-anim="page" data-v="${c.id}:${c.active}"><div class="band" style="background:${c.color}">${esc(c.name)}</div>
+    <div class="content"><h2>${esc(tab.t)}</h2><p>${esc(c.name)} · tab ${c.tabs.indexOf(tab) + 1} of ${c.tabs.length}</p>
+    <div class="sk" style="width:92%"></div><div class="sk" style="width:84%"></div><div class="sk" style="width:88%"></div>
+    <div class="sk block" style="width:70%"></div><div class="sk" style="width:76%"></div><div class="sk" style="width:58%"></div></div></div>`;
+}
+
+function urlHtml() {
+  const c = cur();
+  const tab = c.tabs.find((t) => t.id === c.active);
+  const slug = tab.t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return `<div class="url"><div class="field"><span class="lock"></span>${esc(c.host)}/${esc(slug)}</div></div>`;
+}
+
+const legacyHead = () => st.design === 'legacy' ? `<div class="lhead"><span class="logo">WebSpace</span><span>${st.ws === 'work' ? 'Work' : 'Personal'}</span>
+  <button class="lback" data-act="toast" data-msg="Back to the webspace list (not part of this prototype).">${svg('apps', 16)} Back to webspaces</button></div>` : '';
+const addSiteBtn = () => st.design === 'legacy' ? `<button class="iconbtn" data-act="toast" data-msg="Add site, as the legacy drawer offers it (not part of this prototype)." title="Add site" aria-label="Add site" style="color:var(--accent)">${svg('plus')}</button>` : '';
+function legacyDrawerHtml() {
+  const c = cur();
+  return `<div class="scrim" data-anim="scrim" data-act="scrim"></div><div class="drawer" data-anim="drawer">
+    <div class="lhead"><span class="logo">WebSpace</span><span>${st.ws === 'work' ? 'Work' : 'Personal'}</span>
+      <button class="lback" data-act="toast" data-msg="Back to the webspace list (not part of this prototype).">${svg('apps', 16)} Back to webspaces</button></div>
+    <div class="tree"><div class="lgrid">${wsSites().map((s) => `<button class="ltile${s.id === c.id ? ' on' : ''}" data-act="site" data-site="${s.id}">${fav(s)}${esc(s.name)}</button>`).join('')}</div>
+    <button class="ladd" data-act="toast" data-msg="Add site (not part of this prototype).">+ Add site</button></div></div>`;
+}
+const launcherBtn = (big) => `<button class="iconbtn" data-act="toast" data-msg="Back to the webspaces, the launcher (not part of this prototype)." title="Webspaces" aria-label="Webspaces"${big ? ' style="width:48px;height:48px"' : ''}>${svg('apps', big ? 24 : 20)}</button>`;
+function appbarHtml() {
+  const c = cur();
+  if (st.sidebarOn) {
+    const showCorner = sideState() === 'hidden' && !fsButton();
+    const label = 'Open the tab sidebar';
+    const corner = showCorner ? `<button class="iconbtn" data-act="corner" data-anim="cornerbtn" title="${label}" aria-label="${label}" style="color:var(--accent)">${svg('sidebar')}</button>` : '';
+    return `<div class="appbar">${corner}${st.design === 'legacy' ? (corner ? '' : '<span style="width:6px"></span>') : launcherBtn()}<div class="title" data-act="titletap" title="Double-tap for full screen">${esc(c.name)}</div>
+    <button class="iconbtn" data-act="menu" aria-label="Site menu" aria-expanded="${st.menu}">${svg('more')}</button></div>`;
+  }
+  const count = c.tabsOn && st.nav === 'off' ? `<button class="iconbtn" data-act="ways" title="Tabs" aria-label="Tabs"><span class="countbtn">${c.tabs.length}</span></button>` : '';
+  const lead = st.design === 'legacy'
+    ? `<button class="iconbtn" data-act="legacymenu" title="Sites" aria-label="Open the drawer">${svg('menu')}</button>`
+    : `<button class="iconbtn" data-act="toast" data-msg="Opens the webspaces, the library's grid, as in the app today (not part of this prototype)." title="Webspaces" aria-label="Webspaces">${svg('apps')}</button>`;
+  return `<div class="appbar">${lead}
+    <div class="title" data-act="titletap" title="Double-tap for full screen">${esc(c.name)}</div>${count}
+    <button class="iconbtn" data-act="menu" aria-label="Site menu" aria-expanded="${st.menu}">${svg('more')}</button></div>`;
+}
+
+function squareHtml() {
+  const open = panelEdge() > 0;
+  const label = open ? 'Put the sidebar away: tap, or drag left' : 'Show the tab sidebar: tap, or drag right';
+  return `<button class="handle${open ? ' open' : ''}" data-anim="handle" data-square="1" style="left:${panelEdge()}px;top:calc(${st.handleY}% - 30px)" title="${label}. Drag up or down to move it." aria-label="${label}">${svg('chev', 16)}</button>`;
+}
+function stripBtnHtml() {
+  return `<button class="stripbtn" data-anim="stripbtn" data-act="revealstrip" style="right:14px;bottom:${st.fullscreen ? 14 : 62}px" title="Show the site strip" aria-label="Show the site strip">${svg('strip', 22)}</button>`;
+}
+
+const drawerHtml = () => `<div class="scrim" data-anim="scrim" data-act="scrim"></div><div class="drawer" data-anim="drawer"><button class="iconbtn sidecollapse" data-act="drawerclose" title="Collapse to the rail" aria-label="Collapse the sidebar to the rail" style="width:44px;height:44px">${svg('sidebar', 22)}</button>${legacyHead()}<div class="tree">${treeHtml('drawer')}</div></div>`;
+function frameHtml() {
+  const phone = !wide();
+  const strip = stripShown();
+  const top = strip && st.edge === 'top';
+  const bottom = strip && st.edge === 'bottom';
+  let leftCol = '';
+  if (railOnPhone()) leftCol = railHtml();
+  if (st.sidebarOn && wide() && (!st.fullscreen || st.fsMode === 'kept')) {
+    const s = sideState();
+    if (s === 'open') leftCol = sidebarHtml();
+    else if (s === 'collapsed') leftCol = railHtml();
+  }
+  let layers = '';
+  if (st.fullscreen && st.fsReveal && wide()) layers += `<div class="overlay" data-anim="overlay">${sidebarHtml({ overlay: true })}</div>`;
+  if (st.drawer && phone) layers += drawerHtml();
+  if (st.legacyDrawer && !st.sidebarOn && st.design === 'legacy') layers += legacyDrawerHtml();
+  if (st.sheet) layers += `<div class="scrim" data-anim="scrim" data-act="scrim"></div><div class="sheet" data-anim="sheet"><div class="grab"></div><div class="sheethead">Tabs</div><div class="tree">${treeHtml('sheet')}</div></div>`;
+  if (st.menu && !st.fullscreen) layers += `<div class="menu" role="menu">${st.nav === 'strip' && cur().tabsOn ? '<button data-act="alltabs" role="menuitem">All tabs</button>' : ''}<button data-act="fsenter" role="menuitem">Full screen</button><button data-act="toast" data-msg="The rest of the site menu (not part of this prototype)." role="menuitem">Settings, share, reload…</button></div>`;
+  if (st.fullscreen) layers += `<button class="fsexit" data-act="fsexit" title="Leave full screen" aria-label="Leave full screen"><span></span></button>`;
+  if (squareShown()) layers += squareHtml();
+  if (stripBtnShown()) layers += stripBtnHtml();
+  if (st.toast) layers += `<div class="toast" data-anim="toast" role="status"><span>${esc(st.toast.text)}</span>${st.toast.undo ? '<button data-act="undo">Undo</button>' : ''}</div>`;
+  const chrome = phone ? `<div class="status"><span>9:41</span><span>5G</span></div>` : `<div class="titlebar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>`;
+  return `<div class="frame ${phone ? 'phone' : 'wide'}">${chrome}
+    ${st.fullscreen ? '' : appbarHtml()}
+    <div class="body">${leftCol}
+      <div class="main">${top ? stripHtml('top') : ''}${pageHtml()}${st.fullscreen ? '' : urlHtml()}${bottom ? stripHtml('bottom') : ''}</div>
+      ${layers}
+    </div></div>`;
+}
+
+const CONTROLS = [
+  { key: 'design', label: 'Design', opts: [['alt', 'Alternative'], ['legacy', 'Legacy']] },
+  { key: 'sideLayout', label: 'Open sidebar shows', opts: [['grid', 'Squares (default)'], ['tree', 'Tab tree']] },
+  { key: 'device', label: 'Window', opts: [['wide', 'Wide desktop'], ['phone', 'Phone']] },
+  { key: 'nav', label: 'Site navigation', opts: [['off', 'Tab button (default)'], ['strip', 'Site strip'], ['sidebar', 'Sidebar']] },
+  { key: 'fsMode', label: 'In full screen', opts: [['hidden', 'Hidden'], ['kept', 'Kept'], ['button', 'Button']] },
+  { key: 'edge', label: 'Site strip position', opts: [['top', 'Top'], ['bottom', 'Bottom']] },
+  { key: 'ws', label: 'Webspace', opts: [['work', 'Work'], ['personal', 'Personal']] },
+  { key: 'fullscreen', label: 'Full screen', opts: [[false, 'Off'], [true, 'On']] },
+  { key: 'hoverExpand', label: 'Expand rail on hover', opts: [[false, 'Off'], [true, 'On']] },
+  { key: 'slow', label: 'Animations', opts: [[false, 'Normal'], [true, 'Slow (x4)']] },
+];
+function controlsHtml() {
+  return CONTROLS.map((c) => `<div class="ctl"><span>${c.label}</span><div class="seg" role="group" aria-label="${c.label}">${c.opts.map(([v, l]) =>
+    `<button data-ctl="${c.key}" data-val="${v}" aria-pressed="${st[c.key] === v}">${l}</button>`).join('')}</div></div>`).join('');
+}
+function hintText() {
+  const fs = { hidden: 'nothing shows', kept: 'it stays on screen', button: 'a small accessory brings it back' }[st.fsMode];
+  if (st.nav === 'off' && st.design === 'legacy') return 'Legacy design, Tab button (the default): the tab count in the app bar opens the Tabs sheet, and the menu button opens today\'s drawer, the sites as a grid. Choose Sidebar and the tab tree takes the drawer\'s place, keeping its header and Add site.';
+  if (st.nav === 'off') return 'Tab button (the default): no strip and no sidebar. The tab count in the app bar opens the Tabs sheet, and a second tap closes it.';
+  if (st.nav === 'strip' && st.fullscreen) return `Site strip, full screen: ${fs}.` + (st.fsMode === 'button' ? ' The round button at the bottom right reveals the strip; its cross puts it away.' : '');
+  if (st.nav === 'strip') return 'Site strip: the site on screen opens out to show its tabs. Tap the arrow on any chip to open or close its tabs, or the chip on screen again. Tap a tab to switch, hover it for its cross, + adds one. Tabs sit in the order they were opened; a dot marks one opened from another.' + (st.design === 'legacy' ? ' The legacy drawer is unchanged.' : '');
+  if (!wide()) {
+    if (st.fullscreen) return `Phone, full screen: ${st.fsMode === 'hidden' ? 'nothing shows' : st.fsMode === 'kept' ? 'the rail stays' : 'the arrow tab on the left edge opens the drawer (tap, or drag right)'}.`;
+    const ps = sideState();
+    if (ps === 'hidden') return 'Phone, hidden: the sidebar icon at the app bar\'s top left opens the sidebar fully as a drawer; the arrow tab on the left edge brings back the rail (tap) or pulls the drawer out (drag right).';
+    if (ps === 'open') return 'Phone, open: the full sidebar as a drawer over the page. A pick, a tap outside it, Back, or the sidebar icon at its top right drops it back to the rail. Swipe a tab row left to close it.';
+    return 'Phone, collapsed: the rail stays docked, one icon per site and a stripe per tab of the site on screen. Tap a stripe to switch tab, the sidebar icon at the top to open the full drawer, the cross at the bottom to hide it.';
+  }
+  if (st.fullscreen) return `Sidebar, full screen: ${fs}.` + (st.fsMode === 'button' ? ' The arrow tab on the left edge shows the sidebar over the page (tap, or drag right); drag it up or down to move it.' : '');
+  const s = sideState();
+  if (s === 'open') return `Open: the sidebar icon at its top right collapses it to the rail; the rail\'s cross hides it. ${st.design === 'legacy' ? 'Back to webspaces stays in the drawer\'s header.' : 'The webspaces button keeps its place at the top left.'} Hover a site for +, a tab for its cross; drag the sidebar\'s right edge to resize.`;
+  if (s === 'collapsed') return 'Collapsed: one icon per site, a mark per tab for the site on screen. The sidebar icon at the top of the rail expands it; the cross at its bottom hides it. No arrow tab here: the rail is its own handle.' + (st.hoverExpand ? ' Hover the rail to see the names.' : '');
+  return 'Hidden: the sidebar icon back at the app bar\'s top left opens the sidebar fully; a tap on the arrow tab on the left edge brings it back as it was left; drag the tab right to the rail or all the way open.';
+}
+
+function render() {
+  const oldStrip = document.querySelector('#frame .strip');
+  const keep = oldStrip ? oldStrip.scrollLeft : 0;
+  document.getElementById('controls').innerHTML = controlsHtml();
+  document.getElementById('hint').textContent = hintText();
+  document.getElementById('frame').innerHTML = frameHtml();
+  const strip = document.querySelector('#frame .strip');
+  if (strip) {
+    strip.scrollLeft = keep;
+    const on = strip.querySelector('.stab.on') || strip.querySelector('.chip.on');
+    if (on) {
+      const l = on.offsetLeft - strip.offsetLeft; const r = l + on.offsetWidth;
+      if (l < strip.scrollLeft) strip.scrollLeft = l - 8;
+      else if (r > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = r - strip.clientWidth + 8;
+    }
+  }
+  const dtree = document.querySelector('.drawer .tree');
+  const on = dtree && dtree.querySelector('.row.site.on');
+  if (on && !drawerScrolled) { dtree.scrollTop = Math.max(0, on.offsetTop - dtree.clientHeight * 0.55); drawerScrolled = true; }
+  if (!st.drawer) drawerScrolled = false;
+}
+let drawerScrolled = false;
+
+/* ---------- motion: the app's durations (Motion in design_tokens.dart) ---------- */
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const T = (ms) => ms * (st.slow ? 4 : 1);
+const EMPH = 'cubic-bezier(0.2, 0, 0, 1)';
+const DECEL = 'cubic-bezier(0.05, 0.7, 0.1, 1)';
+const ACCEL = 'cubic-bezier(0.3, 0, 0.8, 0.15)';
+const CONTAINER = { side: 'leftcol', flyout: 'leftcol', drawer: 'drawer', sheet: 'sheet', overlay: 'overlay' };
+
+function snap() {
+  const m = new Map();
+  frame.querySelectorAll('[data-anim]').forEach((el) => {
+    m.set(el.dataset.anim, { el, rect: el.getBoundingClientRect(), w: el.offsetWidth, h: el.offsetHeight, v: el.dataset.v, rot: el.dataset.rot, cls: el.className, tx: Number(el.dataset.tx || 0) });
+  });
+  return m;
+}
+function commit(fn) { const prev = snap(); fn(); render(); play(prev); }
+function clip(el, frames, opts) {
+  el.style.overflow = 'hidden';
+  const a = el.animate(frames, opts);
+  a.finished.then(() => { el.style.overflow = ''; }, () => {});
+  return a;
+}
+function ghost(o, place) {
+  const g = o.el;
+  g.removeAttribute('data-anim');
+  g.querySelectorAll('[data-anim]').forEach((n) => n.removeAttribute('data-anim'));
+  g.style.pointerEvents = 'none';
+  place(g);
+  return g;
+}
+function play(prev) {
+  if (reduced) return;
+  const body = frame.querySelector('.body');
+  const main = frame.querySelector('.main');
+  if (!body) return;
+  const next = new Map();
+  frame.querySelectorAll('[data-anim]').forEach((el) => next.set(el.dataset.anim, el));
+  for (const [k, o] of prev) if (!next.has(k)) exitAnim(k, o, body, main);
+  for (const [k, el] of next) {
+    const o = prev.get(k);
+    if (o) changeAnim(k, el, o); else enterAnim(k, el, prev, next);
+  }
+}
+function enterAnim(k, el, prev, next) {
+  switch (k) {
+    case 'leftcol': clip(el, [{ width: '0px' }, { width: el.offsetWidth + 'px' }], { duration: T(420), easing: EMPH }); return;
+    case 'strip-top': case 'strip-bottom': clip(el, [{ height: '0px' }, { height: el.offsetHeight + 'px' }], { duration: T(250), easing: EMPH }); return;
+    case 'drawer': case 'overlay': el.animate([{ transform: 'translateX(-100%)' }, { transform: 'none' }], { duration: T(250), easing: DECEL }); return;
+    case 'sheet': el.animate([{ transform: 'translateY(100%)' }, { transform: 'none' }], { duration: T(250), easing: DECEL }); return;
+    case 'scrim': el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: T(200) }); return;
+    case 'handle': el.animate([{ transform: 'translateX(-100%)' }, { transform: 'none' }], { duration: T(180), easing: DECEL }); return;
+    case 'cornerbtn': clip(el, [{ width: '0px', opacity: 0 }, { width: el.offsetWidth + 'px', opacity: 1 }], { duration: T(250), easing: EMPH }); return;
+    case 'stripbtn': el.animate([{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'none' }], { duration: T(180), easing: DECEL }); return;
+    case 'toast': el.animate([{ opacity: 0, transform: 'translate(-50%, 10px)' }, { opacity: 1, transform: 'translate(-50%, 0)' }], { duration: T(180), easing: DECEL }); return;
+  }
+  const [ctx, kind] = k.split('|');
+  if (ctx === 'strip') {
+    const sp = prev.get('strip-top') || prev.get('strip-bottom');
+    if (!sp) return;
+    if (kind === 'g' || (kind === 't' && prev.has(`strip|g|${k.split('|')[2]}`))) clip(el, [{ width: (kind === 'g' ? el.firstElementChild.offsetWidth : 0) + 'px', opacity: kind === 'g' ? 1 : 0 }, { width: el.offsetWidth + 'px', opacity: 1 }], { duration: T(250), easing: EMPH });
+    return;
+  }
+  if (kind !== 't' && kind !== 's') return;
+  const box = CONTAINER[ctx];
+  const before = prev.get(box); const now = next.get(box);
+  if (!before || !now || before.cls !== now.className) return;
+  clip(el, [{ height: '0px', opacity: 0 }, { height: el.offsetHeight + 'px', opacity: 1 }], { duration: T(250), easing: EMPH });
+}
+function changeAnim(k, el, o) {
+  if (k === 'leftcol' && o.w !== el.offsetWidth) {
+    clip(el, [{ width: o.w + 'px' }, { width: el.offsetWidth + 'px' }], { duration: T(420), easing: EMPH });
+  } else if ((k === 'drawer' || k === 'overlay') && o.tx) {
+    el.animate([{ transform: `translateX(${o.tx}px)` }, { transform: 'none' }], { duration: T(250), easing: DECEL });
+  } else if (k === 'handle') {
+    const r = el.getBoundingClientRect();
+    const dx = o.rect.left - r.left; const dy = o.rect.top - r.top;
+    const long = wide() && !(st.fullscreen && st.fsMode === 'button');
+    if (dx || dy) el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: T(long ? 420 : 250), easing: long ? EMPH : DECEL });
+  } else if (k === 'page' && o.v !== el.dataset.v) {
+    el.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: T(180) });
+  } else if (o.rot !== undefined && o.rot !== el.dataset.rot) {
+    const icon = el.querySelector('svg');
+    if (icon) icon.animate([{ transform: `rotate(${o.rot}deg)` }, { transform: `rotate(${el.dataset.rot}deg)` }], { duration: T(200), easing: EMPH });
+  }
+}
+function exitAnim(k, o, body, main) {
+  const gone = (a, g) => a.finished.then(() => g.remove(), () => g.remove());
+  switch (k) {
+    case 'leftcol': { const g = ghost(o, (n) => body.prepend(n)); g.style.overflow = 'hidden'; g.style.flex = 'none';
+      gone(g.animate([{ width: o.w + 'px' }, { width: '0px' }], { duration: T(420), easing: EMPH }), g); return; }
+    case 'strip-top': case 'strip-bottom': { if (!main) return; const g = ghost(o, (n) => (k === 'strip-top' ? main.prepend(n) : main.append(n))); g.style.overflow = 'hidden';
+      gone(g.animate([{ height: o.h + 'px' }, { height: '0px' }], { duration: T(250), easing: EMPH }), g); return; }
+    case 'drawer': case 'overlay': { const g = ghost(o, (n) => body.append(n));
+      gone(g.animate([{ transform: o.tx ? `translateX(${o.tx}px)` : 'none' }, { transform: 'translateX(-100%)' }], { duration: T(200), easing: ACCEL }), g); return; }
+    case 'sheet': { const g = ghost(o, (n) => body.append(n));
+      gone(g.animate([{ transform: 'none' }, { transform: 'translateY(100%)' }], { duration: T(200), easing: ACCEL }), g); return; }
+    case 'scrim': case 'toast': { const g = ghost(o, (n) => body.append(n));
+      gone(g.animate([{ opacity: 1 }, { opacity: 0 }], { duration: T(160) }), g); return; }
+    case 'handle': { const g = ghost(o, (n) => body.append(n));
+      gone(g.animate([{ transform: 'none' }, { transform: 'translateX(-100%)' }], { duration: T(150), easing: ACCEL }), g); return; }
+    case 'stripbtn': { const g = ghost(o, (n) => body.append(n));
+      gone(g.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.6)' }], { duration: T(150), easing: ACCEL }), g); return; }
+  }
+}
+function collapseWidth(sel) {
+  if (reduced) return Promise.resolve();
+  const els = [...frame.querySelectorAll(sel)];
+  return Promise.all(els.map((r) => {
+    r.style.overflow = 'hidden';
+    return r.animate([{ width: r.offsetWidth + 'px', opacity: 1 }, { width: '0px', paddingLeft: '0px', paddingRight: '0px', opacity: 0 }], { duration: T(200), easing: ACCEL, fill: 'forwards' }).finished;
+  }));
+}
+function collapseRows(sel) {
+  if (reduced) return Promise.resolve();
+  const rows = [...frame.querySelectorAll(sel)];
+  return Promise.all(rows.map((r) => {
+    r.style.overflow = 'hidden';
+    return r.animate([{ height: r.offsetHeight + 'px', opacity: 1 }, { height: '0px', opacity: 0 }], { duration: T(200), easing: ACCEL, fill: 'forwards' }).finished;
+  }));
+}
+
+/* ---------- events ---------- */
+document.getElementById('controls').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-ctl]');
+  if (!b) return;
+  const key = b.dataset.ctl;
+  const raw = b.dataset.val;
+  const apply = () => {
+    st[key] = raw === 'true' ? true : raw === 'false' ? false : raw;
+    if (key === 'nav') { st.sidebarOn = st[key] === 'sidebar'; st.stripRevealed = false; }
+    if (key === 'device' || key === 'nav' || key === 'fullscreen' || key === 'design') { st.drawer = false; st.sheet = false; st.fsReveal = false; st.legacyDrawer = false; }
+    if (key === 'fsMode') { st.stripRevealed = false; st.fsReveal = false; }
+  };
+  if (key === 'device') { apply(); render(); } else commit(apply);
+});
+
+const frame = document.getElementById('frame');
+frame.addEventListener('click', async (e) => {
+  if (swipeMoved) { swipeMoved = false; return; }
+  if (squareDragged) { squareDragged = false; return; }
+  if (e.target.closest('[data-square]')) { commit(squareTap); return; }
+  const el = e.target.closest('[data-act]');
+  if (!el) return;
+  const { act, site, tab, msg } = el.dataset;
+  e.stopPropagation();
+  if (act === 'close') await Promise.all([collapseRows(`[data-anim$="|t|${site}|${tab}"]:not(.stab)`), collapseWidth(`.stab[data-anim$="|t|${site}|${tab}"]`)]);
+  if (act === 'fold' && !st.folded.has(site)) await collapseRows(`[data-anim*="|t|${site}|"]`);
+  if (act === 'tabfold' && !st.tabFolded.has(tab)) {
+    const gone = descendants(byId[site], tab);
+    if (gone.length) await collapseRows(gone.map((id) => `[data-anim$="|t|${site}|${id}"]`).join(', '));
+  }
+  const stripClosing = (act === 'stripfold' || (act === 'chip' && site === cur().id && st.nav === 'strip')) && stripIsOpen(byId[site]);
+  if (stripClosing) await collapseWidth(`[data-anim^="strip|t|${site}|"], .sgroup[data-anim="strip|g|${site}"] .splus`);
+  const prev = snap();
+  if (act !== 'menu' && act !== 'titletap') st.menu = false;
+  switch (act) {
+    case 'fold': st.folded.has(site) ? st.folded.delete(site) : st.folded.add(site); break;
+    case 'tabfold': st.tabFolded.has(tab) ? st.tabFolded.delete(tab) : st.tabFolded.add(tab); break;
+    case 'site': openSite(site); afterPick(); break;
+    case 'tab': openSite(site, tab); afterPick(); break;
+    case 'new': newTab(site); afterPick(); break;
+    case 'close': closeTab(site, tab); break;
+    case 'collapse': setSide('collapsed'); break;
+    case 'expand': setSide('open'); break;
+    case 'hide': setSide('hidden'); break;
+    case 'fsclose': st.fsReveal = false; break;
+    case 'drawertoggle': st.drawer = !st.drawer; break;
+    case 'corner': setSide('open'); break;
+    case 'drawerclose':
+      st.drawer = false;
+      break;
+    case 'chip':
+      if (site !== cur().id) { openSite(site); st.stripShut.delete(site); if (!wide()) st.stripOpen.clear(); }
+      else if ((st.nav === 'strip' || (st.sideLayout === 'grid' && st.sidebarOn)) && hasTabs(cur())) { st.stripShut.has(site) ? st.stripShut.delete(site) : st.stripShut.add(site); }
+      else waysIn();
+      break;
+    case 'stripfold': {
+      const opening = !stripIsOpen(byId[site]);
+      if (site === cur().id) { st.stripShut.has(site) ? st.stripShut.delete(site) : st.stripShut.add(site); }
+      else { st.stripOpen.has(site) ? st.stripOpen.delete(site) : st.stripOpen.add(site); }
+      // on a phone one site's tabs are open at a time
+      if (!wide() && opening) {
+        st.stripOpen = new Set(site === cur().id ? [] : [site]);
+        if (site !== cur().id) st.stripShut.add(cur().id);
+      }
+      break;
+    }
+    case 'ways': waysIn(); break;
+    case 'scrim': st.drawer = false; st.sheet = false; st.legacyDrawer = false; break;
+    case 'legacymenu': st.legacyDrawer = !st.legacyDrawer; break;
+    case 'revealstrip': st.stripRevealed = true; break;
+    case 'menu': st.menu = !st.menu; break;
+    case 'fsenter': st.menu = false; st.fullscreen = true; st.drawer = false; st.sheet = false; st.fsReveal = false; st.stripRevealed = false; break;
+    case 'fsexit': st.fullscreen = false; st.fsReveal = false; st.stripRevealed = false; break;
+    case 'alltabs': st.menu = false; st.sheet = true; break;
+    case 'titletap': {
+      const now = Date.now();
+      if (now - (st.lastTitleTap || 0) < 350) { st.fullscreen = true; st.drawer = false; st.sheet = false; st.fsReveal = false; st.menu = false; }
+      st.lastTitleTap = now;
+      break;
+    }
+    case 'hidestrip': st.stripRevealed = false; break;
+    case 'undo': if (st.toast && st.toast.undo) st.toast.undo(); st.toast = null; break;
+    case 'toast': toast(msg); break;
+  }
+  render();
+  play(prev);
+});
+frame.addEventListener('keydown', (e) => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.row[data-act]')) { e.preventDefault(); e.target.click(); }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.altKey && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); commit(cycle); }
+  if (e.key === 'Escape' && (st.drawer || st.sheet || st.fsReveal || st.menu)) commit(() => { st.drawer = false; st.sheet = false; st.fsReveal = false; st.menu = false; });
+  else if (e.key === 'Escape' && st.fullscreen) commit(() => { st.fullscreen = false; st.stripRevealed = false; });
+});
+
+/* resize by the sidebar's edge */
+let drag = null;
+frame.addEventListener('pointerdown', (e) => {
+  const g = e.target.closest('[data-grip]');
+  if (!g) return;
+  e.preventDefault();
+  drag = { x: e.clientX, w: st.width };
+  g.classList.add('drag');
+  g.setPointerCapture(e.pointerId);
+});
+frame.addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  st.width = Math.max(200, Math.min(420, drag.w + e.clientX - drag.x));
+  const side = frame.querySelector('.body > .side');
+  if (side) { side.style.width = st.width + 'px'; side.style.setProperty('--w', st.width + 'px'); }
+});
+frame.addEventListener('pointerup', () => {
+  if (!drag) return;
+  drag = null;
+  try { localStorage.setItem('tsp-width', String(st.width)); } catch (e) { /* storage off */ }
+  render();
+});
+
+/* swipe a tab row left to close it, in the drawer */
+let swipe = null; let swipeMoved = false;
+frame.addEventListener('pointerdown', (e) => {
+  const row = e.target.closest('.drawer .swipe .row');
+  if (!row) return;
+  swipe = { row, x: e.clientX, dx: 0 };
+});
+frame.addEventListener('pointermove', (e) => {
+  if (!swipe) return;
+  swipe.dx = Math.min(0, e.clientX - swipe.x);
+  if (swipe.dx < -6) { swipeMoved = true; swipe.row.previousElementSibling.style.display = 'flex'; swipe.row.style.transform = `translateX(${swipe.dx}px)`; }
+});
+window.addEventListener('pointerup', () => {
+  if (!swipe) return;
+  const { row, dx } = swipe;
+  swipe = null;
+  if (dx < -90) { const { site, tab } = row.dataset; collapseRows(`[data-anim$="|t|${site}|${tab}"]`).then(() => commit(() => closeTab(site, tab))); }
+  else row.style.transform = '';
+  setTimeout(() => { swipeMoved = false; }, 0);
+});
+
+/* the edge tab rides the sidebar's edge: a tap toggles it; a sideways drag pulls the
+   sidebar out or pushes it away under the finger; an up or down drag moves the tab */
+let sq = null; let squareDragged = false;
+function livePanel(open) {
+  const body = frame.querySelector('.body');
+  if (!wide()) {
+    if (open) return { el: frame.querySelector('.drawer'), scrim: frame.querySelector('.scrim'), kind: 'tx', w: DRAWER_W };
+    const t = document.createElement('template'); t.innerHTML = drawerHtml();
+    const scrim = t.content.firstElementChild; const el = scrim.nextElementSibling;
+    body.append(scrim, el);
+    return { el, scrim, kind: 'tx', w: DRAWER_W, temp: true };
+  }
+  if (st.fullscreen && st.fsMode === 'button') {
+    if (open) return { el: frame.querySelector('.overlay'), kind: 'tx', w: st.width };
+    const t = document.createElement('template'); t.innerHTML = `<div class="overlay" data-anim="overlay">${sidebarHtml({ overlay: true })}</div>`;
+    const el = t.content.firstElementChild; body.append(el);
+    return { el, kind: 'tx', w: st.width, temp: true };
+  }
+  if (open) return { el: frame.querySelector('[data-anim="leftcol"]'), kind: 'width', w: st.width, from: panelEdge() };
+  const t = document.createElement('template'); t.innerHTML = sidebarHtml();
+  const el = t.content.firstElementChild; el.style.width = '0px'; el.style.overflow = 'hidden'; body.prepend(el);
+  return { el, kind: 'width', w: st.width, from: 0, temp: true };
+}
+function showPanel(p, visible) {
+  const v = Math.max(0, Math.min(p.w, visible));
+  if (p.kind === 'width') { p.el.style.width = v + 'px'; p.el.style.overflow = 'hidden'; }
+  else { const tx = v - p.w; p.el.style.transform = `translateX(${tx}px)`; p.el.dataset.tx = String(tx); if (p.scrim) p.scrim.style.opacity = String(v / p.w); }
+  return v;
+}
+frame.addEventListener('pointerdown', (e) => {
+  const b = e.target.closest('[data-square]');
+  if (!b) return;
+  const box = frame.querySelector('.body').getBoundingClientRect();
+  sq = { b, box, x: e.clientX, y: e.clientY, open: panelEdge() > 0, mode: null, panel: null };
+  b.setPointerCapture(e.pointerId);
+});
+frame.addEventListener('pointermove', (e) => {
+  if (!sq) return;
+  const dx = e.clientX - sq.x; const dy = e.clientY - sq.y;
+  if (!sq.mode) {
+    if (Math.abs(dx) + Math.abs(dy) < 6) return;
+    squareDragged = true;
+    sq.mode = Math.abs(dx) > Math.abs(dy) ? 'pull' : 'move';
+    if (sq.mode === 'pull') sq.panel = livePanel(sq.open);
+  }
+  if (sq.mode === 'move') { sq.b.style.transform = `translateY(${dy}px)`; return; }
+  const v = showPanel(sq.panel, (sq.panel.from !== undefined ? sq.panel.from : (sq.open ? sq.panel.w : 0)) + dx);
+  sq.v = v;
+  sq.b.style.left = v + 'px';
+});
+frame.addEventListener('pointerup', (e) => {
+  if (!sq) return;
+  const { box, mode, panel, open } = sq; const v = sq.v || 0; sq = null;
+  if (!squareDragged) return;
+  setTimeout(() => { squareDragged = false; }, 0);
+  if (mode === 'move') {
+    const pct = Math.round(((e.clientY - box.top) / box.height) * 100);
+    commit(() => { st.handleY = Math.max(10, Math.min(90, pct)); });
+    return;
+  }
+  if (!panel || !panel.el) { render(); return; }
+  if (panel.kind === 'width') {
+    const stops = [[0, 'hidden'], [60, 'collapsed'], [panel.w, 'open']];
+    const [, want] = stops.reduce((a, b) => (Math.abs(b[0] - v) < Math.abs(a[0] - v) ? b : a));
+    if (want !== sideState()) { commit(() => setSide(want)); return; }
+  }
+  const wantOpen = v > panel.w / 2;
+  if (wantOpen !== open) {
+    if (!wide() && !fsButton()) { const wasHidden = sideState() === 'hidden'; commit(() => setSide(wantOpen ? 'open' : (wasHidden ? 'hidden' : 'collapsed'))); return; }
+    commit(squareTap); return;
+  }
+  // not far enough: settle back where it was
+  const to = panel.kind === 'width' ? (panel.from || 0) : (open ? panel.w : 0);
+  const frames = panel.kind === 'width'
+    ? [{ width: v + 'px' }, { width: to + 'px' }]
+    : [{ transform: `translateX(${v - panel.w}px)` }, { transform: `translateX(${to - panel.w}px)` }];
+  const a = reduced ? null : panel.el.animate(frames, { duration: T(200), easing: EMPH });
+  const done = () => { if (panel.temp) { panel.el.remove(); if (panel.scrim) panel.scrim.remove(); } render(); };
+  if (a) a.finished.then(done, done); else done();
+});
+
+render();
+})();
+</script>
