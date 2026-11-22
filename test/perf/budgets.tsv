@@ -1,0 +1,19 @@
+# Perf budget ceilings for the native-free host benchmarks, checked as a ratio
+# of this PR's median over master's, both run on the one CI runner in the one
+# job (tool/perf/perf_budget.dart, scripts/perf_budget.sh). Report-only until a
+# follow-up sets WS_PERF_BUDGET_ENFORCE=1, once the CI runs show the spread.
+#
+# ceiling_ratio: the most head/base may be before the gate fails. Set well
+#   above run-to-run noise (measured ~7% for the url-change median, wider for
+#   startup's end-to-end marks), so only a real regression clears it.
+# floor_ms: a base median below this is near-zero work whose ratio is noise;
+#   it is reported, not gated. Raise a ceiling here, never shorten a benchmark.
+#
+# label	ceiling_ratio	floor_ms
+new URL each: ms per update	1.30	2
+launcher, 5 sites: restore done	1.50	20
+notificationTap, 5 sites: restore done	1.50	20
+backgroundWake, 5 sites: restore done	1.50	20
+launcher, 40 sites: restore done	1.50	20
+notificationTap, 40 sites: restore done	1.50	20
+backgroundWake, 40 sites: restore done	1.50	20
