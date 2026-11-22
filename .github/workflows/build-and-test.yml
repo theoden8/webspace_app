@@ -330,6 +330,72 @@ jobs:
         timeout-minutes: 10
         run: npm run test:browser
 
+  # Perf budget (perf-visibility series): run the native-free host benchmarks
+  # on this PR and on its base, both on this runner, and compare the medians as
+  # a ratio (so the runner cancels out). Ceilings are in test/perf/budgets.tsv,
+  # the comparison in tool/perf/perf_budget.dart (unit-tested by
+  # test/perf_budget_test.dart), the samples upload as a trend. Pull-request
+  # only: on master the base is itself.
+  #
+  # REPORT ONLY for now: the job prints the table and never fails the build
+  # (WS_PERF_BUDGET_ENFORCE unset). Local noise is ~7% on the url-change median,
+  # but a shared CI runner is noisier and head runs before base here, so the
+  # ratio's spread and any order effect are read off these runs first; a
+  # follow-up sets WS_PERF_BUDGET_ENFORCE=1 once the CI numbers show the
+  # ceilings have margin.
+  perf-budget:
+    name: Perf budget (report)
+    runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.validate == 'true' && github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the base ref
+        run: |
+          git fetch --no-tags --depth=1 origin \
+            "+refs/heads/${{ github.event.pull_request.base.ref }}:refs/remotes/origin/${{ github.event.pull_request.base.ref }}"
+      - name: Setup Flutter (for Dart SDK)
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: '.fvmrc'
+          channel: 'stable'
+      - name: Cache fvm Flutter SDK
+        uses: ./.github/actions/master-cache
+        with:
+          path: ~/fvm/versions
+          key: fvm-${{ runner.os }}-${{ hashFiles('**/.fvmrc') }}
+          restore-keys: |
+            fvm-${{ runner.os }}-
+      - name: Install fvm
+        run: |
+          dart pub global activate fvm
+          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
+      - name: Setup Flutter with fvm
+        run: |
+          fvm install
+          fvm use --force
+      - name: Cache pub dependencies
+        uses: ./.github/actions/master-cache
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+      - name: Run the perf budget gate
+        env:
+          WS_PERF_BUDGET_DIR: build/perf_budget
+          WS_PERF_RUNS: '12'
+        run: scripts/perf_budget.sh "origin/${{ github.event.pull_request.base.ref }}"
+      - name: Upload perf budget numbers
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-budget
+          path: build/perf_budget/
+          if-no-files-found: ignore
+
   design-web:
     name: Design gallery + designer app
     runs-on: ubuntu-latest

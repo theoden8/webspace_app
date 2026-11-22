@@ -34,3 +34,30 @@ for l in easylist easyprivacy fanboy-social fanboy-annoyance; do
   curl -fsSL -o "$dir/$l.txt" "https://easylist.to/easylist/$l.txt"
 done
 ```
+
+## Budget gate
+
+`budgets.tsv` is the ceiling each listed measurement may not regress past,
+checked in CI (the `Perf budget (report)` job) as a **ratio of this PR's median
+over the base's**, both run on the one runner in the one job so the host cancels
+out.
+
+**Report-only for now.** The job prints the table and uploads the samples but
+does not fail the build; `WS_PERF_BUDGET_ENFORCE=1` turns a breach into a
+nonzero exit. A shared CI runner is noisier than a dev box and the job runs head
+before base, so the ratio's spread and any order effect are read off the CI runs
+first; a follow-up enables enforcement once those show the ceilings have margin.
+
+- `scripts/perf_budget.sh [base-ref]` runs the native-free benchmarks here and
+  in a worktree of the base, then compares (`tool/perf/perf_budget.dart`,
+  unit-tested by `test/perf_budget_test.dart`). It exits nonzero only when a
+  budgeted measurement regressed past its ceiling.
+- `ceiling_ratio` is a factor a real regression has to clear, set well above
+  run-to-run noise (~7% on the url-change median, wider on the smaller startup
+  marks). `floor_ms` skips near-zero measurements whose ratio is noise. Only the
+  stable end-to-end marks are gated; the rest ride along as a trend (the samples
+  upload as a CI artifact). Raise a ceiling here; never shorten a benchmark to
+  pass.
+- A measurement new on this PR (absent from the base) is reported, not gated:
+  its baseline lands with it and gates the next PR. One master budgets that this
+  PR no longer emits fails the gate, so a rename updates `budgets.tsv` too.
