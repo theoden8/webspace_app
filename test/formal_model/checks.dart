@@ -1519,7 +1519,7 @@ enum Mutant {
   ),
   fullclosed(
     world: ActivationWorld.archiveFullContainers,
-    by: Inv.fullArchiveKept,
+    caught: Breaks(Inv.fullArchiveKept),
     doc:
         'a close that goes on with an archive too large for its slot: its '
         'sites leave the list with nothing saved (ARCH-003, caught)',
