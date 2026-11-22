@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Odpri arhive",
   "archiveManagementArchive": "Arhiv {index}",
   "archiveManagementRemove": "Odstrani arhiv in obdrži mesta",
-  "archiveManagementRemoveBody": "Ali želite vsa mesta in zbirke premakniti v običajno knjižnico in nato odstraniti ta arhiv?"
+  "archiveManagementRemoveBody": "Ali želite vsa mesta in zbirke premakniti v običajno knjižnico in nato odstraniti ta arhiv?",
+  "siteNetworkOnion": "Onion naslov",
+  "siteNetworkOnionHint": "Nekatera spletna mesta objavijo lasten naslov v omrežju Tor, tako imenovani onion naslov. Dokler to spletno mesto gre prek Tora, ga aplikacija lahko nalaga od tam, tako da njegov promet ostane znotraj Tora, namesto da bi ga zapustil prek izhodnega releja. Naslov se izve samo iz lastnega varnega odgovora spletnega mesta, nikoli s seznama.",
+  "onionOfferBody": "{site} objavlja onion naslov:\n{onion}\n\nGa nalagati od tam, dokler to spletno mesto gre prek Tora?",
+  "onionOfferUse": "Uporabi ga",
+  "onionOfferDecline": "Ne uporabi",
+  "siteNetworkOnionFallback": "Če onion naslov ne deluje",
+  "siteNetworkOnionFallbackHint": "Storitev onion morda ne deluje ali pa ji poteče potrdilo. Prikaz napake obdrži spletno mesto znotraj Tora. Nalaganje običajnega naslova ga pošlje prek izhodnega releja, ki vidi, kam gre promet.",
+  "onionFallbackNone": "Prikaži napako",
+  "onionFallbackClearnet": "Naloži običajni naslov"
 }

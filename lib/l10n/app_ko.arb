@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "아카이브 열기",
   "archiveManagementArchive": "아카이브 {index}",
   "archiveManagementRemove": "아카이브를 제거하고 사이트를 유지",
-  "archiveManagementRemoveBody": "모든 사이트와 컬렉션을 일반 라이브러리로 이동한 후 이 아카이브를 삭제하시겠습니까?"
+  "archiveManagementRemoveBody": "모든 사이트와 컬렉션을 일반 라이브러리로 이동한 후 이 아카이브를 삭제하시겠습니까?",
+  "siteNetworkOnion": "Onion 주소",
+  "siteNetworkOnionHint": "일부 사이트는 Tor 네트워크에서 자체 주소인 Onion 주소를 알립니다. 이 사이트가 Tor를 거치는 동안 앱은 그 주소에서 사이트를 불러올 수 있으며, 그러면 트래픽이 출구 릴레이를 통해 나가지 않고 Tor 안에 머뭅니다. 주소는 사이트 자체의 보안 응답에서만 알아내며, 목록에서 가져오지 않습니다.",
+  "onionOfferBody": "{site}에서 Onion 주소를 알립니다:\n{onion}\n\n이 사이트가 Tor를 거치는 동안 이 주소에서 불러올까요?",
+  "onionOfferUse": "사용",
+  "onionOfferDecline": "사용 안 함",
+  "siteNetworkOnionFallback": "Onion 주소가 실패하면",
+  "siteNetworkOnionFallbackHint": "Onion 서비스는 중단될 수 있고 인증서가 만료될 수도 있습니다. 오류를 표시하면 사이트가 Tor 안에 머뭅니다. 평소 주소를 불러오면 출구 릴레이를 거치게 되며, 출구 릴레이는 트래픽이 어디로 가는지 볼 수 있습니다.",
+  "onionFallbackNone": "오류 표시",
+  "onionFallbackClearnet": "평소 주소 불러오기"
 }

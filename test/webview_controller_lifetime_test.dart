@@ -303,7 +303,7 @@ void main() {
   test('a popup recognizes the resolved domain without admitting another site', () {
     const home = 'https://theguardian.co.uk/';
     const canonical = 'https://www.theguardian.com/uk';
-    final boundary = NavigationBoundary(homeUrl: home, initialUrl: home)
+    final boundary = NavigationBoundary(homeUrl: home, initialUrl: home, onion: null)
       ..onCommit(canonical);
     final config = WebViewConfig(
       posture: _site.sitePosture(globalUserScripts: const [], isolation: fakeSharedJar()),

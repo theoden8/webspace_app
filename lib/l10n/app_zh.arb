@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "打开档案",
   "archiveManagementArchive": "档案 {index}",
   "archiveManagementRemove": "删除存档并保留站点",
-  "archiveManagementRemoveBody": "将所有网站和馆藏移至常规图书馆，然后删除此存档？"
+  "archiveManagementRemoveBody": "将所有网站和馆藏移至常规图书馆，然后删除此存档？",
+  "siteNetworkOnion": "Onion 位址",
+  "siteNetworkOnionHint": "有些網站會在 Tor 網路上公告自己的位址,也就是 Onion 位址。只要這個網站經由 Tor 連線,應用程式就能從那裡載入它,讓流量留在 Tor 內部,而不是經由出口中繼離開。位址只會從網站本身的安全回應中得知,絕不會取自清單。",
+  "onionOfferBody": "{site} 公告了一個 Onion 位址:\n{onion}\n\n只要這個網站經由 Tor 連線,是否從那裡載入?",
+  "onionOfferUse": "使用",
+  "onionOfferDecline": "不使用",
+  "siteNetworkOnionFallback": "Onion 位址失敗時",
+  "siteNetworkOnionFallbackHint": "Onion 服務可能停止運作,或其憑證可能過期。顯示錯誤會讓網站留在 Tor 內部。載入一般位址則會經由出口中繼送出,而出口中繼看得到流量的去向。",
+  "onionFallbackNone": "顯示錯誤",
+  "onionFallbackClearnet": "載入一般位址"
 }

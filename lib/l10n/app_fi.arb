@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Avaa arkistot",
   "archiveManagementArchive": "Arkisto {index}",
   "archiveManagementRemove": "Poista arkisto ja säilytä sivustot",
-  "archiveManagementRemoveBody": "Siirretäänkö kaikki sivustot ja kokoelmat tavalliseen kirjastoon ja poistetaanko tämä arkisto?"
+  "archiveManagementRemoveBody": "Siirretäänkö kaikki sivustot ja kokoelmat tavalliseen kirjastoon ja poistetaanko tämä arkisto?",
+  "siteNetworkOnion": "Onion-osoite",
+  "siteNetworkOnionHint": "Jotkin sivustot ilmoittavat oman osoitteensa Tor-verkossa, onion-osoitteen. Niin kauan kuin tämä sivusto kulkee Torin kautta, sovellus voi ladata sen sieltä, jolloin sen liikenne pysyy Torin sisällä eikä poistu ulostulosolmun kautta. Osoite opitaan vain sivuston omasta suojatusta vastauksesta, ei koskaan luettelosta.",
+  "onionOfferBody": "{site} ilmoittaa onion-osoitteen:\n{onion}\n\nLadataanko se sieltä niin kauan kuin tämä sivusto kulkee Torin kautta?",
+  "onionOfferUse": "Käytä sitä",
+  "onionOfferDecline": "Älä käytä",
+  "siteNetworkOnionFallback": "Jos onion-osoite ei toimi",
+  "siteNetworkOnionFallbackHint": "Onion-palvelu voi olla alhaalla tai sen varmenne voi vanhentua. Virheen näyttäminen pitää sivuston Torin sisällä. Tavallisen osoitteen lataaminen lähettää sen ulostulosolmun kautta, joka näkee, minne liikenne menee.",
+  "onionFallbackNone": "Näytä virhe",
+  "onionFallbackClearnet": "Lataa tavallinen osoite"
 }

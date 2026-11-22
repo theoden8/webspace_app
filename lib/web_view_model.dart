@@ -47,6 +47,7 @@ import 'package:webspace/web_view_model_search.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/web_view_model_hooks.dart';
 import 'package:webspace/services/webview_tab_binding.dart';
+import 'package:webspace/services/onion_location.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/capture.dart';
@@ -459,6 +460,16 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
   /// default). Serialised only when non-null so on-disk JSON for users who
   /// never touch the feature stays byte-identical.
   List<DomainClaim>? domainClaims;
+
+  /// The onion address the site last announced and the user's answer to it
+  /// (ONION-001, ONION-003); its endpoint is used only while the site is on
+  /// Tor, through [sitePosture].
+  SiteOnion? onionLocation;
+
+  /// The onion route this site's webviews move onto: accepted, and only
+  /// while its route is Tor (ONION-004, ONION-007).
+  OnionRoute? get onionRoute =>
+      onionLocation?.routeOn(tor: outboundProxy.carriesTor);
   /// Homepage suggestions already shown per domain, including declines, so
   /// prompts do not repeat on refresh, tab recreation, or an app restart.
   Set<DomainClaim> offeredRedirectDomains = {};
@@ -754,7 +765,8 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
         _forcedByTrackingProtection(force, stored: stored);
     return SitePosture(
       siteId: siteId,
-      origins: SiteOrigins(initUrl, claims: effectiveDomainClaims),
+      origins: SiteOrigins(initUrl,
+          claims: effectiveDomainClaims, onion: onionRoute?.endpoint),
       container: (
         containerId: boundContainerId(isolation),
         incognito: effectiveIncognito,
@@ -762,6 +774,7 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
         thirdPartyCookies: effectiveThirdPartyCookiesEnabled,
         httpAuthMemory: effectiveHttpAuthMemory,
         passkeys: effectivePasskeysEnabled,
+        onion: onionRoute,
       ),
       blocking: (
         clearUrls: forced(TrackingProtectionForce.clearUrls, stored: clearUrlEnabled),
@@ -1278,10 +1291,14 @@ bool dispatch(NavigationDecision decision,
       // redirectHandled / previousSameDomainUrl / currentUrl; the engine
       // enforces the invariants (see its class-level doc).
       var urlChangedState = OnUrlChangedState.initial(currentUrl);
+      final onion = id.onionRoute?.endpoint;
+      final startUrl =
+          id.onionLocation?.startUrl(currentUrl, inUse: onion) ?? currentUrl;
       final navigationBoundary = NavigationBoundary(
           homeUrl: navHome,
-          initialUrl: currentUrl,
-          signInHosts: signInTab ? PopupKind.isSignInUrl : null);
+          initialUrl: startUrl,
+          signInHosts: signInTab ? PopupKind.isSignInUrl : null,
+          onion: onion);
       if (restoreQueued) {
         navigationBoundary.useExistingDocument();
       }
@@ -1349,7 +1366,7 @@ bool dispatch(NavigationDecision decision,
           key: UniqueKey(), // Force new widget state when recreating
           posture: posture,
           hooks: hooks.host,
-          initialUrl: currentUrl,
+          initialUrl: startUrl,
           navigationBoundary: navigationBoundary,
           onFirstPageLoaded: (url) {
             if (!shownNow()) return;

@@ -30,7 +30,7 @@ void main() {
     test(
       'initial HTTP redirect chain establishes the site ($redirectFlag)',
       () {
-        final boundary = NavigationBoundary(homeUrl: _home, initialUrl: _home);
+        final boundary = NavigationBoundary(homeUrl: _home, initialUrl: _home, onion: null);
         for (final target in ['https://www.theguardian.com/', _canonical]) {
           boundary.onNavigation(
             target,
@@ -88,7 +88,7 @@ void main() {
   }
 
   test('an explicit non-redirect closes the initial exception', () {
-    final boundary = NavigationBoundary(homeUrl: _home, initialUrl: _home);
+    final boundary = NavigationBoundary(homeUrl: _home, initialUrl: _home, onion: null);
     boundary.onNavigation(
       _home,
       frame: NavigationFrame.top,
@@ -108,7 +108,7 @@ void main() {
   test(
     'a user navigation ends the initial chain without adopting its domain',
     () {
-      final boundary = NavigationBoundary(homeUrl: _home, initialUrl: _home);
+      final boundary = NavigationBoundary(homeUrl: _home, initialUrl: _home, onion: null);
       boundary.onNavigation(
         _elsewhere,
         frame: NavigationFrame.top,
@@ -126,7 +126,7 @@ void main() {
 
   for (final frame in [NavigationFrame.sub, NavigationFrame.unverified]) {
     test('$frame cannot establish the top document domain', () {
-      final boundary = NavigationBoundary(homeUrl: _home, initialUrl: _home);
+      final boundary = NavigationBoundary(homeUrl: _home, initialUrl: _home, onion: null);
       boundary.onNavigation(
         _elsewhere,
         frame: frame,
@@ -143,7 +143,7 @@ void main() {
   }
 
   test('blank placeholders do not finish the initial network navigation', () {
-    final boundary = NavigationBoundary(homeUrl: _home, initialUrl: _home);
+    final boundary = NavigationBoundary(homeUrl: _home, initialUrl: _home, onion: null);
     for (final url in ['about:blank', 'about:srcdoc']) {
       boundary.onNavigation(
         url,
@@ -166,7 +166,7 @@ void main() {
     test(
       'an inline or non-web document has no HTTP redirect exception ($url)',
       () {
-        final boundary = NavigationBoundary(homeUrl: url, initialUrl: url);
+        final boundary = NavigationBoundary(homeUrl: url, initialUrl: url, onion: null);
         boundary.onNavigation(
           _elsewhere,
           frame: NavigationFrame.top,
@@ -178,7 +178,7 @@ void main() {
       },
     );
     test('a non-web document ends a pending network exception ($url)', () {
-      final boundary = NavigationBoundary(homeUrl: _home, initialUrl: _home);
+      final boundary = NavigationBoundary(homeUrl: _home, initialUrl: _home, onion: null);
       boundary.onCommit(url);
       boundary.onNavigation(
         _elsewhere,
@@ -192,7 +192,7 @@ void main() {
   }
 
   test('cached executable HTML has no initial redirect exception', () {
-    final boundary = NavigationBoundary(homeUrl: _home, initialUrl: _home)
+    final boundary = NavigationBoundary(homeUrl: _home, initialUrl: _home, onion: null)
       ..useExistingDocument();
     boundary.onNavigation(
       _elsewhere,
@@ -210,6 +210,7 @@ void main() {
       final boundary = NavigationBoundary(
         homeUrl: _home,
         initialUrl: _canonical,
+        onion: null,
       )..useExistingDocument();
       expect(_decide(boundary, url: _home), NavigationDecision.allow);
       expect(_decide(boundary, url: _canonical), NavigationDecision.allow);
@@ -221,7 +222,7 @@ void main() {
   );
 
   test('a nested screen still navigates within a later user-chosen domain', () {
-    final boundary = NavigationBoundary(homeUrl: _home, initialUrl: _home)
+    final boundary = NavigationBoundary(homeUrl: _home, initialUrl: _home, onion: null)
       ..onCommit(_canonical);
     expect(
       _decide(boundary, home: _elsewhere, url: '${_elsewhere}article'),

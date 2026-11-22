@@ -515,6 +515,8 @@ class _SettingsScreenState extends State<SettingsScreen>
               storedTimezone;
     }
     m.webRtcPolicy = _network.webRtcPolicy;
+    m.onionLocation = m.onionLocation?.choosing(
+        answer: _network.onionAnswer, fallback: _network.onionFallback);
 
     if (!mounted) return;
 
@@ -834,6 +836,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         showSavedSignIns: !widget.webViewModel.isArchiveTier,
         trackingProtectionEnabled: _privacy.trackingProtectionEnabled,
         appProxySet: GlobalOutboundProxy.current.type != ProxyType.DEFAULT,
+        onion: widget.webViewModel.onionLocation?.endpoint,
         onChanged: (values) => setState(() => _network = values),
       ));
 

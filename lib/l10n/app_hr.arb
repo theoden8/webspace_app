@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Otvorite arhive",
   "archiveManagementArchive": "Arhiva {index}",
   "archiveManagementRemove": "Ukloni arhivu i zadrži stranice",
-  "archiveManagementRemoveBody": "Premjestiti sva mjesta i zbirke u običnu knjižnicu, a zatim ukloniti ovu arhivu?"
+  "archiveManagementRemoveBody": "Premjestiti sva mjesta i zbirke u običnu knjižnicu, a zatim ukloniti ovu arhivu?",
+  "siteNetworkOnion": "Onion adresa",
+  "siteNetworkOnionHint": "Neke stranice objavljuju vlastitu adresu na mreži Tor, onion adresu. Dok ova stranica ide kroz Tor, aplikacija je može učitavati odande, pa njezin promet ostaje unutar Tora umjesto da izlazi kroz izlazni relej. Adresa se saznaje samo iz vlastitog sigurnog odgovora stranice, nikad s popisa.",
+  "onionOfferBody": "{site} objavljuje onion adresu:\n{onion}\n\nUčitavati je odande dok ova stranica ide kroz Tor?",
+  "onionOfferUse": "Koristi je",
+  "onionOfferDecline": "Nemoj koristiti",
+  "siteNetworkOnionFallback": "Ako onion adresa ne uspije",
+  "siteNetworkOnionFallbackHint": "Onion usluga može biti nedostupna ili joj certifikat može isteći. Prikaz pogreške drži stranicu unutar Tora. Učitavanje uobičajene adrese šalje je kroz izlazni relej, koji vidi kamo promet ide.",
+  "onionFallbackNone": "Prikaži pogrešku",
+  "onionFallbackClearnet": "Učitaj uobičajenu adresu"
 }

@@ -503,7 +503,10 @@ class WebViewFactory {
         !suppressInitialLoad &&
         !blankFirstLoad;
     final navigationBoundary = config.navigationBoundary ??
-        NavigationBoundary(homeUrl: config.initialUrl, initialUrl: config.initialUrl);
+        NavigationBoundary(
+            homeUrl: config.initialUrl,
+            initialUrl: config.initialUrl,
+            onion: config.posture.container.onion?.endpoint);
     if (renderInitialData) navigationBoundary.useExistingDocument();
     var initialDataPending = renderInitialData;
     var firstPagePending = true;
@@ -688,8 +691,26 @@ class WebViewFactory {
     PlatformWebViewController? view;
     ViewKey? shareView;
 
+    // The move onto the site's onion origin (ONION-004), decided here for the
+    // first load, which reaches no navigation callback on Android.
+    final firstLoad = renderInitialData || suppressInitialLoad || blankFirstLoad
+        ? null
+        : WebViewFactory.httpsUpgrade.onFirstLoad(config.initialUrl,
+            onion: config.posture.container.onion);
+    if (firstLoad?.armDeadlineFor case final armed?) {
+      final genAtFirstLoad = phases.asked;
+      Timer(WebViewFactory.httpsUpgrade.deadlineFor(armed), () {
+        final out = WebViewFactory.httpsUpgrade.onDeadline(
+          armed,
+          generationAtArm: genAtFirstLoad,
+          currentGeneration: () => phases.asked,
+        );
+        if (out.load != null) unawaited(view?.loadUrl(out.load!));
+      });
+    }
     final initialRequest = (renderInitialData || suppressInitialLoad) ? null : inapp.URLRequest(
-      url: inapp.WebUri(blankFirstLoad ? 'about:blank' : config.initialUrl),
+      url: inapp.WebUri(
+          blankFirstLoad ? 'about:blank' : firstLoad?.load ?? config.initialUrl),
       headers: blankFirstLoad || headers.isEmpty ? null : headers,
       // Apple's cache first, for this request only; Android ignores it and
       // reads `cacheMode`.
@@ -1230,13 +1251,18 @@ class WebViewFactory {
         // rewrite re-enters the pipeline with the gesture requirement and the
         // cross-domain nested route already behind it. Its reissue lands on
         // the top frame, so it is for a vouched top frame only (NESTED-013).
+        // The move onto the site's onion origin (ONION-004) is decided here
+        // too, and before the https upgrade.
         final upgrade = WebViewFactory.httpsUpgrade.onNavigation(url,
             enabled: frame == NavigationFrame.top &&
-                config.posture.blocking.httpsUpgrade);
+                config.posture.blocking.httpsUpgrade,
+            onion: frame == NavigationFrame.top
+                ? config.posture.container.onion
+                : null);
         if (upgrade.armDeadlineFor != null) {
           final armed = upgrade.armDeadlineFor!;
           final genAtUpgrade = phases.asked;
-          Timer(WebViewFactory.httpsUpgrade.deadline, () {
+          Timer(WebViewFactory.httpsUpgrade.deadlineFor(armed), () {
             final out = WebViewFactory.httpsUpgrade.onDeadline(
               armed,
               generationAtArm: genAtUpgrade,

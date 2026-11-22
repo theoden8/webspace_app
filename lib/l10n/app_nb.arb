@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Åpne arkiver",
   "archiveManagementArchive": "Arkiv {index}",
   "archiveManagementRemove": "Fjern arkiv og behold nettsteder",
-  "archiveManagementRemoveBody": "Flytte alle nettsteder og samlinger til det vanlige biblioteket, og deretter fjerne dette arkivet?"
+  "archiveManagementRemoveBody": "Flytte alle nettsteder og samlinger til det vanlige biblioteket, og deretter fjerne dette arkivet?",
+  "siteNetworkOnion": "Onion-adresse",
+  "siteNetworkOnionHint": "Noen nettsteder kunngjør sin egen adresse på Tor-nettverket, en onion-adresse. Så lenge dette nettstedet går gjennom Tor, kan appen laste det derfra, slik at trafikken blir værende inne i Tor i stedet for å gå ut gjennom et utgangsrelé. Adressen læres bare fra nettstedets eget sikre svar, aldri fra en liste.",
+  "onionOfferBody": "{site} kunngjør en onion-adresse:\n{onion}\n\nLaste det derfra så lenge dette nettstedet går gjennom Tor?",
+  "onionOfferUse": "Bruk den",
+  "onionOfferDecline": "Ikke bruk",
+  "siteNetworkOnionFallback": "Hvis onion-adressen feiler",
+  "siteNetworkOnionFallbackHint": "En onion-tjeneste kan være nede, eller sertifikatet kan gå ut. Å vise feilen holder nettstedet inne i Tor. Å laste den vanlige adressen sender det gjennom et utgangsrelé, som ser hvor trafikken går.",
+  "onionFallbackNone": "Vis feilen",
+  "onionFallbackClearnet": "Last den vanlige adressen"
 }

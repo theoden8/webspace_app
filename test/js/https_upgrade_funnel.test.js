@@ -79,7 +79,7 @@ test('HTTPS-002: the deadline is armed from the engine, with a generation', () =
   const nav = blockAfter(WEBVIEW,
     'shouldOverrideUrlLoading: (controller, navigationAction) async {',
     undefined, 'webview.dart');
-  assert.match(nav, /Timer\(WebViewFactory\.httpsUpgrade\.deadline,/,
+  assert.match(nav, /Timer\(WebViewFactory\.httpsUpgrade\.deadlineFor\(armed\),/,
     'the duration must be the engine\'s, not a literal at the call site');
   assert.match(nav, /generationAtArm: genAtUpgrade/,
     'without a generation the engine cannot tell a stale deadline from a live one');

@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Agor archifau",
   "archiveManagementArchive": "Archif {index}",
   "archiveManagementRemove": "Dileu archif a chadw gwefannau",
-  "archiveManagementRemoveBody": "Symud pob safle a chasgliad i'r llyfrgell arferol, yna dileu'r archif hwn?"
+  "archiveManagementRemoveBody": "Symud pob safle a chasgliad i'r llyfrgell arferol, yna dileu'r archif hwn?",
+  "siteNetworkOnion": "Cyfeiriad onion",
+  "siteNetworkOnionHint": "Mae rhai gwefannau yn cyhoeddi cyfeiriad eu hunain ar rwydwaith Tor, sef cyfeiriad onion. Tra bo'r wefan hon yn mynd drwy Tor, gall yr ap ei llwytho o fan honno, fel bod ei thraffig yn aros y tu mewn i Tor yn lle gadael drwy gyfnewidfa ymadael. Dim ond o ateb diogel y wefan ei hun y dysgir y cyfeiriad, byth o restr.",
+  "onionOfferBody": "Mae {site} yn cyhoeddi cyfeiriad onion:\n{onion}\n\nEi llwytho o fan honno tra bo'r wefan hon yn mynd drwy Tor?",
+  "onionOfferUse": "Ei ddefnyddio",
+  "onionOfferDecline": "Peidio â'i ddefnyddio",
+  "siteNetworkOnionFallback": "Os bydd y cyfeiriad onion yn methu",
+  "siteNetworkOnionFallbackHint": "Gall gwasanaeth onion fod i lawr, neu gall ei dystysgrif ddod i ben. Mae dangos y gwall yn cadw'r wefan y tu mewn i Tor. Mae llwytho'r cyfeiriad arferol yn ei hanfon drwy gyfnewidfa ymadael, sy'n gweld i ble mae'r traffig yn mynd.",
+  "onionFallbackNone": "Dangos y gwall",
+  "onionFallbackClearnet": "Llwytho'r cyfeiriad arferol"
 }

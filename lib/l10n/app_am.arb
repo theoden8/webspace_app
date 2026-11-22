@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "ማህደሮችን ክፈት",
   "archiveManagementArchive": "ማህደር {index}",
   "archiveManagementRemove": "ማህደሩን ያስወግዱ እና ጣቢያዎችን ያስቀምጡ",
-  "archiveManagementRemoveBody": "ሁሉንም ጣቢያዎች እና ስብስቦች ወደ መደበኛው ቤተ-መጽሐፍት ይውሰዱ፣ ከዚያ ይህን ማህደር ይወገድ?"
+  "archiveManagementRemoveBody": "ሁሉንም ጣቢያዎች እና ስብስቦች ወደ መደበኛው ቤተ-መጽሐፍት ይውሰዱ፣ ከዚያ ይህን ማህደር ይወገድ?",
+  "siteNetworkOnion": "የኦኒየን አድራሻ",
+  "siteNetworkOnionHint": "አንዳንድ ድረ-ገጾች በTor አውታረ መረብ ላይ የራሳቸውን አድራሻ ያሳውቃሉ፣ የኦኒየን አድራሻ። ይህ ድረ-ገጽ በTor በኩል እስካለፈ ድረስ መተግበሪያው ከዚያ ሊጭነው ይችላል፣ ስለዚህ ትራፊኩ በመውጫ ሪሌይ ከመውጣት ይልቅ በTor ውስጥ ይቆያል። አድራሻው የሚማረው ከድረ-ገጹ የራሱ ደህንነቱ የተጠበቀ ምላሽ ብቻ ነው፣ ከዝርዝር ፈጽሞ አይደለም።",
+  "onionOfferBody": "{site} የኦኒየን አድራሻ ያሳውቃል፦\n{onion}\n\nይህ ድረ-ገጽ በTor በኩል እስካለፈ ድረስ ከዚያ ይጫን?",
+  "onionOfferUse": "ተጠቀም",
+  "onionOfferDecline": "አትጠቀም",
+  "siteNetworkOnionFallback": "የኦኒየን አድራሻው ካልሰራ",
+  "siteNetworkOnionFallbackHint": "የኦኒየን አገልግሎት ሊቋረጥ ወይም ሰርተፊኬቱ ጊዜው ሊያልፍ ይችላል። ስህተቱን ማሳየት ድረ-ገጹን በTor ውስጥ ያቆየዋል። መደበኛውን አድራሻ መጫን ግን በመውጫ ሪሌይ በኩል ይልከዋል፣ ይህም ትራፊኩ ወዴት እንደሚሄድ ያያል።",
+  "onionFallbackNone": "ስህተቱን አሳይ",
+  "onionFallbackClearnet": "መደበኛውን አድራሻ ጫን"
 }

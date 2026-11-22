@@ -10,6 +10,7 @@ library;
 
 import 'package:meta/meta.dart';
 import 'package:webspace/services/container_names.dart';
+import 'package:webspace/services/onion_location.dart';
 import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/services/site_origins.dart';
 import 'package:webspace/services/web_extension_attach_engine.dart';
@@ -33,6 +34,9 @@ typedef SiteContainer = ({
   bool thirdPartyCookies,
   HttpAuthMemory httpAuthMemory,
   bool passkeys,
+  // The onion origin its clearnet origin moves to and what a failure there
+  // does: accepted, and only while the route is Tor (ONION-004, ONION-007).
+  OnionRoute? onion,
 });
 
 /// What is refused or rewritten before it reaches the network.

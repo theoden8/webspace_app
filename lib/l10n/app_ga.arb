@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Oscail cartlanna",
   "archiveManagementArchive": "Cartlann {index}",
   "archiveManagementRemove": "Bain cartlann agus coinnigh suíomhanna",
-  "archiveManagementRemoveBody": "Bog gach suíomh agus bailiúchán go dtí an ghnáthleabharlann, ansin bain an chartlann seo?"
+  "archiveManagementRemoveBody": "Bog gach suíomh agus bailiúchán go dtí an ghnáthleabharlann, ansin bain an chartlann seo?",
+  "siteNetworkOnion": "Seoladh onion",
+  "siteNetworkOnionHint": "Fógraíonn roinnt suíomhanna a seoladh féin ar líonra Tor, seoladh onion. Fad a théann an suíomh seo trí Tor, is féidir leis an aip é a lódáil as sin, ionas go bhfanann a thrácht laistigh de Tor in ionad imeacht trí athsheachadán imeachta. Ní fhoghlaimítear an seoladh ach ó fhreagra slán an tsuímh féin, riamh ó liosta.",
+  "onionOfferBody": "Fógraíonn {site} seoladh onion:\n{onion}\n\nÉ a lódáil as sin fad a théann an suíomh seo trí Tor?",
+  "onionOfferUse": "Úsáid é",
+  "onionOfferDecline": "Ná húsáid",
+  "siteNetworkOnionFallback": "Má theipeann ar an seoladh onion",
+  "siteNetworkOnionFallbackHint": "D'fhéadfadh seirbhís onion a bheith as feidhm, nó d'fhéadfadh a teastas dul in éag. Coinníonn taispeáint na hearráide an suíomh laistigh de Tor. Seolann lódáil an ghnáthsheolta é trí athsheachadán imeachta, a fheiceann cá dtéann an trácht.",
+  "onionFallbackNone": "Taispeáin an earráid",
+  "onionFallbackClearnet": "Lódáil an gnáthsheoladh"
 }

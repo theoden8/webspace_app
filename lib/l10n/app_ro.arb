@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Deschide arhivele",
   "archiveManagementArchive": "Arhiva {index}",
   "archiveManagementRemove": "Eliminați arhiva și păstrați site-urile",
-  "archiveManagementRemoveBody": "Mutați toate site-urile și colecțiile în biblioteca obișnuită, apoi eliminați această arhivă?"
+  "archiveManagementRemoveBody": "Mutați toate site-urile și colecțiile în biblioteca obișnuită, apoi eliminați această arhivă?",
+  "siteNetworkOnion": "Adresă onion",
+  "siteNetworkOnionHint": "Unele site-uri anunță o adresă proprie în rețeaua Tor, o adresă onion. Cât timp acest site trece prin Tor, aplicația îl poate încărca de acolo, astfel încât traficul lui rămâne în Tor în loc să iasă printr-un releu de ieșire. Adresa este aflată doar din răspunsul securizat al site-ului însuși, niciodată dintr-o listă.",
+  "onionOfferBody": "{site} anunță o adresă onion:\n{onion}\n\nÎl încarci de acolo cât timp acest site trece prin Tor?",
+  "onionOfferUse": "Folosește-o",
+  "onionOfferDecline": "Nu o folosi",
+  "siteNetworkOnionFallback": "Dacă adresa onion eșuează",
+  "siteNetworkOnionFallbackHint": "Un serviciu onion poate fi indisponibil sau certificatul lui poate expira. Afișarea erorii ține site-ul în Tor. Încărcarea adresei obișnuite îl trimite printr-un releu de ieșire, care vede unde merge traficul.",
+  "onionFallbackNone": "Afișează eroarea",
+  "onionFallbackClearnet": "Încarcă adresa obișnuită"
 }

@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Arquivos abertos",
   "archiveManagementArchive": "Arquivo {index}",
   "archiveManagementRemove": "Elimina o arquivo e mantén os sitios",
-  "archiveManagementRemoveBody": "Queres mover todos os sitios e coleccións á biblioteca normal e, a continuación, eliminar este arquivo?"
+  "archiveManagementRemoveBody": "Queres mover todos os sitios e coleccións á biblioteca normal e, a continuación, eliminar este arquivo?",
+  "siteNetworkOnion": "Enderezo onion",
+  "siteNetworkOnionHint": "Algúns sitios anuncian un enderezo propio na rede Tor, un enderezo onion. Mentres este sitio pase por Tor, a aplicación pode cargalo desde alí, de xeito que o seu tráfico queda dentro de Tor en vez de saír por un repetidor de saída. O enderezo só se aprende da resposta segura do propio sitio, nunca dunha lista.",
+  "onionOfferBody": "{site} anuncia un enderezo onion:\n{onion}\n\nCargalo desde alí mentres este sitio pase por Tor?",
+  "onionOfferUse": "Usalo",
+  "onionOfferDecline": "Non usalo",
+  "siteNetworkOnionFallback": "Se o enderezo onion falla",
+  "siteNetworkOnionFallbackHint": "Un servizo onion pode estar caído ou o seu certificado pode caducar. Amosar o erro mantén o sitio dentro de Tor. Cargar o enderezo habitual mándao por un repetidor de saída, que ve a onde vai o tráfico.",
+  "onionFallbackNone": "Amosar o erro",
+  "onionFallbackClearnet": "Cargar o enderezo habitual"
 }

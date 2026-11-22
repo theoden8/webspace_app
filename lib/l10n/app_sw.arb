@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Fungua kumbukumbu",
   "archiveManagementArchive": "Hifadhi ya kumbukumbu {index}",
   "archiveManagementRemove": "Ondoa kumbukumbu na uhifadhi tovuti",
-  "archiveManagementRemoveBody": "Hamisha tovuti na mikusanyiko yote hadi kwenye maktaba ya kawaida, kisha uondoe kumbukumbu hii?"
+  "archiveManagementRemoveBody": "Hamisha tovuti na mikusanyiko yote hadi kwenye maktaba ya kawaida, kisha uondoe kumbukumbu hii?",
+  "siteNetworkOnion": "Anwani ya onion",
+  "siteNetworkOnionHint": "Baadhi ya tovuti hutangaza anwani yao wenyewe kwenye mtandao wa Tor, anwani ya onion. Wakati tovuti hii inapitia Tor, programu inaweza kuipakia kutoka huko, ili trafiki yake ibaki ndani ya Tor badala ya kutoka kupitia relei ya kutoka. Anwani hujifunzwa tu kutoka kwa jibu salama la tovuti yenyewe, kamwe si kutoka kwa orodha.",
+  "onionOfferBody": "{site} inatangaza anwani ya onion:\n{onion}\n\nIipakie kutoka huko wakati tovuti hii inapitia Tor?",
+  "onionOfferUse": "Itumie",
+  "onionOfferDecline": "Usitumie",
+  "siteNetworkOnionFallback": "Anwani ya onion ikishindwa",
+  "siteNetworkOnionFallbackHint": "Huduma ya onion inaweza kuwa haifanyi kazi, au cheti chake kinaweza kuisha muda. Kuonyesha hitilafu huiweka tovuti ndani ya Tor. Kupakia anwani ya kawaida huituma kupitia relei ya kutoka, ambayo huona trafiki inakwenda wapi.",
+  "onionFallbackNone": "Onyesha hitilafu",
+  "onionFallbackClearnet": "Pakia anwani ya kawaida"
 }

@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Archívumok megnyitása",
   "archiveManagementArchive": "Archívum {index}",
   "archiveManagementRemove": "Az archívum eltávolítása és a webhelyek megtartása",
-  "archiveManagementRemoveBody": "Áthelyezi az összes webhelyet és gyűjteményt a normál könyvtárba, majd eltávolítja ezt az archívumot?"
+  "archiveManagementRemoveBody": "Áthelyezi az összes webhelyet és gyűjteményt a normál könyvtárba, majd eltávolítja ezt az archívumot?",
+  "siteNetworkOnion": "Onion-cím",
+  "siteNetworkOnionHint": "Egyes webhelyek saját címet hirdetnek a Tor-hálózaton, úgynevezett onion-címet. Amíg ez a webhely a Toron keresztül megy, az alkalmazás onnan töltheti be, így a forgalma a Toron belül marad, ahelyett hogy egy kilépő csomóponton át távozna. A címet csak a webhely saját biztonságos válaszából tanulja meg, soha nem egy listából.",
+  "onionOfferBody": "{site} onion-címet hirdet:\n{onion}\n\nOnnan töltse be, amíg ez a webhely a Toron keresztül megy?",
+  "onionOfferUse": "Használja",
+  "onionOfferDecline": "Ne használja",
+  "siteNetworkOnionFallback": "Ha az onion-cím nem működik",
+  "siteNetworkOnionFallbackHint": "Egy onion-szolgáltatás leállhat, vagy lejárhat a tanúsítványa. A hiba megjelenítése a Toron belül tartja a webhelyet. A szokásos cím betöltése egy kilépő csomóponton át küldi, amely látja, hová megy a forgalom.",
+  "onionFallbackNone": "Hiba megjelenítése",
+  "onionFallbackClearnet": "Szokásos cím betöltése"
 }

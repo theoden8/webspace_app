@@ -13,6 +13,7 @@ import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/settings/network_interface.dart';
 import 'package:webspace/settings/origin_choices.dart';
+import 'package:webspace/settings/onion_choice.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/proxy_ids.dart';
 import 'package:webspace/settings/scoped.dart';
@@ -156,6 +157,8 @@ void main() {
         credentialsId: null,
         leavesBy: const SystemRouting(),
         webRtcPolicy: WebRtcPolicy.defaultPolicy,
+        onionAnswer: null,
+        onionFallback: OnionFallback.none,
       );
       final edits = <String, NetworkChoices>{
         'proxyType': base.copyWith(proxyType: ProxyType.TOR),
@@ -166,6 +169,9 @@ void main() {
         'leavesBy': base.copyWith(
             leavesBy: NamedInterface(InterfaceName.parse('wg0')!)),
         'webRtcPolicy': base.copyWith(webRtcPolicy: WebRtcPolicy.disabled),
+        'onionAnswer': base.copyWith(onionAnswer: (OnionAnswer.accepted,)),
+        'onionFallback':
+            base.copyWith(onionFallback: OnionFallback.clearnet),
       };
       final stored = UserProxySettings(type: ProxyType.DEFAULT);
       for (final MapEntry(key: field, value: after) in edits.entries) {

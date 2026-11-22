@@ -41,7 +41,8 @@ final class SiteHooks {
   final Future<void> Function(WebViewModel source, {required String url})
       linkNewTab;
 
-  /// Offers an unclaimed domain reached by this slot's first live page.
+  /// This slot's first live page: offers an unclaimed domain it reached, and
+  /// checks the site's onion address (ONION-008).
   final Future<void> Function(WebViewModel source, {required String url})
       firstPageLoaded;
 

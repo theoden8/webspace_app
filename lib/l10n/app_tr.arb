@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Arşivleri aç",
   "archiveManagementArchive": "Arşiv {index}",
   "archiveManagementRemove": "Arşivi kaldırın ve siteleri koruyun",
-  "archiveManagementRemoveBody": "Tüm siteler ve koleksiyonlar normal kitaplığa taşınsın, ardından bu arşiv kaldırılsın mı?"
+  "archiveManagementRemoveBody": "Tüm siteler ve koleksiyonlar normal kitaplığa taşınsın, ardından bu arşiv kaldırılsın mı?",
+  "siteNetworkOnion": "Onion adresi",
+  "siteNetworkOnionHint": "Bazı siteler Tor ağında kendilerine ait bir adres duyurur: onion adresi. Bu site Tor üzerinden geçtiği sürece uygulama onu oradan yükleyebilir; böylece trafiği bir çıkış rölesinden dışarı çıkmak yerine Tor içinde kalır. Adres yalnızca sitenin kendi güvenli yanıtından öğrenilir, asla bir listeden değil.",
+  "onionOfferBody": "{site} bir onion adresi duyuruyor:\n{onion}\n\nBu site Tor üzerinden geçtiği sürece oradan yüklensin mi?",
+  "onionOfferUse": "Kullan",
+  "onionOfferDecline": "Kullanma",
+  "siteNetworkOnionFallback": "Onion adresi başarısız olursa",
+  "siteNetworkOnionFallbackHint": "Bir onion hizmeti çalışmıyor olabilir veya sertifikasının süresi dolabilir. Hatayı göstermek siteyi Tor içinde tutar. Olağan adresi yüklemek onu bir çıkış rölesinden geçirir; röle de trafiğin nereye gittiğini görür.",
+  "onionFallbackNone": "Hatayı göster",
+  "onionFallbackClearnet": "Olağan adresi yükle"
 }

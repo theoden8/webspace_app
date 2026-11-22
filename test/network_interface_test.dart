@@ -12,6 +12,7 @@ import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/network_interface.dart';
+import 'package:webspace/settings/onion_choice.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -320,6 +321,8 @@ void main() {
           credentialsId: null,
           leavesBy: leavesBy,
           webRtcPolicy: WebRtcPolicy.defaultPolicy,
+          onionAnswer: null,
+          onionFallback: OnionFallback.none,
         );
 
     final dropdown = find.byType(DropdownButton<InterfaceChoice>);

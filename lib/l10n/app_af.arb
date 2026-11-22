@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Maak argiewe oop",
   "archiveManagementArchive": "Argief {index}",
   "archiveManagementRemove": "Verwyder argief en hou werwe",
-  "archiveManagementRemoveBody": "Skuif alle werwe en versamelings na die gewone biblioteek, verwyder dan hierdie argief?"
+  "archiveManagementRemoveBody": "Skuif alle werwe en versamelings na die gewone biblioteek, verwyder dan hierdie argief?",
+  "siteNetworkOnion": "Onion-adres",
+  "siteNetworkOnionHint": "Sommige werwe kondig ’n eie adres op die Tor-netwerk aan, ’n onion-adres. Terwyl hierdie werf deur Tor gaan, kan die toep dit van daar af laai, sodat sy verkeer binne Tor bly in plaas daarvan om deur ’n uitgangsrelê te vertrek. Die adres word slegs uit die werf se eie veilige antwoord geleer, nooit uit ’n lys nie.",
+  "onionOfferBody": "{site} kondig ’n onion-adres aan:\n{onion}\n\nLaai dit van daar af terwyl hierdie werf deur Tor gaan?",
+  "onionOfferUse": "Gebruik dit",
+  "onionOfferDecline": "Moenie gebruik nie",
+  "siteNetworkOnionFallback": "As die onion-adres misluk",
+  "siteNetworkOnionFallbackHint": "’n Onion-diens kan af wees, of sy sertifikaat kan verval. Om die fout te wys hou die werf binne Tor. Om die gewone adres te laai stuur dit eerder deur ’n uitgangsrelê, wat sien waarheen die verkeer gaan.",
+  "onionFallbackNone": "Wys die fout",
+  "onionFallbackClearnet": "Laai die gewone adres"
 }

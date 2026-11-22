@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Archieven openen",
   "archiveManagementArchive": "Archief {index}",
   "archiveManagementRemove": "Archief verwijderen en sites behouden",
-  "archiveManagementRemoveBody": "Alle sites en collecties naar de reguliere bibliotheek verplaatsen en vervolgens dit archief verwijderen?"
+  "archiveManagementRemoveBody": "Alle sites en collecties naar de reguliere bibliotheek verplaatsen en vervolgens dit archief verwijderen?",
+  "siteNetworkOnion": "Onion-adres",
+  "siteNetworkOnionHint": "Sommige sites kondigen een eigen adres aan op het Tor-netwerk, een onion-adres. Zolang deze site via Tor gaat, kan de app hem daarvandaan laden, zodat het verkeer binnen Tor blijft in plaats van via een exitrelay naar buiten te gaan. Het adres wordt alleen geleerd uit het eigen beveiligde antwoord van de site, nooit uit een lijst.",
+  "onionOfferBody": "{site} kondigt een onion-adres aan:\n{onion}\n\nDaarvandaan laden zolang deze site via Tor gaat?",
+  "onionOfferUse": "Gebruiken",
+  "onionOfferDecline": "Niet gebruiken",
+  "siteNetworkOnionFallback": "Als het onion-adres mislukt",
+  "siteNetworkOnionFallbackHint": "Een onion-dienst kan uit de lucht zijn, of het certificaat kan verlopen. De fout tonen houdt de site binnen Tor. Het gewone adres laden stuurt hem via een exitrelay, die ziet waar het verkeer naartoe gaat.",
+  "onionFallbackNone": "Fout tonen",
+  "onionFallbackClearnet": "Gewoon adres laden"
 }

@@ -1370,5 +1370,14 @@
   "archiveManagementOpen": "Otvoriť archívy",
   "archiveManagementArchive": "Archív {index}",
   "archiveManagementRemove": "Odstráňte archív a ponechajte stránky",
-  "archiveManagementRemoveBody": "Presunúť všetky lokality a zbierky do bežnej knižnice a potom odstrániť tento archív?"
+  "archiveManagementRemoveBody": "Presunúť všetky lokality a zbierky do bežnej knižnice a potom odstrániť tento archív?",
+  "siteNetworkOnion": "Onion adresa",
+  "siteNetworkOnionHint": "Niektoré weby oznamujú vlastnú adresu v sieti Tor, takzvanú onion adresu. Kým tento web ide cez Tor, aplikácia ho môže načítavať odtiaľ, takže jeho prevádzka zostane vnútri Toru a neopustí ho cez výstupný uzol. Adresa sa zisťuje len z vlastnej zabezpečenej odpovede webu, nikdy zo zoznamu.",
+  "onionOfferBody": "{site} oznamuje onion adresu:\n{onion}\n\nNačítavať ho odtiaľ, kým tento web ide cez Tor?",
+  "onionOfferUse": "Použiť",
+  "onionOfferDecline": "Nepoužívať",
+  "siteNetworkOnionFallback": "Keď onion adresa zlyhá",
+  "siteNetworkOnionFallbackHint": "Onion služba môže byť mimo prevádzky alebo jej môže vypršať certifikát. Zobrazenie chyby udrží web vnútri Toru. Načítanie bežnej adresy ho pošle cez výstupný uzol, ktorý vidí, kam prevádzka smeruje.",
+  "onionFallbackNone": "Zobraziť chybu",
+  "onionFallbackClearnet": "Načítať bežnú adresu"
 }

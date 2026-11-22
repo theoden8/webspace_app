@@ -6622,5 +6622,49 @@
   "archiveManagementRemove": "Remove archive and keep sites",
   "@archiveManagementRemove": {"description": "Archive management screen"},
   "archiveManagementRemoveBody": "Move all sites and collections to the regular library, then remove this archive?",
-  "@archiveManagementRemoveBody": {"description": "Archive management screen"}
+  "@archiveManagementRemoveBody": {"description": "Archive management screen"},
+  "siteNetworkOnion": "Onion address",
+  "@siteNetworkOnion": {
+    "description": "Title of a row on a site's Network settings screen, and of the dialog that offers it, about the site's address on the Tor network (an onion address, ending in .onion). Keep 'Onion' recognisable: it is the Tor term."
+  },
+  "siteNetworkOnionHint": "Some sites announce an address of their own on the Tor network, an onion address. While this site goes through Tor, the app can load it from there, so its traffic stays inside Tor instead of leaving through an exit relay. The address is learned only from the site's own secure answer, never from a list.",
+  "@siteNetworkOnionHint": {
+    "description": "Explanation behind the hint button of the Onion address row on a site's Network settings screen. An exit relay is the Tor server where traffic leaves the Tor network for the ordinary internet. Keep 'Tor' as it is."
+  },
+  "onionOfferBody": "{site} announces an onion address:\n{onion}\n\nLoad it from there while this site goes through Tor?",
+  "@onionOfferBody": {
+    "description": "Body of a dialog shown once when a site the user added announces its address on the Tor network. {site} is the name the user gave the site; {onion} is the onion address itself (a long string ending in .onion), shown on its own line. Keep 'Tor' as it is.",
+    "placeholders": {
+      "site": {
+        "type": "String"
+      },
+      "onion": {
+        "type": "String"
+      }
+    }
+  },
+  "onionOfferUse": "Use it",
+  "@onionOfferUse": {
+    "description": "Button of the onion address dialog that makes the site load from its onion address while it goes through Tor."
+  },
+  "onionOfferDecline": "Don't use",
+  "@onionOfferDecline": {
+    "description": "Button of the onion address dialog that keeps the site on its usual address; the app remembers the answer and does not ask again for this address."
+  },
+  "siteNetworkOnionFallback": "If the onion address fails",
+  "@siteNetworkOnionFallback": {
+    "description": "Title of a choice on a site's Network settings screen: what happens when the site's onion address (its address on the Tor network) does not load."
+  },
+  "siteNetworkOnionFallbackHint": "An onion service can be down, or its certificate can lapse. Showing the error keeps the site inside Tor. Loading the regular address sends it through an exit relay instead, which sees where the traffic goes.",
+  "@siteNetworkOnionFallbackHint": {
+    "description": "Explanation behind the hint button of the 'If the onion address fails' choice. An exit relay is the Tor server where traffic leaves the Tor network for the ordinary internet. Keep 'Tor' as it is."
+  },
+  "onionFallbackNone": "Show the error",
+  "@onionFallbackNone": {
+    "description": "Option of the 'If the onion address fails' choice: the failed page stays on screen, and nothing is loaded outside Tor."
+  },
+  "onionFallbackClearnet": "Load the regular address",
+  "@onionFallbackClearnet": {
+    "description": "Option of the 'If the onion address fails' choice: the app loads the site's usual web address instead, through an exit relay of the Tor network."
+  }
 }
