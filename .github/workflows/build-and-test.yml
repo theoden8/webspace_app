@@ -638,6 +638,7 @@ jobs:
             bash scripts/run_android_proxy_router_tests.sh
             bash scripts/run_android_settings_seam_test.sh
             bash scripts/run_android_http_auth_tests.sh
+            bash scripts/run_android_perf_timeline.sh || true
             WS_RUN_BLANK_CONTROL=${{ inputs.blank_control && '1' || '0' }} WS_LIFECYCLE_BUILD_MODE=${{ inputs.lifecycle_build_mode || 'debug' }} bash scripts/run_android_lifecycle_tests.sh
             adb shell settings put global hide_error_dialogs 1
             bash scripts/run_android_passkey_tests.sh
@@ -656,6 +657,27 @@ jobs:
         with:
           name: passkey-gate-evidence
           path: build/passkey_gate/
+          if-no-files-found: ignore
+
+      # Perf-visibility trend (DEVTOOLS-013): the activation timeline the
+      # perf scenario left in its tier log. A trend, not a gate: the lines
+      # are collected if present and the step never fails the job.
+      - name: Collect activation timeline numbers
+        if: always()
+        run: |
+          mkdir -p build/perf_timeline
+          grep -h '^WS_PERF_TIMELINE ' \
+            "${RUNNER_TEMP:-/tmp}/tier-perf_timeline_test.dart.log" \
+            > build/perf_timeline/android.txt || true
+          echo "--- android activation timeline ---"
+          cat build/perf_timeline/android.txt || true
+
+      - name: Upload activation timeline numbers
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-timeline-android
+          path: build/perf_timeline/
           if-no-files-found: ignore
 
   # The Android TV tier (NAV-016, HS-004): a remote's D-pad against a real
@@ -1111,6 +1133,27 @@ jobs:
         with:
           name: linux-egress-recording
           path: ${{ env.WS_EGRESS_STATE }}
+          if-no-files-found: ignore
+
+      # Perf-visibility trend (DEVTOOLS-013): the WPE WebKit activation
+      # timeline the perf scenario left in its tier log. A trend, not a gate:
+      # collected if present, and the step never fails the job.
+      - name: Collect activation timeline numbers
+        if: always()
+        run: |
+          mkdir -p build/perf_timeline
+          grep -h '^WS_PERF_TIMELINE ' \
+            "${RUNNER_TEMP:-/tmp}/tier-perf_timeline_test.dart.log" \
+            > build/perf_timeline/linux.txt || true
+          echo "--- linux activation timeline ---"
+          cat build/perf_timeline/linux.txt || true
+
+      - name: Upload activation timeline numbers
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-timeline-linux
+          path: build/perf_timeline/
           if-no-files-found: ignore
 
   # The bridge transports the Apple app builds in (go/iptproxy): lyrebird's
