@@ -1,13 +1,19 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/outbound_http_types.dart' show torProxyResolver;
 import 'package:webspace/services/proxy_binding_engine.dart';
+import 'package:webspace/services/tor_engine.dart' show TorEngine;
+import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/webview_proxy.dart'
     show PlatformInfo, ProxyManager;
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/proxy_choice_dropdown.dart';
+import 'package:webspace/widgets/tor_bootstrap.dart';
 
+import 'helpers/fake_tor_runtime.dart';
 import 'helpers/fake_webview_controller.dart';
 import 'helpers/real_app.dart';
 
@@ -114,5 +120,65 @@ void main() {
     );
     expect(letGo, isTrue, reason: 'the webview goes to be rebuilt');
     expect(ruleCalls, isEmpty);
+  });
+
+  testWidgets('saving Tor replaces the onion block without an app restart', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1000, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const url = 'https://example.onion/';
+    final runtime = FakeTorRuntime();
+    TorService.overrideEngine(
+      TorEngine(runtime: runtime, sessionSecret: 'test'),
+    );
+    torProxyResolver = (tag) => TorService.instance.routeFor(siteId: tag.site);
+    addTearDown(() async {
+      torProxyResolver = null;
+      await TorService.reset();
+      await runtime.dispose();
+    });
+
+    await pumpRealApp(
+      tester,
+      sites: [WebViewModel(initUrl: url, name: 'Onion Site')],
+    );
+    await openWebspace(tester, name: 'All');
+    await openSiteFromDrawer(tester, name: 'Onion Site');
+    final webView = find.byType(inapp.InAppWebView);
+    final before = tester.widget<inapp.InAppWebView>(webView).platform.params;
+    expect(before.initialUrlRequest?.url?.toString(), 'about:blank');
+    await attachWebViews(tester);
+    expect(find.text('Request not sent'), findsOneWidget);
+
+    await tester.tap(find.text('Proxy settings'));
+    await settleRealApp(tester);
+    await tester.tap(find.text('Network'));
+    await settleRealApp(tester);
+    await tester.tap(find.byType(ProxyChoiceDropdown));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('TOR').last);
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await settleRealApp(tester);
+    await tester.tap(find.text('Save Settings'));
+    await settleRealApp(tester);
+
+    expect(find.byType(TorBootstrapPlaceholder), findsOneWidget);
+    expect(webView, findsNothing);
+    runtime.bootstrapTo(9050);
+    await settleRealApp(tester);
+    await attachWebViews(tester);
+
+    expect(find.text('Request not sent'), findsNothing);
+    final params = tester.widget<inapp.InAppWebView>(webView).platform.params;
+    expect(params.initialUrlRequest?.url?.toString(), url);
+    expect(
+      params.initialSettings?.proxySettings?.proxyRules.single.url,
+      contains('127.0.0.1:9050'),
+    );
   });
 }

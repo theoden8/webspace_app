@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/page_js.dart';
 import 'package:webspace/services/process_route.dart';
@@ -66,11 +65,12 @@ extension WebViewModelViews on WebViewModel {
   void dropWarm({required TabId tab, required Commit commit}) =>
       views.drop(tab: tab, commit: commit);
 
-  /// What goes with the shown view: its binding, the resume reload, and the
-  /// player and screen share it was speaking for, which would otherwise
-  /// outlive it (BGAUDIO-006, SHARE-017).
+  /// What goes with the shown view: its binding, the navigation block it
+  /// reported, the resume reload, and its player and screen share
+  /// (BGAUDIO-006, SHARE-017).
   void _shownGone({required Commit commit}) {
     tabBinding.unbind(commit: commit);
+    blockedNavigation = null;
     resumeReload.reset();
     unawaited(MediaSessionService.instance.stopForSite(siteId));
     unawaited(ScreenShare.instance.endSite(siteId));
