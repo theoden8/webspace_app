@@ -2,7 +2,7 @@
 # Makes the AppImage's AppDir from what snapcraft primed for the snap
 # (PLATFORM-013): the app's bundle in opt/webspace and the WebKit and libwpe
 # it built in usr/, laid out as in the snap, with every shared library they
-# link taken from the build host (Ubuntu 24.04, the snap's base) but those
+# link taken from the build host (Ubuntu 22.04, the snap's base) but those
 # linux/appimage/excludelist leaves to the machine, and the modules GLib, GTK
 # and WebKit load at run time: the GIO modules (TLS, proxies, settings), the
 # gdk-pixbuf loaders, and the GStreamer plugins WebKit plays media with. Each
@@ -18,7 +18,7 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 
 # The packages whose modules the AppDir carries; what they link comes by the
-# closure below. Ubuntu 24.04 has no dav1d plugin: AV1 plays through aom.
+# closure below. Ubuntu 22.04 has no dav1d plugin: AV1 plays through aom.
 module_packages=(
   glib-networking libgtk-3-common libgdk-pixbuf-2.0-0 librsvg2-common
   libgstreamer1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good
@@ -59,9 +59,9 @@ gio_modules=(libgiognutls.so)
 # libapparmor, part of which is GPL-2.0-only (PLATFORM-013).
 gst_plugins=(
   alsa coreelements app audioconvert audiomixer audioparsers audiorate audioresample
-  autodetect codecalpha codectimestamper debugutilsbad encoding inter
+  autodetect codecalpha debugutilsbad encoding inter
   interleave isomp4 matroska ogg opengl opus opusparse pbtypes pipewire
-  playback rawparse subparse typefindfunctions videoconvertscale
+  playback rawparse subparse typefindfunctions videoconvert videoscale
   videofilter videoparsersbad videorate volume vorbis vpx aom wavparse
 )
 # gdk-pixbuf has PNG and JPEG built in; GTK's symbolic icons are SVG.

@@ -132,13 +132,20 @@ runs:
         echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
         echo "GRADLE_OPTS=-Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError" >> $GITHUB_ENV
 
+    # The wrapper script is gitignored, so the JVM-test and APK steps invoke
+    # the `gradle` on PATH; without this pin the runner's preinstalled Gradle
+    # (bumped to 9.6.0) drops an internal API that AGP 8.x relies on and the
+    # `com.android.application` plugin fails to apply. The version is the
+    # one android/gradle/wrapper/gradle-wrapper.properties declares.
+    - name: Read the wrapper's Gradle version
+      id: gradle-wrapper
+      shell: bash
+      run: |
+        version="$(sed -n 's|^distributionUrl=.*/gradle-\([0-9.]*\)-[a-z]*\.zip$|\1|p' android/gradle/wrapper/gradle-wrapper.properties)"
+        [ -n "$version" ] || { echo "::error::no Gradle version in android/gradle/wrapper/gradle-wrapper.properties" >&2; exit 1; }
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
       with:
-        # Pin to the version declared in android/gradle/wrapper/
-        # gradle-wrapper.properties. The wrapper script is gitignored, so
-        # the JVM-test and APK steps invoke the `gradle` on PATH; without
-        # this pin the runner's preinstalled Gradle (bumped to 9.6.0) drops
-        # an internal API that AGP 8.x relies on and the
-        # `com.android.application` plugin fails to apply.
-        gradle-version: "8.13"
+        gradle-version: ${{ steps.gradle-wrapper.outputs.version }}

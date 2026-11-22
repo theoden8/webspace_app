@@ -4,7 +4,7 @@
 #
 # The base is the AppImage community's list (pkg2appimage's excludelist at
 # master in November 2026): glibc, which the AppImage's floor is (Ubuntu
-# 24.04's 2.39), and what the GPU driver or the desktop session must agree on.
+# 22.04's 2.35), and what the GPU driver or the desktop session must agree on.
 ld-linux.so.2	glibc
 ld-linux-x86-64.so.2	glibc
 ld-linux-aarch64.so.1	glibc
@@ -22,7 +22,7 @@ libresolv.so.2	glibc
 librt.so.1	glibc
 libthread_db.so.1	glibc
 libutil.so.1	glibc
-libstdc++.so.6	the GPU driver links the machine's, which is never older than the one built against
+libstdc++.so.6	the GPU driver links the machine's, which is never older than the one built against (WebKit carries its own libc++)
 libgcc_s.so.1	as libstdc++
 libGL.so.1	the GPU driver's
 libEGL.so.1	the GPU driver's
