@@ -120,6 +120,13 @@ the build settings generate nor what the provisioning profile adds, and SHALL
 drop `com.apple.security.get-task-allow` — Xcode grants it whenever it signs
 for development, and a distributed build carrying it is rejected.
 
+Both distributed builds SHALL embed the app's and the extension's provisioning
+profiles of their channel, Developer ID for the Developer ID build and Mac App
+Store for the App Store one, in place of the development profile the build
+embedded: the keychain group and application identifier are restricted
+entitlements, and macOS refuses to launch an app whose embedded profile does
+not grant them to its signing certificate.
+
 #### Scenario: Build without a signing identity
 
 **Given** a machine or CI runner with no certificate for the team
@@ -134,8 +141,9 @@ group) documented as non-functional
 **Given** a Developer ID or Apple Distribution identity
 **When** `scripts/sign_macos.sh` signs the bundle
 **Then** the entitlements carry the real team prefix
-**And** the Developer ID build is notarized and stapled, or the App Store
-build carries the app's and the extension's provisioning profiles
+**And** the build carries the app's and the extension's provisioning profiles
+of its channel, never a development profile
+**And** the Developer ID build is notarized and stapled
 
 ---
 

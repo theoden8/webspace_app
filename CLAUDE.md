@@ -337,7 +337,7 @@ fvm flutter build ipa    --release                       # iOS unsigned
 fvm flutter build ipa    --release --flavor direct       # iOS outside the App Store (WEBEXT-019)
 fvm flutter build macos  --release                       # unsigned; see below
 fvm flutter build macos  --release --flavor direct       # Developer ID build, for devid
-./scripts/sign_macos.sh devid                            # notarized zip + dmg (needs certs)
+./scripts/sign_macos.sh devid                            # notarized zip + dmg (needs certs, Developer ID profiles)
 ./scripts/sign_macos.sh mas                              # Mac App Store .pkg
 fvm flutter build linux  --release
 fvm dart run flutter_launcher_icons
