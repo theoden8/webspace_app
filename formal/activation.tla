@@ -330,6 +330,11 @@ Inv_Told == \A s \in Sites : told[s] \in {-1, Eff(s)}
 \* the lists after it waits on a flow that is gone (DNS-022).
 Inv_DnsTurnLive == dnsHolder # 0 => fl[dnsHolder].kind = "dns"
 
+\* An archive whose sites outgrew its slot cannot be saved, so a close
+\* takes none of its sites off the list (ARCH-003): they stay, and so does
+\* the open archive, until it fits again.
+Inv_FullArchiveKept == ArchiveTooBig => Archive \cap gone = {}
+
 \* The proxy configs' environment: every site in the one process-global
 \* scope, which one rule covers, sites 1 and 2 on one route and site 3 on
 \* another.
@@ -374,6 +379,8 @@ DnsAsk == <<-1, 2, 0>>
 DnsTwo == {1, 2}
 \* The failing mirror's config: every fetch of a list fails.
 DnsFetchCanFail == TRUE
+\* The full archive's config: its sites no longer fit the slot.
+ArchiveCanBeTooBig == TRUE
 \* The cap config's: two sites loaded, one of them resident.
 CapTwo == 2
 WarmOne == 1

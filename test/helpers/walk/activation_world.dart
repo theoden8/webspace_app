@@ -287,7 +287,18 @@ final class Login extends SiteAction {
 /// What the platform fails at once a setup step says so: a read, a write
 /// or the clear of the shared jar (ISO-014), the process-wide proxy rule
 /// (PROXY-008), the network (WEBSPACE-013).
-enum Fault { jarRead, jarWrite, jarClear, proxy, network, headlessClose, dnsFetch }
+enum Fault {
+  jarRead,
+  jarWrite,
+  jarClear,
+  proxy,
+  network,
+  headlessClose,
+  dnsFetch,
+
+  /// The archive's sites grow past its slot, so its close is refused.
+  archiveFull,
+}
 
 /// From here on the platform fails at [fault]: a setup step, before the
 /// script the trace records, whose world then lets the model's step fail
@@ -2008,6 +2019,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       ModelConst.dnsLevels => set(dns?.levels ?? const <int>[]),
       ModelConst.dnsFetchFails =>
         _faults.contains(Fault.dnsFetch) ? 'TRUE' : null,
+      ModelConst.archiveTooBig =>
+        _faults.contains(Fault.archiveFull) ? 'TRUE' : null,
       ModelConst.away => set([for (final a in _away) set(a)]),
       ModelConst.online => _faults.contains(Fault.network) ? 'FALSE' : null,
       ModelConst.archive => set([for (final m in _archived) _siteNumber(m)]),
@@ -2434,7 +2447,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       Fault.proxy ||
       Fault.network ||
       Fault.headlessClose ||
-      Fault.dnsFetch => false,
+      Fault.dnsFetch ||
+      Fault.archiveFull => false,
     },
   );
 
@@ -2829,6 +2843,11 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         await settle();
       case Fails(:final fault):
         _faults.add(fault);
+        if (fault == Fault.archiveFull) {
+          for (final m in _archived) {
+            m.name = 'x' * (kArchiveSlotMaxPayload + 1);
+          }
+        }
         if (switch (fault) {
           Fault.jarRead => JarCall.read,
           Fault.jarWrite => JarCall.write,
@@ -2836,7 +2855,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           Fault.proxy ||
           Fault.network ||
           Fault.headlessClose ||
-          Fault.dnsFetch => null,
+          Fault.dnsFetch ||
+          Fault.archiveFull => null,
         } case final call?) {
           jar.failing.add(call);
         }

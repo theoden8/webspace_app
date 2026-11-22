@@ -37,8 +37,6 @@ enum HandPaired implements Pairing {
   /// (`Archive # {} /\ Archive \cap gone = {}`).
   archiveOpen,
 
-  /// An archive too big to close, which the model never takes (`FALSE`).
-  archiveTooBig,
 
   /// The sites on the list a delete may take (`Listed \cap Deletable`).
   deletableSites,

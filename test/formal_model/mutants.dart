@@ -1426,6 +1426,15 @@ Tables mutated(Mutant m) => switch (m) {
       ),
     ),
   ),
+  // A close that does not ask whether the sealed archive still fits its
+  // slot: its sites leave the list though nothing can be saved.
+  Mutant.fullclosed => _with(
+    archive: _withArms(
+      tables.archive,
+      step: ActivationStep.closeArchive,
+      arms: (s) => s.withArms(branches: const []),
+    ),
+  ),
   // A fetch no mirror answers that ends its flow still holding the lists'
   // turn, so every later change of the lists waits on a flow that is gone.
   Mutant.failkeepsturn => _with(
