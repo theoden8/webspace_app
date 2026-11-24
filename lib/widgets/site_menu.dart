@@ -16,7 +16,6 @@ import 'package:webspace/widgets/shortcut_label.dart';
 /// What a site's overflow menu offers, in menu order.
 enum SiteMenuAction {
   newTab,
-  allTabs,
   backToWebspaces,
   search,
   toggleUrlBar,
@@ -35,9 +34,6 @@ enum SiteMenuPlacement { appBar, tabStrip }
 typedef SiteMenuState = ({
   bool loading,
   bool tabsOn,
-  // The site strip or the sidebar shows the tabs, so the Tabs sheet, with
-  // the nesting and the tabs other sites opened, is a menu item.
-  bool allTabs,
   bool fullscreen,
   bool offersShortcut,
   List<SiteMenuExtension> extensions,
@@ -166,9 +162,6 @@ class SiteMenuButton extends StatelessWidget {
       switch (action) {
         SiteMenuAction.newTab => state.tabsOn
             ? (Icons.add, loc.tabsNewTab, shortcutLabel<OpenNewTab>(names))
-            : null,
-        SiteMenuAction.allTabs => state.tabsOn && state.allTabs
-            ? (Icons.account_tree_outlined, loc.tabsAllTabsMenu, null)
             : null,
         SiteMenuAction.backToWebspaces =>
           placement == SiteMenuPlacement.tabStrip

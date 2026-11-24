@@ -1029,9 +1029,9 @@ click: it has no key convention, and a long press opens the menu instead.
 How the user moves between a webspace's sites and their tabs SHALL be one
 app-wide choice in App Settings > Behaviour (`siteNavigation`): **Tab button**
 (the default), **Site strip** or **Sidebar**. The strip and the sidebar SHALL
-never show together. With Tab button the app bar SHALL carry the tab-count
-button, which opens the Tabs sheet; with the strip or the sidebar it SHALL NOT,
-and the site menu SHALL offer **All tabs**, which opens the Tabs sheet. One
+never show together. With every choice the app bar SHALL carry the tab-count
+button, which opens the Tabs sheet, and the site menu SHALL offer no second
+way to it. One
 decision (`navigationSurfaces`) SHALL say which surfaces show; a locked kiosk
 session and a page with no site on screen SHALL show none (KIOSK-002), but for
 the legacy design's sidebar (TAB-036).
@@ -1041,11 +1041,11 @@ choice: a pinned strip or the strip's button to Site strip (the button to In
 full screen = Button, FS-009), anything else to Tab button. A choice already
 made, or named by a backup, SHALL be kept.
 
-#### Scenario: The strip replaces the tab button
+#### Scenario: The strip keeps the tab button
 
-- **GIVEN** Site navigation is Site strip and a site is on screen
-- **THEN** the app bar has no tab-count button
-- **AND** the site menu offers All tabs, which opens the Tabs sheet
+- **GIVEN** Site navigation is Site strip or Sidebar and a site is on screen
+- **THEN** the app bar has the tab-count button, which opens the Tabs sheet
+- **AND** the site menu has no All tabs
 
 #### Scenario: An earlier pinned strip becomes the Site strip
 

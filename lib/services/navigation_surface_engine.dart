@@ -98,7 +98,7 @@ NavigationSurfaces _strip(NavigationQuery q) {
     dock: SidebarDock.none,
     float: SidebarFloat.none,
     arrowTab: false,
-    tabCountButton: false,
+    tabCountButton: !q.fullscreen,
     stripButton: button,
   );
 }
@@ -138,7 +138,7 @@ NavigationSurfaces _sidebar(NavigationQuery q) {
     dock: dock,
     float: float,
     arrowTab: hidden,
-    tabCountButton: false,
+    tabCountButton: !q.fullscreen,
     stripButton: false,
   );
 }

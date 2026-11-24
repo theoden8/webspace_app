@@ -1,6 +1,6 @@
-// The site strip with tabs in the running app: no tab count beside it, the
-// Tabs sheet behind the site menu's All tabs, a close through the tabs
-// controller with its undo, and one site's tabs at a time on a phone.
+// The site strip with tabs in the running app: the tab count beside it as
+// with every navigation, a close through the tabs controller with its undo,
+// and one site's tabs at a time on a phone.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -49,9 +49,8 @@ void main() {
     expect(find.byType(TabCountButton), findsOneWidget);
   });
 
-  testWidgets('the strip shows no tab count', (tester) async {
+  testWidgets('the strip shows', (tester) async {
     await start(tester, navigation: 'strip');
-    expect(find.byType(TabCountButton), findsNothing);
     expect(find.byType(SiteStrip), findsOneWidget);
   });
 
@@ -62,23 +61,26 @@ void main() {
     expect(find.widgetWithText(TabChip, 'Budget 2027'), findsOneWidget);
   });
 
-  testWidgets('TAB-030: the site menu offers All tabs with the strip, opening the '
-      'Tabs sheet', (tester) async {
-    await start(tester, navigation: 'strip');
-    await tester.tap(find.byType(PopupMenuButton<SiteMenuAction>));
-    await settleRealApp(tester);
-    await tester.tap(find.text('All tabs'));
-    await settleRealApp(tester);
-    expect(find.byType(TabsSheet), findsOneWidget);
-  });
-
-  testWidgets('the site menu has no All tabs with the tab button',
-      (tester) async {
-    await start(tester, navigation: 'tabButton');
-    await tester.tap(find.byType(PopupMenuButton<SiteMenuAction>));
-    await settleRealApp(tester);
-    expect(find.text('All tabs'), findsNothing);
-  });
+  for (final navigation in ['strip', 'sidebar', 'tabButton']) {
+    testWidgets('TAB-030: with $navigation the app bar keeps the tab-count '
+        'button, opening the Tabs sheet; the site menu has no All tabs',
+        (tester) async {
+      await start(tester, navigation: navigation);
+      final button = find.descendant(
+        of: find.byType(AppBar),
+        matching: find.byType(TabCountButton),
+      );
+      expect(button, findsOneWidget);
+      await tester.tap(find.byType(PopupMenuButton<SiteMenuAction>).first);
+      await settleRealApp(tester);
+      expect(find.text('All tabs'), findsNothing);
+      await tester.tapAt(const Offset(5, 5));
+      await settleRealApp(tester);
+      await tester.tap(button);
+      await settleRealApp(tester);
+      expect(find.byType(TabsSheet), findsOneWidget);
+    });
+  }
 
   testWidgets('a chip closes its tab through the tabs controller, with undo',
       (tester) async {
