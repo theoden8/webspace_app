@@ -391,8 +391,7 @@ class.
   each, and the next suite remembers every run this one finished.
 - **`verify.sh`** — the one way to run all of it: prints the modules and writes the walk and
   step traces (`flutter test`), then `check.sh`, `trace/check_steps.sh` and the TLAPS
-  proofs. CI runs its stages through [the formal workflow](../.github/workflows/formal.yml),
-  and the required `validate` job waits for their combined result.
+  proofs. CI does not run it; run it before pushing a change under `formal/`.
   The schedules record their traces in `FORMAL_SLOTS`
   shards side by side, dividing the largest sweeps by script and assigning other
   tests whole (`SCHEDULE_SHARD`), each into its own directory, and the replay
@@ -426,19 +425,6 @@ cold_dir="$(mktemp -d)"
 FORMAL_CACHE="$cold_dir/tlc" TLAPM_CACHE_DIR="$cold_dir/tlapm" \
   FORMAL_RERUN=1 ./formal/verify.sh
 ```
-
-CI starts schedule exploration alongside model printing and Lean. Four model jobs
-partition the full check registry; proofs run alongside them, and trace replay starts
-once schedules and models are printed. The final stage requires every job to succeed,
-matches every completed check to the independently prepared registry exactly once,
-then runs the global footprint, world-key, trace-conformance and verification-floor
-gates. Every job uses the same prepared modules and TLC jar. Search bounds and the
-checks themselves are the same as a local full run.
-
-To validate this path in GitHub Actions, dispatch **Build and Test** with
-`formal_cold=true`. This runs source validation and all formal stages, skips restoring
-TLC verdicts, timings and TLAPS fingerprints, clears those directories and forces TLC
-execution. Toolchain and package downloads may still use their normal caches.
 
 Or directly:
 

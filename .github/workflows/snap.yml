@@ -10,46 +10,13 @@ name: Snap
 # snapcraft primed (PLATFORM-013), packs it, and runs it with one site; the
 # maintainer signs and publishes it (scripts/release_appimage.sh).
 
+# Optional: run by hand, and on a release tag for the snap the release
+# carries.
 on:
   workflow_dispatch:
   push:
-    branches:
-      - master
-    # A release tag builds the snap its release carries. GitHub applies no
-    # path filter to a tag push.
     tags:
       - 'v*'
-    paths:
-      - .github/workflows/snap.yml
-      - tool/check_bundle_licences.js
-      - test/js/helpers/licences.js
-      - test/js/helpers/dart_blocks.js
-      - test/js/helpers/source.js
-      - openspec/specs/legal/**
-      - snap/**
-      - scripts/check_snap.sh
-      - scripts/check_appimage.sh
-      - tool/appimage_signature.js
-      - tool/check_source_offer.js
-      - linux/**
-      - pubspec.lock
-      - rust/webspace_adblock/**
-  pull_request:
-    paths:
-      - .github/workflows/snap.yml
-      - tool/check_bundle_licences.js
-      - test/js/helpers/licences.js
-      - test/js/helpers/dart_blocks.js
-      - test/js/helpers/source.js
-      - openspec/specs/legal/**
-      - snap/**
-      - scripts/check_snap.sh
-      - scripts/check_appimage.sh
-      - tool/appimage_signature.js
-      - tool/check_source_offer.js
-      - linux/**
-      - pubspec.lock
-      - rust/webspace_adblock/**
 
 # A run in progress is left to finish: it fills the cache the queued run then
 # builds from.

@@ -6,9 +6,8 @@
 // nobody wrote a reason for is exactly the missing coverage-matrix row
 // LEAK-007 is about.
 //
-// Three things are checked: entries parse the way egress_report.py parses
-// them, every entry carries an inline justification, and the workflow
-// still wires the guard into the Linux integration job at all.
+// Two things are checked: entries parse the way egress_report.py parses
+// them, and every entry carries an inline justification.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -41,22 +40,6 @@ test('every allowlist entry says why that destination may be contacted', () => {
       `${ALLOWLIST}:${line}: ${JSON.stringify(text.trim())} has no `
         + 'justification. Name the code path that makes the request and why '
         + 'it may leave the runner (LEAK-007), or delete the entry.',
-    );
-  }
-});
-
-test('the Linux integration job still arms the guard', () => {
-  const workflow = read('.github/workflows/build-and-test.yml');
-  for (const needle of [
-    'scripts/egress_guard_arm.sh',
-    'scripts/egress_guard_disarm.sh',
-    'scripts/egress_report.py',
-    '--cap-add=NET_ADMIN',
-  ]) {
-    assert.ok(
-      workflow.includes(needle),
-      `build-and-test.yml no longer references ${needle}: the egress gate `
-        + 'is wired out, so the allowlist above guarantees nothing.',
     );
   }
 });

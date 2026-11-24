@@ -20,7 +20,7 @@ iOS and macOS all read it from there.
 | Item | Path | Fails without it |
 |---|---|---|
 | Version | `pubspec.yaml` | |
-| Changelog | `fastlane/metadata/android/en-US/changelogs/<N>.txt` | `scripts/validate_fastlane_metadata.sh` (CI `validate`) |
+| Changelog | `fastlane/metadata/android/en-US/changelogs/<N>.txt` | `scripts/validate_fastlane_metadata.sh` (CI Build Android) |
 | Backup fixtures | `test/fixtures/backup_compat/v<X.Y.Z>/` | `test/settings_backup_compat_test.dart` ("the version in pubspec.yaml has release fixtures") |
 
 **Changelog.** What a user sees change since the last tag

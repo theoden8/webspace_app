@@ -82,7 +82,7 @@ for (const platform of ['ios', 'macos']) {
   });
 }
 
-test('CI checks a flavorless build lacks the reports and its direct builds carry them', () => {
+test('CI checks a flavorless build lacks the reports and its direct IPA carries them', () => {
   const workflow = read(WORKFLOW);
   const checked = (want, app) => new RegExp(
     `check_webkit_block_reports\\.sh ${want} \\\\\\s*\\S*${app.replace(/\./g, '\\.')}\\n`);
@@ -90,8 +90,6 @@ test('CI checks a flavorless build lacks the reports and its direct builds carry
     'no absent check of the flavorless macOS build');
   assert.match(workflow, checked('present', 'Applications/Runner.app'),
     'no present check of the iOS IPA');
-  assert.match(workflow, checked('present', 'Products/Release-direct/webspace.app'),
-    'no present check of the macOS direct build');
 });
 
 test('signing for the Mac App Store refuses a build that carries them', () => {
@@ -105,7 +103,7 @@ test(`the Linux type-check reads the Swift with ${CONDITION} too`, () => {
   assert.ok(check.includes(`-D ${CONDITION}`), `tool/swift_typecheck never defines ${CONDITION}`);
 });
 
-test('tool/swift_tests runs the files the Xcode projects compile, and CI runs it', () => {
+test('tool/swift_tests runs the files the Xcode projects compile', () => {
   const linked = [];
   for (const dir of ['tool/swift_tests/Sources/Runner', 'tool/swift_tests/Tests/RunnerTests']) {
     for (const name of fs.readdirSync(dir)) {
@@ -126,5 +124,4 @@ test('tool/swift_tests runs the files the Xcode projects compile, and CI runs it
     assert.ok(read(`${platform}/Runner.xcodeproj/project.pbxproj`).includes('WebKitBlockedLoads.swift in Sources'),
       `${platform}'s Runner does not compile the load counting`);
   }
-  assert.match(read(WORKFLOW), /run: \.\/tool\/swift_tests\/run\.sh\n/);
 });

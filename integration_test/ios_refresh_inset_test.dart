@@ -21,8 +21,8 @@
 // animation starts (the refresh's own page load ends it), and across that
 // animation the way the block-stats banner's opening animates the box.
 //
-// iOS only: no other platform has the refresh control. Run by
-// .github/workflows/ios-refresh-inset.yml on a simulator.
+// iOS only: no other platform has the refresh control. Run on a simulator
+// by hand.
 
 import 'dart:async';
 import 'dart:io';

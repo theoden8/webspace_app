@@ -1,4 +1,7 @@
-name: Build and Test
+name: Build
+
+# Builds and artifacts only. Tests, formal verification and the integration
+# tiers run locally (CLAUDE.md, Commands); CI does not repeat them.
 
 on:
   push:
@@ -7,37 +10,13 @@ on:
   pull_request:
     branches:
       - '**'
-  # Allow manual trigger for testing
   workflow_dispatch:
     inputs:
-      blank_control:
-        description: 'BUG-001 blank control (lifecycle Scenario B3-A). Red by design on a device that reproduces the white screen; skipped on every push.'
-        type: boolean
-        default: false
-      lifecycle_build_mode:
-        description: 'Build the lifecycle tier drives. profile is AOT with isInspectable off, which is what ships; debug is neither.'
-        type: choice
-        options: [debug, profile]
-        default: debug
-      egress_guard:
-        description: 'Linux egress gate (INTEG-016). record reports what the suite sent off the runner; enforce fails on anything the allowlist does not cover; off leaves the network alone.'
-        type: choice
-        options: [record, enforce, off]
-        default: record
-      formal_cold:
-        description: 'Only validation, including every formal check without TLC or TLAPS result caches.'
-        type: boolean
-        default: false
       screenshots_only:
-        description: 'Only the store screenshots: every device at once, into the one screenshots artifact. No build or test job runs.'
+        description: 'Only the store screenshots: every device at once, into the one screenshots artifact. No build job runs.'
         type: boolean
         default: false
 
-# Supersede in-progress runs for the same ref: a new push cancels the
-# previous run instead of letting both consume runners. A hung job (e.g. a
-# WebView integration test deadlocking on a headless runner) otherwise
-# burns a runner for the full 6h job limit while newer commits queue behind
-# it.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -48,35 +27,18 @@ env:
   CARGO_NDK_VERSION: "4.1.2"
   # The Debian sid the Linux containers install from: a dated
   # snapshot.debian.org view, so a transition landing in sid cannot break
-  # every PR's install at once. Moving it is a deliberate change, made
-  # where the install still resolves and libwpewebkit-2.0-dev still meets
-  # CONT-009's floor. The containers' image is dated no later than it
-  # (debian:sid-<date>-slim, both jobs; container.image cannot read env):
-  # an image newer than the snapshot ships packages apt there cannot
-  # match, so installing git fails before checkout.
+  # every PR's install at once. The containers' image is dated no later than
+  # it (debian:sid-<date>-slim; container.image cannot read env).
   DEBIAN_SNAPSHOT: "20261111T180000Z"
 
 jobs:
-  # Which jobs this commit actually needs. A bisection that only reads the
-  # macOS tier otherwise pays for Linux, Android, design and validate as
-  # well, and those runners are what the next iteration queues behind.
-  #
-  # Put `[ci-only: apple]` in the commit message -- or several, as
-  # `[ci-only: apple,validate]` -- and everything else skips. Tokens are the
-  # job ids below: validate, design, android, linux, apple, and screenshots
-  # for the screenshot jobs, which a marker naming it runs on any PR.
-  #
-  # Honoured on pull_request only. The marker stays in the message after a
-  # merge, so on master and on workflow_dispatch every job runs regardless
-  # and the branch everyone reads cannot be silenced by a commit that was
-  # written for one experiment. A manual run's screenshots_only input is the
-  # marker `[ci-only: screenshots]`.
+  # Which jobs this commit needs. `[ci-only: apple]` in the commit message,
+  # or several as `[ci-only: android,linux]`, skips the rest. Tokens: android,
+  # linux, apple, screenshots. Honoured on pull_request only.
   plan:
     name: Plan
     runs-on: ubuntu-latest
     outputs:
-      validate: ${{ steps.pick.outputs.validate }}
-      design: ${{ steps.pick.outputs.design }}
       android: ${{ steps.pick.outputs.android }}
       linux: ${{ steps.pick.outputs.linux }}
       apple: ${{ steps.pick.outputs.apple }}
@@ -97,8 +59,6 @@ jobs:
             only="$(git log -1 --pretty=%B \
               | sed -n 's/.*\[ci-only:[[:space:]]*\([^]]*\)\].*/\1/p' \
               | head -1 | tr -d '[:space:]')"
-          elif [ "${{ inputs.formal_cold }}" = true ]; then
-            only=validate
           elif [ "${{ inputs.screenshots_only }}" = true ]; then
             only=screenshots
           fi
@@ -113,8 +73,6 @@ jobs:
             esac
           }
           {
-            pick validate
-            pick design
             pick android
             pick linux
             pick apple
@@ -124,9 +82,9 @@ jobs:
             echo "::notice::ci-only=$only -- every other job is skipped for this commit"
           fi
       # The store screenshots: on a manual run, and on a release PR, which is
-      # one that moves pubspec.yaml's version line (docs/releasing.md), so a
-      # release cannot go green without them. A ci-only marker that names
-      # them runs them, and one that does not skips them.
+      # one that moves pubspec.yaml's version line (docs/releasing.md). A
+      # ci-only marker that names them runs them, and one that does not skips
+      # them.
       - id: screenshots
         run: |
           set -eu
@@ -149,340 +107,6 @@ jobs:
           fi
           echo "screenshots=$screenshots" >> "$GITHUB_OUTPUT"
 
-  formal:
-    name: Formal verification
-    needs: [plan, validate-sources]
-    if: needs.plan.outputs.validate == 'true'
-    uses: ./.github/workflows/formal.yml
-    # actions: read lets a stage whose cache was evicted take master's
-    # newest artifact instead (scripts/restore_formal_artifact.sh).
-    permissions:
-      contents: read
-      actions: read
-    with:
-      cold: ${{ github.event_name == 'workflow_dispatch' && inputs.formal_cold }}
-
-  validate:
-    name: Validate Fastlane + OpenSpec + proofs
-    needs: [plan, validate-sources, formal]
-    if: ${{ always() && needs.plan.outputs.validate == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - env:
-          RESULTS: ${{ toJSON(needs) }}
-        run: jq -e 'all(.[]; .result == "success")' <<< "$RESULTS"
-
-  validate-sources:
-    name: Validate sources
-    runs-on: ubuntu-latest
-    needs: plan
-    if: needs.plan.outputs.validate == 'true'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Validate Fastlane metadata
-        run: ./scripts/validate_fastlane_metadata.sh
-      # A pull request checks out its merge commit with no history, so the
-      # PR's head is fetched beside master; 50 covers any branch worth
-      # reviewing, and the script skips rather than fails past that. The body
-      # is read as it is now, not as the event carried it, so a re-run sees
-      # an edit.
-      - name: Check commit attribution
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          TIP: ${{ github.event.pull_request.head.sha }}
-        run: |
-          git fetch --no-tags --depth=50 origin +refs/heads/master:refs/remotes/origin/master
-          if [ -n "$PR_NUMBER" ]; then
-            git fetch --no-tags --depth=50 origin "$TIP"
-            PR_BODY=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.body // ""')
-            export PR_BODY
-          fi
-          BASE=origin/master ./scripts/check_commit_attribution.sh
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'npm'
-      # Restore the headless Chromium that Puppeteer's postinstall
-      # downloaded last run. Puppeteer caches at ~/.cache/puppeteer
-      # (~280 MB chrome + ~100 MB chrome-headless-shell). Keying on
-      # package-lock.json invalidates the cache when the Puppeteer
-      # version bumps, so we never run tests against a Chromium that
-      # mismatches the puppeteer client.
-      - name: Cache Puppeteer Chromium
-        uses: ./.github/actions/master-cache
-        with:
-          path: ~/.cache/puppeteer
-          key: puppeteer-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            puppeteer-${{ runner.os }}-
-      - name: Install npm dependencies
-        run: npm ci
-      # DESIGN-001: the designer's environment is the real app, so every UI
-      # file has to keep compiling for web. This is a static import walk, so
-      # it costs a second and catches the usual cause: a widget reaching
-      # dart:io through a service instead of through a platform seam.
-      - name: Check UI files still compile for web
-        run: npm run design:check
-      - name: Set up Swift for the plugin type-check
-        uses: swift-actions/setup-swift@v2
-        continue-on-error: true
-
-      - name: Type-check the Apple plugins
-        run: ./tool/swift_typecheck/check.sh
-
-      # The Runner's plain Swift under XCTest, headlessly: no Apple SDK
-      # (CB-023's load counting). Fails here without a toolchain.
-      - name: Test the Runner's plain Swift
-        run: ./tool/swift_tests/run.sh
-
-      - name: Validate OpenSpec
-        run: npx openspec validate --no-interactive --all
-      # Flutter also compiles the harness and its negative compiler probes.
-      - name: Set up Java for TLC
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-      - name: Setup Flutter (for Dart SDK)
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version-file: '.fvmrc'
-          channel: 'stable'
-      - name: Cache fvm Flutter SDK
-        uses: ./.github/actions/master-cache
-        with:
-          path: ~/fvm/versions
-          key: fvm-${{ runner.os }}-${{ hashFiles('**/.fvmrc') }}
-          restore-keys: |
-            fvm-${{ runner.os }}-
-      - name: Install fvm
-        run: |
-          dart pub global activate fvm
-          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
-      - name: Setup Flutter with fvm
-        run: |
-          fvm install
-          fvm use --force
-      - name: Cache pub dependencies
-        uses: ./.github/actions/master-cache
-        with:
-          path: |
-            ~/.pub-cache
-            .dart_tool
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-${{ runner.os }}-
-      - name: Get dependencies
-        run: fvm flutter pub get --enforce-lockfile
-      - name: Generate localizations
-        run: fvm dart tool/gen_l10n.dart
-      # What AppImageHub validates the Linux desktop entry and metainfo with
-      # (test/js/linux_desktop_files.test.js, PLATFORM-013).
-      - name: Install the desktop file validators
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends desktop-file-utils appstream
-      # JS shim + localization tests (jsdom + node:test). Node-only, so
-      # they belong in this lightweight checks job rather than gated behind
-      # a platform build. After pub get: the licence gate reads the packages
-      # it resolved (LICENSE-001).
-      - name: Run JS shim tests
-        run: npm run test:js
-      # Errors only: the lints analysis_options.yaml raises to `error` fail
-      # here, and the warnings and infos the code already carries do not.
-      # `dart analyze`, since `flutter analyze` drops what an analyzer plugin
-      # reports (tool/webspace_lints).
-      - name: Analyze (errors only)
-        run: fvm dart analyze --no-fatal-warnings
-      - name: Test the analyzer plugin
-        working-directory: tool/webspace_lints
-        run: |
-          fvm dart pub get --enforce-lockfile
-          fvm dart test
-      - name: Test verification helpers and logging
-        run: >-
-          fvm flutter test --reporter expanded
-          test/frame_segments_test.dart test/frame_parity_test.dart
-          test/schedule_shards_test.dart test/declare_to_use_test.dart
-          test/formal_models_test.dart
-          test/schedules_test.dart test/walk_runner_test.dart
-          test/log_service_test.dart test/log_clipboard_strip_test.dart
-          test/log_no_siteid_leak_test.dart
-      # Idempotent: if the cache restored a matching Chromium, this
-      # step prints "already installed" and exits in <1s. Otherwise it
-      # downloads ~280 MB into ~/.cache/puppeteer. Running it as a
-      # discrete step (rather than relying on Puppeteer's npm
-      # postinstall) makes the install visible in the workflow log,
-      # which is what we need to confirm CI is actually running the
-      # browser tier rather than silently skipping it.
-      - name: Install Puppeteer Chromium
-        # `chrome` is the @puppeteer/browsers CLI name; `chromium` is
-        # rejected as an invalid positional and yargs exits 1 on CI.
-        run: npx puppeteer browsers install chrome
-      # Tier 2 of the JS shim test pipeline: load each committed
-      # fixture into headless Chromium and assert behaviour the real
-      # engine produces (matchMedia against real CSS, Intl/Date
-      # timezone arithmetic, Geolocation callback path, RTCPeerConnection
-      # semantics, CSP enforcement of fetch(blob:)). jsdom cannot
-      # honestly answer any of those, so this is the only layer that
-      # proves the shim's effect end-to-end. See
-      # openspec/specs/js-shim-tests/spec.md (SHIM-TEST-005/006) and
-      # test/browser/.
-      #
-      # process.env.CI=true (set by Actions) makes the test files
-      # hard-fail when Chromium can't launch — silently skipping the
-      # tier on a misconfigured runner would defeat its purpose. See
-      # requireBrowser() in test/browser/helpers/launch.js.
-      - name: Run browser tests (real-Chromium shim tier)
-        timeout-minutes: 10
-        run: npm run test:browser
-
-  # Perf budget (perf-visibility series): run the native-free host benchmarks
-  # on this PR and on its base, both on this runner, and compare the medians as
-  # a ratio (so the runner cancels out). Ceilings are in test/perf/budgets.tsv,
-  # the comparison in tool/perf/perf_budget.dart (unit-tested by
-  # test/perf_budget_test.dart), the samples upload as a trend. Pull-request
-  # only: on master the base is itself.
-  #
-  # REPORT ONLY for now: the job prints the table and never fails the build
-  # (WS_PERF_BUDGET_ENFORCE unset). Local noise is ~7% on the url-change median,
-  # but a shared CI runner is noisier and head runs before base here, so the
-  # ratio's spread and any order effect are read off these runs first; a
-  # follow-up sets WS_PERF_BUDGET_ENFORCE=1 once the CI numbers show the
-  # ceilings have margin.
-  perf-budget:
-    name: Perf budget (report)
-    runs-on: ubuntu-latest
-    needs: plan
-    if: needs.plan.outputs.validate == 'true' && github.event_name == 'pull_request'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Fetch the base ref
-        run: |
-          git fetch --no-tags --depth=1 origin \
-            "+refs/heads/${{ github.event.pull_request.base.ref }}:refs/remotes/origin/${{ github.event.pull_request.base.ref }}"
-      - name: Setup Flutter (for Dart SDK)
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version-file: '.fvmrc'
-          channel: 'stable'
-      - name: Cache fvm Flutter SDK
-        uses: ./.github/actions/master-cache
-        with:
-          path: ~/fvm/versions
-          key: fvm-${{ runner.os }}-${{ hashFiles('**/.fvmrc') }}
-          restore-keys: |
-            fvm-${{ runner.os }}-
-      - name: Install fvm
-        run: |
-          dart pub global activate fvm
-          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
-      - name: Setup Flutter with fvm
-        run: |
-          fvm install
-          fvm use --force
-      - name: Cache pub dependencies
-        uses: ./.github/actions/master-cache
-        with:
-          path: |
-            ~/.pub-cache
-            .dart_tool
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-${{ runner.os }}-
-      - name: Run the perf budget gate
-        env:
-          WS_PERF_BUDGET_DIR: build/perf_budget
-          WS_PERF_RUNS: '12'
-        run: scripts/perf_budget.sh "origin/${{ github.event.pull_request.base.ref }}"
-      - name: Upload perf budget numbers
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: perf-budget
-          path: build/perf_budget/
-          if-no-files-found: ignore
-
-  design-web:
-    name: Design gallery + designer app
-    runs-on: ubuntu-latest
-    needs: plan
-    if: needs.plan.outputs.design == 'true'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'npm'
-      - name: Cache Puppeteer Chromium
-        uses: ./.github/actions/master-cache
-        with:
-          path: ~/.cache/puppeteer
-          key: puppeteer-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            puppeteer-${{ runner.os }}-
-      - name: Install npm dependencies
-        run: npm ci
-      - name: Setup Flutter (for Dart SDK)
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version-file: '.fvmrc'
-          channel: 'stable'
-      - name: Cache fvm Flutter SDK
-        uses: ./.github/actions/master-cache
-        with:
-          path: ~/fvm/versions
-          key: fvm-${{ runner.os }}-${{ hashFiles('**/.fvmrc') }}
-          restore-keys: |
-            fvm-${{ runner.os }}-
-      - name: Install fvm
-        run: |
-          dart pub global activate fvm
-          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
-      - name: Setup Flutter with fvm
-        run: |
-          fvm install
-          fvm use --force
-      - name: Cache pub dependencies
-        uses: ./.github/actions/master-cache
-        with:
-          path: |
-            ~/.pub-cache
-            .dart_tool
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-${{ runner.os }}-
-      - name: Get dependencies
-        run: fvm flutter pub get --enforce-lockfile
-      - name: Generate localizations
-        run: fvm dart tool/gen_l10n.dart
-      # DESIGN-002 + DESIGN-003. The build is the compile gate; shoot.js is
-      # the only check that can see a correct widget tree render an empty
-      # frame, and it fails on unexpected page errors too.
-      - name: Build the design gallery
-        run: ./scripts/design_web.sh gallery
-      - name: Install Puppeteer Chromium
-        run: npx puppeteer browsers install chrome
-      - name: Screenshot every card
-        run: node tool/design_gallery/shoot.js
-      - name: Upload design cards
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: design-cards
-          path: build/design_cards
-          if-no-files-found: warn
-      # DESIGN-002 + DESIGN-008. The designer drives this build, and the
-      # packing step is what makes it survive being served from a
-      # subdirectory inside the Claude Design project.
-      - name: Build the designer app
-        run: ./scripts/design_web.sh app
-      - name: Pack it for the design project
-        run: node tool/design_gallery/pack_app.js
-      - name: Boot the packed app in an iframe
-        run: node --test --test-timeout=180000 test/browser/design_app_packaging.test.js
-
   build-android:
     name: Build Android
     runs-on: ubuntu-latest
@@ -492,72 +116,35 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Oversize metadata silently breaks the F-Droid sync; seconds.
+      - name: Validate Fastlane metadata
+        run: ./scripts/validate_fastlane_metadata.sh
+
       - name: Android toolchain
         uses: ./.github/actions/android-toolchain
         with:
           cargo-ndk-version: ${{ env.CARGO_NDK_VERSION }}
 
-      - name: Run JVM unit tests (Kotlin plugins)
-        # Catches Kotlin compile errors and pure-logic bugs in the
-        # Android plugins (WebInterceptPlugin.mapResourceType,
-        # AdblockEngineNative fallback) before the slow APK assembly
-        # step. The phase 9 `request.requestHeaders` typo would
-        # have surfaced here in seconds. fdroidDebug variant has
-        # the smallest config — we only care that the code compiles
-        # and the unit-test logic passes; flavor specifics don't
-        # affect either.
-        working-directory: android
-        run: gradle :app:testFdroidDebugUnitTest --console=plain --no-daemon
-
-      - name: Install tor for the real-tor tier
-        # test/external_tor_real_daemon_test.dart drives the external tor's
-        # control port against real tor processes (TOR-026), and
-        # test/managed_tor_real_test.dart starts one as the Linux built-in
-        # Tor does, with a pluggable transport (TOR-027), and through it
-        # reaches a loopback obfs4 bridge the same tor and obfs4proxy run
-        # (TOR-016). WS_REAL_TOR below makes a missing tor, transport or
-        # bridge fail them rather than skip. The package starts the system
-        # service, which nothing here uses.
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq tor tor-geoipdb obfs4proxy
-          sudo systemctl disable --now tor || true
-
-      # Not the schedule search: the formal job runs it, sharded, on this
-      # same OS (test/js/schedules_run_once.test.js).
-      - name: Run tests
-        env:
-          WS_REAL_TOR: '1'
-        run: fvm flutter test --exclude-tags schedules
-
       - name: Generate launcher icons
         run: fvm dart run flutter_launcher_icons
 
+      # The checks after the build read the APKs it made and take seconds:
+      # adblock .so shipped, Maven and APK licences (LICENSE-001/002), no
+      # Google Mobile Services (PROF-007), JNI entry points kept by R8.
       - name: Build APK
         run: |
+          set -e
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             fvm flutter build apk --release --flavor fdroid
           else
             fvm flutter build apk --release --flavor fdroid --split-per-abi
           fi
-          # adblock-rust is a graceful-fallback engine; assert its .so
-          # actually shipped in the APK (Android links it over JNI, so this
-          # is the .so-presence analog of the iOS/macOS/Linux ws_* check).
           bash scripts/verify_adblock_shipped.sh android
-          # LICENSE-001 over every Maven artifact the build linked, transitive
-          # ones included, as android/app/maven_licences.gradle listed them.
           node tool/check_maven_licences.js assets/native_notices/maven.json
-
-      - name: Verify APK licences
-        # LICENSE-001 and LICENSE-002 over what each APK ships: no GNU notice
-        # in a file, a binary's strings or base64 runs, no copy of a list the
-        # app downloads.
-        run: |
-          set -e
           shopt -s nullglob
           apks=( build/app/outputs/flutter-apk/*-fdroid-release.apk )
           if [ ${#apks[@]} -eq 0 ]; then
-            echo "ERROR: no fdroid APK found to scan" >&2
+            echo "ERROR: no fdroid APK found" >&2
             exit 1
           fi
           for apk in "${apks[@]}"; do
@@ -565,41 +152,7 @@ jobs:
             unzip -q "$apk" -d "$dir"
             node tool/check_artifact_licences.js "$dir"
             rm -rf "$dir"
-          done
-
-      - name: Verify APK is free of Google Mobile Services
-        # Per openspec/specs/per-site-profiles/spec.md PROF-007, no shipped
-        # artifact may contain com.google.android.gms.* / firebase / play
-        # classes. Scans the *built* APK because clean Gradle deps can
-        # transitively pull GMS through AARs, vendored jars, or codegen —
-        # an audit of `./gradlew app:dependencies` would miss those.
-        run: |
-          set -e
-          shopt -s nullglob
-          apks=( build/app/outputs/flutter-apk/*-fdroid-release.apk )
-          if [ ${#apks[@]} -eq 0 ]; then
-            echo "ERROR: no fdroid APK found to scan" >&2
-            exit 1
-          fi
-          for apk in "${apks[@]}"; do
             bash scripts/check_no_gms.sh "$apk"
-          done
-
-      - name: Verify JNI bridge survived shrinking
-        # Release R8 shrinks (to strip Flutter's dead Play Core path); a
-        # regression that flips obfuscation on or drops the native-methods
-        # keep would rename/remove the Rust adblock JNI entry points, failing
-        # only at runtime (UnsatisfiedLinkError). Assert they're still in the
-        # DEX. .so-independent: the Kotlin bridge compiles regardless.
-        run: |
-          set -e
-          shopt -s nullglob
-          apks=( build/app/outputs/flutter-apk/*-fdroid-release.apk )
-          if [ ${#apks[@]} -eq 0 ]; then
-            echo "ERROR: no fdroid APK found to scan" >&2
-            exit 1
-          fi
-          for apk in "${apks[@]}"; do
             bash scripts/check_jni_intact.sh "$apk"
           done
 
@@ -610,248 +163,16 @@ jobs:
           path: build/app/outputs/flutter-apk/*.apk
           if-no-files-found: error
 
-      # The emulator refuses an AVD it has no room for, and on a snapshot
-      # cache miss the AVD is made here, after the release build filled the
-      # disk. The APKs are uploaded and the emulator runs x86_64 only, so the
-      # other ABIs' Rust outputs go, with the tool cache's unused CodeQL.
-      - name: Make room for the emulator
-        run: |
-          df -h .
-          rm -rf rust/webspace_adblock/target/{aarch64-linux-android,armv7-linux-androideabi,i686-linux-android}
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          df -h .
-
-      - name: Android emulator
-        uses: ./.github/actions/android-emulator
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: '.nvmrc'
-
-      # `target: default` is the AOSP image, deliberately: this app ships
-      # GMS-free (the "Verify APK is free of Google Mobile Services" step above
-      # asserts it), so the test host must not be a google_apis image either.
-      # Its WebView is `com.android.webview`, and like every emulator image it
-      # is pinned at image build time with no Play Store to update it, so the
-      # API level is what moves it. The lifecycle tier records the version it
-      # got; see docs/bugs/001-white-screen.md gap #13.
-      # Emulator scenarios, run on every push/PR:
-      #   INTEG-010 white-screen pixels — drive the known blank-screen entry
-      #     paths and assert on composited window pixels over the webview via
-      #     SurfaceDiagPlugin's PixelCopy;
-      #   INTEG-013 home shortcuts — launch, menu gating, orphan routing and
-      #     the delete-time tile prompt through the real widget tree;
-      #   CAM-010 per-site camera modes — the virtual source must reach the
-      #     page through the real Android WebView (the real-camera scenario
-      #     self-skips: the AVD camera never settles a getUserMedia call);
-      #   BGAUDIO-005/006 background audio — the JS-liveness exemption and its
-      #     negative control against a real pauseTimers(), plus the media
-      #     foreground service, asserted through the OS notification list;
-      #   BUG-008 page zoom — the per-site zoom contract against the real
-      #     Android System WebView, the one engine with the wide-viewport
-      #     quirk (the Linux/macOS jobs run the same file on WPE/WKWebView);
-      #   ICON-009/010/011 site icon — which page icon onReceivedIcon hands
-      #     over and which the app takes (largest, own host, no late badge);
-      #     no other engine has the callback. The macOS job runs the same
-      #     file for the ICON-013 fetch path;
-      #   BUG-014 settings seam — every per-site field Dart sends, compared
-      #     against what a real System WebView holds. Android parses settings
-      #     with an explicit switch, so a field nobody wired is dropped as
-      #     silently as one Apple's reflective parser cannot see;
-      #   HTTPAUTH-007 HTTP authentication: a site's own 401 answered from
-      #     the sign-in prompt and from a saved sign-in, with the page's image
-      #     and fetch() behind the same htpasswd;
-      #   INTEG-011/012 lifecycle + background refresh, adb-driven;
-      #   PASSKEY-012 passkeys: the Credential Manager bridge against
-      #     @simplewebauthn/server and a test credential provider that checks
-      #     the caller against a privileged allowlist.
-      - name: Run emulator integration scenarios
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          target: default
-          arch: x86_64
-          profile: pixel_5
-          disk-size: 4096M
-          force-avd-creation: false
-          # No `-camera-back emulated`: the AVD's emulated camera never
-          # settles a getUserMedia call under `-no-window -gpu
-          # swiftshader_indirect` (observed hanging past the 90s probe
-          # deadline), and adding the flag also invalidated the cached
-          # snapshot, forcing a cold boot. The camera tier's real-camera
-          # scenario therefore skips here by design and stays a manual /
-          # on-device check; its virtual scenarios are the CI gate (CAM-010).
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          disable-animations: true
-          # The action runs each script line as a separate `sh -c`, so the
-          # test invocations live in wrapper scripts. The lifecycle tier
-          # (INTEG-011) must run after the in-process suites: it replaces the
-          # test-entrypoint APK they installed. The passkey gate runs last
-          # because it leaves its test provider as the credential service.
-          # hide_error_dialogs is set again before it: the lifecycle tier
-          # clears it on exit, and a dialog holding focus blocks the gate's
-          # taps on the system passkey sheet. The in-process tiers run from
-          # one APK holding every file (scripts/integration_bundle.sh); a
-          # `flutter test` per file built a debug APK for each of them, about
-          # 50 s apiece. The lifecycle tier still builds its own.
-          script: |
-            adb wait-for-device
-            adb shell input keyevent 82
-            adb shell settings put global hide_error_dialogs 1
-            bash scripts/integration_bundle.sh build android integration_test/*_test.dart
-            bash scripts/run_android_integration_tests.sh
-            bash scripts/run_android_shortcut_tests.sh
-            bash scripts/run_android_background_audio_tests.sh
-            bash scripts/run_android_camera_tests.sh
-            bash scripts/run_android_page_zoom_tests.sh
-            bash scripts/run_android_localcdn_tests.sh
-            bash scripts/run_android_block_accounting_tests.sh
-            bash scripts/run_android_site_icon_tests.sh
-            bash scripts/run_android_proxy_router_tests.sh
-            bash scripts/run_android_settings_seam_test.sh
-            bash scripts/run_android_http_auth_tests.sh
-            bash scripts/run_android_perf_timeline.sh || true
-            WS_RUN_BLANK_CONTROL=${{ inputs.blank_control && '1' || '0' }} WS_LIFECYCLE_BUILD_MODE=${{ inputs.lifecycle_build_mode || 'debug' }} bash scripts/run_android_lifecycle_tests.sh
-            adb shell settings put global hide_error_dialogs 1
-            bash scripts/run_android_passkey_tests.sh
-
-      - name: Upload white-screen lifecycle diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: white-screen-adb-diagnostics
-          path: build/white_screen_adb/
-          if-no-files-found: ignore
-
-      - name: Upload passkey gate evidence
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: passkey-gate-evidence
-          path: build/passkey_gate/
-          if-no-files-found: ignore
-
-      # Perf-visibility trend (DEVTOOLS-013): the activation timeline the
-      # perf scenario left in its tier log. A trend, not a gate: the lines
-      # are collected if present and the step never fails the job.
-      - name: Collect activation timeline numbers
-        if: always()
-        run: |
-          mkdir -p build/perf_timeline
-          grep -h '^WS_PERF_TIMELINE ' \
-            "${RUNNER_TEMP:-/tmp}/tier-perf_timeline_test.dart.log" \
-            > build/perf_timeline/android.txt || true
-          echo "--- android activation timeline ---"
-          cat build/perf_timeline/android.txt || true
-
-      - name: Upload activation timeline numbers
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: perf-timeline-android
-          path: build/perf_timeline/
-          if-no-files-found: ignore
-
-  # The Android TV tier (NAV-016, HS-004): a remote's D-pad against a real
-  # System WebView on a TV image, the one device class a remote drives. Its
-  # own job so the phone scenarios above keep their time budget. The Android
-  # desktop tier (NAV-019, INTEG-018) follows it here on a desktop image, a
-  # window with a header that a keyboard and a mouse drive, reusing the
-  # toolchain and the build.
-  android-tv:
-    name: Android TV
-    runs-on: ubuntu-latest
-    needs: plan
-    if: needs.plan.outputs.android == 'true'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Android toolchain
-        uses: ./.github/actions/android-toolchain
-        with:
-          cargo-ndk-version: ${{ env.CARGO_NDK_VERSION }}
-
-      - name: Android TV emulator
-        uses: ./.github/actions/android-emulator
-        with:
-          api-level: '36'
-          target: android-tv
-          profile: tv_1080p
-
-      - name: Run Android TV scenarios
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 36
-          target: android-tv
-          arch: x86_64
-          profile: tv_1080p
-          disk-size: 4096M
-          force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          disable-animations: true
-          # One APK for both tiers here (scripts/integration_bundle.sh): the
-          # desktop step below launches the one this step builds.
-          script: |
-            adb wait-for-device
-            adb shell settings put global hide_error_dialogs 1
-            bash scripts/integration_bundle.sh build android integration_test/*_test.dart
-            bash scripts/run_android_tv_tests.sh
-
-      # Its own boot, not the emulator runner's: the runner presses a key
-      # the moment the image says it booted, before this image's input
-      # service is up.
-      - name: Run Android desktop scenarios
-        run: bash scripts/android_desktop_emulator.sh bash scripts/run_android_desktop_tests.sh
-
   build-linux:
     name: Build Linux
     runs-on: ubuntu-latest
     needs: plan
     if: needs.plan.outputs.linux == 'true'
-    # Run inside Debian Sid because libwpewebkit-2.0-dev needs to be at
-    # least 2.50: flutter_inappwebview_linux 0.1.0-beta.1 calls
-    # webkit_navigation_action_is_for_main_frame (added in 2.50) and
-    # webkit_web_view_get_theme_color (also 2.50). Trixie ships 2.48
-    # which is too old; Ubuntu Noble has no WPE packages at all; Jammy
-    # is 2.36. Sid has 2.54.0. Sid is technically "unstable", so the
-    # container installs from the dated snapshot DEBIAN_SNAPSHOT names. The Android job stays untouched on the
-    # ubuntu-latest host runner — only Linux is in this container.
-    #
-    # Sid's 2.54.0-1 is the first Debian wpewebkit to ship
-    # wpe-platform-2.0.pc, so the plugin's CMake now picks WPEPlatform
-    # over the legacy WPEBackend-FDO path it used through 2.52 — the
-    # weston/Wayland scaffolding further down is FDO's requirement, not
-    # WPEPlatform's. 2.54 also renamed WPE_SETTING_DISABLE_ANIMATIONS to
-    # WPE_SETTING_REDUCED_MOTION, which the pinned fork now resolves at
-    # compile time.
+    # Debian sid for libwpewebkit-2.0-dev >= 2.50 (the fork calls 2.50 API);
+    # installed from the dated snapshot DEBIAN_SNAPSHOT names.
     container:
       image: debian:sid-20261104-slim
-      # CAP_NET_ADMIN is what lets the egress guard (INTEG-016) install its
-      # nftables ruleset. Not in Docker's default capability set, and
-      # without it the guard degrades to counting packets it cannot name.
-      # Scoped to this job's own container and network namespace.
-      options: --cap-add=NET_ADMIN
-    # The one origin no single machine can provide (BUG-014 gap 2). Answering
-    # "does a refused proxy leak to the origin" needs a destination that is
-    # both proxyable -- so not an address this job owns, which is routed
-    # locally and never proxied -- and reachable directly, so a leak is
-    # visible. This job runs in a container, so a service beside it answers on
-    # the bridge network at an address the job does not own, which is both.
-    # Apple has no equivalent: service containers need Docker and macOS
-    # runners have none, so the Apple half of gap 2 stays open.
-    services:
-      leak-origin:
-        image: nginx:alpine
     env:
-      # record: report what the suite sends off the runner, never fail.
-      # enforce: fail on anything scripts/egress_allowlist.txt does not
-      # cover. off: skip arming entirely.
-      WS_EGRESS_GUARD: ${{ inputs.egress_guard || 'record' }}
-      WS_EGRESS_STATE: /tmp/ws-egress
-      # The tool's own telemetry would otherwise be the guard's first
-      # finding, and a true one.
       FLUTTER_SUPPRESS_ANALYTICS: "true"
     steps:
       # git before the checkout, so it is a clone and not a REST download:
@@ -877,32 +198,6 @@ jobs:
           go-version-file: go/iptproxy/.go-version
           cache: false
 
-      # LICENSE-001 over what the crate test and the build fetch: a request
-      # leaves only for a registry in scripts/fetch_allowlist.txt or a url:
-      # row of components.tsv. What the caches hold was fetched through the
-      # gate by the run that filled them.
-      - name: Arm the fetch gate
-        id: fetch-gate
-        # rustup completes the toolchain rust-toolchain.toml names on its
-        # first use in the checkout: a toolchain download, so before arming.
-        run: |
-          cargo --version
-          bash scripts/fetch_gate.sh arm
-
-      # Pin the upstream-crate behaviour the Dart-side procedural
-      # backfill (procedural_action_backfill.dart) relies on. If
-      # adblock-rust changes its handling of generic procedural rules
-      # (currently `Err(GenericAction)` at parse) or the JSON shape of
-      # `procedural_actions`, this fails and we know to revisit the
-      # rewrite strategy before shipping. Runs on Linux because the
-      # tests are platform-agnostic — cheaper than re-running on macOS.
-      - name: Test webspace_adblock crate
-        run: cargo test --manifest-path rust/webspace_adblock/Cargo.toml --release --locked
-
-      # The Linux Rust .so is built by the CMake custom target wired
-      # into linux/CMakeLists.txt (phase 11). flutter build linux
-      # invokes CMake which auto-builds the crate as a dependency of
-      # the runner binary — no explicit step needed.
       - name: Build Linux
         run: |
           # flutter says only "Build process failed" when a CMake step fails;
@@ -910,363 +205,7 @@ jobs:
           fvm flutter build linux --release \
             || { cmake --build build/linux/x64/release 2>&1 | tail -n 200; exit 1; }
           bash scripts/verify_adblock_shipped.sh linux
-
-      - name: Disarm the fetch gate and report
-        if: always() && steps.fetch-gate.conclusion != 'skipped'
-        run: bash scripts/fetch_gate.sh disarm
-
-      # LICENSE-001 over what the bundle ships outside pub and Cargo: each
-      # library tor's build copies beside it, by its Debian copyright file.
-      - name: Check the bundle's licences
-        run: |
-          apt-get update && apt-get install -y --no-install-recommends nodejs
-          node tool/check_bundle_licences.js build/linux/x64/release/bundle
-
-      # The built-in Tor (TOR-027): the bundle carries the tor linux/tor.cmake
-      # built from source, its libraries and notices, no GeoIP table
-      # (LICENSE-002) and no GPL module, and the lyrebird go/iptproxy/build.sh
-      # built with no GPL package in it and only modules licences.tsv names,
-      # each with its notice (LICENSE-001). The real-tor tier runs both, found
-      # beside the executable as the app finds them, not ones this job
-      # installed. What it installs is the bridge they reach (TOR-016):
-      # Debian's tor, which can relay, serving obfs4 through Debian's
-      # lyrebird as released, on loopback with a dead directory authority, so
-      # nothing leaves the runner. policy-rc.d keeps the package's tor
-      # service from starting.
-      - name: Bundled tor runs
-        env:
-          WS_REAL_TOR: '1'
-          WS_TOR_BESIDE: build/linux/x64/release/bundle/webspace_app
-        run: |
           bash scripts/verify_tor_shipped.sh build/linux/x64/release/bundle
-          printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d
-          chmod +x /usr/sbin/policy-rc.d
-          apt-get update
-          apt-get install -y --no-install-recommends tor lyrebird
-          rm -rf /var/lib/apt/lists/*
-          fvm flutter test test/managed_tor_real_test.dart
-
-      # The build above only compiles the runner's screen sharing
-      # (SHARE-018); this runs it against a real PipeWire stream and a
-      # stand-in for the desktop portal, and fails unless it also catches
-      # the mistakes it plants. Before the egress guard: apt needs the
-      # network.
-      - name: Screen sharing on a PipeWire stream
-        run: |
-          apt-get update
-          apt-get install -y --no-install-recommends \
-            pipewire pipewire-bin wireplumber dbus-daemon dbus-bin jq \
-            gstreamer1.0-pipewire gstreamer1.0-tools gstreamer1.0-plugins-base
-          rm -rf /var/lib/apt/lists/*
-          test/linux/screen_share/check.sh
-
-      # The egress relay a site bound to a network interface rides
-      # (NETIF-003): over two veth links, which this container's NET_ADMIN
-      # lets it make, a connection bound to one must leave by it, and the
-      # planted mistakes (a source-address bind among them) must be caught.
-      - name: Egress relay on a bound interface
-        run: |
-          apt-get update
-          apt-get install -y --no-install-recommends iproute2 dbus-daemon dbus-bin
-          rm -rf /var/lib/apt/lists/*
-          test/linux/egress_relay/check.sh
-
-      # Everything the integration step would otherwise fetch mid-suite,
-      # fetched here while the runner still has a network. The egress
-      # guard below cannot tell a toolchain download from an app leak, and
-      # should not have to: after this step a fetch is a finding.
-      #
-      # The integration step builds a debug runner, which is a different
-      # CMake tree from the release build above (fresh configure, and the
-      # cargo custom target re-runs even though it no-ops). Configuring it
-      # here, while there is a network, leaves that build incremental.
-      - name: Warm the toolchain before arming the egress guard
-        if: env.WS_EGRESS_GUARD != 'off'
-        run: |
-          set -x
-          fvm flutter precache --linux
-          fvm flutter build linux --debug
-
-      # Deny-by-default outbound for the duration of the suite: loopback
-      # stays reachable, everything else is recorded and dropped. This is
-      # the machine half of LEAK-007, whose enforcement was otherwise the
-      # sentence "the code review process SHALL fail".
-      - name: Arm egress guard
-        if: env.WS_EGRESS_GUARD != 'off'
-        # In record mode the guard is an observer, so a runner that cannot
-        # grant it CAP_NET_ADMIN must not take the Linux job down with it.
-        # In enforce mode failing to arm IS the failure: a suite nobody
-        # watched cannot be reported as clean.
-        continue-on-error: ${{ env.WS_EGRESS_GUARD == 'record' }}
-        # The fail-closed origin is exempt: it is a service container on this
-        # job's own bridge network, so it never leaves the CI host, and
-        # steering it into the recorder would break that arm's controls
-        # instead of measuring anything. One resolved address, not the
-        # bridge's whole range.
-        run: |
-          leak_ip="$(getent hosts leak-origin | head -1)"
-          leak_ip="${leak_ip%%[[:space:]]*}"
-          WS_EGRESS_EXEMPT="$leak_ip" bash scripts/egress_guard_arm.sh
-
-      # Integration tests run after the production build so a clean
-      # build is verified independently first. The integration_test
-      # path drives the actual Flutter widget tree against the WPE
-      # WebKit + GTK runtime — a different test surface than the
-      # widget tests in `flutter test` (which use the shared-test
-      # binding, not a real display server).
-      #
-      # xvfb-run provides the X11 display the GTK app needs;
-      # dbus-launch provides the session bus libsecret + GTK helpers
-      # try to talk to. Without dbus-launch, libsecret prints scary
-      # warnings but tests still work; we wrap anyway because some
-      # GTK widgets fall back to broken layout on no-bus systems.
-      #
-      # Smoke test: settings_smoke_test.dart asserts the App Settings
-      # screen reaches a renderable state — proves the integration
-      # harness works end-to-end on Linux. Deeper scenarios (settings
-      # backup roundtrip, navigation race guards, drawer-flash) want
-      # this same harness extended; the smoke test pins the pipeline
-      # so they can land as follow-up tests without re-litigating CI.
-      - name: Run Linux integration tests
-        # 75, not 55: set when every file rebuilt the app, which left the
-        # loop within a minute of the old cap on master (53m55s) and past it
-        # on a PR. The tier builds once now; this is headroom until runs show
-        # where it sits.
-        timeout-minutes: 75
-        run: |
-          set -x
-          # The fail-closed origin, by address rather than by name: a dotless
-          # hostname risks a local-bypass in the network stack, which would
-          # send the load straight out and read as a leak that never happened.
-          # Unset leaves proxy_fail_closed_test.dart skipping with its reason
-          # rather than asserting against an origin that is not there.
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            leak_ip="$(getent hosts leak-origin | head -1)"
-            leak_ip="${leak_ip%%[[:space:]]*}"
-            [ -n "$leak_ip" ] && break
-            sleep 1
-          done
-          if [ -n "${leak_ip:-}" ] \
-            && curl -fsS -m 5 -o /dev/null "http://$leak_ip/"; then
-            export WEBSPACE_LEAK_ORIGIN="$leak_ip"
-            echo "fail-closed origin: $WEBSPACE_LEAK_ORIGIN"
-          else
-            echo "no fail-closed origin; that arm will skip (BUG-014 gap 2)"
-          fi
-
-          # A list in a string: this step runs under sh, which has no arrays,
-          # and no path here holds a space.
-          files=""
-          for t in integration_test/*_test.dart; do
-            # The screenshot tour runs as its own step on a manual run
-            # (fastlane linux screenshots). The white-screen pixel suite is
-            # Android-only (window PixelCopy); skip its no-op build here.
-            # The camera suite (CAM-010) exercises media gates specific to
-            # the Android WebView, which the desktop WPE/WKWebView targets
-            # do not have; it runs in the emulator job instead.
-            [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
-            [ "$(basename "$t")" = "white_screen_test.dart" ] && continue
-            # Home-shortcut scenarios are Android-only (the menu, pin
-            # state and delete prompt are Platform.isAndroid-gated).
-            [ "$(basename "$t")" = "shortcut_behavior_test.dart" ] && continue
-            # The Android TV tier (NAV-016) skips anywhere but a TV image;
-            # the android-tv job runs it.
-            [ "$(basename "$t")" = "remote_tv_test.dart" ] && continue
-            # The Android desktop tier (NAV-019) skips anywhere but a desktop
-            # image; the android-tv job runs it.
-            [ "$(basename "$t")" = "android_desktop_test.dart" ] && continue
-            [ "$(basename "$t")" = "camera_test.dart" ] && continue
-            # iOS only (the pull-to-refresh control); the iOS refresh inset
-            # workflow runs it on a simulator.
-            [ "$(basename "$t")" = "ios_refresh_inset_test.dart" ] && continue
-            # PASSKEY-012 needs the emulator harness (credential provider,
-            # relying party, sheet taps); the Android job owns it.
-            [ "$(basename "$t")" = "passkey_test.dart" ] && continue
-            # LCDN-007 skips off Android (the interceptor is Android's);
-            # the emulator job runs it.
-            [ "$(basename "$t")" = "localcdn_per_site_test.dart" ] && continue
-            # ICON-013: the icon fetch path this would run here is the
-            # same Dart the macOS loop runs against WKWebView, and this
-            # loop is within minutes of its step cap.
-            [ "$(basename "$t")" = "site_icon_test.dart" ] && continue
-            # PROXY-013 router and PROXY-008's one rule are Android-only:
-            # the attribution, fail-closed and one-rule tests skip
-            # immediately here and the router test only asserts that
-            # router mode does NOT engage, which
-            # test/proxy_router_service_test.dart already asserts in
-            # milliseconds. All four run for real in the emulator job. This
-            # loop sits near its 45m step cap, so an app build per file
-            # that asserts nothing is not worth the budget.
-            [ "$(basename "$t")" = "proxy_router_test.dart" ] && continue
-            [ "$(basename "$t")" = "proxy_router_attribution_test.dart" ] && continue
-            [ "$(basename "$t")" = "proxy_router_fail_closed_test.dart" ] && continue
-            [ "$(basename "$t")" = "proxy_one_rule_test.dart" ] && continue
-            # NOT skipped: proxy_fail_closed_test.dart. This is the only
-            # tier with a second host, so it is the only tier where that
-            # arm can assert rather than skip.
-            [ "$(basename "$t")" = "proxy_apple_relay_parity_test.dart" ] && continue
-            # BGAUDIO-006 media notification is an Android foreground
-            # service; the emulator job owns it.
-            [ "$(basename "$t")" = "background_audio_media_notification_test.dart" ] && continue
-            # BGAUDIO-009 needs a real media pipeline (WPE crash-loops on
-            # one here) and a real pauseTimers(); emulator job owns it.
-            [ "$(basename "$t")" = "background_audio_media_stop_test.dart" ] && continue
-            # The per-WebView proxy binding it checks is an iOS/macOS
-            # path -- the Linux fork binds on the session instead -- so
-            # here it would skip after paying for an app build, and this
-            # loop sits near its 45m cap.
-            [ "$(basename "$t")" = "proxy_binding_test.dart" ] && continue
-            # Its arms drive the Apple per-store proxy too and skip here.
-            [ "$(basename "$t")" = "proxy_rebind_test.dart" ] && continue
-            # Same for the files that bisect that binding. They measure
-            # proxyConfigurations, which the Linux fork does not use, so
-            # every test in them skips here -- after paying for a full
-            # app build each. Three of those builds is what took this
-            # loop past the cap.
-            [ "$(basename "$t")" = "proxy_window_test.dart" ] && continue
-            # Same again: it drives the Apple fork contract that an
-            # unparseable rule must not clear the store, and the Linux
-            # fork has no such assignment.
-            [ "$(basename "$t")" = "proxy_malformed_rule_test.dart" ] && continue
-            # NOT skipped: settings_seam_test.dart. WPE answers
-            # getRealSettings with the live userAgent and javaScriptEnabled,
-            # so the comparison asserts here rather than skipping.
-            # NOT skipped: WPE binds the proxy per network session, so
-            # this is the tier where two sites really can hold two
-            # proxies at once. It is the control that shows BUG-014
-            # belongs to Apple rather than to this app.
-            [ "$(basename "$t")" = "proxy_http_connect_test.dart" ] && continue
-            [ "$(basename "$t")" = "proxy_relay_binding_test.dart" ] && continue
-            [ "$(basename "$t")" = "proxy_rate_test.dart" ] && continue
-            [ "$(basename "$t")" = "proxy_shape_test.dart" ] && continue
-            [ "$(basename "$t")" = "proxy_connect_https_test.dart" ] && continue
-            files="$files $t"
-          done
-
-          # One build for every file (scripts/integration_bundle.sh), made
-          # before the session: building needs no display. Each file then runs
-          # in an app process of its own, in the desktop session the script
-          # sets up. `flutter test` built the app once per file, about 60 s
-          # each and 25 of this loop's 42 minutes (run 39489119149).
-          bash scripts/integration_bundle.sh build linux $files
-
-          # Into the session by the environment, as WEBSPACE_LEAK_ORIGIN goes.
-          export LINUX_TIER_FILES="$files"
-          bash scripts/linux_test_session.sh bash -c '
-              # NOTE: this whole block is a single-quoted `bash -c` string,
-              # so an apostrophe in a comment terminates it and the loop
-              # dies with "syntax error: unexpected end of file".
-              status=0
-              for t in $LINUX_TIER_FILES; do
-                echo "::group::$t"
-                # One instance per session bus (PLATFORM-011): an app a killed
-                # run left behind would take the next launch and send it away.
-                for p in /proc/[0-9]*; do
-                  [ "$(cat "$p/comm" 2>/dev/null)" = webspace_app ] \
-                    && kill -9 "${p#/proc/}" 2>/dev/null
-                done
-                # Hard per-test wall-clock cap: a WebView mount can deadlock
-                # the platform thread below Dart timeout layer, which would
-                # otherwise hang the job to the 6h runner limit. SIGTERM at
-                # 12m, SIGKILL 30s later. timeout exit 124 == hit the cap.
-                rc=0
-                timeout -k 30s 12m bash scripts/integration_bundle.sh run linux "$t" \
-                  "${RUNNER_TEMP:-/tmp}/tier-$(basename "$t").log" || rc=$?
-                if [ $rc -ne 0 ]; then
-                  status=$rc
-                  if [ $rc -eq 124 ]; then
-                    echo "::error::$t killed after 12m wall-clock cap (possible native deadlock)"
-                  else
-                    # A run can report every test passed and still exit
-                    # nonzero, so name the file or the job fails anonymously.
-                    echo "::error::$t exited $rc"
-                  fi
-                fi
-                echo "::endgroup::"
-              done
-              exit $status
-            '
-
-      # always(), and before anything else that needs a network: an armed
-      # guard takes the network away from every later step in the job,
-      # including the artifact upload below.
-      - name: Disarm egress guard and report
-        if: always() && env.WS_EGRESS_GUARD != 'off'
-        run: |
-          bash scripts/egress_guard_disarm.sh
-          python3 scripts/egress_report.py \
-            --log "$WS_EGRESS_STATE/egress.jsonl" \
-            --allowlist scripts/egress_allowlist.txt \
-            --state "$WS_EGRESS_STATE" \
-            --mode "$WS_EGRESS_GUARD"
-
-      - name: Upload egress recording
-        if: always() && env.WS_EGRESS_GUARD != 'off'
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-egress-recording
-          path: ${{ env.WS_EGRESS_STATE }}
-          if-no-files-found: ignore
-
-      # Perf-visibility trend (DEVTOOLS-013): the WPE WebKit activation
-      # timeline the perf scenario left in its tier log. A trend, not a gate:
-      # collected if present, and the step never fails the job.
-      - name: Collect activation timeline numbers
-        if: always()
-        run: |
-          mkdir -p build/perf_timeline
-          grep -h '^WS_PERF_TIMELINE ' \
-            "${RUNNER_TEMP:-/tmp}/tier-perf_timeline_test.dart.log" \
-            > build/perf_timeline/linux.txt || true
-          echo "--- linux activation timeline ---"
-          cat build/perf_timeline/linux.txt || true
-
-      - name: Upload activation timeline numbers
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: perf-timeline-linux
-          path: build/perf_timeline/
-          if-no-files-found: ignore
-
-  # The bridge transports the Apple app builds in (go/iptproxy): lyrebird's
-  # obfs4 over go/hiddenkey against lyrebird as released, and its meek_lite
-  # over go/meekutls against meek-server as released, which is what bridges
-  # run (TOR-016), and the licence gate over their sources (LICENSE-001).
-  # Linux, minutes: the Apple job builds the framework itself.
-  bridge-transports:
-    name: Bridge transports (obfs4 and meek interop, licences)
-    runs-on: ubuntu-latest
-    needs: plan
-    if: needs.plan.outputs.apple == 'true'
-    env:
-      GOFLAGS: -mod=readonly
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Setup Go (for go/iptproxy)
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go/iptproxy/.go-version
-          cache: false
-      - name: Test hiddenkey
-        working-directory: go/hiddenkey
-        run: |
-          ./fetch-monocypher.sh
-          go test ./...
-      - name: Test meekutls
-        working-directory: go/meekutls
-        run: go test -count=1 -race ./...
-      - name: Fetch and patch the transports, check their licences (LICENSE-001)
-        run: sh go/iptproxy/build.sh check
-      - name: Build lyrebird and meek-server as released, the tests' servers
-        run: sh go/iptproxy/build.sh upstream
-      - name: obfs4 and meek_lite with upstream servers (TOR-016)
-        working-directory: go/iptproxy/interop
-        env:
-          LYREBIRD_UPSTREAM: ${{ github.workspace }}/go/iptproxy/build/bin/lyrebird-upstream
-          MEEK_SERVER: ${{ github.workspace }}/go/iptproxy/build/bin/meek-server
-        run: go test -count=1 -v ./...
 
   build-apple:
     name: Build iOS & macOS
@@ -1277,33 +216,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # First, because it is the cheapest thing in this job that can fail the
-      # Swift in it: no pods, no toolchains, seconds. The full build below
-      # catches the same errors forty minutes later, by which time a newer
-      # push has usually cancelled the run.
-      - name: Type-check the Tor plugin
-        run: ./tool/swift_typecheck/check.sh
-
       - name: Apple toolchain
         uses: ./.github/actions/apple-toolchain
-
-      # Not the schedule search: the formal job runs it, sharded, and it
-      # reads no host platform, so here it repeated that run for the last
-      # 33 of 45 minutes (test/js/schedules_run_once.test.js).
-      - name: Run tests
-        run: fvm flutter test --exclude-tags schedules
 
       - name: Generate launcher icons
         run: fvm dart run flutter_launcher_icons
 
-      # adblock-rust ships as an optional, graceful-fallback engine, so the
-      # build never fails on its own when the native lib is missing. Each
-      # build step therefore asserts the engine actually shipped inside the
-      # produced bundle before moving on (scripts/verify_adblock_shipped.sh:
-      # nm's the framework for >=15 ws_* Dart-FFI exports).
       # The unsigned IPA is installed outside the App Store (sideloaded), so it
-      # is the direct flavor and carries what App Review leaves out
-      # (WEBEXT-019); an App Store build is the same project without a flavor.
+      # is the direct flavor (WEBEXT-019). --no-codesign skips the IPA export,
+      # so the IPA is the .app under Payload/, zipped.
       - name: Build IPA
         run: |
           fvm flutter build ipa --release --no-codesign --flavor direct
@@ -1313,11 +234,6 @@ jobs:
             build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/App
           bash scripts/check_webkit_block_reports.sh present \
             build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app
-          # --no-codesign builds the archive and then skips the export
-          # ("Codesigning disabled with --no-codesign, skipping IPA"), so
-          # build/ios/ipa never existed: the upload below found nothing on
-          # every run and only warned, and the release summary reported an
-          # IPA anyway. An unsigned IPA is the .app under Payload/, zipped.
           app=build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app
           test -d "$app"
           node tool/check_artifact_licences.js "$app"
@@ -1326,13 +242,8 @@ jobs:
           (cd build/ios/ipa && zip -qry webspace-unsigned.ipa Payload && rm -rf Payload)
           ls -l build/ios/ipa
 
-      # The ad-hoc re-sign is what makes the artifact launchable. CI has no
-      # signing identity, so the build resolves $(AppIdentifierPrefix) to
-      # nothing and ad-hoc signs entitlements naming an app group and a
-      # keychain group; taskgated SIGKILLs that at launch as "Code Signature
-      # Invalid". sign_macos.sh adhoc drops the two group keys and re-signs.
-      # The result is a developer build, not a shipping one — see
-      # docs/releasing-macos.md.
+      # The ad-hoc re-sign is what makes the artifact launchable without a
+      # signing identity (docs/releasing-macos.md).
       - name: Build macOS
         run: |
           fvm flutter build macos --release
@@ -1344,478 +255,12 @@ jobs:
             build/macos/Build/Products/Release/webspace.app
           node tool/check_artifact_licences.js build/macos/Build/Products/Release/webspace.app
           bash scripts/sign_macos.sh adhoc
-          # The direct flavor, as a Developer ID download is made, compiles
-          # and carries the search; its products are not kept.
-          fvm flutter build macos --release --flavor direct
-          bash scripts/check_extension_search.sh present \
-            build/macos/Build/Products/Release-direct/webspace.app/Contents/Frameworks/App.framework/App
-          bash scripts/check_webkit_block_reports.sh present \
-            build/macos/Build/Products/Release-direct/webspace.app
-          node tool/check_artifact_licences.js build/macos/Build/Products/Release-direct/webspace.app
-          rm -rf build/macos/Build/Products/Release-direct
 
       # The builds' pod installs wrote both Podfile.locks, failed build
       # included: no machine without macOS can.
       - name: Hand in lock files
         if: success() || failure()
         uses: ./.github/actions/lockfiles
-
-      # Reclaim disk before the macOS integration loop. The macos-latest
-      # runner has a tight disk budget, and by this point three build trees
-      # coexist: the iOS release archive (build/ios), the macOS *release*
-      # tree (build/macos, Release config), and — about to be created — the
-      # macOS *debug* tree the integration steps build. That coexistence is
-      # what filled the disk mid-loop: the run failed on the 4th test file
-      # with cascading write errors (rsync "Input/output error" copying
-      # App.framework, "unable to write manifest", a truncated
-      # Flutter-Generated.xcconfig, then `git mmap failed` once the Flutter
-      # SDK itself got corrupted).
-      #
-      # The Debug builds never reuse the Release intermediates (Xcode keys
-      # object files by configuration), and they never touch build/ios, so
-      # dropping both is free — no extra rebuild cost, the first Debug build
-      # was always going to compile the Debug pods from scratch. We keep
-      # only the two deliverables the post-loop steps still need: the IPA
-      # (build/ios/ipa) and the Release .app (build/macos/Build/Products/
-      # Release, zipped after the loop). rust/webspace_adblock/target is
-      # deliberately left intact — the pod's always-out-of-date script phase
-      # re-runs `build_rust.sh apple` on every Debug build, and an intact
-      # target/ keeps cargo a fast no-op instead of a 4-minute recompile each.
-      - name: Reclaim disk before macOS integration tests
-        run: |
-          set -x
-          # Report the volume the build actually writes to; on macOS APFS
-          # `df -h /` shows the sealed read-only system volume, not the
-          # writable Data volume the checkout lives on.
-          df -h .
-          # iOS: keep the IPA, drop the .xcarchive + iphoneos intermediates.
-          if [ -d build/ios ]; then
-            find build/ios -mindepth 1 -maxdepth 1 ! -name ipa \
-              -exec rm -rf {} +
-          fi
-          # macOS: keep the Release .app products, drop the Release
-          # intermediates (the bulk: every Pod + Runner .o for a config the
-          # Debug loop won't reuse).
-          rm -rf build/macos/Build/Intermediates.noindex
-          df -h .
-
-      # Integration tests on macOS desktop — the same cross-platform
-      # integration_test/*.dart harness the Linux job runs, driven against
-      # the native macOS (WKWebView + AppKit) runtime via `-d macos`. None
-      # of the Linux scaffolding applies here: the GitHub macOS runner has
-      # a real window server (no Xvfb/weston), path_provider resolves the
-      # container natively (no xdg-user-dirs), and flutter_secure_storage
-      # talks to the login keychain instead of pass-secret-service. The
-      # keychain is unlocked in the runner's GUI session; unlock it
-      # defensively anyway so a locked keychain can't raise an interactive
-      # prompt that would hang the run (empty password is the runner's
-      # login keychain default).
-      #
-      # Two macOS-CI-only adjustments make the harness work; neither reaches
-      # a release build (fresh checkout, release keeps the committed
-      # entitlements + a real identity):
-      #
-      # 1. Entitlements. CI has no Apple signing identity, so the debug app
-      #    is ad-hoc signed, which can't satisfy the committed file's
-      #    *team-prefixed* keys ($(AppIdentifierPrefix)…) — taskgated
-      #    SIGKILLs it at launch as "Code Signature Invalid" because the
-      #    ad-hoc signature can't back that team. Overwrite with the stock
-      #    Flutter debug set, dropping application-groups and
-      #    keychain-access-groups entirely (even a bare, de-prefixed
-      #    keychain-access-groups re-triggers the launch SIGKILL under
-      #    ad-hoc). Consequence: flutter_secure_storage's data-protection
-      #    keychain has no valid access group and fails every read/write
-      #    with errSecMissingEntitlement (-34018); the legacy keychain
-      #    can't be selected instead (MacOsOptions.usesDataProtectionKeychain
-      #    is a no-op — the Dart key doesn't match the native
-      #    `useDataProtectionKeyChain` the darwin plugin reads). Tests that
-      #    need a working keychain (settings_backup_roundtrip, proxy_auth)
-      #    install an in-memory fake when the real keychain is unavailable
-      #    (integration_test/secure_storage_fake.dart, capability-probed so
-      #    Linux keeps its pass-secret-service path); every other test
-      #    tolerates the -34018 (logged, non-fatal).
-      # 2. --ci. Even ad-hoc-valid, a sandboxed debug app never surfaces its
-      #    Dart VM Service to `flutter test` on the runner ("log reader
-      #    stopped unexpectedly", 12-min timeout). `--ci` (usingCISystem)
-      #    re-signs with sandbox disabled, after which the tool connects and
-      #    the tests actually run.
-      #
-      # Same one-test-per-file invocation as Linux (INTEG-007/008), every
-      # integration_test/*_test.dart except the fastlane-only screenshot
-      # generator; a non-zero exit from any file is remembered and re-raised
-      # so one failure doesn't mask the rest. On failure, dump the macOS
-      # crash report so a launch-time SIGKILL explains itself.
-      # Shared by both steps below and by the macOS screenshots: the debug
-      # build needs the sandbox exceptions the tier's servers and the Tor
-      # runtime use, and the keychain has to be open for
-      # flutter_secure_storage.
-      - name: Prepare the macOS test run
-        run: bash scripts/prepare_macos_ci_debug.sh
-
-      # The Runner's XCTests (macos/RunnerTests, which takes ios/RunnerTests'
-      # shared files too) inside the Debug app on the real Apple frameworks,
-      # where tool/swift_tests has only stand-ins. Signed ad-hoc like every CI
-      # build (macos/Runner/Configs/Signing.xcconfig), with the entitlements
-      # the step above writes; the derived data is the tier's below, whose
-      # Debug build then starts from this one.
-      - name: Run the macOS XCTests
-        timeout-minutes: 30
-        run: |
-          set -o pipefail
-          fvm flutter build macos --debug --config-only --no-pub
-          results="$RUNNER_TEMP/xctest.xcresult"
-          rm -rf "$results"
-          xcodebuild test -workspace macos/Runner.xcworkspace -scheme Runner \
-            -configuration Debug -destination 'platform=macOS' \
-            -derivedDataPath build/macos -resultBundlePath "$results" 2>&1 \
-            | tee "$RUNNER_TEMP/xctest.log" \
-            | grep -iE '^(Test (suite|case)|.*error:|\*\* TEST)' \
-            || { tail -80 "$RUNNER_TEMP/xctest.log"; exit 1; }
-          # TEST SUCCEEDED is also what a run that ran no test prints.
-          summary=$(xcrun xcresulttool get test-results summary --path "$results")
-          jq '{result, totalTestCount, passedTests, failedTests, skippedTests}' <<< "$summary"
-          jq -e '.passedTests > 0' <<< "$summary" > /dev/null
-
-      # Runs even when an earlier step failed, and runs ahead of the Tor
-      # scenario: that scenario is one file, and hiding the other eighteen --
-      # the proxy-binding leak gate among them -- behind it turns one red
-      # scenario into no coverage at all.
-      - name: Run macOS integration tests
-        if: success() || failure()
-        # 90, not 60. The tier grew to ~50m on a good runner, and a slow one
-        # ran past 60 with all nineteen files it reached passing (master at
-        # 0ca37ce), as #605 did at 45. A cap close above the good-runner time
-        # turns a slow runner into a red run with nothing to read. Each file
-        # still carries its own 12m cap, so this bounds the tier, not a hung
-        # WebView.
-        timeout-minutes: 90
-        run: |
-          set -x
-          # This step runs on failure too, so it is reached when an earlier
-          # step died and the Flutter setup was skipped with it. Without this
-          # every file then "fails" with `fvm: No such file or directory` and
-          # the real error is twenty-five entries further up.
-          if ! command -v fvm >/dev/null 2>&1; then
-            echo "::error::fvm is not installed; an earlier step failed and \
-          the macOS tier never ran. Fix that failure, not these tests."
-            exit 1
-          fi
-          # Hard per-test wall-clock cap (see Build Linux): bound any single
-          # test so a native WebView deadlock can't hang the job to the 6h
-          # runner limit. macOS ships BSD utils; GNU timeout arrives as
-          # gtimeout via coreutils (preinstalled on GitHub runners; brew as
-          # fallback). If no timeout binary is found, the step-level
-          # timeout-minutes still bounds the whole step.
-          TIMEOUT="$(command -v timeout || command -v gtimeout || true)"
-          if [ -z "$TIMEOUT" ]; then
-            brew install coreutils >/dev/null 2>&1 || true
-            TIMEOUT="$(command -v gtimeout || true)"
-          fi
-          # Does the network process survive the tier? The timing launches
-          # below already stream os_log around themselves for the session
-          # paths; what no arm can see is a network process that died and
-          # came back, which WebKit 264307 does and which reads as a run of
-          # DIRECT verdicts rather than as a failure.
-          #
-          # syslog style so the PID is printed: a second PID for
-          # com.apple.WebKit.Networking is the restart, and its timestamp
-          # dates it against the arms' own UTC verdict lines.
-          #
-          # Best effort and capped: a runner that refuses the stream must
-          # cost a missing file, not a red tier, and this tier already runs
-          # close to its disk allowance. head exiting closes the pipe.
-          WEBKIT_OSLOG="${RUNNER_TEMP:-/tmp}/webkit-networkproc-oslog.txt"
-          # NOT a pipeline: $! after one gives the LAST element's pid, so the
-          # first version killed `head` and left `log stream` alive to be
-          # reaped by the runner's own cleanup. One process, one pid.
-          log stream --style syslog --color none \
-            --predicate 'process == "com.apple.WebKit.Networking"' \
-            > "$WEBKIT_OSLOG" 2>&1 &
-          WEBKIT_OSLOG_PID=$!
-
-          # The step runs under `bash -e`: anything above that exits
-          # non-zero skips straight past a report sitting here, which is how
-          # the first run of these instruments printed nothing at all. On the
-          # EXIT trap they report whether the tier passed, failed or aborted.
-          report_instruments() {
-            kill "$WEBKIT_OSLOG_PID" 2>/dev/null || true
-            echo "=== network process lifetime (os_log) ==="
-            if [ -s "$WEBKIT_OSLOG" ]; then
-              # ONE PID PER ARM is normal: each arm launches its own app
-              # process and each of those spawns its own networking process.
-              # The crash signature is TWO pids inside ONE arm's window, which
-              # is what the timestamps below are for. Run 35681413603 read 18
-              # pids across 21 arm groups (three arms are pure URLSession and
-              # spawn none), no arm holding two, and no crash report -- so
-              # WebKit 264307 is not what gap -2 is.
-              echo "--- distinct PIDs, with the first line each was seen on ---"
-              sed -n 's/.*com\.apple\.WebKit\.Networking\[\([0-9]*\)\].*/\1/p' \
-                "$WEBKIT_OSLOG" | awk '!seen[$0]++' | while read -r pid; do
-                printf '%s  ' "$pid"
-                grep -m1 "com\.apple\.WebKit\.Networking\[$pid\]" "$WEBKIT_OSLOG" \
-                  | cut -c1-120
-              done
-              echo "--- lines captured: $(wc -l < "$WEBKIT_OSLOG") ---"
-            else
-              echo "networkproc oslog: stream produced nothing (a runner may refuse it)"
-            fi
-
-            # Unconditional: WebKit 264307 kills the network process and the
-            # proxy configuration is ignored from then on, which reads as a
-            # DIRECT verdict rather than a failed step. Gating this on $status
-            # is how BUG-014 went 96 attempts without once looking at it.
-            echo "=== network process crash reports (WebKit 264307) ==="
-            set -- "$HOME/Library/Logs/DiagnosticReports/"com.apple.WebKit.Networking*
-            if [ -f "$1" ]; then
-              for f in "$@"; do
-                echo "--- $f ---"; sed -n '1,45p' "$f"
-              done
-            else
-              echo "networking: none"
-            fi
-            if [ $status -ne 0 ]; then
-              echo "=== recent macOS crash reports ==="
-              ls -t "$HOME/Library/Logs/DiagnosticReports/" 2>/dev/null | head || true
-              for f in "$HOME/Library/Logs/DiagnosticReports/"Webspace* \
-                       "$HOME/Library/Logs/DiagnosticReports/"Runner*; do
-                [ -f "$f" ] && { echo "--- $f ---"; sed -n '1,45p' "$f"; }
-              done
-            fi
-          }
-          trap report_instruments EXIT
-          # Gap -2 says one app process at a time can proxy and the next
-          # one waits, with the slot coming back much later. The runner's
-          # own cleanup ends each job by terminating an orphan Webspace
-          # process, so an app outliving its arm is not hypothetical, and a
-          # process still holding a proxy agent is a candidate for what the
-          # next arm waits on. Reaping before each arm makes the arms
-          # independent whether or not that is the mechanism, and the count
-          # is itself a reading: if it is non-zero before most arms, the
-          # stragglers are real.
-          reap_app() {
-            n=$(pgrep -x Webspace 2>/dev/null | wc -l | tr -d ' ')
-            if [ "${n:-0}" -gt 0 ]; then
-              echo "reap: $n stale Webspace process(es) before $1"
-              pkill -x Webspace 2>/dev/null || true
-              sleep 2
-              pkill -9 -x Webspace 2>/dev/null || true
-            fi
-          }
-          status=0
-          failed=""
-
-          # The proxy arms first, in no particular order: there is no "proxy
-          # slot" and no frame boundary, so nothing here has to go first to be
-          # readable. Each asserts, and a red arm fails the tier like any other
-          # file.
-          #
-          # The arms that bisected the boundary are gone with it. What is left
-          # is one arm per guarantee: the binding survives navigation, it is
-          # not shared between sites, it holds at any distance from the first
-          # frame, it works over CONNECT and over CONNECT+TLS, and the relay
-          # path Apple keeps but does not take still routes by credential.
-          proxy_arms=(
-            integration_test/proxy_binding_test.dart
-            integration_test/proxy_frame_ladder_test.dart
-            integration_test/proxy_http_connect_test.dart
-            integration_test/proxy_connect_https_test.dart
-            integration_test/proxy_apple_relay_parity_test.dart
-          )
-          files=("${proxy_arms[@]}")
-          for t in integration_test/*_test.dart; do
-            [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
-            # Android-only window-PixelCopy suite; skip its no-op build here.
-            [ "$(basename "$t")" = "white_screen_test.dart" ] && continue
-            # Android-only home-shortcut scenarios; same reason.
-            [ "$(basename "$t")" = "shortcut_behavior_test.dart" ] && continue
-            # The Android TV tier (NAV-016); the android-tv job runs it.
-            [ "$(basename "$t")" = "remote_tv_test.dart" ] && continue
-            # The Android desktop tier (NAV-019) skips anywhere but a desktop
-            # image; the android-tv job runs it.
-            [ "$(basename "$t")" = "android_desktop_test.dart" ] && continue
-            # Android-only WebView media-gate suite (CAM-010); runs in the
-            # emulator job.
-            [ "$(basename "$t")" = "camera_test.dart" ] && continue
-            # iOS only (the pull-to-refresh control); the iOS refresh inset
-            # workflow runs it on a simulator.
-            [ "$(basename "$t")" = "ios_refresh_inset_test.dart" ] && continue
-            # Android-only passkey gate (PASSKEY-012); emulator job.
-            [ "$(basename "$t")" = "passkey_test.dart" ] && continue
-            # Android-only LocalCDN interceptor (LCDN-007); emulator job.
-            [ "$(basename "$t")" = "localcdn_per_site_test.dart" ] && continue
-            # Android-only BGAUDIO-006 media foreground service; emulator job.
-            [ "$(basename "$t")" = "background_audio_media_notification_test.dart" ] && continue
-            # Android-only BGAUDIO-009 media-stop tier; emulator job.
-            [ "$(basename "$t")" = "background_audio_media_stop_test.dart" ] && continue
-            # PROXY-013 router is Android-only, so here these skip after
-            # paying for an app build each, and this loop now carries the
-            # proxy bisection files that do measure something.
-            # test/proxy_router_service_test.dart covers the negative in
-            # milliseconds; the emulator job runs them for real.
-            [ "$(basename "$t")" = "proxy_router_test.dart" ] && continue
-            [ "$(basename "$t")" = "proxy_router_attribution_test.dart" ] && continue
-            [ "$(basename "$t")" = "proxy_router_fail_closed_test.dart" ] && continue
-            [ "$(basename "$t")" = "proxy_one_rule_test.dart" ] && continue
-            # Runs in a step of its own after this one, with a cap of its own.
-            [ "$(basename "$t")" = "tor_test.dart" ] && continue
-            # Already at the head of the list.
-            case " ${proxy_arms[*]} " in *" $t "*) continue ;; esac
-            # Needs an origin on a host this machine does not own, which only
-            # the Linux job has (a service container). Skips here anyway.
-            [ "$(basename "$t")" = "proxy_fail_closed_test.dart" ] && continue
-            files+=("$t")
-          done
-
-          # One build for the whole tier, then every file reuses it in an app
-          # process of its own: scripts/integration_bundle.sh says how, and
-          # what happens when the build or a launch fails. `flutter test`
-          # built the app once per file, 30 to 70 s of Xcode each and about
-          # half this step (runs 39489119149, 39502134208).
-          bash scripts/integration_bundle.sh build macos "${files[@]}"
-
-          # The per-file cap, where a timeout binary was found.
-          capped() {
-            if [ -n "$TIMEOUT" ]; then "$TIMEOUT" -k 30s 12m "$@"; else "$@"; fi
-          }
-
-          for t in "${files[@]}"; do
-            reap_app "$(basename "$t")"
-            echo "::group::$t"
-            # Kept per file so a failure can be re-printed at the end. Each
-            # file prints thousands of lines, so by the time the loop is over
-            # the one that failed is unreachable from the log's tail -- which
-            # is all an API reader gets.
-            out="${RUNNER_TEMP:-/tmp}/tier-$(basename "$t").log"
-            # `|| rc=$?`, not `; rc=$?`: under `bash -e` the first red file
-            # ended the step, and every file after it never ran (run
-            # 39470955285 stopped at the 15th of 29 with no summary).
-            rc=0
-            capped bash scripts/integration_bundle.sh run macos "$t" "$out" || rc=$?
-            if [ $rc -ne 0 ]; then
-              status=$rc
-              failed="$failed $(basename "$t")"
-            fi
-            echo "::endgroup::"
-          done
-          # Named, at the end, where the tail of the log is: nineteen files
-          # each print thousands of lines, so which one failed was otherwise
-          # only findable by paging back through the whole job.
-          if [ -n "$failed" ]; then
-            echo "::error::macOS tier failures:$failed"
-            echo "=== macOS tier failures:$failed ==="
-            for f in $failed; do
-              echo "=== $f: last 60 lines ==="
-              tail -60 "${RUNNER_TEMP:-/tmp}/tier-$f.log" || true
-            done
-          fi
-          # The verdict block that stood here read logs the bisection arms
-          # wrote, and called `matrix_launch`, which went with them. Under
-          # `set -e` that call ended the step at 127 before the instruments
-          # were even read: the arms all passed and the tier went red.
-          kill "$WEBKIT_OSLOG_PID" 2>/dev/null || true
-
-          exit $status
-
-      # After the 19-file loop, not before it.
-      #
-      # It used to ride that loop, where "tor" sorts 17th: its verdict landed
-      # ~40 minutes into a step capped at 45, on a job every push cancels. A
-      # step of its own with its own cap fixes that without running first.
-      #
-      # The reason this once carried -- that only one app process on the
-      # runner can proxy, so tor ahead of the loop took the slot and every
-      # arm behind it read DIRECT -- was the void instrument, not the runner
-      # (BUG-014 caution 1). There is no slot. The cap argument above is the
-      # whole reason it sits here.
-      #
-      # WEBSPACE_TOR_NETWORK opts this job into needing the Tor network:
-      # integration_test/tor_test.dart then treats "never reached the
-      # network" as a failure rather than a skip. Everything else that file
-      # asserts -- the control-port handshake, the bootstrap phase, tor's own
-      # log, a restart -- runs either way, so if GitHub's macOS runners ever
-      # stop being able to reach tor, drop this variable and the tier keeps
-      # its teeth. This is the only automated tier that runs the real Tor
-      # plugin: iOS has no runtime tier here, and macOS compiles the same
-      # source (ios/Runner/TorControllerPlugin.swift).
-      #
-      # The cap leaves room for the exit-country scenario, whose first pin
-      # downloads tor's GeoIP table (about 10 MB) through Tor.
-      - name: Run the Tor integration scenario
-        id: tor_scenario
-        if: success() || failure()
-        timeout-minutes: 30
-        env:
-          WEBSPACE_TOR_NETWORK: '1'
-        run: |
-          set -x
-          # `flutter test` exits 79 when nothing ran, which is what a file
-          # whose scenarios all skip looks like -- and a skip is how a tier
-          # that reaches nothing reports success. The run is red either way;
-          # this says which of the two happened without reading the log.
-          rc=0
-          # Kept, because this step runs an hour before the end of the job and
-          # its output is unreachable from the log's tail by then; the report
-          # step at the end prints it back.
-          fvm flutter test integration_test/tor_test.dart -d macos --ci 2>&1 \
-            | tee "${RUNNER_TEMP:-/tmp}/tor-scenario.log"
-          rc=${PIPESTATUS[0]}
-          if [ $rc -eq 79 ]; then
-            echo "::error::the Tor scenarios did not run at all (exit 79); "\
-                 "see the [tor-test] trace lines above for which branch each took"
-          fi
-          exit $rc
-
-      # iOS defuncts every socket a suspended app owns except Unix-domain
-      # ones, and a phone came back from a suspension with tor's control and
-      # SOCKS ports dead (BUG-013). pid_shutdown_sockets does the same to a
-      # macOS process, but it also takes the VM service connection
-      # `flutter test` drives the app over, so the probe is the Runner's
-      # entrypoint here and reports on stderr. The root helper serves one
-      # request if the app sandbox refuses the call on the app's own pid.
-      - name: Run the Tor suspension probe
-        id: tor_suspend
-        if: success() || failure()
-        timeout-minutes: 25
-        run: |
-          log="${RUNNER_TEMP:-/tmp}/tor-suspend.log"
-          helper="${RUNNER_TEMP:-/tmp}/defunct_sockets"
-          cc -Wno-deprecated-declarations -o "$helper" tool/tor_suspension/defunct_sockets.c
-          fvm flutter build macos --debug -t integration_test/tor_suspension_probe.dart
-          app="$(ls -d build/macos/Build/Products/Debug/*.app | head -1)"
-          exe="$app/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")"
-          "$exe" > "$log" 2>&1 &
-          pid=$!
-          for _ in $(seq 1 900); do
-            kill -0 "$pid" 2>/dev/null || break
-            if grep -q 'request-defunct' "$log"; then
-              sudo "$helper" "$pid"
-              break
-            fi
-            sleep 1
-          done
-          rc=0
-          wait "$pid" || rc=$?
-          grep -F '[tor-suspend]' "$log" || true
-          if [ $rc -ne 0 ]; then
-            echo "=== Tor suspension probe: last 80 lines ==="
-            tail -80 "$log" || true
-          fi
-          exit $rc
-
-      # Last, so the tail of the job log always says how the Tor scenario
-      # went even when its own step scrolled past behind the tier's summary.
-      - name: Report the Tor scenario outcome
-        if: always()
-        run: |
-          echo "=== Tor scenario: ${{ steps.tor_scenario.outcome }} ==="
-          # Which exit each pin got and how long it took to land, pass or fail.
-          grep -F '[tor-test]' "${RUNNER_TEMP:-/tmp}/tor-scenario.log" || true
-          if [ "${{ steps.tor_scenario.outcome }}" != "success" ]; then
-            echo "=== Tor scenario: last 80 lines ==="
-            tail -80 "${RUNNER_TEMP:-/tmp}/tor-scenario.log" || true
-          fi
-          echo "=== Tor suspension probe: ${{ steps.tor_suspend.outcome }} ==="
-          grep -F '[tor-suspend]' "${RUNNER_TEMP:-/tmp}/tor-suspend.log" || true
 
       - name: Create macOS ZIP archive
         run: |
@@ -2208,7 +653,6 @@ jobs:
             echo "|---|---|---|"
             printf '%s' "$rows"
             echo ""
-            echo "Linux is built and its integration tier runs, but no Linux"
-            echo "bundle is uploaded as an artifact."
+            echo "Linux is built, but no Linux bundle is uploaded as an artifact."
           } >> "$GITHUB_STEP_SUMMARY"
           cat "$GITHUB_STEP_SUMMARY"

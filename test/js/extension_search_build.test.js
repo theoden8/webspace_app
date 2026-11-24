@@ -73,7 +73,7 @@ for (const platform of ['ios', 'macos']) {
   });
 }
 
-test('CI checks a flavorless build carries no search and its direct builds do', () => {
+test('CI checks a flavorless build carries no search and its direct IPA does', () => {
   const workflow = read(WORKFLOW);
   const checked = (want, snapshot) => new RegExp(
     `check_extension_search\\.sh ${want} \\\\\\s*\\S*${snapshot.replace(/\./g, '\\.')}`);
@@ -81,12 +81,8 @@ test('CI checks a flavorless build carries no search and its direct builds do', 
     'no absent check of the flavorless macOS build');
   assert.match(workflow, checked('present', 'Runner.app/Frameworks/App.framework/App'),
     'no present check of the iOS IPA');
-  assert.match(workflow, checked('present', `Products/Release-${flavor}/webspace.app/Contents/Frameworks/App.framework/App`),
-    `no present check of the macOS ${flavor} build`);
   assert.match(workflow, new RegExp(`flutter build ipa --release --no-codesign --flavor ${flavor}\\n`),
     `the IPA CI ships for sideloading is not the ${flavor} flavor`);
-  assert.match(workflow, new RegExp(`flutter build macos --release --flavor ${flavor}\\n`),
-    `CI builds no macOS ${flavor} flavor`);
 });
 
 test('signing for the Mac App Store refuses a build that carries it', () => {

@@ -151,11 +151,7 @@ test('every build-only row names the files it covers and why (LICENSE-001)', () 
   }
 });
 
-test('LICENSE-001 CI checks the Linux bundle and the snap it builds', () => {
-  const workflow = read('.github/workflows/build-and-test.yml');
-  const build = workflow.indexOf('fvm flutter build linux --release');
-  const check = workflow.indexOf('node tool/check_bundle_licences.js build/linux/x64/release/bundle');
-  assert.ok(build >= 0 && check > build, 'CI does not check the Linux bundle after it builds it');
+test('LICENSE-001 CI checks the snap it builds', () => {
   assert.match(read('.github/workflows/snap.yml'), /node tool\/check_bundle_licences\.js /,
     'CI does not check the snap it builds');
 });
