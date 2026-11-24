@@ -1,7 +1,9 @@
 name: Build
 
-# Builds and artifacts only. Tests, formal verification and the integration
-# tiers run locally (CLAUDE.md, Commands); CI does not repeat them.
+# Tests, and the Android and iOS builds, on every run. The desktop builds and
+# the store screenshots are optional: a manual run, a release PR, or a
+# ci-only marker naming them. Formal verification and the integration tiers
+# run locally (CLAUDE.md, Commands).
 
 on:
   push:
@@ -13,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       screenshots_only:
-        description: 'Only the store screenshots: every device at once, into the one screenshots artifact. No build job runs.'
+        description: 'Only the store screenshots: every device at once, into the one screenshots artifact. No other job runs.'
         type: boolean
         default: false
 
@@ -32,18 +34,22 @@ env:
   DEBIAN_SNAPSHOT: "20261111T180000Z"
 
 jobs:
-  # Which jobs this commit needs. `[ci-only: apple]` in the commit message,
-  # or several as `[ci-only: android,linux]`, skips the rest. Tokens: android,
-  # linux, apple, screenshots. Honoured on pull_request only.
+  # Which jobs this commit runs. Without a marker: tests, android and ios
+  # always; linux, macos and screenshots only on a manual run or a release PR
+  # (one that moves pubspec.yaml's version line, docs/releasing.md).
+  # `[ci-only: macos]` in the commit message, or several as
+  # `[ci-only: linux,macos]`, runs exactly the jobs it names. Tokens: tests,
+  # android, ios, linux, macos, screenshots. Honoured on pull_request only.
   plan:
     name: Plan
     runs-on: ubuntu-latest
     outputs:
+      tests: ${{ steps.pick.outputs.tests }}
       android: ${{ steps.pick.outputs.android }}
+      ios: ${{ steps.pick.outputs.ios }}
       linux: ${{ steps.pick.outputs.linux }}
-      apple: ${{ steps.pick.outputs.apple }}
-      only: ${{ steps.pick.outputs.only }}
-      screenshots: ${{ steps.screenshots.outputs.screenshots }}
+      macos: ${{ steps.pick.outputs.macos }}
+      screenshots: ${{ steps.pick.outputs.screenshots }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,50 +68,102 @@ jobs:
           elif [ "${{ inputs.screenshots_only }}" = true ]; then
             only=screenshots
           fi
-          pick() {
-            if [ -z "$only" ]; then
-              echo "$1=true"
-              return
-            fi
-            case ",$only," in
-              *",$1,"*) echo "$1=true" ;;
-              *) echo "$1=false" ;;
-            esac
-          }
-          {
-            pick android
-            pick linux
-            pick apple
-            echo "only=$only"
-          } >> "$GITHUB_OUTPUT"
-          if [ -n "$only" ]; then
-            echo "::notice::ci-only=$only -- every other job is skipped for this commit"
-          fi
-      # The store screenshots: on a manual run, and on a release PR, which is
-      # one that moves pubspec.yaml's version line (docs/releasing.md). A
-      # ci-only marker that names them runs them, and one that does not skips
-      # them.
-      - id: screenshots
-        run: |
-          set -eu
-          only="${{ steps.pick.outputs.only }}"
-          screenshots=false
-          if [ -n "$only" ]; then
-            case ",$only," in
-              *,screenshots,*) screenshots=true ;;
-            esac
-          elif [ "${{ github.event_name }}" = workflow_dispatch ]; then
-            screenshots=true
+          release=false
+          if [ "${{ github.event_name }}" = workflow_dispatch ]; then
+            release=true
           elif [ "${{ github.event_name }}" = pull_request ]; then
             git fetch -q --depth=1 origin "${{ github.event.pull_request.base.sha }}"
             head_version="$(sed -n 's/^version: //p' pubspec.yaml)"
             base_version="$(git show FETCH_HEAD:pubspec.yaml | sed -n 's/^version: //p')"
             if [ "$head_version" != "$base_version" ]; then
-              screenshots=true
-              echo "::notice::release PR ($base_version -> $head_version): screenshots run"
+              release=true
+              echo "::notice::release PR ($base_version -> $head_version): optional jobs run"
             fi
           fi
-          echo "screenshots=$screenshots" >> "$GITHUB_OUTPUT"
+          # pick <job> <runs without a marker>
+          pick() {
+            if [ -n "$only" ]; then
+              case ",$only," in
+                *",$1,"*) echo "$1=true" ;;
+                *) echo "$1=false" ;;
+              esac
+            else
+              echo "$1=$2"
+            fi
+          }
+          {
+            pick tests true
+            pick android true
+            pick ios true
+            pick linux "$release"
+            pick macos "$release"
+            pick screenshots "$release"
+          } >> "$GITHUB_OUTPUT"
+          if [ -n "$only" ]; then
+            echo "::notice::ci-only=$only -- every other job is skipped for this commit"
+          fi
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.tests == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - name: Install npm dependencies
+        run: npm ci
+      - name: Setup Flutter (for Dart SDK)
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: '.fvmrc'
+          channel: 'stable'
+      - name: Cache fvm Flutter SDK
+        uses: ./.github/actions/master-cache
+        with:
+          path: ~/fvm/versions
+          key: fvm-${{ runner.os }}-${{ hashFiles('**/.fvmrc') }}
+          restore-keys: |
+            fvm-${{ runner.os }}-
+      - name: Install fvm
+        run: |
+          dart pub global activate fvm
+          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
+      - name: Setup Flutter with fvm
+        run: |
+          fvm install
+          fvm use --force
+      - name: Cache pub dependencies
+        uses: ./.github/actions/master-cache
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+      - name: Get dependencies
+        run: fvm flutter pub get --enforce-lockfile
+      - name: Generate localizations
+        run: fvm dart tool/gen_l10n.dart
+      # Errors only: `dart analyze`, since `flutter analyze` drops what the
+      # analyzer plugin reports (tool/webspace_lints).
+      - name: Analyze (errors only)
+        run: fvm dart analyze --no-fatal-warnings
+      # Not the schedule search (formal/verify.sh's schedules stage runs it).
+      - name: Dart tests
+        run: fvm flutter test --exclude-tags schedules
+      # What AppImageHub validates the desktop entry and metainfo with
+      # (test/js/linux_desktop_files.test.js, PLATFORM-013).
+      - name: Install the desktop file validators
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends desktop-file-utils appstream
+      # After pub get: the licence gate reads the packages it resolved.
+      - name: JS tests
+        run: npm run test:js
 
   build-android:
     name: Build Android
@@ -207,11 +265,11 @@ jobs:
           bash scripts/verify_adblock_shipped.sh linux
           bash scripts/verify_tor_shipped.sh build/linux/x64/release/bundle
 
-  build-apple:
-    name: Build iOS & macOS
+  build-ios:
+    name: Build iOS
     runs-on: macos-latest
     needs: plan
-    if: needs.plan.outputs.apple == 'true'
+    if: needs.plan.outputs.ios == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -242,6 +300,34 @@ jobs:
           (cd build/ios/ipa && zip -qry webspace-unsigned.ipa Payload && rm -rf Payload)
           ls -l build/ios/ipa
 
+      # The pod install wrote ios/Podfile.lock, failed build included: no
+      # machine without macOS can.
+      - name: Hand in lock files
+        if: success() || failure()
+        uses: ./.github/actions/lockfiles
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: build/ios/ipa/*.ipa
+          if-no-files-found: error
+
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+    needs: plan
+    if: needs.plan.outputs.macos == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Apple toolchain
+        uses: ./.github/actions/apple-toolchain
+
+      - name: Generate launcher icons
+        run: fvm dart run flutter_launcher_icons
+
       # The ad-hoc re-sign is what makes the artifact launchable without a
       # signing identity (docs/releasing-macos.md).
       - name: Build macOS
@@ -256,8 +342,6 @@ jobs:
           node tool/check_artifact_licences.js build/macos/Build/Products/Release/webspace.app
           bash scripts/sign_macos.sh adhoc
 
-      # The builds' pod installs wrote both Podfile.locks, failed build
-      # included: no machine without macOS can.
       - name: Hand in lock files
         if: success() || failure()
         uses: ./.github/actions/lockfiles
@@ -266,13 +350,6 @@ jobs:
         run: |
           cd build/macos/Build/Products/Release
           zip -r ../../../../../webspace-macos.zip webspace.app
-
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-ipa
-          path: build/ios/ipa/*.ipa
-          if-no-files-found: error
 
       - name: Upload macOS build
         uses: actions/upload-artifact@v4
@@ -571,7 +648,7 @@ jobs:
   # failed too: a failed build may be the one that needs a new lock file.
   lockfiles:
     name: Lock files
-    needs: [build-apple, screenshots-ios, screenshots-macos, screenshots-linux]
+    needs: [build-ios, build-macos, screenshots-ios, screenshots-macos, screenshots-linux]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
@@ -597,13 +674,13 @@ jobs:
 
   release-summary:
     name: Release Summary
-    needs: [build-android, build-linux, build-apple]
+    needs: [build-android, build-ios]
     runs-on: ubuntu-latest
     if: success()
     steps:
-      # By name, and only these three: a named download fails when the
-      # artifact is absent, and the rest of what the run uploads (screenshots,
-      # diagnostics, the egress recording) is nothing this job reports on.
+      # By name, the two every run builds: a named download fails when the
+      # artifact is absent. The optional desktop builds are their own
+      # artifacts.
       - name: Download the Android build
         uses: actions/download-artifact@v4
         with:
@@ -614,11 +691,6 @@ jobs:
         with:
           name: ios-ipa
           path: artifacts/ios
-      - name: Download the macOS build
-        uses: actions/download-artifact@v4
-        with:
-          name: macos-app
-          path: artifacts/macos
 
       # What was actually built, and how big it is. The previous summary
       # printed a fixed list of checkmarks that nothing verified: it claimed
@@ -631,7 +703,7 @@ jobs:
           # Rows first, so an empty artifact fails on stdout, where the
           # runner reads ::error:: -- not inside the summary redirect.
           rows=""
-          for dir in android ios macos; do
+          for dir in android ios; do
             found=0
             for f in artifacts/$dir/*; do
               [ -f "$f" ] || continue
@@ -653,6 +725,6 @@ jobs:
             echo "|---|---|---|"
             printf '%s' "$rows"
             echo ""
-            echo "Linux is built, but no Linux bundle is uploaded as an artifact."
+            echo "Linux and macOS build on a manual run or a release PR."
           } >> "$GITHUB_STEP_SUMMARY"
           cat "$GITHUB_STEP_SUMMARY"

@@ -266,9 +266,10 @@ missing piece: [docs/releasing.md](docs/releasing.md).
 - After a rebase across a commit that touched `lib/l10n/*.arb`, run `fvm dart tool/gen_l10n.dart` before trusting the test run: `lib/l10n/gen/` is gitignored, so a stale copy fails to compile against the new keys and the failures look like the rebase broke something.
 
 - **`[ci-only: <jobs>]` narrows a CI run.** A commit message carrying it runs only
-  the jobs it names and skips the rest; tokens are `android`, `linux`, `apple`,
-  `screenshots`, comma-separated (`[ci-only: apple,linux]`). `screenshots` runs the
-  store screenshot jobs on any PR, as a manual run's `screenshots_only` input does. It is
+  the jobs it names and skips the rest; tokens are `tests`, `android`, `ios`, `linux`,
+  `macos`, `screenshots`, comma-separated (`[ci-only: macos,linux]`). Without one,
+  tests, Android and iOS run on every PR, and Linux, macOS and the store screenshots
+  only on a manual run or a release PR; a marker naming them runs them on any PR. It is
   honoured on `pull_request` only, so a marker that survives a merge cannot silence
   master, and the guardrails are gated by
   [`test/js/workflow_shell_syntax.test.js`](test/js/workflow_shell_syntax.test.js).

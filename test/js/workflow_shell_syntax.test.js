@@ -85,16 +85,18 @@ test('every run block parses under the shell that runs it', (t) => {
 });
 
 // The `[ci-only: ...]` marker exists so a bisection that reads one tier does
-// not pay for the other two. Its failure modes are asymmetric: a job that
+// not pay for the rest. Its failure modes are asymmetric: a job that
 // wrongly runs costs runner minutes, a job that wrongly skips costs coverage
 // silently, and a marker left in a merged commit could silence master
 // forever. So the guardrails are gated rather than trusted.
 test('every heavy job is gated on the plan job', () => {
   const text = read(WORKFLOW);
   for (const [job, output] of [
+    ['tests', 'tests'],
     ['build-android', 'android'],
+    ['build-ios', 'ios'],
     ['build-linux', 'linux'],
-    ['build-apple', 'apple'],
+    ['build-macos', 'macos'],
     ['screenshots-android', 'screenshots'],
     ['screenshots-ios', 'screenshots'],
     ['screenshots-macos', 'screenshots'],
@@ -115,7 +117,7 @@ test('every heavy job is gated on the plan job', () => {
 
 test('the ci-only marker is honoured on pull requests only', () => {
   const text = read(WORKFLOW);
-  const plan = text.slice(text.indexOf('\n  plan:\n'), text.indexOf('\n  build-android:\n'));
+  const plan = text.slice(text.indexOf('\n  plan:\n'), text.indexOf('\n  tests:\n'));
   assert.match(
     plan,
     /if \[ "\$\{\{ github\.event_name \}\}" = pull_request \]; then/,
@@ -140,19 +142,21 @@ test('the ci-only marker is honoured on pull requests only', () => {
 // the version line. A step gated on the event by hand would skip the release
 // PR and nothing would fail: YAML has no type for "this step makes a
 // screenshot".
-test('screenshots run on a manual run and on a release PR, decided by plan', () => {
+test('optional jobs run on a manual run and on a release PR, decided by plan', () => {
   const text = read(WORKFLOW);
   assert.ok(
     !/\n\s+if: github\.event_name == 'workflow_dispatch'/.test(text),
-    "a step is gated on workflow_dispatch by hand; gate it on needs.plan.outputs.screenshots == 'true'",
+    "a step is gated on workflow_dispatch by hand; gate it on a needs.plan output",
   );
   const start = text.indexOf('\n  plan:\n');
-  const plan = text.slice(start, text.indexOf('\n  build-android:\n'));
-  assert.match(plan, /\n {6}screenshots: \$\{\{ steps\.screenshots\.outputs\.screenshots \}\}\n/);
+  const plan = text.slice(start, text.indexOf('\n  tests:\n'));
+  assert.match(plan, /\n {6}screenshots: \$\{\{ steps\.pick\.outputs\.screenshots \}\}\n/);
   assert.match(plan, /sed -n 's\/\^version: \/\/p' pubspec\.yaml/,
-    'the plan job no longer reads the version line, so a release PR would skip the screenshots');
-  assert.match(plan, /\*,screenshots,\*\) screenshots=true/,
-    'a ci-only marker naming screenshots no longer runs them');
+    'the plan job no longer reads the version line, so a release PR would skip the optional jobs');
+  for (const job of ['linux', 'macos', 'screenshots']) {
+    assert.match(plan, new RegExp(`\\n\\s+pick ${job} "\\$release"\\n`),
+      `${job} no longer follows the release decision`);
+  }
   assert.match(plan,
     /elif \[ "\$\{\{ inputs\.screenshots_only \}\}" = true \]; then\n\s+only=screenshots\n/,
     'the screenshots_only input is no longer the [ci-only: screenshots] marker');
@@ -194,7 +198,7 @@ test('every job that writes a lock file feeds the one lockfiles artifact', () =>
   const writes = (j) => (j.steps ?? []).some((s) => s.uses === './.github/actions/apple-toolchain'
     || /\bbundle install\b/.test(s.run ?? ''));
   const writers = Object.keys(jobs).filter((id) => writes(jobs[id]));
-  assert.ok(writers.includes('build-apple'), 'no job writing a lock file was found');
+  assert.ok(writers.includes('build-ios') && writers.includes('build-macos'), 'no job writing a lock file was found');
   for (const id of writers) {
     const step = handIn(jobs[id]);
     assert.ok(step, `${id} writes a lock file and does not hand it in`);
