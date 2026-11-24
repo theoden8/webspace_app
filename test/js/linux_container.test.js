@@ -20,11 +20,29 @@ const install = action.runs.steps.find((s) => /\bapt-get install\b/.test(s.run ?
 const toolchainJobs = Object.entries(workflow.jobs).filter(([, job]) =>
   (job.steps ?? []).some((s) => s.uses === './.github/actions/linux-toolchain'));
 
-test('INTEG-002: the Linux build jobs run in a debian:sid-slim container', () => {
+const sidImage = /^debian:sid-(\d{8})-slim$/;
+const imageOf = (job) => job.container?.image ?? job.container;
+
+test('INTEG-002: the Linux build jobs run in a dated debian sid container', () => {
   assert.ok(toolchainJobs.length >= 1, 'some job builds with the Linux toolchain');
   for (const [name, job] of toolchainJobs) {
-    assert.equal(job.container?.image ?? job.container, 'debian:sid-slim',
-      `${name} builds in the sid container`);
+    assert.match(String(imageOf(job)), sidImage, `${name} builds in the sid container`);
+  }
+});
+
+// The floating sid-slim tag moves past the apt snapshot the jobs install
+// from, and then its packages are newer than any the snapshot offers, so
+// the first apt-get install fails before checkout.
+test('INTEG-002: no sid container image is newer than the apt snapshot', () => {
+  const snapshot = /^(\d{8})T\d{6}Z$/.exec(workflow.env.DEBIAN_SNAPSHOT)?.[1];
+  assert.ok(snapshot, 'DEBIAN_SNAPSHOT is a snapshot.debian.org timestamp');
+  const sidJobs = Object.entries(workflow.jobs)
+    .filter(([, job]) => String(imageOf(job) ?? '').startsWith('debian:sid'));
+  assert.ok(sidJobs.length >= toolchainJobs.length);
+  for (const [name, job] of sidJobs) {
+    const date = sidImage.exec(String(imageOf(job)))?.[1];
+    assert.ok(date, `${name} names a dated image, not the floating tag`);
+    assert.ok(date <= snapshot, `${name}'s image ${date} is not after the snapshot ${snapshot}`);
   }
 });
 
