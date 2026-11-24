@@ -1,6 +1,6 @@
 // LICENSE-001 over what the Linux build fetches (scripts/fetch_gate.py, armed
-// by scripts/fetch_gate.sh around the build in CI, which also probes that an
-// unlisted repository is refused there): each rule held on the URL it is for.
+// by scripts/fetch_gate.sh around a build, which also probes that an unlisted
+// repository is refused there): each rule held on the URL it is for.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -69,16 +69,4 @@ test('LICENSE-001 every allowlist entry is a URL prefix that says which gate rea
     assert.match(entry.trim(), /^https:\/\/[^\s/]+\/\S*$/, `line ${i + 1}: ${entry.trim()} is not an https URL prefix`);
     assert.ok(comment.join('#').trim().length >= 10, `line ${i + 1}: ${entry.trim()} names no gate`);
   }
-});
-
-test('LICENSE-001 the Linux job arms the gate before its first fetch of the build and reports after', () => {
-  const job = read('.github/workflows/build-and-test.yml').split(/\n {2}build-linux:\n/)[1].split(/\n {2}\S[^\n]*:\n/)[0];
-  const at = (name) => {
-    const i = job.indexOf(`- name: ${name}`);
-    assert.ok(i >= 0, `build-linux has no step "${name}"`);
-    return i;
-  };
-  assert.ok(at('Arm the fetch gate') < at('Test webspace_adblock crate'));
-  assert.ok(at('Build Linux') < at('Disarm the fetch gate and report'));
-  assert.match(job.slice(at('Disarm the fetch gate and report')), /^[^\n]*\n\s+if: always\(\)/);
 });

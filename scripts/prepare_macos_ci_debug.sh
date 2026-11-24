@@ -4,11 +4,10 @@
 # stock Flutter entitlements plus the network server and client the
 # integration servers and the Tor runtime use. CI has no signing identity, so
 # an ad-hoc signature cannot back the committed file's team-prefixed groups
-# and taskgated SIGKILLs the app at launch; the comment on the macOS test
-# tier in .github/workflows/build-and-test.yml has the whole account.
+# and taskgated SIGKILLs the app at launch (docs/releasing-macos.md).
 #
 # CI only: it overwrites macos/Runner/DebugProfile.entitlements in the
-# checkout. Run by the macOS test tier and the macOS screenshots.
+# checkout. Run by the macOS screenshots job.
 set -x
 security unlock-keychain -p "" "$HOME/Library/Keychains/login.keychain-db" || true
 cat > macos/Runner/DebugProfile.entitlements <<'EOF'

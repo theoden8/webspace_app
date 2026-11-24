@@ -1,3 +1,6 @@
+@Tags(['formal'])
+library;
+
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';

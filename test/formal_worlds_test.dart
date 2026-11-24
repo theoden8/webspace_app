@@ -1,3 +1,6 @@
+@Tags(['formal'])
+library;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'formal_model/checks.dart';
 import 'formal_model/worlds.dart';

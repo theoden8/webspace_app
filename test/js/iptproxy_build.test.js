@@ -18,7 +18,6 @@ const { REPO, read } = require('./helpers/source');
 const BUILD = 'go/iptproxy/build.sh';
 const PATCH = 'go/iptproxy/iptproxy.patch';
 const ACTION = '.github/actions/apple-toolchain/action.yml';
-const WORKFLOW = '.github/workflows/build-and-test.yml';
 const PODFILES = ['ios/Podfile', 'macos/Podfile'];
 const MEEKUTLS = 'go/meekutls/meekutls.go';
 const SOURCES = ['IPTPROXY', 'LYREBIRD', 'DNSTT', 'MEEK'];
@@ -222,7 +221,7 @@ function buildInputs(sh) {
     .sort();
 }
 
-function ciProblems({ sh, action, workflow, podfiles }) {
+function ciProblems({ sh, action, podfiles }) {
   const out = [];
   if (!/uses: actions\/setup-go@v\d+\s+with:\s+go-version-file: go\/iptproxy\/\.go-version/.test(action)) {
     out.push('the Apple toolchain does not take its Go from go/iptproxy/.go-version');
@@ -235,20 +234,6 @@ function ciProblems({ sh, action, workflow, podfiles }) {
   const keyed = key ? [...key[1].matchAll(/'([^']+)'/g)].map((m) => m[1]).sort() : [];
   if (JSON.stringify(keyed) !== JSON.stringify(buildInputs(sh))) {
     out.push(`the cache is keyed on ${keyed.join(', ')}, the build on ${buildInputs(sh).join(', ')}`);
-  }
-  const job = workflow.slice(workflow.indexOf('\n  bridge-transports:\n'));
-  const body = job.slice(0, job.slice(1).search(/\n {2}[a-z][a-z-]*:\n/) + 1);
-  for (const step of ['sh go/iptproxy/build.sh check', 'sh go/iptproxy/build.sh upstream', 'go test -count=1']) {
-    if (!body.includes(step)) out.push(`the bridge-transports job does not run ${step}`);
-  }
-  if (!/working-directory: go\/meekutls\n\s+run: go test /.test(body)) {
-    out.push('the bridge-transports job does not test go/meekutls');
-  }
-  if (!/LYREBIRD_UPSTREAM: .*\/go\/iptproxy\/build\/bin\/lyrebird-upstream\n/.test(body)) {
-    out.push('the interop test is not given the upstream server');
-  }
-  if (!/MEEK_SERVER: .*\/go\/iptproxy\/build\/bin\/meek-server\n/.test(body)) {
-    out.push('the interop test is not given meek-server');
   }
   for (const [rel, podfile] of Object.entries(podfiles)) {
     if (!/^ {2}pod 'IPtProxy', :path => '\.\.\/go\/iptproxy'$/m.test(podfile)) out.push(`${rel} does not link go/iptproxy`);
@@ -264,7 +249,6 @@ const diff = read(PATCH);
 const ci = {
   sh,
   action: read(ACTION),
-  workflow: read(WORKFLOW),
   podfiles: Object.fromEntries(PODFILES.map((rel) => [rel, read(rel)])),
 };
 
@@ -359,10 +343,6 @@ test('each rule catches the mistake it is for', () => {
   caught(ciProblems({ ...ci, action: swap(ci.action, 'run: |\n        sh go/iptproxy/build.sh check', 'run: |\n        true') }),
     'no check after the build');
   caught(ciProblems({ ...ci, action: swap(ci.action, ", 'go/meekutls/meekutls.go'", '') }), 'a cache key without meekutls.go');
-  caught(ciProblems({ ...ci, workflow: swap(ci.workflow, '          MEEK_SERVER:', '          MEEK_SERVER_UNUSED:') }),
-    'the meek interop without its server');
-  caught(ciProblems({ ...ci, workflow: swap(ci.workflow, 'working-directory: go/meekutls\n', 'working-directory: go/hiddenkey\n') }),
-    'meekutls untested');
   caught(ciProblems({ ...ci, podfiles: { ...ci.podfiles, 'ios/Podfile': swap(ci.podfiles['ios/Podfile'],
     "pod 'IPtProxy', :path => '../go/iptproxy'", "pod 'IPtProxy', '5.5.1'") } }), 'the trunk pod');
 });

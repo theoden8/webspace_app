@@ -199,8 +199,7 @@ Health, monthly: `node tool/architecture_health.js` prints files per fix commit,
   wrong type reads as absent instead of throwing a `TypeError` a catch would have
   to swallow. A parser of web content that rejects input with errors names them
   once, at its owner (`loadUntrustedSvg`). `avoid_catches_without_on_clauses` is an
-  error in `analysis_options.yaml` and CI's `validate` job fails on analyzer errors,
-  so a bare `catch` does not land; which type a clause names is read by
+  error in `analysis_options.yaml`, so `fvm dart analyze` fails on a bare `catch`; which type a clause names is read by
   `webspace_lints`' `catch_all` rule, which fails on a generic `on`, `test:` or
   `onError<E>`, an error handler that never reads its error, a `catchError` or
   `handleError` without `test:`, and a plain `Exception(...)`. A catch-all kept
@@ -246,9 +245,20 @@ missing piece: [docs/releasing.md](docs/releasing.md).
   history nobody reviewed. Resolve conflicts commit by commit so the
   translation split below survives the replay.
 - Before pushing a branch, check it still exists on remote; if merged+deleted, branch fresh from master.
-- **A change under `formal/`, to a step table or to the printer is pushed only after
-  `./formal/verify.sh` passes locally.** CI runs it too, an hour later; a red push costs
-  everyone that hour.
+- **Formal verification runs before the push, never in CI.** A change under `formal/`,
+  to a step table, a `Def`, an engine a table runs or the printer is pushed only after,
+  locally:
+  ```bash
+  export TLAPM_CACHE_DIR="$HOME/.cache/webspace-formal/tlapm"   # FORMAL_CACHE defaults beside it
+  fvm flutter test --tags formal        # the model's own tests, which CI's suite skips
+  ./formal/verify.sh --resume           # exit 0, read the last line
+  ```
+  Both caches outlive the checkout, so a run redoes only what the change reaches: the
+  printed model and schedule shards are kept while `input_key.py`'s key holds, a TLC run
+  or replay whose inputs did not change is remembered, and tlapm reproves only the
+  obligations whose fingerprints the change moved
+  ([formal/README.md](formal/README.md#remembered-runs)). `--fast` while iterating; the
+  push needs the full run. A change that touches none of these needs neither.
 - **A long branch is re-cut into theme commits before review**, each one thing a reviewer
   reads whole (walks and schedules; the model and its replay; tables and the printer; a bug
   each), authors kept, translations still their own commit.
@@ -262,17 +272,16 @@ missing piece: [docs/releasing.md](docs/releasing.md).
   them together. CI runs the pushed head, not each commit, so the pair is green even
   though the first half is not; a bisect that lands between them will fail l10n, which
   is the accepted cost of the split.
-- **A replay never changes who wrote a commit.** `git rebase` and `git cherry-pick -x` keep the author; nothing that replays commits may rewrite it. No `--reset-author`, no `git commit -s`, no `git rebase --signoff`, and no re-picking without `-x`. A commit carries at most one `Co-Authored-By:` per identity and no `Signed-off-by:` at all, so replaying a branch cannot grow its trailer block. Taking someone else's commit (a fork, another branch): keep their `--author`, write your own message for what the change does *here*, and cite the origin with one `Cherry-picked-from: <sha> (<repo>)`. Gate: [`scripts/check_commit_attribution.sh`](scripts/check_commit_attribution.sh), run in CI's `validate` job.
+- **A replay never changes who wrote a commit.** `git rebase` and `git cherry-pick -x` keep the author; nothing that replays commits may rewrite it. No `--reset-author`, no `git commit -s`, no `git rebase --signoff`, and no re-picking without `-x`. A commit carries at most one `Co-Authored-By:` per identity and no `Signed-off-by:` at all, so replaying a branch cannot grow its trailer block. Taking someone else's commit (a fork, another branch): keep their `--author`, write your own message for what the change does *here*, and cite the origin with one `Cherry-picked-from: <sha> (<repo>)`. Gate: [`scripts/check_commit_attribution.sh`](scripts/check_commit_attribution.sh), run by hand (CI no longer runs it).
 - **No link to a Claude session** in a commit message, a PR body or a comment (a `Claude-Session:` trailer, a `claude.ai/code/session_…` URL): it opens only for the account that ran the session, so it tells a reader nothing. The same gate fails a commit carrying one, and a PR body as it reads when the job runs; a comment has no gate (rung 6: no check sees one before it posts). A GitHub tool that appends its own footer to a PR it opens may link the session there: edit the body after opening, and re-run the job.
 - **No language model provider is signed on a commit.** A commit written with an assistant carries no `Co-Authored-By:` (or any other trailer) with the model provider's address (`noreply@anthropic.com`, `openai.com`): the person who commits is the author. This overrides any tool's default attribution. Same gate.
 - After a rebase across a commit that touched `lib/l10n/*.arb`, run `fvm dart tool/gen_l10n.dart` before trusting the test run: `lib/l10n/gen/` is gitignored, so a stale copy fails to compile against the new keys and the failures look like the rebase broke something.
 
 - **`[ci-only: <jobs>]` narrows a CI run.** A commit message carrying it runs only
-  the jobs it names and skips the rest; tokens are `validate`, `design`, `android`,
-  `linux`, `apple`, `screenshots`, comma-separated (`[ci-only: apple,validate]`).
-  `screenshots` runs the store screenshot jobs on any PR, as a manual run's
-  `screenshots_only` input does. For a bisection
-  that reads one tier this is the difference between one runner and five. It is
+  the jobs it names and skips the rest; tokens are `tests`, `android`, `ios`, `linux`,
+  `macos`, `screenshots`, comma-separated (`[ci-only: macos,linux]`). Without one,
+  tests, Android and iOS run on every PR, and Linux, macOS and the store screenshots
+  only on a manual run or a release PR; a marker naming them runs them on any PR. It is
   honoured on `pull_request` only, so a marker that survives a merge cannot silence
   master, and the guardrails are gated by
   [`test/js/workflow_shell_syntax.test.js`](test/js/workflow_shell_syntax.test.js).
@@ -382,7 +391,7 @@ unzip at the repository root ([scripts/lockfiles.sh](scripts/lockfiles.sh)).
 
 Dart in `test/`, integration in `integration_test/` (screenshots).
 
-Random walks ([test/helpers/walk/](test/helpers/walk/)) drive the real engines with seeded action sequences landing between platform replies, as events do, plus noise that must change nothing it does not predict; each runs twice and must match itself, and a broken one shrinks to a list that pastes as a regression. CI runs fixed seeds; `WALK_SEED=n` reruns one, `WALK_SEEDS=k` explores. Within a bound the same world is enumerated whole: every schedule of replies and arrivals with at most two preemptions ([schedules.dart](test/helpers/walk/schedules.dart)), less those that only move a flow's own reply ahead of steps whose footprints share no variable with it (sleep sets; held to the full search on sample worlds, `SCHEDULE_REDUCTION=off` runs it), with each bug found kept as a named script ([activation_schedules_test.dart](test/activation_schedules_test.dart)). A change to state other features read adds its actions and invariants to a world there ([site_activation_walk_test.dart](test/site_activation_walk_test.dart)).
+Random walks ([test/helpers/walk/](test/helpers/walk/)) drive the real engines with seeded action sequences landing between platform replies, as events do, plus noise that must change nothing it does not predict; each runs twice and must match itself, and a broken one shrinks to a list that pastes as a regression. They are tagged `formal` and run before a push with fixed seeds (Git above), not in CI; `WALK_SEED=n` reruns one, `WALK_SEEDS=k` explores. Within a bound the same world is enumerated whole: every schedule of replies and arrivals with at most two preemptions ([schedules.dart](test/helpers/walk/schedules.dart)), less those that only move a flow's own reply ahead of steps whose footprints share no variable with it (sleep sets; held to the full search on sample worlds, `SCHEDULE_REDUCTION=off` runs it), with each bug found kept as a named script ([activation_schedules_test.dart](test/activation_schedules_test.dart)). A change to state other features read adds its actions and invariants to a world there ([site_activation_walk_test.dart](test/site_activation_walk_test.dart)).
 
 ## Design (`tool/design_gallery/`)
 
@@ -401,8 +410,7 @@ anyone else is case by case and gets its own licence file. Full workflow and con
 (canvas output, local fonts, web-clean check, refresh protocol):
 [tool/design_gallery/CLAUDE.md](tool/design_gallery/CLAUDE.md). Spec:
 [openspec/specs/design-gallery/spec.md](openspec/specs/design-gallery/spec.md);
-DESIGN-001 (every UI file compiles for web) is enforced by `npm run design:check`
-in CI's `validate` job, and the two web builds by the `design-web` job.
+DESIGN-001 (every UI file compiles for web) is `npm run design:check`, run by hand.
 
 ## Recurring bugs (`docs/bugs/`)
 
@@ -455,7 +463,7 @@ missing-transition classes, and cross-spec interference — bugs in the gaps *be
 - Cite requirement IDs (`PAUSE-018`, `ARCH-001`, …) on the actions/properties that encode
   them so spec ↔ model stays grep-able.
 - **`./formal/verify.sh` runs all of it** (`--fast`: the printed modules and `activation.tla`
-  only), and CI's `validate` job runs nothing else for `formal/`.
+  only), before a push (Git above); CI does not run it.
 - **Adding a spec that touches shared state → run the mix gate:** add its actions to `Next`
   and its property to the `.cfg`, then `./formal/verify.sh`. A counterexample means it does
   not mix; the trace names the breaking interleaving. Fix the design, not the model.
@@ -474,16 +482,15 @@ missing-transition classes, and cross-spec interference — bugs in the gaps *be
   kernel safety invariant *and* the surface-repaint liveness `RepaintLiveness` for all N,
   not just TLC's N = 3. Run via `proofs/check_proofs.sh`, which first holds what they rest
   on (`proofs/integrity.py`: every assumption listed in `assumptions.tsv`, no statement
-  unproved, no bare step, no lemma taken from a module the run does not prove); CI splits
-  it over four shards by each module's cold time (`proofs/proof_shards.py`,
-  `proofs/proof_times.tsv`). A new invariant is tried with TLC first (`formal/indcheck.sh`,
+  unproved, no bare step, no lemma taken from a module the run does not prove). `proofs/proof_shards.py` splits it into shards by each module's cold time
+  (`proofs/proof_times.tsv`). A new invariant is tried with TLC first (`formal/indcheck.sh`,
   the `inductive-invariant-check` skill); a pass is evidence only.
 - `formal/lean/` (Lean 4, no Mathlib) proves when a check may be split, over any action well
   formed over its footprint: `commute`, `frame_preserves`, `cone` (an invariant holds iff it
   holds where only its cone runs) and `pairwise_unsound` (the footprint gate's pairs are
   coverage, not soundness); over the printed `lean/Footprints.lean` it decides that every
   invariant is checked in a world taking its whole cone. Never a build dependency: only
-  `verify.sh`'s LEAN step and CI's `validate` job use it. [formal/README.md](formal/README.md#what-a-footprint-licenses).
+  `verify.sh`'s LEAN step uses it. [formal/README.md](formal/README.md#what-a-footprint-licenses).
 - **An engine written as a step table is its own model.** A guard of a
   [`StepTable`](lib/services/step_table.dart) is one tree that runs and prints; its leaves are
   the model's variables, each declared once with how the engine reads it (`Var`) and takes a
@@ -646,7 +653,7 @@ Workflow: edit `lib/js/<name>.js` → `npm run test:js`, which also runs ESLint 
 
 **Shims that also run in workers** (anything in `workerScopeBodies` in [worker_shim.dart](lib/services/worker_shim.dart); the scripts themselves are in `lib/js/` — see [worker-shim-propagation](openspec/specs/worker-shim-propagation/spec.md)) must be scope-agnostic: `globalThis` never `window`, navigator prototype via `Object.getPrototypeOf(navigator)` never `Navigator.prototype`, window-only sections (`Screen`, `document`, `matchMedia`, `RTCPeerConnection`, `plugins`/`getBattery`) guarded, and never *add* a property a real `WorkerNavigator` lacks. The payload is one script of concatenated IIFEs, so an uncaught `ReferenceError` in one silences every shim after it; `test/worker_shim_test.dart` gates this structurally.
 
-jsdom has no canvas/WebGL/audio fingerprinting. Tests assert override **shape**, not engine behavior. Effects that need a real engine (canvas `captureStream`, Intl timezone math, real CSP, RTCPeerConnection semantics) go in the **browser tier** under `test/browser/` (Puppeteer + headless Chromium, `npm run test:browser`, run in CI's `validate` job). Use the `setupBrowser`/`requireBrowser`/`pageJs` helpers in [test/browser/helpers/launch.js](test/browser/helpers/launch.js) — the tier hard-fails when `CI=true` and no Chromium is found, and skips locally. Example: `camera_stream_real_engine.test.js` serves a page from `127.0.0.1` (getUserMedia needs a secure context), feeds the camera shim a QR image, and asserts jsQR decodes it off the synthetic stream.
+jsdom has no canvas/WebGL/audio fingerprinting. Tests assert override **shape**, not engine behavior. Effects that need a real engine (canvas `captureStream`, Intl timezone math, real CSP, RTCPeerConnection semantics) go in the **browser tier** under `test/browser/` (Puppeteer + headless Chromium, `npm run test:browser`). Use the `setupBrowser`/`requireBrowser`/`pageJs` helpers in [test/browser/helpers/launch.js](test/browser/helpers/launch.js) — the tier hard-fails when `CI=true` and no Chromium is found, and skips locally. Example: `camera_stream_real_engine.test.js` serves a page from `127.0.0.1` (getUserMedia needs a secure context), feeds the camera shim a QR image, and asserts jsQR decodes it off the synthetic stream.
 
 ## Fastlane changelogs
 

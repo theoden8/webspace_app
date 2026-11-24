@@ -7,6 +7,9 @@
 //
 // Apart from activation_schedules_test.dart: a planted run's traces are a
 // mutant's, which formal/verify.sh must not replay against the model.
+@Tags(['formal'])
+library;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'formal_model/checks.dart' show Mutant;
 import 'formal_model/models.dart';

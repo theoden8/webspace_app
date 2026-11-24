@@ -2,6 +2,9 @@
 // code declares: every step with its outcomes and the jar's places once
 // each. formal/verify.sh runs the printer and the checkers on what it writes.
 
+@Tags(['formal'])
+library;
+
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';

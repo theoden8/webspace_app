@@ -4,7 +4,7 @@
 // and a phone came back from one with tor unreachable for the rest of the
 // process. The fix has four parts in four files, and dropping any one of
 // them brings the dead end back without a test failing anywhere else: only
-// the macOS probe runs the real thing, an hour into CI. So each part is
+// the macOS probe runs the real thing, by hand. So each part is
 // pinned here.
 
 const test = require('node:test');
@@ -14,7 +14,6 @@ const { read, code, blockAfter, methodBody } = require('./helpers/source');
 const swift = code(read('ios/Runner/TorControllerPlugin.swift'));
 const engine = code(read('lib/services/tor_engine.dart'));
 const service = code(read('lib/services/tor_service.dart'));
-const workflow = read('.github/workflows/build-and-test.yml');
 
 test('tor\'s control channel is a Unix socket, the kind a suspension spares', () => {
   const launch = blockAfter(swift, 'func launchLocked(');
@@ -137,7 +136,7 @@ test('a resume mid-bootstrap and a slept-through deadline are both handled', () 
     'a deadline firing long after it was due is a suspension, not a failure');
 });
 
-test('the macOS tier defuncts a live tor\'s sockets and expects it back', () => {
+test('the probe defuncts a live tor\'s sockets and expects it back', () => {
   const probeRel = 'integration_test/tor_suspension_probe.dart';
   assert.ok(!probeRel.endsWith('_test.dart'),
     'not a flutter test: the defunct takes the VM service connection');
@@ -147,14 +146,4 @@ test('the macOS tier defuncts a live tor\'s sockets and expects it back', () => 
     'the resume goes through the app\'s own lifecycle path');
   assert.match(probe, /verdict:/);
 
-  const apple = workflow.slice(workflow.indexOf('\n  build-apple:'));
-  const at = apple.indexOf('- name: Run the Tor suspension probe');
-  assert.ok(at > 0, 'the probe needs a step of its own');
-  const step = apple.slice(at, apple.indexOf('\n      - name:', at + 1));
-  assert.match(step, /if: success\(\) \|\| failure\(\)/,
-    'it must run even when the tier ahead of it went red');
-  assert.match(step, /timeout-minutes: \d+/);
-  assert.match(step, /-t integration_test\/tor_suspension_probe\.dart/);
-  assert.match(step, /sudo "\$helper" "\$pid"/,
-    'the root helper answers when the sandbox refuses the call on its own pid');
 });
