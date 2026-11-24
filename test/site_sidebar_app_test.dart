@@ -70,7 +70,7 @@ Widget frame(
   bool expandsOnHover = false,
   SidebarFloat float = SidebarFloat.none,
   VoidCallback? onDismissFloat,
-  VoidCallback? onEdgeSwipe,
+  EdgeBack? edgeBack,
 }) => MaterialApp(
   home: MediaQuery(
     data: const MediaQueryData(disableAnimations: true),
@@ -98,7 +98,7 @@ Widget frame(
         onSettle: (SidebarState _) {},
         onReveal: (bool _) {},
         onDismissFloat: onDismissFloat ?? () {},
-        onEdgeSwipe: onEdgeSwipe,
+        edgeBack: edgeBack,
         onHandleMoved: (double _) {},
         onResize: (double _) {},
       ),
@@ -280,30 +280,69 @@ void main() {
     expect(find.byKey(const ValueKey('panel')), findsNothing);
   });
 
-  testWidgets('TAB-033 a swipe right from the screen edge over the docked '
-      'rail is the page\'s back swipe; elsewhere on the rail it is not', (
+  testWidgets('TAB-033 the page follows a swipe from the screen edge over the '
+      'docked rail, goes back past a third of its width or on a fling, and '
+      'springs back otherwise; elsewhere on the rail it is no swipe', (
     tester,
   ) async {
-    var swiped = 0;
+    var back = 0;
     await tester.pumpWidget(frame(
       SidebarDock.rail,
-      onEdgeSwipe: () => swiped++,
+      edgeBack: EdgeBack(canGoBack: () async => true, goBack: () => back++),
     ));
-    await tester.dragFrom(const Offset(4, 300), const Offset(120, 0));
-    await tester.pumpAndSettle();
-    expect(swiped, 1);
+    final page = find.byKey(const ValueKey('page'));
+    double pageLeft() => tester.getTopLeft(page).dx;
+    expect(pageLeft(), 60);
 
-    await tester.dragFrom(const Offset(40, 300), const Offset(120, 0));
+    final drag = await tester.startGesture(const Offset(4, 300));
+    await drag.moveBy(const Offset(30, 0));
+    await drag.moveBy(const Offset(100, 0));
+    await tester.pump();
+    expect(pageLeft(), greaterThan(60 + 90), reason: 'it follows the finger');
+    await drag.up();
     await tester.pumpAndSettle();
-    expect(swiped, 1, reason: 'not from the edge');
+    expect(back, 0, reason: 'short of a third of the page');
+    expect(pageLeft(), 60, reason: 'it springs back');
 
-    await tester.dragFrom(const Offset(4, 300), const Offset(20, 0));
+    await tester.dragFrom(const Offset(4, 300), const Offset(300, 0));
     await tester.pumpAndSettle();
-    expect(swiped, 1, reason: 'too short');
+    expect(back, 1);
+    expect(pageLeft(), 60);
+
+    await tester.flingFrom(const Offset(4, 300), const Offset(80, 0), 1000);
+    await tester.pumpAndSettle();
+    expect(back, 2, reason: 'a fling goes back');
+
+    await tester.dragFrom(const Offset(40, 300), const Offset(300, 0));
+    await tester.pumpAndSettle();
+    expect(back, 2, reason: 'not from the edge');
+    expect(pageLeft(), 60);
 
     await tester.tapAt(const Offset(4, 300));
     await tester.pumpAndSettle();
-    expect(swiped, 1, reason: 'a tap is the rail\'s');
+    expect(back, 2, reason: 'a tap is the rail\'s');
+  });
+
+  testWidgets('TAB-033 at the start of the history the page gives a little '
+      'and goes nowhere', (tester) async {
+    var back = 0;
+    await tester.pumpWidget(frame(
+      SidebarDock.rail,
+      edgeBack: EdgeBack(canGoBack: () async => false, goBack: () => back++),
+    ));
+    final page = find.byKey(const ValueKey('page'));
+    final drag = await tester.startGesture(const Offset(4, 300));
+    await drag.moveBy(const Offset(30, 0));
+    await tester.pump();
+    await drag.moveBy(const Offset(270, 0));
+    await tester.pump();
+    final left = tester.getTopLeft(page).dx;
+    expect(left, greaterThan(60));
+    expect(left, lessThan(60 + 120));
+    await drag.up();
+    await tester.pumpAndSettle();
+    expect(back, 0);
+    expect(tester.getTopLeft(page).dx, 60);
   });
 
   testWidgets('TAB-033 a swipe left puts the drawer away; a short one does '

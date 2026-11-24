@@ -1,9 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:webspace/services/navigation_surface_engine.dart';
 import 'package:webspace/settings/navigation_choices.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/sidebar_arrow_tab.dart';
+
+/// The page's history as a swipe from the screen's edge walks it.
+class EdgeBack {
+  const EdgeBack({required this.canGoBack, required this.goBack});
+
+  final Future<bool> Function() canGoBack;
+  final VoidCallback goBack;
+}
 
 /// Lays the page out with its sidebar: the docked panel or rail beside it,
 /// the drawer or the full-screen sidebar over it, and the arrow tab on its
@@ -27,7 +37,7 @@ class SiteNavigationFrame extends StatefulWidget {
     required this.onSettle,
     required this.onReveal,
     required this.onDismissFloat,
-    this.onEdgeSwipe,
+    this.edgeBack,
     required this.onHandleMoved,
     required this.onResize,
   });
@@ -69,9 +79,9 @@ class SiteNavigationFrame extends StatefulWidget {
   /// A tap outside the drawer or the full-screen sidebar.
   final VoidCallback onDismissFloat;
 
-  /// A right swipe from the screen's edge over the docked sidebar; null where
-  /// the edge is not the page's back swipe.
-  final VoidCallback? onEdgeSwipe;
+  /// What a right swipe from the screen's edge over the docked sidebar
+  /// walks; null where the edge is not the page's back swipe.
+  final EdgeBack? edgeBack;
   final ValueChanged<double> onHandleMoved;
 
   /// The width the edge drag let go at.
@@ -107,8 +117,15 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
   /// one the webview itself answers to.
   static const double _edgeWidth = 20;
 
-  /// How far right a swipe from the edge has come.
-  double _edgeTravel = 0;
+  /// How far a swipe from the edge has pulled the page right.
+  double _back = 0;
+  bool _backDragging = false;
+
+  /// The page springing back after a swipe from the edge let go.
+  bool _backSettling = false;
+
+  /// Whether the page has history to go back to, once asked this swipe.
+  bool? _backAllowed;
 
   /// How far left the finger has dragged the sidebar over the page, while
   /// it drags.
@@ -207,7 +224,45 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
             _moved;
         return Stack(
           children: [
-            Positioned.fill(left: _padding, child: widget.main),
+            // Behind the page as a swipe from the edge pulls it away.
+            AnimatedPositioned(
+              duration: _backSettling ? slide : Duration.zero,
+              curve: Easing.emphasizedDecelerate,
+              left: _padding,
+              top: 0,
+              bottom: 0,
+              width: _back,
+              child: ColoredBox(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: Center(
+                  child: Opacity(
+                    opacity: _backAllowed == false
+                        ? 0
+                        : (_back / _backThreshold(box)).clamp(0, 1),
+                    child: const Icon(Icons.arrow_back_ios_new),
+                  ),
+                ),
+              ),
+            ),
+            // Moved, never resized, as the swipe pulls it: a resize each
+            // frame is what BUG-001 warns of.
+            AnimatedPositioned(
+              duration: _backSettling ? slide : Duration.zero,
+              curve: Easing.emphasizedDecelerate,
+              left: _padding + _back,
+              top: 0,
+              bottom: 0,
+              width: box.maxWidth - _padding,
+              onEnd: _backSettling
+                  ? () => setState(() => _backSettling = false)
+                  : null,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  boxShadow: _back > 0 ? Elevations.pulledPage : const [],
+                ),
+                child: widget.main,
+              ),
+            ),
             Positioned(
               left: 0,
               top: 0,
@@ -318,7 +373,7 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
                   ),
                 ),
               ),
-            if (widget.onEdgeSwipe case final swipe?
+            if (widget.edgeBack case final edge?
                 when surfaces.dock != SidebarDock.none)
               Positioned(
                 left: 0,
@@ -327,15 +382,22 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
                 width: _edgeWidth,
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
-                  onHorizontalDragUpdate: (d) => _edgeTravel += d.delta.dx,
-                  onHorizontalDragEnd: (d) {
-                    final travelled = _edgeTravel;
-                    _edgeTravel = 0;
-                    if (travelled > 60 || (d.primaryVelocity ?? 0) > 400) {
-                      swipe();
-                    }
-                  },
-                  onHorizontalDragCancel: () => _edgeTravel = 0,
+                  onHorizontalDragStart: (_) => _startBack(edge),
+                  onHorizontalDragUpdate: (d) => setState(() {
+                    // At the start of the history the page only gives.
+                    final pull = _backAllowed == false ? 0.3 : 1.0;
+                    _back = (_back + d.delta.dx * pull).clamp(
+                      0,
+                      box.maxWidth - _padding,
+                    );
+                  }),
+                  onHorizontalDragEnd: (d) => _endBack(
+                    edge,
+                    goes: _backAllowed != false &&
+                        (_back > _backThreshold(box) ||
+                            (d.primaryVelocity ?? 0) > 400),
+                  ),
+                  onHorizontalDragCancel: () => _endBack(edge, goes: false),
                 ),
               ),
             if (surfaces.arrowTab && _pull == null)
@@ -365,6 +427,28 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
         );
       },
     );
+  }
+
+  double _backThreshold(BoxConstraints box) => (box.maxWidth - _padding) / 3;
+
+  void _startBack(EdgeBack edge) {
+    setState(() {
+      _backDragging = true;
+      _backSettling = false;
+      _backAllowed = null;
+    });
+    unawaited(edge.canGoBack().then((can) {
+      if (mounted && _backDragging) setState(() => _backAllowed = can);
+    }));
+  }
+
+  void _endBack(EdgeBack edge, {required bool goes}) {
+    setState(() {
+      _backDragging = false;
+      _backSettling = _back > 0 && !_still;
+      _back = 0;
+    });
+    if (goes) edge.goBack();
   }
 
   /// A drag of the sidebar over the page let go: past a third of its width,

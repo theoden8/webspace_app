@@ -293,6 +293,9 @@ abstract final class Motion {
 abstract final class Elevations {
   static const double floating = 3;
   static const double floatingActive = 8;
+
+  /// The page as a swipe from the screen's edge pulls it off the backdrop.
+  static final List<BoxShadow> pulledPage = kElevationToShadow[8]!;
 }
 
 /// The site-strip button floats over site content, so it is translucent enough
