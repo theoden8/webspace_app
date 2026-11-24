@@ -27,6 +27,7 @@ class SiteNavigationFrame extends StatefulWidget {
     required this.onSettle,
     required this.onReveal,
     required this.onDismissFloat,
+    this.onEdgeSwipe,
     required this.onHandleMoved,
     required this.onResize,
   });
@@ -67,6 +68,10 @@ class SiteNavigationFrame extends StatefulWidget {
 
   /// A tap outside the drawer or the full-screen sidebar.
   final VoidCallback onDismissFloat;
+
+  /// A right swipe from the screen's edge over the docked sidebar; null where
+  /// the edge is not the page's back swipe.
+  final VoidCallback? onEdgeSwipe;
   final ValueChanged<double> onHandleMoved;
 
   /// The width the edge drag let go at.
@@ -97,6 +102,13 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
 
   /// A pointer rests on the rail, or on the sidebar it opened beside it.
   bool _overRail = false;
+
+  /// The strip of the screen's edge a back swipe starts in, as wide as the
+  /// one the webview itself answers to.
+  static const double _edgeWidth = 20;
+
+  /// How far right a swipe from the edge has come.
+  double _edgeTravel = 0;
 
   /// How far left the finger has dragged the sidebar over the page, while
   /// it drags.
@@ -304,6 +316,26 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
                     maxWidth: widget.floatWidth,
                     child: widget.panel(widget.floatWidth, floating: true),
                   ),
+                ),
+              ),
+            if (widget.onEdgeSwipe case final swipe?
+                when surfaces.dock != SidebarDock.none)
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: _edgeWidth,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onHorizontalDragUpdate: (d) => _edgeTravel += d.delta.dx,
+                  onHorizontalDragEnd: (d) {
+                    final travelled = _edgeTravel;
+                    _edgeTravel = 0;
+                    if (travelled > 60 || (d.primaryVelocity ?? 0) > 400) {
+                      swipe();
+                    }
+                  },
+                  onHorizontalDragCancel: () => _edgeTravel = 0,
                 ),
               ),
             if (surfaces.arrowTab && _pull == null)

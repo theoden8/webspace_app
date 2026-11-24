@@ -178,3 +178,13 @@ bool backOpensDrawer({
 /// Back then leaves the app from as from a drawer it opened (TAB-036).
 bool backMenuShown({required bool libraryDesign, required SidebarDock dock}) =>
     !libraryDesign && dock == SidebarDock.full;
+
+/// Whether a right swipe from the screen's edge over the docked sidebar is
+/// the page's back swipe: where the webview's own back swipe answers only at
+/// the screen's edge ([screenEdgeBack], Apple's), a docked sidebar takes that
+/// edge from it (NAV-001).
+bool edgeSwipeGoesBack({
+  required bool screenEdgeBack,
+  required SidebarDock dock,
+}) =>
+    screenEdgeBack && dock != SidebarDock.none;

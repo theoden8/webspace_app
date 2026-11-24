@@ -268,4 +268,15 @@ void main() {
     expect(backMenuShown(libraryDesign: false, dock: SidebarDock.rail), isFalse);
     expect(backMenuShown(libraryDesign: false, dock: SidebarDock.none), isFalse);
   });
+
+  test('NAV-001, TAB-033: on iOS a docked sidebar takes the screen edge from '
+      'the webview, so its edge swipe is the page\'s back swipe', () {
+    for (final dock in SidebarDock.values) {
+      expect(edgeSwipeGoesBack(screenEdgeBack: true, dock: dock),
+          dock != SidebarDock.none,
+          reason: dock.name);
+      expect(edgeSwipeGoesBack(screenEdgeBack: false, dock: dock), isFalse,
+          reason: 'where the system takes the edge itself, ${dock.name}');
+    }
+  });
 }

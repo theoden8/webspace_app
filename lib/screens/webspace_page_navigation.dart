@@ -250,6 +250,12 @@ extension _PageNavigation on _WebSpacePageState {
       onReveal: (shown) =>
           shown ? _fullscreen.revealNavigation() : _fullscreen.hideNavigation(),
       onDismissFloat: _putFloatAway,
+      onEdgeSwipe: edgeSwipeGoesBack(
+        screenEdgeBack: hostIsIOS,
+        dock: surfaces.dock,
+      )
+          ? () => unawaited(getController()?.goBack())
+          : null,
       onHandleMoved: (fraction) =>
           unawaited(AppPref.sidebarHandleY.set((fraction * 100).round())),
       onResize: (width) => unawaited(AppPref.sidebarWidth.set(width.round())),

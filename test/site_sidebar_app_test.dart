@@ -70,6 +70,7 @@ Widget frame(
   bool expandsOnHover = false,
   SidebarFloat float = SidebarFloat.none,
   VoidCallback? onDismissFloat,
+  VoidCallback? onEdgeSwipe,
 }) => MaterialApp(
   home: MediaQuery(
     data: const MediaQueryData(disableAnimations: true),
@@ -97,6 +98,7 @@ Widget frame(
         onSettle: (SidebarState _) {},
         onReveal: (bool _) {},
         onDismissFloat: onDismissFloat ?? () {},
+        onEdgeSwipe: onEdgeSwipe,
         onHandleMoved: (double _) {},
         onResize: (double _) {},
       ),
@@ -276,6 +278,32 @@ void main() {
     await mouse.moveTo(const Offset(600, 300));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('panel')), findsNothing);
+  });
+
+  testWidgets('TAB-033 a swipe right from the screen edge over the docked '
+      'rail is the page\'s back swipe; elsewhere on the rail it is not', (
+    tester,
+  ) async {
+    var swiped = 0;
+    await tester.pumpWidget(frame(
+      SidebarDock.rail,
+      onEdgeSwipe: () => swiped++,
+    ));
+    await tester.dragFrom(const Offset(4, 300), const Offset(120, 0));
+    await tester.pumpAndSettle();
+    expect(swiped, 1);
+
+    await tester.dragFrom(const Offset(40, 300), const Offset(120, 0));
+    await tester.pumpAndSettle();
+    expect(swiped, 1, reason: 'not from the edge');
+
+    await tester.dragFrom(const Offset(4, 300), const Offset(20, 0));
+    await tester.pumpAndSettle();
+    expect(swiped, 1, reason: 'too short');
+
+    await tester.tapAt(const Offset(4, 300));
+    await tester.pumpAndSettle();
+    expect(swiped, 1, reason: 'a tap is the rail\'s');
   });
 
   testWidgets('TAB-033 a swipe left puts the drawer away; a short one does '
