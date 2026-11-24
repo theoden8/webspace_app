@@ -5,6 +5,9 @@
 // steps but read by a relation of its own (_toyCommutes): a flow's input
 // and its replies touch nothing shared, and an increment's read and write
 // touch the counter.
+@Tags(['formal'])
+library;
+
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';

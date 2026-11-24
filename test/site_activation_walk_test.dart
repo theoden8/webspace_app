@@ -5,6 +5,9 @@
 // match itself. Rerun one seed with WALK_SEED=n; explore with WALK_SEEDS=k.
 // The interleavings within a small bound are enumerated whole in
 // activation_schedules_test.dart, which also keeps the bugs found here.
+@Tags(['formal'])
+library;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';

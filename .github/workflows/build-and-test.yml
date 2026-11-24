@@ -154,9 +154,10 @@ jobs:
       # analyzer plugin reports (tool/webspace_lints).
       - name: Analyze (errors only)
         run: fvm dart analyze --no-fatal-warnings
-      # Not the schedule search (formal/verify.sh's schedules stage runs it).
+      # Not the formal model's own tests (tagged formal) or the schedule search:
+      # formal/verify.sh runs those, by hand.
       - name: Dart tests
-        run: fvm flutter test --exclude-tags schedules
+        run: fvm flutter test --exclude-tags schedules,formal
       # What AppImageHub validates the desktop entry and metainfo with
       # (test/js/linux_desktop_files.test.js, PLATFORM-013).
       - name: Install the desktop file validators

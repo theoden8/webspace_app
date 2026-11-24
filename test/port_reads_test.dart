@@ -24,6 +24,9 @@
 // the walks' read gate holds them; a closure called through a function
 // value, which no static call names; and code outside this package.
 
+@Tags(['formal'])
+library;
+
 import 'dart:io';
 
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';

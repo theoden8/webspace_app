@@ -2,6 +2,9 @@
 // a broken walk shrinks to what breaks it, a run that differs from itself is
 // caught before its seed is trusted, and work an action leaves running
 // cannot fail unseen.
+@Tags(['formal'])
+library;
+
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
