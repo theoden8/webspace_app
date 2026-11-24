@@ -50,7 +50,10 @@ env:
   # snapshot.debian.org view, so a transition landing in sid cannot break
   # every PR's install at once. Moving it is a deliberate change, made
   # where the install still resolves and libwpewebkit-2.0-dev still meets
-  # CONT-009's floor.
+  # CONT-009's floor. The containers' image is dated no later than it
+  # (debian:sid-<date>-slim, both jobs; container.image cannot read env):
+  # an image newer than the snapshot ships packages apt there cannot
+  # match, so installing git fails before checkout.
   DEBIAN_SNAPSHOT: "20261111T180000Z"
 
 jobs:
@@ -824,7 +827,7 @@ jobs:
     # WPE_SETTING_REDUCED_MOTION, which the pinned fork now resolves at
     # compile time.
     container:
-      image: debian:sid-slim
+      image: debian:sid-20261104-slim
       # CAP_NET_ADMIN is what lets the egress guard (INTEG-016) install its
       # nftables ruleset. Not in Docker's default capability set, and
       # without it the guard degrades to counting packets it cannot name.
@@ -2059,7 +2062,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.screenshots == 'true'
     container:
-      image: debian:sid-slim
+      image: debian:sid-20261104-slim
     steps:
       # git before the checkout, so it is a clone and not a REST download:
       # debian:sid-slim ships without it. Every apt step after this one

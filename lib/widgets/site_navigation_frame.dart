@@ -27,6 +27,7 @@ class SiteNavigationFrame extends StatefulWidget {
     required this.onSettle,
     required this.onReveal,
     required this.onDismissFloat,
+    this.onEdgeSwipe,
     required this.onHandleMoved,
     required this.onResize,
   });
@@ -67,6 +68,10 @@ class SiteNavigationFrame extends StatefulWidget {
 
   /// A tap outside the drawer or the full-screen sidebar.
   final VoidCallback onDismissFloat;
+
+  /// A right swipe from the screen's edge over the docked sidebar; null where
+  /// the edge is not the page's back swipe.
+  final VoidCallback? onEdgeSwipe;
   final ValueChanged<double> onHandleMoved;
 
   /// The width the edge drag let go at.
@@ -95,8 +100,25 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
   /// motion ends.
   bool _floatLeaving = false;
 
-  /// A pointer rests on the rail, or on the sidebar it opened over the page.
-  bool _hovered = false;
+  /// A pointer rests on the rail, or on the sidebar it opened beside it.
+  bool _overRail = false;
+
+  /// The strip of the screen's edge a back swipe starts in, as wide as the
+  /// one the webview itself answers to.
+  static const double _edgeWidth = 20;
+
+  /// How far right a swipe from the edge has come.
+  double _edgeTravel = 0;
+
+  /// How far left the finger has dragged the sidebar over the page, while
+  /// it drags.
+  double? _floatDrag;
+  bool _overFlyout = false;
+
+  bool get _flyout =>
+      (_overRail || _overFlyout) &&
+      widget.expandsOnHover &&
+      _content == _Content.rail;
 
   static _Content _contentOf(SidebarDock dock) => switch (dock) {
     SidebarDock.none => _Content.none,
@@ -121,7 +143,10 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
   @override
   void didUpdateWidget(SiteNavigationFrame oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.surfaces.dock != widget.surfaces.dock) _hovered = false;
+    if (oldWidget.surfaces.dock != widget.surfaces.dock) {
+      _overRail = false;
+      _overFlyout = false;
+    }
     final next = _contentOf(widget.surfaces.dock);
     // Growing, the new content shows at once and the box grows over the
     // page; shrinking, the old content stays until the box has shrunk.
@@ -188,11 +213,8 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
               top: 0,
               bottom: 0,
               child: MouseRegion(
-                onEnter: (_) {
-                  if (widget.expandsOnHover && _content == _Content.rail) {
-                    setState(() => _hovered = true);
-                  }
-                },
+                onEnter: (_) => setState(() => _overRail = true),
+                onExit: (_) => setState(() => _overRail = false),
                 child: AnimatedContainer(
                   duration: morph,
                   curve: Motion.layoutCurve,
@@ -209,14 +231,17 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
                 ),
               ),
             ),
-            if (_hovered && widget.expandsOnHover && _content == _Content.rail)
+            // Beside the rail, not over it: the rail's own controls, its
+            // cross among them, stay under the pointer.
+            if (_flyout)
               Positioned(
-                left: 0,
+                left: widget.railWidth,
                 top: 0,
                 bottom: 0,
                 width: widget.floatWidth,
                 child: MouseRegion(
-                  onExit: (_) => setState(() => _hovered = false),
+                  onEnter: (_) => setState(() => _overFlyout = true),
+                  onExit: (_) => setState(() => _overFlyout = false),
                   child: Material(
                     elevation: 8,
                     child: widget.panel(widget.floatWidth, floating: true),
@@ -249,11 +274,11 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
               ),
             ),
             AnimatedPositioned(
-              duration: slide,
+              duration: _floatDrag == null ? slide : Duration.zero,
               curve: floating
                   ? Easing.emphasizedDecelerate
                   : Easing.emphasizedAccelerate,
-              left: floating ? 0 : -widget.floatWidth - 24,
+              left: floating ? (_floatDrag ?? 0) : -widget.floatWidth - 24,
               top: 0,
               bottom: 0,
               width: widget.floatWidth,
@@ -263,9 +288,18 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
               // Built only while shown or sliding away: off screen it would be a
               // whole sidebar nobody sees.
               child: floating || _floatLeaving
-                  ? Material(
-                      elevation: 8,
-                      child: widget.panel(widget.floatWidth, floating: true),
+                  ? GestureDetector(
+                      onHorizontalDragUpdate: (d) => setState(() {
+                        _floatDrag = ((_floatDrag ?? 0) + d.delta.dx)
+                            .clamp(-widget.floatWidth, 0);
+                      }),
+                      onHorizontalDragEnd: (d) => _endFloatDrag(
+                        velocity: d.primaryVelocity ?? 0,
+                      ),
+                      child: Material(
+                        elevation: 8,
+                        child: widget.panel(widget.floatWidth, floating: true),
+                      ),
                     )
                   : const SizedBox.shrink(),
             ),
@@ -282,6 +316,26 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
                     maxWidth: widget.floatWidth,
                     child: widget.panel(widget.floatWidth, floating: true),
                   ),
+                ),
+              ),
+            if (widget.onEdgeSwipe case final swipe?
+                when surfaces.dock != SidebarDock.none)
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: _edgeWidth,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onHorizontalDragUpdate: (d) => _edgeTravel += d.delta.dx,
+                  onHorizontalDragEnd: (d) {
+                    final travelled = _edgeTravel;
+                    _edgeTravel = 0;
+                    if (travelled > 60 || (d.primaryVelocity ?? 0) > 400) {
+                      swipe();
+                    }
+                  },
+                  onHorizontalDragCancel: () => _edgeTravel = 0,
                 ),
               ),
             if (surfaces.arrowTab && _pull == null)
@@ -311,6 +365,16 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
         );
       },
     );
+  }
+
+  /// A drag of the sidebar over the page let go: past a third of its width,
+  /// or flicked left, it goes; otherwise it springs back.
+  void _endFloatDrag({required double velocity}) {
+    final dragged = _floatDrag ?? 0;
+    setState(() => _floatDrag = null);
+    if (dragged < -widget.floatWidth / 3 || velocity < -400) {
+      widget.onDismissFloat();
+    }
   }
 
   /// The open sidebar's grip moved by [dx]: a guide line shows the width it

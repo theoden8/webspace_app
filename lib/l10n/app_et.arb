@@ -1068,7 +1068,6 @@
   "stripShowSiteTabs": "Näita saidi {site} kaarte",
   "stripHideSiteTabs": "Peida saidi {site} kaardid",
   "tabsAllTabsMenu": "Kõik kaardid",
-  "sidebarOpen": "Ava kaartide külgriba",
   "sidebarShow": "Kuva kaartide külgriba",
   "sidebarCollapse": "Ahenda kitsaks ribaks",
   "sidebarPutAway": "Sulge külgriba",

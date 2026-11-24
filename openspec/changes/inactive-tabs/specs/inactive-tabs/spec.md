@@ -1086,9 +1086,8 @@ Its controls SHALL be:
   collapses it to the rail;
 - the rail's sidebar icon at its top, which opens it, and its cross at its
   bottom, which hides it;
-- while hidden, the app bar's sidebar icon, which opens it fully, and the arrow
-  tab on the left edge;
-- the arrow tab, shown only while the sidebar is closed: a tap brings it back
+- the arrow tab on the left edge, shown only while the sidebar is closed and
+  the one way back from hidden (the app bar carries no second one): a tap brings it back
   as it was left; a drag right pulls it out under the finger and lets go at
   the nearest of hidden, the rail and open; a drag up or down moves the tab
   along the edge, remembered (`sidebarHandleY`); on Android 10 and later the
@@ -1105,15 +1104,15 @@ Its controls SHALL be:
 - **WHEN** the user drags right from the arrow tab at the screen's edge
 - **THEN** the sidebar pulls out under the finger, and the page does not go back
 
-#### Scenario: Collapse, hide, open fully
+#### Scenario: Collapse, hide, bring back
 
 - **GIVEN** the sidebar open on a wide window
 - **WHEN** the user taps its collapse button
 - **THEN** it is the rail
 - **WHEN** the user taps the rail's cross
-- **THEN** it is hidden and the arrow tab shows
-- **WHEN** the user taps the app bar's sidebar icon
-- **THEN** it is open, not the rail
+- **THEN** it is hidden, the arrow tab shows and the app bar has no sidebar icon
+- **WHEN** the user taps the arrow tab
+- **THEN** it is the rail again
 
 #### Scenario: The arrow tab brings back the rail it was hidden from
 
@@ -1125,12 +1124,30 @@ Its controls SHALL be:
 
 On a window narrower than 840 the rail (52 wide) SHALL stay docked beside the
 page and open SHALL be a 290-wide drawer over it, with a scrim whose tap puts
-it back to the rail. The drawer SHALL be the phone's alone and never stored:
+it back to the rail. A swipe left on the drawer SHALL follow the finger and
+put it away when let go past a third of its width or flicked, else spring
+back; the full-screen sidebar over the page takes the same swipe. On iOS,
+where the webview's back swipe (NAV-001) answers only at the screen's edge, a
+docked rail or sidebar takes that edge from it, so a right swipe from the
+screen's edge over the docked sidebar SHALL go back in the page as the
+webview's own swipe would; a tap there SHALL stay the rail's. The drawer SHALL be the phone's alone and never stored:
 a phone SHALL start at the rail, a sidebar open when the window narrows SHALL
 show the rail, and widening SHALL show the app-wide state again. A pick of a
 site or a tab in the drawer SHALL drop it back to the rail. To the back gesture the drawer SHALL be
 a drawer: Back closes it, and from a drawer Back opened, leaves the app
 (NAV-009).
+
+#### Scenario: The back swipe on iOS with the rail docked
+
+- **GIVEN** an iPhone with the rail docked beside a page with history
+- **WHEN** the user swipes right from the screen's left edge
+- **THEN** the page goes back
+
+#### Scenario: A swipe left puts the drawer away
+
+- **GIVEN** a phone with the sidebar drawer open
+- **WHEN** the user swipes it left
+- **THEN** it slides away and the rail shows
 
 #### Scenario: Narrowing keeps the app-wide state
 
@@ -1205,12 +1222,16 @@ app where the platform lets it, so the gesture never stops answering.
 
 With **Expand rail on hover** on (`sidebarExpandOnHover`, off by default), a
 pointer resting on the rail SHALL open the sidebar over the page, which keeps
-its width, until the pointer leaves it.
+its width, beside the rail rather than over it, so the rail's own controls
+(its expand button and its cross) stay where the pointer can reach them; it
+SHALL close once the pointer has left both the rail and the opened sidebar.
 
 #### Scenario: Hover opens, leaving closes
 
 - **GIVEN** the rail and Expand rail on hover on
 - **WHEN** the mouse rests on the rail
-- **THEN** the open sidebar shows over the page
-- **WHEN** the mouse leaves it
+- **THEN** the open sidebar shows over the page, beside the rail
+- **WHEN** the mouse moves down the rail to its cross and clicks it
+- **THEN** the sidebar hides
+- **WHEN** the mouse leaves the rail and the opened sidebar instead
 - **THEN** only the rail shows

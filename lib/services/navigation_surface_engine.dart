@@ -46,7 +46,6 @@ typedef NavigationSurfaces = ({
   SidebarDock dock,
   SidebarFloat float,
   bool arrowTab,
-  bool appBarSidebarIcon,
   bool tabCountButton,
   bool stripButton,
 });
@@ -56,7 +55,6 @@ const NavigationSurfaces _none = (
   dock: SidebarDock.none,
   float: SidebarFloat.none,
   arrowTab: false,
-  appBarSidebarIcon: false,
   tabCountButton: false,
   stripButton: false,
 );
@@ -83,7 +81,6 @@ const NavigationSurfaces _tabButton = (
   dock: SidebarDock.none,
   float: SidebarFloat.none,
   arrowTab: false,
-  appBarSidebarIcon: false,
   tabCountButton: true,
   stripButton: false,
 );
@@ -101,7 +98,6 @@ NavigationSurfaces _strip(NavigationQuery q) {
     dock: SidebarDock.none,
     float: SidebarFloat.none,
     arrowTab: false,
-    appBarSidebarIcon: false,
     tabCountButton: false,
     stripButton: button,
   );
@@ -120,7 +116,6 @@ NavigationSurfaces _sidebar(NavigationQuery q) {
               ? SidebarFloat.none
               : (q.wide ? SidebarFloat.overlay : SidebarFloat.drawer),
           arrowTab: !q.revealed,
-          appBarSidebarIcon: false,
           tabCountButton: false,
           stripButton: false,
         );
@@ -143,8 +138,6 @@ NavigationSurfaces _sidebar(NavigationQuery q) {
     dock: dock,
     float: float,
     arrowTab: hidden,
-    // Full screen has no app bar to hold it.
-    appBarSidebarIcon: hidden && !q.fullscreen,
     tabCountButton: false,
     stripButton: false,
   );
@@ -185,3 +178,19 @@ bool backOpensDrawer({
 /// Back then leaves the app from as from a drawer it opened (TAB-036).
 bool backMenuShown({required bool libraryDesign, required SidebarDock dock}) =>
     !libraryDesign && dock == SidebarDock.full;
+
+/// Whether a right swipe from the screen's edge over the docked sidebar is
+/// the page's back swipe: where the webview's own back swipe answers only at
+/// the screen's edge ([screenEdgeBack], Apple's), a docked sidebar takes that
+/// edge from it (NAV-001).
+bool edgeSwipeGoesBack({
+  required bool screenEdgeBack,
+  required SidebarDock dock,
+}) =>
+    screenEdgeBack && dock != SidebarDock.none;
+
+/// Whether Expand rail on hover is offered: only where a pointer can rest on
+/// the rail, a desktop or a device with a mouse or trackpad connected
+/// (APPSET-005).
+bool railHoverOffered({required bool desktop, required bool pointer}) =>
+    desktop || pointer;

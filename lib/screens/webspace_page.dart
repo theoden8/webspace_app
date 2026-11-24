@@ -102,7 +102,6 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/site_navigation.dart';
 import 'package:webspace/widgets/tab_chips.dart';
-import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/sidebar_squares.dart';
 import 'package:webspace/widgets/sidebar_rail.dart';
 import 'package:webspace/widgets/site_sidebar.dart';
@@ -984,9 +983,6 @@ class _WebSpacePageState extends State<WebSpacePage>
       // KIOSK-002: no leading menu button when locked.
       automaticallyImplyLeading:
           !_kioskLocked && !_libraryDesign && !_sidebarChosen,
-      leadingWidth: _surfaces.appBarSidebarIcon && _libraryDesign
-          ? kToolbarHeight * 2 - Spacing.sm
-          : null,
       leading: _appBarLeading(loc),
       title: currentModel != null
           ? GestureDetector(

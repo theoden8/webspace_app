@@ -1068,7 +1068,6 @@
   "stripShowSiteTabs": "Εμφάνιση καρτελών του {site}",
   "stripHideSiteTabs": "Απόκρυψη καρτελών του {site}",
   "tabsAllTabsMenu": "Όλες οι καρτέλες",
-  "sidebarOpen": "Άνοιγμα της πλευρικής στήλης καρτελών",
   "sidebarShow": "Εμφάνιση της πλευρικής στήλης καρτελών",
   "sidebarCollapse": "Σύμπτυξη στη στενή στήλη",
   "sidebarPutAway": "Κλείσιμο της πλευρικής στήλης",

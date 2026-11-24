@@ -64,7 +64,18 @@ class SiteSidebar extends StatelessWidget {
                       padding: const EdgeInsetsDirectional.only(
                         start: Spacing.md,
                       ),
-                      child: title,
+                      // At least the collapse button's height and centred in
+                      // it, so a one-line title sits level with the button
+                      // while the legacy header, taller, keeps its own.
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          minHeight: kMinInteractiveDimension,
+                        ),
+                        child: Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: title,
+                        ),
+                      ),
                     ),
                   ),
                   IconButton(

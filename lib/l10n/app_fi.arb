@@ -1068,7 +1068,6 @@
   "stripShowSiteTabs": "Näytä sivuston {site} välilehdet",
   "stripHideSiteTabs": "Piilota sivuston {site} välilehdet",
   "tabsAllTabsMenu": "Kaikki välilehdet",
-  "sidebarOpen": "Avaa välilehtien sivupalkki",
   "sidebarShow": "Näytä välilehtien sivupalkki",
   "sidebarCollapse": "Pienennä kapeaksi palkiksi",
   "sidebarPutAway": "Sulje sivupalkki",
