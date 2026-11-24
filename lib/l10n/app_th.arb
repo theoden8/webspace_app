@@ -1067,7 +1067,6 @@
   "tabsUnfoldSite": "แสดงแท็บของเว็บไซต์นี้",
   "stripShowSiteTabs": "แสดงแท็บของ {site}",
   "stripHideSiteTabs": "ซ่อนแท็บของ {site}",
-  "tabsAllTabsMenu": "แท็บทั้งหมด",
   "sidebarShow": "แสดงแถบด้านข้างของแท็บ",
   "sidebarCollapse": "ยุบเป็นแถบแคบ",
   "sidebarPutAway": "เก็บแถบด้านข้าง",
