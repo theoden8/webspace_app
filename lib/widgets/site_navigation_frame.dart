@@ -97,6 +97,10 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
 
   /// A pointer rests on the rail, or on the sidebar it opened beside it.
   bool _overRail = false;
+
+  /// How far left the finger has dragged the sidebar over the page, while
+  /// it drags.
+  double? _floatDrag;
   bool _overFlyout = false;
 
   bool get _flyout =>
@@ -258,11 +262,11 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
               ),
             ),
             AnimatedPositioned(
-              duration: slide,
+              duration: _floatDrag == null ? slide : Duration.zero,
               curve: floating
                   ? Easing.emphasizedDecelerate
                   : Easing.emphasizedAccelerate,
-              left: floating ? 0 : -widget.floatWidth - 24,
+              left: floating ? (_floatDrag ?? 0) : -widget.floatWidth - 24,
               top: 0,
               bottom: 0,
               width: widget.floatWidth,
@@ -272,9 +276,18 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
               // Built only while shown or sliding away: off screen it would be a
               // whole sidebar nobody sees.
               child: floating || _floatLeaving
-                  ? Material(
-                      elevation: 8,
-                      child: widget.panel(widget.floatWidth, floating: true),
+                  ? GestureDetector(
+                      onHorizontalDragUpdate: (d) => setState(() {
+                        _floatDrag = ((_floatDrag ?? 0) + d.delta.dx)
+                            .clamp(-widget.floatWidth, 0);
+                      }),
+                      onHorizontalDragEnd: (d) => _endFloatDrag(
+                        velocity: d.primaryVelocity ?? 0,
+                      ),
+                      child: Material(
+                        elevation: 8,
+                        child: widget.panel(widget.floatWidth, floating: true),
+                      ),
                     )
                   : const SizedBox.shrink(),
             ),
@@ -320,6 +333,16 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
         );
       },
     );
+  }
+
+  /// A drag of the sidebar over the page let go: past a third of its width,
+  /// or flicked left, it goes; otherwise it springs back.
+  void _endFloatDrag({required double velocity}) {
+    final dragged = _floatDrag ?? 0;
+    setState(() => _floatDrag = null);
+    if (dragged < -widget.floatWidth / 3 || velocity < -400) {
+      widget.onDismissFloat();
+    }
   }
 
   /// The open sidebar's grip moved by [dx]: a guide line shows the width it

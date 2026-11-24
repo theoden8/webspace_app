@@ -1124,12 +1124,20 @@ Its controls SHALL be:
 
 On a window narrower than 840 the rail (52 wide) SHALL stay docked beside the
 page and open SHALL be a 290-wide drawer over it, with a scrim whose tap puts
-it back to the rail. The drawer SHALL be the phone's alone and never stored:
+it back to the rail. A swipe left on the drawer SHALL follow the finger and
+put it away when let go past a third of its width or flicked, else spring
+back; the full-screen sidebar over the page takes the same swipe. The drawer SHALL be the phone's alone and never stored:
 a phone SHALL start at the rail, a sidebar open when the window narrows SHALL
 show the rail, and widening SHALL show the app-wide state again. A pick of a
 site or a tab in the drawer SHALL drop it back to the rail. To the back gesture the drawer SHALL be
 a drawer: Back closes it, and from a drawer Back opened, leaves the app
 (NAV-009).
+
+#### Scenario: A swipe left puts the drawer away
+
+- **GIVEN** a phone with the sidebar drawer open
+- **WHEN** the user swipes it left
+- **THEN** it slides away and the rail shows
 
 #### Scenario: Narrowing keeps the app-wide state
 

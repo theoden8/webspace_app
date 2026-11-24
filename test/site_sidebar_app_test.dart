@@ -65,7 +65,12 @@ Finder docked(Type type) => find.descendant(
 );
 
 /// The frame alone, with reduced motion, its sidebar standing in boxes.
-Widget frame(SidebarDock dock, {bool expandsOnHover = false}) => MaterialApp(
+Widget frame(
+  SidebarDock dock, {
+  bool expandsOnHover = false,
+  SidebarFloat float = SidebarFloat.none,
+  VoidCallback? onDismissFloat,
+}) => MaterialApp(
   home: MediaQuery(
     data: const MediaQueryData(disableAnimations: true),
     child: Scaffold(
@@ -73,7 +78,7 @@ Widget frame(SidebarDock dock, {bool expandsOnHover = false}) => MaterialApp(
         surfaces: (
           strip: false,
           dock: dock,
-          float: SidebarFloat.none,
+          float: float,
           arrowTab: false,
           tabCountButton: false,
           stripButton: false,
@@ -91,7 +96,7 @@ Widget frame(SidebarDock dock, {bool expandsOnHover = false}) => MaterialApp(
         onArrowTap: () {},
         onSettle: (SidebarState _) {},
         onReveal: (bool _) {},
-        onDismissFloat: () {},
+        onDismissFloat: onDismissFloat ?? () {},
         onHandleMoved: (double _) {},
         onResize: (double _) {},
       ),
@@ -271,6 +276,31 @@ void main() {
     await mouse.moveTo(const Offset(600, 300));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('panel')), findsNothing);
+  });
+
+  testWidgets('TAB-033 a swipe left puts the drawer away; a short one does '
+      'not', (tester) async {
+    var dismissed = 0;
+    await tester.pumpWidget(frame(
+      SidebarDock.rail,
+      float: SidebarFloat.drawer,
+      onDismissFloat: () => dismissed++,
+    ));
+    final drawer = find.byKey(const ValueKey('panel'));
+    expect(drawer, findsOneWidget);
+
+    await tester.drag(drawer, const Offset(-30, 0));
+    await tester.pumpAndSettle();
+    expect(dismissed, 0, reason: 'a short drag springs back');
+    expect(tester.getTopLeft(drawer).dx, 0);
+
+    await tester.drag(drawer, const Offset(-150, 0));
+    await tester.pumpAndSettle();
+    expect(dismissed, 1);
+
+    await tester.fling(drawer, const Offset(-60, 0), 1200);
+    await tester.pumpAndSettle();
+    expect(dismissed, 2, reason: 'a quick flick is enough');
   });
 
   testWidgets('with reduced motion the page takes its width at once (TAB-035)', (
