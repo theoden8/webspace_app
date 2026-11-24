@@ -245,8 +245,20 @@ missing piece: [docs/releasing.md](docs/releasing.md).
   history nobody reviewed. Resolve conflicts commit by commit so the
   translation split below survives the replay.
 - Before pushing a branch, check it still exists on remote; if merged+deleted, branch fresh from master.
-- **A change under `formal/`, to a step table or to the printer is pushed only after
-  `./formal/verify.sh` passes locally.** CI does not run it.
+- **Formal verification runs before the push, never in CI.** A change under `formal/`,
+  to a step table, a `Def`, an engine a table runs or the printer is pushed only after,
+  locally:
+  ```bash
+  export TLAPM_CACHE_DIR="$HOME/.cache/webspace-formal/tlapm"   # FORMAL_CACHE defaults beside it
+  fvm flutter test --tags formal        # the model's own tests, which CI's suite skips
+  ./formal/verify.sh --resume           # exit 0, read the last line
+  ```
+  Both caches outlive the checkout, so a run redoes only what the change reaches: the
+  printed model and schedule shards are kept while `input_key.py`'s key holds, a TLC run
+  or replay whose inputs did not change is remembered, and tlapm reproves only the
+  obligations whose fingerprints the change moved
+  ([formal/README.md](formal/README.md#remembered-runs)). `--fast` while iterating; the
+  push needs the full run. A change that touches none of these needs neither.
 - **A long branch is re-cut into theme commits before review**, each one thing a reviewer
   reads whole (walks and schedules; the model and its replay; tables and the printer; a bug
   each), authors kept, translations still their own commit.
@@ -379,7 +391,7 @@ unzip at the repository root ([scripts/lockfiles.sh](scripts/lockfiles.sh)).
 
 Dart in `test/`, integration in `integration_test/` (screenshots).
 
-Random walks ([test/helpers/walk/](test/helpers/walk/)) drive the real engines with seeded action sequences landing between platform replies, as events do, plus noise that must change nothing it does not predict; each runs twice and must match itself, and a broken one shrinks to a list that pastes as a regression. CI runs fixed seeds; `WALK_SEED=n` reruns one, `WALK_SEEDS=k` explores. Within a bound the same world is enumerated whole: every schedule of replies and arrivals with at most two preemptions ([schedules.dart](test/helpers/walk/schedules.dart)), less those that only move a flow's own reply ahead of steps whose footprints share no variable with it (sleep sets; held to the full search on sample worlds, `SCHEDULE_REDUCTION=off` runs it), with each bug found kept as a named script ([activation_schedules_test.dart](test/activation_schedules_test.dart)). A change to state other features read adds its actions and invariants to a world there ([site_activation_walk_test.dart](test/site_activation_walk_test.dart)).
+Random walks ([test/helpers/walk/](test/helpers/walk/)) drive the real engines with seeded action sequences landing between platform replies, as events do, plus noise that must change nothing it does not predict; each runs twice and must match itself, and a broken one shrinks to a list that pastes as a regression. They are tagged `formal` and run before a push with fixed seeds (Git above), not in CI; `WALK_SEED=n` reruns one, `WALK_SEEDS=k` explores. Within a bound the same world is enumerated whole: every schedule of replies and arrivals with at most two preemptions ([schedules.dart](test/helpers/walk/schedules.dart)), less those that only move a flow's own reply ahead of steps whose footprints share no variable with it (sleep sets; held to the full search on sample worlds, `SCHEDULE_REDUCTION=off` runs it), with each bug found kept as a named script ([activation_schedules_test.dart](test/activation_schedules_test.dart)). A change to state other features read adds its actions and invariants to a world there ([site_activation_walk_test.dart](test/site_activation_walk_test.dart)).
 
 ## Design (`tool/design_gallery/`)
 
@@ -451,7 +463,7 @@ missing-transition classes, and cross-spec interference — bugs in the gaps *be
 - Cite requirement IDs (`PAUSE-018`, `ARCH-001`, …) on the actions/properties that encode
   them so spec ↔ model stays grep-able.
 - **`./formal/verify.sh` runs all of it** (`--fast`: the printed modules and `activation.tla`
-  only); CI does not run it.
+  only), before a push (Git above); CI does not run it.
 - **Adding a spec that touches shared state → run the mix gate:** add its actions to `Next`
   and its property to the `.cfg`, then `./formal/verify.sh`. A counterexample means it does
   not mix; the trace names the breaking interleaving. Fix the design, not the model.

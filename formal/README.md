@@ -643,7 +643,7 @@ A TLC run's verdict is a function of its inputs: the config, every module the sp
 (the hand-written ones here and the printed ones, found over `EXTENDS` and `INSTANCE` in
 every directory TLC searches), the jar, and the line the run must print. `check.sh` keys
 each run by a hash of exactly these (`key`), and keeps a run that behaved under its key in
-`FORMAL_CACHE` (default `~/.cache/webspace-formal`, which CI restores between runs). A run
+`FORMAL_CACHE` (default `~/.cache/webspace-formal`, kept between local runs). A run
 whose key is kept is not run again: its OK line comes from the kept output, marked
 `(remembered)`, the footprint gate reads its coverage from it, and it counts in `TALLY` as
 the check it is. Verification still only grows: a remembered check is the very run that
@@ -664,7 +664,7 @@ the trace would remember it; and `--plant-key` replays under a key that leaves o
 printed model, which the parse check must refuse.
 
 The proofs keep theirs beside tlapm's fingerprints, under `TLAPM_CACHE_DIR/memo`
-([check_proofs.sh](proofs/check_proofs.sh)), which CI keeps with them. A module's key holds
+([check_proofs.sh](proofs/check_proofs.sh)), kept with them between local runs. A module's key holds
 tlapm's binary, which ships its library and backends, and every module in the directories
 tlapm searches (`proofs/`, the kernel's, the printed ones), more than any module reads, so
 a change to any of them proves every module again. A remembered module is held to its pin
