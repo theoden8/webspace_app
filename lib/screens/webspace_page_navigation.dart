@@ -210,28 +210,16 @@ extension _PageNavigation on _WebSpacePageState {
       _fullscreen.active &&
       currentFullscreenNavigation == FullscreenNavigation.button;
 
-  /// The app bar's leading buttons: the sidebar icon while the sidebar is
-  /// hidden, and the Alternative design's webspaces button.
+  /// The app bar's leading button: the Alternative design's way back to the
+  /// webspaces. A hidden sidebar comes back by its arrow tab alone.
   Widget? _appBarLeading(AppLocalizations loc) {
-    if (_kioskLocked) return null;
-    final sidebar = _surfaces.appBarSidebarIcon
-        ? IconButton(
-            icon: const SidebarIcon(),
-            tooltip: loc.sidebarOpen,
-            color: Theme.of(context).colorScheme.primary,
-            onPressed: () => _sidebar.openFully(wide: _wideNavigation),
-          )
-        : null;
-    final webspaces = _libraryDesign
-        ? IconButton(
-            icon: const Icon(Icons.apps_rounded),
-            tooltip: loc.homeBackToWebspaces,
-            onPressed: () =>
-                unawaited(_onSiteMenuAction(SiteMenuAction.backToWebspaces)),
-          )
-        : null;
-    if (sidebar == null || webspaces == null) return sidebar ?? webspaces;
-    return Row(mainAxisSize: MainAxisSize.min, children: [sidebar, webspaces]);
+    if (_kioskLocked || !_libraryDesign) return null;
+    return IconButton(
+      icon: const Icon(Icons.apps_rounded),
+      tooltip: loc.homeBackToWebspaces,
+      onPressed: () =>
+          unawaited(_onSiteMenuAction(SiteMenuAction.backToWebspaces)),
+    );
   }
 
   /// The page laid out with its sidebar.

@@ -1636,7 +1636,6 @@ Widget _sidebarFrame({
         dock: dock,
         float: drawer ? SidebarFloat.drawer : SidebarFloat.none,
         arrowTab: false,
-        appBarSidebarIcon: false,
         tabCountButton: false,
         stripButton: false,
       ),

@@ -1086,9 +1086,8 @@ Its controls SHALL be:
   collapses it to the rail;
 - the rail's sidebar icon at its top, which opens it, and its cross at its
   bottom, which hides it;
-- while hidden, the app bar's sidebar icon, which opens it fully, and the arrow
-  tab on the left edge;
-- the arrow tab, shown only while the sidebar is closed: a tap brings it back
+- the arrow tab on the left edge, shown only while the sidebar is closed and
+  the one way back from hidden (the app bar carries no second one): a tap brings it back
   as it was left; a drag right pulls it out under the finger and lets go at
   the nearest of hidden, the rail and open; a drag up or down moves the tab
   along the edge, remembered (`sidebarHandleY`); on Android 10 and later the
@@ -1105,15 +1104,15 @@ Its controls SHALL be:
 - **WHEN** the user drags right from the arrow tab at the screen's edge
 - **THEN** the sidebar pulls out under the finger, and the page does not go back
 
-#### Scenario: Collapse, hide, open fully
+#### Scenario: Collapse, hide, bring back
 
 - **GIVEN** the sidebar open on a wide window
 - **WHEN** the user taps its collapse button
 - **THEN** it is the rail
 - **WHEN** the user taps the rail's cross
-- **THEN** it is hidden and the arrow tab shows
-- **WHEN** the user taps the app bar's sidebar icon
-- **THEN** it is open, not the rail
+- **THEN** it is hidden, the arrow tab shows and the app bar has no sidebar icon
+- **WHEN** the user taps the arrow tab
+- **THEN** it is the rail again
 
 #### Scenario: The arrow tab brings back the rail it was hidden from
 

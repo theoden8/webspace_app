@@ -36,7 +36,6 @@ const NavigationSurfaces nothing = (
   dock: SidebarDock.none,
   float: SidebarFloat.none,
   arrowTab: false,
-  appBarSidebarIcon: false,
   tabCountButton: false,
   stripButton: false,
 );
@@ -50,7 +49,6 @@ void main() {
             dock: SidebarDock.none,
             float: SidebarFloat.none,
             arrowTab: false,
-            appBarSidebarIcon: false,
             tabCountButton: true,
             stripButton: false,
           ));
@@ -115,20 +113,19 @@ void main() {
       final s = surfaces();
       expect(s.dock, SidebarDock.full);
       expect(s.float, SidebarFloat.none);
-      expect((s.arrowTab, s.appBarSidebarIcon, s.tabCountButton, s.strip),
-          (false, false, false, false));
+      expect((s.arrowTab, s.tabCountButton, s.strip), (false, false, false));
     });
 
     test('collapsed docks the rail, with no arrow tab', () {
       final s = surfaces(sidebar: SidebarState.collapsed);
       expect(s.dock, SidebarDock.rail);
-      expect((s.arrowTab, s.appBarSidebarIcon), (false, false));
+      expect(s.arrowTab, isFalse);
     });
 
-    test('hidden shows the arrow tab and the app-bar icon', () {
+    test('hidden shows the arrow tab, its one way back', () {
       final s = surfaces(sidebar: SidebarState.hidden);
       expect(s.dock, SidebarDock.none);
-      expect((s.arrowTab, s.appBarSidebarIcon, s.strip), (true, true, false));
+      expect((s.arrowTab, s.strip), (true, false));
     });
   });
 
@@ -147,10 +144,9 @@ void main() {
           (SidebarDock.rail, SidebarFloat.none, false));
     });
 
-    test('hidden shows the arrow tab and the app-bar icon', () {
+    test('hidden shows the arrow tab, its one way back', () {
       final s = surfaces(wide: false, sidebar: SidebarState.hidden);
-      expect((s.dock, s.arrowTab, s.appBarSidebarIcon),
-          (SidebarDock.none, true, true));
+      expect((s.dock, s.arrowTab), (SidebarDock.none, true));
     });
   });
 
@@ -158,8 +154,8 @@ void main() {
     test('Button puts it away behind the arrow tab', () {
       final s = surfaces(
           fullscreen: true, inFullscreen: FullscreenNavigation.button);
-      expect((s.dock, s.float, s.arrowTab, s.appBarSidebarIcon),
-          (SidebarDock.none, SidebarFloat.none, true, false));
+      expect((s.dock, s.float, s.arrowTab),
+          (SidebarDock.none, SidebarFloat.none, true));
     });
 
     test('revealed, it shows over the page: an overlay wide, a drawer on a '
@@ -177,7 +173,7 @@ void main() {
       expect((phone.float, phone.arrowTab), (SidebarFloat.drawer, false));
     });
 
-    test('Kept docks it as out of full screen, with no app-bar icon', () {
+    test('Kept docks it as out of full screen', () {
       final s = surfaces(
           fullscreen: true,
           inFullscreen: FullscreenNavigation.kept,
@@ -187,7 +183,7 @@ void main() {
           fullscreen: true,
           inFullscreen: FullscreenNavigation.kept,
           sidebar: SidebarState.hidden);
-      expect((hidden.arrowTab, hidden.appBarSidebarIcon), (true, false));
+      expect(hidden.arrowTab, isTrue);
     });
 
     test('Hidden shows nothing', () {

@@ -75,7 +75,6 @@ Widget frame(SidebarDock dock, {bool expandsOnHover = false}) => MaterialApp(
           dock: dock,
           float: SidebarFloat.none,
           arrowTab: false,
-          appBarSidebarIcon: false,
           tabCountButton: false,
           stripButton: false,
         ),
@@ -102,7 +101,7 @@ Widget frame(SidebarDock dock, {bool expandsOnHover = false}) => MaterialApp(
 
 void main() {
   testWidgets('TAB-032 wide: open, the collapse button gives the rail, its cross '
-      'hides it, the app bar icon opens it fully', (tester) async {
+      'hides it, and only the arrow tab brings it back', (tester) async {
     await start(tester);
     expect(find.byType(SiteSidebar), findsWidgets);
     expect(
@@ -127,13 +126,16 @@ void main() {
     expect(AppPref.sidebarState.value, 'hidden');
     expect(find.byType(SidebarArrowTab), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Open the tab sidebar'));
-    await settleRealApp(tester);
     expect(
-      AppPref.sidebarState.value,
-      'open',
-      reason: 'the app bar icon opens it fully, never to the rail',
+      find.byTooltip('Open the tab sidebar'),
+      findsNothing,
+      reason: 'the arrow tab brings it back; the app bar carries no second '
+          'way to the same place',
     );
+    await tester.tap(find.byType(SidebarArrowTab));
+    await settleRealApp(tester);
+    expect(AppPref.sidebarState.value, 'collapsed',
+        reason: 'back as it was left');
   });
 
   testWidgets('TAB-032 wide: the arrow tab brings it back as it was left; a short '

@@ -46,7 +46,6 @@ typedef NavigationSurfaces = ({
   SidebarDock dock,
   SidebarFloat float,
   bool arrowTab,
-  bool appBarSidebarIcon,
   bool tabCountButton,
   bool stripButton,
 });
@@ -56,7 +55,6 @@ const NavigationSurfaces _none = (
   dock: SidebarDock.none,
   float: SidebarFloat.none,
   arrowTab: false,
-  appBarSidebarIcon: false,
   tabCountButton: false,
   stripButton: false,
 );
@@ -83,7 +81,6 @@ const NavigationSurfaces _tabButton = (
   dock: SidebarDock.none,
   float: SidebarFloat.none,
   arrowTab: false,
-  appBarSidebarIcon: false,
   tabCountButton: true,
   stripButton: false,
 );
@@ -101,7 +98,6 @@ NavigationSurfaces _strip(NavigationQuery q) {
     dock: SidebarDock.none,
     float: SidebarFloat.none,
     arrowTab: false,
-    appBarSidebarIcon: false,
     tabCountButton: false,
     stripButton: button,
   );
@@ -120,7 +116,6 @@ NavigationSurfaces _sidebar(NavigationQuery q) {
               ? SidebarFloat.none
               : (q.wide ? SidebarFloat.overlay : SidebarFloat.drawer),
           arrowTab: !q.revealed,
-          appBarSidebarIcon: false,
           tabCountButton: false,
           stripButton: false,
         );
@@ -143,8 +138,6 @@ NavigationSurfaces _sidebar(NavigationQuery q) {
     dock: dock,
     float: float,
     arrowTab: hidden,
-    // Full screen has no app bar to hold it.
-    appBarSidebarIcon: hidden && !q.fullscreen,
     tabCountButton: false,
     stripButton: false,
   );
