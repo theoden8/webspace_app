@@ -95,8 +95,14 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
   /// motion ends.
   bool _floatLeaving = false;
 
-  /// A pointer rests on the rail, or on the sidebar it opened over the page.
-  bool _hovered = false;
+  /// A pointer rests on the rail, or on the sidebar it opened beside it.
+  bool _overRail = false;
+  bool _overFlyout = false;
+
+  bool get _flyout =>
+      (_overRail || _overFlyout) &&
+      widget.expandsOnHover &&
+      _content == _Content.rail;
 
   static _Content _contentOf(SidebarDock dock) => switch (dock) {
     SidebarDock.none => _Content.none,
@@ -121,7 +127,10 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
   @override
   void didUpdateWidget(SiteNavigationFrame oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.surfaces.dock != widget.surfaces.dock) _hovered = false;
+    if (oldWidget.surfaces.dock != widget.surfaces.dock) {
+      _overRail = false;
+      _overFlyout = false;
+    }
     final next = _contentOf(widget.surfaces.dock);
     // Growing, the new content shows at once and the box grows over the
     // page; shrinking, the old content stays until the box has shrunk.
@@ -188,11 +197,8 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
               top: 0,
               bottom: 0,
               child: MouseRegion(
-                onEnter: (_) {
-                  if (widget.expandsOnHover && _content == _Content.rail) {
-                    setState(() => _hovered = true);
-                  }
-                },
+                onEnter: (_) => setState(() => _overRail = true),
+                onExit: (_) => setState(() => _overRail = false),
                 child: AnimatedContainer(
                   duration: morph,
                   curve: Motion.layoutCurve,
@@ -209,14 +215,17 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
                 ),
               ),
             ),
-            if (_hovered && widget.expandsOnHover && _content == _Content.rail)
+            // Beside the rail, not over it: the rail's own controls, its
+            // cross among them, stay under the pointer.
+            if (_flyout)
               Positioned(
-                left: 0,
+                left: widget.railWidth,
                 top: 0,
                 bottom: 0,
                 width: widget.floatWidth,
                 child: MouseRegion(
-                  onExit: (_) => setState(() => _hovered = false),
+                  onEnter: (_) => setState(() => _overFlyout = true),
+                  onExit: (_) => setState(() => _overFlyout = false),
                   child: Material(
                     elevation: 8,
                     child: widget.panel(widget.floatWidth, floating: true),

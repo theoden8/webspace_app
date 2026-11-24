@@ -1204,12 +1204,16 @@ app where the platform lets it, so the gesture never stops answering.
 
 With **Expand rail on hover** on (`sidebarExpandOnHover`, off by default), a
 pointer resting on the rail SHALL open the sidebar over the page, which keeps
-its width, until the pointer leaves it.
+its width, beside the rail rather than over it, so the rail's own controls
+(its expand button and its cross) stay where the pointer can reach them; it
+SHALL close once the pointer has left both the rail and the opened sidebar.
 
 #### Scenario: Hover opens, leaving closes
 
 - **GIVEN** the rail and Expand rail on hover on
 - **WHEN** the mouse rests on the rail
-- **THEN** the open sidebar shows over the page
-- **WHEN** the mouse leaves it
+- **THEN** the open sidebar shows over the page, beside the rail
+- **WHEN** the mouse moves down the rail to its cross and clicks it
+- **THEN** the sidebar hides
+- **WHEN** the mouse leaves the rail and the opened sidebar instead
 - **THEN** only the rail shows

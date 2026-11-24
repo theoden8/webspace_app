@@ -251,6 +251,16 @@ void main() {
       60,
       reason: 'over the page, which keeps its width',
     );
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('panel'))).dx,
+      60,
+      reason: 'beside the rail, whose own controls (its cross among them) '
+          'stay where the pointer can reach them',
+    );
+    await mouse.moveTo(const Offset(30, 580));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('panel')), findsOneWidget,
+        reason: 'still on the rail');
     await mouse.moveTo(const Offset(200, 300));
     await tester.pumpAndSettle();
     expect(
