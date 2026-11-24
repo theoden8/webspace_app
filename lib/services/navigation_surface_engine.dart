@@ -188,3 +188,9 @@ bool edgeSwipeGoesBack({
   required SidebarDock dock,
 }) =>
     screenEdgeBack && dock != SidebarDock.none;
+
+/// Whether Expand rail on hover is offered: only where a pointer can rest on
+/// the rail, a desktop or a device with a mouse or trackpad connected
+/// (APPSET-005).
+bool railHoverOffered({required bool desktop, required bool pointer}) =>
+    desktop || pointer;

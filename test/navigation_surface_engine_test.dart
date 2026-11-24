@@ -279,4 +279,12 @@ void main() {
           reason: 'where the system takes the edge itself, ${dock.name}');
     }
   });
+
+  test('APPSET-005: Expand rail on hover is offered only where a pointer can '
+      'hover: a desktop, or a mouse or trackpad connected', () {
+    expect(railHoverOffered(desktop: true, pointer: false), isTrue);
+    expect(railHoverOffered(desktop: false, pointer: true), isTrue);
+    expect(railHoverOffered(desktop: false, pointer: false), isFalse,
+        reason: 'a phone held in the hand has nothing to hover with');
+  });
 }
