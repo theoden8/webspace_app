@@ -143,6 +143,7 @@ class _Square extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(Radii.lg),
           child: Stack(
+            alignment: AlignmentDirectional.topCenter,
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(
