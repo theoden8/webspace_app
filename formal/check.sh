@@ -642,6 +642,14 @@ expect store_serial_lost.cfg store_serial.tla "Inv_NoLostUpdate is violated" \
 expect store_serial_reach.cfg store_serial.tla "Reach_TwoDone is violated" \
   "two ops can both complete (no-lost-update not vacuous)"
 
+section "PERSIST" "the page's saves keep the newest edit (WEBSPACE-005)"
+expect persist_order.cfg persist_order.tla "No error has been found" \
+  "with no save in flight the store holds the page's newest edit"
+expect persist_order_snapshot.cfg persist_order.tla "Inv_StoredLatest is violated" \
+  "a save that reads before its await writes an older edit back (caught)"
+expect persist_order_reach.cfg persist_order.tla "Reach_Overlap is violated" \
+  "two saves in flight at once (the newest-edit check not vacuous)"
+
 section "SWITCHGUARD" "site-switch version guard vs structural mutation"
 expect switchguard.cfg switchguard.tla "No error has been found" \
   "a superseded switch bails instead of activating the wrong site"
