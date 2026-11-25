@@ -1,6 +1,6 @@
 module webspace.local/interop
 
-go 1.25.0
+go 1.26.0
 
 require (
 	gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/goptlib v1.6.0
@@ -8,14 +8,14 @@ require (
 )
 
 require (
-	github.com/andybalholm/brotli v1.2.0 // indirect
+	github.com/andybalholm/brotli v1.3.0 // indirect
 	github.com/dchest/siphash v1.2.3 // indirect
-	github.com/klauspost/compress v1.18.3 // indirect
+	github.com/klauspost/compress v1.20.5 // indirect
 	github.com/refraction-networking/utls v1.8.2 // indirect
-	golang.org/x/crypto v0.53.0 // indirect
-	golang.org/x/net v0.56.0 // indirect
-	golang.org/x/sys v0.46.0 // indirect
-	golang.org/x/text v0.38.0 // indirect
+	golang.org/x/crypto v0.59.0 // indirect
+	golang.org/x/net v0.63.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
 	webspace.local/hiddenkey v0.0.0-00010101000000-000000000000 // indirect
 )
 
