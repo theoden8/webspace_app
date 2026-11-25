@@ -358,3 +358,42 @@ ExternalRoute routeExternal(
   ExternalUrlSuppressor.mark(info);
   return ExternalRouted(resolved);
 }
+
+/// What a load of an external scheme that failed in the top frame becomes.
+sealed class ExternalFailure {
+  const ExternalFailure();
+}
+
+/// Fired again within the window, on an engine that paints its error page
+/// over the site (Android's chrome-error://): about:blank clears it.
+final class ExternalFailureCleared extends ExternalFailure {
+  const ExternalFailureCleared();
+}
+
+/// Fired again within the window, on an engine that keeps the site painted
+/// (WebKit's error 102): loading anything would wipe the page, and the
+/// silent route this navigation may just have issued.
+final class ExternalFailureKept extends ExternalFailure {
+  const ExternalFailureKept();
+}
+
+/// Not fired moments ago: routed as a navigation without a gesture is.
+final class ExternalFailureRouted extends ExternalFailure {
+  const ExternalFailureRouted(this.route);
+
+  final ExternalRoute route;
+}
+
+/// The answer to a top-frame load of [info] that failed (EXT-007).
+ExternalFailure routeExternalFailure(
+  ExternalUrlInfo info, {
+  required bool paintsErrorPage,
+}) {
+  if (ExternalUrlSuppressor.isSuppressedInfo(info)) {
+    return paintsErrorPage
+        ? const ExternalFailureCleared()
+        : const ExternalFailureKept();
+  }
+  return ExternalFailureRouted(
+      routeExternal(info, hasGesture: false, frame: NavigationFrame.top));
+}

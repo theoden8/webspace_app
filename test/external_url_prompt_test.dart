@@ -47,7 +47,7 @@ void main() {
   }
 
   testWidgets(
-      "EXT-005: 'Open in browser' loads the cleaned fallback in this webview, "
+      "EXT-005, EXT-007: 'Open in browser' loads the cleaned fallback in this webview, "
       'and the choice silences the next fire', (tester) async {
     const fallback =
         'https://www.google.com/maps?entry=ml&utm_campaign=ml-ardi-wv';
@@ -67,6 +67,23 @@ void main() {
     expect(
         ExternalUrlSuppressor.isSuppressedInfo(ExternalUrlParser.parse(url)!),
         isTrue);
+  });
+
+  testWidgets('EXT-007: a cancel marks the intent and silences its re-fire',
+      (tester) async {
+    const url = 'intent://x/#Intent;scheme=geo;package=com.example.ext007;end';
+    final view = FakeWebViewController();
+    await prompt(tester, url: url, view: view);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(
+        ExternalUrlSuppressor.isSuppressedInfo(ExternalUrlParser.parse(url)!),
+        isTrue);
+    await tester.tap(find.text('go'));
+    await tester.pumpAndSettle();
+    expect(find.text('Cancel'), findsNothing,
+        reason: 'the choice a moment ago answers the page\'s second fire');
+    expect(view.calls, isEmpty);
   });
 
   testWidgets('EXT-005: a fallback that is no web page is never offered',

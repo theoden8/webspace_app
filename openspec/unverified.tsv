@@ -34,7 +34,6 @@ DESIGN-002	no check: the web compile is scripts/design_web.sh, run by hand; no c
 # dns-blocklist
 # downloads
 # external-scheme-handling
-EXT-007	no check: ExternalUrlSuppressor, the gesture bypass, the Android-only about:blank clear and dialog marking are unchecked; the bypass reads hasGesture (Android) or the navigation type (Apple), and the test host is neither, so no Dart test can drive it without a platform seam
 EXT-009	no check: not implemented: tasks 2.1 to 2.4 of upstream-webview-defects (the fork patch and the decline-path gate) are open
 # file-import-sites
 IMPORT-004	no check: no test builds a file-import webview through createWebView and asserts the import renders via initialHtml/initialData, nor that its links open nested (partly: test/webview_controller_lifetime_test.dart, "a load of an import's URL renders the import, however it is issued")

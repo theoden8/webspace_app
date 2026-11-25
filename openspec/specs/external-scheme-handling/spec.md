@@ -228,12 +228,14 @@ After a navigation resolves through the silent route path or the user makes a ch
 **When** the page's JS re-fires the same URL (no gesture) moments later
 **Then** the suppression cache returns true for the same key
 **And** the re-fire is `CANCEL`led without re-loading the resolved URL (x.com re-fires its Safari bounce on every page render; re-resolving would reload forever)
+**And** `routeExternal` in `test/external_url_engine_test.dart` holds that a routed fire is marked and a re-fire without a gesture is dropped
 
 #### Scenario: User-gesture navigation bypasses suppression
 
 **Given** a suppression entry exists for an intent the user just routed
 **When** the user taps a link firing the same intent (hasGesture=true)
 **Then** the silent route resolves and loads it anyway
+**And** the same test holds that the tap is routed past the mark
 
 #### Scenario: Suppressed onReceivedError clears the error paint on Android only
 
@@ -242,12 +244,14 @@ After a navigation resolves through the silent route path or the user makes a ch
 **Then** about:blank is loaded to clear the error commit
 **When** the platform is iOS/macOS (WebKit error 102 leaves the committed page painted)
 **Then** the handler no-ops — loading about:blank would wipe the visible page and clobber a just-issued silent-route load
+**And** `routeExternalFailure` in `test/external_url_engine_test.dart` holds the choice, which the handler takes with `paintsErrorPage: hostIsAndroid`
 
 #### Scenario: Dialog choices mark suppression
 
 **Given** the user picks Cancel / Open in browser / Open in app in the dialog
 **Then** `ExternalUrlSuppressor.mark(info)` is called for that info
 **And** a re-fire within the suppression window is silenced
+**And** `test/external_url_prompt_test.dart` holds it for Cancel and Open in browser
 
 ---
 

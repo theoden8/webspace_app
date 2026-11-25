@@ -88,7 +88,7 @@ void main() {
       }
     });
 
-    test('a script firing it again within the window is dropped, a tap is not',
+    test('EXT-007: a script firing it again within the window is dropped, a tap is not',
         () {
       final info = intent('maps-ext007');
       expect(
@@ -103,6 +103,45 @@ void main() {
         routeExternal(info, hasGesture: true, frame: NavigationFrame.top),
         isA<ExternalRouted>(),
       );
+    });
+  });
+
+  group('routeExternalFailure (EXT-007)', () {
+    ExternalUrlInfo intent(String path) => ExternalUrlParser.parse(
+          'intent://www.google.com/$path#Intent;scheme=https;'
+          'S.browser_fallback_url=https%3A%2F%2Fwww.google.com%2F$path;end',
+        )!;
+
+    test('EXT-007: a failure not fired moments ago routes as a script\'s navigation',
+        () {
+      for (final paints in [true, false]) {
+        final route = routeExternalFailure(intent('fail-fresh-$paints'),
+            paintsErrorPage: paints);
+        expect(route, isA<ExternalFailureRouted>());
+        expect((route as ExternalFailureRouted).route, isA<ExternalRouted>());
+      }
+      final tel = routeExternalFailure(ExternalUrlParser.parse('tel:+15550101')!,
+          paintsErrorPage: true);
+      expect((tel as ExternalFailureRouted).route, isA<ExternalAsk>());
+    });
+
+    test('EXT-007: a re-fire clears the error page only where the engine paints one',
+        () {
+      final info = intent('fail-again');
+      routeExternal(info, hasGesture: false, frame: NavigationFrame.top);
+      expect(routeExternalFailure(info, paintsErrorPage: true),
+          isA<ExternalFailureCleared>(),
+          reason: 'Android paints chrome-error:// over the site');
+      expect(routeExternalFailure(info, paintsErrorPage: false),
+          isA<ExternalFailureKept>(),
+          reason: 'WebKit keeps the site painted; about:blank would wipe it');
+    });
+
+    test('EXT-007: a routed failure marks it, so the next fire is silenced', () {
+      final info = intent('fail-marks');
+      routeExternalFailure(info, paintsErrorPage: true);
+      expect(routeExternal(info, hasGesture: false, frame: NavigationFrame.top),
+          isA<ExternalDropped>());
     });
   });
 
