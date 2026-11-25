@@ -41,12 +41,10 @@ HS-014	no check: the Swift SiteEntityQuery.entities(for:) live/tombstone/placeho
 # inactive-tabs
 # incognito-mode
 # integration-tests
-INTEG-001	no check: pass-secret-service is set up by a CI workflow step; no test or gate asserts the collection is unlocked or that no 'Failed to unlock the keyring' line is logged, and the integration tests fall back to an in-memory keychain when the real one throws (installInMemoryKeychainIfUnavailable)
 INTEG-003	process: a test-authoring convention (mock plugin dialogs at the platform-interface level); nothing in the app to run against
 INTEG-004	process: a test-harness convention (set isDemoMode and mock SharedPreferences in setUpAll); the demo-mode guard it relies on is tested separately (partly: test/app_prefs_test.dart, "demo mode applies a pref without persisting it")
 INTEG-005	process: a test-writing pattern (re-open App Settings between pop-then-callback taps); no app behaviour to check
 INTEG-008	process: conventions for writing a new integration test file; nothing to run
-INTEG-009	no check: macOS integration step configuration in build-and-test.yml (per-file loop, keychain unlock, entitlements override, disk reclaim); no gate reads the workflow for it
 INTEG-011	no check: the tier is scripts/run_android_lifecycle_tests.sh with scripts/classify_window_pixels.py, not a counted check; no test checks its warm-start, bfcache-back or recreation scenarios or the classifier's parity with SurfaceDiagNative.classify (partly: test/diag_seed_test.dart, "passes an explicit siteId through so the harness can activate it")
 # ios-universal-link-bypass
 # ip-leakage

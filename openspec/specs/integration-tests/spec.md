@@ -66,11 +66,14 @@ rather than the desktop `-d` path.
 - **Status**: Implemented
 - **Harness**: Cross-platform (`integration_test/*.dart` runs on any
   `-d` target Flutter supports)
-- **CI Integration**: GitHub Actions
-  ([`build-and-test.yml`](../../../.github/workflows/build-and-test.yml)).
-  Two desktop targets are wired in:
-  - `build-linux` job → `Run Linux integration tests` step (`-d linux`).
-  - `build-apple` job → `Run macOS integration tests` step (`-d macos`).
+- **Where it runs**: locally, as CLAUDE.md's Commands describe; CI runs no
+  integration tier. The desktop targets run every file through
+  [`scripts/integration_bundle.sh`](../../../scripts/integration_bundle.sh):
+  - Linux (`-d linux`) inside
+    [`scripts/linux_test_session.sh`](../../../scripts/linux_test_session.sh),
+    whose session the Linux screenshots job also runs in.
+  - macOS (`-d macos`) after
+    [`scripts/prepare_macos_ci_debug.sh`](../../../scripts/prepare_macos_ci_debug.sh).
 
   Both are desktop. The mobile targets (Android emulator + iOS
   Simulator) are a separate, device-booted harness and are a future
@@ -80,13 +83,11 @@ rather than the desktop `-d` path.
 
 ## Pipeline Architecture
 
-Two CI pipelines run the same test files. The macOS pipeline
-(`build-apple` job) is a single `Run macOS integration tests` step:
-`security unlock-keychain`, one build of every file, then a launch per
-file — no container, no display server, no secret-service backend,
-because `macos-latest` provides all three natively. The Linux pipeline
-(`build-linux` job) carries the bulk of the scaffolding and has three
-layers:
+Two desktop targets run the same test files. macOS is the bundle script
+after `prepare_macos_ci_debug.sh` (`security unlock-keychain`), one build of
+every file, then a launch per file: no container, no display server, no
+secret-service backend, because macOS provides all three natively. Linux
+carries the bulk of the scaffolding and has three layers:
 
 1. **Container + apt deps** (`debian:sid-slim`) — sid is the only
    Debian release with `libwpewebkit-2.0-dev` ≥ 2.50, which the
@@ -121,46 +122,32 @@ Linux screenshot lane runs in the same session (SCREENSHOT-009).
 
 ### Requirement: INTEG-001 — Headless Secret Service
 
-The harness SHALL provide an unlocked `org.freedesktop.secrets` dbus
-implementation so `flutter_secure_storage` round-trips without
-prompting. `gnome-keyring-daemon` SHALL NOT be the provider; it
-auto-activates a fresh daemon per the dbus service file
-(`/usr/share/dbus-1/services/org.freedesktop.secrets.service`,
-`Exec=/usr/bin/gnome-keyring-daemon --start --foreground --components=secrets`)
-and that daemon prompts via gcr-prompter on every collection unlock,
-which headless Xvfb cannot dismiss.
+The Linux session the integration tests and the Linux screenshots run in
+(`scripts/linux_test_session.sh`, set up by
+`.github/actions/linux-toolchain`) SHALL provide an unlocked
+`org.freedesktop.secrets` dbus implementation, so `flutter_secure_storage`
+round-trips without prompting. `gnome-keyring-daemon` SHALL NOT be the
+provider: dbus auto-activates a fresh one on libsecret's first call, and it
+prompts through gcr-prompter on every collection unlock, which a headless
+display cannot dismiss.
 
-#### Scenario: pass-secret-service claims the bus name before the test starts
+#### Scenario: pass-secret-service claims the bus name before the command runs
 
-- **Given** the Linux integration test step has installed pipx,
-  `pass-secret-service`, and applied the cryptography 46+ + pydbus
-  list-buffer compat patches
-- **And** a passphrase-less RSA gpg key is generated and `pass init`
-  has registered the password store
-- **When** `pass_secret_service` is started under `dbus-run-session`
-  in the same session as the test
-- **Then** the daemon owns `org.freedesktop.secrets` on the dbus session bus
-- **And** subsequent libsecret calls reach pass-secret-service rather than
-  triggering dbus auto-activation of gnome-keyring-daemon
+- **Given** `.github/actions/linux-toolchain` installed `pass-secret-service`
+- **And** the session script made a passphrase-less gpg key and ran
+  `pass init` with it
+- **When** the script runs its command under `dbus-run-session`
+- **Then** `pass_secret_service` was started on that session bus first
+- **And** no `gnome-keyring-daemon` is started
 
-#### Scenario: Default collection is unlocked before the test
+#### Scenario: Default collection is unlocked before the command
 
 - **Given** `pass_secret_service` is running on the session bus
-- **When** the harness runs
-  `python3 -c "secretstorage.get_default_collection(conn).unlock()"`
-- **Then** the default collection's `Locked` property is `false`
-- **And** subsequent `flutter_secure_storage.read` / `.write` calls
-  succeed without `PlatformException(Libsecret error, Failed to unlock the keyring)`
-
-#### Scenario: Encryption services initialize cleanly
-
-- **Given** the default collection is unlocked
-- **When** the app's `main()` runs
-- **Then** the log contains `[HtmlImport/info] Generated new encryption key`
-  and `[HtmlImport/debug] Encryption initialized`
-- **And** the same for `[HtmlCache/...]` and `[WebViewState/...]`
-- **And** zero log lines match `Failed to unlock the keyring` or
-  `PlatformException(Libsecret`
+- **When** the script readies the session
+- **Then** it unlocks the default collection through `secretstorage`
+  before running the command
+- **And** it prints the collection's `locked` state to the log, so a
+  keyring that stayed locked is named there
 
 ---
 
@@ -368,48 +355,41 @@ already picks up every `integration_test/*_test.dart`.
 
 ---
 
-### Requirement: INTEG-009 — macOS runner reuses the harness natively
+### Requirement: INTEG-009 — macOS runs the harness through the bundle script
 
-The same `integration_test/*_test.dart` files SHALL run on the
-`macos-latest` runner via `-d macos` in the `build-apple` job, reusing
-the cross-platform harness with no macOS-specific test code. macOS
-supplies natively what the Linux job builds by hand, so the platform
-setup is thin: no Xvfb/weston (the runner has a window server), no
-`xdg-user-dirs` (path_provider resolves the sandbox container), and no
-`pass-secret-service` (`flutter_secure_storage` reaches the login
-keychain). The step SHALL run every file it takes (excluding
-`screenshot_test.dart`) in an app process of its own, as the Linux
-step does, so adding a scenario per INTEG-008 needs no workflow edit on
-either target. It SHALL build the app once for all of them, as the
-Linux step does: `scripts/integration_bundle.sh build` writes one
-entrypoint holding every file and builds it, and each launch (`run`)
-runs the file `WEBSPACE_INTEGRATION_LAUNCH` names.
+The same `integration_test/*_test.dart` files SHALL run on macOS through
+`scripts/integration_bundle.sh`, reusing the cross-platform harness with no
+macOS-specific test code. macOS supplies natively what the Linux session
+builds by hand: no Xvfb or weston, no `xdg-user-dirs`, no
+`pass-secret-service`. The app SHALL be built once for every file (`build
+macos`, one entrypoint holding every file, `--ci`), and each file SHALL run in
+an app process of its own (`run macos <file>`), through the built app when
+there is one and else through that file's own `flutter test -d macos --ci`.
+`scripts/prepare_macos_ci_debug.sh` SHALL ready a runner first.
 
-#### Scenario: macOS step runs every non-screenshot scenario
+#### Scenario: One build, an app process per file
 
-- **Given** the `build-apple` job has built the macOS app
-- **When** the `Run macOS integration tests` step runs
-- **Then** it builds the app once (`fvm flutter build macos --debug --ci`
-  on that entrypoint), and launches it once per
-  `integration_test/*_test.dart` it takes, skipping
-  `screenshot_test.dart`, through
-  `fvm flutter drive --use-application-binary` (Flutter 3.44.9 declares
-  drive's `--no-build` and never reads it, so without a prebuilt binary
-  each file paid a full Xcode build)
-- **And** when the app does not build or does not launch, each file
-  runs its own `fvm flutter test <file> -d macos --ci`
-- **And** a non-zero exit from any file, the proxy arms included, is
-  remembered and re-raised after the loop so one failure does not mask
-  the others
+- **Given** a list of `integration_test/*_test.dart` files
+- **When** `integration_bundle.sh build macos <files>` runs
+- **Then** it writes one entrypoint importing every file and builds it with
+  `fvm flutter build macos --debug --ci`
+- **And** `integration_bundle.sh run macos <file> <log>` launches the built app
+  through `fvm flutter drive --use-application-binary`, naming the file in
+  `WEBSPACE_INTEGRATION_LAUNCH`
+- **And** when no app was built, or the app does not launch, the file runs its
+  own `fvm flutter test <file> -d macos --ci`
 
-#### Scenario: Login keychain is unlocked before secure-storage tests
+#### Scenario: The login keychain is unlocked and the debug entitlements fit an ad-hoc signature
 
-- **Given** the macOS runner's login keychain backs
-  `flutter_secure_storage`
-- **When** the step runs `security unlock-keychain` before the tests
-- **Then** `flutter_secure_storage` round-trips (proxy passwords,
-  HtmlImport/HtmlCache/WebViewState keys) without raising an
-  interactive keychain prompt that headless CI cannot dismiss
+- **Given** a runner with no Apple signing identity
+- **When** `scripts/prepare_macos_ci_debug.sh` runs
+- **Then** it unlocks the login keychain with `security unlock-keychain`
+- **And** it overwrites `macos/Runner/DebugProfile.entitlements` with the stock
+  Flutter debug set plus `network.server` and `network.client`, without the
+  team-prefixed `application-groups` and `keychain-access-groups` an ad-hoc
+  signature cannot back (docs/releasing-macos.md)
+- **And** `--ci` re-signs with the sandbox off, so the tool reaches the app's
+  Dart VM Service
 
 #### Scenario: No macOS-specific harness code
 
@@ -418,68 +398,6 @@ runs the file `WEBSPACE_INTEGRATION_LAUNCH` names.
 - **Then** it passes without any `Platform.isMacOS` branch, because the
   plugin platform-interface stubs (`file_picker`) and method-channel
   mocks (`flutter_inappwebview_proxycontroller`) are platform-agnostic
-
-#### Scenario: Ad-hoc signing needs an entitlements override and --ci
-
-- **Given** the CI runner has no Apple signing identity, so the debug
-  app is ad-hoc signed
-- **And** the committed `macos/Runner/DebugProfile.entitlements`
-  declares provisioning-dependent entitlements (the team-prefixed
-  `application-groups` and `keychain-access-groups`) that an ad-hoc
-  signature cannot satisfy
-- **When** `scripts/prepare_macos_ci_debug.sh`, run ahead of the macOS
-  integration tests and of the macOS screenshots, overwrites that file
-  with the stock Flutter debug set (`app-sandbox`, `cs.allow-jit`,
-  `files.user-selected.read-write`, `network.server`, `network.client`)
-  minus those two keys, and the step runs `flutter test -d macos --ci`
-- **Then** `taskgated` accepts the ad-hoc signature (instead of
-  SIGKILL'ing the app as "Code Signature Invalid"), and `--ci`
-  (`usingCISystem`) re-signs with the sandbox disabled so the tool
-  discovers the app's Dart VM Service instead of timing out 12 minutes
-  on "log reader stopped unexpectedly"
-- **And** because no `keychain-access-groups` entitlement survives
-  (even a bare, de-prefixed one re-triggers the launch SIGKILL under
-  ad-hoc), `flutter_secure_storage`'s data-protection keychain fails
-  every op with `errSecMissingEntitlement` (-34018) and the legacy
-  keychain can't be selected instead (`MacOsOptions.usesDataProtection`
-  `Keychain` is a no-op — the Dart map key mismatches the native
-  `useDataProtectionKeyChain` the darwin plugin reads); the tests that
-  need a working keychain (`settings_backup_roundtrip_test`,
-  `http_auth_test`) call `installInMemoryKeychainIfUnavailable()`
-  (`integration_test/secure_storage_fake.dart`) — it probes the real
-  plugin and installs an in-memory channel fake only when it throws, so
-  macOS runs them with the fake while Linux keeps its real
-  pass-secret-service round-trip — and every other test tolerates the
-  logged, non-fatal -34018
-- **And** the override never reaches a release build — the runner
-  checks out fresh and release builds keep the committed entitlements
-  plus a real signing identity
-
-#### Scenario: Disk is reclaimed before the macOS integration loop
-
-- **Given** the `build-apple` job has built the iOS IPA and the macOS
-  release app, so the iOS archive tree (`build/ios`) and the macOS
-  release build tree (`build/macos`, Release config) both sit on the
-  runner's tight disk
-- **And** the `Run macOS integration tests` step is about to build the
-  macOS app in the *debug* configuration, which Xcode keys separately
-  from the release objects and never reuses
-- **When** a `Reclaim disk before macOS integration tests` step runs
-  before the loop
-- **Then** it removes `build/macos/Build/Intermediates.noindex` (the
-  release object files) and everything under `build/ios` except
-  `build/ios/ipa`, leaving the two post-loop deliverables intact — the
-  IPA (`Upload IPA`) and the Release `.app` under
-  `build/macos/Build/Products/Release` (`Create macOS ZIP archive`)
-- **And** it does not touch `rust/webspace_adblock/target`, because the
-  webspace_adblock pod's always-out-of-date script phase re-invokes
-  `scripts/build_rust.sh apple` on every debug build and an intact
-  `target/` keeps cargo an incremental no-op instead of a full
-  five-slice recompile per debug build
-- **And** without this reclamation the loop exhausts the disk mid-run
-  (observed: the 4th file failing on rsync `Input/output error` copying
-  `App.framework`, then a truncated `Flutter-Generated.xcconfig` and a
-  corrupted Flutter SDK for every file after)
 
 ---
 
