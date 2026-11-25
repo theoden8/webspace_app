@@ -83,7 +83,7 @@ class ShortcutService {
     ShortcutId? shortcutId,
     Uint8List? iconBytes,
   }) async {
-    if (!hostIsAndroid && !hostIsIOS && !hostIsMacOS) {
+    if (!hostIsAndroid && !appIntents) {
       return PinShortcutResult.failed;
     }
     final arguments = await tileArguments(
@@ -124,7 +124,7 @@ class ShortcutService {
   /// with the url ledger); iOS/macOS return `{siteId, url}`. A bare siteId
   /// string is still read, so the platforms share one call site.
   static Future<ShortcutLaunch?> getLaunch() async {
-    if (!hostIsAndroid && !hostIsIOS && !hostIsMacOS) {
+    if (!hostIsAndroid && !appIntents) {
       return null;
     }
     final Object? res;
@@ -248,7 +248,7 @@ class ShortcutService {
     List<ShortcutSite> sites, {
     List<ShortcutSite> tombstones = const [],
   }) async {
-    if (!hostIsIOS && !hostIsMacOS) return;
+    if (!appIntents) return;
     switch (await _channel.ask<Object?>('syncSites', arguments: {
       'sites': sites.map((s) => s.toMap()).toList(),
       'tombstones': tombstones.map((s) => s.toMap()).toList(),
@@ -276,10 +276,18 @@ class ShortcutService {
   /// Test and design gallery seam.
   static bool? debugOfferedOverride;
 
+  /// Whether a shortcut here is an App Intents one, whose picker reads the
+  /// site list [syncSites] writes: iOS and macOS.
+  static bool get appIntents =>
+      debugAppIntentsOverride ?? (hostIsIOS || hostIsMacOS);
+
+  /// Test seam: a test on another host plays an Apple one.
+  static bool? debugAppIntentsOverride;
+
   static Future<void> probe() async {
     final method = hostIsAndroid
         ? 'canPinShortcuts'
-        : hostIsIOS || hostIsMacOS
+        : appIntents
             ? 'isAppIntentsSupported'
             : null;
     if (method == null) return;

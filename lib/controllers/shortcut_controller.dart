@@ -210,7 +210,7 @@ class ShortcutController implements HomeShortcutsHost {
       }
       return;
     }
-    if (!(hostIsIOS || hostIsMacOS) || !ShortcutService.offered) return;
+    if (!ShortcutService.appIntents || !ShortcutService.offered) return;
     if (hostIsIOS) {
       await _prompts.explainIosShortcut(model.name);
       return;
@@ -451,7 +451,7 @@ class ShortcutController implements HomeShortcutsHost {
   Future<void> siteDeleted(WebViewModel deleted,
       {required Set<ShortcutId> tiles}) async {
     if (tiles.isNotEmpty && _host.mounted) await _decideTileFate(tiles);
-    if ((hostIsIOS || hostIsMacOS) && !deleted.isArchiveTier) {
+    if (ShortcutService.appIntents && !deleted.isArchiveTier) {
       await _recordTombstone(deleted.siteId,
           label: deleted.name, url: deleted.initUrl);
     }
@@ -570,7 +570,7 @@ class ShortcutController implements HomeShortcutsHost {
       _publishHomeShortcuts();
       return;
     }
-    if (!hostIsIOS && !hostIsMacOS) return;
+    if (!ShortcutService.appIntents) return;
     final sites = [
       for (final m in _sites.models)
         if (!m.isArchiveTier)
