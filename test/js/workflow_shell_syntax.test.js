@@ -142,7 +142,8 @@ test('the ci-only marker is honoured on pull requests only', () => {
 // the version line. A step gated on the event by hand would skip the release
 // PR and nothing would fail: YAML has no type for "this step makes a
 // screenshot".
-test('optional jobs run on a manual run and on a release PR, decided by plan', () => {
+test('optional jobs run on a manual run and on a release PR, decided by plan '
+    + '(SCREENSHOT-004)', () => {
   const text = read(WORKFLOW);
   assert.ok(
     !/\n\s+if: github\.event_name == 'workflow_dispatch'/.test(text),
@@ -166,7 +167,7 @@ test('optional jobs run on a manual run and on a release PR, decided by plan', (
 // at once, and the merge job is what makes them one download. A set whose job
 // the merge does not wait for is uploaded after the merge ran and is missing
 // from it, with every job green.
-test('every device feeds the one screenshots artifact', () => {
+test('every device feeds the one screenshots artifact (SCREENSHOT-004)', () => {
   const text = read(WORKFLOW);
   const merge = job(text, 'screenshots');
   assert.match(merge, /pattern: '\*-screenshots'/);
@@ -184,6 +185,59 @@ test('every device feeds the one screenshots artifact', () => {
   assert.match(ios, /name: \$\{\{ matrix\.device \}\}-screenshots\n/);
   assert.match(ios, /name: \$\{\{ matrix\.device \}\}-framed-screenshots\n/,
     'the iOS framed sets no longer reach the merge');
+});
+
+// A device's set starts with the build jobs, not after a test tier, and sets
+// its platform up the way that platform's build does, through one action in
+// .github/actions/: a screenshot job with a toolchain of its own drifts from
+// the build it is meant to show.
+const SCREENSHOT_BUILDS = {
+  'screenshots-android': 'build-android',
+  'screenshots-ios': 'build-ios',
+  'screenshots-macos': 'build-macos',
+  'screenshots-linux': 'build-linux',
+};
+
+/** The toolchain actions a job's steps use. */
+function toolchains(block) {
+  return (block.steps ?? []).map((step) => step.uses ?? '')
+    .filter((uses) => /^\.\/\.github\/actions\/[a-z-]+-toolchain$/.test(uses));
+}
+
+/** What the rule above finds wrong in [workflow], parsed. */
+function screenshotJobProblems(workflow) {
+  const problems = [];
+  for (const [id, build] of Object.entries(SCREENSHOT_BUILDS)) {
+    const block = workflow.jobs[id];
+    const needs = [block.needs].flat();
+    if (needs.length !== 1 || needs[0] !== 'plan') {
+      problems.push(`${id} waits on ${needs.join(', ')}, not on the plan job alone`);
+    }
+    const own = toolchains(block);
+    const builds = toolchains(workflow.jobs[build]);
+    if (own.length !== 1 || !builds.includes(own[0])) {
+      problems.push(`${id} sets up ${own.join(', ') || 'no toolchain action'}, not ${build}'s`);
+    }
+  }
+  return problems;
+}
+
+test('each device\'s screenshots start with the builds, on its build\'s toolchain '
+    + '(SCREENSHOT-004)', () => {
+  const workflow = YAML.parse(read(WORKFLOW));
+  assert.deepEqual(screenshotJobProblems(workflow), []);
+
+  const late = structuredClone(workflow);
+  late.jobs['screenshots-linux'].needs = ['plan', 'tests'];
+  assert.deepEqual(screenshotJobProblems(late),
+    ['screenshots-linux waits on plan, tests, not on the plan job alone']);
+
+  const own = structuredClone(workflow);
+  own.jobs['screenshots-macos'].steps = own.jobs['screenshots-macos'].steps
+    .map((step) => (step.uses === './.github/actions/apple-toolchain'
+      ? { ...step, uses: './.github/actions/linux-toolchain' } : step));
+  assert.deepEqual(screenshotJobProblems(own),
+    ["screenshots-macos sets up ./.github/actions/linux-toolchain, not build-macos's"]);
 });
 
 // Some lock files are written only on one platform: Podfile.lock by the pod

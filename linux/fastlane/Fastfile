@@ -11,8 +11,8 @@ platform :linux do
     File.expand_path("../..", __dir__)
   end
 
-  # Window captures at 1440x900 for the metainfo, so no frameit step, as on
-  # macOS.
+  # Window captures within the 1000x700 Flathub sets, title bar included, so
+  # no frameit step, as on macOS.
   desc "Generate screenshots using Flutter integration test"
   lane :screenshots do
     screenshots_dir = File.join(project_root, "screenshots", "linux")
