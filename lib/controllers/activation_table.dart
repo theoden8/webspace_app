@@ -64,12 +64,7 @@ abstract final class ActivationTable {
 
   /// The site on screen: the one a return home leaves, and the one a nested
   /// screen covers.
-  static final _onScreen = Expr.op<SiteId, ActivationFlow>(
-    HandPaired.onScreen,
-    tla: 'current',
-    run: (c) => ActivationFlow.page.from(c).shown!,
-    reads: const Reads(vars: {ModelVar.current}),
-  );
+  static final _onScreen = _current.value.unwrapped;
 
   /// The target's saved back stack queued for its active tab, and the
   /// frame after a commit building its webview (TAB-003).
@@ -482,11 +477,10 @@ abstract final class ActivationTable {
 
   /// The target of the activation in flight while no input has superseded
   /// it, the model's `LiveTarget`.
-  static final _liveTarget = Expr.op<SiteId?, ActivationFlow>(
-    HandPaired.liveTarget,
-    tla: 'LiveTarget',
+  static final _liveTarget = Expr.base<SiteId?, ActivationFlow>(
+    BaseOp.liveTarget,
+    args: const [],
     run: (c) => ActivationFlow.page.from(c).liveTarget,
-    reads: const Reads(base: {BaseOp.liveTarget}),
   );
   static final _behindSite = _behind.value.unwrapped;
   static final _online = Expr.ofConstant<bool, ActivationFlow>(

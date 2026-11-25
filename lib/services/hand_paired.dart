@@ -15,8 +15,6 @@ abstract interface class Pairing implements Enum {}
 /// fails on a site that names none, and on a value no site or two sites
 /// name.
 enum HandPaired implements Pairing {
-  /// The site on screen, the model's `current`, as the activation reads it.
-  onScreen,
 
   /// The sites on the list (`Listed`) a pick ranges over.
   listedSites,
@@ -30,8 +28,6 @@ enum HandPaired implements Pairing {
   /// The activation's site taken off the list (`site \in gone`).
   activationSiteGone,
 
-  /// The activation's target while it runs (`LiveTarget`).
-  liveTarget,
 
   /// An archive open with none of its sites gone
   /// (`Archive # {} /\ Archive \cap gone = {}`).
@@ -61,14 +57,8 @@ enum HandPaired implements Pairing {
   /// (`current \in Tabbed`).
   tabbedOnScreen,
 
-  /// A fresh tab id left in the model's pool (`HasFresh(current)`).
-  hasFreshTab,
 
-  /// The fresh tab id for the site on screen (`Mint(current)`).
-  mintOnScreen,
 
-  /// The fresh tab id for the flow's site (`Mint(fl[f].site)`).
-  mintForSite,
 
   /// The sites with tabs a reset lands at home
   /// (`Listed \cap Resettable \cap Tabbed`).
@@ -122,8 +112,6 @@ enum HandPaired implements Pairing {
   /// A jar plan run by a flow of the model (`fl[f].kind # "none"`).
   modeledPlan,
 
-  /// The activation's target as the jar's dispose reads it (`LiveTarget`).
-  jarLiveTarget,
 
   /// The levels a prune may drop as it is asked: any held but the app-wide
   /// level and those a listed site asks for (DNS-021).
@@ -147,8 +135,6 @@ enum HandPaired implements Pairing {
   /// keeps no back stack).
   captureNone,
 
-  /// The activation's target as the unload's dispose reads it (`LiveTarget`).
-  unloadLiveTarget,
 
   /// An unload whose reason keeps the back stack, which the model knows by
   /// its flow's kind (PAUSE-007).

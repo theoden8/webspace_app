@@ -207,23 +207,20 @@ abstract final class TabTable {
   static final _chosenTab = _eachTab.it;
 
   /// A fresh tab id (TabId.mint, never repeated): the model's pool.
-  static final _hasFresh = Expr.op<bool, TabFlow>(
-    HandPaired.hasFreshTab,
-    tla: 'HasFresh(current)',
+  static final _hasFresh = Expr.base<bool, TabFlow>(
+    BaseOp.hasFresh,
+    args: [_current],
     run: (_) => true,
-    reads: const Reads(vars: {ModelVar.current}, base: {BaseOp.hasFresh}),
   );
-  static final _mint = Expr.op<TabId, TabFlow>(
-    HandPaired.mintOnScreen,
-    tla: 'Mint(current)',
+  static final _mint = Expr.base<TabId, TabFlow>(
+    BaseOp.mint,
+    args: [_current],
     run: (c) => _flow.from(c).fresh!.id,
-    reads: const Reads(vars: {ModelVar.current}, base: {BaseOp.mint}),
   );
-  static final _mintSite = Expr.op<TabId, TabFlow>(
-    HandPaired.mintForSite,
-    tla: 'Mint(fl[f].site)',
+  static final _mintSite = Expr.base<TabId, TabFlow>(
+    BaseOp.mint,
+    args: [_site.value],
     run: (c) => _flow.from(c).fresh!.id,
-    reads: const Reads(base: {BaseOp.mint}),
   );
   static final _mintedBump = modelOnly<TabFlow>(
     "minted' = [minted EXCEPT ![current] = Mint(current)]",

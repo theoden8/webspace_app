@@ -636,11 +636,10 @@ class SiteUnloadEngine {
         ModelVar.current,
         read: (w) => w.host.vars.current.value,
       ).value,
-      liveTarget: Expr.op(
-        HandPaired.unloadLiveTarget,
-        tla: 'LiveTarget',
+      liveTarget: Expr.base(
+        BaseOp.liveTarget,
+        args: const [],
         run: (c) => _vars.from(c).liveTarget,
-        reads: const Reads(base: {BaseOp.liveTarget}),
       ),
     ),
     then: (c) => _plan.from(c).disposed(_victim.of(c)),

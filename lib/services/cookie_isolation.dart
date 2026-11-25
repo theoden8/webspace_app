@@ -511,11 +511,10 @@ class CookieIsolationEngine {
         ModelVar.current,
         read: (w) => w.vars.current.value,
       ).value,
-      liveTarget: Expr.op(
-        HandPaired.jarLiveTarget,
-        tla: 'LiveTarget',
+      liveTarget: Expr.base(
+        BaseOp.liveTarget,
+        args: const [],
         run: (c) => _unloadVars.from(c).liveTarget,
-        reads: const Reads(base: {BaseOp.liveTarget}),
       ),
     ),
     then: (c) => _unload.from(c).disposed(),
