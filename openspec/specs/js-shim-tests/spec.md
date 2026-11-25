@@ -105,6 +105,16 @@ a copy or paraphrase.
   binds `config` the way `PageJs.withConfig` does, and `eval`s it inside
   a fresh jsdom realm
 
+#### Scenario: A test retypes a function of a script
+
+- **GIVEN** a test function that shares a run of 40 tokens with a script in
+  `lib/js/`
+- **WHEN** `test/js/page_script_copies.test.js` runs
+- **THEN** it fails naming the function and the script, unless the function
+  is listed there with why it is not the script under test
+- **AND** a test of one function of a script reads it with
+  `scriptFunctions(name, { names, given })`, the script's own text
+
 #### Scenario: Polyfilled APIs are minimal stubs only
 
 - **GIVEN** a shim wraps a browser API jsdom does not implement

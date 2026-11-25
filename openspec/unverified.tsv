@@ -54,7 +54,6 @@ INTEG-011	no check: the tier is scripts/run_android_lifecycle_tests.sh with scri
 # ios-universal-link-bypass
 # ip-leakage
 # js-shim-tests
-SHIM-TEST-002	no check: nothing stops a test from running its own copy of a script written as a function; the parity gate only holds pageJs() to PageJs, the lint only catches template copies, and installBrowserPolyfills' stubs are unchecked (partly: test/js/page_js.test.js, "this tier reads lib/js the way PageJs does")
 # kiosk-mode
 # language
 # lazy-webview-loading

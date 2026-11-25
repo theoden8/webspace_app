@@ -14,6 +14,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
 const { listen, closeServer } = require('./helpers/blank_server');
+const { scriptFunctions } = require('../js/helpers/page_js');
 
 const browser = setupBrowser();
 
@@ -34,14 +35,7 @@ const REQUESTS = [
   ['fetch', '/wsboth/z', true],
 ];
 
-function fnv1a(s, seed) {
-  let h = seed >>> 0;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619) >>> 0;
-  }
-  return h >>> 0;
-}
+const { fnv1a } = scriptFunctions('block_js_interceptor', { names: ['fnv1a'] });
 
 /** A Bloom filter of [items], hashed as the interceptor reads it. */
 function bloomOf(items) {

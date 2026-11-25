@@ -1,8 +1,7 @@
-// Validates the hostless-rule token prefilter used by the iOS/macOS JS
-// sub-resource interceptor (block_interceptor_shim.dart). fnv1a / the bloom build /
-// urlMaybeGeneric are copied from the interceptor and BloomFilter so the
-// test exercises the exact algorithm; if you change either side, change
-// it here too.
+// Validates the hostless-rule token prefilter of the iOS/macOS JS
+// sub-resource interceptor (lib/js/block_js_interceptor.js): its own fnv1a,
+// tokenHit and urlMaybeGeneric, read from the script (scriptFunctions), so a
+// change to the script is a change to what runs here (SHIM-TEST-002).
 //
 // Two properties matter, and they're tested differently:
 //   * No false NEGATIVE (the safety property): a stored token is ALWAYS
@@ -15,16 +14,12 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { scriptFunctions } = require('./helpers/page_js');
 
-// ---- copied from lib/services/bloom_filter.dart (BloomFilter.build) ----
-function fnv1a(s, seed) {
-  let h = seed >>> 0;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619) >>> 0;
-  }
-  return h >>> 0;
-}
+const { fnv1a } = scriptFunctions('block_js_interceptor', { names: ['fnv1a'] });
+
+// The bloom lib/services/bloom_filter.dart (BloomFilter.build) hands the
+// page, sized as it sizes one.
 function buildBloom(items, fpRate = 0.02) {
   const arr = [...new Set(items)];
   const n = arr.length;
@@ -45,38 +40,22 @@ function buildBloom(items, fpRate = 0.02) {
   }
   return { bits, bitCount, k };
 }
+
+// The interceptor's tokenHit over a bloom, as the page holds one.
 function bloomMember(b) {
-  return function (tok) {
-    const h1 = fnv1a(tok, 0x811c9dc5);
-    const h2 = fnv1a(tok, 0xcbf29ce4);
-    for (let i = 0; i < b.k; i++) {
-      const pos = ((h1 + i * h2) >>> 0) % b.bitCount;
-      if ((b.bits[pos >> 3] & (1 << (pos & 7))) === 0) return false;
-    }
-    return true;
-  };
+  return scriptFunctions('block_js_interceptor', {
+    names: ['fnv1a', 'tokenHit'],
+    given: { tokenBits: b.bits, tokenBitCount: b.bitCount, tokenK: b.k },
+  }).tokenHit;
 }
 
-// ---- urlMaybeGeneric, copied from the interceptor (block_interceptor_shim.dart) ----
-// `member(tok)` stands in for the embedded tokenHit(); the membership
-// backend is injected so logic tests can use an exact set.
+// The interceptor's urlMaybeGeneric, `member(tok)` standing in for its
+// tokenHit, so logic tests can use an exact set.
 function urlMaybeGeneric(url, member) {
-  const s = url.toLowerCase();
-  const n = s.length > 2048 ? 2048 : s.length;
-  let start = -1;
-  for (let i = 0; i <= n; i++) {
-    const c = i < n ? s.charCodeAt(i) : 0;
-    const alnum = (c >= 48 && c <= 57) || (c >= 97 && c <= 122);
-    if (alnum) {
-      if (start < 0) start = i;
-    } else {
-      if (start >= 0) {
-        if (i - start >= 3 && member(s.substring(start, i))) return true;
-        start = -1;
-      }
-    }
-  }
-  return false;
+  return scriptFunctions('block_js_interceptor', {
+    names: ['urlMaybeGeneric'],
+    given: { tokenHit: member },
+  }).urlMaybeGeneric(url);
 }
 const exact = (set) => (tok) => set.has(tok);
 
