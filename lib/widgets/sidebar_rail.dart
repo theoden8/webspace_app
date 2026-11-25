@@ -119,36 +119,41 @@ class _RailSite extends StatelessWidget {
       child: Center(
         child: Tooltip(
           message: site.getDisplayName(),
-          child: Material(
-            color: on ? scheme.secondaryContainer : scheme.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(Radii.lg),
-              side: BorderSide(
-                color: on ? scheme.primary : scheme.outlineVariant,
-                width: on ? 1.5 : Chrome.hairlineWidth,
-              ),
-            ),
-            child: InkWell(
-              onTap: onOpen,
-              borderRadius: BorderRadius.circular(Radii.lg),
-              child: SizedBox(
-                width: 40,
-                height: 40,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  alignment: Alignment.center,
-                  children: [
-                    UnifiedFaviconImage.site(site, size: 22),
-                    if (count > 1)
-                      PositionedDirectional(
-                        top: -5,
-                        end: -5,
-                        child: TabCountPill(count: count, active: on),
-                      ),
-                  ],
+          // The count outside the square's Material, which paints its border
+          // over its children.
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Material(
+                color: on ? scheme.secondaryContainer : scheme.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(Radii.lg),
+                  side: BorderSide(
+                    color: on ? scheme.primary : scheme.outlineVariant,
+                    width: on ? 1.5 : Chrome.hairlineWidth,
+                  ),
+                ),
+                child: InkWell(
+                  onTap: onOpen,
+                  borderRadius: BorderRadius.circular(Radii.lg),
+                  child: SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: Center(
+                      child: UnifiedFaviconImage.site(site, size: 22),
+                    ),
+                  ),
                 ),
               ),
-            ),
+              if (count > 1)
+                PositionedDirectional(
+                  top: -5,
+                  end: -5,
+                  child: IgnorePointer(
+                    child: TabCountPill(count: count, active: on),
+                  ),
+                ),
+            ],
           ),
         ),
       ),

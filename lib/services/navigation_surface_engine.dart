@@ -16,6 +16,8 @@ typedef NavigationQuery = ({
   bool legacyWebspace,
   // The full-screen control has shown its strip or sidebar.
   bool revealed,
+  // A narrow window docks the rail ([railOnNarrow]).
+  bool narrowRail,
 });
 
 /// Whether full screen shows a floating control (the strip's button or the
@@ -27,6 +29,12 @@ bool floatsInFullscreen({
 }) =>
     navigation != SiteNavigation.tabButton &&
     inFullscreen == FullscreenNavigation.button;
+
+/// Whether a narrow window docks the rail beside the page: not where the
+/// webview's back swipe answers only at the screen's edge ([screenEdgeBack],
+/// iOS), which a docked rail would take from it (TAB-033). There the arrow
+/// tab stands for the rail.
+bool railOnNarrow({required bool screenEdgeBack}) => !screenEdgeBack;
 
 /// Whether a window this wide docks the sidebar beside the page; a
 /// narrower one is a phone's, where open is a drawer over the page (the
@@ -122,6 +130,16 @@ NavigationSurfaces _sidebar(NavigationQuery q) {
       case FullscreenNavigation.kept:
         break;
     }
+  }
+  if (!q.wide && !q.narrowRail) {
+    return (
+      strip: false,
+      dock: SidebarDock.none,
+      float: q.drawerShown ? SidebarFloat.drawer : SidebarFloat.none,
+      arrowTab: !q.drawerShown,
+      tabCountButton: !q.fullscreen,
+      stripButton: false,
+    );
   }
   final (dock, float) = switch ((q.sidebar, q.wide)) {
     (SidebarState.open, true) => (SidebarDock.full, SidebarFloat.none),

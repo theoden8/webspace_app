@@ -53,8 +53,14 @@ class SidebarController extends ChangeNotifier {
     if (!wide) _showDrawer(shown: true);
   }
 
-  /// The arrow tab's tap: back as it was before it was hidden.
-  void restore() => _set(_beforeHidden ?? SidebarState.open);
+  /// The arrow tab's tap: back as it was before it was hidden, and where no
+  /// rail docks ([drawer]) the drawer over the page.
+  void restore({required bool drawer}) {
+    if (state == SidebarState.hidden) {
+      _set(_beforeHidden ?? SidebarState.open);
+    }
+    if (drawer) _showDrawer(shown: true);
+  }
 
   /// The keyboard shortcut.
   void cycle() => _set(switch (state) {

@@ -71,9 +71,10 @@ Widget frame(
   SidebarFloat float = SidebarFloat.none,
   VoidCallback? onDismissFloat,
   EdgeBack? edgeBack,
+  bool still = true,
 }) => MaterialApp(
   home: MediaQuery(
-    data: const MediaQueryData(disableAnimations: true),
+    data: MediaQueryData(disableAnimations: still),
     child: Scaffold(
       body: SiteNavigationFrame(
         surfaces: (
@@ -343,6 +344,39 @@ void main() {
     await tester.pumpAndSettle();
     expect(back, 0);
     expect(tester.getTopLeft(page).dx, 60);
+  });
+
+  testWidgets('TAB-033 the drawer closes into the rail and opens out of it, '
+      'at the screen\'s edge, never sliding off it', (tester) async {
+    final drawer = find.byKey(const ValueKey('panel'));
+    Rect shown() => tester.getRect(
+      find.ancestor(of: drawer, matching: find.byType(ClipRect)).first,
+    );
+    await tester.pumpWidget(frame(
+      SidebarDock.rail,
+      float: SidebarFloat.drawer,
+      still: false,
+    ));
+    await tester.pumpAndSettle();
+    expect(shown().width, 260);
+
+    await tester.pumpWidget(frame(SidebarDock.rail, still: false));
+    await tester.pump(const Duration(milliseconds: 125));
+    expect(shown().left, 0);
+    expect(shown().width, inExclusiveRange(60, 260));
+    await tester.pumpAndSettle();
+    expect(drawer, findsNothing);
+
+    await tester.pumpWidget(frame(
+      SidebarDock.rail,
+      float: SidebarFloat.drawer,
+      still: false,
+    ));
+    await tester.pump(const Duration(milliseconds: 125));
+    expect(shown().left, 0);
+    expect(shown().width, inExclusiveRange(60, 260));
+    await tester.pumpAndSettle();
+    expect(shown().width, 260);
   });
 
   testWidgets('TAB-033 a swipe left puts the drawer away; a short one does '

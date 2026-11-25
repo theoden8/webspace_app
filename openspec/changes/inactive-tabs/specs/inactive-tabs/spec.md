@@ -1125,11 +1125,17 @@ Its controls SHALL be:
 
 On a window narrower than 840 the rail (52 wide) SHALL stay docked beside the
 page and open SHALL be a 290-wide drawer over it, with a scrim whose tap puts
-it back to the rail. A swipe left on the drawer SHALL follow the finger and
-put it away when let go past a third of its width or flicked, else spring
-back; the full-screen sidebar over the page takes the same swipe. On iOS,
-where the webview's back swipe (NAV-001) answers only at the screen's edge, a
-docked rail or sidebar takes that edge from it, so a right swipe from the
+it back to the rail. The drawer SHALL open out of the rail and close back
+into it, growing from and narrowing to the rail's width at the screen's edge,
+never sliding off it. A swipe left on the drawer SHALL narrow it with the
+finger and put it away when let go past a third of its width or flicked, else
+spring back; the full-screen sidebar over the page, with no rail beneath it,
+takes the same swipe and slides. On iOS the webview's back swipe (NAV-001)
+answers only at the screen's edge, which a docked rail would take from it, so
+a narrow window on iOS SHALL dock no rail: the page SHALL reach the screen's
+edge and keep the webview's own back swipe, the arrow tab SHALL stand for the
+rail, and its tap SHALL bring the drawer over the page, which slides. On a
+wide iOS window, where the sidebar docks, a right swipe from the
 screen's edge over the docked sidebar SHALL pull the page with the finger,
 over a backdrop with a back arrow, and go back in the page once let go past a
 third of its width or flung; short of that it SHALL spring back, and at the
@@ -1141,9 +1147,18 @@ site or a tab in the drawer SHALL drop it back to the rail. To the back gesture 
 a drawer: Back closes it, and from a drawer Back opened, leaves the app
 (NAV-009).
 
-#### Scenario: The back swipe on iOS with the rail docked
+#### Scenario: An iPhone keeps the screen's edge for the back swipe
 
-- **GIVEN** an iPhone with the rail docked beside a page with history
+- **GIVEN** an iPhone with Site navigation set to Sidebar
+- **THEN** no rail docks and the arrow tab shows on the left edge
+- **WHEN** the user swipes right from the screen's left edge
+- **THEN** the webview's own back swipe goes back in the page
+- **WHEN** the user taps the arrow tab
+- **THEN** the sidebar opens as a drawer over the page
+
+#### Scenario: The back swipe on an iPad with the sidebar docked
+
+- **GIVEN** an iPad with the rail docked beside a page with history
 - **WHEN** the user swipes right from the screen's left edge
 - **THEN** the page follows the finger
 - **WHEN** the user lets go past a third of the page's width
@@ -1153,7 +1168,7 @@ a drawer: Back closes it, and from a drawer Back opened, leaves the app
 
 - **GIVEN** a phone with the sidebar drawer open
 - **WHEN** the user swipes it left
-- **THEN** it slides away and the rail shows
+- **THEN** it narrows into the rail
 
 #### Scenario: Narrowing keeps the app-wide state
 

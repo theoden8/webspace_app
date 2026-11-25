@@ -17,6 +17,7 @@ NavigationSurfaces surfaces({
   bool siteOnScreen = true,
   bool legacyWebspace = false,
   bool revealed = false,
+  bool narrowRail = true,
 }) =>
     navigationSurfaces((
       navigation: navigation,
@@ -28,6 +29,7 @@ NavigationSurfaces surfaces({
       kioskLocked: kioskLocked,
       siteOnScreen: siteOnScreen,
       legacyWebspace: legacyWebspace,
+      narrowRail: narrowRail,
       revealed: revealed,
     ));
 
@@ -147,6 +149,31 @@ void main() {
     test('hidden shows the arrow tab, its one way back', () {
       final s = surfaces(wide: false, sidebar: SidebarState.hidden);
       expect((s.dock, s.arrowTab), (SidebarDock.none, true));
+    });
+  });
+
+  group('sidebar, iPhone', () {
+    test('TAB-033 an iOS phone docks no rail, so the page keeps the screen '
+        'edge for its back swipe', () {
+      expect(railOnNarrow(screenEdgeBack: true), isFalse);
+      expect(railOnNarrow(screenEdgeBack: false), isTrue);
+    });
+
+    test('TAB-033 with no rail on a narrow window the arrow tab stands for it, '
+        'and the drawer comes over the page', () {
+      for (final state in SidebarState.values) {
+        final closed =
+            surfaces(wide: false, narrowRail: false, sidebar: state);
+        expect((closed.dock, closed.float, closed.arrowTab),
+            (SidebarDock.none, SidebarFloat.none, true),
+            reason: state.name);
+      }
+      final open =
+          surfaces(wide: false, narrowRail: false, drawerShown: true);
+      expect((open.dock, open.float, open.arrowTab),
+          (SidebarDock.none, SidebarFloat.drawer, false));
+      expect(surfaces(narrowRail: false).dock, SidebarDock.full,
+          reason: 'a wide window docks it as ever');
     });
   });
 
