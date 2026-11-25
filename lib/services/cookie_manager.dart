@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/platform/host_platform.dart';
@@ -75,6 +76,9 @@ final inapp.CookieManager _plugin = inapp.CookieManager.instance();
 /// throws named once: every cookie op in the app comes through here.
 Future<T> cookieChannel<T>(
     Future<T> Function(inapp.CookieManager plugin) call) async {
+  // The web build (the designer app) has no jar: the plugin throws
+  // UnimplementedError there, which no caller of a jar's failure catches.
+  if (kIsWeb) throw const CookieJarFailure('no cookie jar on the web');
   try {
     return await call(_plugin);
   } on PlatformException catch (e, stack) {
@@ -88,10 +92,15 @@ Future<T> cookieChannel<T>(
 }
 
 /// The shared jar the legacy engine's sites use. Every call fails only with
-/// [CookieJarFailure].
+/// [CookieJarFailure]. The web build (the designer app) runs no webview, so
+/// its jar is empty and stays empty: a refusal there would stop every
+/// activation, which empties the jar before a site shows (ISO-012).
 class CookieManager {
-  Future<List<Cookie>> getCookies({required Uri url}) => cookieChannel(
-      (plugin) => plugin.getCookies(url: inapp.WebUri(url.toString())));
+  Future<List<Cookie>> getCookies({required Uri url}) async {
+    if (kIsWeb) return const [];
+    return cookieChannel(
+        (plugin) => plugin.getCookies(url: inapp.WebUri(url.toString())));
+  }
 
   /// Returns every cookie in the native jar regardless of URL scoping.
   /// `getCookies(url)` only returns cookies that would be sent with a request
@@ -135,7 +144,7 @@ class CookieManager {
     bool? isSecure,
     bool? isHttpOnly,
   }) async {
-    if (value.isEmpty) return;
+    if (value.isEmpty || kIsWeb) return;
     await cookieChannel((plugin) => plugin.setCookie(
           url: inapp.WebUri(url.toString()),
           name: name,
@@ -153,13 +162,15 @@ class CookieManager {
     required String name,
     String? domain,
     String? path,
-  }) =>
-      cookieChannel((plugin) => plugin.deleteCookie(
-            url: inapp.WebUri(url.toString()),
-            name: name,
-            domain: domain,
-            path: path ?? '/',
-          ));
+  }) async {
+    if (kIsWeb) return;
+    await cookieChannel((plugin) => plugin.deleteCookie(
+          url: inapp.WebUri(url.toString()),
+          name: name,
+          domain: domain,
+          path: path ?? '/',
+        ));
+  }
 
   /// Used for per-site cookie isolation when switching between same-domain sites.
   Future<void> deleteAllCookiesForUrl(Uri url) async {
@@ -176,6 +187,7 @@ class CookieManager {
 
   /// Used for aggressive cookie isolation when switching between same-domain sites.
   Future<void> deleteAllCookies() async {
+    if (kIsWeb) return;
     await cookieChannel((plugin) => plugin.deleteAllCookies());
   }
 

@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:webspace/services/page_js.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/demo_data.dart';
 import 'package:webspace/app.dart';
@@ -30,6 +31,9 @@ import 'package:webspace/services/webview.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await loadRoboto();
+  // The page scripts a site's webview is built with, as lib/main.dart loads
+  // them; without them opening a site fails.
+  await PageJs.load();
 
   final prefs = await SharedPreferences.getInstance();
   final seeded = (prefs.getStringList('webViewModels') ?? const []).isNotEmpty;
