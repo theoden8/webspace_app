@@ -227,6 +227,26 @@ void main() {
       );
     });
 
+    // Planted mistake: the button's onPressed left empty kept rebuildCalls
+    // at 0.
+    testWidgets('Rebuild circuits asks the runtime for new circuits',
+        (t) async {
+      final runtime = installEngine();
+      await TorService.instance.maybeStart(TorSiteHolder(SiteId('ui-test')));
+      await t.pumpWidget(
+          host(const TorStatusCard(), size: const Size(430, 300)));
+      runtime.emit(const TorUp('127.0.0.1', port: 41337));
+      await settle(t);
+
+      await t.tap(find.text('Rebuild circuits'));
+      await settle(t);
+      expect(runtime.rebuildCalls, 1);
+
+      await t.pumpWidget(const SizedBox.shrink());
+      await settle(t);
+      await t.pump(const Duration(seconds: 91));
+    });
+
     testWidgets('bootstrapping shows percent and phase', (t) async {
       await withState(
         t,
@@ -631,6 +651,29 @@ void main() {
         expect(find.text('Bridges'), findsNothing,
             reason: "bridges stay that tor's own");
         await shoot(t, name: 'external_control_differences');
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+
+    // Planted mistake: ExternalTorRuntime.rebuildCircuits returning before
+    // it asked the link left newnyms at 0.
+    testWidgets('Rebuild circuits sends that tor SIGNAL NEWNYM', (t) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        final tor = FakeTorControl();
+        await external(t, tor: tor);
+        window(t, height: 1100);
+        await t.pumpWidget(host(
+            TorStatusScreen(
+                sites: {SiteId('mail'): (name: 'Mail', exitNodes: null)}),
+            size: const Size(430, 1100)));
+        await settle(t);
+
+        await t.tap(find.text('Rebuild circuits'));
+        await settle(t);
+        expect(tor.newnyms, 1);
+        await shoot(t, name: 'external_control_rebuilt');
       } finally {
         debugDefaultTargetPlatformOverride = null;
       }
