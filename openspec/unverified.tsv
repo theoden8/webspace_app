@@ -36,7 +36,7 @@ EXT-009	no check: not implemented: tasks 2.1 to 2.4 of upstream-webview-defects 
 # file-import-sites
 # fullscreen-mode
 # home-shortcut
-HS-009	no check: no test that persisting sites and the startup restore call ShortcutService.syncSites, nor of the Swift App Group write; shortcut_service_test only checks syncSites is a no-op off Apple
+HS-009	no check: nothing checks the Swift side, the App Group write under shortcut_sites, the updateAppShortcutParameters call or the warning when the suite is missing (partly: test/shortcut_site_sync_app_test.dart, "a launch with nothing saved still syncs the picker" and "a save syncs the picker with the sites as saved")
 HS-010	no check: no test of the iOS/macOS instructional dialog, its ShortcutsUIButton or Open Shortcuts button
 HS-014	no check: the Swift SiteEntityQuery.entities(for:) live/tombstone/placeholder resolution is untested (RunnerTests has no case for it); only the Dart tombstone list's dedupe and cap are tested (partly: test/startup_restore_engine_test.dart, "ShortcutTombstones.add (iOS HS-011)")
 # http-auth-prompt
