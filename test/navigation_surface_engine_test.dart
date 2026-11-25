@@ -68,10 +68,10 @@ void main() {
   });
 
   group('site strip', () {
-    test('out of full screen the strip shows, with no tab count', () {
+    test('TAB-030 out of full screen the strip shows, with the tab count', () {
       final s = surfaces(navigation: SiteNavigation.strip);
       expect(s.strip, isTrue);
-      expect(s.tabCountButton, isFalse);
+      expect(s.tabCountButton, isTrue);
       expect(s.stripButton, isFalse);
       expect(s.dock, SidebarDock.none);
     });
@@ -109,11 +109,11 @@ void main() {
   });
 
   group('sidebar, wide window', () {
-    test('open docks the full sidebar and needs no other control', () {
+    test('TAB-030 open docks the full sidebar beside the tab count', () {
       final s = surfaces();
       expect(s.dock, SidebarDock.full);
       expect(s.float, SidebarFloat.none);
-      expect((s.arrowTab, s.tabCountButton, s.strip), (false, false, false));
+      expect((s.arrowTab, s.tabCountButton, s.strip), (false, true, false));
     });
 
     test('collapsed docks the rail, with no arrow tab', () {

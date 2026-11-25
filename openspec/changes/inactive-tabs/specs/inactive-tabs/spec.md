@@ -1029,9 +1029,9 @@ click: it has no key convention, and a long press opens the menu instead.
 How the user moves between a webspace's sites and their tabs SHALL be one
 app-wide choice in App Settings > Behaviour (`siteNavigation`): **Tab button**
 (the default), **Site strip** or **Sidebar**. The strip and the sidebar SHALL
-never show together. With Tab button the app bar SHALL carry the tab-count
-button, which opens the Tabs sheet; with the strip or the sidebar it SHALL NOT,
-and the site menu SHALL offer **All tabs**, which opens the Tabs sheet. One
+never show together. With every choice the app bar SHALL carry the tab-count
+button, which opens the Tabs sheet, and the site menu SHALL offer no second
+way to it. One
 decision (`navigationSurfaces`) SHALL say which surfaces show; a locked kiosk
 session and a page with no site on screen SHALL show none (KIOSK-002), but for
 the legacy design's sidebar (TAB-036).
@@ -1041,11 +1041,11 @@ choice: a pinned strip or the strip's button to Site strip (the button to In
 full screen = Button, FS-009), anything else to Tab button. A choice already
 made, or named by a backup, SHALL be kept.
 
-#### Scenario: The strip replaces the tab button
+#### Scenario: The strip keeps the tab button
 
-- **GIVEN** Site navigation is Site strip and a site is on screen
-- **THEN** the app bar has no tab-count button
-- **AND** the site menu offers All tabs, which opens the Tabs sheet
+- **GIVEN** Site navigation is Site strip or Sidebar and a site is on screen
+- **THEN** the app bar has the tab-count button, which opens the Tabs sheet
+- **AND** the site menu has no All tabs
 
 #### Scenario: An earlier pinned strip becomes the Site strip
 
@@ -1084,7 +1084,8 @@ Its controls SHALL be:
 
 - the open sidebar's collapse button, the sidebar icon at its top right, which
   collapses it to the rail;
-- the rail's sidebar icon at its top, which opens it, and its cross at its
+- the rail's sidebar icon at its top, which opens it, as a tap on any of the
+  rail's space no site, stripe or button takes does, and its cross at its
   bottom, which hides it;
 - the arrow tab on the left edge, shown only while the sidebar is closed and
   the one way back from hidden (the app bar carries no second one): a tap brings it back
@@ -1129,8 +1130,11 @@ put it away when let go past a third of its width or flicked, else spring
 back; the full-screen sidebar over the page takes the same swipe. On iOS,
 where the webview's back swipe (NAV-001) answers only at the screen's edge, a
 docked rail or sidebar takes that edge from it, so a right swipe from the
-screen's edge over the docked sidebar SHALL go back in the page as the
-webview's own swipe would; a tap there SHALL stay the rail's. The drawer SHALL be the phone's alone and never stored:
+screen's edge over the docked sidebar SHALL pull the page with the finger,
+over a backdrop with a back arrow, and go back in the page once let go past a
+third of its width or flung; short of that it SHALL spring back, and at the
+start of the page's history it SHALL give only a little and go nowhere. A tap
+there SHALL stay the rail's. The drawer SHALL be the phone's alone and never stored:
 a phone SHALL start at the rail, a sidebar open when the window narrows SHALL
 show the rail, and widening SHALL show the app-wide state again. A pick of a
 site or a tab in the drawer SHALL drop it back to the rail. To the back gesture the drawer SHALL be
@@ -1141,6 +1145,8 @@ a drawer: Back closes it, and from a drawer Back opened, leaves the app
 
 - **GIVEN** an iPhone with the rail docked beside a page with history
 - **WHEN** the user swipes right from the screen's left edge
+- **THEN** the page follows the finger
+- **WHEN** the user lets go past a third of the page's width
 - **THEN** the page goes back
 
 #### Scenario: A swipe left puts the drawer away
@@ -1165,7 +1171,8 @@ a drawer: Back closes it, and from a drawer Back opened, leaves the app
 
 The open sidebar SHALL show, by the user's choice (`sidebarStyle`), **Squares**
 (the default) or the **Tab tree**. Squares SHALL be the webspace's sites in a
-grid three wide, an open site's tabs as chips in a panel under its row,
+grid three wide, each square's icon and name centred in it, an open site's
+tabs as chips in a panel under its row,
 pointing at its square, opening as the strip's do (TAB-031). The tree SHALL be
 the Tabs sheet's tree of every site in view (TAB-005), each subtree folding with
 a count of what it holds, each site folding shut, a site with tabs off one row

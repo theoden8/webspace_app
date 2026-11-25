@@ -5170,10 +5170,6 @@
       }
     }
   },
-  "tabsAllTabsMenu": "All tabs",
-  "@tabsAllTabsMenu": {
-    "description": "Item of a site's overflow menu, shown while the site strip or the sidebar shows the tabs: opens the full list of tabs, which shows which tab was opened from which and the tabs other sites opened from this one"
-  },
   "sidebarShow": "Show the tab sidebar",
   "@sidebarShow": {
     "description": "Tooltip of the small arrow tab on the left screen edge, shown while the tab sidebar is closed: brings it back (it can also be dragged out, or moved up and down the edge)"

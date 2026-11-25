@@ -1005,8 +1005,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       // KIOSK-002: no app-bar actions (download, settings) when locked.
       actions: _kioskLocked ? const <Widget>[] : [
         // Tab count for the site on screen. Present whenever a site is shown,
-        // even at one tab, because it is also how a new tab is opened; only
-        // with the tab button, as the strip and the sidebar show the tabs.
+        // even at one tab, because it is also how a new tab is opened.
         if (currentModel != null && _tabs.enabledFor(currentModel) &&
             _surfaces.tabCountButton)
           TabCountButton(
@@ -1080,7 +1079,6 @@ class _WebSpacePageState extends State<WebSpacePage>
         state: () => (
           loading: _sites.shown?.isLoading ?? false,
           tabsOn: _tabs.enabledFor(_sites.shown),
-          allTabs: currentSiteNavigation != SiteNavigation.tabButton,
           fullscreen: _fullscreen.active,
           offersShortcut: switch (_sites.shown) {
             final shown? => _shortcuts.offersShortcutFor(shown),
@@ -1110,8 +1108,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     switch (action) {
       case SiteMenuAction.newTab:
         if (model != null) await _tabs.newTab(model);
-      case SiteMenuAction.allTabs:
-        await _showTabsSheet();
       case SiteMenuAction.backToWebspaces:
         final zoom = _libraryDesign ? _launchZoom.currentState : null;
         if (model != null && zoom != null) {

@@ -24,7 +24,7 @@ class SidebarIcon extends StatelessWidget {
 
 /// The sidebar collapsed: one icon per site with its tab count, the site on
 /// screen with a stripe per tab, its expand button on top and its cross at
-/// the bottom.
+/// the bottom. A tap anywhere no control takes expands it.
 class SidebarRail extends StatelessWidget {
   const SidebarRail({
     super.key,
@@ -51,49 +51,53 @@ class SidebarRail extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final scheme = theme.colorScheme;
-    return Container(
-      width: width,
-      decoration: BoxDecoration(
-        color: Chrome.bar(isDark: isDark),
-        border: BorderDirectional(
-          end: BorderSide(
-            color: Chrome.hairline(isDark: isDark),
-            width: Chrome.hairlineWidth,
-          ),
-        ),
-      ),
-      child: Column(
-        children: [
-          IconButton(
-            tooltip: loc.sidebarExpand,
-            color: scheme.primary,
-            icon: const SidebarIcon(),
-            onPressed: onExpand,
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: Spacing.xs),
-              children: [
-                for (final site in sites) ...[
-                  _RailSite(
-                    site: site,
-                    on: identical(site, current),
-                    onOpen: () => onOpen(site),
-                  ),
-                  if (identical(site, current) &&
-                      site.effectiveTabsEnabled &&
-                      site.tabs.length > 1)
-                    _Stripes(site: site, onOpenTab: onOpenTab),
-                ],
-              ],
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onExpand,
+      child: Container(
+        width: width,
+        decoration: BoxDecoration(
+          color: Chrome.bar(isDark: isDark),
+          border: BorderDirectional(
+            end: BorderSide(
+              color: Chrome.hairline(isDark: isDark),
+              width: Chrome.hairlineWidth,
             ),
           ),
-          IconButton(
-            tooltip: loc.sidebarHide,
-            icon: const Icon(Icons.close),
-            onPressed: onHide,
-          ),
-        ],
+        ),
+        child: Column(
+          children: [
+            IconButton(
+              tooltip: loc.sidebarExpand,
+              color: scheme.primary,
+              icon: const SidebarIcon(),
+              onPressed: onExpand,
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: Spacing.xs),
+                children: [
+                  for (final site in sites) ...[
+                    _RailSite(
+                      site: site,
+                      on: identical(site, current),
+                      onOpen: () => onOpen(site),
+                    ),
+                    if (identical(site, current) &&
+                        site.effectiveTabsEnabled &&
+                        site.tabs.length > 1)
+                      _Stripes(site: site, onOpenTab: onOpenTab),
+                  ],
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: loc.sidebarHide,
+              icon: const Icon(Icons.close),
+              onPressed: onHide,
+            ),
+          ],
+        ),
       ),
     );
   }
