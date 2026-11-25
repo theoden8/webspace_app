@@ -377,7 +377,7 @@ sensitive secret:
 1. **Decide the storage**: it does not belong in SharedPreferences. Build
    it on `SecureJsonStore` (`lib/services/keystore.dart`) over
    `Keystores.credentials`, the options `ProxyPasswordSecureStorage` uses
-   (`encryptedSharedPreferences` on Android, `first_unlock` keychain
+   (the plugin's defaults on Android, `first_unlock` keychain
    accessibility on Apple). Do not define another option set: on Apple the
    accessibility class is part of the keychain query, so an entry written
    under one is not found under another.

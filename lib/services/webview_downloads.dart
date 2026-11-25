@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:webspace/platform/host_platform.dart';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/blob_url_capture.dart';
@@ -201,19 +200,13 @@ abstract final class WebViewDownloads {
     DownloadsService.instance.fail(taskId, message: error.toString());
   }
 
-  static Future<String?> saveViaPicker(DownloadResult result) async {
-    final isMobile = !kIsWeb && (hostIsIOS || hostIsAndroid);
-    final outputPath = await FileDialog.saveFile(
-      dialogTitle: 'Save download',
-      fileName: result.filename,
-      bytes: isMobile ? result.bytes : null,
-    );
-    if (outputPath == null) return null;
-    if (!isMobile) {
-      await hostWriteBytes(outputPath, bytes: result.bytes);
-    }
-    return outputPath;
-  }
+  static Future<String?> saveViaPicker(DownloadResult result) =>
+      FileDialog.saveFile(
+        dialogTitle: 'Save download',
+        fileName: result.filename,
+        bytes: result.bytes,
+        mimeType: result.mimeType ?? 'application/octet-stream',
+      );
 
   /// Coerce a JS handler arg to an int. Small integers come back as int
   /// but large ones can arrive as double (JSON number serialization), so

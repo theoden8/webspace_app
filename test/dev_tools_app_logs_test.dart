@@ -85,7 +85,7 @@ void main() {
       'filters, and never a sensitive entry', (tester) async {
     final dir = Directory.systemTemp.createTempSync('app_logs');
     addTearDown(() => dir.deleteSync(recursive: true));
-    final picker = FakeFilePicker.install()..savePath = '${dir.path}/logs';
+    final picker = FakeFilePicker.install()..savePath = '${dir.path}/logs.txt';
     LogTag.navigation.debug('a debug line');
     LogTag.navigation.error('an error line');
     LogTag.cookieIsolation.debug('siteId=abc', sensitive: true);
@@ -104,7 +104,9 @@ void main() {
     });
     await tester.pumpAndSettle();
 
-    expect(picker.offered.single, matches(RegExp(r'^webspace_logs_.*\.txt$')));
+    expect(picker.offered.single.fileName,
+        matches(RegExp(r'^webspace_logs_.*\.txt$')));
+    expect(picker.offered.single.mimeType, 'text/plain');
     final text = file.readAsStringSync();
     expect(text, contains('a debug line'), reason: 'filters do not narrow it');
     expect(text, contains('an error line'));

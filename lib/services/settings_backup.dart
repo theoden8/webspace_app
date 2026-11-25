@@ -1,7 +1,5 @@
 import 'dart:convert';
-import 'package:webspace/platform/host_platform.dart';
 
-import 'package:flutter/foundation.dart';
 
 import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/log_service.dart';
@@ -322,27 +320,15 @@ class SettingsBackupService {
           .split('.')[0];
       final defaultFileName = 'webspace_backup_$timestamp.json';
 
-      // On mobile (iOS/Android): bytes parameter is required
-      // On desktop (macOS/Linux/Windows): bytes not supported, write manually
-      final bool isMobile = !kIsWeb && (hostIsIOS || hostIsAndroid);
-
       final outputPath = await FileDialog.saveFile(
         dialogTitle: dialogTitle,
         fileName: defaultFileName,
-        bytes: isMobile ? bytes : null,
+        bytes: bytes,
+        mimeType: 'application/json',
       );
       if (outputPath == null) return const SaveCancelled();
-
-      if (!isMobile) {
-        final filePath = outputPath.endsWith('.json')
-            ? outputPath
-            : '$outputPath.json';
-        await hostWriteFileText(filePath, contents: jsonString);
-      }
       return const Saved();
     } on FileDialogFailure catch (e, stack) {
-      return failed(e, stack: stack);
-    } on IOException catch (e, stack) {
       return failed(e, stack: stack);
     }
   }
@@ -372,15 +358,7 @@ class SettingsBackupService {
     try {
       final file = await FileDialog.pickFile(extensions: ['json']);
       if (file == null) return const PickCancelled();
-      final String jsonString;
-      if (file.bytes != null) {
-        // Web or platforms that provide bytes
-        jsonString = utf8.decode(file.bytes!);
-      } else if (file.path != null) {
-        jsonString = await hostReadFileText(file.path!);
-      } else {
-        return const BackupUnreadable();
-      }
+      final jsonString = utf8.decode(file.bytes);
       return switch (importFromJson(jsonString)) {
         final backup? => Picked(backup),
         null => const NotABackup(),
@@ -390,8 +368,6 @@ class SettingsBackupService {
     } on FormatException {
       // Bytes that do not decode as UTF-8: not a file this app wrote.
       return const NotABackup();
-    } on IOException catch (e) {
-      return failed(e);
     }
   }
 

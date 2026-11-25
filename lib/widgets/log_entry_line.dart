@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
-import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/widgets/toast.dart';
@@ -65,18 +64,13 @@ Future<void> saveLogText(
       DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
   final fileName = '${fileNamePrefix}_$timestamp.txt';
 
-  final isMobile = hostIsIOS || hostIsAndroid;
   final outputPath = await FileDialog.saveFile(
     dialogTitle: loc.devToolsExportLogsDialogTitle,
     fileName: fileName,
-    bytes: isMobile ? bytes : null,
+    bytes: bytes,
+    mimeType: 'text/plain',
   );
 
   if (outputPath == null) return;
-  if (!isMobile) {
-    final filePath =
-        outputPath.endsWith('.txt') ? outputPath : '$outputPath.txt';
-    await hostWriteFileText(filePath, contents: text);
-  }
   messenger.toast(loc.devToolsLogsExported);
 }

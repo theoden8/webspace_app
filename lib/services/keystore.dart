@@ -12,34 +12,29 @@ import 'package:webspace/utils/concurrency.dart';
 ///
 /// The options belong to the entries, not to taste: on iOS the
 /// accessibility class is part of the keychain query, so a read under
-/// another class does not find an item written under this one. The four sets
-/// below disagree for historical reasons; making them agree needs a
+/// another class does not find an item written under this one. The iOS
+/// classes below disagree for historical reasons; making them agree needs a
 /// migration of the stored items, not an edit here.
 abstract final class Keystores {
   /// Cookies, proxy passwords and saved sign-ins. `first_unlock` so a
-  /// background wake with the device locked can still read them.
+  /// background wake with the device locked can still read them. On Android
+  /// the entries were written under `encryptedSharedPreferences`, which the
+  /// plugin from 10.0 moved into its own cipher storage on first access and
+  /// 11.0 no longer names; the default options read them there.
   static const FlutterSecureStorage credentials = FlutterSecureStorage(
-    // The plugin now ignores this flag and migrates such data on first
-    // access; it stays so the options are the ones the entries were
-    // written with.
-    // ignore: deprecated_member_use
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
     iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
   );
 
   /// Tor bridge lines (TOR-016). `first_unlock` because a notification
-  /// wake with the device locked starts tor too (TOR-006). No Android
-  /// options: the entry postdates the deprecated flag.
+  /// wake with the device locked starts tor too (TOR-006).
   static const FlutterSecureStorage torBridges = FlutterSecureStorage(
     iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
   );
 
   /// Archive slots. iOS keeps its default `unlocked` class: an archive is
-  /// only ever opened by the user, never by a background wake.
-  static const FlutterSecureStorage archive = FlutterSecureStorage(
-    // ignore: deprecated_member_use
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-  );
+  /// only ever opened by the user, never by a background wake. Android's
+  /// entries moved as [credentials]' did.
+  static const FlutterSecureStorage archive = FlutterSecureStorage();
 
   /// The AES keys of the encrypted on-disk caches (`KeychainAead`). iOS
   /// default `unlocked`, so a wake with the screen locked cannot read them

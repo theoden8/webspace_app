@@ -192,10 +192,9 @@ MethodChannel (`file_picker` is the canonical example: it uses
 - **Given** the test installs a `_StubFilePicker extends FilePickerPlatform with MockPlatformInterfaceMixin`
   in `setUpAll` via `FilePickerPlatform.instance = stub`
 - **And** the test assigns `stub.saveReturn = '/tmp/<temp>/export.json'`
-- **When** the app calls `FilePicker.saveFile(...)`
-- **Then** the call returns `'/tmp/<temp>/export.json'` synchronously
-- **And** the export's subsequent `File(filePath).writeAsString(jsonString)`
-  runs against the stub-supplied path
+- **When** the app calls `FilePicker.saveFile(...)` with the export's bytes
+- **Then** the stub writes those bytes at `'/tmp/<temp>/export.json'`, as
+  every platform's save dialog does, and returns its `file` URI
 - **And** the test reads the written file directly to assert on its
   contents
 
@@ -203,10 +202,9 @@ MethodChannel (`file_picker` is the canonical example: it uses
 
 - **Given** `_StubFilePicker.pickReturn` is set to a path of an
   on-disk JSON file
-- **When** the app calls `FilePicker.pickFiles(...)`
-- **Then** the call returns a `FilePickerResult` whose first
-  `PlatformFile` has `path` equal to `pickReturn`
-- **And** the import's `pickAndImport` decodes that file's contents
+- **When** the app calls `FilePicker.pickFile(...)`
+- **Then** the call returns a `PlatformFile` whose `path` is `pickReturn`
+- **And** the import's `pickAndImport` decodes the bytes it reads from it
 
 ---
 

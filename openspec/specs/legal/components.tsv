@@ -11,10 +11,6 @@
 #   shared   a separately shipped shared library the user can replace
 #   build    a build tool; nothing of it ships
 pod:Tor	MIT AND BSD-3-Clause AND Apache-2.0 AND 0BSD	linked	409.11.2	Tor.framework's LICENSE (MIT) and build-xcframework.sh at v409.11.2: tor 0.4.9.11's client build (BSD-3-Clause), libevent 2.1.13 (BSD-3-Clause), OpenSSL 3.6.3 (Apache-2.0), xz 5.8.3's liblzma (0BSD)
-pod:SDWebImage	MIT	linked	5.21.5	its LICENSE
-pod:DKImagePickerController	MIT	linked	4.3.9	its LICENSE
-pod:DKPhotoGallery	MIT	linked	0.0.19	its LICENSE
-pod:SwiftyGif	MIT	linked	5.4.5	its podspec's licence (MIT, LICENSE); the text reaches the page from CocoaPods' acknowledgements, as tag 5.4.5 is not on GitHub
 pod:swift-collections	Apache-2.0	linked	1.1.1	its LICENSE.txt
 pod:InternalCollectionsUtilities	Apache-2.0	linked	1.1.1	part of swift-collections; its LICENSE.txt
 pod:OrderedSet	MIT	linked	6.0.3	its LICENSE
@@ -48,22 +44,20 @@ gradle:androidx.core:core-ktx	Apache-2.0	linked		its POM
 gradle:androidx.datastore:datastore	Apache-2.0	linked		its POM
 gradle:androidx.datastore:datastore-preferences	Apache-2.0	linked		its POM
 gradle:androidx.exifinterface:exifinterface	Apache-2.0	linked		its POM
-gradle:androidx.lifecycle:lifecycle-runtime	Apache-2.0	linked		its POM
 gradle:androidx.media:media	Apache-2.0	linked		its POM
 gradle:androidx.preference:preference	Apache-2.0	linked		its POM
 gradle:androidx.swiperefreshlayout:swiperefreshlayout	Apache-2.0	linked		its POM
 gradle:com.google.code.gson:gson	Apache-2.0	linked		its POM
 gradle:com.google.crypto.tink:tink-android	Apache-2.0	linked		its POM
 gradle:com.google.guava:guava	Apache-2.0	linked		its parent POM, guava-parent
-gradle:org.jetbrains.kotlin:kotlin-stdlib	Apache-2.0	linked		its POM
+gradle:org.jetbrains.kotlinx:kotlinx-coroutines-android	Apache-2.0	linked		its POM
 url:https://github.com/nlohmann/json/releases/download/v${NLOHMANN_JSON_VERSION}/json.tar.xz	MIT	linked		its LICENSE.MIT; flutter_inappwebview_linux fetches it only where no nlohmann_json is installed
 url:https://github.com/google/googletest/archive/release-1.11.0.zip	BSD-3-Clause	build		its LICENSE; the plugins' own test runners, never installed
 url:https://github.com/google/googletest/archive/v1.15.2.zip	BSD-3-Clause	build		its LICENSE; the plugins' own test runners, never installed
 url:https://github.com/google/googletest/archive/b514bdc898e2951020cbdca1304b75f5950d1f59.zip	BSD-3-Clause	build		its LICENSE; flutter_secure_storage_linux's own test runner, never installed
 url:https://wpewebkit.org/about/get-wpe.html		build		a link in an error message flutter_inappwebview_linux prints; nothing is fetched from it
-url:https://github.com/nothings/stb.git	MIT OR Unlicense	build		its LICENSE; only zxing's examples take it, and flutter_zxing adds zxing/core alone
 url:https://github.com/zint/zint.git	BSD-3-Clause	build		never fetched: flutter_zxing builds its bundled copy (ZXING_USE_BUNDLED_ZINT defaults ON); the backend, the only part zxing links, is BSD-3-Clause
-pub:flutter_zxing/src/zxing/zint/LICENSE	BSD-3-Clause	linked	3.1.0	zint's note that its backend, the only part bundled, moved to BSD; each of the bundled files carries SPDX-License-Identifier: BSD-3-Clause
+pub:flutter_zxing/third_party/zxing-cpp/zint/LICENSE	BSD-3-Clause	linked	4.0.0	zint's note that its backend, the only part bundled, moved to BSD; each of the bundled files carries SPDX-License-Identifier: BSD-3-Clause
 pub:characters/third_party/Wikipedia/License CC BY-SA 3.0.txt	CC-BY-SA-3.0	build	1.4.1	the licence of Wikipedia text the package's tests read; lib/ takes nothing from third_party/
 pub:crypto/third_party/wycheproof/LICENSE	Apache-2.0	build	3.0.8	test vectors the package's tests read; lib/ takes nothing from third_party/
 pub:csslib/third_party/bootstrap/LICENSE	MIT	build	1.0.2	CSS the package's tests parse; lib/ takes nothing from third_party/

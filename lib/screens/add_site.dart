@@ -651,19 +651,8 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       final file = await FileDialog.pickFile(extensions: ['html', 'htm']);
       if (file == null) return;
 
-      final bytes = file.bytes;
-      final path = file.path;
-      final htmlContent = bytes != null
-          ? String.fromCharCodes(bytes)
-          : path != null
-              ? await hostReadFileText(path)
-              : null;
+      final htmlContent = String.fromCharCodes(file.bytes);
       if (!mounted) return;
-      if (htmlContent == null) {
-        ScaffoldMessenger.of(context)
-            .toast(AppLocalizations.of(context).addSiteFileReadError);
-        return;
-      }
 
       final site = importedFileSite(file.name);
       Navigator.pop(context, {

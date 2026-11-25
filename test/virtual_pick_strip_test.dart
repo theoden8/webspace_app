@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:webspace/services/virtual_media_picker.dart';
@@ -34,7 +33,7 @@ void main() {
     expect(_chunks(raw), contains('tEXt'), reason: 'the planted XMP block');
     expect(String.fromCharCodes(raw), contains(_device));
     FakeFilePicker.install(
-      file: PlatformFile(name: 'Screenshot.png', size: raw.length, bytes: raw),
+      file: FakePlatformFile(name: 'Screenshot.png', bytes: raw),
     );
 
     final picked = await VirtualMediaPicker.pick(CaptureMedium.visual);

@@ -36,8 +36,8 @@ Future<T> guarded<T>(Future<T> Function() call) async {
   } on DBusClosedException catch (e, st) {
     _fail(e, st: st);
   } on String catch (e, st) {
-    // dbus 0.7.12 throws bare strings when the bus address names no socket
-    // it can open (dbus_client.dart:737-781).
+    // dbus 0.8.1 throws bare strings when the bus address names no socket
+    // it can open (dbus_client.dart:745-789).
     _fail(e, st: st);
   }
 }

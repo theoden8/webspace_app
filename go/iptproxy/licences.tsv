@@ -42,6 +42,7 @@ github.com/pion/sdp/v3	MIT
 github.com/pion/srtp/v3	MIT
 github.com/pion/stun/v3	MIT AND BSD-3-Clause
 github.com/pion/transport/v4	MIT AND BSD-3-Clause
+github.com/pion/transport/v5	MIT AND BSD-3-Clause
 github.com/pion/turn/v4	MIT
 github.com/pion/webrtc/v4	MIT
 github.com/pkg/errors	BSD-2-Clause

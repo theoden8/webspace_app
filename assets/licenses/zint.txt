@@ -1,4 +1,4 @@
-zint's backend, which flutter_zxing (flutter_zxing-3.1.0) compiles into the app, under the
+zint's backend, which flutter_zxing (flutter_zxing-4.0.0) compiles into the app, under the
 BSD 3-Clause licence its sources state.
 
 Its copyright holders, as its sources name them:

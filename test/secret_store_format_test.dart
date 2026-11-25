@@ -78,20 +78,17 @@ void main() {
   });
 
   group('keystore options', () {
-    // ignore_for_file: deprecated_member_use
     test('each keystore keeps the options its entries were written with', () {
-      const legacyAndroid = AndroidOptions(encryptedSharedPreferences: true);
       const firstUnlock =
           IOSOptions(accessibility: KeychainAccessibility.first_unlock);
       Map<String, String> opts(FlutterSecureStorage s) =>
           {...s.aOptions.toMap(), ...s.iOptions.toMap()};
 
       expect(opts(Keystores.credentials),
-          {...legacyAndroid.toMap(), ...firstUnlock.toMap()});
+          {...AndroidOptions.defaultOptions.toMap(), ...firstUnlock.toMap()});
       expect(opts(Keystores.torBridges),
           {...AndroidOptions.defaultOptions.toMap(), ...firstUnlock.toMap()});
-      expect(opts(Keystores.archive),
-          {...legacyAndroid.toMap(), ...IOSOptions.defaultOptions.toMap()});
+      expect(opts(Keystores.archive), opts(const FlutterSecureStorage()));
       expect(opts(Keystores.aeadKeys), opts(const FlutterSecureStorage()));
     });
   });
