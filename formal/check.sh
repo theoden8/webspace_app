@@ -221,7 +221,7 @@ plan() {
 # left behind, the runs fill the disk.
 pool() {
   trap 'kill $(jobs -p) 2>/dev/null; wait; exit 1' TERM
-  local free="$SLOTS" running="" name w cfg spec lib cover meta recover
+  local free="$SLOTS" running="" name w cfg spec lib cover meta recover d
   while IFS=$'\t' read -r -u 4 name w cfg spec lib cover; do
     while [ "$free" -lt "$w" ]; do reap; done
     if ! fits "$name" "$w"; then
@@ -234,6 +234,9 @@ pool() {
     echo "$SECONDS $w" >"$RUNS/$name.started"
     meta="$(metadir "$name")"
     recover="$(checkpoint "$meta")"
+    # A checkpoint TLC did not finish writing is never recovered from, and
+    # one older than the newest is not either: each only takes disk.
+    for d in "$meta"/*/; do [ "${d%/}" = "$recover" ] || rm -rf "${d%/}"; done
     java "-Djava.io.tmpdir=$RUNS/$name.tmp" ${lib:+"-DTLA-Library=$lib"} -cp "$JAR" \
       tlc2.TLC -workers "$w" -checkpoint "$CHECKPOINT" ${cover:+-coverage 100000} \
       ${recover:+-recover "$recover"} -metadir "$meta" -config "$cfg" "$spec" >"$RUNS/$name.out" 2>&1 &

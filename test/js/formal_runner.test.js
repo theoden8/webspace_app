@@ -42,6 +42,7 @@ function runner(t, { script = (text) => text } = {}) {
       JSON.stringify({
         event, config, workers, pid: process.pid,
         checkpoint: flag('-checkpoint'), metadir, recover: flag('-recover'),
+        kept: metadir && fs.existsSync(metadir) ? fs.readdirSync(metadir).sort() : [],
       }) + '\n');
     record('start');
     // TLC writes a checkpoint as a dated directory under its metadir.
@@ -303,6 +304,7 @@ test('a run whose key holds a checkpoint recovers from it', (t) => {
   const result = check.run({ checkpoint: 30, rerun: true });
   assert.equal(result.status, 0, result.stdout + result.stderr);
   assert.equal(starts(check)[1].recover, at);
+  assert.deepEqual(starts(check)[1].kept, [path.basename(at)]);
   assert.equal(fs.existsSync(at), false, 'the recovered run left its checkpoint');
 });
 
@@ -312,6 +314,26 @@ test('a checkpoint TLC did not finish writing is not recovered from', (t) => {
   fs.rmSync(path.join(at, 'vars.chkpt'));
   assert.equal(check.run({ checkpoint: 30, rerun: true }).status, 0);
   assert.equal(starts(check)[1].recover, null);
+  assert.deepEqual(starts(check)[1].kept, [], 'the unfinished checkpoint was kept');
+});
+
+test('of two checkpoints the older is deleted as the run recovers the newer', (t) => {
+  const check = runner(t);
+  const at = leftCheckpoint(check);
+  const older = path.join(path.dirname(at), '26-11-25-13-00-00');
+  fs.mkdirSync(older);
+  for (const file of ['queue.chkpt', 'vars.chkpt']) fs.writeFileSync(path.join(older, file), '');
+  assert.equal(check.run({ checkpoint: 30, rerun: true }).status, 0);
+  assert.equal(starts(check)[1].recover, at);
+  assert.deepEqual(starts(check)[1].kept, [path.basename(at)]);
+});
+
+test('planted: a runner that keeps stale checkpoints is caught', (t) => {
+  const check = runner(t, { script: (text) => text.replace(/\n    for d in "\$meta"\/\*\/;[^\n]*/, '') });
+  const at = leftCheckpoint(check);
+  fs.rmSync(path.join(at, 'vars.chkpt'));
+  assert.equal(check.run({ checkpoint: 30, rerun: true }).status, 0);
+  assert.deepEqual(starts(check)[1].kept, [path.basename(at)], 'the plant changed nothing');
 });
 
 test('planted: a runner that never passes -recover is caught', (t) => {
