@@ -243,7 +243,7 @@ Test: `test/localcdn_service_test.dart` ("a clear during the popular download is
 
 ### Requirement: LCDN-013 - Platform Support and Interception Scope
 
-LocalCDN resource interception SHALL work on Android via `shouldInterceptRequest`. On iOS/macOS, the feature SHALL degrade gracefully. LocalCDN does NOT intercept `fetch()` or `XMLHttpRequest` CDN requests — in practice this is a non-issue because CDN resources are almost always loaded via static HTML tags (`<script>`, `<link>`), not JS-initiated requests.
+LocalCDN resource interception SHALL work on Android via `shouldInterceptRequest`, which every request a page makes reaches: a tag's, and a `fetch()` or `XMLHttpRequest` alike. A cached copy SHALL be served with `Access-Control-Allow-Origin: *`, as the CDNs answer, so a cross-origin read of it (a `fetch()`, an XHR, a `<script crossorigin>`) works as it would against the CDN. On iOS, macOS and Linux nothing intercepts a CDN request, and LocalCDN is not offered (`LocalCdnService.offered`).
 
 #### Scenario: Android — static resources
 
@@ -251,28 +251,30 @@ LocalCDN resource interception SHALL work on Android via `shouldInterceptRequest
 - **When** a page loads `<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js">`
 - **Then** `shouldInterceptRequest` intercepts the request and serves the cached copy
 
-#### Scenario: Android — fetch/XHR CDN requests (not intercepted)
+#### Scenario: Android — a cross-origin read of a cached copy
 
-- **Given** the app is running on Android
-- **When** JavaScript calls `fetch('https://cdn.jsdelivr.net/npm/some-lib@1.0/file.js')`
-- **Then** the request passes through to the CDN normally (LocalCDN does not intercept fetch/XHR)
+- **Given** the app is running on Android and the URL is cached
+- **When** JavaScript calls `fetch('https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js')`, or a `<script crossorigin>` loads it
+- **Then** the cached copy is served with `Access-Control-Allow-Origin: *`
+- **And** the page reads it as it would read the CDN's response
 
-#### Scenario: iOS/macOS
+#### Scenario: iOS, macOS and Linux
 
-- **Given** the app is running on iOS or macOS
-- **When** `localCdnEnabled` is true
-- **Then** the toggle is available but all CDN requests pass through normally (`shouldInterceptRequest` is Android-only)
+- **Given** the app is running on iOS, macOS or Linux
+- **When** a page loads a CDN resource
+- **Then** the request goes to the CDN unchanged
+- **And** no LocalCDN row is shown, since no native code there serves a cached copy
 
 #### Summary: What LocalCDN intercepts
 
-| Request type | Android | iOS/macOS |
+| Request type | Android | iOS/macOS/Linux |
 |---|---|---|
-| `<script src="cdn...">` | Intercepted natively via FastSubresourceInterceptor | Not intercepted |
-| `<link href="cdn...">` | Intercepted natively via FastSubresourceInterceptor | Not intercepted |
-| `<img src="cdn...">` | Intercepted natively via FastSubresourceInterceptor | Not intercepted |
-| CSS `@font-face url(cdn...)` | Intercepted natively via FastSubresourceInterceptor | Not intercepted |
-| `fetch('cdn...')` | Not intercepted | Not intercepted |
-| `XMLHttpRequest` to CDN | Not intercepted | Not intercepted |
+| `<script src="cdn...">` | Served from cache by FastSubresourceInterceptor | Not intercepted |
+| `<link href="cdn...">` | Served from cache by FastSubresourceInterceptor | Not intercepted |
+| `<img src="cdn...">` | Served from cache by FastSubresourceInterceptor | Not intercepted |
+| CSS `@font-face url(cdn...)` | Served from cache by FastSubresourceInterceptor | Not intercepted |
+| `fetch('cdn...')` | Served from cache, with `Access-Control-Allow-Origin: *` | Not intercepted |
+| `XMLHttpRequest` to CDN | Served from cache, with `Access-Control-Allow-Origin: *` | Not intercepted |
 
 ### Requirement: LCDN-014 - Replacements in the Protection Report
 

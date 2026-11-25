@@ -430,6 +430,20 @@ data class BlockEvent(
 }
 
 /// One CDN request served from the cache instead of the network.
+/// A cached copy [FastSubresourceInterceptor.localCdnHit] found for a CDN URL.
+///
+/// Every request the page makes reaches the interceptor, a `fetch()`, an XHR
+/// and a `<script crossorigin>` among them, and the CDNs answer those with
+/// `Access-Control-Allow-Origin: *`; the copy carries the same, or the page's
+/// cross-origin read of it fails where the CDN's would not (LCDN-013).
+internal data class LocalCdnHit(val cacheKey: String, val file: File, val mime: String) {
+    val headers: Map<String, String> get() = CORS_HEADERS
+
+    companion object {
+        val CORS_HEADERS = mapOf("Access-Control-Allow-Origin" to "*")
+    }
+}
+
 data class CdnEvent(val cacheKey: String, val url: String) {
     fun toChannel(): Map<String, Any> = mapOf("cacheKey" to cacheKey, "url" to url)
 }
@@ -665,6 +679,20 @@ class FastSubresourceInterceptor(
     /// The cached copy of a CDN sub-resource, or null to let the request
     /// through: [localCdnEnabled] is this site's own choice (LCDN-007).
     internal fun localCdnResponse(url: String): WebResourceResponse? {
+        val hit = localCdnHit(url) ?: return null
+        return try {
+            val stream = FileInputStream(hit.file)
+            onCdnReplaced(CdnEvent(hit.cacheKey, url))
+            onLog("LocalCDN", "Replaced: $url -> ${hit.cacheKey}")
+            WebResourceResponse(hit.mime, "utf-8", 200, "OK", hit.headers, stream)
+        } catch (e: FileNotFoundException) {
+            onLog("WebIntercept", "CDN serve failed: key=${hit.cacheKey} err=${e.message}")
+            null
+        }
+    }
+
+    /// The cached file [localCdnResponse] serves for [url], or null.
+    internal fun localCdnHit(url: String): LocalCdnHit? {
         if (!localCdnEnabled) return null
         val patterns = cdnTables.patterns
         val index = cdnTables.index
@@ -694,15 +722,7 @@ class FastSubresourceInterceptor(
                 onLog("WebIntercept", "CDN match but file missing: key=$cacheKey path=$filePath")
                 continue
             }
-            return try {
-                val stream = FileInputStream(f)
-                onCdnReplaced(CdnEvent(cacheKey, url))
-                onLog("LocalCDN", "Replaced: $url -> $cacheKey")
-                WebResourceResponse(contentTypeFor(file), "utf-8", stream)
-            } catch (e: FileNotFoundException) {
-                onLog("WebIntercept", "CDN serve failed: key=$cacheKey err=${e.message}")
-                null
-            }
+            return LocalCdnHit(cacheKey = cacheKey, file = f, mime = contentTypeFor(file))
         }
         return null
     }
