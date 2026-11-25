@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/widgets/page_load_bar.dart';
 
 /// The load progress along the top edge in full screen, where no app bar
@@ -46,21 +47,27 @@ class FullscreenExitHandle extends StatelessWidget {
       height: topPadding + 20,
       child: Align(
         alignment: Alignment.topCenter,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onExit,
-          child: Container(
-            width: 96,
-            height: topPadding + 20,
-            alignment: Alignment.bottomCenter,
-            color: Colors.transparent,
+        // The only exit a screen reader can reach once the timed hint has
+        // gone, so it is named as the menu's exit is (A11Y-015).
+        child: Semantics(
+          button: true,
+          label: AppLocalizations.of(context).homeExitFullScreenMenu,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onExit,
             child: Container(
-              margin: const EdgeInsets.only(bottom: 5),
-              width: 36,
-              height: _handleHeight,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(_handleHeight / 2),
+              width: 96,
+              height: topPadding + 20,
+              alignment: Alignment.bottomCenter,
+              color: Colors.transparent,
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 5),
+                width: 36,
+                height: _handleHeight,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(_handleHeight / 2),
+                ),
               ),
             ),
           ),
