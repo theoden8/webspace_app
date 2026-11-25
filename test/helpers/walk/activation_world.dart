@@ -2729,11 +2729,11 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
         }
       case ImportBackup():
         if (imports) _track(_importBackup());
-      // A reroute requested while a tab handler holds the gate runs once it
-      // lets go (TabHandlingGate.deferUntilIdle), as one landing then would;
-      // the model lands one only on a free gate.
+      // A reroute requested while a tab handler holds the gate is dropped by
+      // the table and asked again once the gate is free
+      // (TabHandlingGate.deferUntilIdle).
       case Reroute(:final site):
-        if (rehosts && !tabs.busy) {
+        if (rehosts) {
           for (final m in sites.models) {
             if (_siteNumber(m) != site) continue;
             m.externalLinkMode = ExternalLinkMode.inApp;

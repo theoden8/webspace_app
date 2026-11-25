@@ -326,14 +326,11 @@ class TabsController {
   /// its removals: what a tab runs as is read and rewritten in the input's
   /// turn, and the next site's are read again once the first's have moved.
   Future<void> reconcileLinkTabs() async {
-    if (_gate.busy) {
-      _gate.deferUntilIdle(() {
-        if (_host.mounted) unawaited(reconcileLinkTabs());
-      });
+    final flips = _linkFlips();
+    if (flips.isEmpty) {
+      if (_gate.busy) _rerouteWhenIdle();
       return;
     }
-    final flips = _linkFlips();
-    if (flips.isEmpty) return;
     final owner = flips.first.owner;
     final c = StepContext(TabFlow(this, site: owner)
       ..flips = [
@@ -341,10 +338,19 @@ class TabsController {
           if (identical(f.owner, owner)) f,
       ]);
     final next = TabTable.tabInputs.runInput(c, from: TabPlace.reroute);
-    if (next == TabPlace.done) return;
+    if (next == TabPlace.done) {
+      if (_gate.busy) _rerouteWhenIdle();
+      return;
+    }
     await _gate.hold(() => _runTabFlow(c, from: next));
     if (_host.mounted) await _host.askAgain(reconcileLinkTabs);
   }
+
+  /// A reroute the table dropped while a handler held the gate, asked again
+  /// once it lets go: the model's one dropped now and one landing then.
+  void _rerouteWhenIdle() => _gate.deferUntilIdle(() {
+    if (_host.mounted) unawaited(reconcileLinkTabs());
+  });
 
   /// The site [tab], a tab of [owner] a link of [opener]'s opened, runs as
   /// when [opener] routes outbound links or not ([routes], LIR-034).
