@@ -26,7 +26,6 @@ A11Y-016	process: reading the Play pre-launch report each release is a release s
 # content-blocker
 # cookie-secure-storage
 # design-gallery
-DESIGN-001	no check: the static import walk is `npm run design:check` (tool/design_gallery/web_clean.js), run by hand; CI no longer runs it
 DESIGN-002	no check: the web compile is scripts/design_web.sh, run by hand; no counted check builds either entrypoint or asserts --no-web-resources-cdn and the Roboto sync (partly: test/browser/design_app_packaging.test.js, "it boots inside an iframe served from a subdirectory")
 # developer-tools
 # dns-blocklist
