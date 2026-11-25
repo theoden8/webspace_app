@@ -6,8 +6,6 @@ import 'package:webspace/services/file_dialog_web.dart'
     if (dart.library.io) 'package:webspace/services/file_dialog_io.dart'
     as platform;
 
-export 'package:file_picker/file_picker.dart' show PlatformFile;
-
 /// What a [FileDialog] call throws when the platform's dialog fails. A
 /// dialog the user cancelled is not a failure.
 final class FileDialogFailure implements Exception {
@@ -21,35 +19,54 @@ final class FileDialogFailure implements Exception {
   String toString() => message;
 }
 
+/// A file the user picked, read whole.
+final class PickedFile {
+  const PickedFile({required this.name, required this.bytes});
+
+  /// Its name, with the extension, as the platform reported it.
+  final String name;
+
+  final Uint8List bytes;
+
+  /// The extension of [name] without its dot, or null when it has none.
+  String? get extension {
+    final dot = name.lastIndexOf('.');
+    return dot <= 0 || dot == name.length - 1 ? null : name.substring(dot + 1);
+  }
+}
+
 /// The platform's open and save dialogs. The only caller of file_picker, so
 /// what its implementations throw is named once, by `platform.guarded`.
 abstract final class FileDialog {
-  /// The file the user picked, or null when they picked none. [extensions]
-  /// limits the choice, null allows any file; [withData] reads its bytes
-  /// where the platform would otherwise hand over only a path.
-  static Future<PlatformFile?> pickFile({
-    List<String>? extensions,
-    bool withData = false,
-  }) async {
-    final result = await platform.guarded(() => FilePicker.pickFiles(
+  /// The file the user picked, read, or null when they picked none.
+  /// [extensions] limits the choice, null allows any file.
+  static Future<PickedFile?> pickFile({List<String>? extensions}) =>
+      platform.guarded(() async {
+        final file = await FilePicker.pickFile(
           type: extensions == null ? FileType.any : FileType.custom,
           allowedExtensions: extensions,
-          withData: withData,
-        ));
-    return result?.files.firstOrNull;
-  }
+        );
+        if (file == null) return null;
+        return PickedFile(name: file.name, bytes: await file.readAsBytes());
+      });
 
-  /// The path the user chose to save [fileName] at, or null when they chose
-  /// none. The dialog writes [bytes] there itself when given (Android and
-  /// iOS require them); without them the caller writes to the path.
+  /// Writes [bytes] where the user chose to save [fileName], and names that
+  /// place: a path, or the URI where the platform names no path (Android's
+  /// documents). Null when the user chose none.
   static Future<String?> saveFile({
     required String dialogTitle,
     required String fileName,
-    Uint8List? bytes,
+    required Uint8List bytes,
+    required String mimeType,
   }) =>
-      platform.guarded(() => FilePicker.saveFile(
-            dialogTitle: dialogTitle,
-            fileName: fileName,
-            bytes: bytes,
-          ));
+      platform.guarded(() async {
+        final saved = await FilePicker.saveFile(
+          dialogTitle: dialogTitle,
+          fileName: fileName,
+          bytes: bytes,
+          mimeType: mimeType,
+        );
+        if (saved == null) return null;
+        return saved.isScheme('file') ? saved.toFilePath() : '$saved';
+      });
 }

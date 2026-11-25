@@ -35,13 +35,8 @@ typedef PickPackage = Future<Uint8List?> Function();
 /// Any file: a package is told from its bytes, and iOS offers no file type
 /// for `.crx` or `.xpi`.
 Future<Uint8List?> pickPackageFile() async {
-  final file = await FileDialog.pickFile(withData: true);
-  if (file == null) return null;
-  return file.bytes ??
-      switch (file.path) {
-        final path? => await hostReadFileBytes(path),
-        null => null,
-      };
+  final file = await FileDialog.pickFile();
+  return file?.bytes;
 }
 
 /// App Settings > Extensions (WEBEXT-002): the extensions imported on this

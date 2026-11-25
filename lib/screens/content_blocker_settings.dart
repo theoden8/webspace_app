@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/filter_list_id.dart';
-import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/log_service.dart';
@@ -173,14 +172,8 @@ class _ContentBlockerSettingsScreenState
     try {
       final file = await FileDialog.pickFile();
       if (file == null) return;
-      if (file.bytes != null) {
-        text = utf8.decode(file.bytes!, allowMalformed: true);
-      } else if (file.path != null) {
-        text = await hostReadFileText(file.path!);
-      }
+      text = utf8.decode(file.bytes, allowMalformed: true);
     } on FileDialogFailure catch (e) {
-      LogTag.contentBlocker.warning('uBO backup read failed: $e');
-    } on IOException catch (e) {
       LogTag.contentBlocker.warning('uBO backup read failed: $e');
     }
     final backup = text == null ? null : UboBackup.parse(text);

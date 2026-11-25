@@ -18,9 +18,6 @@ const Map<String, String> hostEnvironment = <String, String>{};
 String get hostOperatingSystem => 'web';
 String get hostOperatingSystemVersion => '';
 
-Future<void> hostWriteBytes(String path, {required List<int> bytes}) =>
-    throw UnsupportedError('hostWriteBytes is not available on web');
-
 /// A browser exposes no resolver, so this reports "cannot answer" instead of
 /// guessing. The web target does not run the webview, so no page JS drives an
 /// outbound fetch here in the first place.
@@ -77,9 +74,6 @@ String hostReadFileTextSync(String path) =>
     throw UnsupportedError('hostReadFileTextSync is not available on web');
 
 Future<void> hostWriteFileText(String path, {required String contents}) async {}
-
-Future<String> hostReadFileText(String path) =>
-    throw UnsupportedError('hostReadFileText is not available on web');
 
 /// See the io half: cross-origin favicon responses are unreadable from a page,
 /// so the candidate is used optimistically and the <img> decides.

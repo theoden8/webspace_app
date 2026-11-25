@@ -2,7 +2,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
-import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/screens/add_site.dart'
     show FaviconUrlCache, UnifiedFaviconImage;
 import 'package:webspace/services/custom_icon.dart';
@@ -75,12 +74,7 @@ class _EditSiteDialogState extends State<EditSiteDialog> {
       );
       if (file == null) return;
       raw = file.bytes;
-      if (raw == null && file.path != null) {
-        raw = await hostReadFileBytes(file.path!);
-      }
     } on FileDialogFailure {
-      raw = null;
-    } on IOException {
       raw = null;
     }
     final processed = raw == null

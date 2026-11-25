@@ -88,7 +88,7 @@ void main() {
       'HTML there', (tester) async {
     final dir = Directory.systemTemp.createTempSync('share_html');
     addTearDown(() => dir.deleteSync(recursive: true));
-    final picker = FakeFilePicker.install()..savePath = '${dir.path}/page';
+    final picker = FakeFilePicker.install()..savePath = '${dir.path}/page.html';
     await open(tester);
     await tester.runAsync(() async {
       await export(tester, action: 'Save to file');
@@ -101,8 +101,9 @@ void main() {
     });
     await tester.pumpAndSettle();
 
-    expect(picker.offered.single,
+    expect(picker.offered.single.fileName,
         matches(RegExp(r'^news\.example\.com_\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d\.html$')));
+    expect(picker.offered.single.mimeType, 'text/html');
     expect(File('${dir.path}/page.html').readAsStringSync(), _html);
     expect(find.text('HTML saved'), findsOneWidget);
   });

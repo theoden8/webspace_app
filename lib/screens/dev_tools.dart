@@ -1001,27 +1001,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     return '${domain}_$timestamp.html';
   }
 
-  /// Saves [bytes] as [fileName] through the platform dialog: on mobile the
-  /// picker takes the bytes, on desktop they go to the path it returns. False
-  /// when the user picked no place.
-  Future<bool> _saveAs(String fileName,
-      {required String dialogTitle, required Uint8List bytes}) async {
-    final isMobile = !kIsWeb && (hostIsIOS || hostIsAndroid);
-    final outputPath = await FileDialog.saveFile(
-      dialogTitle: dialogTitle,
-      fileName: fileName,
-      bytes: isMobile ? bytes : null,
-    );
-    if (outputPath == null) return false;
-    if (!isMobile) {
-      final ext = fileName.substring(fileName.lastIndexOf('.'));
-      await hostWriteFileBytes(
-          outputPath.endsWith(ext) ? outputPath : '$outputPath$ext',
-          bytes: bytes);
-    }
-    return true;
-  }
-
   Future<void> _shareHtml() async {
     final html = await _html();
     if (html == null || !mounted) return;
@@ -1033,13 +1012,13 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     if (html == null || !mounted) return;
     final title = AppLocalizations.of(context).devToolsSaveHtmlDialogTitle;
     try {
-      if (await _saveAs(_htmlFileName,
-          dialogTitle: title, bytes: utf8.encode(html))) {
-        _toast((loc) => loc.devToolsHtmlSaved);
-      }
+      final saved = await FileDialog.saveFile(
+          dialogTitle: title,
+          fileName: _htmlFileName,
+          bytes: utf8.encode(html),
+          mimeType: 'text/html');
+      if (saved != null) _toast((loc) => loc.devToolsHtmlSaved);
     } on FileDialogFailure catch (e) {
-      _toast((loc) => loc.devToolsSaveFailed(e.toString()));
-    } on IOException catch (e) {
       _toast((loc) => loc.devToolsSaveFailed(e.toString()));
     }
   }
@@ -1071,9 +1050,12 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         return;
       }
       final fileName = '${extractDomain(host.currentUrl)}_icon.png';
-      if (await _saveAs(fileName,
-              dialogTitle: loc.devToolsSaveIconDialogTitle, bytes: png) &&
-          mounted) {
+      final saved = await FileDialog.saveFile(
+          dialogTitle: loc.devToolsSaveIconDialogTitle,
+          fileName: fileName,
+          bytes: png,
+          mimeType: 'image/png');
+      if (saved != null && mounted) {
         messenger.toast(loc.devToolsIconSaved);
       }
     } on FileDialogFailure catch (e) {

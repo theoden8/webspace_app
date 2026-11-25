@@ -18,11 +18,6 @@ Map<String, String> get hostEnvironment => io.Platform.environment;
 String get hostOperatingSystem => io.Platform.operatingSystem;
 String get hostOperatingSystemVersion => io.Platform.operatingSystemVersion;
 
-/// Write [bytes] to [path]. Unavailable on web; callers there must route
-/// through the browser's own download path instead.
-Future<void> hostWriteBytes(String path, {required List<int> bytes}) =>
-    io.File(path).writeAsBytes(bytes);
-
 /// [host]'s numeric addresses. Throws [io.SocketException] when the name
 /// does not resolve, which a caller judging the destination reads as "no
 /// answer" rather than "public".
@@ -120,8 +115,6 @@ String hostReadFileTextSync(String path) => io.File(path).readAsStringSync();
 
 Future<void> hostWriteFileText(String path, {required String contents}) =>
     io.File(path).writeAsString(contents);
-
-Future<String> hostReadFileText(String path) => io.File(path).readAsString();
 
 /// Whether a candidate icon URL can be checked with a HEAD request before use.
 /// True natively; on web the response is unreadable across origins, so the

@@ -74,7 +74,7 @@ void main() {
       (tester) async {
     final html = utf8.encode('<p>hello</p>');
     FakeFilePicker.install(
-        file: PlatformFile(name: 'my-page.html', size: html.length, bytes: html));
+        file: FakePlatformFile(name: 'my-page.html', bytes: html));
     final popped = await _open(tester);
     await tester.tap(_import);
     await tester.pumpAndSettle();

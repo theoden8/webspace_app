@@ -5,7 +5,7 @@
 import FlutterMacOS
 import Foundation
 
-import file_picker
+import file_picker_darwin
 import file_selector_macos
 import flutter_inappwebview_macos
 import flutter_local_notifications

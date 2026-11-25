@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/screens/webspace_page.dart';
@@ -38,7 +37,7 @@ void main() {
     final bytes = Uint8List.fromList(
         utf8.encode(SettingsBackupService.exportToJson(backup)));
     FakeFilePicker.install(
-        file: PlatformFile(name: 'backup.json', size: bytes.length, bytes: bytes));
+        file: FakePlatformFile(name: 'backup.json', bytes: bytes));
 
     await tester.tap(find.byTooltip('App Settings'));
     await settleRealApp(tester);

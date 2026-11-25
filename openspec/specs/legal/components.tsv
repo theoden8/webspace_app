@@ -48,14 +48,13 @@ gradle:androidx.core:core-ktx	Apache-2.0	linked		its POM
 gradle:androidx.datastore:datastore	Apache-2.0	linked		its POM
 gradle:androidx.datastore:datastore-preferences	Apache-2.0	linked		its POM
 gradle:androidx.exifinterface:exifinterface	Apache-2.0	linked		its POM
-gradle:androidx.lifecycle:lifecycle-runtime	Apache-2.0	linked		its POM
 gradle:androidx.media:media	Apache-2.0	linked		its POM
 gradle:androidx.preference:preference	Apache-2.0	linked		its POM
 gradle:androidx.swiperefreshlayout:swiperefreshlayout	Apache-2.0	linked		its POM
 gradle:com.google.code.gson:gson	Apache-2.0	linked		its POM
 gradle:com.google.crypto.tink:tink-android	Apache-2.0	linked		its POM
 gradle:com.google.guava:guava	Apache-2.0	linked		its parent POM, guava-parent
-gradle:org.jetbrains.kotlin:kotlin-stdlib	Apache-2.0	linked		its POM
+gradle:org.jetbrains.kotlinx:kotlinx-coroutines-android	Apache-2.0	linked		its POM
 url:https://github.com/nlohmann/json/releases/download/v${NLOHMANN_JSON_VERSION}/json.tar.xz	MIT	linked		its LICENSE.MIT; flutter_inappwebview_linux fetches it only where no nlohmann_json is installed
 url:https://github.com/google/googletest/archive/release-1.11.0.zip	BSD-3-Clause	build		its LICENSE; the plugins' own test runners, never installed
 url:https://github.com/google/googletest/archive/v1.15.2.zip	BSD-3-Clause	build		its LICENSE; the plugins' own test runners, never installed

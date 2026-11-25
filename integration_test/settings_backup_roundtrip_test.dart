@@ -23,15 +23,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:cross_file/cross_file.dart';
 import 'package:file_picker/file_picker.dart';
-// FilePickerPlatform is the abstract base used to swap platform impls;
-// the package re-exports the IO + Linux + macOS + Windows concrete
-// classes from its main barrel but not the base class. Reaching into
-// `src/` is fine for tests — the alternative (mocking the dbus calls
-// pass-secret-service makes for the XDP file-chooser) is an order of
-// magnitude more code for no extra coverage.
-// ignore: implementation_imports
-import 'package:file_picker/src/platform/file_picker_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -46,56 +39,82 @@ import 'package:webspace/settings/proxy.dart';
 
 import 'secure_storage_fake.dart';
 
-/// Test stub for FilePicker that captures the bytes the app would have
-/// shown to the user and returns canned paths in place of the real
-/// XDP file-chooser dialog (which can't render under Xvfb in CI).
+/// A file on disk, as a platform's open dialog reports one.
+final class _DiskFile extends PlatformFile {
+  _DiskFile(this._path);
+
+  final String _path;
+
+  @override
+  String get name => _path.split('/').last;
+
+  @override
+  Uri get uri => Uri.file(_path);
+
+  @override
+  XFile get xFile => XFile(_path);
+
+  @override
+  int? lengthSync() => File(_path).lengthSync();
+
+  @override
+  Future<int?> length() => File(_path).length();
+
+  @override
+  Future<Uint8List> readAsBytes() => File(_path).readAsBytes();
+
+  @override
+  Stream<Uint8List> readAsByteStream() =>
+      File(_path).openRead().map(Uint8List.fromList);
+}
+
+/// Test stub for FilePicker that writes what the app saves and hands back
+/// what it picks at canned paths, in place of the real XDP file-chooser
+/// dialog (which can't render under Xvfb in CI).
 class _StubFilePicker extends FilePickerPlatform with MockPlatformInterfaceMixin {
-  /// Path to return from [saveFile]. The service writes the JSON here
-  /// directly on Linux desktop (it only passes `bytes` on mobile).
+  /// Where [saveFile] writes the bytes it is given, as every platform's
+  /// save dialog does.
   String? saveReturn;
 
-  /// Path to return from [pickFiles]. The service then reads its
-  /// contents from disk via the file's `path` field.
+  /// The file [pickFile] picks.
   String? pickReturn;
 
   @override
-  Future<String?> saveFile({
+  Future<Uri?> saveFile({
+    required String fileName,
+    required Uint8List bytes,
+    required String mimeType,
     String? dialogTitle,
-    String? fileName,
     String? initialDirectory,
-    FileType type = FileType.any,
-    List<String>? allowedExtensions,
-    Uint8List? bytes,
-    bool lockParentWindow = false,
-  }) async =>
-      saveReturn;
+    Function(FilePickerStatus)? onFileSaving,
+    WindowsOptions windowsOptions = const WindowsOptions(),
+    LinuxOptions linuxOptions = const LinuxOptions(),
+    WebOptions webOptions = const WebOptions(),
+  }) async {
+    final path = saveReturn;
+    if (path == null) return null;
+    await File(path).writeAsBytes(bytes);
+    return Uri.file(path);
+  }
 
   @override
-  Future<FilePickerResult?> pickFiles({
+  Future<PlatformFile?> pickFile({
     String? dialogTitle,
     String? initialDirectory,
     FileType type = FileType.any,
     List<String>? allowedExtensions,
-    void Function(FilePickerStatus)? onFileLoading,
-    bool allowMultiple = false,
-    bool? withData = false,
-    bool? withReadStream = false,
-    bool lockParentWindow = false,
-    bool readSequential = false,
+    Function(FilePickerStatus)? onFileLoading,
     int compressionQuality = 0,
-    bool cancelUploadOnWindowBlur = true,
-  }) async {
-    final p = pickReturn;
-    if (p == null) return null;
-    final f = File(p);
-    return FilePickerResult([
-      PlatformFile(
-        name: 'webspace_backup.json',
-        size: f.lengthSync(),
-        path: p,
-      ),
-    ]);
-  }
+    AndroidOptions androidOptions = const AndroidOptions(),
+    DarwinOptions darwinOptions = const DarwinOptions(),
+    WindowsOptions windowsOptions = const WindowsOptions(),
+    LinuxOptions linuxOptions = const LinuxOptions(),
+    WebOptions webOptions = const WebOptions(),
+  }) async =>
+      switch (pickReturn) {
+        final p? => _DiskFile(p),
+        null => null,
+      };
 }
 
 void main() {
