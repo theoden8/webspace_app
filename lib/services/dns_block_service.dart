@@ -1352,12 +1352,14 @@ final _dnsEachDrop = Pick<List<int>, DnsFlow>(
 /// then. The code's are one of these: less any a fold since it was asked
 /// brought.
 final _dnsEachTurnDrop = Pick<List<int>, DnsFlow>(
-  Expr.op(
-    HandPaired.dnsPruneTurn,
-    tla: r'SUBSET ((fl[f].drops \cap dns.levels) \ {dns.lvl})',
-    run: (c) => [_dnsTrim.from(c).drops(candidates: _dnsDrops.of(c))],
-    reads: const Reads(vars: {ModelVar.dns}),
-  ),
+  _dnsDrops.value
+      .intersect(
+        _dnsInForce.value.part<Iterable<int>>('levels', get: (d) => d.levels),
+      )
+      .without(_dnsLevelInForce)
+      .anySubset(
+        taken: (c) => _dnsTrim.from(c).drops(candidates: _dnsDrops.of(c)),
+      ),
   name: 'dt',
 );
 
