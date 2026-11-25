@@ -55,7 +55,6 @@ INTEG-008	process: conventions for writing a new integration test file; nothing 
 INTEG-009	no check: macOS integration step configuration in build-and-test.yml (per-file loop, keychain unlock, entitlements override, disk reclaim); no gate reads the workflow for it
 INTEG-011	no check: the tier is scripts/run_android_lifecycle_tests.sh with scripts/classify_window_pixels.py, not a counted check; no test checks its warm-start, bfcache-back or recreation scenarios or the classifier's parity with SurfaceDiagNative.classify (partly: test/diag_seed_test.dart, "passes an explicit siteId through so the harness can activate it")
 # ios-universal-link-bypass
-IOS-UL-006	no check: no test asserts a nested InAppWebViewScreen's navigations run through the bypass gate
 # ip-leakage
 # js-shim-tests
 SHIM-TEST-002	no check: nothing stops a test from running its own copy of a script written as a function; the parity gate only holds pageJs() to PageJs, the lint only catches template copies, and installBrowserPolyfills' stubs are unchecked (partly: test/js/page_js.test.js, "this tier reads lib/js the way PageJs does")

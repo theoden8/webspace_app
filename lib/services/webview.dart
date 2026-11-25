@@ -146,6 +146,11 @@ class WebViewFactory {
     return (math.min(w, h), math.max(w, h));
   }
 
+  /// Runs the iOS Universal Link bypass on a host that is not iOS, so a test
+  /// can hold every webview the factory builds to it (IOS-UL-006).
+  @visibleForTesting
+  static bool? debugUniversalLinkBypass;
+
   /// Whether a frame may not navigate to [url] at all: an `about:` page
   /// other than the two a captcha iframe needs (CAPTCHA-002, NESTED-002), or
   /// a service-worker iframe (NESTED-003).
@@ -1332,7 +1337,7 @@ class WebViewFactory {
             httpMethod: navigationAction.request.method,
             headers: navigationAction.request.headers,
           ),
-          onIos: hostIsIOS,
+          onIos: debugUniversalLinkBypass ?? hostIsIOS,
           currentUrl: () async => (await view?.getUrl())?.toString(),
         );
         if (reissue != null) {
