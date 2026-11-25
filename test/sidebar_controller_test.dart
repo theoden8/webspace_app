@@ -26,7 +26,7 @@ void main() {
     sidebar
       ..collapse()
       ..hide()
-      ..restore();
+      ..restore(drawer: false);
     expect(sidebar.state, SidebarState.collapsed);
   });
 
@@ -39,8 +39,23 @@ void main() {
   });
 
   test('restore with nothing to restore opens it', () {
-    sidebar.restore();
+    sidebar.restore(drawer: false);
     expect(sidebar.state, SidebarState.open);
+  });
+
+  test('TAB-033 where no rail docks, the arrow tab brings the drawer, '
+      'leaving the state', () {
+    sidebar
+      ..collapse()
+      ..restore(drawer: true);
+    expect((sidebar.state, sidebar.drawerShown),
+        (SidebarState.collapsed, true));
+    sidebar
+      ..closeDrawer()
+      ..hide()
+      ..restore(drawer: true);
+    expect((sidebar.state, sidebar.drawerShown),
+        (SidebarState.collapsed, true));
   });
 
   test('cycle goes open, collapsed, hidden, open (TAB-032)', () {

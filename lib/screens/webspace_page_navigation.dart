@@ -85,6 +85,9 @@ extension _PageNavigation on _WebSpacePageState {
   /// Whether the window is wide enough to dock the sidebar beside the page.
   bool get _wideNavigation => isWideNavigation(MediaQuery.sizeOf(context).width);
 
+  /// Whether a narrow window docks the rail here.
+  bool get _narrowRail => railOnNarrow(screenEdgeBack: hostIsIOS);
+
   /// Which navigation surfaces show, decided once by the engine.
   NavigationSurfaces get _surfaces => navigationSurfaces((
         navigation: currentSiteNavigation,
@@ -97,6 +100,7 @@ extension _PageNavigation on _WebSpacePageState {
         siteOnScreen: _sites.shown != null && _sites.filteredIndices().isNotEmpty,
         legacyWebspace: !_libraryDesign && _selectedWebspace != null,
         revealed: _fullscreen.navigationRevealed,
+        narrowRail: _narrowRail,
       ));
 
   /// Whether the site strip is on screen, at either edge (KIOSK-002: never
@@ -245,7 +249,9 @@ extension _PageNavigation on _WebSpacePageState {
       revealsOverlay: _revealsOverlay,
       expandsOnHover: AppPref.sidebarExpandOnHover.value,
       onArrowTap: () =>
-          _revealsOverlay ? _fullscreen.revealNavigation() : _sidebar.restore(),
+          _revealsOverlay
+              ? _fullscreen.revealNavigation()
+              : _sidebar.restore(drawer: !_wideNavigation && !_narrowRail),
       onSettle: (to) => _sidebar.settle(to, wide: _wideNavigation),
       onReveal: (shown) =>
           shown ? _fullscreen.revealNavigation() : _fullscreen.hideNavigation(),
