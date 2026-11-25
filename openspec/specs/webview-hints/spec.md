@@ -117,6 +117,7 @@ The theme hint mechanism SHALL work on all supported platforms.
 **Given** the same webview content
 **When** the theme hint is applied on Android, iOS, and macOS
 **Then** all platforms inject the same preference
+**And** `test/js/theme_hint_one_path.test.js` holds that nothing on the way branches on the platform: the page script reads no engine identity, and its builder, the reinstall on a theme change and the first document's arm have no platform test
 
 ---
 
