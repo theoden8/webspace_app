@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Կոճակ ամբողջ էկրանին",
   "appSettingsFullscreenButtonHint": "Ամբողջ էկրանին կողագոտու սլաքը կամ կայքերի շերտի կոճակը մնում է էջի վրա, որպեսզի կարողանաք վերադարձնել որևէ մեկը։ Անջատված լինելու դեպքում ամբողջ էկրանը ոչ մեկը չի ցուցադրում։",
   "backupPrefSiteStripHidden": "Կայքերի շերտը թաքցված է",
-  "siteMenuUseSiteStrip": "Օգտագործել կայքերի շերտը",
-  "siteMenuUseSidebar": "Օգտագործել կողագոտին",
   "sidebarArrowDragHint": "Պահեք սլաքը և քաշեք այն էջի վրա՝ փոխարենը կայքերի շերտն օգտագործելու համար",
   "backupPrefSidebarState": "Կողագոտի՝ բաց, ծալված կամ թաքցված",
   "appSettingsSidebarStyle": "Բաց կողագոտին ցույց է տալիս",

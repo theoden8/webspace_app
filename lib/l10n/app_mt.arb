@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Buttuna fl-iskrin sħiħ",
   "appSettingsFullscreenButtonHint": "Fl-iskrin sħiħ, il-vleġġa tal-virga tal-ġenb jew il-buttuna tal-istrixxa tas-siti jibqgħu fuq il-paġna, biex tkun tista' terġa' ġġib kwalunkwe waħda. Mitfi, l-iskrin sħiħ ma juri l-ebda waħda.",
   "backupPrefSiteStripHidden": "Strixxa tas-siti moħbija",
-  "siteMenuUseSiteStrip": "Uża l-istrixxa tas-siti",
-  "siteMenuUseSidebar": "Uża l-virga tal-ġenb",
   "sidebarArrowDragHint": "Żomm il-vleġġa u kaxkarha fuq il-paġna biex tuża l-istrixxa tas-siti minflok",
   "backupPrefSidebarState": "Virga tal-ġenb miftuħa, imċekkna jew moħbija",
   "appSettingsSidebarStyle": "Il-virga tal-ġenb miftuħa turi",

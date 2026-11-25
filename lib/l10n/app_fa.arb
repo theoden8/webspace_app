@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "دکمه در تمام‌صفحه",
   "appSettingsFullscreenButtonHint": "در تمام‌صفحه، پیکان نوار کناری یا دکمهٔ نوار سایت‌ها را روی صفحه نگه می‌دارد تا بتوانید هر کدام را برگردانید. اگر خاموش باشد، تمام‌صفحه هیچ‌کدام را نشان نمی‌دهد.",
   "backupPrefSiteStripHidden": "نوار سایت‌ها پنهان",
-  "siteMenuUseSiteStrip": "استفاده از نوار سایت‌ها",
-  "siteMenuUseSidebar": "استفاده از نوار کناری",
   "sidebarArrowDragHint": "پیکان را نگه دارید و روی صفحه بکشید تا به‌جای آن از نوار سایت‌ها استفاده کنید",
   "backupPrefSidebarState": "نوار کناری باز، جمع‌شده یا پنهان",
   "appSettingsSidebarStyle": "نوار کناری باز نشان می‌دهد",

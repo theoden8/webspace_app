@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "සම්පූර්ණ තිරයේ බොත්තම",
   "appSettingsFullscreenButtonHint": "සම්පූර්ණ තිරයේදී පැති තීරුවේ ඊතලය හෝ අඩවි තීරුවේ බොත්තම පිටුව මත තබා ගනී, ඕනෑම එකක් නැවත ගෙන ඒමට. අක්‍රිය විට සම්පූර්ණ තිරය කිසිවක් නොපෙන්වයි.",
   "backupPrefSiteStripHidden": "අඩවි තීරුව සඟවා ඇත",
-  "siteMenuUseSiteStrip": "අඩවි තීරුව භාවිත කරන්න",
-  "siteMenuUseSidebar": "පැති තීරුව භාවිත කරන්න",
   "sidebarArrowDragHint": "ඒ වෙනුවට අඩවි තීරුව භාවිත කිරීමට ඊතලය අල්ලාගෙන පිටුව මතට අදින්න",
   "backupPrefSidebarState": "පැති තීරුව විවෘත, හකුළා ඇති හෝ සඟවා ඇති",
   "appSettingsSidebarStyle": "විවෘත පැති තීරුව පෙන්වන්නේ",

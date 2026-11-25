@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Knapp i fullskjerm",
   "appSettingsFullscreenButtonHint": "I fullskjerm blir sidepanelets pil eller knappen til nettstedslinjen liggende over siden, så du kan hente frem hvilken som helst. Av viser fullskjerm ingen av dem.",
   "backupPrefSiteStripHidden": "Nettstedslinje skjult",
-  "siteMenuUseSiteStrip": "Bruk nettstedslinjen",
-  "siteMenuUseSidebar": "Bruk sidepanelet",
   "sidebarArrowDragHint": "Hold inne pilen og dra den inn på siden for å bruke nettstedslinjen i stedet",
   "backupPrefSidebarState": "Sidepanel åpent, slått sammen eller skjult",
   "appSettingsSidebarStyle": "Åpent sidepanel viser",

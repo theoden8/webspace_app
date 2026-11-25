@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Knop in volledig scherm",
   "appSettingsFullscreenButtonHint": "In volledig scherm blijft de pijl van de zijbalk of de knop van de sitebalk boven de pagina staan, zodat je ze terug kunt halen. Uit, toont volledig scherm geen van beide.",
   "backupPrefSiteStripHidden": "Sitebalk verborgen",
-  "siteMenuUseSiteStrip": "Sitebalk gebruiken",
-  "siteMenuUseSidebar": "Zijbalk gebruiken",
   "sidebarArrowDragHint": "Houd de pijl vast en sleep hem naar de pagina om in plaats daarvan de sitebalk te gebruiken",
   "backupPrefSidebarState": "Zijbalk open, ingeklapt of verborgen",
   "appSettingsSidebarStyle": "Geopende zijbalk toont",

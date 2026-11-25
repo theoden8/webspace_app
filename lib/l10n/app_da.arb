@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Knap i fuld skærm",
   "appSettingsFullscreenButtonHint": "I fuld skærm bliver sidepanelets pil eller knappen til bjælken med sider over siden, så du kan hente dem frem igen. Fra viser fuld skærm ingen af dem.",
   "backupPrefSiteStripHidden": "Bjælke med sider skjult",
-  "siteMenuUseSiteStrip": "Brug bjælken med sider",
-  "siteMenuUseSidebar": "Brug sidepanelet",
   "sidebarArrowDragHint": "Hold pilen nede, og træk den ind på siden for at bruge bjælken med sider i stedet",
   "backupPrefSidebarState": "Sidepanel åbent, foldet sammen eller skjult",
   "appSettingsSidebarStyle": "Åbent sidepanel viser",

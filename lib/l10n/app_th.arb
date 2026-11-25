@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "ปุ่มในโหมดเต็มจอ",
   "appSettingsFullscreenButtonHint": "ในโหมดเต็มจอ จะคงลูกศรของแถบด้านข้างหรือปุ่มของแถบเว็บไซต์ไว้เหนือหน้า เพื่อเรียกอันใดก็ได้กลับมา เมื่อปิด โหมดเต็มจอจะไม่แสดงทั้งสองอย่าง",
   "backupPrefSiteStripHidden": "ซ่อนแถบเว็บไซต์อยู่",
-  "siteMenuUseSiteStrip": "ใช้แถบเว็บไซต์",
-  "siteMenuUseSidebar": "ใช้แถบด้านข้าง",
   "sidebarArrowDragHint": "กดลูกศรค้างไว้แล้วลากไปบนหน้าเพื่อใช้แถบเว็บไซต์แทน",
   "backupPrefSidebarState": "แถบด้านข้างเปิด ยุบ หรือซ่อน",
   "appSettingsSidebarStyle": "แถบด้านข้างที่เปิดแสดง",

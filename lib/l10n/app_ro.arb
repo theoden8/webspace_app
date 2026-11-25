@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Buton pe ecran complet",
   "appSettingsFullscreenButtonHint": "Pe ecran complet, păstrează săgeata barei laterale sau butonul barei de site-uri deasupra paginii, ca să le poți readuce. Dezactivat, ecranul complet nu afișează niciuna.",
   "backupPrefSiteStripHidden": "Bară de site-uri ascunsă",
-  "siteMenuUseSiteStrip": "Folosește bara de site-uri",
-  "siteMenuUseSidebar": "Folosește bara laterală",
   "sidebarArrowDragHint": "Ține apăsată săgeata și trage-o pe pagină pentru a folosi în schimb bara de site-uri",
   "backupPrefSidebarState": "Bară laterală deschisă, restrânsă sau ascunsă",
   "appSettingsSidebarStyle": "Bara laterală deschisă afișează",

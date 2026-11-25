@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "પૂર્ણ સ્ક્રીનમાં બટન",
   "appSettingsFullscreenButtonHint": "પૂર્ણ સ્ક્રીનમાં સાઇડબારનું તીર અથવા સાઇટ સ્ટ્રિપનું બટન પૃષ્ઠ પર રાખે છે, જેથી કોઈ પણ પાછું લાવી શકાય. બંધ હોય ત્યારે પૂર્ણ સ્ક્રીન કોઈ બતાવતી નથી.",
   "backupPrefSiteStripHidden": "સાઇટ સ્ટ્રિપ છુપાયેલી",
-  "siteMenuUseSiteStrip": "સાઇટ સ્ટ્રિપ વાપરો",
-  "siteMenuUseSidebar": "સાઇડબાર વાપરો",
   "sidebarArrowDragHint": "તેના બદલે સાઇટ સ્ટ્રિપ વાપરવા તીરને પકડી રાખો અને પૃષ્ઠ પર ખેંચો",
   "backupPrefSidebarState": "સાઇડબાર ખુલ્લો, સંકુચિત અથવા છુપાયેલ",
   "appSettingsSidebarStyle": "ખુલ્લો સાઇડબાર બતાવે છે",

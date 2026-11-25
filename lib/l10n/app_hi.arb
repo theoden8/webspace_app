@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "फ़ुल स्क्रीन में बटन",
   "appSettingsFullscreenButtonHint": "फ़ुल स्क्रीन में साइडबार का तीर या साइट स्ट्रिप का बटन पेज के ऊपर रखता है, ताकि किसी को भी वापस लाया जा सके। बंद होने पर फ़ुल स्क्रीन दोनों में से कुछ नहीं दिखाती।",
   "backupPrefSiteStripHidden": "साइट स्ट्रिप छिपी है",
-  "siteMenuUseSiteStrip": "साइट स्ट्रिप इस्तेमाल करें",
-  "siteMenuUseSidebar": "साइडबार इस्तेमाल करें",
   "sidebarArrowDragHint": "इसके बजाय साइट स्ट्रिप इस्तेमाल करने के लिए तीर को दबाए रखें और पेज पर खींचें",
   "backupPrefSidebarState": "साइडबार खुला, सिकुड़ा या छिपा हुआ",
   "appSettingsSidebarStyle": "खुला साइडबार दिखाता है",

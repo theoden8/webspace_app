@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "전체 화면에서 버튼",
   "appSettingsFullscreenButtonHint": "전체 화면에서 사이드바의 화살표나 사이트 스트립의 버튼을 페이지 위에 남겨 언제든 다시 불러올 수 있습니다. 끄면 전체 화면에서 둘 다 표시되지 않습니다.",
   "backupPrefSiteStripHidden": "사이트 스트립 숨김",
-  "siteMenuUseSiteStrip": "사이트 스트립 사용",
-  "siteMenuUseSidebar": "사이드바 사용",
   "sidebarArrowDragHint": "화살표를 길게 누른 채 페이지로 끌면 대신 사이트 스트립을 사용합니다",
   "backupPrefSidebarState": "사이드바 열림, 접힘 또는 숨김",
   "appSettingsSidebarStyle": "열린 사이드바에 표시할 항목",

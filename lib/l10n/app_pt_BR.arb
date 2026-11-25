@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Botão em tela cheia",
   "appSettingsFullscreenButtonHint": "Em tela cheia, mantém a seta da barra lateral ou o botão da barra de sites sobre a página, para que você possa mostrá-las de novo. Desativado, a tela cheia não mostra nenhuma.",
   "backupPrefSiteStripHidden": "Barra de sites oculta",
-  "siteMenuUseSiteStrip": "Usar a barra de sites",
-  "siteMenuUseSidebar": "Usar a barra lateral",
   "sidebarArrowDragHint": "Segure a seta e arraste-a para a página para usar a barra de sites no lugar",
   "backupPrefSidebarState": "Barra lateral aberta, recolhida ou oculta",
   "appSettingsSidebarStyle": "A barra lateral aberta mostra",

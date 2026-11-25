@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Poga pilnekrānā",
   "appSettingsFullscreenButtonHint": "Pilnekrānā sānjoslas bultiņa vai vietņu joslas poga paliek virs lapas, lai jebkuru varētu atgriezt. Izslēgtā stāvoklī pilnekrāns nerāda nevienu.",
   "backupPrefSiteStripHidden": "Vietņu josla paslēpta",
-  "siteMenuUseSiteStrip": "Izmantot vietņu joslu",
-  "siteMenuUseSidebar": "Izmantot sānjoslu",
   "sidebarArrowDragHint": "Turiet bultiņu un velciet to uz lapu, lai tā vietā izmantotu vietņu joslu",
   "backupPrefSidebarState": "Sānjosla atvērta, sakļauta vai paslēpta",
   "appSettingsSidebarStyle": "Atvērtā sānjosla rāda",

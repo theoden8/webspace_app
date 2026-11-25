@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Bulla in pleno schemate",
   "appSettingsFullscreenButtonHint": "In pleno schemate sagitta tabulae lateralis aut bulla tigilli locorum super paginam manet, ut utrumvis revocari possit. Si exstinguitur, plenum schema neutrum ostendit.",
   "backupPrefSiteStripHidden": "Tigillum locorum celatum",
-  "siteMenuUseSiteStrip": "Tigillo locorum utere",
-  "siteMenuUseSidebar": "Tabula laterali utere",
   "sidebarArrowDragHint": "Sagittam tene et in paginam trahe ut tigillo locorum potius utaris",
   "backupPrefSidebarState": "Tabula lateralis aperta, contracta aut celata",
   "appSettingsSidebarStyle": "Tabula lateralis aperta ostendit",

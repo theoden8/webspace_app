@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Przycisk na pełnym ekranie",
   "appSettingsFullscreenButtonHint": "Na pełnym ekranie strzałka panelu bocznego lub przycisk paska stron zostaje nad stroną, aby można było przywrócić dowolny z nich. Gdy wyłączone, pełny ekran nie pokazuje żadnego.",
   "backupPrefSiteStripHidden": "Pasek stron ukryty",
-  "siteMenuUseSiteStrip": "Użyj paska stron",
-  "siteMenuUseSidebar": "Użyj panelu bocznego",
   "sidebarArrowDragHint": "Przytrzymaj strzałkę i przeciągnij ją na stronę, aby zamiast tego używać paska stron",
   "backupPrefSidebarState": "Panel boczny otwarty, zwinięty lub ukryty",
   "appSettingsSidebarStyle": "Otwarty panel boczny pokazuje",

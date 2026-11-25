@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Tombol di layar penuh",
   "appSettingsFullscreenButtonHint": "Di layar penuh, panah bilah sisi atau tombol bilah situs tetap di atas halaman, agar salah satunya bisa dimunculkan kembali. Jika nonaktif, layar penuh tidak menampilkan keduanya.",
   "backupPrefSiteStripHidden": "Bilah situs disembunyikan",
-  "siteMenuUseSiteStrip": "Gunakan bilah situs",
-  "siteMenuUseSidebar": "Gunakan bilah sisi",
   "sidebarArrowDragHint": "Tahan panah lalu seret ke halaman untuk menggunakan bilah situs sebagai gantinya",
   "backupPrefSidebarState": "Bilah sisi terbuka, diciutkan, atau disembunyikan",
   "appSettingsSidebarStyle": "Bilah sisi terbuka menampilkan",

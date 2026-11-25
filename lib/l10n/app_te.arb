@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "పూర్తి స్క్రీన్‌లో బటన్",
   "appSettingsFullscreenButtonHint": "పూర్తి స్క్రీన్‌లో సైడ్‌బార్ బాణం లేదా సైట్ స్ట్రిప్ బటన్‌ను పేజీ పైన ఉంచుతుంది, దేనినైనా తిరిగి తీసుకురావడానికి. ఆఫ్‌లో ఉంటే, పూర్తి స్క్రీన్ దేనినీ చూపదు.",
   "backupPrefSiteStripHidden": "సైట్ స్ట్రిప్ దాచబడింది",
-  "siteMenuUseSiteStrip": "సైట్ స్ట్రిప్ ఉపయోగించు",
-  "siteMenuUseSidebar": "సైడ్‌బార్ ఉపయోగించు",
   "sidebarArrowDragHint": "బదులుగా సైట్ స్ట్రిప్ ఉపయోగించడానికి బాణాన్ని పట్టుకుని పేజీపైకి లాగండి",
   "backupPrefSidebarState": "సైడ్‌బార్ తెరిచి, కుదించి లేదా దాచి ఉంది",
   "appSettingsSidebarStyle": "తెరిచిన సైడ్‌బార్ చూపేది",

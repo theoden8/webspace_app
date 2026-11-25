@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Botão em ecrã inteiro",
   "appSettingsFullscreenButtonHint": "Em ecrã inteiro, mantém a seta da barra lateral ou o botão da barra de sites sobre a página, para que possa voltar a mostrá-las. Desativado, o ecrã inteiro não mostra nenhuma.",
   "backupPrefSiteStripHidden": "Barra de sites oculta",
-  "siteMenuUseSiteStrip": "Usar a barra de sites",
-  "siteMenuUseSidebar": "Usar a barra lateral",
   "sidebarArrowDragHint": "Mantenha premida a seta e arraste-a para a página para usar antes a barra de sites",
   "backupPrefSidebarState": "Barra lateral aberta, recolhida ou oculta",
   "appSettingsSidebarStyle": "A barra lateral aberta mostra",

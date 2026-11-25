@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Nupp täisekraanil",
   "appSettingsFullscreenButtonHint": "Täisekraanil jääb külgriba nool või saidiriba nupp lehe kohale, et saaksid kumbagi tagasi tuua. Väljas ei näita täisekraan kumbagi.",
   "backupPrefSiteStripHidden": "Saidiriba peidetud",
-  "siteMenuUseSiteStrip": "Kasuta saidiriba",
-  "siteMenuUseSidebar": "Kasuta külgriba",
   "sidebarArrowDragHint": "Hoia noolt all ja lohista see lehele, et kasutada hoopis saidiriba",
   "backupPrefSidebarState": "Külgriba avatud, ahendatud või peidetud",
   "appSettingsSidebarStyle": "Avatud külgriba näitab",

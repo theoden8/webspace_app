@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Knapp i helskärm",
   "appSettingsFullscreenButtonHint": "I helskärm ligger sidofältets pil eller webbplatsradens knapp kvar över sidan, så att du kan ta fram vilken som helst. Av visar helskärm ingen av dem.",
   "backupPrefSiteStripHidden": "Webbplatsrad dold",
-  "siteMenuUseSiteStrip": "Använd webbplatsraden",
-  "siteMenuUseSidebar": "Använd sidofältet",
   "sidebarArrowDragHint": "Håll in pilen och dra den till sidan för att använda webbplatsraden i stället",
   "backupPrefSidebarState": "Sidofält öppet, hopfällt eller dolt",
   "appSettingsSidebarStyle": "Öppet sidofält visar",

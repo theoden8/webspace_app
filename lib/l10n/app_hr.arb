@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Gumb u punom zaslonu",
   "appSettingsFullscreenButtonHint": "U punom zaslonu zadržava strelicu bočne trake ili gumb trake stranica iznad stranice, kako biste mogli vratiti bilo koju. Isključeno, puni zaslon ne prikazuje nijedno.",
   "backupPrefSiteStripHidden": "Traka stranica skrivena",
-  "siteMenuUseSiteStrip": "Koristi traku stranica",
-  "siteMenuUseSidebar": "Koristi bočnu traku",
   "sidebarArrowDragHint": "Držite strelicu i povucite je na stranicu kako biste umjesto toga koristili traku stranica",
   "backupPrefSidebarState": "Bočna traka otvorena, sažeta ili skrivena",
   "appSettingsSidebarStyle": "Otvorena bočna traka prikazuje",

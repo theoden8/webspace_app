@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Dugme u punom ekranu",
   "appSettingsFullscreenButtonHint": "U punom ekranu zadržava strelicu bočne trake ili dugme trake stranica iznad stranice, da biste mogli vratiti bilo koju. Isključeno, puni ekran ne prikazuje nijedno.",
   "backupPrefSiteStripHidden": "Traka stranica sakrivena",
-  "siteMenuUseSiteStrip": "Koristi traku stranica",
-  "siteMenuUseSidebar": "Koristi bočnu traku",
   "sidebarArrowDragHint": "Držite strelicu i prevucite je na stranicu da biste umjesto toga koristili traku stranica",
   "backupPrefSidebarState": "Bočna traka otvorena, skupljena ili skrivena",
   "appSettingsSidebarStyle": "Otvorena bočna traka prikazuje",
