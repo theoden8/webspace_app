@@ -11,7 +11,8 @@ pub:archive/LICENSE-other.md	assets/licenses/archive_other.txt
 pub:characters/third_party/Unicode_Consortium/UNICODE_LICENSE.txt	assets/licenses/unicode_data.txt
 pub:flutter_secure_storage_linux	assets/licenses/nlohmann_json.txt
 pub:flutter_zxing	assets/licenses/zxing_cpp.txt assets/licenses/zint.txt
-pub:flutter_zxing/src/zxing/zint/LICENSE	assets/licenses/zint.txt
+pub:flutter_zxing/third_party/zxing-cpp/LICENSE	assets/licenses/zxing_cpp.txt
+pub:flutter_zxing/third_party/zxing-cpp/zint/LICENSE	assets/licenses/zint.txt
 pub:image/LICENSE-other.md	assets/licenses/image_other.txt
 pub:mime/third_party/httpd/LICENSE	assets/licenses/mime_httpd.txt
 pub:pointycastle/licenses/LICENSE-BouncyCastle.html	assets/licenses/pointycastle_bouncycastle.txt
