@@ -222,6 +222,12 @@ final class ArchiveSite extends SiteAction {
 }
 
 /// The open archive is closed (`ArchiveController.close`).
+final class OpenArchive extends SiteAction {
+  const OpenArchive();
+  @override
+  String toString() => 'OpenArchive()';
+}
+
 final class CloseArchive extends SiteAction {
   const CloseArchive();
   @override
@@ -593,6 +599,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     this.dns,
     this.spaces,
     this.archived = false,
+    this.reopens = false,
     this.deletes = false,
     this.joins = false,
     this.imports = false,
@@ -602,6 +609,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     this.declared,
   }) {
     assert(!archived || page.containers, 'an archive needs containers');
+    assert(!reopens || archived, 'only an archive the setup made reopens');
     assert(
       !lateControllers || archived || deletes || imports || rehosts,
       'a controller comes late only where a webview is let go of',
@@ -749,6 +757,10 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// close it ([CloseArchive]); a frame mounts each loaded site's webview,
   /// which binds its container (`Archive`, `Frame`).
   final bool archived;
+
+  /// The script may open the archive again ([OpenArchive]): its sites,
+  /// closed off the list, join it again (`Joining`).
+  final bool reopens;
 
   /// The script may delete site 1 ([Delete]); a frame mounts each loaded
   /// site's webview, which binds its container (`Deletable`, `Frame`).
@@ -1123,7 +1135,8 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
 
   /// Flows the model takes no step of, so neither the replay nor a table's
   /// declarations hold them: a move into an archive, which the model starts
-  /// from (`Archive`), and a tab input on a site off screen
+  /// from (`Archive`), an archive's open up to the joins it lands, and a tab
+  /// input on a site off screen
   /// ([_offScreenTabInput]).
   final Set<int?> _unmodeled = {};
 
@@ -1398,6 +1411,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     ParkChild() ||
     Reroute() => false,
     ArchiveSite() ||
+    OpenArchive() ||
     Reply() ||
     Settle() ||
     Login() ||
@@ -1950,6 +1964,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
             '${dns == null ? '' : '_dns'}'
             '${spaces == null ? '' : '_spaces'}'
             '${archived ? '_archive' : ''}'
+            '${reopens ? '_reopen' : ''}'
             '${deletes ? '_delete' : ''}'
             '${joins ? '_join' : ''}'
             '${imports ? '_import' : ''}'
@@ -2032,9 +2047,13 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
       ModelConst.resettable => set(every),
       // A renderer dies only where the world builds webviews.
       ModelConst.rebuilt => set(_boxed || rehosts ? every : const <int>[]),
-      ModelConst.joining => switch (_joining) {
-        final j? => set([_siteNumber(j)]),
-        null => null,
+      ModelConst.joining => switch ([
+        ?_joining,
+        if (reopens) ..._archived,
+      ]) {
+        final joining when joining.isNotEmpty =>
+          set([for (final j in joining) _siteNumber(j)]),
+        _ => null,
       },
       // No world here opens an archive whose site a listed one's id holds.
       ModelConst.clashing => null,
@@ -2087,6 +2106,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
     Move() ||
     JoinSite() ||
     ArchiveSite() ||
+    OpenArchive() ||
     Add() ||
     RendererGone() ||
     Reply() ||
@@ -2134,6 +2154,18 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
   /// The backup ([ImportBackup]): the sites it carries, listed or not (a
   /// delete may have taken site 1), each a new model under its id in the
   /// order they had, those off the list last; the webspaces as they are.
+  /// The archive opened again under the walk's passphrase; its sites, which
+  /// land as new models under their ids, take the closed ones' places.
+  Future<void> _reopen() async {
+    await archives.open('walk');
+    for (var i = 0; i < _archived.length; i++) {
+      final id = _archived[i].siteId;
+      for (final m in sites.models) {
+        if (m.siteId == id && m.isArchiveTier) _archived[i] = m;
+      }
+    }
+  }
+
   Future<void> _importBackup() async {
     await siteImport.replace(
       SitesReplaced(
@@ -2741,6 +2773,14 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           }
           _track(_commit(const SiteSettingsClosed()));
         }
+      // An open waits on the archive's storage, which formal/
+      // archive_transfer.tla holds, and lands its sites as the model's
+      // `Join` steps, which the replay holds.
+      case OpenArchive():
+        if (reopens && _archived.isNotEmpty) {
+          _unmodeled.add(currentFlow());
+          _track(_reopen());
+        }
       case CloseArchive():
         if (archived && _archived.isNotEmpty) {
           if (archives.archiveOf(_archived.first) case final handle?) {
@@ -2831,6 +2871,7 @@ final class ActivationWorld implements ScheduledWorld<SiteAction> {
           DnsImport() ||
           SwitchWebspace() ||
           ArchiveSite() ||
+          OpenArchive() ||
           CloseArchive() ||
           Delete() ||
           ImportBackup() ||
