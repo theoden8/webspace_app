@@ -278,11 +278,12 @@ Status, at `5e1788f`:
   `content` wholesale, which drops its `user-scalable=no`. That widens what
   the user can do and is allowed.
 
-Gate to add: a browser-tier test (`test/browser/`) that installs the full
-DOCUMENT_START payload, emulates each feature with Puppeteer's
-`emulateMediaFeatures`, and asserts that `matchMedia` and a CSS `@media`
-probe both report the emulated value, alone and combined with
-`prefers-color-scheme`.
+Gate: `test/browser/accessibility_media_real_engine.test.js` installs every
+page script at document start, emulates each feature but `inverted-colors`
+(which Chromium cannot emulate) with Puppeteer's `emulateMediaFeatures`, and
+asserts that `matchMedia` and a CSS `@media` probe both report the emulated
+value. Combined with `prefers-color-scheme` it is a todo there until the
+theme shim answers only its own feature.
 
 #### Scenario: Reduce Motion on a tracking-protected site
 
