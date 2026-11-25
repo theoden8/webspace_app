@@ -53,6 +53,7 @@ class DialogBackupPrompts implements BackupPrompts {
                   leading: section == 0
                       ? null
                       : IconButton(
+                          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
                           icon: const Icon(Icons.arrow_back),
                           onPressed: () => refresh(() => section = 0),
                         ),
@@ -393,6 +394,7 @@ class DialogBackupPrompts implements BackupPrompts {
                 leading: section == 0
                     ? null
                     : IconButton(
+                        tooltip: MaterialLocalizations.of(context).backButtonTooltip,
                         icon: const Icon(Icons.arrow_back),
                         onPressed: () => refresh(() => section = 0),
                       ),

@@ -394,6 +394,7 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
       floatingActionButton: FloatingActionButton(
+        tooltip: AppLocalizations.of(context).userScriptsNewTitle,
         onPressed: () => _edit(_scripts, script: null, sync: _syncSite),
         child: const Icon(Icons.add),
       ),

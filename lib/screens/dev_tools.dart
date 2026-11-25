@@ -356,6 +356,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                     prefixIcon: const Icon(Icons.search, size: 20),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
+                            tooltip: MaterialLocalizations.of(context)
+                                .clearButtonTooltip,
                             icon: const Icon(Icons.clear, size: 20),
                             onPressed: () {
                               _searchController.clear();

@@ -1492,6 +1492,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       body: _buildBodyWithBottomBar(),
       floatingActionButton: _libraryDesign || webviewIsVisible ? null
           : FloatingActionButton(
+              tooltip: AppLocalizations.of(context).homeAddSite,
               onPressed: () => unawaited(_editing.addSite()),
               child: Icon(Icons.add),
             ),

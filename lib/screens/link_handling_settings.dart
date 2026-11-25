@@ -329,6 +329,7 @@ class _DomainClaimsEditorState extends State<DomainClaimsEditor> {
                     _claims.length == 1
                 ? null
                 : IconButton(
+                    tooltip: AppLocalizations.of(context).commonRemove,
                     icon: const Icon(Icons.delete_outline),
                     onPressed: () => _commit([..._claims]..removeAt(i)),
                   ),
@@ -420,6 +421,7 @@ class _OutboundPreferencesScreenState extends State<OutboundPreferencesScreen> {
                         loc.outboundPreferenceOpensAs(target.getDisplayName()),
                       ),
                       trailing: IconButton(
+                        tooltip: AppLocalizations.of(context).commonRemove,
                         icon: const Icon(Icons.delete_outline),
                         onPressed: () => _commit([..._prefs]..removeAt(i)),
                       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/services/page_focus.dart';
 import 'package:webspace/settings/app_prefs.dart';
@@ -86,6 +87,7 @@ class SiteStrip extends StatelessWidget {
           children: [
             if (revealed)
               IconButton(
+                tooltip: AppLocalizations.of(context).commonClose,
                 icon: const Icon(Icons.close),
                 iconSize: 20,
                 visualDensity: VisualDensity.compact,
