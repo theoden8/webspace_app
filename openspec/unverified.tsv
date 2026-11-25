@@ -110,7 +110,7 @@ HINT-003	no check: it governs how an ARB key is moved (renamed in place keeping 
 QR-007	process: records a known limitation (no per-field type validation) rather than behaviour to guard, and is partly overtaken: decode now type-checks proxySettings (SEC-005)
 # tls-trust-prompt
 # tor-proxy
-TOR-005	no check: nothing checks that the Rebuild circuits button calls the engine, that the native side sends SIGNAL NEWNYM, or that the exit changes while non-Tor sites are untouched (partly: test/tor_engine_test.dart, "rebuildCircuits is a no-op unless the runtime is up")
+TOR-005	no check: nothing checks that the Apple runtime (TorControllerPlugin.swift) sends SIGNAL NEWNYM, or that the exit changes while non-Tor sites are untouched (partly: test/tor_ui_states_test.dart, "Rebuild circuits asks the runtime for new circuits" and "Rebuild circuits sends that tor SIGNAL NEWNYM"; test/managed_tor_runtime_test.dart, "new circuits, a circuit asked for, and a reopen"; test/tor_engine_test.dart, "rebuildCircuits is a no-op unless the runtime is up")
 # tracking-protection
 ETP-029	no check: not implemented: task 6.3 of upstream-webview-defects is open and no shim or test registers or probes the plugin's console wrappers
 # user-scripts
