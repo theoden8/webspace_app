@@ -176,9 +176,13 @@ class ArchiveHarness implements ArchiveHost, ArchivePrompts {
     return model.cookies;
   }
 
+  /// What the passphrase prompt answers: the archives' own unless a test
+  /// gives another.
+  String passphraseAnswer = archivePassphrase;
+
   @override
   Future<String?> passphrase(PassphrasePurpose purpose) async =>
-      archivePassphrase;
+      passphraseAnswer;
 
   @override
   Future<bool> createArchive() async => true;

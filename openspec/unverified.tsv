@@ -18,7 +18,6 @@ A11Y-013	process: a person runs OS accessibility checks on devices before a rele
 A11Y-014	no check: Flutter's tap-target guidelines run in no test; the render matrix holds widgets to TapTargets.compact (32), below both platform floors (partly: test/design_render_matrix_test.dart, "the corner button is a tap target, not just an icon")
 A11Y-016	process: reading the Play pre-launch report each release is a release step; nothing a test can run
 # archive
-ARCH-008	no check: no widget test covers the combined Restore action with its passphrase field, the no-match create prompt, the Close this archive menu item on archive webspaces, or when Close all archives shows
 # background-audio
 # block-statistics
 # captcha-support
