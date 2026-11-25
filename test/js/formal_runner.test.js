@@ -6,7 +6,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { scriptOf } = require('./helpers/script_of');
 
-function runner(t) {
+function runner(t, { script = (text) => text } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'formal-runner-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const root = path.resolve(__dirname, '../..');
@@ -15,8 +15,12 @@ function runner(t) {
   const model = path.join(dir, 'model');
   for (const folder of [formal, bin, model]) fs.mkdirSync(folder);
   for (const name of fs.readdirSync(path.join(root, 'formal'))) {
-    if (/\.(tla|cfg)$/.test(name) || name === 'check.sh' || name === 'fetch_tla2tools.sh') {
+    if (/\.(tla|cfg)$/.test(name) || name === 'fetch_tla2tools.sh') {
       fs.copyFileSync(path.join(root, 'formal', name), path.join(formal, name));
+    }
+    if (name === 'check.sh') {
+      fs.writeFileSync(path.join(formal, name),
+        script(fs.readFileSync(path.join(root, 'formal', name), 'utf8')), { mode: 0o755 });
     }
   }
   // The split's rule is the proofs' own; the fixture's worlds have no recorded times.
@@ -32,9 +36,20 @@ function runner(t) {
     const args = process.argv.slice(2);
     const config = path.basename(args[args.indexOf('-config') + 1]);
     const workers = Number(args[args.indexOf('-workers') + 1]);
+    const flag = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
+    const metadir = flag('-metadir');
     const record = (event) => fs.appendFileSync(process.env.TLC_TEST_CALLS,
-      JSON.stringify({ event, config, workers, pid: process.pid }) + '\n');
+      JSON.stringify({
+        event, config, workers, pid: process.pid,
+        checkpoint: flag('-checkpoint'), metadir, recover: flag('-recover'),
+      }) + '\n');
     record('start');
+    // TLC writes a checkpoint as a dated directory under its metadir.
+    if (process.env.TLC_TEST_CHECKPOINTS === 'true') {
+      const at = path.join(metadir, '26-11-25-14-10-06');
+      fs.mkdirSync(at, { recursive: true });
+      for (const file of ['queue.chkpt', 'vars.chkpt']) fs.writeFileSync(path.join(at, file), '');
+    }
     console.log('Progress(1): 100 states generated, 50 distinct states found');
     setTimeout(() => {
       record('end');
@@ -60,7 +75,12 @@ function runner(t) {
       rows.map(([name, seconds]) => `${name}\t${seconds}\n`).join('')),
     memo: path.join(dir, 'cache', 'memo'),
     times: path.join(dir, 'cache', 'times'),
-    run({ section = 'GOOD', delay = 0, failure = false, shard = '0/1', rerun = false, deadline = 0, budget = 0 } = {}) {
+    states: path.join(formal, 'states'),
+    checkpoints: path.join(dir, 'cache', 'checkpoints'),
+    run({
+      section = 'GOOD', delay = 0, failure = false, shard = '0/1', rerun = false, deadline = 0,
+      budget = 0, checkpoint = 0, writesCheckpoints = false,
+    } = {}) {
       const result = spawnSync('bash', [path.join(formal, 'check.sh')], {
         env: {
           ...process.env,
@@ -78,6 +98,8 @@ function runner(t) {
           TLC_TEST_CALLS: calls,
           TLC_TEST_DELAY: String(delay),
           TLC_TEST_FAIL: String(failure),
+          FORMAL_CHECKPOINT_MINUTES: String(checkpoint),
+          TLC_TEST_CHECKPOINTS: String(writesCheckpoints),
         },
         encoding: 'utf8',
         timeout: 15000,
@@ -240,4 +262,76 @@ test('model shards split the worlds by recorded time, not by their order', (t) =
   };
   assert.deepEqual(ran('0/2'), ['kernel_conflict_repaint']);
   assert.deepEqual(ran('1/2'), ['kernel_conflict_contaminate', 'kernel_conflict_evict']);
+});
+
+// A suite a restart cuts short resumes each TLC run from its last checkpoint,
+// kept in a directory named for the run's inputs; one that ends leaves none.
+const starts = (check) => check.events().filter((e) => e.event === 'start');
+
+test('without checkpoints a run keeps its states with the suite and checkpoints never', (t) => {
+  const check = runner(t);
+  assert.equal(check.run().status, 0);
+  const [start] = starts(check);
+  assert.equal(start.checkpoint, '0');
+  assert.equal(start.recover, null);
+  assert.match(start.metadir, /\/states\/run\.[^/]+\/kernel\.states$/);
+});
+
+test('with checkpoints a run keeps them under its key, and one that ends leaves none', (t) => {
+  const check = runner(t);
+  const result = check.run({ checkpoint: 30, writesCheckpoints: true });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  const [start] = starts(check);
+  assert.equal(start.checkpoint, '30');
+  assert.equal(start.recover, null, 'a cold run has nothing to recover');
+  assert.equal(path.dirname(start.metadir), check.checkpoints);
+  assert.equal(fs.existsSync(start.metadir), false, 'a run that ended left its checkpoint');
+});
+
+/** A checkpoint a restart left for the run of kernel.cfg, at its key. */
+function leftCheckpoint(check) {
+  assert.equal(check.run({ checkpoint: 30 }).status, 0);
+  const at = path.join(starts(check)[0].metadir, '26-11-25-14-10-06');
+  fs.mkdirSync(at, { recursive: true });
+  for (const file of ['queue.chkpt', 'vars.chkpt']) fs.writeFileSync(path.join(at, file), '');
+  return at;
+}
+
+test('a run whose key holds a checkpoint recovers from it', (t) => {
+  const check = runner(t);
+  const at = leftCheckpoint(check);
+  const result = check.run({ checkpoint: 30, rerun: true });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.equal(starts(check)[1].recover, at);
+  assert.equal(fs.existsSync(at), false, 'the recovered run left its checkpoint');
+});
+
+test('a checkpoint TLC did not finish writing is not recovered from', (t) => {
+  const check = runner(t);
+  const at = leftCheckpoint(check);
+  fs.rmSync(path.join(at, 'vars.chkpt'));
+  assert.equal(check.run({ checkpoint: 30, rerun: true }).status, 0);
+  assert.equal(starts(check)[1].recover, null);
+});
+
+test('planted: a runner that never passes -recover is caught', (t) => {
+  const check = runner(t, { script: (text) => text.replace(' ${recover:+-recover "$recover"}', '') });
+  leftCheckpoint(check);
+  assert.equal(check.run({ checkpoint: 30, rerun: true }).status, 0);
+  assert.equal(starts(check)[1].recover, null, 'the plant changed nothing');
+});
+
+test('a run directory a restart left behind is pruned, one in use is not', (t) => {
+  const check = runner(t);
+  fs.mkdirSync(check.states, { recursive: true });
+  const left = path.join(check.states, 'run.left');
+  const live = path.join(check.states, 'run.live');
+  for (const dir of [left, live]) fs.mkdirSync(dir);
+  fs.writeFileSync(path.join(left, 'owner'), 'another-boot 1\n');
+  const boot = fs.existsSync('/proc/sys/kernel/random/boot_id')
+    ? fs.readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim() : '-';
+  fs.writeFileSync(path.join(live, 'owner'), `${boot} ${process.pid}\n`);
+  assert.equal(check.run().status, 0);
+  assert.equal(fs.existsSync(left), false, 'a directory from another boot stayed');
+  assert.equal(fs.existsSync(live), true, 'a directory a live suite holds was pruned');
 });
