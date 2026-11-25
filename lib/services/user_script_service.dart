@@ -7,6 +7,7 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/url_host.dart';
 import 'package:webspace/services/page_js.dart';
 import 'package:webspace/services/page_phase.dart';
+import 'package:webspace/services/userscript_header.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 
@@ -237,8 +238,9 @@ class UserScriptService {
   List<String> sourcesAt(UserScriptInjectionTime time) {
     final result = <String>[];
     for (final script in _scripts) {
-      if (script.injectionTime != time) continue;
-      final src = _buildSource(script);
+      final header = parseUserscriptHeader(script.fullSource);
+      if (_timeOf(script, header: header) != time) continue;
+      final src = script.fullSource;
       if (!script.enabled || src.isEmpty) {
         LogTag.userScript.debug(
             'Skipping "${script.name}" (enabled=${script.enabled}, empty=${src.isEmpty})',
@@ -248,24 +250,41 @@ class UserScriptService {
       LogTag.userScript.debug(
           'Adding to initialUserScripts: "${script.name}" at ${time.name} (${src.length} chars, url=${script.url ?? "none"})',
           sensitive: true);
-      result.add(_guarded(script.id, source: src));
+      result.add(_runnable(script, header: header, once: true));
     }
     return result;
   }
 
-  /// Wrap [source] in a once-per-document guard so the same script does not
-  /// run twice when [initialUserScripts] (native WKUserScript) and
-  /// [reinjectOnLoadStart]/[reinjectOnLoadStop] (evaluateJavascript) both
-  /// fire on a full page load.
-  ///
-  /// The flag lives on `window`, which is fresh per document, so guards
-  /// never need explicit resetting. SPA re-injection (where `window`
-  /// persists) deliberately bypasses this helper so that scripts can
-  /// re-initialize on route changes.
-  static String _guarded(UserScriptId scriptId, {required String source}) {
-    final safeId = scriptId.replaceAll(RegExp(r'[^A-Za-z0-9_]'), '_');
-    return 'if (!window.__wsRan_$safeId) { window.__wsRan_$safeId = true;\n$source\n}';
+  /// When [script] runs: its header's `@run-at`, else its stored time (US-010).
+  static UserScriptInjectionTime _timeOf(UserScriptConfig script,
+          {required UserscriptHeader header}) =>
+      header.runAt ?? script.injectionTime;
+
+  /// The text every run path evaluates for [script]: the page gate over its
+  /// [header]'s patterns, so it runs only on a page the header names
+  /// (US-009), then its code. A full load ([once]) runs the whole source
+  /// behind a once-per-document guard, so the same script does not run twice
+  /// when [initialUserScripts] (native WKUserScript) and
+  /// [reinjectOnLoadStart]/[reinjectOnLoadStop] both fire; the flag lives on
+  /// `window`, fresh per document. A single-page route runs only the user's
+  /// own code, unguarded, so a script can re-initialise on a route change.
+  static String _runnable(UserScriptConfig script,
+      {required UserscriptHeader header, required bool once}) {
+    final gate = PageJs.userscriptGate.withConfig({
+      'include': switch (header.include) {
+        EveryPage() => null,
+        NamedPages(:final patterns) => [for (final p in patterns) _json(p)],
+      },
+      'exclude': [for (final p in header.exclude) _json(p)],
+    });
+    if (!once) return '{ const ok = $gate; if (ok) {\n${script.source}\n} }';
+    final safeId = script.id.replaceAll(RegExp(r'[^A-Za-z0-9_]'), '_');
+    return '{ const ok = $gate; if (ok && !window.__wsRan_$safeId) { '
+        'window.__wsRan_$safeId = true;\n${script.fullSource}\n} }';
   }
+
+  static Map<String, String> _json(UrlPattern p) =>
+      {'source': p.source, 'flags': p.flags};
 
   /// Whether the script handler may fetch [url]: classification plus, for
   /// anything off the whitelist, the user's confirmation. Applied to the
@@ -427,10 +446,6 @@ class UserScriptService {
     );
   }
 
-  static String _buildSource(UserScriptConfig script) {
-    return script.fullSource;
-  }
-
   /// Re-inject the shim and atDocumentStart user scripts. Call from onLoadStart.
   ///
   /// Scripts with [urlSource] (cached library) are skipped — they are already
@@ -448,13 +463,15 @@ class UserScriptService {
       // Scripts with urlSource are injected via initialUserScripts (native
       // mechanism). Re-injecting here races with WKUserScript timing.
       if (script.urlSource != null && script.urlSource!.isNotEmpty) continue;
-      final src = _buildSource(script);
+      final src = script.fullSource;
       if (src.isEmpty) continue;
-      if (script.injectionTime == UserScriptInjectionTime.atDocumentStart) {
+      final header = parseUserscriptHeader(src);
+      if (_timeOf(script, header: header) ==
+          UserScriptInjectionTime.atDocumentStart) {
         LogTag.userScript.debug(
             'onLoadStart: re-injecting "${script.name}" (${src.length} chars)',
             sensitive: true);
-        await page.evaluate(_guarded(script.id, source: src));
+        await page.evaluate(_runnable(script, header: header, once: true));
       }
     }
   }
@@ -468,13 +485,15 @@ class UserScriptService {
     for (final script in _scripts) {
       if (!script.enabled) continue;
       if (script.urlSource != null && script.urlSource!.isNotEmpty) continue;
-      final src = _buildSource(script);
+      final src = script.fullSource;
       if (src.isEmpty) continue;
-      if (script.injectionTime == UserScriptInjectionTime.atDocumentEnd) {
+      final header = parseUserscriptHeader(src);
+      if (_timeOf(script, header: header) ==
+          UserScriptInjectionTime.atDocumentEnd) {
         LogTag.userScript.debug(
             'onLoadStop: re-injecting "${script.name}" (${src.length} chars)',
             sensitive: true);
-        await page.evaluate(_guarded(script.id, source: src));
+        await page.evaluate(_runnable(script, header: header, once: true));
       }
     }
   }
@@ -493,10 +512,8 @@ class UserScriptService {
       LogTag.userScript.debug(
           'SPA nav: re-running "${script.name}" source (${script.source.length} chars)',
           sensitive: true);
-      final safeName = script.name.replaceAll('"', '\\"');
-      await page.evaluate(
-        'console.log("__ws: SPA re-inject: $safeName");\n${script.source}',
-      );
+      await page.evaluate(_runnable(script,
+          header: parseUserscriptHeader(script.fullSource), once: false));
     }
   }
 }

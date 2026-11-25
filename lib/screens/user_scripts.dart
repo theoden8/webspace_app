@@ -4,6 +4,7 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/user_script_service.dart'
     show fetchUserScriptSource;
 import 'package:webspace/services/reentry_guard.dart';
+import 'package:webspace/services/userscript_header.dart';
 import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -451,7 +452,24 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen>
   }
 
   void _changed() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    _prefillName();
+    setState(() {});
+  }
+
+  /// The header of the script as the editor holds it, read on each change
+  /// as a build reads it (US-008).
+  UserscriptHeader get _header => parseUserscriptHeader(UserScriptConfig(
+        name: '',
+        source: _sourceController.text,
+        urlSource: _urlSource,
+      ).fullSource);
+
+  /// A new script with no name yet takes its header's `@name` (US-011); a
+  /// name the user typed, or an existing script's, is never replaced.
+  void _prefillName() {
+    if (widget.script != null || _nameController.text.isNotEmpty) return;
+    if (_header.name case final name?) _nameController.text = name;
   }
 
   @override
@@ -473,12 +491,11 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen>
 
   Future<void> _save() async {
     final loc = AppLocalizations.of(context);
-    final name = _nameController.text.trim();
-    if (name.isEmpty) {
+    final url = _urlController.text.trim();
+    if (_nameController.text.trim().isEmpty && url.isEmpty) {
       ScaffoldMessenger.of(context).toast(loc.userScriptsNameRequired);
       return;
     }
-    final url = _urlController.text.trim();
     if (url.isNotEmpty && (_urlSource == null || url != widget.script?.url)) {
       setState(() => _downloading = true);
       final result = await fetchUserScriptSource(url, proxy: widget.proxy);
@@ -493,6 +510,13 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen>
       _urlSource = result.source;
     }
     if (url.isEmpty) _urlSource = null;
+    _prefillName();
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      setState(() => _downloading = false);
+      ScaffoldMessenger.of(context).toast(loc.userScriptsNameRequired);
+      return;
+    }
     Navigator.pop(
       context,
       UserScriptConfig(
@@ -530,6 +554,7 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen>
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final isEditing = widget.script != null;
+    final header = _header;
     const urlHint = 'https://cdn.jsdelivr.net/npm/package/lib.min.js';
     return guardPop(
         child: Scaffold(
@@ -593,19 +618,26 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen>
               ),
             ),
           const SizedBox(height: 16),
+          // The header's @run-at decides the time when it names one
+          // (US-010); the stored time stays for when it does not.
           DropdownButtonFormField<UserScriptInjectionTime>(
-            value: _injectionTime,
+            key: ValueKey(header.runAt),
+            initialValue: header.runAt ?? _injectionTime,
             decoration: InputDecoration(
               labelText: loc.userScriptsInjectionTimeLabel,
               border: const OutlineInputBorder(),
+              helperText:
+                  header.runAt == null ? null : loc.userScriptHeaderSetsRunAt,
             ),
             items: [
               for (final time in UserScriptInjectionTime.values)
                 DropdownMenuItem(value: time, child: Text(time.label(loc))),
             ],
-            onChanged: (value) {
-              if (value != null) setState(() => _injectionTime = value);
-            },
+            onChanged: header.runAt != null
+                ? null
+                : (value) {
+                    if (value != null) setState(() => _injectionTime = value);
+                  },
           ),
           const SizedBox(height: 8),
           SettingTile(
@@ -629,6 +661,7 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen>
             minLines: 8,
             style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
           ),
+          if (!identical(header, noHeader)) _HeaderSummary(header: header),
           if (_runOutput != null) ...[
             const SizedBox(height: 12),
             Container(
@@ -647,5 +680,56 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen>
         ],
       ),
     ));
+  }
+}
+
+/// What the editor shows of a script's header: the pages it runs on and is
+/// kept from, what WebSpace does not provide (US-012), and what is wrong
+/// with it (US-008 to US-010).
+class _HeaderSummary extends StatelessWidget {
+  const _HeaderSummary({required this.header});
+
+  final UserscriptHeader header;
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    Localized listed(Iterable<String> values) => Localized.joined(
+        [for (final v in values) Localized.verbatim(v)],
+        by: Joined.list);
+    final lines = <Localized>[
+      switch (header.include) {
+        EveryPage() => loc.userScriptHeaderEveryPage,
+        NamedPages(patterns: []) => loc.userScriptHeaderNoPage,
+        NamedPages(:final patterns) =>
+          loc.userScriptHeaderRunsOn(listed(patterns.map((p) => p.written))),
+      },
+      if (header.exclude.isNotEmpty)
+        loc.userScriptHeaderExcludes(
+            listed(header.exclude.map((p) => p.written))),
+      if (header.notProvided.isNotEmpty)
+        loc.userScriptHeaderNotProvided(
+            listed(header.notProvided.map(headerLine))),
+      for (final problem in header.problems)
+        switch (problem) {
+          HeaderUnclosed() => loc.userScriptHeaderUnclosed,
+          InvalidPattern(:final entry) => loc.userScriptHeaderInvalidPattern(
+              Localized.verbatim(headerLine(entry))),
+          UnknownRunAt(:final value) =>
+            loc.userScriptHeaderUnknownRunAt(Localized.verbatim(value)),
+        },
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(loc.userScriptHeaderTitle,
+              style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 4),
+          for (final line in lines) Text(line),
+        ],
+      ),
+    );
   }
 }
