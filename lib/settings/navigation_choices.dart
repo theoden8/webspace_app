@@ -1,29 +1,31 @@
 // The site navigation choices as plain values, read by the engines that
 // decide what shows; the app's current ones are in site_navigation.dart.
 
-/// How the sites and their tabs are reached: the app bar's tab-count button
-/// alone, the site strip, or the sidebar. One choice, so the strip and the
-/// sidebar never show together.
+/// How the sites and their tabs are reached beside the app bar's tab-count
+/// button: the site strip or the sidebar, never both. Where the one control
+/// rests says which (TAB-038): the sidebar's arrow tab on the left edge, the
+/// strip's button over the page.
 enum SiteNavigation {
-  tabButton,
   strip,
   sidebar;
 
-  /// The value [raw] names; anything else, the default.
+  /// The value [raw] names; anything else, the default. An earlier build's
+  /// `tabButton` is read by `loadSiteNavigation`, which also hides the
+  /// sidebar.
   static SiteNavigation parse(String raw) =>
-      values.asNameMap()[raw] ?? tabButton;
+      values.asNameMap()[raw] ?? sidebar;
 }
 
-/// What full screen does with the chosen navigation: hides it, keeps it, or
-/// leaves a small control that brings it back.
+/// What full screen does with the strip or the sidebar: hides it, or leaves
+/// its control, which brings it back over the page.
 enum FullscreenNavigation {
   hidden,
-  kept,
   button;
 
-  /// The value [raw] names; anything else, the default.
+  /// The value [raw] names; an earlier build's `kept` is the button now;
+  /// anything else, the default.
   static FullscreenNavigation parse(String raw) =>
-      values.asNameMap()[raw] ?? hidden;
+      raw == 'kept' ? button : values.asNameMap()[raw] ?? hidden;
 }
 
 /// The sidebar's state, one for the app: open, collapsed to a rail, hidden.

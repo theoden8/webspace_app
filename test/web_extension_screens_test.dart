@@ -18,6 +18,7 @@ import 'package:webspace/services/web_extension_package_engine.dart';
 import 'package:webspace/settings/web_extension.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/theme/app_theme.dart';
+import 'package:webspace/settings/navigation_choices.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/site_menu.dart';
 
@@ -712,6 +713,7 @@ void main() {
                 state: () => (
                   loading: false,
                   tabsOn: false,
+                  navigation: SiteNavigation.sidebar,
                   fullscreen: false,
                   offersShortcut: false,
                   extensions: siteMenuExtensions(site),

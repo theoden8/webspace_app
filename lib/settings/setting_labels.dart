@@ -203,17 +203,8 @@ extension UserScriptInjectionTimeLabel on UserScriptInjectionTime {
 
 extension SiteNavigationLabel on SiteNavigation {
   Localized label(AppLocalizations loc) => switch (this) {
-    SiteNavigation.tabButton => loc.siteNavigationTabButton,
     SiteNavigation.strip => loc.appSettingsSiteStrip,
     SiteNavigation.sidebar => loc.siteNavigationSidebar,
-  };
-}
-
-extension FullscreenNavigationLabel on FullscreenNavigation {
-  Localized label(AppLocalizations loc) => switch (this) {
-    FullscreenNavigation.hidden => loc.appSettingsFullscreenSiteStripHidden,
-    FullscreenNavigation.kept => loc.appSettingsFullscreenSiteStripAlways,
-    FullscreenNavigation.button => loc.appSettingsFullscreenSiteStripButton,
   };
 }
 

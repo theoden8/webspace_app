@@ -18,6 +18,7 @@ NavigationSurfaces surfaces({
   bool legacyWebspace = false,
   bool revealed = false,
   bool narrowRail = true,
+  bool stripHidden = false,
 }) =>
     navigationSurfaces((
       navigation: navigation,
@@ -30,6 +31,7 @@ NavigationSurfaces surfaces({
       siteOnScreen: siteOnScreen,
       legacyWebspace: legacyWebspace,
       narrowRail: narrowRail,
+      stripHidden: stripHidden,
       revealed: revealed,
     ));
 
@@ -43,32 +45,6 @@ const NavigationSurfaces nothing = (
 );
 
 void main() {
-  group('tab button', () {
-    test('shows only the tab count (TAB-030)', () {
-      expect(surfaces(navigation: SiteNavigation.tabButton),
-          (
-            strip: false,
-            dock: SidebarDock.none,
-            float: SidebarFloat.none,
-            arrowTab: false,
-            tabCountButton: true,
-            stripButton: false,
-          ));
-    });
-
-    test('full screen shows nothing, whatever the full-screen choice', () {
-      for (final choice in FullscreenNavigation.values) {
-        expect(
-            surfaces(
-                navigation: SiteNavigation.tabButton,
-                fullscreen: true,
-                inFullscreen: choice),
-            nothing,
-            reason: choice.name);
-      }
-    });
-  });
-
   group('site strip', () {
     test('TAB-030 out of full screen the strip shows, with the tab count', () {
       final s = surfaces(navigation: SiteNavigation.strip);
@@ -93,14 +69,12 @@ void main() {
       expect((shown.strip, shown.stripButton), (true, false));
     });
 
-    test('full screen keeps it, or hides it', () {
-      expect(
-          surfaces(
-                  navigation: SiteNavigation.strip,
-                  fullscreen: true,
-                  inFullscreen: FullscreenNavigation.kept)
-              .strip,
-          isTrue);
+    test('TAB-038 hidden, the strip leaves its button over the page', () {
+      final s = surfaces(navigation: SiteNavigation.strip, stripHidden: true);
+      expect((s.strip, s.stripButton, s.tabCountButton), (false, true, true));
+    });
+
+    test('FS-007 full screen with the button switch off hides it', () {
       expect(
           surfaces(
               navigation: SiteNavigation.strip,
@@ -200,19 +174,6 @@ void main() {
       expect((phone.float, phone.arrowTab), (SidebarFloat.drawer, false));
     });
 
-    test('Kept docks it as out of full screen', () {
-      final s = surfaces(
-          fullscreen: true,
-          inFullscreen: FullscreenNavigation.kept,
-          sidebar: SidebarState.collapsed);
-      expect(s.dock, SidebarDock.rail);
-      final hidden = surfaces(
-          fullscreen: true,
-          inFullscreen: FullscreenNavigation.kept,
-          sidebar: SidebarState.hidden);
-      expect(hidden.arrowTab, isTrue);
-    });
-
     test('Hidden shows nothing', () {
       expect(
           surfaces(fullscreen: true, inFullscreen: FullscreenNavigation.hidden),
@@ -237,17 +198,12 @@ void main() {
     });
   });
 
-  test('full screen set to Button gives a floating control with the strip or '
-      'the sidebar, and the bars stay revealable for it', () {
-    for (final navigation in SiteNavigation.values) {
-      for (final inFullscreen in FullscreenNavigation.values) {
-        expect(
-            floatsInFullscreen(
-                navigation: navigation, inFullscreen: inFullscreen),
-            navigation != SiteNavigation.tabButton &&
-                inFullscreen == FullscreenNavigation.button,
-            reason: '${navigation.name}, ${inFullscreen.name}');
-      }
+  test('FS-009 the button switch gives a floating control in full screen, '
+      'and the bars stay revealable for it', () {
+    for (final inFullscreen in FullscreenNavigation.values) {
+      expect(floatsInFullscreen(inFullscreen: inFullscreen),
+          inFullscreen == FullscreenNavigation.button,
+          reason: inFullscreen.name);
     }
   });
 
@@ -255,7 +211,7 @@ void main() {
       'site on screen, as its drawer did; nothing else shows there', () {
     final listed = surfaces(siteOnScreen: false, legacyWebspace: true);
     expect(listed.dock, SidebarDock.full);
-    for (final navigation in [SiteNavigation.tabButton, SiteNavigation.strip]) {
+    for (final navigation in [SiteNavigation.strip]) {
       expect(
           surfaces(
               navigation: navigation,

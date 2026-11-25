@@ -1007,18 +1007,6 @@
   "@trayQuitApp": {
     "description": "Last line in the menu of the app's icon in the macOS menu bar or the Linux system tray: quits the app. WebSpace is the app's name; keep it as written"
   },
-  "appSettingsFullscreenSiteStripHidden": "Hidden",
-  "@appSettingsFullscreenSiteStripHidden": {
-    "description": "Option: hide the site strip in full screen"
-  },
-  "appSettingsFullscreenSiteStripAlways": "Always visible",
-  "@appSettingsFullscreenSiteStripAlways": {
-    "description": "Option: keep the site strip always visible in full screen"
-  },
-  "appSettingsFullscreenSiteStripButton": "Reveal with button",
-  "@appSettingsFullscreenSiteStripButton": {
-    "description": "Option: keep the site strip hidden but show a small floating button that reveals it (and its menu) on demand, in and out of full screen"
-  },
   "appSettingsSiteStripPosition": "Position",
   "@appSettingsSiteStripPosition": {
     "description": "Label on the app Behaviour screen, under the Site strip heading, for the choice of which screen edge the site strip (the bar of the webspace's sites) runs along. Followed by two icon buttons, Top and Bottom."
@@ -1035,9 +1023,29 @@
   "@appSettingsSiteNavigation": {
     "description": "Title of the setting that chooses how the webspace's sites and their tabs are reached: the tab-count button in the app bar alone, the site strip (a bar of sites along the top or bottom), or the sidebar (sites and tabs down the left side)"
   },
-  "appSettingsFullscreenNavigation": "In full screen",
-  "@appSettingsFullscreenNavigation": {
-    "description": "Title of the setting for what full screen does with the chosen site navigation (site strip or sidebar): hide it, keep it, or leave a small button that brings it back"
+  "appSettingsFullscreenButton": "Button in full screen",
+  "@appSettingsFullscreenButton": {
+    "description": "Title of a switch in App Settings > Appearance. On, a site in full screen keeps a small control over the page: the sidebar's arrow tab on the left edge, or the site strip's round button, which brings the sidebar or the strip back. Off, full screen shows neither."
+  },
+  "appSettingsFullscreenButtonHint": "In full screen, keeps the sidebar's arrow tab or the site strip's button over the page, so either can be brought back. Off, full screen shows neither.",
+  "@appSettingsFullscreenButtonHint": {
+    "description": "Explanation behind the hint button of the 'Button in full screen' switch in App Settings > Appearance."
+  },
+  "backupPrefSiteStripHidden": "Site strip hidden",
+  "@backupPrefSiteStripHidden": {
+    "description": "Name of a setting in the list of settings a backup restores: whether the site strip (a bar of the webspace's sites along the top or bottom of the screen) is hidden behind its small round button."
+  },
+  "siteMenuUseSiteStrip": "Use site strip",
+  "@siteMenuUseSiteStrip": {
+    "description": "Item of a site's overflow menu while the sidebar is in use: switches to the site strip, a bar of the webspace's sites along the top or bottom of the screen, in place of the sidebar. The same as dragging the sidebar's arrow tab onto the page."
+  },
+  "siteMenuUseSidebar": "Use sidebar",
+  "@siteMenuUseSidebar": {
+    "description": "Item of a site's overflow menu while the site strip is in use: switches to the sidebar, a panel of the webspace's sites along the left edge, in place of the strip. The same as dragging the strip's round button to the left edge."
+  },
+  "sidebarArrowDragHint": "Hold the arrow and drag it onto the page to use the site strip instead",
+  "@sidebarArrowDragHint": {
+    "description": "Short message shown once, the first time the sidebar's arrow tab appears on the left screen edge: holding the arrow and dragging it onto the page turns it into the site strip's button, switching from the sidebar to the site strip (a bar of sites along the top or bottom)."
   },
   "backupPrefSidebarState": "Sidebar open, collapsed or hidden",
   "@backupPrefSidebarState": {
@@ -1059,21 +1067,9 @@
   "@appSettingsGroupNavigation": {
     "description": "Section heading in App Settings > Behaviour over how the user moves between a webspace's sites and their tabs: the site navigation choice and its options."
   },
-  "appSettingsSiteNavigationHint": "How you move between a webspace's sites and their tabs. The tab button opens the Tabs sheet. The site strip is a bar of the sites, each opening its tabs. The sidebar lists them beside the page, as squares or a tab tree.",
-  "@appSettingsSiteNavigationHint": {
-    "description": "Explanation behind the hint button of the Site navigation setting in App Settings > Behaviour. 'Tab button', 'site strip' and 'sidebar' are its three choices; 'Tabs sheet' is the sheet listing every tab."
-  },
-  "siteNavigationTabButton": "Tab button",
-  "@siteNavigationTabButton": {
-    "description": "One of the three Site navigation choices in App Settings > Behaviour: a button in the app bar showing the tab count, which opens the Tabs sheet. Today's default."
-  },
   "siteNavigationSidebar": "Sidebar",
   "@siteNavigationSidebar": {
     "description": "One of the three Site navigation choices in App Settings > Behaviour: a panel along the left edge listing the webspace's sites and their tabs, which can be open, collapsed to a narrow rail, or hidden."
-  },
-  "appSettingsFullscreenNavigationHint": "What stays of the site strip or the sidebar when a site is in full screen: nothing, all of it, or a small control on the edge that shows it over the page.",
-  "@appSettingsFullscreenNavigationHint": {
-    "description": "Explanation behind the hint button of the In full screen setting in App Settings > Behaviour, whose choices are Hidden, Always visible and Reveal with button."
   },
   "sidebarStyleSquares": "Squares",
   "@sidebarStyleSquares": {

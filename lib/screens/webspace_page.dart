@@ -1025,7 +1025,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             onPressed: _openAppSettings,
           ),
         if (currentModel != null &&
-            currentSiteNavigation != SiteNavigation.strip)
+            !_siteStripShown)
           _siteMenu(SiteMenuPlacement.appBar),
       ],
     ));
@@ -1079,6 +1079,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         state: () => (
           loading: _sites.shown?.isLoading ?? false,
           tabsOn: _tabs.enabledFor(_sites.shown),
+          navigation: currentSiteNavigation,
           fullscreen: _fullscreen.active,
           offersShortcut: switch (_sites.shown) {
             final shown? => _shortcuts.offersShortcutFor(shown),
@@ -1108,6 +1109,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     switch (action) {
       case SiteMenuAction.newTab:
         if (model != null) await _tabs.newTab(model);
+      case SiteMenuAction.useSiteStrip:
+        await useSiteNavigation(SiteNavigation.strip, hidden: false);
+      case SiteMenuAction.useSidebar:
+        await useSiteNavigation(SiteNavigation.sidebar, hidden: false);
       case SiteMenuAction.backToWebspaces:
         final zoom = _libraryDesign ? _launchZoom.currentState : null;
         if (model != null && zoom != null) {
@@ -1381,7 +1386,8 @@ class _WebSpacePageState extends State<WebSpacePage>
                   Positioned.fill(
                     child: TabBarCornerOverlay(
                       corner: _tabBarButtonCornerEffective,
-                      onTap: _fullscreen.revealNavigation,
+                      onTap: _showStrip,
+                      onDock: _sidebarArrowAt,
                       // Remembered on the site on screen.
                       onCornerChosen: (corner) {
                         final site = _sites.shown;

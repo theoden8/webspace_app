@@ -18,16 +18,14 @@ typedef NavigationQuery = ({
   bool revealed,
   // A narrow window docks the rail ([railOnNarrow]).
   bool narrowRail,
+  // The site strip is hidden behind its button (TAB-038).
+  bool stripHidden,
 });
 
 /// Whether full screen shows a floating control (the strip's button or the
 /// sidebar's arrow tab), so the system bars stay revealable rather than
 /// sticky, as they are with nothing of the app's on screen.
-bool floatsInFullscreen({
-  required SiteNavigation navigation,
-  required FullscreenNavigation inFullscreen,
-}) =>
-    navigation != SiteNavigation.tabButton &&
+bool floatsInFullscreen({required FullscreenNavigation inFullscreen}) =>
     inFullscreen == FullscreenNavigation.button;
 
 /// Whether a narrow window docks the rail beside the page: not where the
@@ -78,26 +76,18 @@ NavigationSurfaces navigationSurfaces(NavigationQuery q) {
     return _none;
   }
   return switch (q.navigation) {
-    SiteNavigation.tabButton => q.fullscreen ? _none : _tabButton,
     SiteNavigation.strip => _strip(q),
     SiteNavigation.sidebar => _sidebar(q),
   };
 }
 
-const NavigationSurfaces _tabButton = (
-  strip: false,
-  dock: SidebarDock.none,
-  float: SidebarFloat.none,
-  arrowTab: false,
-  tabCountButton: true,
-  stripButton: false,
-);
-
+/// The strip docked at its edge, or hidden behind its button; in full
+/// screen, by the user's switch, its button until it reveals the strip, or
+/// nothing.
 NavigationSurfaces _strip(NavigationQuery q) {
   final (strip, button) = !q.fullscreen
-      ? (true, false)
+      ? (!q.stripHidden, q.stripHidden)
       : switch (q.inFullscreen) {
-          FullscreenNavigation.kept => (true, false),
           FullscreenNavigation.button => (q.revealed, !q.revealed),
           FullscreenNavigation.hidden => (false, false),
         };
@@ -113,11 +103,9 @@ NavigationSurfaces _strip(NavigationQuery q) {
 
 NavigationSurfaces _sidebar(NavigationQuery q) {
   if (q.fullscreen) {
-    switch (q.inFullscreen) {
-      case FullscreenNavigation.hidden:
-        return _none;
-      case FullscreenNavigation.button:
-        return (
+    return switch (q.inFullscreen) {
+      FullscreenNavigation.hidden => _none,
+      FullscreenNavigation.button => (
           strip: false,
           dock: SidebarDock.none,
           float: !q.revealed
@@ -126,10 +114,8 @@ NavigationSurfaces _sidebar(NavigationQuery q) {
           arrowTab: !q.revealed,
           tabCountButton: false,
           stripButton: false,
-        );
-      case FullscreenNavigation.kept:
-        break;
-    }
+        ),
+    };
   }
   if (!q.wide && !q.narrowRail) {
     return (
@@ -137,7 +123,7 @@ NavigationSurfaces _sidebar(NavigationQuery q) {
       dock: SidebarDock.none,
       float: q.drawerShown ? SidebarFloat.drawer : SidebarFloat.none,
       arrowTab: !q.drawerShown,
-      tabCountButton: !q.fullscreen,
+      tabCountButton: true,
       stripButton: false,
     );
   }
@@ -156,7 +142,7 @@ NavigationSurfaces _sidebar(NavigationQuery q) {
     dock: dock,
     float: float,
     arrowTab: hidden,
-    tabCountButton: !q.fullscreen,
+    tabCountButton: true,
     stripButton: false,
   );
 }

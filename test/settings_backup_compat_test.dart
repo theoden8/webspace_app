@@ -908,7 +908,7 @@ void main() {
       }));
       expect(p.appPrefs['showUrlBar'], false);
       expect(p.appPrefs['tabMaxWidth'], 180);
-      expect(p.appPrefs['siteNavigation'], 'tabButton');
+      expect(p.appPrefs['siteNavigation'], 'sidebar');
       expect(p.appPrefs['appLocaleOverride'], '');
       expect(p.appPrefs['osmTileUrl'], _defaults['osmTileUrl']);
       // A file can spell a number JSON-encoding cannot produce.

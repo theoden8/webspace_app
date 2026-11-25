@@ -101,6 +101,7 @@ extension _PageNavigation on _WebSpacePageState {
         legacyWebspace: !_libraryDesign && _selectedWebspace != null,
         revealed: _fullscreen.navigationRevealed,
         narrowRail: _narrowRail,
+        stripHidden: AppPref.siteStripHidden.value,
       ));
 
   /// Whether the site strip is on screen, at either edge (KIOSK-002: never
@@ -111,6 +112,43 @@ extension _PageNavigation on _WebSpacePageState {
   /// Button, until it reveals the strip, which then carries its own dismiss
   /// control.
   bool get _tabBarButtonShown => _surfaces.stripButton;
+
+  /// The strip's close control: in full screen the button's reveal ends,
+  /// otherwise the strip stays hidden behind its button (TAB-038).
+  void _hideStrip() {
+    if (_fullscreen.active) {
+      _fullscreen.hideNavigation();
+    } else {
+      unawaited(AppPref.siteStripHidden.set(true));
+    }
+  }
+
+  /// The arrow tab let go on the page: the strip in use, hidden behind its
+  /// button at [corner] (TAB-038).
+  void _stripButtonAt(TabBarCorner corner) {
+    final site = _sites.shown;
+    if (site != null && site.tabBarButtonCorner != corner) {
+      site.tabBarButtonCorner = corner;
+      unawaited(_commitSites(const SitesEdited()));
+    }
+    unawaited(useSiteNavigation(SiteNavigation.strip, hidden: true));
+  }
+
+  /// The strip's button let go on the left edge, [fraction] down it: the
+  /// sidebar in use, hidden behind its arrow tab there (TAB-038).
+  void _sidebarArrowAt(double fraction) {
+    unawaited(AppPref.sidebarHandleY.set((fraction.clamp(0.1, 0.9) * 100).round()));
+    unawaited(useSiteNavigation(SiteNavigation.sidebar, hidden: true));
+  }
+
+  /// The strip's button: the strip back, over the page in full screen.
+  void _showStrip() {
+    if (_fullscreen.active) {
+      _fullscreen.revealNavigation();
+    } else {
+      unawaited(AppPref.siteStripHidden.set(false));
+    }
+  }
 
   /// The edge the site strip is on screen at, or null while it is not.
   SiteStripEdge? get _siteStripEdge =>
@@ -129,8 +167,8 @@ extension _PageNavigation on _WebSpacePageState {
       models: _sites.models,
       order: _sites.filteredIndices(),
       current: _sites.current,
-      revealed: _fullscreen.navigationRevealed,
-      onHide: _fullscreen.hideNavigation,
+      hideable: !_fullscreen.active || _fullscreen.navigationRevealed,
+      onHide: _hideStrip,
       onOpen: _openSite,
       onShowTabs: _toggleStripSite,
       open: _openSites,
@@ -267,6 +305,9 @@ extension _PageNavigation on _WebSpacePageState {
           : null,
       onHandleMoved: (fraction) =>
           unawaited(AppPref.sidebarHandleY.set((fraction * 100).round())),
+      onLiftedOff: (at) => _stripButtonAt(
+        tabBarCornerNearest(at.x, y: at.y),
+      ),
       onResize: (width) => unawaited(AppPref.sidebarWidth.set(width.round())),
     );
   }
@@ -336,6 +377,10 @@ extension _PageNavigation on _WebSpacePageState {
               style: Theme.of(context).textTheme.titleSmall,
             ),
       body: body,
+      view: (
+        style: currentSidebarStyle,
+        onChanged: (style) => unawaited(AppPref.sidebarStyle.set(style.name)),
+      ),
       footer: legacy
           ? AddSiteButton(onAddSite: () => unawaited(_editing.addSite()))
           : null,

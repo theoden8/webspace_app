@@ -158,15 +158,13 @@ void main() {
 
     AppPref.siteNavigation.debugValue = 'strip';
     AppPref.fullscreenOnShortcut.debugValue = true;
+    AppPref.backOpensMenu.debugValue = true;
     AppPref.linkHandlingEnabled.debugValue = true;
     await tester.pumpAndSettle();
     expect(summaryText(tester, title: 'Behaviour'),
-        'Site strip · Full screen on shortcut launch · 1 more');
-
-    AppPref.siteNavigation.debugValue = 'sidebar';
-    await tester.pumpAndSettle();
-    expect(summaryText(tester, title: 'Behaviour'),
-        'Sidebar · Full screen on shortcut launch · 1 more');
+        'Full screen on shortcut launch · Back gesture opens the menu · 1 more',
+        reason: 'the strip or the sidebar in use is not a Behaviour setting '
+            '(APPSET-005)');
   });
 
   testWidgets('where no shortcut can be added, as on a TV, full screen on '
@@ -210,20 +208,13 @@ void main() {
         'Full screen on shortcut launch');
   });
 
-  testWidgets('the tab strip edge is picked once the strip can show',
-      (tester) async {
+  testWidgets('FS-012 the site strip\'s edge is picked in Appearance, with the '
+      'sidebar in use or the strip', (tester) async {
     AppPref.tabStripEdge.debugValue = 'bottom';
     await tester.pumpWidget(app(settings()));
     await tester.pumpAndSettle();
-    await openRow(tester, title: 'Behaviour');
-
-    expect(find.byTooltip('Top'), findsNothing,
-        reason: 'a strip not chosen has no edge to pick');
-
-    await tester.tap(find.text('Tab button'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Site strip').last);
-    await tester.pumpAndSettle();
+    await openRow(tester, title: 'Appearance');
+    await tester.scrollUntilVisible(find.byTooltip('Top'), 200);
     await tester.tap(find.byTooltip('Top'));
     await tester.pumpAndSettle();
     expect(AppPref.tabStripEdge.value, 'top');

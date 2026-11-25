@@ -1578,7 +1578,7 @@ Widget _siteStripTabs(BuildContext _) {
     models: sites,
     order: [for (var i = 0; i < sites.length; i++) i],
     current: 0,
-    revealed: false,
+    hideable: false,
     onHide: _noop,
     onOpen: (_) {},
     onShowTabs: _noop,
