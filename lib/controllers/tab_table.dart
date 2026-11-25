@@ -295,23 +295,18 @@ abstract final class TabTable {
     why: "a close installs the site's tabs but the ones it takes",
   );
   static final _survivors = _tabIds(_current).without(_chosenTab);
-  static final _restIds = Expr.handPaired<List<TabId>, TabFlow>(
-    HandPaired.restTabIds,
-    tla: 'fl[f].rest',
-    run: (c) => _rest.isSet(c) ? [for (final t in _rest.of(c)) t.id] : const [],
-    reads: Reads.none,
-  );
+  static final _restTabs = _rest.valueOr(none: const <SiteTab>[]);
+  static final _restIds = _restTabs.byKey((t) => t.id);
   static final _onlyFresh = Expr.checked(
     rule: _mintSite.asSet,
     run: (c) => [_flow.from(c).fresh!],
     key: (SiteTab t) => t.id,
     why: 'a last close leaves the fresh tab alone',
   );
-  static final _installed = Expr.handPaired<List<SiteTab>, TabFlow>(
-    HandPaired.installedTabs,
-    tla: 'IF fl[f].rest = {} THEN tabs[fl[f].site] ELSE fl[f].rest',
-    run: (c) => _rest.isSet(c) ? _rest.of(c) : _flow.from(c).site.tabs,
-    reads: const Reads(vars: {ModelVar.tabs}),
+  static final _installed = Expr.choose(
+    when: _restTabs.isEmpty,
+    then: _tabs.at(_site.value),
+    otherwise: _restTabs,
   );
 
   /// The tabs the target has to be among: the list being installed, else

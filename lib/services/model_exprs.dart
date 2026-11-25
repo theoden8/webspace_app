@@ -327,6 +327,16 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
     unless: needs,
   );
 
+  /// The same set as the model names its members, each by [key] (a tab by
+  /// its id), so the same text.
+  Expr<List<K>, W> byKey<K>(K Function(E e) key) => Expr._(
+    run: (c) => [for (final e in run(c)) key(e)],
+    tla: tla,
+    reads: reads,
+    needs: needs,
+    unless: unless,
+  );
+
   /// `S # {}`: needs what S needs to have members.
   Expr<bool, W> get isNotEmpty => Expr._(
     run: (c) => run(c).isNotEmpty,

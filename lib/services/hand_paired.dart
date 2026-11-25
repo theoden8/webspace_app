@@ -73,12 +73,6 @@ enum HandPaired implements Pairing {
   /// pool has one.
   landingTabs,
 
-  /// The ids of the tabs left to install (`fl[f].rest`).
-  restTabIds,
-
-  /// The list a tab flow installs, its rest or else the site's.
-  installedTabs,
-
   /// The tabs a target has to be among, none once the page is gone.
   targetAmong,
 
