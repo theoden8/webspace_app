@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart' show kDoubleTapMinTime;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/widgets/tab_bar_corner_button.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/fullscreen_overlays.dart';
 import 'package:webspace/widgets/site_menu.dart';
@@ -140,11 +141,17 @@ void main() {
     expectLeft();
   });
 
-  testWidgets('FS-002: the kept tab strip\'s menu reads Exit Full Screen and '
-      'leaves', (tester) async {
+  testWidgets('FS-002: the revealed tab strip\'s menu reads Exit Full Screen '
+      'and leaves', (tester) async {
     await openSite(tester,
         prefs: {'showTabStrip': true, 'tabStripInFullscreen': true});
     await enterFromMenu(tester);
+    // The full screen hint covers the button's corner until it times out.
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 500));
+    }
+    await tester.tap(find.byType(TabBarCornerButton));
+    await settleRealApp(tester);
     await tester.tap(find.byTooltip('Menu'));
     await settleRealApp(tester);
     expect(find.text('Full Screen'), findsNothing);

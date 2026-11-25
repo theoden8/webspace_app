@@ -1024,26 +1024,29 @@ click: it has no key convention, and a long press opens the menu instead.
 - **WHEN** the user middle-clicks a link to a domain none of their sites claims
 - **THEN** the link opens as a plain click on it would, in the nested screen
 
-### Requirement: TAB-030 - Site navigation is one choice
+### Requirement: TAB-030 - The site strip or the sidebar
 
-How the user moves between a webspace's sites and their tabs SHALL be one
-app-wide choice in App Settings > Behaviour (`siteNavigation`): **Tab button**
-(the default), **Site strip** or **Sidebar**. The strip and the sidebar SHALL
-never show together. With every choice the app bar SHALL carry the tab-count
-button, which opens the Tabs sheet, and the site menu SHALL offer no second
-way to it. One
-decision (`navigationSurfaces`) SHALL say which surfaces show; a locked kiosk
-session and a page with no site on screen SHALL show none (KIOSK-002), but for
-the legacy design's sidebar (TAB-036).
+The user SHALL move between a webspace's sites and their tabs with the site
+strip or the sidebar (`siteNavigation`), never both at once. Which one is in
+use SHALL be set where its control rests (TAB-038), or from the site menu,
+not by a choice in App Settings; their own settings SHALL be two groups in
+App Settings > Appearance. The app bar SHALL carry the tab-count button with
+either, which opens the Tabs sheet, and the site menu SHALL offer no second
+way to it. One decision (`navigationSurfaces`) SHALL say which surfaces
+show; a locked kiosk session and a page with no site on screen SHALL show
+none (KIOSK-002), but for the legacy design's sidebar (TAB-036).
 
-An upgrade and an old backup SHALL map the earlier strip settings onto the
-choice: a pinned strip or the strip's button to Site strip (the button to In
-full screen = Button, FS-009), anything else to Tab button. A choice already
-made, or named by a backup, SHALL be kept.
+An upgrade and an old backup SHALL map the earlier choice onto this: a
+pinned strip or the strip's button to the site strip (the button, or a strip
+kept in full screen, to Button in full screen on, FS-007), and the tab button
+alone, or nothing set, to the sidebar hidden behind its arrow tab, which
+shows no more of the page than the tab button did. A new install SHALL start
+the same way. A strip or a sidebar already in use, or named by a backup,
+SHALL be kept.
 
 #### Scenario: The strip keeps the tab button
 
-- **GIVEN** Site navigation is Site strip or Sidebar and a site is on screen
+- **GIVEN** the site strip or the sidebar is in use and a site is on screen
 - **THEN** the app bar has the tab-count button, which opens the Tabs sheet
 - **AND** the site menu has no All tabs
 
@@ -1051,7 +1054,13 @@ made, or named by a backup, SHALL be kept.
 
 - **GIVEN** a build that saved the site strip as pinned
 - **WHEN** the app starts after the upgrade, or a backup it wrote is imported
-- **THEN** Site navigation is Site strip
+- **THEN** the site strip is in use
+
+#### Scenario: The tab button becomes the hidden sidebar
+
+- **GIVEN** a build that saved the tab button
+- **WHEN** the app starts after the upgrade, or a backup it wrote is imported
+- **THEN** the sidebar is in use, hidden behind its arrow tab
 
 ### Requirement: TAB-031 - The site strip opens a site's tabs
 
@@ -1184,8 +1193,10 @@ a drawer: Back closes it, and from a drawer Back opened, leaves the app
 
 ### Requirement: TAB-034 - The open sidebar shows squares or the tab tree
 
-The open sidebar SHALL show, by the user's choice (`sidebarStyle`), **Squares**
-(the default) or the **Tab tree**. Squares SHALL be the webspace's sites in a
+The open sidebar SHALL show **Squares** (the default) or the **Tab tree**
+(`sidebarStyle`), switched by a toggle in its own title row, beside its
+collapse button, named for the view it switches to; App Settings SHALL not
+offer the choice. Squares SHALL be the webspace's sites in a
 grid three wide, each square's icon and name centred in it, an open site's
 tabs as chips in a panel under its row,
 pointing at its square, opening as the strip's do (TAB-031). The tree SHALL be
@@ -1257,3 +1268,41 @@ SHALL close once the pointer has left both the rail and the opened sidebar.
 - **THEN** the sidebar hides
 - **WHEN** the mouse leaves the rail and the opened sidebar instead
 - **THEN** only the rail shows
+
+### Requirement: TAB-038 - One control moves between the sidebar and the strip
+
+The sidebar's arrow tab (TAB-032) and the site strip's button (FS-009) SHALL
+be one control, and where it rests SHALL say which navigation is in use:
+
+- a hold of the arrow tab SHALL lift it; drawn under the finger as the tab
+  within the dock zone along the left edge (44 pt, lit while it would dock)
+  and as the strip's button outside it, it SHALL be let go on the page as the
+  strip's button at the nearest corner, the strip in use and hidden behind
+  it, or within the dock zone as the arrow tab at that height. A drag that
+  starts at once SHALL keep its meanings: right pulls the sidebar out, up or
+  down moves the tab;
+- the strip's button, dragged at once or after a hold, SHALL be let go within
+  the dock zone as the arrow tab at that height, the sidebar in use and
+  hidden behind it, or elsewhere at the nearest corner;
+- the strip SHALL hide behind its button out of full screen too: its close
+  control leaves the button, whose tap shows the strip again
+  (`siteStripHidden`);
+- the site menu SHALL offer the navigation not in use, Use site strip or Use
+  sidebar, which switches to it shown, for those who cannot drag;
+- the first arrow tab the app shows SHALL say once, in a message, that it can
+  be dragged onto the page for the site strip.
+
+#### Scenario: The arrow tab becomes the strip's button
+
+- **GIVEN** the sidebar in use and hidden behind its arrow tab
+- **WHEN** the user holds the arrow tab and lets it go on the page
+- **THEN** the site strip is in use, hidden behind its button at the nearest corner
+- **WHEN** the user drags the button to the left edge and lets it go
+- **THEN** the sidebar is in use, hidden behind its arrow tab at that height
+
+#### Scenario: The menu switches without a drag
+
+- **GIVEN** the site strip in use
+- **WHEN** the user picks Use sidebar from the site menu
+- **THEN** the sidebar is in use and open
+

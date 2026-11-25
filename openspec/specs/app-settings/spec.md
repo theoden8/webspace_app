@@ -61,8 +61,8 @@ HINT-002 length cap.
 
 - Appearance: the theme mode, then the chosen language when one overrides the
   system's.
-- Behaviour: of the site strip (when not hidden), full screen on shortcut
-  launch, back gesture opens the menu and link handling, the ones on; or
+- Behaviour: of full screen on shortcut launch, back gesture opens the menu,
+  keep running when closed and link handling, the ones on; or
   "Nothing enabled".
 - Network: the app-wide route (the saved proxy's or gateway's name, the Tor
   route, or type and address), or "Default connection"; then the number of
@@ -82,8 +82,8 @@ HINT-002 length cap.
 
 #### Scenario: More than two overflow
 
-**Given** the site strip is pinned, full screen on shortcut launch is on and
-link handling is on
+**Given** full screen on shortcut launch, back gesture opens the menu and link
+handling are on
 **Then** the Behaviour row names two of them and then "1 more"
 
 ---
@@ -144,19 +144,19 @@ prompt.
 **Then** the export runs once
 **And** the page App Settings was opened from is still shown
 
-### Requirement: APPSET-005 — Behaviour shows a navigation's rows only with it
+### Requirement: APPSET-005 — Appearance holds the sidebar's and the strip's rows
 
-App Settings > Behaviour SHALL open with a Navigation section whose first row
-is Site navigation (TAB-030). Each row under it SHALL show only where the chosen
-navigation has something for it to set: In full screen (FS-007) with the site
-strip or the sidebar; Open sidebar shows (TAB-034) and Expand rail on hover
-(TAB-037) with the sidebar, the latter only where a pointer can hover (a
-desktop, or a mouse or trackpad connected); the strip's position (FS-012) and its tab width
-limit with the strip. The Behaviour row of the index SHALL name the site strip
-or the sidebar when either is chosen (APPSET-002).
+App Settings > Appearance SHALL hold a Navigation section with the Button in
+full screen switch (FS-007), then a Sidebar group with Expand rail on hover
+(TAB-037), only where a pointer can hover (a desktop, or a mouse or trackpad
+connected), and a Site strip group with its position (FS-012) and its tab
+width limit. They SHALL be groups, not a choice: the one in use is set where
+its control rests (TAB-038). App Settings > Behaviour SHALL hold none of them,
+and its row of the index SHALL not name either.
 
-#### Scenario: The sidebar's rows
+#### Scenario: The navigation rows
 
-**Given** Site navigation is Sidebar
-**Then** Behaviour shows In full screen, Open sidebar shows and Expand rail on hover
-**And** it shows neither the strip's position nor its tab width limit
+**Given** App Settings > Appearance
+**Then** it shows Button in full screen, and the Site strip group's position and tab width limit
+**And** Behaviour shows none of them
+**And** `test/app_appearance_navigation_test.dart` holds it

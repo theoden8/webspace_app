@@ -14,6 +14,23 @@ SiteNavigation get currentSiteNavigation =>
 FullscreenNavigation get currentFullscreenNavigation =>
     FullscreenNavigation.parse(AppPref.fullscreenNavigation.value);
 
+/// Switches to [to], shown or [hidden] behind its control: the strip's
+/// button, the sidebar's arrow tab (TAB-038). The one way the navigation in
+/// use changes: dragging its control, or the site menu.
+Future<void> useSiteNavigation(
+  SiteNavigation to, {
+  required bool hidden,
+}) async {
+  await AppPref.siteNavigation.set(to.name);
+  switch (to) {
+    case SiteNavigation.strip:
+      await AppPref.siteStripHidden.set(hidden);
+    case SiteNavigation.sidebar:
+      await AppPref.sidebarState.set(
+          (hidden ? SidebarState.hidden : SidebarState.open).name);
+  }
+}
+
 /// The sidebar's state, one for the app.
 SidebarState get currentSidebarState =>
     SidebarState.parse(AppPref.sidebarState.value);
@@ -25,29 +42,47 @@ SidebarStyle get currentSidebarStyle =>
 typedef SiteNavigationChoice = ({
   SiteNavigation navigation,
   FullscreenNavigation inFullscreen,
+  // The sidebar starts hidden behind its arrow tab: the choice showed neither
+  // the strip nor the sidebar.
+  bool sidebarHidden,
 });
 
 /// What the site strip prefs of a build before [AppPref.siteNavigation]
-/// chose, as the new choice: a strip, pinned or behind its button, is the
-/// strip; its button is the full-screen control; nothing set is the tab
-/// button. The button wins over a pinned strip, as the strip's presentation
-/// read it.
+/// chose, as the choice now: a strip, pinned or behind its button, is the
+/// strip, its button or a strip kept in full screen the full-screen button;
+/// nothing set was the tab button alone, which is the sidebar hidden behind
+/// its arrow tab (TAB-030). The button wins over a pinned strip, as the
+/// strip's presentation read it.
 SiteNavigationChoice siteNavigationFrom({
   required bool showTabStrip,
   required bool tabBarButton,
   required bool tabStripInFullscreen,
 }) {
   if (tabBarButton) {
-    return (navigation: SiteNavigation.strip, inFullscreen: FullscreenNavigation.button);
+    return (
+      navigation: SiteNavigation.strip,
+      inFullscreen: FullscreenNavigation.button,
+      sidebarHidden: false,
+    );
   }
   if (showTabStrip) {
     return (
       navigation: SiteNavigation.strip,
-      inFullscreen: tabStripInFullscreen ? FullscreenNavigation.kept : FullscreenNavigation.hidden,
+      inFullscreen: tabStripInFullscreen
+          ? FullscreenNavigation.button
+          : FullscreenNavigation.hidden,
+      sidebarHidden: false,
     );
   }
-  return (navigation: SiteNavigation.tabButton, inFullscreen: FullscreenNavigation.hidden);
+  return (
+    navigation: SiteNavigation.sidebar,
+    inFullscreen: FullscreenNavigation.hidden,
+    sidebarHidden: true,
+  );
 }
+
+/// What a build that offered it saved for the tab button alone.
+const String _tabButton = 'tabButton';
 
 /// The strip prefs an earlier build saved, read only into the new choice.
 const String _showTabStripKey = 'showTabStrip';
@@ -63,13 +98,19 @@ const Set<String> siteNavigationLegacyKeys = {
   _tabStripInFullscreenKey,
 };
 
-/// [values] with the choice its old strip keys made, where it names no
-/// choice of its own: a backup from a build before [AppPref.siteNavigation].
+/// [values] with the choice as it is now: a backup that names the tab
+/// button has the sidebar hidden instead, and one from a build before
+/// [AppPref.siteNavigation] the choice its old strip keys made.
 Map<String, Object?> withSiteNavigation(Map<String, Object?> values) {
-  if (values.containsKey(AppPref.siteNavigation.key) ||
-      !siteNavigationLegacyKeys.any(values.containsKey)) {
-    return values;
+  final named = values[AppPref.siteNavigation.key];
+  if (named == _tabButton) {
+    return {
+      ...values,
+      AppPref.siteNavigation.key: SiteNavigation.sidebar.name,
+      AppPref.sidebarState.key: SidebarState.hidden.name,
+    };
   }
+  if (named != null) return values;
   bool flag(String key) => values[key] == true;
   final choice = siteNavigationFrom(
     showTabStrip: flag(_showTabStripKey),
@@ -81,14 +122,24 @@ Map<String, Object?> withSiteNavigation(Map<String, Object?> values) {
     AppPref.siteNavigation.key: choice.navigation.name,
     if (!values.containsKey(AppPref.fullscreenNavigation.key))
       AppPref.fullscreenNavigation.key: choice.inFullscreen.name,
+    if (choice.sidebarHidden) AppPref.sidebarState.key: SidebarState.hidden.name,
   };
 }
 
 /// Loads [AppPref.siteNavigation] and [AppPref.fullscreenNavigation],
 /// deciding them once on the first launch that knows them from what an
-/// earlier build's strip prefs chose, so no layout changes on upgrade.
+/// earlier build's strip prefs chose, so no layout changes on upgrade; a
+/// tab button an earlier build saved becomes the sidebar hidden behind its
+/// arrow tab, which shows no more of the page than it did.
 Future<void> loadSiteNavigation(SharedPreferences prefs) async {
-  if (prefs.containsKey(AppPref.siteNavigation.key)) {
+  final stored = readPrefAs<String>(prefs, key: AppPref.siteNavigation.key);
+  if (stored == _tabButton) {
+    await AppPref.siteNavigation.set(SiteNavigation.sidebar.name);
+    await AppPref.sidebarState.set(SidebarState.hidden.name);
+    AppPref.fullscreenNavigation.load(prefs);
+    return;
+  }
+  if (stored != null) {
     AppPref.siteNavigation.load(prefs);
     AppPref.fullscreenNavigation.load(prefs);
     return;
@@ -103,4 +154,7 @@ Future<void> loadSiteNavigation(SharedPreferences prefs) async {
   );
   await AppPref.siteNavigation.set(choice.navigation.name);
   await AppPref.fullscreenNavigation.set(choice.inFullscreen.name);
+  if (choice.sidebarHidden) {
+    await AppPref.sidebarState.set(SidebarState.hidden.name);
+  }
 }

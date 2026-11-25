@@ -25,7 +25,7 @@ class SiteStrip extends StatelessWidget {
     required this.models,
     required this.order,
     required this.current,
-    required this.revealed,
+    required this.hideable,
     required this.onHide,
     required this.onOpen,
     required this.onShowTabs,
@@ -43,9 +43,9 @@ class SiteStrip extends StatelessWidget {
   final List<int> order;
   final int? current;
 
-  /// Whether the tab-bar button revealed the strip, whose dismiss control
-  /// then lives inside the bar rather than floating above it.
-  final bool revealed;
+  /// Whether the strip carries a close control that leaves its button: out
+  /// of full screen, and in it once the button revealed it (TAB-038).
+  final bool hideable;
   final VoidCallback onHide;
   final ValueChanged<WebViewModel> onOpen;
   final VoidCallback onShowTabs;
@@ -85,7 +85,7 @@ class SiteStrip extends StatelessWidget {
         ),
         child: Row(
           children: [
-            if (revealed)
+            if (hideable)
               IconButton(
                 tooltip: AppLocalizations.of(context).commonClose,
                 icon: const Icon(Icons.close),

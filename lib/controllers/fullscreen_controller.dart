@@ -64,9 +64,8 @@ class FullscreenController {
 
   /// Whether full screen leaves a control to bring the strip or the sidebar
   /// back.
-  static bool get _floats => floatsInFullscreen(
-      navigation: currentSiteNavigation,
-      inFullscreen: currentFullscreenNavigation);
+  static bool get _floats =>
+      floatsInFullscreen(inFullscreen: currentFullscreenNavigation);
 
   void _onSiteStripPrefChanged() {
     if (!_floats) {

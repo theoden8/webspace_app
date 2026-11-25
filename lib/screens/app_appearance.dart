@@ -1,22 +1,42 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/navigation_surface_engine.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/settings/app_design.dart';
 import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/setting_labels.dart';
+import 'package:webspace/settings/site_navigation.dart';
+import 'package:webspace/settings/site_strip_edge.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
 import 'package:webspace/widgets/icon_choice_chips.dart';
+import 'package:webspace/widgets/icon_segments.dart';
 import 'package:webspace/widgets/theme_icon.dart';
 
 /// How the app itself looks: UI language, theme mode and accent colour, the
 /// library or the legacy design, and in the library how large its icons
 /// are.
+extension on SiteStripEdge {
+  ButtonSegment<SiteStripEdge> segment(AppLocalizations loc) => ButtonSegment(
+        value: this,
+        icon: Icon(switch (this) {
+          SiteStripEdge.top => Icons.vertical_align_top,
+          SiteStripEdge.bottom => Icons.vertical_align_bottom,
+        }),
+        tooltip: switch (this) {
+          SiteStripEdge.top => loc.appSettingsSiteStripPositionTop,
+          SiteStripEdge.bottom => loc.appSettingsSiteStripPositionBottom,
+        },
+      );
+}
+
 class AppAppearanceScreen extends StatefulWidget {
   const AppAppearanceScreen({
     super.key,
@@ -138,6 +158,53 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
               step: LibraryStyle.iconSizeStep,
               label: (size) => '$size%',
             ),
+          // TAB-038: the sidebar and the strip are not a choice here; where
+          // their control rests says which is in use.
+          SettingsSection(loc.appSettingsGroupNavigation),
+          SettingTile(
+            title: loc.appSettingsFullscreenButton,
+            hint: loc.appSettingsFullscreenButtonHint,
+            control: Toggle(
+              value: currentFullscreenNavigation == FullscreenNavigation.button,
+              onChanged: (on) => unawaited(AppPref.fullscreenNavigation.set(
+                  (on ? FullscreenNavigation.button : FullscreenNavigation.hidden)
+                      .name)),
+            ),
+          ),
+          if (railHoverOffered(
+            desktop: hostIsDesktop,
+            pointer: RendererBinding.instance.mouseTracker.mouseIsConnected,
+          )) ...[
+            SettingsSection(SiteNavigation.sidebar.label(loc)),
+            SettingTile(
+              title: loc.appSettingsSidebarExpandOnHover,
+              hint: loc.appSettingsSidebarExpandOnHoverHint,
+              control: const PrefToggle(AppPref.sidebarExpandOnHover),
+            ),
+          ],
+          SettingsSection(SiteNavigation.strip.label(loc)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Row(children: [
+              Expanded(child: Text(loc.appSettingsSiteStripPosition)),
+              IconSegments<SiteStripEdge>(
+                segments: [
+                  for (final e in SiteStripEdge.values) e.segment(loc)
+                ],
+                selected: SiteStripEdge.current,
+                onChanged: (edge) => AppPref.tabStripEdge.set(edge.name),
+              ),
+            ]),
+          ),
+          PrefSlider(
+            AppPref.tabMaxWidth,
+            title: loc.appSettingsTabMaxWidth,
+            hint: loc.appSettingsTabMaxWidthHint,
+            min: 80,
+            max: 320,
+            step: 10,
+            label: (width) => '$width px',
+          ),
           const SizedBox(height: 24),
         ],
       ),

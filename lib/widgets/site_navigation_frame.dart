@@ -6,6 +6,7 @@ import 'package:webspace/services/navigation_surface_engine.dart';
 import 'package:webspace/settings/navigation_choices.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/sidebar_arrow_tab.dart';
+import 'package:webspace/widgets/tab_bar_corner_button.dart';
 
 /// The page's history as a swipe from the screen's edge walks it.
 class EdgeBack {
@@ -39,6 +40,7 @@ class SiteNavigationFrame extends StatefulWidget {
     required this.onDismissFloat,
     this.edgeBack,
     required this.onHandleMoved,
+    this.onLiftedOff,
     required this.onResize,
   });
 
@@ -84,6 +86,11 @@ class SiteNavigationFrame extends StatefulWidget {
   final EdgeBack? edgeBack;
   final ValueChanged<double> onHandleMoved;
 
+  /// The arrow tab, lifted, let go on the page: where in the page, for the
+  /// site strip's button to go to the corner nearest it (TAB-038). Null
+  /// where the tab cannot be lifted.
+  final ValueChanged<Alignment>? onLiftedOff;
+
   /// The width the edge drag let go at.
   final ValueChanged<double> onResize;
 
@@ -116,6 +123,9 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
   /// The strip of the screen's edge a back swipe starts in, as wide as the
   /// one the webview itself answers to.
   static const double _edgeWidth = 20;
+
+  /// Where the lifted arrow tab is under the finger, while it is.
+  Offset? _lifted;
 
   /// How far a swipe from the edge has pulled the page right.
   double _back = 0;
@@ -346,12 +356,13 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
               child: floating || _floatLeaving
                   ? GestureDetector(
                       onHorizontalDragUpdate: (d) => setState(() {
-                        _floatDrag = ((_floatDrag ?? 0) + d.delta.dx)
-                            .clamp(-widget.floatWidth, 0);
+                        _floatDrag = ((_floatDrag ?? 0) + d.delta.dx).clamp(
+                          -widget.floatWidth,
+                          0,
+                        );
                       }),
-                      onHorizontalDragEnd: (d) => _endFloatDrag(
-                        velocity: d.primaryVelocity ?? 0,
-                      ),
+                      onHorizontalDragEnd: (d) =>
+                          _endFloatDrag(velocity: d.primaryVelocity ?? 0),
                       child: AnimatedOpacity(
                         duration: _floatDrag == null ? slide : Duration.zero,
                         opacity: float.opacity,
@@ -408,7 +419,8 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
                   }),
                   onHorizontalDragEnd: (d) => _endBack(
                     edge,
-                    goes: _backAllowed != false &&
+                    goes:
+                        _backAllowed != false &&
                         (_back > _backThreshold(box) ||
                             (d.primaryVelocity ?? 0) > 400),
                   ),
@@ -422,25 +434,110 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
                   0,
                   box.maxHeight - SidebarArrowTab.size.height,
                 ),
-                child: SidebarArrowTab(
-                  onTap: widget.onArrowTap,
-                  onPull: (dx) => setState(() => _pull = dx),
-                  onPullEnd: _endPull,
-                  onMove: (dy) => setState(() => _moved = dy),
-                  onMoveEnd: () {
-                    final room = box.maxHeight - SidebarArrowTab.size.height;
-                    final fraction = room <= 0
-                        ? widget.handleFraction
-                        : ((room * widget.handleFraction + _moved) / room)
-                              .clamp(0.1, 0.9);
-                    setState(() => _moved = 0);
-                    widget.onHandleMoved(fraction);
-                  },
+                // Kept while lifted, the hold's own gesture, and drawn under
+                // the finger instead.
+                child: Opacity(
+                  opacity: _lifted == null ? 1 : 0,
+                  child: SidebarArrowTab(
+                    lift: widget.onLiftedOff == null
+                        ? null
+                        : (
+                            onLift: _liftTo,
+                            onMove: _liftTo,
+                            onDrop: (at) => _dropLift(at, box: box),
+                            onCancel: () => setState(() => _lifted = null),
+                          ),
+                    onTap: widget.onArrowTap,
+                    onPull: (dx) => setState(() => _pull = dx),
+                    onPullEnd: _endPull,
+                    onMove: (dy) => setState(() => _moved = dy),
+                    onMoveEnd: () {
+                      final room = box.maxHeight - SidebarArrowTab.size.height;
+                      final fraction = room <= 0
+                          ? widget.handleFraction
+                          : ((room * widget.handleFraction + _moved) / room)
+                                .clamp(0.1, 0.9);
+                      setState(() => _moved = 0);
+                      widget.onHandleMoved(fraction);
+                    },
+                  ),
                 ),
               ),
+            if (_lifted case final at?) ...[
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: DockZone(hot: at.dx < NavigationLift.dockZone),
+              ),
+              if (at.dx < NavigationLift.dockZone)
+                Positioned(
+                  left: 0,
+                  top: (at.dy - SidebarArrowTab.size.height / 2).clamp(
+                    0,
+                    box.maxHeight - SidebarArrowTab.size.height,
+                  ),
+                  child: IgnorePointer(
+                    child: ArrowTabFace(
+                      color: Theme.of(context).colorScheme.primary,
+                      onColor: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                  ),
+                )
+              else
+                Positioned(
+                  left: at.dx - _liftedButton / 2,
+                  top: at.dy - _liftedButton / 2,
+                  child: IgnorePointer(
+                    child: TabBarCornerButton(
+                      dragging: true,
+                      onTap: () {},
+                      onDragBegin: (_) {},
+                      onDragUpdate: (_) {},
+                      onDragEnd: () {},
+                    ),
+                  ),
+                ),
+            ],
           ],
         );
       },
+    );
+  }
+
+  static const double _liftedButton =
+      FloatingButton.padding * 2 + IconSizes.floating;
+
+  void _liftTo(Offset global) {
+    final box = context.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return;
+    setState(() => _lifted = box.globalToLocal(global));
+  }
+
+  /// The lifted tab let go: in the dock zone it stays the arrow tab at that
+  /// height; on the page the site strip's button takes its place.
+  void _dropLift(Offset global, {required BoxConstraints box}) {
+    final frame = context.findRenderObject();
+    setState(() => _lifted = null);
+    if (frame is! RenderBox || !frame.hasSize) return;
+    final at = frame.globalToLocal(global);
+    if (at.dx < NavigationLift.dockZone) {
+      final room = box.maxHeight - SidebarArrowTab.size.height;
+      widget.onHandleMoved(
+        room <= 0
+            ? widget.handleFraction
+            : ((at.dy - SidebarArrowTab.size.height / 2) / room).clamp(
+                0.1,
+                0.9,
+              ),
+      );
+      return;
+    }
+    widget.onLiftedOff?.call(
+      Alignment(
+        (at.dx / box.maxWidth * 2 - 1).clamp(-1, 1),
+        (at.dy / box.maxHeight * 2 - 1).clamp(-1, 1),
+      ),
     );
   }
 
@@ -452,9 +549,11 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
       _backSettling = false;
       _backAllowed = null;
     });
-    unawaited(edge.canGoBack().then((can) {
-      if (mounted && _backDragging) setState(() => _backAllowed = can);
-    }));
+    unawaited(
+      edge.canGoBack().then((can) {
+        if (mounted && _backDragging) setState(() => _backAllowed = can);
+      }),
+    );
   }
 
   void _endBack(EdgeBack edge, {required bool goes}) {
@@ -477,11 +576,7 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
     final full = widget.floatWidth;
     final rail = widget.railWidth;
     if (widget.surfaces.dock != SidebarDock.rail) {
-      return (
-        left: floating ? drag : -full - 24,
-        width: full,
-        opacity: 1,
-      );
+      return (left: floating ? drag : -full - 24, width: full, opacity: 1);
     }
     final width = floating ? (full + drag).clamp(rail, full) : rail;
     return (

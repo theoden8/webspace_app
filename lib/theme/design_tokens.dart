@@ -290,6 +290,12 @@ abstract final class Motion {
   );
 }
 
+/// TAB-038: the strip along the left edge where a lifted arrow tab, or the
+/// site strip's button, docks as the arrow tab.
+abstract final class NavigationLift {
+  static const double dockZone = 44;
+}
+
 abstract final class Elevations {
   static const double floating = 3;
   static const double floatingActive = 8;

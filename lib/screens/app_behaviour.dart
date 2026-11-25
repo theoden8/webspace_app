@@ -8,34 +8,16 @@ import 'package:webspace/screens/home_shortcuts_settings.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
-import 'package:webspace/services/navigation_surface_engine.dart';
 import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/site_navigation.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/setting_labels.dart';
-import 'package:webspace/settings/site_strip_edge.dart';
 import 'package:webspace/widgets/datasets.dart';
 import 'package:webspace/widgets/dataset_tile.dart';
-import 'package:webspace/widgets/icon_segments.dart';
 import 'package:webspace/widgets/search_site_picker.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
-
-extension on SiteStripEdge {
-  ButtonSegment<SiteStripEdge> segment(AppLocalizations loc) => ButtonSegment(
-        value: this,
-        icon: Icon(switch (this) {
-          SiteStripEdge.top => Icons.vertical_align_top,
-          SiteStripEdge.bottom => Icons.vertical_align_bottom,
-        }),
-        tooltip: switch (this) {
-          SiteStripEdge.top => loc.appSettingsSiteStripPositionTop,
-          SiteStripEdge.bottom => loc.appSettingsSiteStripPositionBottom,
-        },
-      );
-}
 
 /// Apple has no back gesture the app can act on (NAV-009), so the Back opens
 /// menu setting is absent there rather than present and inert.
@@ -70,11 +52,6 @@ class AppBehaviourScreen extends StatefulWidget {
 class _AppBehaviourScreenState extends State<AppBehaviourScreen>
     with SettingsOpenGuard, RebuildOnAppPref {
   /// A title with its control at the end of the row.
-  Widget _row(Widget title, {required Widget trailing}) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-        child: Row(children: [Expanded(child: title), trailing]),
-      );
-
   Localized? get _webSearchDefaultName {
     final site = widget.webSearchSites
         .where((s) => s.siteId == AppPref.webSearchDefaultSite.value)
@@ -124,68 +101,6 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
       appBar: AppBar(title: Text(loc.appSettingsBehaviour)),
       body: ListView(
         children: [
-          SettingsSection(loc.appSettingsGroupNavigation),
-          ChoiceTile<SiteNavigation>(
-            title: loc.appSettingsSiteNavigation,
-            hint: loc.appSettingsSiteNavigationHint,
-            values: SiteNavigation.values,
-            label: (navigation) => navigation.label(loc),
-            value: currentSiteNavigation,
-            onChanged: (navigation) =>
-                AppPref.siteNavigation.set(navigation.name),
-          ),
-          // Each row only where the chosen navigation has something for it
-          // to set: the tab button shows nothing in full screen.
-          if (currentSiteNavigation != SiteNavigation.tabButton)
-            ChoiceTile<FullscreenNavigation>(
-              title: loc.appSettingsFullscreenNavigation,
-              hint: loc.appSettingsFullscreenNavigationHint,
-              values: FullscreenNavigation.values,
-              label: (choice) => choice.label(loc),
-              value: currentFullscreenNavigation,
-              onChanged: (choice) =>
-                  AppPref.fullscreenNavigation.set(choice.name),
-            ),
-          if (currentSiteNavigation == SiteNavigation.sidebar) ...[
-            ChoiceTile<SidebarStyle>(
-              title: loc.appSettingsSidebarStyle,
-              hint: null,
-              values: SidebarStyle.values,
-              label: (style) => style.label(loc),
-              value: currentSidebarStyle,
-              onChanged: (style) => AppPref.sidebarStyle.set(style.name),
-            ),
-            if (railHoverOffered(
-              desktop: hostIsDesktop,
-              pointer: RendererBinding.instance.mouseTracker.mouseIsConnected,
-            ))
-              SettingTile(
-                title: loc.appSettingsSidebarExpandOnHover,
-                hint: loc.appSettingsSidebarExpandOnHoverHint,
-                control: const PrefToggle(AppPref.sidebarExpandOnHover),
-              ),
-          ],
-          if (currentSiteNavigation == SiteNavigation.strip) ...[
-            _row(
-              Text(loc.appSettingsSiteStripPosition),
-              trailing: IconSegments<SiteStripEdge>(
-                segments: [
-                  for (final e in SiteStripEdge.values) e.segment(loc)
-                ],
-                selected: SiteStripEdge.current,
-                onChanged: (edge) => AppPref.tabStripEdge.set(edge.name),
-              ),
-            ),
-            PrefSlider(
-              AppPref.tabMaxWidth,
-              title: loc.appSettingsTabMaxWidth,
-              hint: loc.appSettingsTabMaxWidthHint,
-              min: 80,
-              max: 320,
-              step: 10,
-              label: (width) => '$width px',
-            ),
-          ],
           SettingsSection(loc.appSettingsGroupOpening),
           SettingTile(
             title: loc.siteSettingsTabs,

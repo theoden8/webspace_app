@@ -42,21 +42,25 @@ enum AppPref<T extends Object> {
   // NESTED-014: a sign-in window a tap opened shows as a real popup; a site
   // may keep its own choice.
   signInPopups('signInPopups', section: PrefSection.behaviour, fallback: true),
-  // How sites and tabs are reached: 'tabButton', 'strip' or 'sidebar'
-  // (SiteNavigation), and what full screen does with it: 'hidden', 'kept' or
-  // 'button' (FullscreenNavigation). Decided once from an earlier build's
-  // strip prefs by loadSiteNavigation, so no layout changes on upgrade.
-  siteNavigation('siteNavigation', section: PrefSection.behaviour, fallback: 'tabButton'),
-  fullscreenNavigation('fullscreenNavigation', section: PrefSection.behaviour, fallback: 'hidden'),
+  // How sites and tabs are reached beside the tab-count button: 'strip' or
+  // 'sidebar' (SiteNavigation), set where its control rests (TAB-038); and
+  // whether full screen leaves that control, 'button', or hides it,
+  // 'hidden' (FullscreenNavigation). An earlier build's 'tabButton' and
+  // strip prefs are read once by loadSiteNavigation.
+  siteNavigation('siteNavigation', section: PrefSection.appearance, fallback: 'sidebar'),
+  fullscreenNavigation('fullscreenNavigation', section: PrefSection.appearance, fallback: 'hidden'),
   // The sidebar, one for the app: its state ('open', 'collapsed', 'hidden';
   // SidebarState), what it shows open ('squares' or 'tree'; SidebarStyle),
   // its width, whether hovering the rail shows the names, and the height of
   // its arrow tab along the left edge, in percent of the page's.
-  sidebarState('sidebarState', section: PrefSection.behaviour, fallback: 'open'),
-  sidebarStyle('sidebarStyle', section: PrefSection.behaviour, fallback: 'squares'),
-  sidebarWidth('sidebarWidth', section: PrefSection.behaviour, fallback: 260),
-  sidebarExpandOnHover('sidebarExpandOnHover', section: PrefSection.behaviour, fallback: false),
-  sidebarHandleY('sidebarHandleY', section: PrefSection.behaviour, fallback: 55),
+  sidebarState('sidebarState', section: PrefSection.appearance, fallback: 'open'),
+  sidebarStyle('sidebarStyle', section: PrefSection.appearance, fallback: 'squares'),
+  sidebarWidth('sidebarWidth', section: PrefSection.appearance, fallback: 260),
+  sidebarExpandOnHover('sidebarExpandOnHover', section: PrefSection.appearance, fallback: false),
+  sidebarHandleY('sidebarHandleY', section: PrefSection.appearance, fallback: 55),
+  // TAB-038: the site strip hidden behind its button, as the sidebar is
+  // behind its arrow tab.
+  siteStripHidden('siteStripHidden', section: PrefSection.appearance, fallback: false),
   // FS-012: the edge the site strip runs along, 'top' or 'bottom'; empty
   // follows the platform, so a backup carries only a choice the user made.
   tabStripEdge('tabStripEdge', section: PrefSection.appearance, fallback: ''),

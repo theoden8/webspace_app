@@ -10,6 +10,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/settings/site_navigation.dart';
 import 'package:webspace/app.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/screens/webspace_page.dart';
@@ -89,6 +90,18 @@ Future<void> prepareRealApp(
     ],
     'selectedWebspaceId': WebspaceId.all,
     'currentIndex': 10000,
+    // A test that names no navigation runs with the least of either on
+    // screen: the site strip behind its button, as near as there is to the
+    // tab button alone an earlier build started with, and the legacy
+    // drawer kept; one that sets an earlier build's strip prefs is read as
+    // the upgrade reads them. The arrow tab's one-time message is taken as
+    // seen.
+    if (!prefs.containsKey('siteNavigation') &&
+        !siteNavigationLegacyKeys.any(prefs.containsKey)) ...{
+      'siteNavigation': 'strip',
+      'siteStripHidden': true,
+    },
+    'sidebarArrowDragHintShown': true,
     ...prefs,
   });
   FlutterSecureStorage.setMockInitialValues({...secureStorage});

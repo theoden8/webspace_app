@@ -132,14 +132,20 @@ void main() {
     }
 
     // FS-007
-    testWidgets('a kept tab strip moves above a revealed navigation bar, '
-        'which is hidden again', (tester) async {
+    testWidgets('FS-011 a revealed tab strip moves above a revealed '
+        'navigation bar, which is hidden again', (tester) async {
       addTearDown(tester.view.reset);
       await enterFullscreenOn(tester, prefs: {
         'showTabStrip': true,
         'tabStripInFullscreen': true,
         'tabStripEdge': 'bottom',
       });
+      // The full screen hint covers the button's corner until it times out.
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+      await tester.tap(find.byType(TabBarCornerButton));
+      await settleRealApp(tester);
       expect(modes.last, immersive);
 
       final height = tester.view.physicalSize.height / tester.view.devicePixelRatio;
@@ -155,30 +161,6 @@ void main() {
       await tester.pump(kRevealedSystemBarsHideDelay);
       expect(modes.sublist(before), [immersive],
           reason: 'the revealed bars are hidden again');
-    });
-
-    // FS-012
-    testWidgets('a tab strip kept at the top keeps the status bar and sits '
-        'below it', (tester) async {
-      addTearDown(tester.view.reset);
-      await enterFullscreenOn(tester, prefs: {
-        'showTabStrip': true,
-        'tabStripInFullscreen': true,
-        'tabStripEdge': 'top',
-      });
-      expect(modes.last, statusBarKept);
-
-      // The status bar the platform keeps reports its inset.
-      await showSystemBars(tester, top: statusBar);
-      expect(tester.getRect(find.byType(SiteStrip)).top, statusBar,
-          reason: 'the strip sits directly below the status bar');
-
-      // A navigation bar swiped in meanwhile stays, and is hidden again, as
-      // under immersive (FS-011).
-      await showSystemBars(tester, top: statusBar, bottom: navBar);
-      final before = modes.length;
-      await tester.pump(kRevealedSystemBarsHideDelay);
-      expect(modes.sublist(before), [statusBarKept]);
     });
 
     // FS-009, FS-012

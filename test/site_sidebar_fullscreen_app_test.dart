@@ -1,6 +1,6 @@
-// The sidebar in full screen, as the In full screen choice says: hidden shows
-// nothing, kept keeps it docked, and Button gives the arrow tab, which shows
-// the sidebar over the page until its collapse button puts it away.
+// The sidebar in full screen, as the Button in full screen switch says: off
+// shows nothing, on gives the arrow tab, which shows the sidebar over the
+// page until its collapse button puts it away.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -60,14 +60,6 @@ void main() {
     expect(find.byType(SidebarArrowTab), findsNothing);
     expect(find.byType(SidebarSquares), findsNothing);
     expect(pageLeft(tester), 0);
-  });
-
-  testWidgets('kept keeps the sidebar docked (FS-007)', (tester) async {
-    await start(tester, inFullscreen: 'kept');
-    expect(find.byType(AppBar), findsNothing);
-    expect(find.byType(SidebarSquares), findsOneWidget);
-    expect(pageLeft(tester), AppPref.sidebarWidth.value);
-    expect(find.byType(SidebarArrowTab), findsNothing);
   });
 
   testWidgets('FS-009 button: arrow tab reveals the sidebar over the page, collapse '

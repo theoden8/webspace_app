@@ -1,6 +1,6 @@
-// Site navigation: one choice of how sites and tabs are reached, and the
-// one-time read of today's site strip prefs into it, so no layout changes on
-// upgrade.
+// Site navigation: the strip or the sidebar, set where its control rests,
+// and the one-time read of an earlier build's choice into it, so no layout
+// shows more of the page than it did on upgrade.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,28 +22,45 @@ void main() {
       expect(
         siteNavigationFrom(
             showTabStrip: false, tabBarButton: true, tabStripInFullscreen: false),
-        (navigation: SiteNavigation.strip, inFullscreen: FullscreenNavigation.button),
+        (
+          navigation: SiteNavigation.strip,
+          inFullscreen: FullscreenNavigation.button,
+          sidebarHidden: false,
+        ),
       );
     });
 
-    test('a pinned strip kept in full screen maps to kept', () {
+    test('FS-007 a pinned strip kept in full screen maps to the button there',
+        () {
       expect(
         siteNavigationFrom(
             showTabStrip: true, tabBarButton: false, tabStripInFullscreen: true),
-        (navigation: SiteNavigation.strip, inFullscreen: FullscreenNavigation.kept),
+        (
+          navigation: SiteNavigation.strip,
+          inFullscreen: FullscreenNavigation.button,
+          sidebarHidden: false,
+        ),
       );
       expect(
         siteNavigationFrom(
             showTabStrip: true, tabBarButton: false, tabStripInFullscreen: false),
-        (navigation: SiteNavigation.strip, inFullscreen: FullscreenNavigation.hidden),
+        (
+          navigation: SiteNavigation.strip,
+          inFullscreen: FullscreenNavigation.hidden,
+          sidebarHidden: false,
+        ),
       );
     });
 
-    test('no strip maps to the tab button', () {
+    test('TAB-030 no strip maps to the sidebar hidden behind its arrow tab', () {
       expect(
         siteNavigationFrom(
             showTabStrip: false, tabBarButton: false, tabStripInFullscreen: false),
-        (navigation: SiteNavigation.tabButton, inFullscreen: FullscreenNavigation.hidden),
+        (
+          navigation: SiteNavigation.sidebar,
+          inFullscreen: FullscreenNavigation.hidden,
+          sidebarHidden: true,
+        ),
       );
     });
 
@@ -52,7 +69,11 @@ void main() {
       expect(
         siteNavigationFrom(
             showTabStrip: true, tabBarButton: true, tabStripInFullscreen: true),
-        (navigation: SiteNavigation.strip, inFullscreen: FullscreenNavigation.button),
+        (
+          navigation: SiteNavigation.strip,
+          inFullscreen: FullscreenNavigation.button,
+          sidebarHidden: false,
+        ),
       );
     });
   });
@@ -85,11 +106,27 @@ void main() {
       expect(currentSiteNavigation, SiteNavigation.sidebar);
     });
 
-    test('a new install starts on the tab button', () async {
+    test('TAB-030 a new install starts with the sidebar hidden', () async {
       final prefs = await launch({});
-      expect(currentSiteNavigation, SiteNavigation.tabButton);
+      expect(currentSiteNavigation, SiteNavigation.sidebar);
+      expect(currentSidebarState, SidebarState.hidden);
       expect(currentFullscreenNavigation, FullscreenNavigation.hidden);
-      expect(prefs.get(AppPref.siteNavigation.key), 'tabButton');
+      expect(prefs.get(AppPref.siteNavigation.key), 'sidebar');
+    });
+
+    test('TAB-030 the tab button an earlier build saved becomes the sidebar '
+        'hidden behind its arrow tab', () async {
+      final prefs = await launch(
+          {'siteNavigation': 'tabButton', 'sidebarState': 'open'});
+      expect(currentSiteNavigation, SiteNavigation.sidebar);
+      expect(currentSidebarState, SidebarState.hidden);
+      expect(prefs.get(AppPref.siteNavigation.key), 'sidebar');
+    });
+
+    test('FS-007 kept in full screen an earlier build saved is the button',
+        () async {
+      await launch({'siteNavigation': 'strip', 'fullscreenNavigation': 'kept'});
+      expect(currentFullscreenNavigation, FullscreenNavigation.button);
     });
   });
 
@@ -97,7 +134,15 @@ void main() {
     final prefs = resolveExportedAppPrefs(
         {'showTabStrip': true, 'tabStripInFullscreen': true});
     expect(prefs[AppPref.siteNavigation.key], 'strip');
-    expect(prefs[AppPref.fullscreenNavigation.key], 'kept');
+    expect(prefs[AppPref.fullscreenNavigation.key], 'button');
+  });
+
+  test('TAB-030 a backup that names the tab button imports the sidebar hidden',
+      () {
+    final prefs = resolveExportedAppPrefs(
+        {'siteNavigation': 'tabButton', 'sidebarState': 'open'});
+    expect(prefs[AppPref.siteNavigation.key], 'sidebar');
+    expect(prefs[AppPref.sidebarState.key], 'hidden');
   });
 
   test('a backup that names the choice keeps it over the old keys', () {
@@ -115,7 +160,23 @@ void main() {
     SharedPreferences.setMockInitialValues(
         {'siteNavigation': 'carousel', 'sidebarState': 'folded'});
     AppPref.loadAll(await SharedPreferences.getInstance());
-    expect(currentSiteNavigation, SiteNavigation.tabButton);
+    expect(currentSiteNavigation, SiteNavigation.sidebar);
+    expect(currentSidebarState, SidebarState.open);
+  });
+
+  test('TAB-038 switching to the strip or the sidebar sets where it rests',
+      () async {
+    await useSiteNavigation(SiteNavigation.strip, hidden: true);
+    expect(currentSiteNavigation, SiteNavigation.strip);
+    expect(AppPref.siteStripHidden.value, isTrue);
+
+    await useSiteNavigation(SiteNavigation.sidebar, hidden: true);
+    expect(currentSiteNavigation, SiteNavigation.sidebar);
+    expect(currentSidebarState, SidebarState.hidden);
+
+    await useSiteNavigation(SiteNavigation.strip, hidden: false);
+    expect(AppPref.siteStripHidden.value, isFalse);
+    await useSiteNavigation(SiteNavigation.sidebar, hidden: false);
     expect(currentSidebarState, SidebarState.open);
   });
 }
