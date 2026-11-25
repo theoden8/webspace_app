@@ -49,8 +49,8 @@ Future<void> _awaitLandscape(WidgetTester tester) async {
       tester.view.physicalSize.width <= tester.view.physicalSize.height;
   for (var tries = 0; portrait(); tries++) {
     expect(tries, lessThan(50),
-        reason: 'the iPad stayed in portrait; take the set with '
-            '`fastlane ios screenshots device:ipad`, which builds with '
+        reason: 'the iPad stayed in portrait (SCREENSHOT-010); take the set '
+            'with `fastlane ios screenshots device:ipad`, which builds with '
             'UIRequiresFullScreen');
     await Future<void>.delayed(const Duration(milliseconds: 100));
     await tester.pump();
@@ -87,7 +87,8 @@ Future<void> _sizeWindow(WidgetTester tester) async {
   // GTK resizes once the window system confirms it, after `resize` returns.
   for (var tries = 0; _viewPoints(tester) != _linuxViewPoints; tries++) {
     expect(tries, lessThan(50),
-        reason: 'the view is ${_viewPoints(tester)}, not $_linuxViewPoints');
+        reason: 'the view is ${_viewPoints(tester)}, not $_linuxViewPoints '
+            '(SCREENSHOT-009)');
     await Future<void>.delayed(const Duration(milliseconds: 100));
     await tester.pump();
   }
@@ -107,7 +108,8 @@ Future<void> _captureWindow(
   if (Platform.isMacOS) {
     final size = _pngSize(png);
     expect(_macStoreSizes, contains(size),
-        reason: '$name is ${size.$1}x${size.$2}, not a Mac App Store size');
+        reason: '$name is ${size.$1}x${size.$2}, not a Mac App Store size '
+            '(SCREENSHOT-007)');
   }
   final report = binding.reportData ??= <String, dynamic>{};
   final shots = (report['screenshots'] ??= <dynamic>[]) as List<dynamic>;
@@ -188,7 +190,8 @@ void main() {
 
   group('Screenshot Test', () {
     for (final theme in ['light', 'dark']) {
-      testWidgets('Take screenshots of app flow ($theme theme)', (WidgetTester tester) async {
+      testWidgets('Take screenshots of app flow ($theme theme, SCREENSHOT-006)',
+          (WidgetTester tester) async {
         // In memory, so the seed never replaces a device's own storage.
         SharedPreferences.setMockInitialValues(<String, Object>{
           if (Platform.isAndroid) ..._androidTextureMode,

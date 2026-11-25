@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/site_ids.dart';
@@ -48,22 +50,21 @@ void main() {
       expect(isDemoMode, isTrue);
     });
 
-    test('seedDemoData creates demo data in SharedPreferences', () async {
+    test('seedDemoData seeds the store screenshots\' sites and webspaces '
+        '(SCREENSHOT-002)', () async {
       SharedPreferences.setMockInitialValues({});
 
       await seedDemoData();
 
       final prefs = await SharedPreferences.getInstance();
+      String nameOf(String raw) => (jsonDecode(raw) as Map)['name'] as String;
 
-      // Verify demo data was seeded
-      final sites = prefs.getStringList('webViewModels');
-      final webspaces = prefs.getStringList('webspaces');
-
-      expect(sites, isNotNull);
-      expect(sites!.length, equals(8)); // 8 demo sites
-
-      expect(webspaces, isNotNull);
-      expect(webspaces!.length, equals(4)); // 4 demo webspaces
+      expect(prefs.getStringList('webViewModels')?.map(nameOf), [
+        'SearXNG', 'Piped', 'Nitter', 'Reddit', 'GitHub', 'Hacker News',
+        'Weights & Biases', 'Wikipedia',
+      ]);
+      expect(prefs.getStringList('webspaces')?.map(nameOf),
+          ['All', 'Work', 'Privacy', 'Social']);
     });
   });
 
@@ -168,7 +169,8 @@ void main() {
       );
     });
 
-    test('a seeded site list deletes nothing the user\'s sites keep',
+    test('a seeded site list deletes nothing the user\'s sites keep '
+        '(SCREENSHOT-002)',
         () async {
       isDemoMode = true;
       await containers.sweepBeforeBind({ContainerKey.ofSite(demo)},
