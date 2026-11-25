@@ -1224,7 +1224,11 @@ motion the change SHALL be immediate.
 
 ### Requirement: TAB-036 - The legacy design's sidebar is its drawer
 
-In the legacy design with Sidebar chosen, the sidebar SHALL replace the drawer:
+In the legacy design a hidden sidebar SHALL be the drawer, its button in the
+app bar and its edge swipe as before the sidebar existed, with no arrow tab;
+the tab button an earlier build saved, which becomes the hidden sidebar
+(TAB-030), so keeps the drawer. With the sidebar in use and not hidden, the
+sidebar SHALL replace the drawer:
 it SHALL keep the drawer's header (the logo, the webspace's name, Back to
 Webspaces) and its Add Site, show the sites as squares unless the tree is
 chosen, and show whenever a webspace is picked, with a site on screen or not.
@@ -1244,6 +1248,13 @@ app where the platform lets it, so the gesture never stops answering.
 - **THEN** the sidebar opens
 - **WHEN** the user presses Back again
 - **THEN** the app leaves
+
+#### Scenario: A hidden sidebar is the drawer
+
+- **GIVEN** the legacy design with the sidebar hidden
+- **THEN** the app bar has the drawer's button and no arrow tab shows
+- **WHEN** the user picks Use sidebar from the site menu
+- **THEN** the sidebar replaces the drawer
 
 #### Scenario: The header and Add Site stay
 
@@ -1287,8 +1298,10 @@ be one control, and where it rests SHALL say which navigation is in use:
 - the strip SHALL hide behind its button out of full screen too: its close
   control leaves the button, whose tap shows the strip again
   (`siteStripHidden`);
-- the site menu SHALL offer the navigation not in use, Use site strip or Use
-  sidebar, which switches to it shown, for those who cannot drag;
+- the site menu SHALL offer the navigation not on screen, Use site strip or
+  Use sidebar, which switches to it shown, for those who cannot drag; from
+  the legacy design's drawer, which stands for a hidden sidebar (TAB-036),
+  it SHALL offer both;
 - the first arrow tab the app shows SHALL say once, in a message, that it can
   be dragged onto the page for the site strip.
 

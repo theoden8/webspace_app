@@ -1079,7 +1079,11 @@ class _WebSpacePageState extends State<WebSpacePage>
         state: () => (
           loading: _sites.shown?.isLoading ?? false,
           tabsOn: _tabs.enabledFor(_sites.shown),
-          navigation: currentSiteNavigation,
+          offers: menuOffers(
+            navigation: currentSiteNavigation,
+            sidebar: currentSidebarState,
+            legacyDesign: !_libraryDesign,
+          ),
           fullscreen: _fullscreen.active,
           offersShortcut: switch (_sites.shown) {
             final shown? => _shortcuts.offersShortcutFor(shown),
@@ -1854,7 +1858,7 @@ class _PageHost
 
   @override
   bool toggleSidebar() {
-    if (!_s._sidebarChosen) return false;
+    if (currentSiteNavigation != SiteNavigation.sidebar) return false;
     _s._sidebar.cycle();
     return true;
   }

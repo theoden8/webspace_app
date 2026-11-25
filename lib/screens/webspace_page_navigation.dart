@@ -102,6 +102,7 @@ extension _PageNavigation on _WebSpacePageState {
         revealed: _fullscreen.navigationRevealed,
         narrowRail: _narrowRail,
         stripHidden: AppPref.siteStripHidden.value,
+        legacyDesign: !_libraryDesign,
       ));
 
   /// Whether the site strip is on screen, at either edge (KIOSK-002: never
@@ -235,8 +236,12 @@ extension _PageNavigation on _WebSpacePageState {
     );
   }
 
-  /// Whether the sidebar is the chosen navigation.
-  bool get _sidebarChosen => currentSiteNavigation == SiteNavigation.sidebar;
+  /// Whether the sidebar takes the legacy drawer's place (TAB-036).
+  bool get _sidebarChosen => sidebarReplacesDrawer(
+        libraryDesign: _libraryDesign,
+        navigation: currentSiteNavigation,
+        sidebar: currentSidebarState,
+      );
 
   /// Rail widths: a phone's rail is narrower.
   double get _railWidth => _wideNavigation ? 60 : 52;

@@ -19,6 +19,7 @@ NavigationSurfaces surfaces({
   bool revealed = false,
   bool narrowRail = true,
   bool stripHidden = false,
+  bool legacyDesign = false,
 }) =>
     navigationSurfaces((
       navigation: navigation,
@@ -32,6 +33,7 @@ NavigationSurfaces surfaces({
       legacyWebspace: legacyWebspace,
       narrowRail: narrowRail,
       stripHidden: stripHidden,
+      legacyDesign: legacyDesign,
       revealed: revealed,
     ));
 
@@ -123,6 +125,63 @@ void main() {
     test('hidden shows the arrow tab, its one way back', () {
       final s = surfaces(wide: false, sidebar: SidebarState.hidden);
       expect((s.dock, s.arrowTab), (SidebarDock.none, true));
+    });
+  });
+
+  group('legacy design', () {
+    test('TAB-036 a hidden sidebar is the drawer: no arrow tab, the drawer '
+        'stays', () {
+      for (final wide in [true, false]) {
+        final s = surfaces(
+            legacyDesign: true, sidebar: SidebarState.hidden, wide: wide);
+        expect((s.dock, s.float, s.arrowTab), (SidebarDock.none, SidebarFloat.none, false),
+            reason: 'wide: $wide');
+        expect(
+            surfaces(
+                    legacyDesign: true,
+                    sidebar: SidebarState.hidden,
+                    wide: wide,
+                    narrowRail: false)
+                .arrowTab,
+            isFalse,
+            reason: 'on an iPhone too');
+      }
+      expect(surfaces(sidebar: SidebarState.hidden).arrowTab, isTrue,
+          reason: 'the library design keeps its arrow tab');
+      expect(
+          sidebarReplacesDrawer(
+              libraryDesign: false,
+              navigation: SiteNavigation.sidebar,
+              sidebar: SidebarState.hidden),
+          isFalse);
+      expect(
+          sidebarReplacesDrawer(
+              libraryDesign: false,
+              navigation: SiteNavigation.sidebar,
+              sidebar: SidebarState.collapsed),
+          isTrue);
+      expect(
+          sidebarReplacesDrawer(
+              libraryDesign: false,
+              navigation: SiteNavigation.strip,
+              sidebar: SidebarState.open),
+          isFalse);
+    });
+
+    test('TAB-038 the site menu offers what is not on screen: from the '
+        'legacy drawer both, otherwise the other one', () {
+      MenuOffers offers(SiteNavigation navigation, SidebarState sidebar,
+              {required bool legacy}) =>
+          menuOffers(
+              navigation: navigation, sidebar: sidebar, legacyDesign: legacy);
+      expect(offers(SiteNavigation.sidebar, SidebarState.hidden, legacy: true),
+          (sidebar: true, strip: true));
+      expect(offers(SiteNavigation.sidebar, SidebarState.open, legacy: true),
+          (sidebar: false, strip: true));
+      expect(offers(SiteNavigation.sidebar, SidebarState.hidden, legacy: false),
+          (sidebar: false, strip: true));
+      expect(offers(SiteNavigation.strip, SidebarState.hidden, legacy: true),
+          (sidebar: true, strip: false));
     });
   });
 

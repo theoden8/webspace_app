@@ -20,6 +20,8 @@ typedef NavigationQuery = ({
   bool narrowRail,
   // The site strip is hidden behind its button (TAB-038).
   bool stripHidden,
+  // The legacy design, whose hidden sidebar is its drawer (TAB-036).
+  bool legacyDesign,
 });
 
 /// Whether full screen shows a floating control (the strip's button or the
@@ -27,6 +29,35 @@ typedef NavigationQuery = ({
 /// sticky, as they are with nothing of the app's on screen.
 bool floatsInFullscreen({required FullscreenNavigation inFullscreen}) =>
     inFullscreen == FullscreenNavigation.button;
+
+/// Whether the sidebar takes the legacy design's drawer's place: in use and
+/// not hidden, for in the legacy design a hidden sidebar is its drawer
+/// (TAB-036). The library design has no drawer.
+bool sidebarReplacesDrawer({
+  required bool libraryDesign,
+  required SiteNavigation navigation,
+  required SidebarState sidebar,
+}) =>
+    navigation == SiteNavigation.sidebar &&
+    (libraryDesign || sidebar != SidebarState.hidden);
+
+/// What the site menu offers to switch to (TAB-038).
+typedef MenuOffers = ({bool sidebar, bool strip});
+
+/// The navigation not on screen: the other one, and from the legacy
+/// design's drawer, which stands for a hidden sidebar, the sidebar too.
+MenuOffers menuOffers({
+  required SiteNavigation navigation,
+  required SidebarState sidebar,
+  required bool legacyDesign,
+}) =>
+    switch (navigation) {
+      SiteNavigation.strip => (sidebar: true, strip: false),
+      SiteNavigation.sidebar => (
+          sidebar: legacyDesign && sidebar == SidebarState.hidden,
+          strip: true,
+        ),
+    };
 
 /// Whether a narrow window docks the rail beside the page: not where the
 /// webview's back swipe answers only at the screen's edge ([screenEdgeBack],
@@ -116,6 +147,16 @@ NavigationSurfaces _sidebar(NavigationQuery q) {
           stripButton: false,
         ),
     };
+  }
+  if (q.legacyDesign && q.sidebar == SidebarState.hidden) {
+    return (
+      strip: false,
+      dock: SidebarDock.none,
+      float: SidebarFloat.none,
+      arrowTab: false,
+      tabCountButton: true,
+      stripButton: false,
+    );
   }
   if (!q.wide && !q.narrowRail) {
     return (
