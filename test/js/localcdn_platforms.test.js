@@ -7,44 +7,33 @@
 // LocalCdnPerSiteTest's.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { read } = require('./helpers/source');
+const { read, files } = require('./helpers/source');
 
-const ROOT = path.resolve(__dirname, '../..');
 const NATIVE = /\.(swift|m|mm|h|cc|c|cpp)$/;
+// Trees a build or a pod install writes, which hold no source of ours.
+const GENERATED = /\/(Pods|build|ephemeral|\.symlinks)\//;
 
 /** Every native source file under [dir], skipping generated trees. */
 function nativeFiles(dir) {
-  const out = [];
-  for (const entry of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
-    const rel = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (['Pods', 'build', 'flutter', 'ephemeral', '.symlinks'].includes(entry.name)) continue;
-      out.push(...nativeFiles(rel));
-    } else if (NATIVE.test(entry.name)) {
-      out.push(rel);
-    }
-  }
-  return out;
+  return files(dir, NATIVE).filter((f) => !GENERATED.test(f));
 }
 
-/** The native files in [files] that name LocalCDN. */
-function servers(files, { text }) {
-  return files.filter((f) => /local_?cdn|cdnTables/i.test(text(f)));
+/** The native files in [sources] that name LocalCDN. */
+function servers(sources, { text }) {
+  return sources.filter((f) => /local_?cdn|cdnTables/i.test(text(f)));
 }
 
 test('only Android serves a cached CDN copy, and only Android offers '
     + 'LocalCDN (LCDN-013)', () => {
-  const files = ['ios', 'macos', 'linux'].flatMap(nativeFiles);
-  assert.ok(files.length > 20, `only ${files.length} native files found: the walk reads nothing`);
-  assert.deepEqual(servers(files, { text: read }), []);
+  const native = ['ios', 'macos', 'linux'].flatMap(nativeFiles);
+  assert.ok(native.length > 20, `only ${native.length} native files found: the walk reads nothing`);
+  assert.deepEqual(servers(native, { text: read }), []);
   assert.match(read('lib/services/localcdn_service.dart'),
     /static bool get offered => debugOffered \?\? hostIsAndroid;/,
     'LocalCDN is offered where no native code serves it');
 
-  const planted = files[0];
+  const planted = native[0];
   assert.deepEqual(
-    servers(files, { text: (f) => (f === planted ? 'let localCdnEnabled = true' : read(f)) }),
+    servers(native, { text: (f) => (f === planted ? 'let localCdnEnabled = true' : read(f)) }),
     [planted]);
 });
