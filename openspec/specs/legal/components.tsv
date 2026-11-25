@@ -11,10 +11,6 @@
 #   shared   a separately shipped shared library the user can replace
 #   build    a build tool; nothing of it ships
 pod:Tor	MIT AND BSD-3-Clause AND Apache-2.0 AND 0BSD	linked	409.11.2	Tor.framework's LICENSE (MIT) and build-xcframework.sh at v409.11.2: tor 0.4.9.11's client build (BSD-3-Clause), libevent 2.1.13 (BSD-3-Clause), OpenSSL 3.6.3 (Apache-2.0), xz 5.8.3's liblzma (0BSD)
-pod:SDWebImage	MIT	linked	5.21.5	its LICENSE
-pod:DKImagePickerController	MIT	linked	4.3.9	its LICENSE
-pod:DKPhotoGallery	MIT	linked	0.0.19	its LICENSE
-pod:SwiftyGif	MIT	linked	5.4.5	its podspec's licence (MIT, LICENSE); the text reaches the page from CocoaPods' acknowledgements, as tag 5.4.5 is not on GitHub
 pod:swift-collections	Apache-2.0	linked	1.1.1	its LICENSE.txt
 pod:InternalCollectionsUtilities	Apache-2.0	linked	1.1.1	part of swift-collections; its LICENSE.txt
 pod:OrderedSet	MIT	linked	6.0.3	its LICENSE
