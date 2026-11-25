@@ -22,10 +22,10 @@ enum FullscreenNavigation {
   hidden,
   button;
 
-  /// The value [raw] names; an earlier build's `kept` is the button now;
-  /// anything else, the default.
+  /// The value [raw] names; anything else, an earlier build's `kept`
+  /// among them, the button.
   static FullscreenNavigation parse(String raw) =>
-      raw == 'kept' ? button : values.asNameMap()[raw] ?? hidden;
+      values.asNameMap()[raw] ?? button;
 }
 
 /// The sidebar's state, one for the app: open, collapsed to a rail, hidden.

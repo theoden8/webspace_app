@@ -229,7 +229,7 @@
     "fullscreenOnShortcut": false,
     "tabMaxWidth": 200,
     "siteNavigation": "strip",
-    "fullscreenNavigation": "button",
+    "fullscreenNavigation": "hidden",
     "sidebarState": "collapsed",
     "sidebarStyle": "tree",
     "sidebarWidth": 300,

@@ -52,13 +52,14 @@ void main() {
       );
     });
 
-    test('TAB-030 no strip maps to the sidebar hidden behind its arrow tab', () {
+    test('TAB-030, FS-007 no strip maps to the sidebar hidden behind its arrow '
+        'tab, which full screen keeps', () {
       expect(
         siteNavigationFrom(
             showTabStrip: false, tabBarButton: false, tabStripInFullscreen: false),
         (
           navigation: SiteNavigation.sidebar,
-          inFullscreen: FullscreenNavigation.hidden,
+          inFullscreen: FullscreenNavigation.button,
           sidebarHidden: true,
         ),
       );
@@ -110,7 +111,8 @@ void main() {
       final prefs = await launch({});
       expect(currentSiteNavigation, SiteNavigation.sidebar);
       expect(currentSidebarState, SidebarState.hidden);
-      expect(currentFullscreenNavigation, FullscreenNavigation.hidden);
+      expect(currentFullscreenNavigation, FullscreenNavigation.button,
+          reason: 'FS-007: the arrow tab stays in full screen by default');
       expect(prefs.get(AppPref.siteNavigation.key), 'sidebar');
     });
 
@@ -120,6 +122,7 @@ void main() {
           {'siteNavigation': 'tabButton', 'sidebarState': 'open'});
       expect(currentSiteNavigation, SiteNavigation.sidebar);
       expect(currentSidebarState, SidebarState.hidden);
+      expect(currentFullscreenNavigation, FullscreenNavigation.button);
       expect(prefs.get(AppPref.siteNavigation.key), 'sidebar');
     });
 
@@ -143,6 +146,7 @@ void main() {
         {'siteNavigation': 'tabButton', 'sidebarState': 'open'});
     expect(prefs[AppPref.siteNavigation.key], 'sidebar');
     expect(prefs[AppPref.sidebarState.key], 'hidden');
+    expect(prefs[AppPref.fullscreenNavigation.key], 'button');
   });
 
   test('a backup that names the choice keeps it over the old keys', () {

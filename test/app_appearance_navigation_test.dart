@@ -68,12 +68,13 @@ void main() {
   testWidgets('FS-007 the Button in full screen switch sets whether full '
       'screen leaves the control', (tester) async {
     await appearance(tester);
+    expect(currentFullscreenNavigation, FullscreenNavigation.button,
+        reason: 'on by default');
+    await tester.tap(find.text('Button in full screen'));
+    await tester.pumpAndSettle();
     expect(currentFullscreenNavigation, FullscreenNavigation.hidden);
     await tester.tap(find.text('Button in full screen'));
     await tester.pumpAndSettle();
     expect(currentFullscreenNavigation, FullscreenNavigation.button);
-    await tester.tap(find.text('Button in full screen'));
-    await tester.pumpAndSettle();
-    expect(currentFullscreenNavigation, FullscreenNavigation.hidden);
   });
 }

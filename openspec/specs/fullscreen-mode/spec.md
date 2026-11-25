@@ -153,16 +153,24 @@ The system SHALL exit full screen when navigating to the webspaces list.
 The system SHALL offer one app-wide switch, Button in full screen
 (`fullscreenNavigation`), in App Settings > Appearance:
 
-- **Off** (the default): full screen shows nothing of the strip or the
-  sidebar, nor a control to bring them back; the system bars stay sticky.
-- **On**: full screen leaves the control of the one in use (TAB-038), the
-  site strip's button or the sidebar's arrow tab, which shows it over the
-  page on demand (FS-009).
+- **On** (the default): full screen leaves the control of the one in use
+  (TAB-038), the site strip's button or the sidebar's arrow tab, which
+  shows it over the page on demand (FS-009).
+- **Off**: full screen shows nothing of the strip or the sidebar, nor a
+  control to bring them back; the system bars stay sticky.
 
 Full screen SHALL never keep the strip or the sidebar docked. A value an
-earlier build saved as Always visible (`kept`) SHALL read as on.
+earlier build saved as Always visible (`kept`), or any value it does not
+name, SHALL read as on.
 
-#### Scenario: Nothing kept in full screen (default)
+#### Scenario: The arrow tab stays in full screen by default
+
+**Given** a new install, which uses the sidebar
+**When** the user enters full screen mode
+**Then** the sidebar's arrow tab shows at the left edge
+**And** the sidebar itself does not
+
+#### Scenario: Nothing kept in full screen
 
 **Given** Button in full screen is off
 **When** the user enters full screen mode
