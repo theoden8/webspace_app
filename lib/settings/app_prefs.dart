@@ -48,7 +48,7 @@ enum AppPref<T extends Object> {
   // 'hidden' (FullscreenNavigation). An earlier build's 'tabButton' and
   // strip prefs are read once by loadSiteNavigation.
   siteNavigation('siteNavigation', section: PrefSection.appearance, fallback: 'sidebar'),
-  fullscreenNavigation('fullscreenNavigation', section: PrefSection.appearance, fallback: 'hidden'),
+  fullscreenNavigation('fullscreenNavigation', section: PrefSection.appearance, fallback: 'button'),
   // The sidebar, one for the app: its state ('open', 'collapsed', 'hidden';
   // SidebarState), what it shows open ('squares' or 'tree'; SidebarStyle),
   // its width, whether hovering the rail shows the names, and the height of

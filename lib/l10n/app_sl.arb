@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Gumb v celozaslonskem načinu",
   "appSettingsFullscreenButtonHint": "V celozaslonskem načinu ostane puščica stranske vrstice ali gumb traku strani nad stranjo, da lahko katerega koli prikličete nazaj. Izklopljeno celozaslonski način ne prikaže nobenega.",
   "backupPrefSiteStripHidden": "Trak strani skrit",
-  "siteMenuUseSiteStrip": "Uporabi trak strani",
-  "siteMenuUseSidebar": "Uporabi stransko vrstico",
   "sidebarArrowDragHint": "Pridržite puščico in jo povlecite na stran, da namesto tega uporabite trak strani",
   "backupPrefSidebarState": "Stranska vrstica odprta, strnjena ali skrita",
   "appSettingsSidebarStyle": "Odprta stranska vrstica prikazuje",

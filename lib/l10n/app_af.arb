@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Knoppie in volskerm",
   "appSettingsFullscreenButtonHint": "In volskerm bly die sybalk se pyltjie of die webwerfstrook se knoppie oor die bladsy, sodat jy enigeen kan terugbring. Af wys volskerm nie een nie.",
   "backupPrefSiteStripHidden": "Webwerfstrook versteek",
-  "siteMenuUseSiteStrip": "Gebruik webwerfstrook",
-  "siteMenuUseSidebar": "Gebruik sybalk",
   "sidebarArrowDragHint": "Hou die pyltjie in en sleep dit na die bladsy om eerder die webwerfstrook te gebruik",
   "backupPrefSidebarState": "Sybalk oop, ingevou of versteek",
   "appSettingsSidebarStyle": "Oop sybalk wys",

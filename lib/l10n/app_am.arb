@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "በሙሉ ማያ ገጽ ውስጥ ቁልፍ",
   "appSettingsFullscreenButtonHint": "በሙሉ ማያ ገጽ ላይ የጎን አሞሌውን ቀስት ወይም የጣቢያ ሰቁን ቁልፍ በገጹ ላይ ያቆያል፣ ስለዚህ ማንኛውንም መመለስ ይቻላል። ሲጠፋ፣ ሙሉ ማያ ገጽ ሁለቱንም አያሳይም።",
   "backupPrefSiteStripHidden": "የጣቢያ ሰቅ ተደብቋል",
-  "siteMenuUseSiteStrip": "የጣቢያ ሰቅ ተጠቀም",
-  "siteMenuUseSidebar": "የጎን አሞሌ ተጠቀም",
   "sidebarArrowDragHint": "በምትኩ የጣቢያ ሰቁን ለመጠቀም ቀስቱን ይያዙ እና ወደ ገጹ ይጎትቱት",
   "backupPrefSidebarState": "የጎን አሞሌ ክፍት፣ የታጠፈ ወይም የተደበቀ",
   "appSettingsSidebarStyle": "ክፍት የጎን አሞሌ የሚያሳየው",

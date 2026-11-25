@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Tlačidlo na celej obrazovke",
   "appSettingsFullscreenButtonHint": "Na celej obrazovke ponechá nad stránkou šípku bočného panela alebo tlačidlo panela stránok, aby ste ich mohli vrátiť. Vypnuté, celá obrazovka nezobrazí ani jedno.",
   "backupPrefSiteStripHidden": "Panel stránok skrytý",
-  "siteMenuUseSiteStrip": "Použiť panel stránok",
-  "siteMenuUseSidebar": "Použiť bočný panel",
   "sidebarArrowDragHint": "Podržte šípku a presuňte ju na stránku, ak chcete namiesto toho používať panel stránok",
   "backupPrefSidebarState": "Bočný panel otvorený, zbalený alebo skrytý",
   "appSettingsSidebarStyle": "Otvorený bočný panel zobrazuje",

@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "ღილაკი სრულ ეკრანზე",
   "appSettingsFullscreenButtonHint": "სრულ ეკრანზე გვერდითი პანელის ისარი ან საიტების ზოლის ღილაკი რჩება გვერდის ზემოთ, რომ ნებისმიერი მათგანი დააბრუნოთ. გამორთულისას სრული ეკრანი არცერთს არ აჩვენებს.",
   "backupPrefSiteStripHidden": "საიტების ზოლი დამალულია",
-  "siteMenuUseSiteStrip": "საიტების ზოლის გამოყენება",
-  "siteMenuUseSidebar": "გვერდითი პანელის გამოყენება",
   "sidebarArrowDragHint": "დააჭირეთ ისარს და გადაათრიეთ გვერდზე, რომ მის ნაცვლად საიტების ზოლი გამოიყენოთ",
   "backupPrefSidebarState": "გვერდითი პანელი ღია, ჩაკეცილი ან დამალული",
   "appSettingsSidebarStyle": "ღია გვერდითი პანელი აჩვენებს",

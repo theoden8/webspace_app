@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Botón en pantalla completa",
   "appSettingsFullscreenButtonHint": "En pantalla completa, mantén a frecha da barra lateral ou o botón da barra de sitios sobre a páxina, para que poidas volver mostralas. Desactivado, a pantalla completa non mostra ningunha.",
   "backupPrefSiteStripHidden": "Barra de sitios oculta",
-  "siteMenuUseSiteStrip": "Usar a barra de sitios",
-  "siteMenuUseSidebar": "Usar a barra lateral",
   "sidebarArrowDragHint": "Mantén premida a frecha e arrástraa á páxina para usar a barra de sitios",
   "backupPrefSidebarState": "Barra lateral aberta, recollida ou agochada",
   "appSettingsSidebarStyle": "A barra lateral aberta mostra",

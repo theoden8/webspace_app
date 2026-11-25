@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "فل اسکرین میں بٹن",
   "appSettingsFullscreenButtonHint": "فل اسکرین میں سائیڈبار کا تیر یا سائٹ اسٹرپ کا بٹن صفحے کے اوپر رکھتا ہے، تاکہ کسی کو بھی واپس لایا جا سکے۔ بند ہونے پر فل اسکرین دونوں میں سے کچھ نہیں دکھاتی۔",
   "backupPrefSiteStripHidden": "سائٹ اسٹرپ چھپی ہوئی",
-  "siteMenuUseSiteStrip": "سائٹ اسٹرپ استعمال کریں",
-  "siteMenuUseSidebar": "سائیڈبار استعمال کریں",
   "sidebarArrowDragHint": "اس کے بجائے سائٹ اسٹرپ استعمال کرنے کے لیے تیر کو دبائے رکھیں اور صفحے پر گھسیٹیں",
   "backupPrefSidebarState": "سائیڈبار کھلا، سمٹا ہوا یا چھپا ہوا",
   "appSettingsSidebarStyle": "کھلا سائیڈبار دکھاتا ہے",

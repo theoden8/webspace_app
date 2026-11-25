@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "כפתור במסך מלא",
   "appSettingsFullscreenButtonHint": "במסך מלא, החץ של סרגל הצד או הכפתור של רצועת האתרים נשארים מעל הדף, כדי שתוכלו להחזיר כל אחד מהם. כשהאפשרות כבויה, מסך מלא לא מציג אף אחד מהם.",
   "backupPrefSiteStripHidden": "רצועת האתרים מוסתרת",
-  "siteMenuUseSiteStrip": "שימוש ברצועת האתרים",
-  "siteMenuUseSidebar": "שימוש בסרגל הצד",
   "sidebarArrowDragHint": "החזיקו את החץ וגררו אותו אל הדף כדי להשתמש ברצועת האתרים במקום",
   "backupPrefSidebarState": "סרגל הצד פתוח, מכווץ או מוסתר",
   "appSettingsSidebarStyle": "סרגל הצד הפתוח מציג",

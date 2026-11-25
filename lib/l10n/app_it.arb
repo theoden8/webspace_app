@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Pulsante a schermo intero",
   "appSettingsFullscreenButtonHint": "A schermo intero, mantiene la freccia della barra laterale o il pulsante della barra dei siti sopra la pagina, così puoi richiamarle. Disattivato, lo schermo intero non mostra nessuna delle due.",
   "backupPrefSiteStripHidden": "Barra dei siti nascosta",
-  "siteMenuUseSiteStrip": "Usa la barra dei siti",
-  "siteMenuUseSidebar": "Usa la barra laterale",
   "sidebarArrowDragHint": "Tieni premuta la freccia e trascinala sulla pagina per usare invece la barra dei siti",
   "backupPrefSidebarState": "Barra laterale aperta, compressa o nascosta",
   "appSettingsSidebarStyle": "La barra laterale aperta mostra",

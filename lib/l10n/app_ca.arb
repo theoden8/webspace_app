@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Botó a pantalla completa",
   "appSettingsFullscreenButtonHint": "A pantalla completa, manté la fletxa de la barra lateral o el botó de la barra de llocs sobre la pàgina, perquè pugueu tornar a mostrar-les. Desactivat, la pantalla completa no mostra cap de les dues.",
   "backupPrefSiteStripHidden": "Barra de llocs amagada",
-  "siteMenuUseSiteStrip": "Usa la barra de llocs",
-  "siteMenuUseSidebar": "Usa la barra lateral",
   "sidebarArrowDragHint": "Manteniu premuda la fletxa i arrossegueu-la a la pàgina per usar la barra de llocs",
   "backupPrefSidebarState": "Barra lateral oberta, plegada o amagada",
   "appSettingsSidebarStyle": "La barra lateral oberta mostra",

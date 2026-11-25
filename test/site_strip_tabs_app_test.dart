@@ -51,32 +51,15 @@ Future<void> start(WidgetTester tester,
 }
 
 void main() {
-  testWidgets('TAB-038 the site menu offers the navigation not in use, and '
-      'switches to it', (tester) async {
-    await start(tester, navigation: 'strip');
-    await tester.tap(find.byType(PopupMenuButton<SiteMenuAction>).first);
-    await settleRealApp(tester);
-    expect(find.text('Use site strip'), findsNothing);
-    await tester.tap(find.text('Use sidebar'));
-    await settleRealApp(tester);
-    expect(currentSiteNavigation, SiteNavigation.sidebar);
-    expect(currentSidebarState, SidebarState.open);
-    expect(find.byType(SiteStrip), findsNothing);
-
-    await tester.tap(find.byType(PopupMenuButton<SiteMenuAction>).first);
-    await settleRealApp(tester);
-    await tester.tap(find.text('Use site strip'));
-    await settleRealApp(tester);
-    expect(currentSiteNavigation, SiteNavigation.strip);
-    expect(find.byType(SiteStrip), findsOneWidget);
-  });
-
   testWidgets('TAB-038 the arrow tab, held and let go on the page, is the '
       'strip\'s button; that button let go on the left edge is the arrow tab '
       'again', (tester) async {
     // The first arrow tab's message would cover the button's corner.
-    await start(tester,
-        navigation: 'sidebar', prefs: {ArrowDragHint.shownKey: true});
+    // The library design: in the legacy one a hidden sidebar is its drawer.
+    await start(tester, navigation: 'sidebar', prefs: {
+      ArrowDragHint.shownKey: true,
+      'legacyDesign': false,
+    });
     await AppPref.sidebarState.set('hidden');
     await settleRealApp(tester);
     final hold = await tester.startGesture(

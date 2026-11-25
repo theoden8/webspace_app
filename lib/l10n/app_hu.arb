@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Gomb teljes képernyőn",
   "appSettingsFullscreenButtonHint": "Teljes képernyőn az oldalsáv nyila vagy a webhelysáv gombja az oldal fölött marad, így bármelyiket visszahozhatod. Kikapcsolva a teljes képernyő egyiket sem mutatja.",
   "backupPrefSiteStripHidden": "Webhelysáv elrejtve",
-  "siteMenuUseSiteStrip": "Webhelysáv használata",
-  "siteMenuUseSidebar": "Oldalsáv használata",
   "sidebarArrowDragHint": "Tartsd lenyomva a nyilat, és húzd az oldalra, hogy inkább a webhelysávot használd",
   "backupPrefSidebarState": "Oldalsáv nyitva, összecsukva vagy elrejtve",
   "appSettingsSidebarStyle": "A nyitott oldalsáv mutatja",

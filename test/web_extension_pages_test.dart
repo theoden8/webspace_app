@@ -330,6 +330,13 @@ void main() {
     });
   });
 
+  test('WEBEXT-008 where no extension runs, the app\'s answer never reaches '
+      'the engine, which there may not exist (the designer web app)', () {
+    debugHostRunsWebExtensions = false;
+    _library.answerTabRequests((request) async => true);
+    expect(engine.tabHandler, isNull);
+  });
+
   group('WEBEXT-002 removing an extension deletes it everywhere', () {
     test('its files and its data on both sites go, and it runs on neither',
         () async {

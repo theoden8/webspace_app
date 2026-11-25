@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Schaltfläche im Vollbild",
   "appSettingsFullscreenButtonHint": "Im Vollbild bleibt der Pfeil der Seitenleiste oder die Schaltfläche der Website-Leiste über der Seite, damit Sie sie zurückholen können. Aus, zeigt das Vollbild keins von beiden.",
   "backupPrefSiteStripHidden": "Website-Leiste ausgeblendet",
-  "siteMenuUseSiteStrip": "Website-Leiste verwenden",
-  "siteMenuUseSidebar": "Seitenleiste verwenden",
   "sidebarArrowDragHint": "Halten Sie den Pfeil gedrückt und ziehen Sie ihn auf die Seite, um stattdessen die Website-Leiste zu verwenden",
   "backupPrefSidebarState": "Seitenleiste offen, eingeklappt oder ausgeblendet",
   "appSettingsSidebarStyle": "Offene Seitenleiste zeigt",

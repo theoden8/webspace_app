@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "全画面時のボタン",
   "appSettingsFullscreenButtonHint": "全画面時に、サイドバーの矢印またはサイトストリップのボタンをページ上に残し、どちらでも呼び戻せるようにします。オフにすると、全画面ではどちらも表示されません。",
   "backupPrefSiteStripHidden": "サイトストリップを非表示",
-  "siteMenuUseSiteStrip": "サイトストリップを使う",
-  "siteMenuUseSidebar": "サイドバーを使う",
   "sidebarArrowDragHint": "矢印を長押ししてページにドラッグすると、代わりにサイトストリップを使えます",
   "backupPrefSidebarState": "サイドバーの状態（開く・折りたたみ・非表示）",
   "appSettingsSidebarStyle": "開いたサイドバーの表示内容",

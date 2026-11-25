@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Mygtukas viso ekrano režime",
   "appSettingsFullscreenButtonHint": "Viso ekrano režime šoninio skydelio rodyklė arba svetainių juostos mygtukas lieka virš puslapio, kad galėtumėte bet kurį sugrąžinti. Išjungus viso ekrano režimas nerodo nė vieno.",
   "backupPrefSiteStripHidden": "Svetainių juosta paslėpta",
-  "siteMenuUseSiteStrip": "Naudoti svetainių juostą",
-  "siteMenuUseSidebar": "Naudoti šoninį skydelį",
   "sidebarArrowDragHint": "Palaikykite rodyklę ir nuvilkite ją į puslapį, kad vietoj to naudotumėte svetainių juostą",
   "backupPrefSidebarState": "Šoninis skydelis atvertas, sutrauktas arba paslėptas",
   "appSettingsSidebarStyle": "Atvertas šoninis skydelis rodo",

@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "ಪೂರ್ಣ ಪರದೆಯಲ್ಲಿ ಬಟನ್",
   "appSettingsFullscreenButtonHint": "ಪೂರ್ಣ ಪರದೆಯಲ್ಲಿ ಸೈಡ್‌ಬಾರ್‌ನ ಬಾಣ ಅಥವಾ ಸೈಟ್ ಸ್ಟ್ರಿಪ್‌ನ ಬಟನ್ ಅನ್ನು ಪುಟದ ಮೇಲೆ ಇರಿಸುತ್ತದೆ, ಇದರಿಂದ ಯಾವುದನ್ನಾದರೂ ಮರಳಿ ತರಬಹುದು. ಆಫ್ ಆಗಿದ್ದರೆ, ಪೂರ್ಣ ಪರದೆ ಯಾವುದನ್ನೂ ತೋರಿಸುವುದಿಲ್ಲ.",
   "backupPrefSiteStripHidden": "ಸೈಟ್ ಸ್ಟ್ರಿಪ್ ಮರೆಮಾಡಲಾಗಿದೆ",
-  "siteMenuUseSiteStrip": "ಸೈಟ್ ಸ್ಟ್ರಿಪ್ ಬಳಸಿ",
-  "siteMenuUseSidebar": "ಸೈಡ್‌ಬಾರ್ ಬಳಸಿ",
   "sidebarArrowDragHint": "ಬದಲಿಗೆ ಸೈಟ್ ಸ್ಟ್ರಿಪ್ ಬಳಸಲು ಬಾಣವನ್ನು ಹಿಡಿದು ಪುಟಕ್ಕೆ ಎಳೆಯಿರಿ",
   "backupPrefSidebarState": "ಸೈಡ್‌ಬಾರ್ ತೆರೆದಿದೆ, ಕುಗ್ಗಿಸಲಾಗಿದೆ ಅಥವಾ ಮರೆಮಾಡಲಾಗಿದೆ",
   "appSettingsSidebarStyle": "ತೆರೆದ ಸೈಡ್‌ಬಾರ್ ತೋರಿಸುವುದು",

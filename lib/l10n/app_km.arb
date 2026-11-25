@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "ប៊ូតុងក្នុងអេក្រង់ពេញ",
   "appSettingsFullscreenButtonHint": "ក្នុងអេក្រង់ពេញ វារក្សាព្រួញរបស់របារចំហៀង ឬប៊ូតុងរបស់របារគេហទំព័រនៅលើទំព័រ ដើម្បីអាចនាំមកវិញបាន។ ពេលបិទ អេក្រង់ពេញមិនបង្ហាញទាំងពីរទេ។",
   "backupPrefSiteStripHidden": "របារគេហទំព័រត្រូវបានលាក់",
-  "siteMenuUseSiteStrip": "ប្រើរបារគេហទំព័រ",
-  "siteMenuUseSidebar": "ប្រើរបារចំហៀង",
   "sidebarArrowDragHint": "ចុចព្រួញឱ្យជាប់ ហើយអូសវាទៅលើទំព័រ ដើម្បីប្រើរបារគេហទំព័រជំនួសវិញ",
   "backupPrefSidebarState": "របារចំហៀងបើក បង្រួម ឬលាក់",
   "appSettingsSidebarStyle": "របារចំហៀងដែលបើកបង្ហាញ",

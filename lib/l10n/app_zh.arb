@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "全螢幕時的按鈕",
   "appSettingsFullscreenButtonHint": "全螢幕時，會在頁面上保留側邊欄的箭頭或網站列的按鈕，讓你隨時叫回。關閉時，全螢幕兩者都不顯示。",
   "backupPrefSiteStripHidden": "網站列已隱藏",
-  "siteMenuUseSiteStrip": "使用網站列",
-  "siteMenuUseSidebar": "使用側邊欄",
   "sidebarArrowDragHint": "按住箭頭並拖曳到頁面上，即可改用網站列",
   "backupPrefSidebarState": "側邊欄開啟、收合或隱藏",
   "appSettingsSidebarStyle": "開啟的側邊欄顯示",

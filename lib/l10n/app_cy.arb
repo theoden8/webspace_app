@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Botwm yn y sgrin lawn",
   "appSettingsFullscreenButtonHint": "Yn y sgrin lawn, mae'n cadw saeth y bar ochr neu fotwm y stribed safleoedd dros y dudalen, fel y gallwch ddod â'r naill neu'r llall yn ôl. I ffwrdd, nid yw'r sgrin lawn yn dangos y naill na'r llall.",
   "backupPrefSiteStripHidden": "Stribed safleoedd wedi'i guddio",
-  "siteMenuUseSiteStrip": "Defnyddio'r stribed safleoedd",
-  "siteMenuUseSidebar": "Defnyddio'r bar ochr",
   "sidebarArrowDragHint": "Daliwch y saeth a'i llusgo ar y dudalen i ddefnyddio'r stribed safleoedd yn lle hynny",
   "backupPrefSidebarState": "Bar ochr ar agor, wedi'i blygu neu'n gudd",
   "appSettingsSidebarStyle": "Mae'r bar ochr agored yn dangos",

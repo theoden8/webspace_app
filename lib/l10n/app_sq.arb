@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Buton në ekran të plotë",
   "appSettingsFullscreenButtonHint": "Në ekran të plotë, mban shigjetën e shiritit anësor ose butonin e shiritit të faqeve mbi faqe, që të mund të rikthesh cilindo. Joaktiv, ekrani i plotë nuk shfaq asnjërin.",
   "backupPrefSiteStripHidden": "Shiriti i faqeve i fshehur",
-  "siteMenuUseSiteStrip": "Përdor shiritin e faqeve",
-  "siteMenuUseSidebar": "Përdor shiritin anësor",
   "sidebarArrowDragHint": "Mbaj shtypur shigjetën dhe tërhiqe mbi faqe për të përdorur shiritin e faqeve në vend të tij",
   "backupPrefSidebarState": "Shiriti anësor i hapur, i palosur ose i fshehur",
   "appSettingsSidebarStyle": "Shiriti anësor i hapur shfaq",

@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Cnaipe sa scáileán iomlán",
   "appSettingsFullscreenButtonHint": "Sa scáileán iomlán, coinníonn sé saighead an bharra taoibh nó cnaipe na stiallach suíomhanna os cionn an leathanaigh, ionas gur féidir ceachtar acu a thabhairt ar ais. As, ní thaispeánann an scáileán iomlán ceachtar acu.",
   "backupPrefSiteStripHidden": "Stiall suíomhanna i bhfolach",
-  "siteMenuUseSiteStrip": "Úsáid an stiall suíomhanna",
-  "siteMenuUseSidebar": "Úsáid an barra taoibh",
   "sidebarArrowDragHint": "Coinnigh an tsaighead agus tarraing ar an leathanach í chun an stiall suíomhanna a úsáid ina háit",
   "backupPrefSidebarState": "Barra taoibh oscailte, laghdaithe nó i bhfolach",
   "appSettingsSidebarStyle": "Taispeánann an barra taoibh oscailte",

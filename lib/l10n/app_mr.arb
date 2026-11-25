@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "पूर्ण स्क्रीनमध्ये बटण",
   "appSettingsFullscreenButtonHint": "पूर्ण स्क्रीनमध्ये साइडबारचा बाण किंवा साइट पट्टीचे बटण पानावर ठेवते, जेणेकरून कोणतेही परत आणता येईल. बंद असताना पूर्ण स्क्रीन दोन्हीपैकी काहीही दाखवत नाही.",
   "backupPrefSiteStripHidden": "साइट पट्टी लपवली",
-  "siteMenuUseSiteStrip": "साइट पट्टी वापरा",
-  "siteMenuUseSidebar": "साइडबार वापरा",
   "sidebarArrowDragHint": "त्याऐवजी साइट पट्टी वापरण्यासाठी बाण धरून ठेवा आणि पानावर ओढा",
   "backupPrefSidebarState": "साइडबार उघडा, संकुचित किंवा लपवलेला",
   "appSettingsSidebarStyle": "उघडा साइडबार दाखवतो",

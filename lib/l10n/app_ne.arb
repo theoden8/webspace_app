@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "पूर्ण स्क्रिनमा बटन",
   "appSettingsFullscreenButtonHint": "पूर्ण स्क्रिनमा साइडबारको तीर वा साइट स्ट्रिपको बटन पृष्ठमाथि राख्छ, ताकि जुनसुकै फर्काउन सकियोस्। बन्द हुँदा पूर्ण स्क्रिनले कुनै पनि देखाउँदैन।",
   "backupPrefSiteStripHidden": "साइट स्ट्रिप लुकाइएको",
-  "siteMenuUseSiteStrip": "साइट स्ट्रिप प्रयोग गर्नुहोस्",
-  "siteMenuUseSidebar": "साइडबार प्रयोग गर्नुहोस्",
   "sidebarArrowDragHint": "यसको सट्टा साइट स्ट्रिप प्रयोग गर्न तीरलाई थिचिराख्नुहोस् र पृष्ठमा तान्नुहोस्",
   "backupPrefSidebarState": "साइडबार खुला, खुम्चिएको वा लुकेको",
   "appSettingsSidebarStyle": "खुला साइडबारले देखाउँछ",

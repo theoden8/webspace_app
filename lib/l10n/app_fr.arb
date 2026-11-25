@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Bouton en plein écran",
   "appSettingsFullscreenButtonHint": "En plein écran, garde la flèche de la barre latérale ou le bouton de la barre des sites au-dessus de la page, pour pouvoir les faire revenir. Désactivé, le plein écran n'affiche ni l'un ni l'autre.",
   "backupPrefSiteStripHidden": "Barre des sites masquée",
-  "siteMenuUseSiteStrip": "Utiliser la barre des sites",
-  "siteMenuUseSidebar": "Utiliser la barre latérale",
   "sidebarArrowDragHint": "Maintenez la flèche et faites-la glisser sur la page pour utiliser plutôt la barre des sites",
   "backupPrefSidebarState": "Barre latérale ouverte, réduite ou masquée",
   "appSettingsSidebarStyle": "La barre latérale ouverte affiche",

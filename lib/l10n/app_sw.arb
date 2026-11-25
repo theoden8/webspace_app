@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Kitufe katika skrini nzima",
   "appSettingsFullscreenButtonHint": "Katika skrini nzima, huacha mshale wa upau wa pembeni au kitufe cha ukanda wa tovuti juu ya ukurasa, ili uweze kurudisha chochote. Kikizimwa, skrini nzima haionyeshi chochote kati ya hivyo.",
   "backupPrefSiteStripHidden": "Ukanda wa tovuti umefichwa",
-  "siteMenuUseSiteStrip": "Tumia ukanda wa tovuti",
-  "siteMenuUseSidebar": "Tumia upau wa pembeni",
   "sidebarArrowDragHint": "Shikilia mshale na uuburute kwenye ukurasa ili utumie ukanda wa tovuti badala yake",
   "backupPrefSidebarState": "Upau wa pembeni umefunguliwa, umekunjwa au umefichwa",
   "appSettingsSidebarStyle": "Upau wa pembeni ulio wazi unaonyesha",

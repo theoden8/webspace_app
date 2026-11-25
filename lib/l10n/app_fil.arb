@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Button sa full screen",
   "appSettingsFullscreenButtonHint": "Sa full screen, nananatili sa ibabaw ng page ang arrow ng sidebar o ang button ng hanay ng site, para maibalik mo ang alinman. Kapag naka-off, walang ipinapakita ang full screen.",
   "backupPrefSiteStripHidden": "Nakatago ang hanay ng site",
-  "siteMenuUseSiteStrip": "Gamitin ang hanay ng site",
-  "siteMenuUseSidebar": "Gamitin ang sidebar",
   "sidebarArrowDragHint": "Pindutin nang matagal ang arrow at i-drag ito sa page para gamitin na lang ang hanay ng site",
   "backupPrefSidebarState": "Nakabukas, naka-collapse o nakatago ang sidebar",
   "appSettingsSidebarStyle": "Ipinapakita ng bukas na sidebar",

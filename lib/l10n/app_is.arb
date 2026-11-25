@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Hnappur í fullum skjá",
   "appSettingsFullscreenButtonHint": "Í fullum skjá helst ör hliðarstikunnar eða hnappur svæðalínunnar yfir síðunni, svo þú getir sótt hvort sem er aftur. Slökkt sýnir fullur skjár hvorugt.",
   "backupPrefSiteStripHidden": "Svæðalína falin",
-  "siteMenuUseSiteStrip": "Nota svæðalínu",
-  "siteMenuUseSidebar": "Nota hliðarstiku",
   "sidebarArrowDragHint": "Haltu örinni inni og dragðu hana á síðuna til að nota svæðalínuna í staðinn",
   "backupPrefSidebarState": "Hliðarstika opin, felld saman eða falin",
   "appSettingsSidebarStyle": "Opin hliðarstika sýnir",

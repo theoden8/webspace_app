@@ -16,7 +16,7 @@ FullscreenNavigation get currentFullscreenNavigation =>
 
 /// Switches to [to], shown or [hidden] behind its control: the strip's
 /// button, the sidebar's arrow tab (TAB-038). The one way the navigation in
-/// use changes: dragging its control, or the site menu.
+/// use changes, as its control is dragged.
 Future<void> useSiteNavigation(
   SiteNavigation to, {
   required bool hidden,
@@ -51,8 +51,8 @@ typedef SiteNavigationChoice = ({
 /// chose, as the choice now: a strip, pinned or behind its button, is the
 /// strip, its button or a strip kept in full screen the full-screen button;
 /// nothing set was the tab button alone, which is the sidebar hidden behind
-/// its arrow tab (TAB-030). The button wins over a pinned strip, as the
-/// strip's presentation read it.
+/// its arrow tab, kept in full screen (TAB-030, FS-007). The button wins
+/// over a pinned strip, as the strip's presentation read it.
 SiteNavigationChoice siteNavigationFrom({
   required bool showTabStrip,
   required bool tabBarButton,
@@ -76,7 +76,7 @@ SiteNavigationChoice siteNavigationFrom({
   }
   return (
     navigation: SiteNavigation.sidebar,
-    inFullscreen: FullscreenNavigation.hidden,
+    inFullscreen: FullscreenNavigation.button,
     sidebarHidden: true,
   );
 }

@@ -1028,8 +1028,8 @@ click: it has no key convention, and a long press opens the menu instead.
 
 The user SHALL move between a webspace's sites and their tabs with the site
 strip or the sidebar (`siteNavigation`), never both at once. Which one is in
-use SHALL be set where its control rests (TAB-038), or from the site menu,
-not by a choice in App Settings; their own settings SHALL be two groups in
+use SHALL be set where its control rests (TAB-038), not by a choice in App
+Settings; their own settings SHALL be two groups in
 App Settings > Appearance. The app bar SHALL carry the tab-count button with
 either, which opens the Tabs sheet, and the site menu SHALL offer no second
 way to it. One decision (`navigationSurfaces`) SHALL say which surfaces
@@ -1224,7 +1224,11 @@ motion the change SHALL be immediate.
 
 ### Requirement: TAB-036 - The legacy design's sidebar is its drawer
 
-In the legacy design with Sidebar chosen, the sidebar SHALL replace the drawer:
+In the legacy design a hidden sidebar SHALL be the drawer, its button in the
+app bar and its edge swipe as before the sidebar existed, with no arrow tab;
+the tab button an earlier build saved, which becomes the hidden sidebar
+(TAB-030), so keeps the drawer. With the sidebar in use and not hidden, the
+sidebar SHALL replace the drawer:
 it SHALL keep the drawer's header (the logo, the webspace's name, Back to
 Webspaces) and its Add Site, show the sites as squares unless the tree is
 chosen, and show whenever a webspace is picked, with a site on screen or not.
@@ -1244,6 +1248,11 @@ app where the platform lets it, so the gesture never stops answering.
 - **THEN** the sidebar opens
 - **WHEN** the user presses Back again
 - **THEN** the app leaves
+
+#### Scenario: A hidden sidebar is the drawer
+
+- **GIVEN** the legacy design with the sidebar hidden
+- **THEN** the app bar has the drawer's button and no arrow tab shows
 
 #### Scenario: The header and Add Site stay
 
@@ -1287,8 +1296,6 @@ be one control, and where it rests SHALL say which navigation is in use:
 - the strip SHALL hide behind its button out of full screen too: its close
   control leaves the button, whose tap shows the strip again
   (`siteStripHidden`);
-- the site menu SHALL offer the navigation not in use, Use site strip or Use
-  sidebar, which switches to it shown, for those who cannot drag;
 - the first arrow tab the app shows SHALL say once, in a message, that it can
   be dragged onto the page for the site strip.
 
@@ -1299,10 +1306,4 @@ be one control, and where it rests SHALL say which navigation is in use:
 - **THEN** the site strip is in use, hidden behind its button at the nearest corner
 - **WHEN** the user drags the button to the left edge and lets it go
 - **THEN** the sidebar is in use, hidden behind its arrow tab at that height
-
-#### Scenario: The menu switches without a drag
-
-- **GIVEN** the site strip in use
-- **WHEN** the user picks Use sidebar from the site menu
-- **THEN** the sidebar is in use and open
 

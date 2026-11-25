@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "ফুলস্ক্রিনে বোতাম",
   "appSettingsFullscreenButtonHint": "ফুলস্ক্রিনে সাইডবারের তীর বা সাইট স্ট্রিপের বোতাম পৃষ্ঠার উপরে রাখে, যাতে যেকোনোটি ফিরিয়ে আনা যায়। বন্ধ থাকলে ফুলস্ক্রিনে কোনোটিই দেখায় না।",
   "backupPrefSiteStripHidden": "সাইট স্ট্রিপ লুকানো",
-  "siteMenuUseSiteStrip": "সাইট স্ট্রিপ ব্যবহার করুন",
-  "siteMenuUseSidebar": "সাইডবার ব্যবহার করুন",
   "sidebarArrowDragHint": "এর বদলে সাইট স্ট্রিপ ব্যবহার করতে তীরটি ধরে রেখে পৃষ্ঠায় টেনে আনুন",
   "backupPrefSidebarState": "সাইডবার খোলা, সংকুচিত বা লুকানো",
   "appSettingsSidebarStyle": "খোলা সাইডবারে দেখায়",

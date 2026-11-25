@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "زر في وضع ملء الشاشة",
   "appSettingsFullscreenButtonHint": "في وضع ملء الشاشة، يُبقي سهم الشريط الجانبي أو زر شريط المواقع فوق الصفحة لإعادة أيٍّ منهما. عند الإيقاف، لا يعرض وضع ملء الشاشة أيًّا منهما.",
   "backupPrefSiteStripHidden": "شريط المواقع مخفي",
-  "siteMenuUseSiteStrip": "استخدام شريط المواقع",
-  "siteMenuUseSidebar": "استخدام الشريط الجانبي",
   "sidebarArrowDragHint": "اضغط مطولًا على السهم واسحبه إلى الصفحة لاستخدام شريط المواقع بدلًا منه",
   "backupPrefSidebarState": "الشريط الجانبي مفتوح أو مطوي أو مخفي",
   "appSettingsSidebarStyle": "يعرض الشريط الجانبي المفتوح",

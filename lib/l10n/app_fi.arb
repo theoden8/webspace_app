@@ -838,8 +838,6 @@
   "appSettingsFullscreenButton": "Painike koko näytössä",
   "appSettingsFullscreenButtonHint": "Koko näytössä sivupalkin nuoli tai sivustopalkin painike pysyy sivun päällä, jotta voit tuoda kumman tahansa takaisin. Pois päältä koko näyttö ei näytä kumpaakaan.",
   "backupPrefSiteStripHidden": "Sivustopalkki piilotettu",
-  "siteMenuUseSiteStrip": "Käytä sivustopalkkia",
-  "siteMenuUseSidebar": "Käytä sivupalkkia",
   "sidebarArrowDragHint": "Pidä nuolta painettuna ja vedä se sivulle käyttääksesi sen sijaan sivustopalkkia",
   "backupPrefSidebarState": "Sivupalkki auki, pienennetty tai piilotettu",
   "appSettingsSidebarStyle": "Avoin sivupalkki näyttää",
