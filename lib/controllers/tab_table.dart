@@ -569,17 +569,18 @@ abstract final class TabTable {
     );
   }();
 
+  /// The sites on the list (`Listed`).
+  static final _listed = Expr.base<Iterable<SiteId>, TabFlow>(
+    BaseOp.listed,
+    args: const [],
+    run: (c) => _page.from(c).listedIds,
+  );
+
   /// The sites with tabs a reset lands at home (TAB-014).
   static final _eachLanded = Pick<SiteId, TabFlow>(
-    Expr.op(
-      HandPaired.landedSites,
-      tla: r'Listed \cap Resettable \cap Tabbed',
+    Expr.chosen(
+      among: _listed.cap([resettableOf(), tabbedOf()]),
       run: (c) => [_flow.from(c).site.siteId],
-      reads: const Reads(base: {BaseOp.listed}),
-      needs: const {
-        (of: ModelConst.resettable, set: true),
-        (of: ModelConst.tabbed, set: true),
-      },
     ),
   );
   static final _landed = _eachLanded.it;
@@ -589,11 +590,7 @@ abstract final class TabTable {
   /// anchored in another domain, which the model does not follow.
   static final _eachOwnerRun = Pick<SiteId, TabFlow>(
     Expr.chosen(
-      among: Expr.base<Iterable<SiteId>, TabFlow>(
-        BaseOp.listed,
-        args: const [],
-        run: (c) => _page.from(c).listedIds,
-      ).cap(tabbedOf()),
+      among: _listed.cap([tabbedOf()]),
       run: (c) => [_flow.from(c).site.siteId],
     ),
   );

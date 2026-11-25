@@ -479,15 +479,15 @@ final class Def<T, W> {
 /// What a set the model quantifies over binds: each operator here binds
 /// a [Bound] while its body runs.
 extension QuantifiedExpr<E, W> on Expr<Iterable<E>, W> {
-  /// `S \cap T`, [other] known by membership.
-  Expr<List<E>, W> cap(Members<E, W> other) => Expr._(
+  /// `S \cap T \cap ...`, each of [others] known by membership.
+  Expr<List<E>, W> cap(List<Members<E, W>> others) => Expr._(
     run: (c) => [
       for (final e in run(c))
-        if (other._test(c._world, member: e)) e,
+        if (others.every((o) => o._test(c._world, member: e))) e,
     ],
-    tla: '${tlaOperand(tla)} \\cap ${other.name}',
+    tla: [tlaOperand(tla), for (final o in others) o.name].join(r' \cap '),
     reads: reads,
-    needs: {...needs, ..._needs(other.of)},
+    needs: {...needs, for (final o in others) ..._needs(o.of)},
   );
 
   /// `S \ T`, [other] known by membership.

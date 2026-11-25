@@ -13,6 +13,7 @@ import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/step_flow.dart';
 import 'package:webspace/services/step_table.dart';
+import 'package:webspace/services/tab_leaves.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -158,13 +159,6 @@ abstract final class ActivationTable {
     run: (c) => [for (final m in ActivationFlow.page.from(c).models) m.siteId],
   );
 
-  /// The sites a reset may send home: any listed site in the code, a
-  /// world's own choice in the model (`Resettable`).
-  static final _resettable = Members<SiteId, ActivationFlow>(
-    ModelConst.resettable,
-    test: (_, {required member}) => true,
-  );
-
   /// The activation's target, the one site the code picks.
   static List<SiteId> _targeted(StepView<ActivationFlow> c) =>
       [ActivationFlow.state.from(c).target!.siteId];
@@ -179,7 +173,10 @@ abstract final class ActivationTable {
   /// The site a home reset unloads, from the listed sites a world lets it
   /// name (`Resettable`).
   static final _eachResettable = Pick<SiteId, ActivationFlow>(
-    Expr.chosen(among: _listed.cap(_resettable), run: _targeted),
+    Expr.chosen(
+      among: _listed.cap([resettableOf()]),
+      run: _targeted,
+    ),
   );
 
   /// The site a switch spawns the load of: `k`, beside the switch's own

@@ -50,9 +50,6 @@ enum HandPaired implements Pairing {
 
 
 
-  /// The sites with tabs a reset lands at home
-  /// (`Listed \cap Resettable \cap Tabbed`).
-  landedSites,
 
 
   /// The listed sites with tabs a child tab may open in: those with a

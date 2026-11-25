@@ -152,7 +152,7 @@ final _eachDeletable = Pick<SiteId, DeleteFlow>(
       BaseOp.listed,
       args: const [],
       run: (c) => _deleteNamed.from(c).sites(),
-    ).cap(_deletable),
+    ).cap([_deletable]),
     run: (c) => [_deleteNamed.from(c).site.siteId],
   ),
 );
