@@ -43,6 +43,16 @@ class LocalCdnPerSiteTest {
         assertEquals(listOf("jquery/3.7.1/dist/jquery.min.js"), replaced)
     }
 
+    // A fetch(), an XHR or a <script crossorigin> for the URL reads the copy
+    // across origins as it would the CDN's (LCDN-013).
+    @Test
+    fun aCachedCopy_answersCrossOriginReads() {
+        val hit = interceptor(localCdnEnabled = true).localCdnHit(url)
+        assertNotNull(hit)
+        assertEquals(mapOf("Access-Control-Allow-Origin" to "*"), hit!!.headers)
+        assertEquals("jquery/3.7.1/dist/jquery.min.js", hit.cacheKey)
+    }
+
     @Test
     fun disabledSite_goesToTheNetwork() {
         assertNull(interceptor(localCdnEnabled = false).localCdnResponse(url))

@@ -65,7 +65,6 @@ LIR-027	no check: 'Run as...' and TabLifecycleEngine.changeHost are not built (i
 # localcdn
 LCDN-003	not implemented for a miss: a resource the cache lacks goes to the CDN the page named (WebInterceptPlugin.localCdnResponse returns null, as LocalCdnPerSiteTest.uncachedUrl_goesToTheNetwork pins), so only cached ones keep the original CDN uncontacted; the popular set's cdnjs-only fetch is LCDN-004's check
 LCDN-005	not implemented: nothing fetches a resource on demand; LocalCdnService._downloadAndCache runs only for the popular set, and a miss passes to the original CDN
-LCDN-013	no check: LocalCdnPerSiteTest serves a cached URL from the interceptor, but nothing checks that fetch/XHR pass through or that Apple platforms load every CDN request unchanged
 # localization
 L10N-005	process: describes how the migration proceeds (file by file, exempt only shrinking); exempt is now empty and nothing can run 'only grows' (partly: test/js/l10n_no_hardcoded_text.test.js, "UI files contain no hardcoded user-facing text")
 # navigation
