@@ -90,6 +90,7 @@ final class TabCalls {
     return topology.contends(from) || topology.contends(to) || torRuntime;
   }
   bool isShown(SiteId site) => _c._sites.vars.current.value == site;
+  Iterable<SiteId> get listedIds => [for (final m in _c._sites.models) m.siteId];
   bool flowInFlight(FlowKind kind) => _c.residency.flowInFlight(kind);
   bool isLoaded(SiteId site) => _c._sites.vars.loaded.value.contains(site);
 

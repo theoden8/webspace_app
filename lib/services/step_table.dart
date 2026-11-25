@@ -243,7 +243,13 @@ final class Expr<T, W> {
   static Expr<V, W> chosen<V, W>({
     required Expr<V, W> among,
     required V Function(StepView<W> c) run,
-  }) => Expr._(run: run, tla: among.tla, reads: among.reads);
+  }) => Expr._(
+    run: run,
+    tla: among.tla,
+    reads: among.reads,
+    needs: among.needs,
+    unless: among.unless,
+  );
 
   /// The base operator [op] over [args], as `activation_base.tla` defines
   /// it: printed as its name and its arguments' text and nothing else, so it
@@ -473,6 +479,17 @@ final class Def<T, W> {
 /// What a set the model quantifies over binds: each operator here binds
 /// a [Bound] while its body runs.
 extension QuantifiedExpr<E, W> on Expr<Iterable<E>, W> {
+  /// `S \cap T`, [other] known by membership.
+  Expr<List<E>, W> cap(Members<E, W> other) => Expr._(
+    run: (c) => [
+      for (final e in run(c))
+        if (other._test(c._world, member: e)) e,
+    ],
+    tla: '${tlaOperand(tla)} \\cap ${other.name}',
+    reads: reads,
+    needs: {...needs, ..._needs(other.of)},
+  );
+
   /// `S \ T`, [other] known by membership.
   Expr<List<E>, W> minus(Members<E, W> other) => Expr._(
     run: (c) => [

@@ -151,39 +151,41 @@ abstract final class ActivationTable {
         tla: 'NoMarker',
       );
 
+  /// The sites on the list (`Listed`).
+  static final _listed = Expr.base<Iterable<SiteId>, ActivationFlow>(
+    BaseOp.listed,
+    args: const [],
+    run: (c) => [for (final m in ActivationFlow.page.from(c).models) m.siteId],
+  );
+
+  /// The sites a reset may send home: any listed site in the code, a
+  /// world's own choice in the model (`Resettable`).
+  static final _resettable = Members<SiteId, ActivationFlow>(
+    ModelConst.resettable,
+    test: (_, {required member}) => true,
+  );
+
+  /// The activation's target, the one site the code picks.
+  static List<SiteId> _targeted(StepView<ActivationFlow> c) =>
+      [ActivationFlow.state.from(c).target!.siteId];
+
   /// The site an input names, `s` in the model: the one tapped or preloaded,
   /// from the sites on the list (`Listed`).
   static final _eachSite = Pick<SiteId, ActivationFlow>(
-    Expr.op(
-      HandPaired.listedSites,
-      tla: 'Listed',
-      run: (c) => [ActivationFlow.state.from(c).target!.siteId],
-      reads: const Reads(base: {BaseOp.listed}),
-    ),
+    Expr.chosen(among: _listed, run: _targeted),
   );
   static final _chosen = _eachSite.it;
 
   /// The site a home reset unloads, from the listed sites a world lets it
   /// name (`Resettable`).
   static final _eachResettable = Pick<SiteId, ActivationFlow>(
-    Expr.op(
-      HandPaired.resettableSites,
-      tla: r'Listed \cap Resettable',
-      run: (c) => [ActivationFlow.state.from(c).target!.siteId],
-      reads: const Reads(base: {BaseOp.listed}),
-      needs: const {(of: ModelConst.resettable, set: true)},
-    ),
+    Expr.chosen(among: _listed.cap(_resettable), run: _targeted),
   );
 
   /// The site a switch spawns the load of: `k`, beside the switch's own
   /// pick of what it stops showing.
   static final _eachKept = Pick<SiteId, ActivationFlow>(
-    Expr.op(
-      HandPaired.keptSites,
-      tla: 'Listed',
-      run: (c) => [ActivationFlow.state.from(c).target!.siteId],
-      reads: const Reads(base: {BaseOp.listed}),
-    ),
+    Expr.chosen(among: _listed, run: _targeted),
     name: 'k',
   );
   static final _bump = Act.of([_version.becomes(_version.value.plus(1))]);

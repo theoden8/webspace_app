@@ -588,12 +588,13 @@ abstract final class TabTable {
   /// asks for one only for a site whose slot runs as another, or on a tab
   /// anchored in another domain, which the model does not follow.
   static final _eachOwnerRun = Pick<SiteId, TabFlow>(
-    Expr.op(
-      HandPaired.ownerRunSites,
-      tla: r'Listed \cap Tabbed',
+    Expr.chosen(
+      among: Expr.base<Iterable<SiteId>, TabFlow>(
+        BaseOp.listed,
+        args: const [],
+        run: (c) => _page.from(c).listedIds,
+      ).cap(tabbedOf()),
       run: (c) => [_flow.from(c).site.siteId],
-      reads: const Reads(base: {BaseOp.listed}),
-      needs: const {(of: ModelConst.tabbed, set: true)},
     ),
   );
   static final _ownerRunning = _eachOwnerRun.it;

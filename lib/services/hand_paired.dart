@@ -16,14 +16,8 @@ abstract interface class Pairing implements Enum {}
 /// name.
 enum HandPaired implements Pairing {
 
-  /// The sites on the list (`Listed`) a pick ranges over.
-  listedSites,
 
-  /// The sites on the list a reset may send home (`Listed \cap Resettable`).
-  resettableSites,
 
-  /// The sites on the list a pick keeps (`Listed`).
-  keptSites,
 
   /// The activation's site taken off the list (`site \in gone`).
   activationSiteGone,
@@ -34,14 +28,10 @@ enum HandPaired implements Pairing {
   archiveOpen,
 
 
-  /// The sites on the list a delete may take (`Listed \cap Deletable`).
-  deletableSites,
 
   /// The delete's site taken off the list first (`site \in gone`).
   deleteSiteGone,
 
-  /// The sites on the list an import replaces (`Listed`).
-  importListed,
 
   /// The back stack queued for no tab (`NoQueued`).
   noQueued,
@@ -64,8 +54,6 @@ enum HandPaired implements Pairing {
   /// (`Listed \cap Resettable \cap Tabbed`).
   landedSites,
 
-  /// The sites with tabs an owner-run move may take (`Listed \cap Tabbed`).
-  ownerRunSites,
 
   /// The listed sites with tabs a child tab may open in: those with a
   /// fresh tab id left in the model's pool.

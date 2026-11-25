@@ -89,11 +89,22 @@ final class DeleteFlow {
 }
 
 /// The site a delete names, and whether the page still lists it.
-final _deleteNamed = Port<({WebViewModel site, bool Function() listed}), DeleteFlow>(
+final _deleteNamed = Port<
+  ({
+    WebViewModel site,
+    bool Function() listed,
+    Iterable<SiteId> Function() sites,
+  }),
+  DeleteFlow
+>(
   'named',
   reads: {ModelVar.gone},
   changes: const {},
-  of: (w) => (site: w.site, listed: () => w._sites.models.hasKey(w.site)),
+  of: (w) => (
+    site: w.site,
+    listed: () => w._sites.models.hasKey(w.site),
+    sites: () => [for (final m in w._sites.models) m.siteId],
+  ),
 );
 
 /// The page's commit, which takes the site off the lists, the loaded set
@@ -136,12 +147,21 @@ final _deleteSite = Field<SiteId, DeleteFlow>(FlowField.site);
 /// The site a delete names, `s` in the model, from the listed sites a world
 /// lets it delete (`Deletable`).
 final _eachDeletable = Pick<SiteId, DeleteFlow>(
-  Expr.op(
-    HandPaired.deletableSites,
-    tla: r'Listed \cap Deletable',
-    run: (c) => [_deleteNamed.from(c).site.siteId], reads: const Reads(base: {BaseOp.listed}),
-    needs: const {(of: ModelConst.deletable, set: true)},
+  Expr.chosen(
+    among: Expr.base<Iterable<SiteId>, DeleteFlow>(
+      BaseOp.listed,
+      args: const [],
+      run: (c) => _deleteNamed.from(c).sites(),
+    ).cap(_deletable),
+    run: (c) => [_deleteNamed.from(c).site.siteId],
   ),
+);
+
+/// The sites a delete may take: any listed site in the code, a world's own
+/// choice in the model (`Deletable`).
+final _deletable = Members<SiteId, DeleteFlow>(
+  ModelConst.deletable,
+  test: (_, {required member}) => true,
 );
 
 final _deleteLoaded = Mutable<Iterable<SiteId>, DeleteFlow>.over(

@@ -285,11 +285,10 @@ final _imports = Expr.ofConstant<bool, ImportFlow>(
   run: (_) => true,
 );
 
-final _listed = Expr.op<Iterable<SiteId>, ImportFlow>(
-  HandPaired.importListed,
-  tla: 'Listed',
+final _listed = Expr.base<Iterable<SiteId>, ImportFlow>(
+  BaseOp.listed,
+  args: const [],
   run: (c) => [for (final m in _page.from(c).listed) m.siteId],
-  reads: const Reads(base: {BaseOp.listed}),
 );
 final _running = Expr.inFlight<ImportFlow>(
   FlowKind.import,
