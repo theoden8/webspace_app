@@ -41,24 +41,6 @@ bool sidebarReplacesDrawer({
     navigation == SiteNavigation.sidebar &&
     (libraryDesign || sidebar != SidebarState.hidden);
 
-/// What the site menu offers to switch to (TAB-038).
-typedef MenuOffers = ({bool sidebar, bool strip});
-
-/// The navigation not on screen: the other one, and from the legacy
-/// design's drawer, which stands for a hidden sidebar, the sidebar too.
-MenuOffers menuOffers({
-  required SiteNavigation navigation,
-  required SidebarState sidebar,
-  required bool legacyDesign,
-}) =>
-    switch (navigation) {
-      SiteNavigation.strip => (sidebar: true, strip: false),
-      SiteNavigation.sidebar => (
-          sidebar: legacyDesign && sidebar == SidebarState.hidden,
-          strip: true,
-        ),
-    };
-
 /// Whether a narrow window docks the rail beside the page: not where the
 /// webview's back swipe answers only at the screen's edge ([screenEdgeBack],
 /// iOS), which a docked rail would take from it (TAB-033). There the arrow

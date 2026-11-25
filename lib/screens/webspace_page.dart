@@ -1079,11 +1079,6 @@ class _WebSpacePageState extends State<WebSpacePage>
         state: () => (
           loading: _sites.shown?.isLoading ?? false,
           tabsOn: _tabs.enabledFor(_sites.shown),
-          offers: menuOffers(
-            navigation: currentSiteNavigation,
-            sidebar: currentSidebarState,
-            legacyDesign: !_libraryDesign,
-          ),
           fullscreen: _fullscreen.active,
           offersShortcut: switch (_sites.shown) {
             final shown? => _shortcuts.offersShortcutFor(shown),
@@ -1113,10 +1108,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     switch (action) {
       case SiteMenuAction.newTab:
         if (model != null) await _tabs.newTab(model);
-      case SiteMenuAction.useSiteStrip:
-        await useSiteNavigation(SiteNavigation.strip, hidden: false);
-      case SiteMenuAction.useSidebar:
-        await useSiteNavigation(SiteNavigation.sidebar, hidden: false);
       case SiteMenuAction.backToWebspaces:
         final zoom = _libraryDesign ? _launchZoom.currentState : null;
         if (model != null && zoom != null) {

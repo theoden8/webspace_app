@@ -1028,8 +1028,8 @@ click: it has no key convention, and a long press opens the menu instead.
 
 The user SHALL move between a webspace's sites and their tabs with the site
 strip or the sidebar (`siteNavigation`), never both at once. Which one is in
-use SHALL be set where its control rests (TAB-038), or from the site menu,
-not by a choice in App Settings; their own settings SHALL be two groups in
+use SHALL be set where its control rests (TAB-038), not by a choice in App
+Settings; their own settings SHALL be two groups in
 App Settings > Appearance. The app bar SHALL carry the tab-count button with
 either, which opens the Tabs sheet, and the site menu SHALL offer no second
 way to it. One decision (`navigationSurfaces`) SHALL say which surfaces
@@ -1253,8 +1253,6 @@ app where the platform lets it, so the gesture never stops answering.
 
 - **GIVEN** the legacy design with the sidebar hidden
 - **THEN** the app bar has the drawer's button and no arrow tab shows
-- **WHEN** the user picks Use sidebar from the site menu
-- **THEN** the sidebar replaces the drawer
 
 #### Scenario: The header and Add Site stay
 
@@ -1298,10 +1296,6 @@ be one control, and where it rests SHALL say which navigation is in use:
 - the strip SHALL hide behind its button out of full screen too: its close
   control leaves the button, whose tap shows the strip again
   (`siteStripHidden`);
-- the site menu SHALL offer the navigation not on screen, Use site strip or
-  Use sidebar, which switches to it shown, for those who cannot drag; from
-  the legacy design's drawer, which stands for a hidden sidebar (TAB-036),
-  it SHALL offer both;
 - the first arrow tab the app shows SHALL say once, in a message, that it can
   be dragged onto the page for the site strip.
 
@@ -1312,10 +1306,4 @@ be one control, and where it rests SHALL say which navigation is in use:
 - **THEN** the site strip is in use, hidden behind its button at the nearest corner
 - **WHEN** the user drags the button to the left edge and lets it go
 - **THEN** the sidebar is in use, hidden behind its arrow tab at that height
-
-#### Scenario: The menu switches without a drag
-
-- **GIVEN** the site strip in use
-- **WHEN** the user picks Use sidebar from the site menu
-- **THEN** the sidebar is in use and open
 

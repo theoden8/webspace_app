@@ -167,30 +167,6 @@ void main() {
               sidebar: SidebarState.open),
           isFalse);
     });
-
-    test('TAB-038 the site menu offers what is not on screen: from the '
-        'legacy drawer both, otherwise the other one', () {
-      MenuOffers offers(SiteNavigation navigation,
-              {required SidebarState sidebar, required bool legacy}) =>
-          menuOffers(
-              navigation: navigation, sidebar: sidebar, legacyDesign: legacy);
-      expect(
-          offers(SiteNavigation.sidebar,
-              sidebar: SidebarState.hidden, legacy: true),
-          (sidebar: true, strip: true));
-      expect(
-          offers(SiteNavigation.sidebar,
-              sidebar: SidebarState.open, legacy: true),
-          (sidebar: false, strip: true));
-      expect(
-          offers(SiteNavigation.sidebar,
-              sidebar: SidebarState.hidden, legacy: false),
-          (sidebar: false, strip: true));
-      expect(
-          offers(SiteNavigation.strip,
-              sidebar: SidebarState.hidden, legacy: true),
-          (sidebar: true, strip: false));
-    });
   });
 
   group('sidebar, iPhone', () {

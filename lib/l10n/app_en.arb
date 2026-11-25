@@ -1035,14 +1035,6 @@
   "@backupPrefSiteStripHidden": {
     "description": "Name of a setting in the list of settings a backup restores: whether the site strip (a bar of the webspace's sites along the top or bottom of the screen) is hidden behind its small round button."
   },
-  "siteMenuUseSiteStrip": "Use site strip",
-  "@siteMenuUseSiteStrip": {
-    "description": "Item of a site's overflow menu while the sidebar is in use: switches to the site strip, a bar of the webspace's sites along the top or bottom of the screen, in place of the sidebar. The same as dragging the sidebar's arrow tab onto the page."
-  },
-  "siteMenuUseSidebar": "Use sidebar",
-  "@siteMenuUseSidebar": {
-    "description": "Item of a site's overflow menu while the site strip is in use: switches to the sidebar, a panel of the webspace's sites along the left edge, in place of the strip. The same as dragging the strip's round button to the left edge."
-  },
   "sidebarArrowDragHint": "Hold the arrow and drag it onto the page to use the site strip instead",
   "@sidebarArrowDragHint": {
     "description": "Short message shown once, the first time the sidebar's arrow tab appears on the left screen edge: holding the arrow and dragging it onto the page turns it into the site strip's button, switching from the sidebar to the site strip (a bar of sites along the top or bottom)."

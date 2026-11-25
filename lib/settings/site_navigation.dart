@@ -16,7 +16,7 @@ FullscreenNavigation get currentFullscreenNavigation =>
 
 /// Switches to [to], shown or [hidden] behind its control: the strip's
 /// button, the sidebar's arrow tab (TAB-038). The one way the navigation in
-/// use changes: dragging its control, or the site menu.
+/// use changes, as its control is dragged.
 Future<void> useSiteNavigation(
   SiteNavigation to, {
   required bool hidden,

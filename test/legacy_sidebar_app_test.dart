@@ -10,7 +10,6 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/sidebar_squares.dart';
 import 'package:webspace/widgets/sidebar_arrow_tab.dart';
 import 'package:webspace/widgets/site_drawer.dart';
-import 'package:webspace/widgets/site_menu.dart';
 import 'package:webspace/widgets/site_sidebar.dart';
 
 import 'helpers/localized.dart';
@@ -120,8 +119,8 @@ void main() {
     expect(drawer, findsNothing);
   });
 
-  testWidgets('TAB-036 a hidden sidebar is the legacy drawer: no arrow tab, '
-      'and the menu brings the sidebar back', (tester) async {
+  testWidgets('TAB-036 a hidden sidebar is the legacy drawer, with no arrow '
+      'tab', (tester) async {
     await start(tester, prefs: {'sidebarState': 'hidden'});
     expect(find.byType(SiteDrawer), findsOneWidget,
         reason: 'picking a webspace opens the drawer, as it always did');
@@ -131,13 +130,5 @@ void main() {
     expect(find.byType(SidebarArrowTab), findsNothing);
     expect(find.byType(SiteSidebar), findsNothing);
     expect(find.byTooltip('Open navigation menu'), findsOneWidget);
-
-    await tester.tap(find.byType(PopupMenuButton<SiteMenuAction>).first);
-    await settleRealApp(tester);
-    expect(find.text('Use site strip'), findsOneWidget);
-    await tester.tap(find.text('Use sidebar'));
-    await settleRealApp(tester);
-    expect(find.byType(SiteSidebar), findsOneWidget);
-    expect(find.byTooltip('Open navigation menu'), findsNothing);
   });
 }

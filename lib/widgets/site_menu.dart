@@ -9,7 +9,6 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/web_extension_library.dart';
 import 'package:webspace/services/web_extension_native.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/services/navigation_surface_engine.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/shortcut_label.dart';
@@ -17,8 +16,6 @@ import 'package:webspace/widgets/shortcut_label.dart';
 /// What a site's overflow menu offers, in menu order.
 enum SiteMenuAction {
   newTab,
-  useSiteStrip,
-  useSidebar,
   backToWebspaces,
   search,
   toggleUrlBar,
@@ -37,8 +34,6 @@ enum SiteMenuPlacement { appBar, tabStrip }
 typedef SiteMenuState = ({
   bool loading,
   bool tabsOn,
-  // What the menu offers to switch to (TAB-038).
-  MenuOffers offers,
   bool fullscreen,
   bool offersShortcut,
   List<SiteMenuExtension> extensions,
@@ -167,12 +162,6 @@ class SiteMenuButton extends StatelessWidget {
       switch (action) {
         SiteMenuAction.newTab => state.tabsOn
             ? (Icons.add, loc.tabsNewTab, shortcutLabel<OpenNewTab>(names))
-            : null,
-        SiteMenuAction.useSiteStrip => state.offers.strip
-            ? (Icons.view_week_outlined, loc.siteMenuUseSiteStrip, null)
-            : null,
-        SiteMenuAction.useSidebar => state.offers.sidebar
-            ? (Icons.view_sidebar_outlined, loc.siteMenuUseSidebar, null)
             : null,
         SiteMenuAction.backToWebspaces =>
           placement == SiteMenuPlacement.tabStrip
