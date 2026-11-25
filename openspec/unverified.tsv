@@ -34,7 +34,6 @@ DESIGN-002	no check: the web compile is scripts/design_web.sh, run by hand; no c
 # external-scheme-handling
 EXT-009	no check: not implemented: tasks 2.1 to 2.4 of upstream-webview-defects (the fork patch and the decline-path gate) are open
 # file-import-sites
-IMPORT-004	no check: no test builds a file-import webview through createWebView and asserts the import renders via initialHtml/initialData, nor that its links open nested (partly: test/webview_controller_lifetime_test.dart, "a load of an import's URL renders the import, however it is issued")
 # fullscreen-mode
 # home-shortcut
 HS-009	no check: no test that persisting sites and the startup restore call ShortcutService.syncSites, nor of the Swift App Group write; shortcut_service_test only checks syncSites is a no-op off Apple
