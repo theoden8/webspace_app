@@ -31,6 +31,7 @@ HOW = {
     "FORMAL_CACHE": "where the TLC and replay memos live",
     "FORMAL_PROGRESS_SECONDS": "how often a running check prints its progress",
     "FORMAL_CHECKPOINT_MINUTES": "how often a TLC run checkpoints, so a restart resumes it",
+    "FORMAL_SCHEDULE_SHARDS": "how many pieces the schedules are cut into, each kept as it ends",
 }
 
 

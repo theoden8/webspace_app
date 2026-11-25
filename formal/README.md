@@ -664,6 +664,11 @@ own. A suite also prunes the run directories a restart left behind (each records
 and the shell that made it). The runner's tests hold all of this with a fake TLC
 (`test/js/formal_runner.test.js`).
 
+`FORMAL_SCHEDULE_SHARDS=<n>` cuts the schedules into `n` pieces however many cores run
+them (`FORMAL_PARALLEL` at once), each kept as it ends, so on a machine that restarts more
+often than a piece of the default split takes, the pieces still finish. It splits only the
+schedules; TLC's pool stays `FORMAL_SLOTS`.
+
 The replay keeps its runs the same way, under `FORMAL_CACHE/replay`
 ([check_steps.py](trace/check_steps.py), `Memo`). A replay's key holds its module and
 config, which hold the trace, every module in formal/ and the printed model, and the
