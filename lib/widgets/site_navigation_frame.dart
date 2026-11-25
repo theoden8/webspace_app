@@ -216,6 +216,7 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
     final morph = _still ? Duration.zero : Motion.layoutMorph;
     final slide = _still ? Duration.zero : Motion.settle;
     final floating = surfaces.float != SidebarFloat.none;
+    final float = _floatPlace(floating: floating);
     return LayoutBuilder(
       builder: (context, box) {
         final handleTop =
@@ -333,15 +334,15 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
               curve: floating
                   ? Easing.emphasizedDecelerate
                   : Easing.emphasizedAccelerate,
-              left: floating ? (_floatDrag ?? 0) : -widget.floatWidth - 24,
+              left: float.left,
               top: 0,
               bottom: 0,
-              width: widget.floatWidth,
+              width: float.width,
               onEnd: _still
                   ? null
                   : () => setState(() => _floatLeaving = false),
-              // Built only while shown or sliding away: off screen it would be a
-              // whole sidebar nobody sees.
+              // Built only while shown or leaving: closed it would be a whole
+              // sidebar nobody sees.
               child: floating || _floatLeaving
                   ? GestureDetector(
                       onHorizontalDragUpdate: (d) => setState(() {
@@ -351,9 +352,23 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
                       onHorizontalDragEnd: (d) => _endFloatDrag(
                         velocity: d.primaryVelocity ?? 0,
                       ),
-                      child: Material(
-                        elevation: 8,
-                        child: widget.panel(widget.floatWidth, floating: true),
+                      child: AnimatedOpacity(
+                        duration: _floatDrag == null ? slide : Duration.zero,
+                        opacity: float.opacity,
+                        child: ClipRect(
+                          child: OverflowBox(
+                            alignment: AlignmentDirectional.centerStart,
+                            minWidth: widget.floatWidth,
+                            maxWidth: widget.floatWidth,
+                            child: Material(
+                              elevation: 8,
+                              child: widget.panel(
+                                widget.floatWidth,
+                                floating: true,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     )
                   : const SizedBox.shrink(),
@@ -449,6 +464,31 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
       _back = 0;
     });
     if (goes) edge.goBack();
+  }
+
+  /// Where the drawer or the full-screen sidebar sits. Over a docked rail it
+  /// opens out of the rail and closes back into it, narrowing at the edge
+  /// and fading to show the rail beneath; with no rail it slides off the
+  /// edge. A drag left narrows or moves it with the finger.
+  ({double left, double width, double opacity}) _floatPlace({
+    required bool floating,
+  }) {
+    final drag = _floatDrag ?? 0;
+    final full = widget.floatWidth;
+    final rail = widget.railWidth;
+    if (widget.surfaces.dock != SidebarDock.rail) {
+      return (
+        left: floating ? drag : -full - 24,
+        width: full,
+        opacity: 1,
+      );
+    }
+    final width = floating ? (full + drag).clamp(rail, full) : rail;
+    return (
+      left: 0,
+      width: width,
+      opacity: full <= rail ? 1 : ((width - rail) / (full - rail)).clamp(0, 1),
+    );
   }
 
   /// A drag of the sidebar over the page let go: past a third of its width,
