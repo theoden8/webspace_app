@@ -75,8 +75,11 @@ void main() {
       'strip\'s button; that button let go on the left edge is the arrow tab '
       'again', (tester) async {
     // The first arrow tab's message would cover the button's corner.
-    await start(tester,
-        navigation: 'sidebar', prefs: {ArrowDragHint.shownKey: true});
+    // The library design: in the legacy one a hidden sidebar is its drawer.
+    await start(tester, navigation: 'sidebar', prefs: {
+      ArrowDragHint.shownKey: true,
+      'legacyDesign': false,
+    });
     await AppPref.sidebarState.set('hidden');
     await settleRealApp(tester);
     final hold = await tester.startGesture(
