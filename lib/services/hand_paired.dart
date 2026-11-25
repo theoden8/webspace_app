@@ -16,22 +16,15 @@ abstract interface class Pairing implements Enum {}
 /// name.
 enum HandPaired implements Pairing {
 
-
-
-
   /// The activation's site taken off the list (`site \in gone`).
   activationSiteGone,
-
 
   /// An archive open with none of its sites gone
   /// (`Archive # {} /\ Archive \cap gone = {}`).
   archiveOpen,
 
-
-
   /// The delete's site taken off the list first (`site \in gone`).
   deleteSiteGone,
-
 
   /// The back stack queued for no tab (`NoQueued`).
   noQueued,
@@ -46,11 +39,6 @@ enum HandPaired implements Pairing {
   /// The site on screen among those whose tabs the model follows
   /// (`current \in Tabbed`).
   tabbedOnScreen,
-
-
-
-
-
 
   /// The listed sites with tabs a child tab may open in: those with a
   /// fresh tab id left in the model's pool.
@@ -91,7 +79,6 @@ enum HandPaired implements Pairing {
   /// A jar plan run by a flow of the model (`fl[f].kind # "none"`).
   modeledPlan,
 
-
   /// The levels a prune may drop as it is asked: any held but the app-wide
   /// level and those a listed site asks for (DNS-021).
   dnsPrunes,
@@ -99,9 +86,6 @@ enum HandPaired implements Pairing {
   /// Those of them its turn drops: still held and not the app-wide level;
   /// the code also keeps a level a fold brought since it was asked.
   dnsPruneTurn,
-
-  /// The app-wide level an import names: off, or one a download may pick.
-  dnsImports,
 
   /// An argument of the DNS level's definition, by its name.
   levelAsk,
@@ -113,7 +97,6 @@ enum HandPaired implements Pairing {
   /// A capture with nothing to read (`site \in NoNavState`, or a flow that
   /// keeps no back stack).
   captureNone,
-
 
   /// An unload whose reason keeps the back stack, which the model knows by
   /// its flow's kind (PAUSE-007).

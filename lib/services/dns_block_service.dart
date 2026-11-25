@@ -1363,13 +1363,11 @@ final _dnsEachTurnDrop = Pick<List<int>, DnsFlow>(
 
 /// The app-wide level an import names: off, or one a download may pick.
 final _dnsEachImport = Pick<int, DnsFlow>(
-  Expr.op(
-    HandPaired.dnsImports,
-    tla: r'{0} \cup DnsLevels',
-    run: _dnsLevels.run,
-    reads: Reads.none,
-  ),
+  Expr.constant<List<int>, DnsFlow>(const [kDnsLevelOff], tla: '{0}')
+      .union(_dnsLevels),
   name: 'il',
+  // The import's own level, which the union puts last.
+  first: (c, {required among}) => among.last,
 );
 
 final StepTable<DnsFlow, DnsPlace> _dnsTable = StepTable(
