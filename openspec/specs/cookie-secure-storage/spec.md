@@ -160,10 +160,10 @@ Works with proper Keychain entitlements (usually set up automatically by Flutter
 
 ### Android
 
-Uses EncryptedSharedPreferences when available:
-```dart
-aOptions: AndroidOptions(encryptedSharedPreferences: true)
-```
+Uses the plugin's default options: values encrypted with a key held in the
+Android Keystore. Entries an earlier build wrote under
+`encryptedSharedPreferences` were moved there by flutter_secure_storage 10 on
+first access; 11 no longer offers the flag.
 
 ---
 

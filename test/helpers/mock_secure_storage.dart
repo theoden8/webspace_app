@@ -147,5 +147,16 @@ class MockFlutterSecureStorage implements FlutterSecureStorage {
   Future<bool?> isCupertinoProtectedDataAvailable() async => true;
 
   @override
+  Future<SecureStorageUpgradeStatus> checkUpgradeStatus({
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async =>
+      SecureStorageUpgradeStatus.unsupported;
+
+  @override
   Stream<bool>? get onCupertinoProtectedDataAvailabilityChanged => null;
 }
