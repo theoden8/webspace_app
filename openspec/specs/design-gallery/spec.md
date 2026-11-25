@@ -65,7 +65,8 @@ goes behind a conditional-export seam (`lib/platform/host_platform.dart`,
 - **WHEN** it imports `dart:io`, or imports a service that does
 - **THEN** `npm run design:check` exits non-zero, naming the file and the import
   chain that reaches the blocker
-- **AND** the `validate` CI job fails
+- **AND** `test/js/design_web_clean.test.js` fails, so `npm run test:js` and
+  the tests CI job fail
 
 #### Scenario: The platform call goes through the seam instead
 
