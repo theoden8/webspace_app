@@ -359,13 +359,8 @@ abstract final class ActivationTable {
   static final _views = Mutable<Iterable<SiteId>, ActivationFlow>.remote(
     ModelVar.views,
   );
-  static final _siteGone = Expr.op<bool, ActivationFlow>(
-    HandPaired.activationSiteGone,
-    tla: '${_site.value.tla} \\in gone',
-    run: (c) =>
-        !ActivationFlow.page.from(c).models.any((m) => m.siteId == _site.of(c)),
-    reads: _site.value.reads + const Reads(vars: {ModelVar.gone}),
-  );
+  /// The activation's site taken off the list.
+  static final _siteGone = ~_listed.has(_site.value);
   static final _tier = tierOf<ActivationFlow>();
 
   /// The shared jar never holds two loaded sites of one base domain
