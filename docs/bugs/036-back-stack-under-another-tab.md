@@ -146,6 +146,26 @@ with the tab they were read for.
    and back while a save is out still keeps bytes read before the moves
    (attempt 5).
 
+7. **2026-11-26, branch `claude/import-tabs`.** A settings import that
+   carried a listed site took the backup's tabs for it, so a tab the backup
+   did not carry left the list with its file kept, and a tab switch or
+   duplicate under way found its target or source gone. No world imported
+   with tabs, and the printed import leaves `tabs` and `active` as they are,
+   so nothing compared the two. Now a carried site keeps the tabs it has and
+   the one it shows (`SiteImport.land`, BACKUP-003), as it keeps its
+   session, which makes the model's import the code's; and a tab flow finds
+   its site by id at each step (`TabFlow.site`), so a flow under way acts on
+   the site the import put in its place, not the one it replaced. Caught
+   with either put back: the walk on `[OpenTab(0, tab: 0), ImportBackup()]`
+   and `[DuplicateTab(0), ImportBackup()]` in the tabbed import world (the
+   file outlives its tab), kept as named schedules, and
+   `test/site_import_test.dart`; the flow's old object, by the replay, which
+   finds the rebind's queued back stack on the replaced site. *Why:* the
+   import replaces the site objects, and the tab tables were the last to
+   hold a site's object across awaits. *Partial:* an archive close or a
+   delete still takes a site off the list under a tab flow; it leaves the
+   site's own tabs as they are, so no file is crossed.
+
 ## Known open gaps
 
 - Under a process-global proxy (Android, Linux) a tab switch that changes the
