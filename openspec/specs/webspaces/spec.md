@@ -123,6 +123,12 @@ Webspaces and selection state SHALL persist across app restarts. The group libra
 **Then** "Work" webspace remains selected
 **And** the drawer shows Work sites
 
+#### Scenario: Overlapping saves keep the newest edit
+
+**Given** two edits in a row, each firing a save it does not wait for
+**When** the older save's write lands after the newer one's
+**Then** the store holds the newer edit: each save reads what it writes after its last await (`formal/persist_order.tla`, `test/js/persist_order.test.js`)
+
 ---
 
 ### Requirement: WEBSPACE-006 - Edit Webspace
