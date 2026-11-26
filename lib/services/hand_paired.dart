@@ -26,8 +26,6 @@ enum HandPaired implements Pairing {
   /// The delete's site taken off the list first (`site \in gone`).
   deleteSiteGone,
 
-  /// The back stack queued for no tab (`NoQueued`).
-  noQueued,
 
   /// The site on screen, the model's `current`, as a tab handler reads it.
   tabSiteOnScreen,
