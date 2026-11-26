@@ -584,6 +584,29 @@ const _archiveAlphabet = <SiteAction>[
 
 const _archiveLength = 2;
 
+/// The archive closed and opened again: its sites leave the list and join
+/// it again as the open lands (`Joining`, ARCH-016), against taps and
+/// pressure.
+const _reopenAlphabet = <SiteAction>[
+  CloseArchive(),
+  OpenArchive(),
+  Tap(0),
+  Tap(2),
+  Pressure(),
+];
+
+const _reopenLength = 2;
+
+/// A reopen the schedules reach only past their length: closed, opened, and
+/// the reopened site tapped as it lands.
+const _reopenRegressions = <String, List<SiteAction>>{
+  'an archive opened again lists its site for a tap (ARCH-016)': [
+    CloseArchive(),
+    OpenArchive(),
+    Tap(2),
+  ],
+};
+
 /// A close race, at two preemptions: a frame landing while the
 /// close waits on its storage, which built the site it had let go again on
 /// the container it was about to delete.
@@ -1408,6 +1431,27 @@ void main() {
   }
 
   for (final MapEntry(key: setupName, value: setup)
+      in _archiveSetups.entries) {
+    _scheduleTest('archive reopened, containers, $setupName: every schedule '
+        'holds', body: () async {
+      for (var length = 1; length <= _reopenLength; length++) {
+        for (final script in _scripts(length, alphabet: _reopenAlphabet)) {
+          await _expectEvery(
+            world: () => ActivationWorld(
+              _mixedContainers,
+              archived: true,
+              reopens: true,
+            ),
+            setup: setup,
+            script: script,
+            preemptions: _preemptions,
+          );
+        }
+      }
+    });
+  }
+
+  for (final MapEntry(key: setupName, value: setup)
       in _deleteSetups.entries) {
     _scheduleTest('delete, containers, $setupName: every schedule holds',
         body: () async {
@@ -1694,6 +1738,24 @@ void main() {
       _scheduleTest(name, body: () async {
         await _expectEvery(
           world: () => ActivationWorld(_mixedContainers, archived: true),
+          setup: _archiveSetups['site 3 archived, loaded behind']!,
+          script: script,
+          preemptions: _onePast,
+        );
+      });
+    }
+  });
+
+  group('reopen regressions', () {
+    for (final MapEntry(key: name, value: script)
+        in _reopenRegressions.entries) {
+      _scheduleTest(name, body: () async {
+        await _expectEvery(
+          world: () => ActivationWorld(
+            _mixedContainers,
+            archived: true,
+            reopens: true,
+          ),
           setup: _archiveSetups['site 3 archived, loaded behind']!,
           script: script,
           preemptions: _onePast,
