@@ -270,6 +270,19 @@ const _unloadRegressions =
       ),
     };
 
+/// A plan's cache clear another flow got to first, at three preemptions, on
+/// the shared jar with two sites loaded and none kept resident: a tap of
+/// site 1 unloads site 0, whose base domain it shares, and clears site 2,
+/// and pressure clears site 2 while site 0 unloads, so the plan's clear
+/// finds it no longer resident.
+const _clearRegressions =
+    <String, ({List<SiteAction> setup, List<SiteAction> script})>{
+      'a plan skips a clear another flow ran first': (
+        setup: [Tap(2), Tap(0)],
+        script: [Tap(1), Pressure()],
+      ),
+    };
+
 /// A launch the code once broke, at two preemptions.
 const _launchRegressions = <String, List<SiteAction>>{
   'a notification site loaded over what the last session left (NOTIF-017)': [
@@ -1311,6 +1324,21 @@ void main() {
             launch: launch,
             proxies: _proxied['mismatched proxies'],
           ),
+          setup: setup,
+          script: script,
+          preemptions: _twoPast,
+        );
+      });
+    }
+  });
+
+  group('clear regressions', () {
+    for (final MapEntry(key: name, value: (:setup, :script))
+        in _clearRegressions.entries) {
+      _scheduleTest(name, body: () async {
+        await _expectEvery(
+          world: () =>
+              ActivationWorld(_mixed, caps: (loaded: 2, resident: 0)),
           setup: setup,
           script: script,
           preemptions: _twoPast,
