@@ -283,6 +283,23 @@ const _clearRegressions =
       ),
     };
 
+/// A tab flow beside an import the code once broke, at one preemption, in
+/// the tabbed import world: the backup's tabs replaced site 1's, so the
+/// switch's target and the duplicate's source were gone, the dropped tab's
+/// file outlived it (BUG-036), and the flow went on acting on the site the
+/// import replaced (BACKUP-003).
+const _tabImportRegressions =
+    <String, ({List<SiteAction> setup, List<SiteAction> script})>{
+      "a tab switch beside an import keeps the carried site's tabs": (
+        setup: [Tap(0), NewTab(0)],
+        script: [OpenTab(0, tab: 0), ImportBackup()],
+      ),
+      "a duplicate beside an import keeps the carried site's tabs": (
+        setup: [Tap(0)],
+        script: [DuplicateTab(0), ImportBackup()],
+      ),
+    };
+
 /// A launch the code once broke, at two preemptions.
 const _launchRegressions = <String, List<SiteAction>>{
   'a notification site loaded over what the last session left (NOTIF-017)': [
@@ -1679,6 +1696,25 @@ void main() {
       _scheduleTest(name, body: () async {
         await _expectEvery(
           world: () => ActivationWorld(_mixed, joins: true, imports: true),
+          setup: setup,
+          script: script,
+          preemptions: _onePast,
+        );
+      });
+    }
+  });
+
+  group('tab import regressions', () {
+    for (final MapEntry(key: name, value: (:setup, :script))
+        in _tabImportRegressions.entries) {
+      _scheduleTest(name, body: () async {
+        await _expectEvery(
+          world: () => ActivationWorld(
+            _mixed,
+            tabbed: true,
+            joins: true,
+            imports: true,
+          ),
           setup: setup,
           script: script,
           preemptions: _onePast,

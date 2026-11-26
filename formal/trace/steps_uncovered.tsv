@@ -1,6 +1,6 @@
 # Action	outcome ("-" for none)	why no schedule takes it
 Login	-	a sign-in is a setup step, before the script the trace records
-TabCaptureReply	gone	a tab leaves its site's list only by a close, which the tab gate serialises with the switch; a delete takes its site off the list and leaves the site's own tabs as they are
-TabNavReply	gone	a tab leaves its site's list only by a close, which the tab gate serialises with the switch; a delete takes its site off the list and leaves the site's own tabs as they are
-DupInsert	gone	the source leaves the list only by a close, which the tab gate serialises with the duplicate; a delete takes its site off the list and leaves the site's own tabs as they are
+TabCaptureReply	gone	a tab leaves its site's list only by a close, which the tab gate serialises with the switch; a delete takes its site off the list and leaves the site's own tabs as they are, and an import keeps a carried site's (BACKUP-003); else the page went away under the flow, which no world unmounts
+TabNavReply	gone	a tab leaves its site's list only by a close, which the tab gate serialises with the switch; a delete takes its site off the list and leaves the site's own tabs as they are, and an import keeps a carried site's (BACKUP-003); else the page went away under the flow, which no world unmounts
+DupInsert	gone	the source leaves the list only by a close, which the tab gate serialises with the duplicate; a delete takes its site off the list and leaves the site's own tabs as they are, and an import keeps a carried site's (BACKUP-003); else the page went away under the flow, which no world unmounts
 DupRemoveReply	-	follows DupInsert gone, which no schedule reaches

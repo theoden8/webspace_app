@@ -138,16 +138,22 @@ final class ChildLinks {
 final class TabFlow implements Capturing, TabState, SiteModels {
   TabFlow(
     this._c, {
-    required this.site,
+    required WebViewModel site,
     this.requested,
     this.landed,
     this.url,
     this.subtree = false,
-  }) : _known = _c._sites.known();
+  }) : _started = site,
+       _known = _c._sites.known();
 
   final TabsController _c;
+  final WebViewModel _started;
+
+  /// The site the flow runs on, the listed one by its id at each step, so
+  /// a flow acts on the site an import put in its place (BACKUP-003); the
+  /// one it started with once that left the list.
   @override
-  final WebViewModel site;
+  WebViewModel get site => _c._sites.find(_started.siteId) ?? _started;
 
   /// The sites the runtime found as the flow started, for an id the flow
   /// names after its site left the list.

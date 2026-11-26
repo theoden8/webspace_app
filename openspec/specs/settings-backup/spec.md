@@ -52,6 +52,8 @@ Secure cookies (`isSecure=true`) SHALL NEVER be exported for security reasons.
 **And** the secure `session` cookie is excluded
 
 A site the backup carries again (one whose id a listed site holds) keeps
+the tabs it has and the one it shows, so no tab leaves the list with its
+back stack kept and no tab switch under way loses its target, and it keeps
 the session it has, and its container where there are containers: the
 backup's cookies SHALL seed only the sites it brings new, so an import never
 signs a site out of a session newer than the backup
@@ -76,6 +78,14 @@ restore's every one.
 **Given** a backup contains non-secure cookies for a site not on the list
 **When** settings are imported
 **Then** non-secure cookies are restored to the site
+
+#### Scenario: A carried site keeps its tabs
+
+**Given** a listed site with two tabs, the second on screen
+**When** a backup that carries the site with only its first tab is imported
+**Then** the site keeps both tabs and still shows the second
+(`test/site_import_test.dart`, and the tab import regressions in
+`test/activation_schedules_test.dart`)
 
 #### Scenario: A restore the user chose replaces a carried site's cookies
 

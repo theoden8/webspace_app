@@ -8,6 +8,7 @@ import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/isolation.dart';
+import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/step_table.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
@@ -154,5 +155,37 @@ void main() {
           'the site it drops takes its container with it, and the one '
           'it carries keeps its own (CONT-010)',
     );
+  });
+
+  test("a site the backup carries again keeps the tabs it has, not the "
+      "backup's (BACKUP-003)", () async {
+    final sites = SiteRuntime()..isolation = Containers(
+      engine: ContainerIsolationEngine(containerNative: MockContainerNative()),
+    );
+    final second = SiteTab(url: 'https://a.test/second');
+    sites.applied(SitesLoaded([
+      WebViewModel(
+        siteId: SiteId('a'),
+        initUrl: 'https://a.test/',
+        tabs: [SiteTab(id: kPrimaryTabId, url: 'https://a.test/'), second],
+        activeTabId: second.id,
+      ),
+    ]));
+
+    await SiteImport(sites, host: _Host(sites)).replace(
+      SitesReplaced(
+        scope: ImportScope.replace,
+        sites: [_site('a', cookie: 'backup')],
+        webspaces: const [],
+        selectedWebspaceId: null,
+        closed: ArchivesClosed.inTest(),
+      ),
+    );
+
+    final carried = sites.models.single;
+    expect([for (final t in carried.tabs) t.id], [kPrimaryTabId, second.id],
+        reason: 'a tab the import dropped would keep its back stack on disk, '
+            'and a tab switch under way would find its target gone');
+    expect(carried.activeTabId, second.id);
   });
 }

@@ -129,8 +129,8 @@ final class ImportFlow extends JarWorld implements SiteModels {
   Future<void> prepare() => _stage.prepare();
 
   /// A site carried again keeps the session it has, which on the shared
-  /// jar its share just saved, not the backup's (BACKUP-003); then the
-  /// lists move.
+  /// jar its share just saved, not the backup's, and the tabs it has
+  /// (BACKUP-003); then the lists move.
   void land({required Commit commit}) {
     _replaced = List.of(_sites.models);
     _dropped = switch (replacement.scope) {
@@ -152,13 +152,17 @@ final class ImportFlow extends JarWorld implements SiteModels {
         m.pendingContainerCookies.queue(m.cookies);
       }
       if (row >= 0) {
-        final current = _replaced[row].cookies;
+        final listed = _replaced[row];
+        final current = listed.cookies;
         m.cookies = replacement.restoreCookiesForSiteIds.contains(m.siteId)
             ? [
                 ...current.where((cookie) => cookie.isSecure == true),
                 ...m.cookies,
               ]
             : List.of(current);
+        WebViewModel.tabsCell.write(at: m, to: listed.tabs, commit: commit);
+        WebViewModel.activeTabCell
+            .write(at: m, to: listed.activeTabId, commit: commit);
       }
     }
     _stage.land(commit: commit);
