@@ -395,8 +395,11 @@ def run_tlc(name, trace, jar, model, work, memo):
     """The nodes the replay of [trace] reached, numbered from 1, and None;
     or None and why TLC did not replay it. Third, whether it was kept."""
     text = module(name, trace, model_vars(model))
-    cfg = ("CONSTANTS\n    Mistake = \"none\"\n    MaxInputs = 4\n"
-           "    Allowed <- Inputs\n    MaxTabs <- StepMaxTabs\n"
+    # Every flow the code started is an input of the model's, so the bound
+    # is the trace's own: one the walk ran past would cut a step it took.
+    inputs = max([4] + [n[2] for n in trace["nodes"]])
+    cfg = ("CONSTANTS\n    Mistake = \"none\"\n    MaxInputs = %d\n" % inputs
+           + "    Allowed <- Inputs\n    MaxTabs <- StepMaxTabs\n"
            + "".join("    %s <- Step%s\n" % (k, k)
                      for k in trace["constants"])
            + "INIT StepInit\nNEXT StepNext\nCONSTRAINT Reached\n")

@@ -40,15 +40,32 @@ void main() {
     late String body;
     setUp(() => body = tabsBody('Future<void> reconcileLinkTabs('));
 
-    test('waits for a running tab handler instead of racing it', () {
-      final deferral = body.indexOf('if (_gate.busy) {');
-      expect(deferral, isNot(-1));
-      expect(body.indexOf('_gate.deferUntilIdle('), greaterThan(deferral));
-      expect(body.indexOf('await _gate.hold('), greaterThan(deferral),
-          reason: 'the gate releases in its own finally, or the deferred run '
-              'never comes and every tab handler is locked out');
-      expect(body, contains('if (_host.mounted) unawaited(reconcileLinkTabs());'),
+    test('runs while a handler holds the gate, deferring only what the '
+        'table drops', () {
+      final step = body.indexOf('tabInputs.runInput(c, from: TabPlace.reroute)');
+      final hold = body.indexOf('await _gate.hold(');
+      expect(step, isNot(-1));
+      expect(hold, greaterThan(step),
+          reason: 'the table runs the input whether or not the gate is held; '
+              'only the flow it starts takes the gate, which releases in its '
+              'own finally');
+      final drops = RegExp(r'if \(_gate\.busy\) _rerouteWhenIdle\(\);')
+          .allMatches(body.substring(0, hold));
+      expect(drops, hasLength(2),
+          reason: 'no flips, and the busy arm, each wait for the gate when a '
+              'handler holds it, or the reroute it asked for is lost');
+      final start = tabs.indexOf('void _rerouteWhenIdle() =>');
+      expect(start, isNot(-1));
+      final later = tabs.substring(start, tabs.indexOf('\n  });\n', start));
+      expect(later, contains('_gate.deferUntilIdle('));
+      expect(later, contains('if (!_host.mounted) return;'),
           reason: 'the deferred run must not outlive the page');
+      expect(later, contains('if (_gate.busy) {\n      _rerouteWhenIdle();'),
+          reason: 'a runWhenIdle waiter that took the gate first is no tab '
+              'flow of the model\'s, so the reroute waits for it too');
+      expect(later, contains('unawaited(_host.askAgain(reconcileLinkTabs));'),
+          reason: 'the reroute lands as a new input, not under the flow of '
+              'the handler that held the gate');
     });
 
     test("reads a site's flips and runs its reroute with no await between", () {
