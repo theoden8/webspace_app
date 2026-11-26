@@ -13,6 +13,7 @@ import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/step_flow.dart';
 import 'package:webspace/services/step_table.dart';
+import 'package:webspace/services/tab_leaves.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -64,12 +65,7 @@ abstract final class ActivationTable {
 
   /// The site on screen: the one a return home leaves, and the one a nested
   /// screen covers.
-  static final _onScreen = Expr.op<SiteId, ActivationFlow>(
-    HandPaired.onScreen,
-    tla: 'current',
-    run: (c) => ActivationFlow.page.from(c).shown!,
-    reads: const Reads(vars: {ModelVar.current}),
-  );
+  static final _onScreen = _current.value.unwrapped;
 
   /// The target's saved back stack queued for its active tab, and the
   /// frame after a commit building its webview (TAB-003).
@@ -156,39 +152,37 @@ abstract final class ActivationTable {
         tla: 'NoMarker',
       );
 
+  /// The sites on the list (`Listed`).
+  static final _listed = Expr.base<Iterable<SiteId>, ActivationFlow>(
+    BaseOp.listed,
+    args: const [],
+    run: (c) => [for (final m in ActivationFlow.page.from(c).models) m.siteId],
+  );
+
+  /// The activation's target, the one site the code picks.
+  static List<SiteId> _targeted(StepView<ActivationFlow> c) =>
+      [ActivationFlow.state.from(c).target!.siteId];
+
   /// The site an input names, `s` in the model: the one tapped or preloaded,
   /// from the sites on the list (`Listed`).
   static final _eachSite = Pick<SiteId, ActivationFlow>(
-    Expr.op(
-      HandPaired.listedSites,
-      tla: 'Listed',
-      run: (c) => [ActivationFlow.state.from(c).target!.siteId],
-      reads: const Reads(base: {BaseOp.listed}),
-    ),
+    Expr.chosen(among: _listed, run: _targeted),
   );
   static final _chosen = _eachSite.it;
 
   /// The site a home reset unloads, from the listed sites a world lets it
   /// name (`Resettable`).
   static final _eachResettable = Pick<SiteId, ActivationFlow>(
-    Expr.op(
-      HandPaired.resettableSites,
-      tla: r'Listed \cap Resettable',
-      run: (c) => [ActivationFlow.state.from(c).target!.siteId],
-      reads: const Reads(base: {BaseOp.listed}),
-      needs: const {(of: ModelConst.resettable, set: true)},
+    Expr.chosen(
+      among: _listed.cap([resettableOf()]),
+      run: _targeted,
     ),
   );
 
   /// The site a switch spawns the load of: `k`, beside the switch's own
   /// pick of what it stops showing.
   static final _eachKept = Pick<SiteId, ActivationFlow>(
-    Expr.op(
-      HandPaired.keptSites,
-      tla: 'Listed',
-      run: (c) => [ActivationFlow.state.from(c).target!.siteId],
-      reads: const Reads(base: {BaseOp.listed}),
-    ),
+    Expr.chosen(among: _listed, run: _targeted),
     name: 'k',
   );
   static final _bump = Act.of([_version.becomes(_version.value.plus(1))]);
@@ -482,11 +476,10 @@ abstract final class ActivationTable {
 
   /// The target of the activation in flight while no input has superseded
   /// it, the model's `LiveTarget`.
-  static final _liveTarget = Expr.op<SiteId?, ActivationFlow>(
-    HandPaired.liveTarget,
-    tla: 'LiveTarget',
+  static final _liveTarget = Expr.base<SiteId?, ActivationFlow>(
+    BaseOp.liveTarget,
+    args: const [],
     run: (c) => ActivationFlow.page.from(c).liveTarget,
-    reads: const Reads(base: {BaseOp.liveTarget}),
   );
   static final _behindSite = _behind.value.unwrapped;
   static final _online = Expr.ofConstant<bool, ActivationFlow>(

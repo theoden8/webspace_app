@@ -100,6 +100,11 @@ Def<bool, W> takesOf<W>() {
 
 /// The sites whose tabs the model follows (`Tabbed`): every site's in the
 /// code, so a config picks the few it checks.
+/// The sites a reset may send home: any listed site in the code, a world's
+/// own choice in the model (`Resettable`).
+Members<S, W> resettableOf<S, W>() =>
+    Members(ModelConst.resettable, test: (_, {required member}) => true);
+
 Members<S, W> tabbedOf<S, W>() =>
     Members(ModelConst.tabbed, test: (_, {required member}) => true);
 

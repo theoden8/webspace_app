@@ -207,23 +207,20 @@ abstract final class TabTable {
   static final _chosenTab = _eachTab.it;
 
   /// A fresh tab id (TabId.mint, never repeated): the model's pool.
-  static final _hasFresh = Expr.op<bool, TabFlow>(
-    HandPaired.hasFreshTab,
-    tla: 'HasFresh(current)',
+  static final _hasFresh = Expr.base<bool, TabFlow>(
+    BaseOp.hasFresh,
+    args: [_current],
     run: (_) => true,
-    reads: const Reads(vars: {ModelVar.current}, base: {BaseOp.hasFresh}),
   );
-  static final _mint = Expr.op<TabId, TabFlow>(
-    HandPaired.mintOnScreen,
-    tla: 'Mint(current)',
+  static final _mint = Expr.base<TabId, TabFlow>(
+    BaseOp.mint,
+    args: [_current],
     run: (c) => _flow.from(c).fresh!.id,
-    reads: const Reads(vars: {ModelVar.current}, base: {BaseOp.mint}),
   );
-  static final _mintSite = Expr.op<TabId, TabFlow>(
-    HandPaired.mintForSite,
-    tla: 'Mint(fl[f].site)',
+  static final _mintSite = Expr.base<TabId, TabFlow>(
+    BaseOp.mint,
+    args: [_site.value],
     run: (c) => _flow.from(c).fresh!.id,
-    reads: const Reads(base: {BaseOp.mint}),
   );
   static final _mintedBump = modelOnly<TabFlow>(
     "minted' = [minted EXCEPT ![current] = Mint(current)]",
@@ -298,23 +295,18 @@ abstract final class TabTable {
     why: "a close installs the site's tabs but the ones it takes",
   );
   static final _survivors = _tabIds(_current).without(_chosenTab);
-  static final _restIds = Expr.handPaired<List<TabId>, TabFlow>(
-    HandPaired.restTabIds,
-    tla: 'fl[f].rest',
-    run: (c) => _rest.isSet(c) ? [for (final t in _rest.of(c)) t.id] : const [],
-    reads: Reads.none,
-  );
+  static final _restTabs = _rest.valueOr(none: const <SiteTab>[]);
+  static final _restIds = _restTabs.byKey((t) => t.id);
   static final _onlyFresh = Expr.checked(
     rule: _mintSite.asSet,
     run: (c) => [_flow.from(c).fresh!],
     key: (SiteTab t) => t.id,
     why: 'a last close leaves the fresh tab alone',
   );
-  static final _installed = Expr.handPaired<List<SiteTab>, TabFlow>(
-    HandPaired.installedTabs,
-    tla: 'IF fl[f].rest = {} THEN tabs[fl[f].site] ELSE fl[f].rest',
-    run: (c) => _rest.isSet(c) ? _rest.of(c) : _flow.from(c).site.tabs,
-    reads: const Reads(vars: {ModelVar.tabs}),
+  static final _installed = Expr.choose(
+    when: _restTabs.isEmpty,
+    then: _tabs.at(_site.value),
+    otherwise: _restTabs,
   );
 
   /// The tabs the target has to be among: the list being installed, else
@@ -572,17 +564,18 @@ abstract final class TabTable {
     );
   }();
 
+  /// The sites on the list (`Listed`).
+  static final _listed = Expr.base<Iterable<SiteId>, TabFlow>(
+    BaseOp.listed,
+    args: const [],
+    run: (c) => _page.from(c).listedIds,
+  );
+
   /// The sites with tabs a reset lands at home (TAB-014).
   static final _eachLanded = Pick<SiteId, TabFlow>(
-    Expr.op(
-      HandPaired.landedSites,
-      tla: r'Listed \cap Resettable \cap Tabbed',
+    Expr.chosen(
+      among: _listed.cap([resettableOf(), tabbedOf()]),
       run: (c) => [_flow.from(c).site.siteId],
-      reads: const Reads(base: {BaseOp.listed}),
-      needs: const {
-        (of: ModelConst.resettable, set: true),
-        (of: ModelConst.tabbed, set: true),
-      },
     ),
   );
   static final _landed = _eachLanded.it;
@@ -591,12 +584,9 @@ abstract final class TabTable {
   /// asks for one only for a site whose slot runs as another, or on a tab
   /// anchored in another domain, which the model does not follow.
   static final _eachOwnerRun = Pick<SiteId, TabFlow>(
-    Expr.op(
-      HandPaired.ownerRunSites,
-      tla: r'Listed \cap Tabbed',
+    Expr.chosen(
+      among: _listed.cap([tabbedOf()]),
       run: (c) => [_flow.from(c).site.siteId],
-      reads: const Reads(base: {BaseOp.listed}),
-      needs: const {(of: ModelConst.tabbed, set: true)},
     ),
   );
   static final _ownerRunning = _eachOwnerRun.it;

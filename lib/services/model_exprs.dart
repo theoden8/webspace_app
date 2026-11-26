@@ -327,6 +327,16 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
     unless: needs,
   );
 
+  /// The same set as the model names its members, each by [key] (a tab by
+  /// its id), so the same text.
+  Expr<List<K>, W> byKey<K>(K Function(E e) key) => Expr._(
+    run: (c) => [for (final e in run(c)) key(e)],
+    tla: tla,
+    reads: reads,
+    needs: needs,
+    unless: unless,
+  );
+
   /// `S # {}`: needs what S needs to have members.
   Expr<bool, W> get isNotEmpty => Expr._(
     run: (c) => run(c).isNotEmpty,
@@ -387,6 +397,20 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
     needs: needs.intersection(other.needs),
   );
 
+  /// `S \cap T`, in the order of S.
+  Expr<List<E>, W> intersect(Expr<Iterable<E>, W> other) => Expr._(
+    run: (c) {
+      final keys = _keysOf(other.run(c));
+      return [
+        for (final e in run(c))
+          if (keys.contains(modelKeyOf(e))) e,
+      ];
+    },
+    tla: '${tlaOperand(tla)} \\cap ${tlaOperand(other.tla)}',
+    reads: reads + other.reads,
+    needs: {...needs, ...other.needs},
+  );
+
   /// `S \ T`, [other] a set of the model.
   Expr<List<E>, W> less(Expr<Iterable<E>, W> other) => Expr._(
     run: (c) {
@@ -414,6 +438,17 @@ extension SetExpr<E, W> on Expr<Iterable<E>, W> {
   Expr<int, W> get size => Expr._(
     run: (c) => _keysOf(run(c)).length,
     tla: 'Cardinality(${tlaOperand(tla)})',
+    reads: reads,
+  );
+
+  /// `SUBSET S`: any set drawn from this one; the code takes [taken],
+  /// asserted to be one of them.
+  Expr<List<List<E>>, W> anySubset({
+    required List<E> Function(StepView<W> c) taken,
+  }) => _subsets(
+    tla: 'SUBSET ${tlaOperand(tla)}',
+    holds: (c, {required pick, required all}) => true,
+    taken: taken,
     reads: reads,
   );
 

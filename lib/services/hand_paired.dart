@@ -15,37 +15,16 @@ abstract interface class Pairing implements Enum {}
 /// fails on a site that names none, and on a value no site or two sites
 /// name.
 enum HandPaired implements Pairing {
-  /// The site on screen, the model's `current`, as the activation reads it.
-  onScreen,
-
-  /// The sites on the list (`Listed`) a pick ranges over.
-  listedSites,
-
-  /// The sites on the list a reset may send home (`Listed \cap Resettable`).
-  resettableSites,
-
-  /// The sites on the list a pick keeps (`Listed`).
-  keptSites,
 
   /// The activation's site taken off the list (`site \in gone`).
   activationSiteGone,
-
-  /// The activation's target while it runs (`LiveTarget`).
-  liveTarget,
 
   /// An archive open with none of its sites gone
   /// (`Archive # {} /\ Archive \cap gone = {}`).
   archiveOpen,
 
-
-  /// The sites on the list a delete may take (`Listed \cap Deletable`).
-  deletableSites,
-
   /// The delete's site taken off the list first (`site \in gone`).
   deleteSiteGone,
-
-  /// The sites on the list an import replaces (`Listed`).
-  importListed,
 
   /// The back stack queued for no tab (`NoQueued`).
   noQueued,
@@ -60,22 +39,6 @@ enum HandPaired implements Pairing {
   /// The site on screen among those whose tabs the model follows
   /// (`current \in Tabbed`).
   tabbedOnScreen,
-
-  /// A fresh tab id left in the model's pool (`HasFresh(current)`).
-  hasFreshTab,
-
-  /// The fresh tab id for the site on screen (`Mint(current)`).
-  mintOnScreen,
-
-  /// The fresh tab id for the flow's site (`Mint(fl[f].site)`).
-  mintForSite,
-
-  /// The sites with tabs a reset lands at home
-  /// (`Listed \cap Resettable \cap Tabbed`).
-  landedSites,
-
-  /// The sites with tabs an owner-run move may take (`Listed \cap Tabbed`).
-  ownerRunSites,
 
   /// The listed sites with tabs a child tab may open in: those with a
   /// fresh tab id left in the model's pool.
@@ -98,12 +61,6 @@ enum HandPaired implements Pairing {
   /// pool has one.
   landingTabs,
 
-  /// The ids of the tabs left to install (`fl[f].rest`).
-  restTabIds,
-
-  /// The list a tab flow installs, its rest or else the site's.
-  installedTabs,
-
   /// The tabs a target has to be among, none once the page is gone.
   targetAmong,
 
@@ -122,19 +79,9 @@ enum HandPaired implements Pairing {
   /// A jar plan run by a flow of the model (`fl[f].kind # "none"`).
   modeledPlan,
 
-  /// The activation's target as the jar's dispose reads it (`LiveTarget`).
-  jarLiveTarget,
-
   /// The levels a prune may drop as it is asked: any held but the app-wide
   /// level and those a listed site asks for (DNS-021).
   dnsPrunes,
-
-  /// Those of them its turn drops: still held and not the app-wide level;
-  /// the code also keeps a level a fold brought since it was asked.
-  dnsPruneTurn,
-
-  /// The app-wide level an import names: off, or one a download may pick.
-  dnsImports,
 
   /// An argument of the DNS level's definition, by its name.
   levelAsk,
@@ -146,9 +93,6 @@ enum HandPaired implements Pairing {
   /// A capture with nothing to read (`site \in NoNavState`, or a flow that
   /// keeps no back stack).
   captureNone,
-
-  /// The activation's target as the unload's dispose reads it (`LiveTarget`).
-  unloadLiveTarget,
 
   /// An unload whose reason keeps the back stack, which the model knows by
   /// its flow's kind (PAUSE-007).

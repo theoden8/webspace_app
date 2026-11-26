@@ -437,8 +437,8 @@ enum BaseOp {
       (kind: FlowKind.tap, field: FlowField.site),
     },
   ),
-  hasFresh(reads: {ModelVar.minted}),
-  mint(reads: {ModelVar.minted}),
+  hasFresh(reads: {ModelVar.minted}, arity: 1),
+  mint(reads: {ModelVar.minted}, arity: 1),
   /// An input, which lands only where `Lands` lets it: on the page when no
   /// nested screen covers it, and on screen unless the OS made it.
   input(reads: {ModelVar.fore, ModelVar.nested}),
