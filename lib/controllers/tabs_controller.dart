@@ -347,9 +347,16 @@ class TabsController {
   }
 
   /// A reroute the table dropped while a handler held the gate, asked again
-  /// once it lets go: the model's one dropped now and one landing then.
+  /// once it lets go: the model's one dropped now and one landing then. A
+  /// waiter that took the gate first (`runWhenIdle`) is no tab flow of the
+  /// model's, so the reroute waits for it too rather than ask in its turn.
   void _rerouteWhenIdle() => _gate.deferUntilIdle(() {
-    if (_host.mounted) unawaited(reconcileLinkTabs());
+    if (!_host.mounted) return;
+    if (_gate.busy) {
+      _rerouteWhenIdle();
+      return;
+    }
+    unawaited(_host.askAgain(reconcileLinkTabs));
   });
 
   /// The site [tab], a tab of [owner] a link of [opener]'s opened, runs as
