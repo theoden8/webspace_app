@@ -77,12 +77,8 @@ Indexed<S, Map<TabId, S>, W> hostReported<S, W>({
 Expr<TabId?, W> noTab<W>() => Expr.constant(null, tla: '0');
 
 /// No back stack: `NoQueued`.
-Expr<QueuedStack, W> noQueued<W>() => Expr.op(
-  HandPaired.noQueued,
-  tla: 'NoQueued',
-  run: (_) => (t: null, h: null),
-  reads: Reads.none,
-);
+Expr<QueuedStack, W> noQueued<W>() =>
+    Expr.constant((t: null, h: null), tla: 'NoQueued');
 
 /// Whether a build for [tab] takes the back stack [q] queued: only one read
 /// for that tab (`Takes`, TAB-003). The binding's take runs it and `Shown`
