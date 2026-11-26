@@ -329,7 +329,7 @@ test('of two checkpoints the older is deleted as the run recovers the newer', (t
 });
 
 test('planted: a runner that keeps stale checkpoints is caught', (t) => {
-  const check = runner(t, { script: (text) => text.replace(/\n    for d in "\$meta"\/\*\/;[^\n]*/, '') });
+  const check = runner(t, { script: (text) => text.replace(/\n {4}for d in "\$meta"\/\*\/;[^\n]*/, '') });
   const at = leftCheckpoint(check);
   fs.rmSync(path.join(at, 'vars.chkpt'));
   assert.equal(check.run({ checkpoint: 30, rerun: true }).status, 0);
