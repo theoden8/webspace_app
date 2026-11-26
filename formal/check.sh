@@ -47,6 +47,12 @@
 # remembered there instead of run: it reports from the kept output, marked
 # "(remembered)", and counts as the check it is (formal/README.md,
 # "Remembered runs"). FORMAL_RERUN=1 runs every one.
+#
+# FORMAL_CHECKPOINT_MINUTES=<minutes> has TLC checkpoint a run that often,
+# under FORMAL_CACHE in a directory named for the run's inputs, and a run that
+# finds a checkpoint there recovers from it: a machine that restarts mid-suite
+# loses at most that much of each run. 0, the default, keeps none, since a
+# checkpoint copies the state queue beside the run's own.
 set -euo pipefail
 
 cd "$(dirname "$0")"
@@ -77,10 +83,12 @@ BUDGET="${FORMAL_RUN_BUDGET:-0}"
 DEADLINE="${FORMAL_DEADLINE:-0}"
 [ "$DEADLINE" -ge 0 ] 2>/dev/null || { echo "FORMAL_DEADLINE is not a count of seconds: $DEADLINE" >&2; exit 2; }
 PROGRESS="${FORMAL_PROGRESS_SECONDS:-60}"
+CHECKPOINT="${FORMAL_CHECKPOINT_MINUTES:-0}"
+[ "$CHECKPOINT" -ge 0 ] 2>/dev/null || { echo "FORMAL_CHECKPOINT_MINUTES is not a count of minutes: $CHECKPOINT" >&2; exit 2; }
 [ "$PROGRESS" -ge 1 ] 2>/dev/null || { echo "FORMAL_PROGRESS_SECONDS is not a positive interval: $PROGRESS" >&2; exit 2; }
 CACHE="${FORMAL_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/webspace-formal}"
-TIMES="$CACHE/times" MEMO="$CACHE/memo"
-mkdir -p "$TIMES" "$MEMO"
+TIMES="$CACHE/times" MEMO="$CACHE/memo" CHECKPOINTS="$CACHE/checkpoints"
+mkdir -p "$TIMES" "$MEMO" "$CHECKPOINTS"
 # A world with no time of its own takes its recorded one (tlc_times.tsv), so
 # a cold cache still plans the longest first and FORMAL_DEADLINE still holds.
 while IFS=$'\t' read -r name secs; do
@@ -92,7 +100,16 @@ find "$MEMO" -type f -mtime +14 -delete
 # Everything a run writes, under states/ (beside the repo's files, not in a
 # tmpfs: a state queue is gigabytes for the base config), gone as this ends.
 mkdir -p states
+# owner: this machine's boot and this shell, which a run directory records so
+# a later suite can tell one a restart left behind from one still in use.
+owner() { echo "$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || echo -) $1"; }
+for left in states/run.*/; do
+  [ -f "$left/owner" ] || continue
+  read -r boot pid <"$left/owner" || continue
+  [ "$(owner "$pid")" = "$boot $pid" ] && kill -0 "$pid" 2>/dev/null || rm -rf "$left"
+done
 RUNS="$(cd "$(mktemp -d states/run.XXXXXX)" && pwd)"
+owner $$ >"$RUNS/owner"
 mkdir "$RUNS/facts"
 : >"$RUNS/jobs"
 POOL=""
@@ -204,7 +221,7 @@ plan() {
 # left behind, the runs fill the disk.
 pool() {
   trap 'kill $(jobs -p) 2>/dev/null; wait; exit 1' TERM
-  local free="$SLOTS" running="" name w cfg spec lib cover
+  local free="$SLOTS" running="" name w cfg spec lib cover meta recover d
   while IFS=$'\t' read -r -u 4 name w cfg spec lib cover; do
     while [ "$free" -lt "$w" ]; do reap; done
     if ! fits "$name" "$w"; then
@@ -215,15 +232,37 @@ pool() {
     [ "$cover" != - ] || cover=""
     mkdir -p "$RUNS/$name.tmp"
     echo "$SECONDS $w" >"$RUNS/$name.started"
-    # No run resumes from a checkpoint, and each one copies the state queue
-    # beside it: the largest activation world ran the disk out at its second.
+    meta="$(metadir "$name")"
+    recover="$(checkpoint "$meta")"
+    # A checkpoint TLC did not finish writing is never recovered from, and
+    # one older than the newest is not either: each only takes disk.
+    for d in "$meta"/*/; do [ "${d%/}" = "$recover" ] || rm -rf "${d%/}"; done
     java "-Djava.io.tmpdir=$RUNS/$name.tmp" ${lib:+"-DTLA-Library=$lib"} -cp "$JAR" \
-      tlc2.TLC -workers "$w" -checkpoint 0 ${cover:+-coverage 100000} \
-      -metadir "$RUNS/$name.states" -config "$cfg" "$spec" >"$RUNS/$name.out" 2>&1 &
+      tlc2.TLC -workers "$w" -checkpoint "$CHECKPOINT" ${cover:+-coverage 100000} \
+      ${recover:+-recover "$recover"} -metadir "$meta" -config "$cfg" "$spec" >"$RUNS/$name.out" 2>&1 &
     running="$running $!:$name:$w:$SECONDS"
     free=$((free - w))
   done 4< <(plan)
   while [ -n "$running" ]; do reap; done
+}
+
+# metadir <name>: where run <name> keeps its states: beside this suite's
+# other files, or, with checkpoints on, in a directory named for the run's
+# inputs (its key), which a restart leaves for the next suite.
+metadir() {
+  if [ "$CHECKPOINT" -gt 0 ]; then echo "$CHECKPOINTS/$(cat "$RUNS/$1.key")"
+  else echo "$RUNS/$1.states"; fi
+}
+
+# checkpoint <metadir>: the newest checkpoint TLC finished writing there
+# (its queue and its variables), or nothing.
+checkpoint() {
+  local d last=""
+  [ "$CHECKPOINT" -gt 0 ] || return 0
+  for d in "$1"/*/; do
+    [ -f "$d/queue.chkpt" ] && [ -f "$d/vars.chkpt" ] && last="${d%/}"
+  done
+  echo "$last"
 }
 
 # fits: whether run <name> on <w> workers, at its last time, ends before
@@ -246,7 +285,9 @@ reap() {
   for entry in $running; do
     IFS=: read -r pid name w t0 <<<"$entry"
     case "$alive" in *" $pid "*) still="$still $entry"; continue ;; esac
-    rm -rf "$RUNS/$name.states" "$RUNS/$name.tmp"
+    # A checkpoint is for a run a restart cut short; one that ended, or a
+    # recovery that failed, leaves none for the next suite to trust.
+    rm -rf "$(metadir "$name")" "$RUNS/$name.tmp"
     if remember "$name"; then
       tmp="$(mktemp "$TIMES/.$name.XXXXXX")"
       echo "$((SECONDS - t0)) $w" >"$tmp" && mv "$tmp" "$TIMES/$name"

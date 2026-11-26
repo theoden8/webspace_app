@@ -145,6 +145,15 @@ test('a resume under fewer cores or another pace keeps the print, and redoes onl
     { FORMAL_SLOTS: '3', FORMAL_PARALLEL: '1', FORMAL_PROGRESS_SECONDS: '5' }), []);
 });
 
+test('the schedules can be cut finer than the cores, each piece kept as it ends', (t) => {
+  const repo = repository(t);
+  const fine = { FORMAL_SLOTS: '2', FORMAL_SCHEDULE_SHARDS: '4', FORMAL_PARALLEL: '1' };
+  assert.deepEqual(repo.verify(['--resume'], { ...fine, STUB_FAIL_SHARD: '3/4' }),
+    ['print', 'shard 0/4', 'shard 1/4', 'shard 2/4', 'shard 3/4']);
+  assert.deepEqual(repo.verify(['--resume'], fine), ['shard 3/4']);
+  assert.deepEqual(repo.verify(['--resume'], fine), []);
+});
+
 test('a run without --resume keeps nothing', (t) => {
   const repo = repository(t);
   assert.deepEqual(repo.verify(['--resume']), everything);

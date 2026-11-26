@@ -117,7 +117,10 @@ schedules() {
   # across shards; other tests run every nth test (SCHEDULE_SHARD).
   # The replay merges a configuration's shards into one trie, so what it
   # replays and counts is the same however many ran.
-  shards="${FORMAL_SLOTS:-$(getconf _NPROCESSORS_ONLN)}"
+  # FORMAL_SCHEDULE_SHARDS splits them finer than the cores, each shard
+  # shorter, so a machine that restarts often still keeps some as they end;
+  # it splits only the schedules, never TLC's pool.
+  shards="${FORMAL_SCHEDULE_SHARDS:-${FORMAL_SLOTS:-$(getconf _NPROCESSORS_ONLN)}}"
   # At most FORMAL_PARALLEL shards run at once (default: all of them). Under
   # --resume each shard is stamped as it ends, so more shards than run at
   # once lose at most the ones under way when a run is stopped.

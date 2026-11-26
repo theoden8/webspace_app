@@ -653,6 +653,22 @@ or expected line is another key, so it runs. Only runs that behaved are kept, so
 always runs again. `FORMAL_RERUN=1` runs every check and keeps what
 behaves; a kept run nothing has asked for in a fortnight is dropped.
 
+A run that a restart cuts short resumes where its last checkpoint left it once
+`FORMAL_CHECKPOINT_MINUTES=<n>` is set: TLC checkpoints every `n` minutes into
+`FORMAL_CACHE/checkpoints/<key>`, a directory named for the same key, and a run that finds a
+checkpoint TLC finished writing there passes `-recover`. A run that ends, by a verdict or
+a failed recovery, deletes its checkpoint, so only a cut-short run's survives. The verdict
+is the run's whatever its starts, since a recovered run explores the states the checkpoint
+had not. It is off by default because a checkpoint copies the state queue beside the run's
+own. A suite also prunes the run directories a restart left behind (each records the boot
+and the shell that made it). The runner's tests hold all of this with a fake TLC
+(`test/js/formal_runner.test.js`).
+
+`FORMAL_SCHEDULE_SHARDS=<n>` cuts the schedules into `n` pieces however many cores run
+them (`FORMAL_PARALLEL` at once), each kept as it ends, so on a machine that restarts more
+often than a piece of the default split takes, the pieces still finish. It splits only the
+schedules; TLC's pool stays `FORMAL_SLOTS`.
+
 The replay keeps its runs the same way, under `FORMAL_CACHE/replay`
 ([check_steps.py](trace/check_steps.py), `Memo`). A replay's key holds its module and
 config, which hold the trace, every module in formal/ and the printed model, and the
