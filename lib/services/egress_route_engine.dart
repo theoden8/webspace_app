@@ -70,6 +70,21 @@ bool appliesInterface(
   required EgressRelayState relay,
 }) => leavesBy is! SystemRouting && relay is! EgressOff;
 
+/// The interface [leavesBy] names where it applies now and this device has
+/// no link of that name ([present]): a site bound to it loads nothing until
+/// the user picks again, which an import says (NETIF-014).
+InterfaceName? lackedInterface(
+  InterfaceChoice leavesBy, {
+  required EgressRelayState relay,
+  required Iterable<InterfaceName> present,
+}) {
+  if (!appliesInterface(leavesBy, relay: relay)) return null;
+  return switch (leavesBy) {
+    NamedInterface(:final name) => present.contains(name) ? null : name,
+    SystemRouting() || UnreadableInterface() => null,
+  };
+}
+
 /// What a site's traffic takes when its settings name [leavesBy] and its
 /// proxy resolves to [route]: [route] itself while the interface is not
 /// applied, SOCKS5 to the relay with the whole route in its credential, or

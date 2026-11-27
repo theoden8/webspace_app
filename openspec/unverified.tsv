@@ -72,7 +72,6 @@ L10N-005	process: describes how the migration proceeds (file by file, exempt onl
 NESTED-011	no check: needs the fork's iOS/macOS onCreateWindow decline path to skip loading the request in the parent; no test reads the fork source or runs WKWebView (iOS/macOS-only plugin behaviour that no tier runs)
 NESTED-012	process: the requirement is that the spec states the provenance loss (Sec-Fetch-Site: none, no Referer) as accepted behaviour; it is documentation, with nothing to run
 # network-interface
-NETIF-014	no check: not built yet; an import that names an interface this device lacks lands without a notice, and the site loads nothing until the user picks again (tasks 3.9)
 # onion-location
 # passkey-support
 # per-site-containers

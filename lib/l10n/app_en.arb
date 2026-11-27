@@ -3605,6 +3605,15 @@
       }
     }
   },
+  "homeImportInterfacesMissingHint": "Sites bound to a network interface this device lacks load nothing until you pick another in their Network settings: {sites}.",
+  "@homeImportInterfacesMissingHint": {
+    "description": "Sentence added to the snackbar after a settings import when imported sites are bound to a network interface (such as a VPN tunnel) that this device does not have, so they load nothing. {sites} lists those sites' names; Network is the per-site settings screen of that name.",
+    "placeholders": {
+      "sites": {
+        "type": "String"
+      }
+    }
+  },
   "homeSettingsImportedSuccess": "Settings imported successfully",
   "@homeSettingsImportedSuccess": {
     "description": "Snackbar shown after a successful settings import with no follow-up hints"

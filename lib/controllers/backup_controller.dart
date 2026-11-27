@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/l10n/runtime/arb_messages.dart';
 import 'package:webspace/controllers/let_go_table.dart';
 import 'package:webspace/controllers/archive_controller.dart';
 import 'package:webspace/controllers/background_sites_controller.dart';
@@ -13,6 +14,8 @@ import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/egress_relay.dart';
+import 'package:webspace/services/egress_route_engine.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_library.dart';
@@ -561,10 +564,24 @@ class BackupController {
       await webViewModel.reapplyTheme();
     }
 
+    final links = [
+      for (final link in await EgressRelay.instance.links()) link.name,
+    ];
+    final lacking = [
+      for (final site in importedBySource.values)
+        if (lackedInterface(
+              site.proxySettings.leavesBy,
+              relay: EgressRelay.instance.state,
+              present: links,
+            ) !=
+            null)
+          Localized.verbatim(site.name),
+    ];
     final hinted =
         (restoreChoices.restoreAppSettings && plan.proxyPasswordsNeeded) ||
         (restoreChoices.restoreAppSettings && plan.blocklistsNeedDownload) ||
-        extensionsMissing > 0;
+        extensionsMissing > 0 ||
+        lacking.isNotEmpty;
     _host.toast((loc) {
       final hints = <String>[
         if (restoreChoices.restoreAppSettings && plan.proxyPasswordsNeeded)
@@ -573,6 +590,10 @@ class BackupController {
           loc.homeImportBlocklistRedownloadHint,
         if (extensionsMissing > 0)
           loc.homeImportExtensionsMissingHint(extensionsMissing),
+        if (lacking.isNotEmpty)
+          loc.homeImportInterfacesMissingHint(
+            Localized.joined(lacking, by: Joined.list),
+          ),
       ];
       return hints.isEmpty
           ? loc.homeSettingsImportedSuccess
