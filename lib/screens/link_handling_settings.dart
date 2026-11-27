@@ -319,7 +319,7 @@ class _DomainClaimsEditorState extends State<DomainClaimsEditor> {
             subtitle: switch (hijacked[claim]) {
               true => Text(
                   loc.linkHandlingClaimHijackConflict,
-                  style: const TextStyle(color: Colors.red),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               false => Text(loc.linkHandlingClaimOverlapConflict),
               null => null,

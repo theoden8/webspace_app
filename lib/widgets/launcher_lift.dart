@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart' show kSecondaryButton, kTouchSlop;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/services/page_focus.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/launcher_grid.dart';
@@ -201,7 +202,7 @@ class _LauncherLiftState<T extends Object> extends State<LauncherLift<T>> {
                       borderRadius: BorderRadius.circular(LibraryStyle.radius),
                       border: _focused
                           ? Border.all(
-                              color: theme.colorScheme.primary,
+                              color: theme.colorScheme.accentIndicator,
                               width: LibraryStyle.selectionWidth,
                             )
                           : null,

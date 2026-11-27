@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/log_service.dart';
@@ -18,13 +19,11 @@ class LogEntryLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Light shades for a dark background, deep ones for a light one: plain
-    // amber on a light theme is close to unreadable.
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
     final color = switch (entry.level) {
-      LogLevel.warning => dark ? Colors.amber : Colors.orange.shade900,
-      LogLevel.error => dark ? Colors.red.shade300 : Colors.red.shade800,
-      LogLevel.info => dark ? Colors.lightBlue.shade200 : Colors.blue.shade800,
+      LogLevel.warning => scheme.warning,
+      LogLevel.error => scheme.error,
+      LogLevel.info => scheme.info,
       LogLevel.debug =>
         Theme.of(context).textTheme.bodyMedium?.color ?? Colors.white,
     };

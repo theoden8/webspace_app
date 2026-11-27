@@ -22,6 +22,7 @@
 library;
 
 import 'dart:async';
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/settings/site_ids.dart';
 
@@ -621,7 +622,7 @@ class _TabsSheetState extends State<TabsSheet> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.labelLarge
-                      ?.copyWith(color: theme.colorScheme.primary),
+                      ?.copyWith(color: theme.colorScheme.accentText),
                 ),
               ),
             ],
@@ -672,7 +673,7 @@ class _TabsSheetState extends State<TabsSheet> {
                   bottom: above ? null : 0,
                   height: TabRows.dropLineWidth,
                   child: IgnorePointer(
-                      child: ColoredBox(color: theme.colorScheme.primary)),
+                      child: ColoredBox(color: theme.colorScheme.accentIndicator)),
                 ),
             ],
           ),
@@ -1013,7 +1014,7 @@ class _TabsSheetState extends State<TabsSheet> {
         final indent = (row.depth +
                 (zone == TabDropZone.after && expanded ? 1 : 0)) *
             _rows.indent;
-        final line = theme.colorScheme.primary;
+        final line = theme.colorScheme.accentIndicator;
         return LongPressDraggable<_DraggedTab>(
           data: dragged,
           dragAnchorStrategy: pointerDragAnchorStrategy,
@@ -1073,7 +1074,7 @@ class _TabsSheetState extends State<TabsSheet> {
                 child: SizedBox(
                   height: TabRows.dropLineWidth,
                   width: double.infinity,
-                  child: ColoredBox(color: theme.colorScheme.primary),
+                  child: ColoredBox(color: theme.colorScheme.accentIndicator),
                 ),
               )
             : null,

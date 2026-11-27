@@ -4,6 +4,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart'
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/theme/accent_theme.dart';
 
 import 'helpers/fake_webview_controller.dart';
 import 'helpers/isolations.dart';
@@ -62,7 +63,7 @@ void main() {
 
     final context = tester.element(find.byType(DevToolsScreen));
     final echo = _lineStyle(tester, text: '> document.title');
-    expect(echo.color, Theme.of(context).colorScheme.primary);
+    expect(echo.color, Theme.of(context).colorScheme.accentText);
     expect(echo.fontWeight, FontWeight.bold);
     expect(view.evaluated.where((js) => js.contains('\ndocument.title\n')),
         isNotEmpty);
@@ -87,7 +88,8 @@ void main() {
     final line = find.ancestor(
         of: find.textContaining('Unexpected token'),
         matching: find.byType(SelectableText));
-    expect(tester.widget<SelectableText>(line).style!.color, Colors.red);
+    expect(tester.widget<SelectableText>(line).style!.color,
+        Theme.of(tester.element(line)).colorScheme.error);
   });
 
   testWidgets(

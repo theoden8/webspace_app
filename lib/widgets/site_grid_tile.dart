@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/theme/design_tokens.dart';
@@ -228,7 +229,7 @@ class _SiteGridTileContent extends StatelessWidget {
                   borderRadius: BorderRadius.circular(Radii.xl),
                   color: theme.colorScheme.primaryContainer.withAlpha(80),
                   border: Border.all(
-                    color: theme.colorScheme.primary,
+                    color: theme.colorScheme.accentIndicator,
                     width: LibraryStyle.selectionWidth,
                   ),
                 )
@@ -309,7 +310,7 @@ class _SiteGridTileContent extends StatelessWidget {
               ? BoxDecoration(
                   borderRadius: BorderRadius.circular(LibraryStyle.radius),
                   border: Border.all(
-                    color: theme.colorScheme.primary,
+                    color: theme.colorScheme.accentIndicator,
                     width: LibraryStyle.selectionWidth,
                   ),
                 )
@@ -464,9 +465,9 @@ class _SiteGridTileContent extends StatelessWidget {
                         domain,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          color: Colors.grey,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],

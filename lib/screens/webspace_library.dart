@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter, PointerDeviceKind, lerpDouble;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
@@ -808,7 +809,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                             height: LibraryStyle.pageDot,
                             decoration: BoxDecoration(
                               color: index == on
-                                  ? theme.colorScheme.primary
+                                  ? theme.colorScheme.accentIndicator
                                   : theme.colorScheme.onSurfaceVariant
                                         .withAlpha(90),
                               borderRadius: BorderRadius.circular(
@@ -1648,7 +1649,7 @@ class _LayoutSwitch extends StatelessWidget {
                   height: segment.height,
                   child: DecoratedBox(
                     decoration: ShapeDecoration(
-                      color: theme.colorScheme.primary,
+                      color: theme.colorScheme.accentIndicator,
                       shape: const StadiumBorder(),
                     ),
                   ),

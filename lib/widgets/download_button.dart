@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/settings/byte_size.dart';
@@ -172,7 +173,7 @@ class _DownloadTile extends StatelessWidget {
           savedPath == null
               ? loc.downloadButtonSaved
               : loc.downloadButtonSavedToPath(savedPath),
-          scheme.primary,
+          scheme.accentIndicator,
         ),
       DownloadState.failed => (
           Icons.error_outline,

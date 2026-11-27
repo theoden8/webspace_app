@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/web_view_model.dart';
 
 import 'helpers/isolations.dart';
@@ -91,10 +92,12 @@ void main() {
     // The level is in the text too, not told by colour alone (A11Y-009).
     expect(find.textContaining('[WARN] careful now'), findsOneWidget);
     expect(find.textContaining('[ERROR] it broke'), findsOneWidget);
-    expect(colorOf(tester, message: 'careful now'), Colors.amber);
-    expect(colorOf(tester, message: 'it broke'), Colors.red);
+    final scheme =
+        Theme.of(tester.element(find.byType(DevToolsScreen))).colorScheme;
+    expect(colorOf(tester, message: 'careful now'), scheme.warning);
+    expect(colorOf(tester, message: 'it broke'), scheme.error);
     expect(colorOf(tester, message: 'plain note'),
-        isNot(anyOf(Colors.amber, Colors.red)));
+        isNot(anyOf(scheme.warning, scheme.error)));
   });
 
   testWidgets('DEVTOOLS-001: Copy takes only the lines the filter leaves and '

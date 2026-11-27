@@ -197,7 +197,7 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.delete, color: Colors.red),
+              leading: Icon(Icons.delete, color: Theme.of(ctx).colorScheme.error),
               title: Text(loc.commonDelete),
               subtitle:
                   isGlobal ? Text(loc.userScriptsRemoveFromAllSites) : null,
@@ -283,7 +283,7 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
           child: Text(
             loc.userScriptsEmpty,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.grey),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ),
       );
@@ -318,10 +318,10 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
                 key: ValueKey('site_${script.name}_$index'),
                 direction: DismissDirection.endToStart,
                 background: Container(
-                  color: Colors.red,
+                  color: Theme.of(context).colorScheme.error,
                   alignment: AlignmentDirectional.centerEnd,
                   padding: const EdgeInsetsDirectional.only(end: 16),
-                  child: const Icon(Icons.delete, color: Colors.white),
+                  child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
                 ),
                 confirmDismiss: (_) =>
                     _confirmDelete(script, isGlobal: isGlobal),
@@ -614,7 +614,7 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen>
                         _urlSource!.length,
                       )
                     : loc.userScriptsCachedBytes(_urlSource!.length),
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ),
           const SizedBox(height: 16),

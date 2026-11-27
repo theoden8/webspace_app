@@ -59,13 +59,13 @@ class _SiteSettingsQrScannerScreenState
               right: 16,
               top: 16,
               child: Material(
-                color: Colors.red.shade700.withAlpha(220),
+                color: Theme.of(context).colorScheme.error.withAlpha(220),
                 borderRadius: BorderRadius.circular(8),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Text(
                     _lastError!,
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onError),
                   ),
                 ),
               ),

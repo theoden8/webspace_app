@@ -61,7 +61,7 @@ class WebspacesListScreen extends StatelessWidget {
                           ).name
                         : loc.webspacesListNoneSelected,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   SizedBox(height: 16),
@@ -139,7 +139,9 @@ Widget action(IconData icon, {required String tooltip, required VoidCallback onP
                                   padding: EdgeInsets.symmetric(horizontal: 12),
                                   child: Icon(
                                     Icons.drag_handle,
-                                    color: Colors.grey,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
                                   ),
                                 ),
                               ),

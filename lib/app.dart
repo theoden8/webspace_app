@@ -11,6 +11,7 @@ import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/widgets/caption_tint.dart';
 import 'package:webspace/widgets/remote_controls.dart';
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/screens/webspace_page.dart';
 
@@ -66,6 +67,10 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
       },
       theme: buildAppTheme(accentColor, brightness: Brightness.light),
       darkTheme: buildAppTheme(accentColor, brightness: Brightness.dark),
+      highContrastTheme: buildAppTheme(accentColor,
+          brightness: Brightness.light, contrast: ThemeContrast.high),
+      highContrastDarkTheme: buildAppTheme(accentColor,
+          brightness: Brightness.dark, contrast: ThemeContrast.high),
       themeMode: _themeSettings.themeMode,
       home: WebSpacePage(
         onThemeSettingsChanged: _setThemeSettings,

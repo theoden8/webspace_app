@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/design_tokens.dart';
 
@@ -22,7 +23,7 @@ class TabCountPill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: Spacing.xs),
         decoration: BoxDecoration(
           color: active
-              ? theme.colorScheme.primary
+              ? theme.colorScheme.accentIndicator
               : theme.colorScheme.onSurfaceVariant,
           borderRadius: BorderRadius.circular(Radii.lg),
         ),
@@ -31,7 +32,7 @@ class TabCountPill extends StatelessWidget {
           textAlign: TextAlign.center,
           style: theme.textTheme.labelSmall?.copyWith(
             color: active
-                ? theme.colorScheme.onPrimary
+                ? theme.colorScheme.onAccentIndicator
                 : theme.colorScheme.surface,
             fontWeight: FontWeight.bold,
           ),

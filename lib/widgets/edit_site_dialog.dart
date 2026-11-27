@@ -152,7 +152,7 @@ class _EditSiteDialogState extends State<EditSiteDialog> {
           const SizedBox(height: 8),
           Text(
             loc.homeUrlSchemeTip,
-            style: const TextStyle(fontSize: 11, color: Colors.grey),
+            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
           Row(

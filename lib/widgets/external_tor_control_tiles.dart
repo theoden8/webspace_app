@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/external_tor_control_password_storage.dart';
 import 'package:webspace/services/external_tor_posture_engine.dart';
@@ -132,8 +133,8 @@ class _PostureGapTile extends StatelessWidget {
         ),
     };
     return SettingTile(
-      leading: const Icon(Icons.warning_amber_outlined,
-          color: HintedTitle.missingDataColor),
+      leading: Icon(Icons.warning_amber_outlined,
+          color: Theme.of(context).colorScheme.warning),
       title: title,
       hint: hint,
     );

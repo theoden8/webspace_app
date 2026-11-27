@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/services/open_sites.dart';
@@ -132,7 +133,7 @@ class _Square extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Radii.lg),
         side: BorderSide(
-          color: on ? scheme.primary : scheme.outlineVariant,
+          color: on ? scheme.accentIndicator : scheme.outlineVariant,
           width: on ? 1.5 : Chrome.hairlineWidth,
         ),
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/proxy_ids.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -126,7 +127,7 @@ DropdownMenuItem<String> _header(
   return _item(key, label: label,
       enabled: false,
       style: theme.textTheme.labelSmall
-          ?.copyWith(color: theme.colorScheme.primary));
+          ?.copyWith(color: theme.colorScheme.accentText));
 }
 
 /// The proxy picker: the plain types, and the library's saved proxies and

@@ -9,7 +9,6 @@ A11Y-003	no check: the theme shim answers a query pairing prefers-color-scheme w
 A11Y-004	no check: screen-reader reach of the page needs VoiceOver/TalkBack on a device; no test asserts off-screen sites drop out of the semantics tree
 A11Y-005	no check: the raw Listener on the drawer tile and tab chip, selected/toggled/expanded state, long-press alternatives and live regions are unchecked; the spec lists the failures (partly: tool/webspace_lints unnamed_button refuses an IconButton or FloatingActionButton with no tooltip)
 A11Y-008	no check: nothing renders every chrome screen dark or checks a webview's pre-paint frame; the white-flash check is explicitly unchecked
-A11Y-010	no check: the contrast test omits primary-on-surface and the hard-coded greys/oranges, and highContrastTheme is not set; spec lists failures (partly: test/accent_theme_contrast_test.dart, "every accent keeps AA contrast on its paired on-colours")
 A11Y-012	no check: no Shortcuts/Actions/PlatformMenuBar exist and no test drives keyboard focus traversal or Escape
 A11Y-013	process: a person runs OS accessibility checks on devices before a release; nothing a test can run
 A11Y-014	open, each a design decision: the drawer tile's corner menu (24, behind ExcludeSemantics; a 48 target would cover the site's icon), the sidebar squares' tab toggle (40 hit, over the icon) and the sidebar rail's tab bars (24x10) (partly: test/tap_targets_test.dart runs both tap target guidelines over the app bar, drawer, tab strip, tabs sheet and settings screens)

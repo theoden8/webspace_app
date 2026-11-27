@@ -203,8 +203,8 @@ Why each is No today, in one line each:
   before its first frame in dark mode is unchecked.
 - **Differentiate Without Color Alone**: the cues A11Y-009 lists are in
   place; nobody has checked them on a device with the Grayscale filter on.
-- **Sufficient Contrast**: accent-coloured section headers and several
-  hard-coded greys and oranges fall below 4.5:1 on the light theme.
+- **Sufficient Contrast**: text holds 4.5:1 and indicators 3:1 (A11Y-010);
+  nobody has checked them on a device with Increase Contrast on.
 - **Reduced Motion**: the helper follows the OS on every platform
   (A11Y-011), but no one has checked it on an iPhone, an iPad or a Mac.
 
@@ -500,8 +500,8 @@ the page's own first paint. Pages SHALL receive the app's scheme through the
 theme shim (HINTS-001, HINTS-002). A page with no dark style of its own
 stays light; that is third-party content and outside the claim.
 
-Status: the chrome holds. `highContrastTheme` and `highContrastDarkTheme`
-are not set (A11Y-010). Two gaps:
+Status: the chrome holds, in the high contrast themes too (A11Y-010). Two
+gaps:
 
 - **Unchecked flash.** Whether a webview shows its default white background
   in the frames before a dark page paints, on creation and on site switch,
@@ -559,25 +559,32 @@ border) SHALL be at least 3:1. When `MediaQuery.highContrast` is true (iOS
 Increase Contrast, GNOME High Contrast), the app SHALL use
 `highContrastTheme` / `highContrastDarkTheme`.
 
-`test/accent_theme_contrast_test.dart` holds seven role pairs to 4.5:1 for
-every accent. It does not cover `primary` used as text on `surface`, which is
-how the settings screens draw section headers (`settings.dart:834`,
-`site_behaviour.dart:118`, and six more). Ratios on the light theme:
+Status: holds in both brightnesses, both contrasts and for every accent.
 
-| Where | Colour | On white |
-|---|---|---|
-| section headers | accent `primary`, all eight | 1.56 (green) to 3.40 (red); blue, the default, 3.28 |
-| drawer domain, list captions | `Colors.grey` | 2.68 |
-| "Not configured" subtitle | `Colors.orange` | 2.16 |
-| destructive labels | `Colors.red` | 3.68 |
-| statistics banner | grey 500 on grey 100 | 2.46 |
+- **Text roles.** Text the chrome draws in a colour of its own takes a role
+  that holds 4.5:1 on the scaffold, `surface` and `surfaceContainerHighest`:
+  `onSurfaceVariant` for muted text, `error` for destructive and failed, and
+  roles Material does not name, `accentText` (section headers, the accent
+  drawn as text), `warning`, `success` and `info`, each the least change of
+  lightness of its colour that passes. Checked by
+  `test/accent_theme_contrast_test.dart`.
+- **Indicator role.** A state drawn in the accent takes `accentIndicator`,
+  the least change of the accent that holds 3:1 on the same surfaces, with
+  what sits on it at 4.5:1. The theme gives it to a switch, checkbox or
+  radio that is on; selection borders, focus rings, the current page dot,
+  the active tab mark, drop lines and the statistics bars draw it too
+  (`test/accent_theme_contrast_test.dart`).
+- **No fixed colours.** `Colors.grey`, `Colors.orange`, `Colors.amber`,
+  `Colors.red`, `Colors.green` and `Colors.blue` appear nowhere in the
+  chrome, and no border is drawn in raw `primary`
+  (`test/js/chrome_contrast_colours.test.js`).
+- **High contrast.** `MediaQuery.highContrast` shows the high contrast
+  theme in either brightness, its neutral text at 7:1
+  (`test/high_contrast_theme_test.dart`).
 
-On black every accent clears 6:1.
-
-Gates to add: a `primary`-on-`surface` pair in the accent contrast test (or
-headers drawn in a role that passes), and a structural test that fails
-`Colors.grey`, `Colors.orange`, `Colors.amber` or `Colors.red` as a text
-colour in the chrome.
+Not covered by a check: a dot or bar a future widget draws in raw `primary`
+(the gate refuses only borders), and an icon button drawn in `primary`,
+which names an action rather than a state.
 
 #### Scenario: Light theme, yellow accent
 
@@ -781,10 +788,10 @@ By value over cost. Each item names the requirement it moves.
    FABs and the corner button; `Semantics(onTap:, selected:)` on the drawer
    tile and tab chip; the theme tooltip; the structural gate. Small, and it
    unblocks VoiceOver and Voice Control on iPhone.
-3. **Contrast and touch targets** (A11Y-010, A11Y-014): headers and greys to
-   roles that pass, the test pair, `highContrastTheme`; `TapTargets.compact`
-   to 48. These are two of Android's three quality criteria and most of what
-   the pre-launch report will list.
+3. **Contrast and touch targets** (A11Y-010, A11Y-014): contrast and the
+   high contrast theme are done; `TapTargets.compact` to 48 remains. These
+   are two of Android's three quality criteria and most of what the
+   pre-launch report will list.
 4. **Selected site cue** (A11Y-009) and the statistics chips and bars.
 5. **Reduced motion helper** (A11Y-011), including the Mac channel and
    WPE's setting. Done in code; the device checks remain.
@@ -807,6 +814,8 @@ By value over cost. Each item names the requirement it moves.
   `lib/theme/`.
 - Existing tests that already check a piece of this:
   `test/accent_theme_contrast_test.dart`,
+  `test/high_contrast_theme_test.dart`,
+  `test/js/chrome_contrast_colours.test.js`,
   `test/design_tokens_validity_test.dart`,
   `test/design_render_matrix_test.dart`, `test/tabs_sheet_test.dart`,
   `test/site_permission_badges_test.dart`,

@@ -92,9 +92,10 @@ Future<T?> showLauncherMenu<T>(
         value: item.value,
         child: ListTile(
           leading: Icon(item.icon,
-              color: item.destructive ? Colors.red : null),
+              color: item.destructive ? Theme.of(context).colorScheme.error : null),
           title: Text(item.label,
-              style: TextStyle(color: item.destructive ? Colors.red : null)),
+              style: TextStyle(
+                  color: item.destructive ? Theme.of(context).colorScheme.error : null)),
           dense: true,
           visualDensity: VisualDensity.compact,
         ),

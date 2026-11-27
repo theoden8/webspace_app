@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/services/page_focus.dart';
@@ -197,7 +198,7 @@ class SiteStrip extends StatelessWidget {
             decoration: isHovered
                 ? BoxDecoration(
                     borderRadius: BorderRadius.circular(Radii.lg),
-                    border: Border.all(color: theme.colorScheme.primary, width: 2),
+                    border: Border.all(color: theme.colorScheme.accentIndicator, width: 2),
                   )
                 : null,
             child: Listener(
@@ -249,7 +250,7 @@ class SiteStrip extends StatelessWidget {
             : Chrome.chip(isDark: isDark),
         borderRadius: BorderRadius.circular(Radii.lg),
         border: isActive
-            ? Border.all(color: theme.colorScheme.primary, width: 1.5)
+            ? Border.all(color: theme.colorScheme.accentIndicator, width: 1.5)
             : Border.all(
                 color: Chrome.hairline(isDark: isDark),
                 width: Chrome.hairlineWidth,
@@ -332,7 +333,7 @@ class _StripChipState extends State<_StripChip> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(Radii.lg),
                       border: Border.all(
-                        color: Theme.of(context).colorScheme.primary,
+                        color: Theme.of(context).colorScheme.accentIndicator,
                         width: RemoteStyle.ringWidth,
                       ),
                     ),

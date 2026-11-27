@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/services/navigation_surface_engine.dart';
 import 'package:webspace/settings/navigation_choices.dart';
 import 'package:webspace/theme/design_tokens.dart';
@@ -321,7 +322,8 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
                 top: 0,
                 bottom: 0,
                 width: 2,
-                child: ColoredBox(color: Theme.of(context).colorScheme.primary),
+                child: ColoredBox(
+                    color: Theme.of(context).colorScheme.accentIndicator),
               ),
             // The scrim under a sidebar over the page.
             IgnorePointer(

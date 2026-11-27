@@ -843,7 +843,7 @@ class DialogBackupPrompts implements BackupPrompts {
           SizedBox(height: 12),
           Text(
             exportedLabel,
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           if (incomingGlobalProxy != null) ...[
             SizedBox(height: 12),
@@ -856,7 +856,7 @@ class DialogBackupPrompts implements BackupPrompts {
           SizedBox(height: 16),
           Text(
             loc.homeImportSettingsSessionsNote,
-            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ],
       ),

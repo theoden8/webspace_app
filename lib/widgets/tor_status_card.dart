@@ -11,6 +11,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/tor_bridge_settings.dart';
 import 'package:webspace/services/reentry_guard.dart';
@@ -209,7 +210,7 @@ class _TorStatusCardState extends State<TorStatusCard> {
                 size: IconSizes.action,
                 color: s is TorErrored
                     ? scheme.error
-                    : (s is TorUp ? scheme.primary : scheme.onSurfaceVariant),
+                    : (s is TorUp ? scheme.accentIndicator : scheme.onSurfaceVariant),
               ),
               const SizedBox(width: Spacing.sm),
               Expanded(
