@@ -7,6 +7,7 @@ import 'package:webspace/settings/navigation_choices.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/sidebar_arrow_tab.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
+import 'package:webspace/services/reduced_motion.dart';
 
 /// The page's history as a swipe from the screen's edge walks it.
 class EdgeBack {
@@ -165,7 +166,7 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
     _Content.panel => widget.panelWidth,
   };
 
-  bool get _still => MediaQuery.of(context).disableAnimations;
+  bool get _still => ReducedMotion.of(context);
 
   @override
   void didUpdateWidget(SiteNavigationFrame oldWidget) {

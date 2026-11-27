@@ -11,6 +11,7 @@ import 'package:webspace/widgets/site_address.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
 import 'package:webspace/widgets/webspace_name.dart';
 import 'package:webspace/widgets/tab_count_pill.dart';
+import 'package:webspace/services/reduced_motion.dart';
 
 enum SiteGridTileLayout { compact, library }
 
@@ -289,9 +290,7 @@ class _SiteGridTileContent extends StatelessWidget {
           missing: missing,
         );
         return AnimatedContainer(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : Motion.settle,
+          duration: ReducedMotion.duration(context, full: Motion.settle),
           width: well,
           height: well,
           decoration: BoxDecoration(

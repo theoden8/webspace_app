@@ -7,6 +7,7 @@ import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/launcher_lift.dart';
 import 'package:webspace/widgets/launcher_row.dart';
 import 'package:webspace/widgets/webspace_name.dart';
+import 'package:webspace/services/reduced_motion.dart';
 
 /// A launcher group represented by a compact cluster of its site icons, over
 /// its name, or [list] of the way to a row beside it (WEBSPACE-015).
@@ -115,9 +116,7 @@ class WebspaceGroupTile extends StatelessWidget {
                 corner: const [],
               ),
               well: AnimatedContainer(
-                duration: MediaQuery.disableAnimationsOf(context)
-                    ? Duration.zero
-                    : Motion.settle,
+                duration: ReducedMotion.duration(context, full: Motion.settle),
                 width: LibraryStyle.siteWell,
                 height: LibraryStyle.siteWell,
                 foregroundDecoration: BoxDecoration(

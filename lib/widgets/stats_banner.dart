@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/reduced_motion.dart';
 import 'package:webspace/widgets/block_category_label.dart';
 
 /// A compact banner displayed at the top of the webview showing live
@@ -72,7 +73,10 @@ class _StatsBannerState extends State<StatsBanner> {
     return GestureDetector(
       onTap: () => setState(() => _expanded = !_expanded),
       child: AnimatedSize(
-        duration: const Duration(milliseconds: 200),
+        duration: ReducedMotion.duration(
+          context,
+          full: const Duration(milliseconds: 200),
+        ),
         curve: Curves.easeInOut,
         alignment: Alignment.topCenter,
         child: Container(

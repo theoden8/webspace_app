@@ -4,7 +4,7 @@ import 'package:webspace/widgets/virtual_source_preview.dart';
 void main() {
   group('buildVirtualSourcePreviewHtml', () {
     const dataUrl = 'data:video/mp4;base64,AAAA';
-    final html = buildVirtualSourcePreviewHtml(dataUrl);
+    final html = buildVirtualSourcePreviewHtml(dataUrl, autoplay: true);
 
     test('embeds the source and renders a looping muted autoplay video', () {
       expect(html, contains('src="$dataUrl"'));
@@ -18,6 +18,17 @@ void main() {
 
     test('uses cover-fit so the preview matches the framing the site gets', () {
       expect(html, contains('object-fit:cover'));
+    });
+
+    test(
+        'under reduced motion it rests on its first frame and plays on request '
+        '(A11Y-011)', () {
+      final still = buildVirtualSourcePreviewHtml(dataUrl, autoplay: false);
+      expect(still, isNot(contains('autoplay')));
+      expect(still, contains('controls'));
+      expect(still, contains('preload="auto"'));
+      expect(still, contains('src="$dataUrl"'));
+      expect(html, isNot(contains('controls')));
     });
   });
 }

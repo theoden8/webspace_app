@@ -23,6 +23,7 @@ import 'package:webspace/widgets/accent_logo.dart';
 import 'package:webspace/widgets/tab_count_pill.dart';
 import 'package:webspace/widgets/webspace_name.dart';
 import 'package:webspace/widgets/webspace_group_tile.dart';
+import 'package:webspace/services/reduced_motion.dart';
 
 enum _GroupAction { edit, delete, moveUp, moveDown }
 
@@ -195,7 +196,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
   }
 
   void _run({required bool forward}) {
-    if (MediaQuery.disableAnimationsOf(context)) {
+    if (ReducedMotion.of(context)) {
       _panel.value = forward ? 1 : 0;
     } else {
       unawaited(forward ? _panel.forward() : _panel.reverse());
@@ -211,7 +212,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
       reverseDuration: Motion.launchBack,
     )..addStatusListener(_panelSettled);
     _pull = AnimationController.unbounded(vsync: this);
-    bool still() => MediaQuery.disableAnimationsOf(context);
+    bool still() => ReducedMotion.of(context);
     _folderLayout = _Layout(
       pref: AppPref.libraryLayout,
       vsync: this,
@@ -797,7 +798,10 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
                             vertical: Spacing.sm + Spacing.xs / 2,
                           ),
                           child: AnimatedContainer(
-                            duration: Motion.press,
+                            duration: ReducedMotion.duration(
+                              context,
+                              full: Motion.press,
+                            ),
                             width: index == on
                                 ? LibraryStyle.pageDot * 2.5
                                 : LibraryStyle.pageDot,
@@ -834,7 +838,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
       closeFolder();
       return;
     }
-    if (MediaQuery.disableAnimationsOf(context)) {
+    if (ReducedMotion.of(context)) {
       _pull.value = 0;
       return;
     }
@@ -850,7 +854,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
     required int index,
   }) {
     _aim = index;
-    if (MediaQuery.disableAnimationsOf(context)) {
+    if (ReducedMotion.of(context)) {
       pages.jumpToPage(index);
       return;
     }
@@ -990,9 +994,7 @@ class WebspaceLibraryState extends State<WebspaceLibrary>
       _foundSites = {};
     }
     return AnimatedSwitcher(
-      duration: MediaQuery.disableAnimationsOf(context)
-          ? Duration.zero
-          : Motion.reveal,
+      duration: ReducedMotion.duration(context, full: Motion.reveal),
       child: KeyedSubtree(
         key: ValueKey(mode),
         child: none

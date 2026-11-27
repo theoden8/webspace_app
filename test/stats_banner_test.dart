@@ -78,4 +78,18 @@ void main() {
     await pumpBanner(tester);
     expect(find.byIcon(Icons.shield), findsNothing);
   });
+
+  testWidgets('opens at once under reduced motion (A11Y-011)', (tester) async {
+    dns.statsForSite(site)
+        .record('beacon.example', verdict: const Blocked(BlockSource.dns));
+    await pumpLocalized(tester,
+        home: Scaffold(
+          body: MediaQuery(
+            data: const MediaQueryData(disableAnimations: true),
+            child: StatsBanner(siteId: site, dnsBlockEnabled: true),
+          ),
+        ));
+    expect(tester.widget<AnimatedSize>(find.byType(AnimatedSize)).duration,
+        Duration.zero);
+  });
 }

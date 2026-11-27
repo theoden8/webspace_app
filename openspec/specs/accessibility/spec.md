@@ -79,7 +79,7 @@ Android `AccessibilityBridge.java`, Linux `fl_settings_handler.cc`, macOS
 | Dark Interface | Dark appearance | Dark appearance | Dark theme | `color-scheme` | `platformBrightness` | `prefers-color-scheme` |
 | Differentiate Without Color Alone | Differentiate Without Color | same | none | none | not delivered | none |
 | Sufficient Contrast | Increase Contrast | Increase Contrast | High contrast text | `high-contrast` | `highContrast` on iOS and Linux only | `prefers-contrast` |
-| Reduced Motion | Reduce Motion | Reduce Motion | Remove animations | `enable-animations` off | `accessibilityFeatures.reduceMotion` on iOS; `MediaQuery.disableAnimations` on Android and Linux; nothing on macOS | `prefers-reduced-motion` |
+| Reduced Motion | Reduce Motion | Reduce Motion | Remove animations | `enable-animations` off | `accessibilityFeatures.reduceMotion` on iOS; `MediaQuery.disableAnimations` on Android and Linux; nothing on macOS, where the app asks `NSWorkspace` over a channel (A11Y-011) | `prefers-reduced-motion` |
 | Captions | Subtitles & Captioning | same | Caption preferences | none | n/a | `<track kind="captions">` |
 | Audio Descriptions | Audio Descriptions | same | Audio description | none | n/a | engine track selection |
 
@@ -109,7 +109,7 @@ needs a check on hardware before anything relies on it.
 | Screen reader reaches the page | expected: the engine wraps a `UiKitView` in `FlutterPlatformViewSemanticsContainer` (source; device) | **no** (source; device): `FlutterViewWrapper` hands AppKit only the Flutter view, the Flutter view's `accessibilityChildren` is the semantics root, and `FlutterPlatformNodeDelegateMac` has no platform-view case | expected: `AccessibilityBridge` embeds the platform view's nodes (source; device) | **no**: the page is a Flutter `Texture` (`custom_platform_view.dart`), and the fork has no ATK or AT-SPI code |
 | System text size | only through `font: -apple-system-body`; the app injects `-webkit-text-size-adjust` (A11Y-007) | nothing to follow (1.0) | follows `fontScale` until the embedder calls `setTextZoom` (`AwSettings.updateFontScaleLocked`); the plugin always calls it, so the app sets `textZoom` itself (A11Y-007) | nothing reads `text-scaling-factor`; the app's CSS is probably ignored (device) |
 | `prefers-color-scheme` in CSS | the view's appearance, which follows the system, not the app theme | same | the activity theme (`values-night`), so the system (device) | `WPE_SETTING_DARK_MODE`, which the app never sets |
-| `prefers-reduced-motion` | Reduce Motion (device) | same (device) | Remove animations: `ANIMATOR_DURATION_SCALE == 0` (`AccessibilityState.prefersReducedMotion`, fed to `WebPreferences` by `web_contents_impl.cc`) | only through the fork's `disableAnimations`, which the app never sets; upstream WPE 2.54 inverts the value ([WebKit#74861](https://github.com/WebKit/WebKit/pull/74861), open) |
+| `prefers-reduced-motion` | Reduce Motion (device) | same (device) | Remove animations: `ANIMATOR_DURATION_SCALE == 0` (`AccessibilityState.prefersReducedMotion`, fed to `WebPreferences` by `web_contents_impl.cc`) | only through the fork's `disableAnimations`, which the app sets from the helper on every site webview; WPE 2.54.0 and 2.54.1 apply it inverted, so the app sends it negated there (A11Y-011; WebKit bug 325212, fixed in 2.54.2) (device) |
 | `prefers-contrast` | Increase Contrast (WebKit since Safari 14.1; device) | same | not established | not established |
 | Invert colours | Smart Invert applies (`accessibilityIgnoresInvertColors` is false) | n/a | n/a | n/a |
 | Captions | engine media controls (device) | same | `CaptioningController` applies the system caption style to text tracks (source) | none known |
@@ -205,7 +205,8 @@ Why each is No today, in one line each:
   tint only.
 - **Sufficient Contrast**: accent-coloured section headers and several
   hard-coded greys and oranges fall below 4.5:1 on the light theme.
-- **Reduced Motion**: nothing reads the OS setting.
+- **Reduced Motion**: the helper follows the OS on every platform
+  (A11Y-011), but no one has checked it on an iPhone, an iPad or a Mac.
 
 #### Scenario: A label is claimed
 
@@ -597,34 +598,49 @@ colour in the chrome.
 ### Requirement: A11Y-011 - Motion stops when the OS asks
 
 The app SHALL treat motion as reduced when
-`MediaQuery.disableAnimationsOf(context)` is true (Android, Linux) or
-`platformDispatcher.accessibilityFeatures.reduceMotion` is true (iOS). One
-helper SHALL answer this, and no widget SHALL read either flag directly.
-Under reduced motion:
+`MediaQuery.disableAnimationsOf(context)` is true (Android, Linux),
+`platformDispatcher.accessibilityFeatures.reduceMotion` is true (iOS), or
+the Mac reports Reduce Motion. One helper SHALL answer this, and no widget
+SHALL read either flag directly. Under reduced motion:
 
-- decorative motion SHALL stop or become a cross-fade: the spinning sync
-  icon of the blocklist and timezone downloads in App settings
-  (`_spinController`, `app_settings.dart:312`), the corner button's glide
-  (`main.dart:10468`), `AnimatedScale` on press, `AnimatedSize` in the
-  statistics banner;
+- decorative motion SHALL stop or become a cross-fade: the corner button's
+  press and its glide to a corner, an icon's press and lift in the library
+  and drawer, the library's page dots, the statistics banner's resize, and
+  the library's and site frame's transitions (a launch card, a folder, a
+  slot moving, the sidebar);
 - the virtual camera and screen-share preview SHALL NOT autoplay; it shows
   its first frame and plays on request;
 - platform progress indicators MAY keep their platform behaviour.
 
 On the Mac, Flutter delivers neither flag; the helper SHALL read
 `NSWorkspace.shared.accessibilityDisplayShouldReduceMotion` over a method
-channel and observe its change notification. On Linux, the same signal
-SHALL set the fork's `disableAnimations` so WPE pages see it (after checking
-the WPE version for the inverted-polarity bug in the table above).
+channel and observe its change notification. On Linux, the same answer
+SHALL set the fork's `disableAnimations` on every webview that runs as a
+site, sent the other way round on WPE 2.54.0 and 2.54.1, which apply it
+inverted (WebKit bug 325212, fixed in 2.54.2). This feeds WPE the OS
+setting it cannot read itself; it does not change what the engine reports,
+so A11Y-003 still holds.
 
-Status: nothing reads either flag today.
+Status: holds in code, by `ReducedMotion` (`lib/services/reduced_motion.dart`),
+which the app root scopes so a change of any source rebuilds its readers;
+`test/js/reduced_motion_owner.test.js` refuses a read of either flag
+elsewhere. A webview built before a change keeps the value it was built
+with until it is rebuilt. Not yet checked on a device: the Mac channel, and
+a WPE page's `matchMedia` on each WPE version.
 
 #### Scenario: Reduce Motion on iPhone
 
 **Given** Reduce Motion is on in iOS Settings
-**When** a DNS blocklist download is in progress in App settings
-**Then** its sync icon does not spin
-**And** the progress is still shown
+**When** the user lets go of the corner button away from a corner
+**Then** it is in the nearest corner at once, without gliding there
+
+#### Scenario: Virtual camera preview under reduced motion
+
+**Given** the OS asks for reduced motion
+**And** a site's virtual camera serves a picked video
+**When** the user opens the site's camera settings
+**Then** the preview shows the clip's first frame and does not play
+**And** it plays when the user asks it to
 
 ---
 
@@ -768,14 +784,15 @@ By value over cost. Each item names the requirement it moves.
    to 48. These are two of Android's three quality criteria and most of what
    the pre-launch report will list.
 4. **Selected site cue** (A11Y-009) and the statistics chips and bars.
-5. **Reduced motion helper** (A11Y-011), including the Mac channel.
+5. **Reduced motion helper** (A11Y-011), including the Mac channel and
+   WPE's setting. Done in code; the device checks remain.
 6. **Dark flash check** (A11Y-008). Then answer Dark Interface Yes.
 7. **Larger Text matrix** (A11Y-006) and the fixed boxes it finds.
 8. **Custom actions** for reorder and the long-press-only actions (A11Y-005).
 9. **Theme shim compound queries** and the browser-tier media-feature gate
    (A11Y-003).
-10. **Fork and engine**: Linux keyboard escape (A11Y-012), Linux text scale,
-    reduced motion and dark mode settings (A11Y-007, A11Y-008, A11Y-011),
+10. **Fork and engine**: Linux keyboard escape (A11Y-012), Linux text scale
+    and dark mode settings (A11Y-007, A11Y-008),
     Linux AT-SPI and macOS platform-view accessibility (A11Y-004). The Mac
     item needs Flutter.
 

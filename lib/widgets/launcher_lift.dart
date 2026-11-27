@@ -5,6 +5,7 @@ import 'package:webspace/services/page_focus.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/launcher_grid.dart';
 import 'package:webspace/widgets/launcher_slot.dart';
+import 'package:webspace/services/reduced_motion.dart';
 
 /// An icon in a launcher grid, pressed as a phone's home screen is: a tap
 /// opens it; a long press lifts it under the finger, and letting go where it
@@ -92,7 +93,7 @@ class _LauncherLiftState<T extends Object> extends State<LauncherLift<T>> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final reduceMotion = ReducedMotion.of(context);
     final lift = Semantics(
       button: true,
       onTap: widget.onOpen,

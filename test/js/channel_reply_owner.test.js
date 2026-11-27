@@ -63,7 +63,7 @@ const KEPT = {
   // The plugin's PullToRefreshController.
   'lib/services/pull_to_refresh_gate.dart': 1,
   // The plugin's WebViewEnvironment.
-  'lib/services/site_icon_fetcher.dart': 1,
+  'lib/services/wpe_version.dart': 1,
   // url_launcher.
   'lib/widgets/external_url_prompt.dart': 1,
 };

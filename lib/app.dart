@@ -4,6 +4,7 @@ import 'package:webspace/l10n/gen/localizations.dart';
 
 import 'package:webspace/services/launch_context.dart';
 import 'package:webspace/services/launch_timeline.dart';
+import 'package:webspace/services/reduced_motion.dart';
 import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/app_locale.dart';
@@ -58,7 +59,9 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
           resolveSupportedLocale(locales, supported: supportedLocales),
       scaffoldMessengerKey: rootScaffoldMessengerKey,
       builder: (context, child) {
-        final app = CaptionTint(child: child ?? const SizedBox.shrink());
+        final app = ReducedMotionScope(
+          child: CaptionTint(child: child ?? const SizedBox.shrink()),
+        );
         return chromeKeys(app);
       },
       theme: buildAppTheme(accentColor, brightness: Brightness.light),
