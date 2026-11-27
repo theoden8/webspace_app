@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Starpniekservera paroles netiek iekļautas dublējumkopijās — ievadiet tās atkārtoti vietnes / lietotnes iestatījumos.",
   "homeImportBlocklistRedownloadHint": "Lejupielādējiet atkārtoti DNS / satura bloķētāja sarakstus lietotnes iestatījumos, lai aktivizētu bloķēšanu.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{{count} dublējumkopijā nosaukts paplašinājums nav atrodams šajā ierīcē: importējiet to lietotnes iestatījumos, sadaļā Paplašinājumi.} other{{count} dublējumkopijā nosaukti paplašinājumi nav atrodami šajā ierīcē: importējiet tos lietotnes iestatījumos, sadaļā Paplašinājumi.}}",
+  "homeImportInterfacesMissingHint": "Vietnes, kas piesaistītas tīkla saskarnei, kuras šai ierīcei nav, neko neielādē, līdz to Tīkla iestatījumos izvēlaties citu: {sites}.",
   "homeSettingsImportedSuccess": "Iestatījumi veiksmīgi importēti",
   "homeSettingsImportedWithHints": "Iestatījumi importēti. {hints}",
   "homeRestoreArchivedDataTitle": "Atjaunot arhivētos datus",

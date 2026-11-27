@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Proksi paroole varundustesse ei kaasata — sisesta need uuesti saidi/rakenduse seadetes.",
   "homeImportBlocklistRedownloadHint": "Laadi DNS / sisublokeerija loendid rakenduse seadetes uuesti alla, et blokeerimine aktiveerida.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{Varukoopias nimetatud 1 laiendus puudub sellest seadmest: impordi see rakenduse seadetes jaotises Laiendused.} other{Varukoopias nimetatud {count} laiendust puuduvad sellest seadmest: impordi need rakenduse seadetes jaotises Laiendused.}}",
+  "homeImportInterfacesMissingHint": "Saidid, mis on seotud võrguliidesega, mida sellel seadmel pole, ei laadi midagi, kuni valite nende Võrgu seadetes teise: {sites}.",
   "homeSettingsImportedSuccess": "Seaded edukalt imporditud",
   "homeSettingsImportedWithHints": "Seaded imporditud. {hints}",
   "homeRestoreArchivedDataTitle": "Taasta arhiveeritud andmed",

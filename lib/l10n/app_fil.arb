@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Hindi kasama ang mga password ng proxy sa mga backup — muling ilagay ang mga ito sa mga setting ng site / app.",
   "homeImportBlocklistRedownloadHint": "Muling i-download ang mga listahan ng DNS / content blocker sa App Settings para ma-activate ang pag-block.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{Wala sa device na ito ang {count} extension na binabanggit ng backup: i-import sa Mga Setting ng App, sa ilalim ng Mga Extension.} other{Wala sa device na ito ang {count} na extension na binabanggit ng backup: i-import ang mga ito sa Mga Setting ng App, sa ilalim ng Mga Extension.}}",
+  "homeImportInterfacesMissingHint": "Walang ilo-load ang mga site na nakatali sa isang network interface na wala sa device na ito hangga't hindi ka pumipili ng iba sa kanilang mga setting ng Network: {sites}.",
   "homeSettingsImportedSuccess": "Matagumpay na na-import ang mga setting",
   "homeSettingsImportedWithHints": "Na-import ang mga setting. {hints}",
   "homeRestoreArchivedDataTitle": "Ibalik ang naka-archive na data",

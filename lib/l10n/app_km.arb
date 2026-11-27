@@ -689,6 +689,7 @@
   "homeImportProxyPasswordsHint": "ពាក្យសម្ងាត់ proxy មិនត្រូវបានរួមបញ្ចូលក្នុង backups — បញ្ចូលម្ដងទៀតក្នុងការកំណត់ site / app ។",
   "homeImportBlocklistRedownloadHint": "ទាញយក DNS / content blocker lists ម្ដងទៀតក្នុងការកំណត់កម្មវិធីដើម្បីធ្វើ blocking ។",
   "homeImportExtensionsMissingHint": "{count, plural, =1{កម្មវិធីបន្ថែម 1 ដែលការបម្រុងទុកបានដាក់ឈ្មោះ មិនមាននៅលើឧបករណ៍នេះទេ៖ នាំចូលវានៅក្នុងការកំណត់កម្មវិធី ក្រោមផ្នែកកម្មវិធីបន្ថែម។} other{កម្មវិធីបន្ថែម {count} ដែលការបម្រុងទុកបានដាក់ឈ្មោះ មិនមាននៅលើឧបករណ៍នេះទេ៖ នាំចូលពួកវានៅក្នុងការកំណត់កម្មវិធី ក្រោមផ្នែកកម្មវិធីបន្ថែម។}}",
+  "homeImportInterfacesMissingHint": "គេហទំព័រដែលភ្ជាប់ទៅចំណុចប្រទាក់បណ្តាញដែលឧបករណ៍នេះមិនមាន មិនផ្ទុកអ្វីទាល់តែអ្នកជ្រើសរើសមួយផ្សេងទៀតក្នុងការកំណត់បណ្តាញរបស់វា៖ {sites}។",
   "homeSettingsImportedSuccess": "បានImport ការកំណត់ដោយជោគជ័យ",
   "homeSettingsImportedWithHints": "បាន import ការកំណត់។ {hints}",
   "homeRestoreArchivedDataTitle": "ស្ដារទិន្នន័យ archive",

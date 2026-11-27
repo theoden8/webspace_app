@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Kata laluan proksi tidak disertakan dalam sandaran — masukkan semula dalam tetapan tapak / aplikasi.",
   "homeImportBlocklistRedownloadHint": "Muat turun semula senarai DNS / penyekat kandungan dalam Tetapan Aplikasi untuk mengaktifkan sekatan.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{1 sambungan yang dinamakan dalam sandaran tiada pada peranti ini: import dalam Tetapan Aplikasi, di bawah Sambungan.} other{{count} sambungan yang dinamakan dalam sandaran tiada pada peranti ini: import dalam Tetapan Aplikasi, di bawah Sambungan.}}",
+  "homeImportInterfacesMissingHint": "Tapak yang terikat pada antara muka rangkaian yang tiada pada peranti ini tidak memuatkan apa-apa sehingga anda memilih yang lain dalam tetapan Rangkaian tapak itu: {sites}.",
   "homeSettingsImportedSuccess": "Tetapan berjaya diimport",
   "homeSettingsImportedWithHints": "Tetapan diimport. {hints}",
   "homeRestoreArchivedDataTitle": "Pulihkan data diarkibkan",

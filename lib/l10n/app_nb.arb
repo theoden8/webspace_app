@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Proxy-passord er ikke inkludert i sikkerhetskopier — skriv dem inn på nytt i nettsted- / app-innstillinger.",
   "homeImportBlocklistRedownloadHint": "Last ned DNS- / innholdsblokkeringslister på nytt i App-innstillinger for å aktivere blokkering.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{1 utvidelse som sikkerhetskopien nevner, finnes ikke på denne enheten: importer den i App-innstillinger, under Utvidelser.} other{{count} utvidelser som sikkerhetskopien nevner, finnes ikke på denne enheten: importer dem i App-innstillinger, under Utvidelser.}}",
+  "homeImportInterfacesMissingHint": "Nettsteder som er bundet til et nettverksgrensesnitt denne enheten mangler, laster ingenting før du velger et annet i Nettverk-innstillingene deres: {sites}.",
   "homeSettingsImportedSuccess": "Innstillinger importert",
   "homeSettingsImportedWithHints": "Innstillinger importert. {hints}",
   "homeRestoreArchivedDataTitle": "Gjenopprett arkiverte data",

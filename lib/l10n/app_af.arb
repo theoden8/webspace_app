@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Proxy-wagwoorde word nie in rugsteune ingesluit nie — voer hulle weer in webwerf- / app-instellings in.",
   "homeImportBlocklistRedownloadHint": "Laai DNS- / inhoudblokkeerder-lyste weer in App-instellings af om blokkering te aktiveer.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{1 uitbreiding wat die rugsteun noem, is nie op hierdie toestel nie: voer dit in by App-instellings, onder Uitbreidings.} other{{count} uitbreidings wat die rugsteun noem, is nie op hierdie toestel nie: voer hulle in by App-instellings, onder Uitbreidings.}}",
+  "homeImportInterfacesMissingHint": "Werwe wat aan 'n netwerkkoppelvlak gebind is wat hierdie toestel nie het nie, laai niks totdat jy 'n ander in hul Netwerk-instellings kies: {sites}.",
   "homeSettingsImportedSuccess": "Instellings suksesvol ingevoer",
   "homeSettingsImportedWithHints": "Instellings ingevoer. {hints}",
   "homeRestoreArchivedDataTitle": "Herstel geargiveerde data",

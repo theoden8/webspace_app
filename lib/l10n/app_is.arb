@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Milliþjónslykilorð eru ekki innifalin í afritum — sláðu þau aftur inn í svæðis- / forritsstillingum.",
   "homeImportBlocklistRedownloadHint": "Sæktu DNS- / efnisblokkaralista aftur í Forritsstillingum til að virkja blokkun.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{{count} viðbót sem afritið nefnir er ekki í þessu tæki: fluttu hana inn í Forritsstillingum, undir Viðbætur.} other{{count} viðbætur sem afritið nefnir eru ekki í þessu tæki: fluttu þær inn í Forritsstillingum, undir Viðbætur.}}",
+  "homeImportInterfacesMissingHint": "Vefsvæði sem eru bundin við netviðmót sem þetta tæki hefur ekki hlaða engu inn fyrr en þú velur annað í Netkerfi-stillingum þeirra: {sites}.",
   "homeSettingsImportedSuccess": "Stillingar fluttar inn með góðum árangri",
   "homeSettingsImportedWithHints": "Stillingar fluttar inn. {hints}",
   "homeRestoreArchivedDataTitle": "Endurheimta safnað gögn",

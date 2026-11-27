@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Heslá proxy nie sú zahrnuté v zálohách — znova ich zadajte v nastaveniach stránky / aplikácie.",
   "homeImportBlocklistRedownloadHint": "Na aktiváciu blokovania znova stiahnite zoznamy blokovaných DNS / blokovača obsahu v Nastaveniach aplikácie.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{1 rozšírenie uvedené v zálohe nie je v tomto zariadení: importujte ho v Nastaveniach aplikácie, v časti Rozšírenia.} few{{count} rozšírenia uvedené v zálohe nie sú v tomto zariadení: importujte ich v Nastaveniach aplikácie, v časti Rozšírenia.} many{{count} rozšírenia uvedeného v zálohe nie je v tomto zariadení: importujte ich v Nastaveniach aplikácie, v časti Rozšírenia.} other{{count} rozšírení uvedených v zálohe nie je v tomto zariadení: importujte ich v Nastaveniach aplikácie, v časti Rozšírenia.}}",
+  "homeImportInterfacesMissingHint": "Weby viazané na sieťové rozhranie, ktoré toto zariadenie nemá, nenačítajú nič, kým v ich nastaveniach Sieť nevyberiete iné: {sites}.",
   "homeSettingsImportedSuccess": "Nastavenia úspešne importované",
   "homeSettingsImportedWithHints": "Nastavenia importované. {hints}",
   "homeRestoreArchivedDataTitle": "Obnoviť archivované údaje",

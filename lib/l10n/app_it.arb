@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Le password proxy non sono incluse nei backup: reinseriscile nelle impostazioni del sito / dell'app.",
   "homeImportBlocklistRedownloadHint": "Riscarica le liste DNS / blocco contenuti nelle Impostazioni app per attivare il blocco.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{1 estensione indicata nel backup non è su questo dispositivo: importala nelle Impostazioni app, in Estensioni.} other{{count} estensioni indicate nel backup non sono su questo dispositivo: importale nelle Impostazioni app, in Estensioni.}}",
+  "homeImportInterfacesMissingHint": "I siti legati a un'interfaccia di rete che questo dispositivo non ha non caricano nulla finché non ne scegli un'altra nelle loro impostazioni di Rete: {sites}.",
   "homeSettingsImportedSuccess": "Impostazioni importate correttamente",
   "homeSettingsImportedWithHints": "Impostazioni importate. {hints}",
   "homeRestoreArchivedDataTitle": "Ripristina dati archiviati",

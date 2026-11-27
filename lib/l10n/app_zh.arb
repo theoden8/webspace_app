@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "備份中不含代理密碼——請在網站／應用程式設定中重新輸入。",
   "homeImportBlocklistRedownloadHint": "請在應用程式設定中重新下載 DNS／內容封鎖器清單以啟用封鎖。",
   "homeImportExtensionsMissingHint": "{count, plural, =1{備份中列出的 1 個擴充功能不在此裝置上：請在應用程式設定的「擴充功能」中匯入。} other{備份中列出的 {count} 個擴充功能不在此裝置上：請在應用程式設定的「擴充功能」中匯入。}}",
+  "homeImportInterfacesMissingHint": "綁定到此裝置所沒有之網路介面的網站，在您於其網路設定中選擇其他介面之前不會載入任何內容：{sites}。",
   "homeSettingsImportedSuccess": "設定已成功匯入",
   "homeSettingsImportedWithHints": "設定已匯入。{hints}",
   "homeRestoreArchivedDataTitle": "還原封存的資料",

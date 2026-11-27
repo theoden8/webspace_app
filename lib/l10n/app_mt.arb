@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Il-passwords tal-proxy mhumiex inklużi fil-backups — erġa' daħħalhom fis-settings tas-sit / tal-app.",
   "homeImportBlocklistRedownloadHint": "Erġa' niżżel il-listi tal-imblukkar DNS / kontenut f'Settings tal-App biex tattiva l-imblukkar.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{Estensjoni waħda li jsemmi l-backup mhijiex fuq dan l-apparat: importaha f'Settings tal-App, taħt Estensjonijiet.} other{{count} estensjonijiet li jsemmi l-backup mhumiex fuq dan l-apparat: importahom f'Settings tal-App, taħt Estensjonijiet.}}",
+  "homeImportInterfacesMissingHint": "Is-siti marbuta ma' interface tan-netwerk li dan l-apparat m'għandux ma jtellgħu xejn sakemm tagħżel ieħor fl-issettjar tan-Netwerk tagħhom: {sites}.",
   "homeSettingsImportedSuccess": "Is-settings ġew importati b'suċċess",
   "homeSettingsImportedWithHints": "Is-settings ġew importati. {hints}",
   "homeRestoreArchivedDataTitle": "Irrestawra data arkivjata",

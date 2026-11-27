@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Nywila za proksi hazijumuishwi katika nakala rudufu — ziweke tena katika mipangilio ya tovuti / programu.",
   "homeImportBlocklistRedownloadHint": "Pakua tena orodha za DNS / kizuizi cha maudhui katika Mipangilio ya Programu ili kuwasha uzuiaji.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{Kiendelezi 1 kinachotajwa na nakala rudufu hakipo kwenye kifaa hiki: kilete katika Mipangilio ya Programu, chini ya Viendelezi.} other{Viendelezi {count} vinavyotajwa na nakala rudufu havipo kwenye kifaa hiki: vilete katika Mipangilio ya Programu, chini ya Viendelezi.}}",
+  "homeImportInterfacesMissingHint": "Tovuti zilizofungwa kwenye kiolesura cha mtandao ambacho kifaa hiki hakina hazipakii chochote hadi uchague kingine katika mipangilio yao ya Mtandao: {sites}.",
   "homeSettingsImportedSuccess": "Mipangilio imeletwa kwa mafanikio",
   "homeSettingsImportedWithHints": "Mipangilio imeletwa. {hints}",
   "homeRestoreArchivedDataTitle": "Rejesha data iliyohifadhiwa",
