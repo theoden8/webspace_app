@@ -619,7 +619,6 @@ const _owed = <String, Set<String>>{
 /// passed in. Only shrinks.
 const _unchecked = {
   'lib/services/runtime_vars.dart vars: reads is not a literal set',
-  'lib/services/dns_level_mask_engine.dart ?: of is not a closure',
   'lib/services/background_wake_engine.dart wake: of is not a closure',
 };
 

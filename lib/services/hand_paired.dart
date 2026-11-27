@@ -70,9 +70,6 @@ enum HandPaired implements Pairing {
   /// level and those a listed site asks for (DNS-021).
   dnsPrunes,
 
-  /// An argument of the DNS level's definition, by its name.
-  levelAsk,
-
   /// A capture still keyed to its tab (`tab \in tabs[site]`): the key names
   /// the tab's container too, which nothing in the model flips.
   captureHolds,
