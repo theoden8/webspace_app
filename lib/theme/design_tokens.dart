@@ -235,11 +235,16 @@ abstract final class IconSizes {
 
   /// Icon inside a floating circular button.
   static const double floating = 22;
+
+  /// A site's icon leading a list row.
+  static const double siteLeading = 32;
 }
 
 abstract final class TapTargets {
-  /// Floor for a compact icon button that still has to be hittable.
-  static const double compact = 32;
+  /// The hit area of anything tappable in the chrome, Android's 48dp floor,
+  /// which also clears iOS's 44pt (A11Y-014). What is drawn inside it may be
+  /// smaller.
+  static const double compact = kMinInteractiveDimension;
 }
 
 abstract final class Motion {
@@ -308,7 +313,8 @@ abstract final class Elevations {
 /// to show what it covers and grows while dragged.
 abstract final class FloatingButton {
   static const double surfaceOpacity = 0.85;
-  static const double padding = 10;
+  /// Around its icon, so the button is one tap target across.
+  static const double padding = (TapTargets.compact - IconSizes.floating) / 2;
   static const double dragScale = 1.2;
 }
 

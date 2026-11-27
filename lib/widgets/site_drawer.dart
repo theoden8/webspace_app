@@ -245,7 +245,6 @@ class SiteDrawerHeader extends StatelessWidget {
                   vertical: 0,
                 ),
                 minimumSize: Size(0, 32),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               onPressed: onBackToWebspaces,
               icon: Icon(Icons.arrow_back, size: 16),

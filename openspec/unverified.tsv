@@ -12,7 +12,7 @@ A11Y-008	no check: nothing renders every chrome screen dark or checks a webview'
 A11Y-010	no check: the contrast test omits primary-on-surface and the hard-coded greys/oranges, and highContrastTheme is not set; spec lists failures (partly: test/accent_theme_contrast_test.dart, "every accent keeps AA contrast on its paired on-colours")
 A11Y-012	no check: no Shortcuts/Actions/PlatformMenuBar exist and no test drives keyboard focus traversal or Escape
 A11Y-013	process: a person runs OS accessibility checks on devices before a release; nothing a test can run
-A11Y-014	no check: Flutter's tap-target guidelines run in no test; the render matrix holds widgets to TapTargets.compact (32), below both platform floors (partly: test/design_render_matrix_test.dart, "the corner button is a tap target, not just an icon")
+A11Y-014	open, each a design decision: the drawer tile's corner menu (24, behind ExcludeSemantics; a 48 target would cover the site's icon), the sidebar squares' tab toggle (40 hit, over the icon) and the sidebar rail's tab bars (24x10) (partly: test/tap_targets_test.dart runs both tap target guidelines over the app bar, drawer, tab strip, tabs sheet and settings screens)
 A11Y-016	process: reading the Play pre-launch report each release is a release step; nothing a test can run
 # archive
 # background-audio

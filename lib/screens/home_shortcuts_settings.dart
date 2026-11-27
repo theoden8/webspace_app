@@ -99,10 +99,10 @@ class _HomeShortcutsScreenState extends State<HomeShortcutsScreen> {
     final address = site?.initUrl ?? shortcut.url;
     return ListTile(
       leading: SizedBox.square(
-        dimension: TapTargets.compact,
+        dimension: IconSizes.siteLeading,
         child: site == null
             ? const Icon(Icons.link_off)
-            : UnifiedFaviconImage.site(site, size: TapTargets.compact),
+            : UnifiedFaviconImage.site(site, size: IconSizes.siteLeading),
       ),
       title: Text(
         site?.getDisplayName() ?? loc.homeShortcutsSiteGone,

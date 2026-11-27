@@ -1241,7 +1241,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       ]);
       await tester.pumpAndSettle();
       expect(rowHeight(tester, text: 'https://github.com/pulls'),
-          kMinInteractiveDimension);
+          TapTargets.compact + 2 * TabRowDensity.comfortable.rowPadding);
     });
 
     testWidgets('a list that would scroll opens compact and stays so after a '
@@ -1257,7 +1257,8 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       });
       await tester.pumpAndSettle();
       final compact = rowHeight(tester, text: 'https://github.com/p1');
-      expect(compact, lessThan(kMinInteractiveDimension));
+      expect(compact, TapTargets.compact,
+          reason: 'compact takes the space around a row, not its buttons');
       for (var i = 4; i < 24; i++) {
         await tester.tap(closeButtonOf('https://github.com/p$i'));
         await tester.pumpAndSettle();

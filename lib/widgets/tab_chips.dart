@@ -53,7 +53,6 @@ class TabChips extends StatelessWidget {
               : () => actions.close(site, tabId: row.tab.id),
         ),
       IconButton(
-        visualDensity: VisualDensity.compact,
         iconSize: IconSizes.action,
         tooltip: loc.tabsNewTab,
         icon: const Icon(Icons.add),
@@ -103,25 +102,33 @@ class TabChip extends StatelessWidget {
   /// Null for a site's only tab, which nothing replaces.
   final VoidCallback? onClose;
 
+  /// How tall the chip is drawn, centred in its taller tap target.
+  static const double _drawn = 32;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final loc = AppLocalizations.of(context);
-    return Material(
-      color: active ? scheme.secondaryContainer : scheme.surface,
-      shape: RoundedRectangleBorder(
+    final shape = _Inset(
+      RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Radii.md),
         side: BorderSide(
           color: active ? scheme.primary : scheme.outlineVariant,
           width: active ? 1.5 : Chrome.hairlineWidth,
         ),
       ),
+      by: (TapTargets.compact - _drawn) / 2,
+    );
+    return Material(
+      color: active ? scheme.secondaryContainer : scheme.surface,
+      shape: shape,
       child: InkWell(
         onTap: onOpen,
-        borderRadius: BorderRadius.circular(Radii.md),
+        customBorder: shape,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 180, minHeight: 32),
+          constraints: const BoxConstraints(
+              maxWidth: 180, minHeight: TapTargets.compact),
           child: Padding(
             padding: EdgeInsetsDirectional.only(
                 start: Spacing.sm, end: onClose == null ? Spacing.sm : 0),
@@ -152,7 +159,6 @@ class TabChip extends StatelessWidget {
                 ),
                 if (onClose case final close?)
                   IconButton(
-                    visualDensity: VisualDensity.compact,
                     padding: EdgeInsets.zero,
                     constraints:
                         const BoxConstraints.tightFor(width: 28, height: 28),
@@ -168,4 +174,42 @@ class TabChip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// [shape] drawn [by] in from the top and bottom of the box it is given, so a
+/// chip and its ink stay their drawn height inside a taller tap target.
+class _Inset extends ShapeBorder {
+  const _Inset(this.shape, {required this.by});
+
+  final ShapeBorder shape;
+  final double by;
+
+  Rect _drawn(Rect rect) =>
+      Rect.fromLTRB(rect.left, rect.top + by, rect.right, rect.bottom - by);
+
+  @override
+  EdgeInsetsGeometry get dimensions => shape.dimensions;
+
+  @override
+  Path getInnerPath(Rect rect, {TextDirection? textDirection}) =>
+      shape.getInnerPath(_drawn(rect), textDirection: textDirection);
+
+  @override
+  Path getOuterPath(Rect rect, {TextDirection? textDirection}) =>
+      shape.getOuterPath(_drawn(rect), textDirection: textDirection);
+
+  @override
+  void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) =>
+      shape.paint(canvas, _drawn(rect), textDirection: textDirection);
+
+  @override
+  ShapeBorder scale(double t) => _Inset(shape.scale(t), by: by * t);
+
+  // Material animates a shape it is handed anew unless it is equal.
+  @override
+  bool operator ==(Object other) =>
+      other is _Inset && other.shape == shape && other.by == by;
+
+  @override
+  int get hashCode => Object.hash(shape, by);
 }
