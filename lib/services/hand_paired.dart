@@ -23,10 +23,6 @@ enum HandPaired implements Pairing {
   /// the bytes.
   tabLabel,
 
-  /// The listed sites with tabs a child tab may open in: those with a
-  /// fresh tab id left in the model's pool.
-  childSites,
-
   /// The site a child tab runs as while its opener routes outbound links,
   /// none (`0`) for one no link opened (LIR-034).
   childLinks,
