@@ -598,13 +598,15 @@ abstract final class TabTable {
   /// The site a child tab runs as: another listed site where containers
   /// keep their cookies apart (LIR-032), else its own.
   static final _eachChildHost = Pick<SiteId, TabFlow>(
-    Expr.op(
-      HandPaired.childHosts,
-      tla: r'IF Containers THEN Listed ELSE {fl[f].site}',
+    Expr.chosen(
+      among: Expr.choose<Iterable<SiteId>, TabFlow>(
+        when: _containers,
+        then: _listed,
+        otherwise: _site.value.asSet,
+      ),
       run: (c) => [
         _page.from(c).childHost(_flow.from(c).fresh!, owner: _site.of(c)),
       ],
-      reads: const Reads(base: {BaseOp.listed}),
     ),
     name: 'hs',
   );
@@ -630,11 +632,9 @@ abstract final class TabTable {
   /// The site whose switch a child tab follows, which its handler names as
   /// the link is pressed, before a park waits for a free gate (TAB-006).
   static final _eachChildOpener = Pick<SiteId?, TabFlow>(
-    Expr.op(
-      HandPaired.childOpeners,
-      tla: r'{0} \cup Listed',
+    Expr.chosen(
+      among: _noLink.asSet.union(_listed),
       run: (c) => [_childOpeners.from(c)(_flow.from(c))],
-      reads: const Reads(base: {BaseOp.listed}),
     ),
     name: 'op',
   );
@@ -670,16 +670,19 @@ abstract final class TabTable {
   /// The tab a landing names: the one the site is on, a parked one, or a
   /// fresh one while the pool has one; the engine decides which.
   static final _eachLanding = Pick<TabId, TabFlow>(
-    Expr.op(
-      HandPaired.landingTabs,
-      tla:
-          r'tabs[fl[f].site] \cup '
-          r'(IF HasFresh(fl[f].site) THEN {Mint(fl[f].site)} ELSE {})',
-      run: (c) => [for (final t in _flow.from(c).landed!) t.id],
-      reads: const Reads(
-        vars: {ModelVar.tabs},
-        base: {BaseOp.hasFresh, BaseOp.mint},
+    Expr.chosen(
+      among: _tabIds(_site.value).union(
+        Expr.choose(
+          when: Expr.base(
+            BaseOp.hasFresh,
+            args: [_site.value],
+            run: (_) => true,
+          ),
+          then: _mintSite.asSet,
+          otherwise: Expr.none(),
+        ),
       ),
+      run: (c) => [for (final t in _flow.from(c).landed!) t.id],
     ),
     first: (c, {required among}) => _flow.from(c).requested!,
   );

@@ -15,13 +15,9 @@ abstract interface class Pairing implements Enum {}
 /// fails on a site that names none, and on a value no site or two sites
 /// name.
 enum HandPaired implements Pairing {
-
-
   /// An archive open with none of its sites gone
   /// (`Archive # {} /\ Archive \cap gone = {}`).
   archiveOpen,
-
-
 
   /// The bytes' label (`fl[f].label`), the model's alone: the code holds
   /// the bytes.
@@ -31,22 +27,9 @@ enum HandPaired implements Pairing {
   /// fresh tab id left in the model's pool.
   childSites,
 
-  /// The sites a child tab may run as: any listed site where containers
-  /// keep their cookies apart (LIR-032), else its own.
-  childHosts,
-
   /// The site a child tab runs as while its opener routes outbound links,
   /// none (`0`) for one no link opened (LIR-034).
   childLinks,
-
-  /// The site whose switch a child tab follows, which its handler names as
-  /// the link is pressed: the page's, or the tab it is a sibling of; none
-  /// (`0`) for one no link opened (LIR-034).
-  childOpeners,
-
-  /// The tabs a landing may name: the site's, and a fresh one while the
-  /// pool has one.
-  landingTabs,
 
   /// The tabs a target has to be among, none once the page is gone.
   targetAmong,
