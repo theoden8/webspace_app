@@ -221,8 +221,15 @@ plan() {
 # left behind, the runs fill the disk.
 pool() {
   trap 'kill $(jobs -p) 2>/dev/null; wait; exit 1' TERM
-  local free="$SLOTS" running="" name w cfg spec lib cover meta recover d
+  local free="$SLOTS" running="" name w cfg spec lib cover meta recover workers d
   while IFS=$'\t' read -r -u 4 name w cfg spec lib cover; do
+    meta="$(metadir "$name")"
+    read -r recover workers <<<"$(checkpoint "$meta" "$(basename "$spec" .tla)")"
+    # TLC recovers a checkpoint only with as many workers as wrote it; one
+    # that needs more than the pool has is run afresh.
+    if [ -n "$recover" ]; then
+      if [ "$workers" -le "$SLOTS" ]; then w="$workers"; else recover=""; fi
+    fi
     while [ "$free" -lt "$w" ]; do reap; done
     if ! fits "$name" "$w"; then
       touch "$RUNS/$name.deferred" "$RUNS/$name.done"
@@ -232,8 +239,6 @@ pool() {
     [ "$cover" != - ] || cover=""
     mkdir -p "$RUNS/$name.tmp"
     echo "$SECONDS $w" >"$RUNS/$name.started"
-    meta="$(metadir "$name")"
-    recover="$(checkpoint "$meta")"
     # A checkpoint TLC did not finish writing is never recovered from, and
     # one older than the newest is not either: each only takes disk.
     for d in "$meta"/*/; do [ "${d%/}" = "$recover" ] || rm -rf "${d%/}"; done
@@ -254,13 +259,18 @@ metadir() {
   else echo "$RUNS/$1.states"; fi
 }
 
-# checkpoint <metadir>: the newest checkpoint TLC finished writing there
-# (its queue and its variables), or nothing.
+# checkpoint <metadir> <spec>: the newest checkpoint TLC finished writing
+# there (its queue, its variables and each worker's trace, <spec>-<i>.chkpt
+# numbered from 0) and how many workers wrote it, or nothing.
 checkpoint() {
-  local d last=""
+  local d last="" n traces
   [ "$CHECKPOINT" -gt 0 ] || return 0
   for d in "$1"/*/; do
-    [ -f "$d/queue.chkpt" ] && [ -f "$d/vars.chkpt" ] && last="${d%/}"
+    [ -f "$d/queue.chkpt" ] && [ -f "$d/vars.chkpt" ] || continue
+    n=0
+    while [ -f "$d/$2-$n.chkpt" ]; do n=$((n + 1)); done
+    traces="$(find "$d" -maxdepth 1 -name "$2-[0-9]*.chkpt" | wc -l)"
+    [ "$n" -gt 0 ] && [ "$traces" -eq "$n" ] && last="${d%/} $n"
   done
   echo "$last"
 }

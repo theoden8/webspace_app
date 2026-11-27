@@ -45,11 +45,26 @@ function runner(t, { script = (text) => text } = {}) {
         kept: metadir && fs.existsSync(metadir) ? fs.readdirSync(metadir).sort() : [],
       }) + '\n');
     record('start');
-    // TLC writes a checkpoint as a dated directory under its metadir.
+    // TLC writes a checkpoint as a dated directory under its metadir, a
+    // trace file for each worker, and recovers one only with as many workers.
+    const spec = path.basename(args[args.length - 1], '.tla');
+    const recovering = flag('-recover');
+    if (recovering) {
+      const traces = fs.readdirSync(recovering).filter((f) => f.startsWith(`${spec}-`));
+      const wrote = Array.from({ length: workers }, (_, i) => `${spec}-${i}.chkpt`);
+      if (traces.length !== workers || !wrote.every((f) => traces.includes(f))) {
+        record('end');
+        console.log(`Error: java.io.FileNotFoundException: ${workers} workers recover ${traces}`);
+        process.exitCode = 1;
+        return;
+      }
+    }
     if (process.env.TLC_TEST_CHECKPOINTS === 'true') {
       const at = path.join(metadir, '26-11-25-14-10-06');
       fs.mkdirSync(at, { recursive: true });
-      for (const file of ['queue.chkpt', 'vars.chkpt']) fs.writeFileSync(path.join(at, file), '');
+      const files = ['queue.chkpt', 'vars.chkpt'];
+      for (let i = 0; i < workers; i++) files.push(`${spec}-${i}.chkpt`);
+      for (const file of files) fs.writeFileSync(path.join(at, file), '');
     }
     console.log('Progress(1): 100 states generated, 50 distinct states found');
     setTimeout(() => {
@@ -289,12 +304,16 @@ test('with checkpoints a run keeps them under its key, and one that ends leaves 
   assert.equal(fs.existsSync(start.metadir), false, 'a run that ended left its checkpoint');
 });
 
+/** The files of a checkpoint <workers> wrote for kernel.tla. */
+const checkpointFiles = (workers) =>
+  ['queue.chkpt', 'vars.chkpt', ...Array.from({ length: workers }, (_, i) => `kernel-${i}.chkpt`)];
+
 /** A checkpoint a restart left for the run of kernel.cfg, at its key. */
-function leftCheckpoint(check) {
+function leftCheckpoint(check, { workers = 4 } = {}) {
   assert.equal(check.run({ checkpoint: 30 }).status, 0);
   const at = path.join(starts(check)[0].metadir, '26-11-25-14-10-06');
   fs.mkdirSync(at, { recursive: true });
-  for (const file of ['queue.chkpt', 'vars.chkpt']) fs.writeFileSync(path.join(at, file), '');
+  for (const file of checkpointFiles(workers)) fs.writeFileSync(path.join(at, file), '');
   return at;
 }
 
@@ -322,10 +341,40 @@ test('of two checkpoints the older is deleted as the run recovers the newer', (t
   const at = leftCheckpoint(check);
   const older = path.join(path.dirname(at), '26-11-25-13-00-00');
   fs.mkdirSync(older);
-  for (const file of ['queue.chkpt', 'vars.chkpt']) fs.writeFileSync(path.join(older, file), '');
+  for (const file of checkpointFiles(4)) fs.writeFileSync(path.join(older, file), '');
   assert.equal(check.run({ checkpoint: 30, rerun: true }).status, 0);
   assert.equal(starts(check)[1].recover, at);
   assert.deepEqual(starts(check)[1].kept, [path.basename(at)]);
+});
+
+test('a run recovers with as many workers as wrote its checkpoint', (t) => {
+  const check = runner(t);
+  const at = leftCheckpoint(check, { workers: 2 });
+  const result = check.run({ checkpoint: 30, rerun: true });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.equal(starts(check)[1].recover, at);
+  assert.equal(starts(check)[1].workers, 2, 'the plan would give the sole run all 4');
+});
+
+test('a checkpoint missing a worker\'s trace, or written by more workers than the pool has, is run afresh', (t) => {
+  for (const [workers, plant] of [[3, 'kernel-1.chkpt'], [6, null]]) {
+    const check = runner(t);
+    const at = leftCheckpoint(check, { workers });
+    if (plant) fs.rmSync(path.join(at, plant));
+    const result = check.run({ checkpoint: 30, rerun: true });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.equal(starts(check)[1].recover, null, `${workers} workers, ${plant} gone`);
+    assert.equal(starts(check)[1].workers, 4);
+    assert.deepEqual(starts(check)[1].kept, []);
+  }
+});
+
+test('planted: a runner that recovers with the plan\'s workers is caught', (t) => {
+  const check = runner(t, { script: (text) => text.replace('then w="$workers"; else', 'then :; else') });
+  leftCheckpoint(check, { workers: 2 });
+  const result = check.run({ checkpoint: 30, rerun: true });
+  assert.notEqual(result.status, 0, 'the plant changed nothing');
+  assert.match(result.stdout, /FileNotFoundException/);
 });
 
 test('planted: a runner that keeps stale checkpoints is caught', (t) => {

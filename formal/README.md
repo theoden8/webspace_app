@@ -656,7 +656,8 @@ behaves; a kept run nothing has asked for in a fortnight is dropped.
 A run that a restart cuts short resumes where its last checkpoint left it once
 `FORMAL_CHECKPOINT_MINUTES=<n>` is set: TLC checkpoints every `n` minutes into
 `FORMAL_CACHE/checkpoints/<key>`, a directory named for the same key, and a run that finds a
-checkpoint TLC finished writing there passes `-recover`. A run that ends, by a verdict or
+checkpoint TLC finished writing there passes `-recover`, with as many workers as wrote it:
+TLC keeps a trace file per worker and recovers only with all of them. A run that ends, by a verdict or
 a failed recovery, deletes its checkpoint, so only a cut-short run's survives. The verdict
 is the run's whatever its starts, since a recovered run explores the states the checkpoint
 had not. It is off by default because a checkpoint copies the state queue beside the run's
