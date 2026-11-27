@@ -585,14 +585,15 @@ abstract final class TabTable {
   /// The site with tabs a child tab opens in, while the model's pool has
   /// a fresh tab id for it.
   static final _eachChildOwner = Pick<SiteId, TabFlow>(
-    Expr.op(
-      HandPaired.childSites,
-      tla: r'{o \in Listed \cap Tabbed : HasFresh(o)}',
+    Expr.chosen(
+      among: _listed.cap([tabbedOf()]).where(
+        _o,
+        holds: Expr.base(BaseOp.hasFresh, args: [_o.it], run: (_) => true),
+      ),
       run: (c) => [_flow.from(c).site.siteId],
-      reads: const Reads(base: {BaseOp.listed, BaseOp.hasFresh}),
-      needs: const {(of: ModelConst.tabbed, set: true)},
     ),
   );
+  static const _o = Bound<SiteId, TabFlow>('o');
   static final _childOwner = _eachChildOwner.it;
 
   /// The site a child tab runs as: another listed site where containers
