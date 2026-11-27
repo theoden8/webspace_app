@@ -49,31 +49,54 @@ mixin _RebuildOnStats<T extends StatefulWidget> on State<T> {
   }
 }
 
-/// Daily totals as a bare bar strip. Deliberately label-free: the axis
-/// values would need a locale-formatted date per bar and the shape is the
-/// point, not the readings.
-Widget _dailyBars(ThemeData theme, {required List<int> daily}) {
+/// Daily totals as a bar strip, oldest first and ending on [now]'s day. No
+/// axis is drawn, the shape is the point; each bar still says its day and
+/// count to a screen reader, so the chart is not told by its look alone
+/// (A11Y-009).
+Widget _dailyBars(
+  BuildContext context, {
+  required List<int> daily,
+  required DateTime now,
+}) {
+  final theme = Theme.of(context);
+  final loc = AppLocalizations.of(context);
+  final dates = MaterialLocalizations.of(context);
   final peak = daily.fold<int>(0, (a, b) => b > a ? b : a);
   return SizedBox(
     height: 72,
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final value in daily)
+          for (final (i, value) in daily.indexed)
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1),
-                child: FractionallySizedBox(
-                  // A zero day draws nothing; any non-zero day gets a
-                  // visible stub so a quiet day is not mistaken for none.
-                  heightFactor:
-                      value == 0 || peak == 0 ? 0.0 : (value / peak).clamp(0.04, 1.0),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary,
-                      borderRadius: BorderRadius.circular(2),
+              child: Semantics(
+                container: true,
+                label: loc.termAndMeaning(
+                  Localized.verbatim(
+                    dates.formatShortMonthDay(
+                      DateTime(now.year, now.month,
+                          now.day - (daily.length - 1 - i)),
+                    ),
+                  ),
+                  Localized.verbatim(dates.formatDecimal(value)),
+                ),
+                excludeSemantics: true,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 1),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.bottomCenter,
+                    // A zero day draws nothing; any non-zero day gets a
+                    // visible stub so a quiet day is not mistaken for none.
+                    heightFactor: value == 0 || peak == 0
+                        ? 0.0
+                        : (value / peak).clamp(0.04, 1.0),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
                 ),
@@ -125,7 +148,8 @@ class _BlockStatsScreenState extends State<BlockStatsScreen>
     final loc = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final engine = _service.engine;
-    final totals = engine.totalsForLastDays(_rangeDays);
+    final now = DateTime.now();
+    final totals = engine.totalsForLastDays(_rangeDays, now: now);
     final rangeTotal = totals.values.fold<int>(0, (a, b) => a + b);
 
     return Scaffold(
@@ -165,7 +189,11 @@ class _BlockStatsScreenState extends State<BlockStatsScreen>
                     ),
                   ),
                 ),
-                _dailyBars(theme, daily: engine.dailyTotals(_rangeDays)),
+                _dailyBars(
+                  context,
+                  daily: engine.dailyTotals(_rangeDays, now: now),
+                  now: now,
+                ),
                 const SizedBox(height: 20),
                 ..._buildCategoryRows(loc, theme: theme, totals: totals, rangeTotal: rangeTotal),
                 const Divider(height: 32),
@@ -343,7 +371,9 @@ class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen>
     final engine = _service.engine;
     final detail = _service.detail;
     final category = widget.category;
-    final rangeTotal = engine.totalsForLastDays(widget.rangeDays)[category] ?? 0;
+    final now = DateTime.now();
+    final rangeTotal =
+        engine.totalsForLastDays(widget.rangeDays, now: now)[category] ?? 0;
     final items = detail.topItems(category);
     final sites = _namedSiteCounts(detail);
 
@@ -354,8 +384,13 @@ class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen>
         children: [
           _buildHeader(loc, theme: theme, total: rangeTotal),
           _dailyBars(
-            theme,
-            daily: engine.dailyTotals(widget.rangeDays, category: category),
+            context,
+            daily: engine.dailyTotals(
+              widget.rangeDays,
+              now: now,
+              category: category,
+            ),
+            now: now,
           ),
           const SizedBox(height: 20),
           if (items.isEmpty && sites.isEmpty)
