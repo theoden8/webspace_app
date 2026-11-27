@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/services/web_extension_grants_engine.dart'
     show ExtensionSite;
 import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
@@ -323,8 +324,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           SettingsSection(loc.appSettingsGroupSites),
           if (!widget.containersRunHere)
             SettingTile(
-              leading: const Icon(Icons.warning_amber_rounded,
-                  color: HintedTitle.missingDataColor),
+              leading: Icon(Icons.warning_amber_rounded,
+                  color: Theme.of(context).colorScheme.warning),
               title: loc.appSettingsNoContainers,
               hint: loc.appSettingsNoContainersHint,
               subtitle: loc.appSettingsNoContainersSubtitle,

@@ -63,12 +63,10 @@ class _StatsBannerState extends State<StatsBanner> {
 
     final loc = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final bgColor = isDark
-        ? Colors.grey.shade900.withAlpha(200)
-        : Colors.grey.shade100;
-    final textColor = isDark ? Colors.grey.shade300 : Colors.grey.shade700;
-    final subtleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade500;
+    final scheme = theme.colorScheme;
+    final bgColor = scheme.surfaceContainerHighest;
+    final textColor = scheme.onSurface;
+    final subtleColor = scheme.onSurfaceVariant;
 
     return GestureDetector(
       onTap: () => setState(() => _expanded = !_expanded),
@@ -86,7 +84,7 @@ class _StatsBannerState extends State<StatsBanner> {
             color: bgColor,
             border: Border(
               bottom: BorderSide(
-                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                color: scheme.outlineVariant,
                 width: 0.5,
               ),
             ),

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/block_stats_detail.dart';
 import 'package:webspace/services/block_stats_engine.dart';
@@ -442,7 +443,7 @@ class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen>
             totalLabel,
             style: theme.textTheme.displaySmall?.copyWith(
               fontWeight: FontWeight.bold,
-              color: theme.colorScheme.primary,
+              color: theme.colorScheme.accentText,
             ),
           ),
           Text(
@@ -461,7 +462,7 @@ class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen>
       child: Text(
         label,
         style: theme.textTheme.titleSmall
-            ?.copyWith(color: theme.colorScheme.primary),
+            ?.copyWith(color: theme.colorScheme.accentText),
       ),
     );
   }

@@ -44,7 +44,9 @@ class IconChoiceChips<T extends Object> extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected ? accentColor.withValues(alpha: 0.15) : Colors.transparent,
           border: Border.all(
-            color: isSelected ? accentColor : Colors.grey.shade400,
+            color: isSelected
+                ? accentColor
+                : Theme.of(context).colorScheme.outline,
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(Radii.lg),

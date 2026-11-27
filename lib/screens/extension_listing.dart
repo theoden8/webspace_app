@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/web_extension_grants_engine.dart'
     show ExtensionSite, SiteReach, siteReach;
@@ -126,7 +127,7 @@ class ListingChip extends StatelessWidget {
     final (Color background, Color foreground) = switch (tone) {
       ChipTone.works => (scheme.secondaryContainer, scheme.onSecondaryContainer),
       ChipTone.partly => (
-        HintedTitle.missingDataColor.withValues(alpha: .18),
+        scheme.warning.withValues(alpha: .18),
         scheme.onSurface,
       ),
       ChipTone.recommended => (
@@ -152,7 +153,7 @@ class ListingChip extends StatelessWidget {
               icon,
               size: IconSizes.inline,
               color: tone == ChipTone.partly
-                  ? HintedTitle.missingDataColor
+                  ? scheme.warning
                   : foreground,
             ),
             const SizedBox(width: Spacing.xs),
@@ -446,7 +447,7 @@ class _Header extends StatelessWidget {
                         Localized.verbatim(author),
                     ], by: Joined.list),
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.primary,
+                      color: theme.colorScheme.accentText,
                     ),
                   ),
                 if (result.recommended)
@@ -565,7 +566,7 @@ class _FitCard extends StatelessWidget {
           ),
           WebKitFit.partly => (
             Icons.warning_amber_outlined,
-            HintedTitle.missingDataColor,
+            theme.colorScheme.warning,
             loc.extensionsFitPartly,
             loc.extensionsNotGiven(result.refused.join(', ')),
           ),

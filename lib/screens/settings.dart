@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
@@ -328,13 +329,13 @@ class _SettingsScreenState extends State<SettingsScreen>
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.warning_amber_rounded,
-                      size: 16, color: Colors.orange),
+                  Icon(Icons.warning_amber_rounded,
+                      size: 16, color: Theme.of(context).colorScheme.warning),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       issueText(issue),
-                      style: subtleStyle?.copyWith(color: Colors.orange),
+                      style: subtleStyle?.copyWith(color: Theme.of(context).colorScheme.warning),
                     ),
                   ),
                 ],
@@ -1076,10 +1077,11 @@ IconButton zoomStep(IconData icon,
                         loc.siteSettingsClearSiteDataDone)
                     : (loc.siteSettingsClearCookies, loc.siteSettingsClearCookiesBody,
                         loc.siteSettingsClearCookiesDone);
+                final error = Theme.of(context).colorScheme.error;
                 return OutlinedButton.icon(
-                  icon: Icon(Icons.cookie, color: Colors.red),
-                  label: Text(label, style: TextStyle(color: Colors.red)),
-                  style: OutlinedButton.styleFrom(side: BorderSide(color: Colors.red)),
+                  icon: Icon(Icons.cookie, color: error),
+                  label: Text(label, style: TextStyle(color: error)),
+                  style: OutlinedButton.styleFrom(side: BorderSide(color: error)),
                   onPressed: () async {
                     final messenger = ScaffoldMessenger.of(context);
                     if (!await confirm(

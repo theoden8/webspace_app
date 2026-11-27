@@ -4,8 +4,12 @@ import 'package:webspace/settings/web_view_theme.dart';
 
 /// The app's theme. It names no font family or fallback: a flag takes the
 /// colour emoji font through `flagText`.
-ThemeData buildAppTheme(Color accent, {required Brightness brightness}) => ThemeData(
-      colorScheme: buildAccentColorScheme(accent, brightness: brightness),
+ThemeData buildAppTheme(Color accent,
+        {required Brightness brightness,
+        ThemeContrast contrast = ThemeContrast.standard}) =>
+    ThemeData(
+      colorScheme: buildAccentColorScheme(accent,
+          brightness: brightness, contrast: contrast),
       scaffoldBackgroundColor: switch (brightness) {
         Brightness.light => const Color(0xFFFFFFFF),
         Brightness.dark => const Color(0xFF000000),

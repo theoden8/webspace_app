@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/proxy_ids.dart';
 import 'package:webspace/screens/site_network.dart' show validateProxyAddress;
@@ -168,7 +169,7 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
                   child: Text(
                     title,
                     style: theme.textTheme.titleSmall
-                        ?.copyWith(color: theme.colorScheme.primary),
+                        ?.copyWith(color: theme.colorScheme.accentText),
                   ),
                 ),
                 TextButton.icon(
@@ -712,7 +713,7 @@ class _SavedCredentialsEditScreenState
         child: Text(
           loc.proxyLibraryWorksOn,
           style: theme.textTheme.titleSmall
-              ?.copyWith(color: theme.colorScheme.primary),
+              ?.copyWith(color: theme.colorScheme.accentText),
         ),
       ),
       if (widget.gateways.isEmpty)

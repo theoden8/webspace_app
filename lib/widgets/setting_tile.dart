@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/scoped.dart';
@@ -35,8 +36,6 @@ class HintedTitle extends StatelessWidget {
   /// visible after the SnackBar is gone.
   final bool warn;
 
-  static const Color missingDataColor = Colors.orange;
-
   @override
   Widget build(BuildContext context) {
     final hint = this.hint;
@@ -47,10 +46,10 @@ class HintedTitle extends StatelessWidget {
         if (hint != null)
           HintButton(title: hintTitle ?? title, description: hint),
         if (warn)
-          const Padding(
-            padding: EdgeInsets.only(left: Spacing.xs),
+          Padding(
+            padding: const EdgeInsets.only(left: Spacing.xs),
             child: Icon(Icons.warning_amber_rounded,
-                size: 18, color: missingDataColor),
+                size: 18, color: Theme.of(context).colorScheme.warning),
           ),
       ],
     );
@@ -295,7 +294,7 @@ class SettingTile extends StatelessWidget {
         : flagText(
             text,
             style: missingData
-                ? const TextStyle(color: HintedTitle.missingDataColor)
+                ? TextStyle(color: Theme.of(context).colorScheme.warning)
                 : null,
           );
 Widget toggle({required bool value, required ValueChanged<bool> onChanged}) =>
@@ -516,7 +515,7 @@ class SettingsSection extends StatelessWidget {
       title,
       hint: hint,
       style: theme.textTheme.titleSmall?.copyWith(
-        color: theme.colorScheme.primary,
+        color: theme.colorScheme.accentText,
       ),
     );
     return Padding(

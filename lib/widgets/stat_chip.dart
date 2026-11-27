@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/theme/design_tokens.dart';
@@ -51,6 +52,7 @@ class DnsStatChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final rate = '${stats.blockRate.toStringAsFixed(1)}%';
     final chips = [
       StatChip('${stats.total}',
@@ -58,11 +60,11 @@ class DnsStatChips extends StatelessWidget {
       StatChip('${stats.allowed}',
           label: loc.devToolsDnsAllowed, color: Colors.green),
       StatChip('${stats.blocked}',
-          label: loc.devToolsDnsBlocked, color: Colors.red),
+          label: loc.devToolsDnsBlocked, color: scheme.error),
       StatChip(
         rate,
         label: loc.devToolsDnsBlockRate,
-        color: stats.blockRate > 0 ? Colors.orange : Colors.grey,
+        color: stats.blockRate > 0 ? scheme.warning : scheme.onSurfaceVariant,
       ),
     ];
     return Padding(

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 const Color accentBlue = Color(0xFF6B8DD6);
@@ -19,11 +21,24 @@ Color _onAccent(Color background) {
   return (l + 0.05) / 0.05 >= 1.05 / (l + 0.05) ? Colors.black : Colors.white;
 }
 
+/// Whether a theme is the one the OS asks for with Increase Contrast or High
+/// Contrast (`MediaQuery.highContrast`, A11Y-010).
+enum ThemeContrast {
+  standard(0.0),
+  high(1.0);
+
+  const ThemeContrast(this.seedContrastLevel);
+
+  /// What `ColorScheme.fromSeed` takes for the neutral roles.
+  final double seedContrastLevel;
+}
+
 /// Build a ColorScheme that preserves the full saturation of [accent].
 /// Uses fromSeed only for neutral surface/background colors, then overrides
 /// all accent-derived roles so nothing gets desaturated by Material 3's HCT.
 ColorScheme buildAccentColorScheme(Color accent,
-    {required Brightness brightness}) {
+    {required Brightness brightness,
+    ThemeContrast contrast = ThemeContrast.standard}) {
   final bool isLight = brightness == Brightness.light;
   final hsl = HSLColor.fromColor(accent);
 
@@ -36,7 +51,11 @@ ColorScheme buildAccentColorScheme(Color accent,
       ? hsl.withLightness(0.15).toColor()
       : hsl.withLightness(0.90).toColor();
 
-  final base = ColorScheme.fromSeed(seedColor: accent, brightness: brightness);
+  final base = ColorScheme.fromSeed(
+    seedColor: accent,
+    brightness: brightness,
+    contrastLevel: contrast.seedContrastLevel,
+  );
 
   return base.copyWith(
     primary: accent,
@@ -48,4 +67,36 @@ ColorScheme buildAccentColorScheme(Color accent,
     secondaryContainer: primaryContainer,
     onSecondaryContainer: onPrimaryContainer,
   );
+}
+
+/// The least change of [color]'s lightness that reads as text on every
+/// surface of [scheme]: 4.5:1 against `surfaceContainerHighest`, the surface
+/// furthest from the text in either brightness.
+Color _legible(Color color, {required ColorScheme scheme}) {
+  final background = scheme.surfaceContainerHighest;
+  final lb = background.computeLuminance();
+  double ratio(Color c) {
+    final lc = c.computeLuminance();
+    return (math.max(lc, lb) + 0.05) / (math.min(lc, lb) + 0.05);
+  }
+
+  final darken = lb > 0.179;
+  var hsl = HSLColor.fromColor(color);
+  while (ratio(hsl.toColor()) < 4.5) {
+    final next = darken ? hsl.lightness - 0.01 : hsl.lightness + 0.01;
+    if (next <= 0 || next >= 1) return darken ? Colors.black : Colors.white;
+    hsl = hsl.withLightness(next);
+  }
+  return hsl.toColor();
+}
+
+/// Colours drawn as text that Material's roles do not name (A11Y-010).
+extension TextRoles on ColorScheme {
+  /// The accent as text on a surface: a section header, a link-like label.
+  /// `primary` itself is a fill, at 1.56:1 on white for the green accent.
+  Color get accentText => _legible(primary, scheme: this);
+
+  /// A warning drawn as text or beside it: a setting that is on without the
+  /// data it needs, a cookie the user blocked, a console warning.
+  Color get warning => _legible(Colors.orange, scheme: this);
 }

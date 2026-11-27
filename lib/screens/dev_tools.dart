@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'dart:convert';
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/utils/concurrency.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
@@ -418,11 +419,12 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   Widget _buildConsoleEntry(ConsoleLogEntry entry) {
     // ConsoleMessageLevel is a class of constants, not an enum.
+    final scheme = Theme.of(context).colorScheme;
     final color = entry.isEvalInput
-        ? Theme.of(context).colorScheme.primary
+        ? scheme.accentText
         : switch (entry.level) {
-            ConsoleMessageLevel.WARNING => Colors.amber,
-            ConsoleMessageLevel.ERROR => Colors.red,
+            ConsoleMessageLevel.WARNING => scheme.warning,
+            ConsoleMessageLevel.ERROR => scheme.error,
             _ => Theme.of(context).textTheme.bodyMedium?.color ?? Colors.white,
           };
     final text = entry.isEvalInput
@@ -462,7 +464,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
               fontSize: 14,
               fontWeight: FontWeight.bold,
               color: hasController
-                  ? Theme.of(context).colorScheme.primary
+                  ? Theme.of(context).colorScheme.accentText
                   : Theme.of(context).disabledColor,
             )),
             const SizedBox(width: 6),
@@ -616,7 +618,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.red.shade300,
+                                color: Theme.of(context).colorScheme.error,
                               ),
                             ),
                           ),
@@ -733,7 +735,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 children: [
                   _buildSecurityChip(
                     cookie.isSecure == true ? loc.devToolsCookieSecure : loc.devToolsCookieNotSecure,
-                    color: cookie.isSecure == true ? Colors.green : Colors.red,
+                    color: cookie.isSecure == true ? Colors.green : Theme.of(context).colorScheme.error,
                   ),
                   if (cookie.isHttpOnly == true)
                     _buildSecurityChip('HttpOnly', color: Colors.green),
@@ -746,14 +748,14 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 children: [
                   TextButton.icon(
                     onPressed: () => _deleteCookie(cookie),
-                    icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                    label: Text(loc.commonDelete, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                    icon: Icon(Icons.delete_outline, size: 16, color: Theme.of(context).colorScheme.error),
+                    label: Text(loc.commonDelete, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12)),
                   ),
                   const SizedBox(width: 8),
                   TextButton.icon(
                     onPressed: () => _blockCookie(cookie),
-                    icon: const Icon(Icons.block, size: 16, color: Colors.orange),
-                    label: Text(loc.devToolsCookieBlock, style: const TextStyle(color: Colors.orange, fontSize: 12)),
+                    icon: Icon(Icons.block, size: 16, color: Theme.of(context).colorScheme.warning),
+                    label: Text(loc.devToolsCookieBlock, style: TextStyle(color: Theme.of(context).colorScheme.warning, fontSize: 12)),
                   ),
                 ],
               ),
@@ -767,7 +769,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   Widget _buildBlockedCookieTile(BlockedCookie rule) {
     final loc = AppLocalizations.of(context);
     return ListTile(
-      leading: Icon(Icons.block, color: Colors.red.shade300, size: 20),
+      leading: Icon(Icons.block, color: Theme.of(context).colorScheme.error, size: 20),
       title: Text(rule.name, style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
       subtitle: Text(rule.domain, style: const TextStyle(fontSize: 11)),
       trailing: TextButton.icon(
@@ -793,7 +795,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         ? ('SameSite=Strict', Colors.green)
         : value.contains('LAX')
             ? ('SameSite=Lax', Colors.blue)
-            : ('SameSite=None', Colors.amber);
+            : ('SameSite=None', Theme.of(context).colorScheme.warning);
     return _buildSecurityChip(label, color: color);
   }
 
@@ -855,7 +857,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                       return ExpansionTile(
                         leading: Icon(
                           active ? Icons.code : Icons.code_off,
-                          color: active ? Colors.green : Colors.grey,
+                          color: active ? Colors.green : Theme.of(context).colorScheme.onSurfaceVariant,
                           size: 20,
                         ),
                         title: Row(
@@ -1155,7 +1157,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   Widget _buildBlockingEntry(DnsLogEntry entry) {
     final line = '[${_formatTimeMs(entry.timestamp)}] ${_requestOf(entry)}';
     final color = entry.blocked
-        ? Colors.red
+        ? Theme.of(context).colorScheme.error
         : Theme.of(context).textTheme.bodyMedium?.color;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 1),
@@ -1164,7 +1166,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           Icon(
             entry.blocked ? Icons.block : Icons.check_circle_outline,
             size: 14,
-            color: entry.blocked ? Colors.red : Colors.green,
+            color: entry.blocked ? Theme.of(context).colorScheme.error : Colors.green,
           ),
           const SizedBox(width: 8),
           Expanded(

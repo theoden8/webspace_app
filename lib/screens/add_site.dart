@@ -894,7 +894,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                       SizedBox(height: 8),
                       Text(
                         loc.addSiteSchemeTip,
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 24),
@@ -990,7 +990,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                       child: Center(
                         child: Text(
                           loc.addSiteNoSuggestions,
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
                       ),
                     ),

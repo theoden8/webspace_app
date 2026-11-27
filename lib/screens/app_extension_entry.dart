@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/screens/app_extensions.dart'
@@ -220,9 +221,9 @@ class _ExtensionEntryScreenState extends State<ExtensionEntryScreen> {
                 SettingsSection(loc.extensionsProblemsSection),
                 for (final problem in problems)
                   ListTile(
-                    leading: const Icon(
+                    leading: Icon(
                       Icons.warning_amber_outlined,
-                      color: HintedTitle.missingDataColor,
+                      color: Theme.of(context).colorScheme.warning,
                     ),
                     title: Text(problem),
                   ),

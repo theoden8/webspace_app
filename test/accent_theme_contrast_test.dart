@@ -11,6 +11,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/theme/accent_theme.dart';
+import 'package:webspace/theme/app_theme.dart';
 
 const Map<String, Color> _accents = {
   'blue': accentBlue,
@@ -33,13 +34,20 @@ double contrastRatio(Color a, {required Color b}) {
 // WCAG AA for normal-size text.
 const double _minRatio = 4.5;
 
+// WCAG AAA, which the high contrast theme holds its neutral text to.
+const double _highRatio = 7.0;
+
 void main() {
   test('every accent keeps AA contrast on its paired on-colours (DESIGN-007)', () {
     final failures = <String>[];
 
-    for (final brightness in Brightness.values) {
+    for (final (contrast, brightness) in [
+      for (final c in ThemeContrast.values)
+        for (final b in Brightness.values) (c, b),
+    ]) {
       for (final accent in _accents.entries) {
-        final s = buildAccentColorScheme(accent.value, brightness: brightness);
+        final s = buildAccentColorScheme(accent.value,
+            brightness: brightness, contrast: contrast);
         final pairs = <String, List<Color>>{
           'primary/onPrimary': [s.primary, s.onPrimary],
           'secondary/onSecondary': [s.secondary, s.onSecondary],
@@ -52,7 +60,7 @@ void main() {
         for (final pair in pairs.entries) {
           final ratio = contrastRatio(pair.value[0], b: pair.value[1]);
           if (ratio < _minRatio) {
-            failures.add('${brightness.name} ${accent.key} ${pair.key}: '
+            failures.add('${contrast.name} ${brightness.name} ${accent.key} ${pair.key}: '
                 '${ratio.toStringAsFixed(2)}:1');
           }
         }
@@ -62,12 +70,83 @@ void main() {
     expect(failures, isEmpty, reason: 'below ${_minRatio}:1:\n${failures.join('\n')}');
   });
 
-  test('the accent survives into primary undesaturated', () {
+  test('text roles keep AA contrast on every surface, in both contrasts (A11Y-010)', () {
+    final failures = <String>[];
+
+    for (final contrast in ThemeContrast.values) {
+      for (final brightness in Brightness.values) {
+        for (final accent in _accents.entries) {
+          final theme = buildAppTheme(accent.value,
+              brightness: brightness, contrast: contrast);
+          final s = theme.colorScheme;
+          final texts = <String, Color>{
+            'accentText': s.accentText,
+            'warning': s.warning,
+            'error': s.error,
+            'onSurfaceVariant': s.onSurfaceVariant,
+          };
+          final grounds = <String, Color>{
+            'scaffold': theme.scaffoldBackgroundColor,
+            'surface': s.surface,
+            'surfaceContainerHighest': s.surfaceContainerHighest,
+          };
+          for (final text in texts.entries) {
+            for (final ground in grounds.entries) {
+              final ratio = contrastRatio(text.value, b: ground.value);
+              if (ratio < _minRatio) {
+                failures.add('${contrast.name} ${brightness.name} '
+                    '${accent.key} ${text.key}/${ground.key}: '
+                    '${ratio.toStringAsFixed(2)}:1');
+              }
+            }
+          }
+        }
+      }
+    }
+
+    expect(failures, isEmpty, reason: 'below $_minRatio:1:\n${failures.join('\n')}');
+  });
+
+  test('accentText keeps the accent where it already reads (A11Y-010)', () {
+    // Where the accent already holds 4.5:1 it is drawn as it is; elsewhere
+    // only its lightness moves.
     for (final brightness in Brightness.values) {
       for (final accent in _accents.entries) {
         final s = buildAccentColorScheme(accent.value, brightness: brightness);
-        expect(s.primary, accent.value, reason: '${accent.key} ${brightness.name}');
-        expect(s.secondary, accent.value, reason: '${accent.key} ${brightness.name}');
+        if (contrastRatio(s.primary, b: s.surfaceContainerHighest) >= _minRatio) {
+          expect(s.accentText, s.primary, reason: '${accent.key} ${brightness.name}');
+        } else {
+          expect(HSLColor.fromColor(s.accentText).hue,
+              closeTo(HSLColor.fromColor(s.primary).hue, 1.0),
+              reason: '${accent.key} ${brightness.name} keeps its hue');
+        }
+      }
+    }
+  });
+
+  test('the high contrast theme holds neutral text to 7:1 (A11Y-010)', () {
+    for (final brightness in Brightness.values) {
+      for (final accent in _accents.entries) {
+        final s = buildAccentColorScheme(accent.value,
+            brightness: brightness, contrast: ThemeContrast.high);
+        for (final text in [s.onSurface, s.onSurfaceVariant]) {
+          expect(contrastRatio(text, b: s.surface), greaterThanOrEqualTo(_highRatio),
+              reason: '${accent.key} ${brightness.name}');
+        }
+      }
+    }
+  });
+
+  test('the accent survives into primary undesaturated', () {
+    for (final contrast in ThemeContrast.values) {
+      for (final brightness in Brightness.values) {
+        for (final accent in _accents.entries) {
+          final s = buildAccentColorScheme(accent.value,
+              brightness: brightness, contrast: contrast);
+          final why = '${accent.key} ${brightness.name} ${contrast.name}';
+          expect(s.primary, accent.value, reason: why);
+          expect(s.secondary, accent.value, reason: why);
+        }
       }
     }
   });

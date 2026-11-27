@@ -22,6 +22,7 @@
 library;
 
 import 'dart:async';
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/settings/site_ids.dart';
 
@@ -621,7 +622,7 @@ class _TabsSheetState extends State<TabsSheet> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.labelLarge
-                      ?.copyWith(color: theme.colorScheme.primary),
+                      ?.copyWith(color: theme.colorScheme.accentText),
                 ),
               ),
             ],
