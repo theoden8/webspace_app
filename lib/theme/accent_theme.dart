@@ -69,20 +69,21 @@ ColorScheme buildAccentColorScheme(Color accent,
   );
 }
 
-/// The least change of [color]'s lightness that reads as text on every
-/// surface of [scheme]: 4.5:1 against `surfaceContainerHighest`, the surface
-/// furthest from the text in either brightness.
-Color _legible(Color color, {required ColorScheme scheme}) {
+/// The least change of [color]'s lightness that holds [ratio] against every
+/// surface of [scheme]: measured against `surfaceContainerHighest`, the
+/// surface furthest from it in either brightness.
+Color _legible(Color color,
+    {required ColorScheme scheme, required double ratio}) {
   final background = scheme.surfaceContainerHighest;
   final lb = background.computeLuminance();
-  double ratio(Color c) {
+  double contrast(Color c) {
     final lc = c.computeLuminance();
     return (math.max(lc, lb) + 0.05) / (math.min(lc, lb) + 0.05);
   }
 
   final darken = lb > 0.179;
   var hsl = HSLColor.fromColor(color);
-  while (ratio(hsl.toColor()) < 4.5) {
+  while (contrast(hsl.toColor()) < ratio) {
     final next = darken ? hsl.lightness - 0.01 : hsl.lightness + 0.01;
     if (next <= 0 || next >= 1) return darken ? Colors.black : Colors.white;
     hsl = hsl.withLightness(next);
@@ -90,13 +91,38 @@ Color _legible(Color color, {required ColorScheme scheme}) {
   return hsl.toColor();
 }
 
-/// Colours drawn as text that Material's roles do not name (A11Y-010).
-extension TextRoles on ColorScheme {
+/// WCAG AA for text under 24 px (18.66 px bold).
+const double _textRatio = 4.5;
+
+/// WCAG AA for a non-text indicator of state.
+const double _indicatorRatio = 3.0;
+
+/// Colours Material's roles do not name, each held to the contrast its use
+/// needs on every surface (A11Y-010).
+extension ContrastRoles on ColorScheme {
   /// The accent as text on a surface: a section header, a link-like label.
   /// `primary` itself is a fill, at 1.56:1 on white for the green accent.
-  Color get accentText => _legible(primary, scheme: this);
+  Color get accentText =>
+      _legible(primary, scheme: this, ratio: _textRatio);
+
+  /// The accent as a state on a surface: a switch track that is on, a
+  /// ticked checkbox, a selection border, the current page's dot.
+  Color get accentIndicator =>
+      _legible(primary, scheme: this, ratio: _indicatorRatio);
+
+  /// What is drawn on [accentIndicator]: a switch thumb, a checkbox's tick.
+  Color get onAccentIndicator => _onAccent(accentIndicator);
 
   /// A warning drawn as text or beside it: a setting that is on without the
   /// data it needs, a cookie the user blocked, a console warning.
-  Color get warning => _legible(Colors.orange, scheme: this);
+  Color get warning =>
+      _legible(Colors.orange, scheme: this, ratio: _textRatio);
+
+  /// A good state drawn as text or beside it: a secure cookie, an allowed
+  /// request, a user agent that looks valid.
+  Color get success =>
+      _legible(Colors.green, scheme: this, ratio: _textRatio);
+
+  /// A neutral note drawn as text or beside it: an info log line, a total.
+  Color get info => _legible(Colors.blue, scheme: this, ratio: _textRatio);
 }

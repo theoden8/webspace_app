@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
@@ -114,7 +115,7 @@ class TabChip extends StatelessWidget {
       RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Radii.md),
         side: BorderSide(
-          color: active ? scheme.primary : scheme.outlineVariant,
+          color: active ? scheme.accentIndicator : scheme.outlineVariant,
           width: active ? 1.5 : Chrome.hairlineWidth,
         ),
       ),

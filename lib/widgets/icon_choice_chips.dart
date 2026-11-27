@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 
 /// Picks one of [values] from a row of equal-width chips, each its [face]'s
@@ -35,7 +36,8 @@ class IconChoiceChips<T extends Object> extends StatelessWidget {
   Widget _chip(BuildContext context, {required T choice}) {
     final (:icon, :label) = face(choice);
     final isSelected = choice == value;
-    final accentColor = Theme.of(context).colorScheme.secondary;
+    final scheme = Theme.of(context).colorScheme;
+    final accentColor = scheme.secondary;
 
     return GestureDetector(
       onTap: () => onChanged(choice),
@@ -44,9 +46,7 @@ class IconChoiceChips<T extends Object> extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected ? accentColor.withValues(alpha: 0.15) : Colors.transparent,
           border: Border.all(
-            color: isSelected
-                ? accentColor
-                : Theme.of(context).colorScheme.outline,
+            color: isSelected ? scheme.accentIndicator : scheme.outline,
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(Radii.lg),
@@ -57,7 +57,7 @@ class IconChoiceChips<T extends Object> extends StatelessWidget {
             Icon(
               icon,
               size: 24,
-              color: isSelected ? accentColor : null,
+              color: isSelected ? scheme.accentIndicator : null,
             ),
             const SizedBox(height: 4),
             Text(
@@ -66,7 +66,7 @@ class IconChoiceChips<T extends Object> extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? accentColor : null,
+                color: isSelected ? scheme.accentText : null,
               ),
             ),
           ],

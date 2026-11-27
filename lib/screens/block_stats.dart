@@ -95,7 +95,7 @@ Widget _dailyBars(
                         : (value / peak).clamp(0.04, 1.0),
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
+                        color: theme.colorScheme.accentIndicator,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),

@@ -56,9 +56,9 @@ class DnsStatChips extends StatelessWidget {
     final rate = '${stats.blockRate.toStringAsFixed(1)}%';
     final chips = [
       StatChip('${stats.total}',
-          label: loc.devToolsDnsTotal, color: Colors.blue),
+          label: loc.devToolsDnsTotal, color: scheme.info),
       StatChip('${stats.allowed}',
-          label: loc.devToolsDnsAllowed, color: Colors.green),
+          label: loc.devToolsDnsAllowed, color: scheme.success),
       StatChip('${stats.blocked}',
           label: loc.devToolsDnsBlocked, color: scheme.error),
       StatChip(

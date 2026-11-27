@@ -3,18 +3,37 @@ import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/settings/web_view_theme.dart';
 
 /// The app's theme. It names no font family or fallback: a flag takes the
-/// colour emoji font through `flagText`.
+/// colour emoji font through `flagText`. A switch, checkbox or radio that is
+/// on draws `accentIndicator`, which holds 3:1 where `primary` does not
+/// (A11Y-010); a disabled one keeps Material's colours.
 ThemeData buildAppTheme(Color accent,
-        {required Brightness brightness,
-        ThemeContrast contrast = ThemeContrast.standard}) =>
-    ThemeData(
-      colorScheme: buildAccentColorScheme(accent,
-          brightness: brightness, contrast: contrast),
-      scaffoldBackgroundColor: switch (brightness) {
-        Brightness.light => const Color(0xFFFFFFFF),
-        Brightness.dark => const Color(0xFF000000),
-      },
-    );
+    {required Brightness brightness,
+    ThemeContrast contrast = ThemeContrast.standard}) {
+  final scheme =
+      buildAccentColorScheme(accent, brightness: brightness, contrast: contrast);
+  WidgetStateProperty<Color?> whenOn(Color color) =>
+      WidgetStateProperty.resolveWith((states) =>
+          states.contains(WidgetState.selected) &&
+                  !states.contains(WidgetState.disabled)
+              ? color
+              : null);
+  return ThemeData(
+    colorScheme: scheme,
+    scaffoldBackgroundColor: switch (brightness) {
+      Brightness.light => const Color(0xFFFFFFFF),
+      Brightness.dark => const Color(0xFF000000),
+    },
+    switchTheme: SwitchThemeData(
+      trackColor: whenOn(scheme.accentIndicator),
+      thumbColor: whenOn(scheme.onAccentIndicator),
+    ),
+    checkboxTheme: CheckboxThemeData(
+      fillColor: whenOn(scheme.accentIndicator),
+      checkColor: whenOn(scheme.onAccentIndicator),
+    ),
+    radioTheme: RadioThemeData(fillColor: whenOn(scheme.accentIndicator)),
+  );
+}
 
 enum AccentColor {
   blue(accentBlue),

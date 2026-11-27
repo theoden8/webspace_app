@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/page_focus.dart';
@@ -321,7 +322,7 @@ class _FocusRingState extends State<_FocusRing> {
           key: KeyNavigation.ringKey,
           decoration: BoxDecoration(
             border: Border.all(
-              color: scheme.primary,
+              color: scheme.accentIndicator,
               width: RemoteStyle.ringWidth,
             ),
             borderRadius: BorderRadius.circular(RemoteStyle.ringRadius),

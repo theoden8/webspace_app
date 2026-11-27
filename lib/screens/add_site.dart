@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'dart:typed_data';
 
@@ -764,7 +765,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                       suffixIcon: IconButton(
                         icon: Icon(
                           incognito ? Icons.visibility_off : Icons.visibility_off_outlined,
-                          color: incognito ? Theme.of(context).colorScheme.primary : null,
+                          color: incognito ? Theme.of(context).colorScheme.accentIndicator : null,
                         ),
                         tooltip: incognito ? loc.addSiteIncognitoOn : loc.addSiteIncognitoOff,
                         onPressed: () =>

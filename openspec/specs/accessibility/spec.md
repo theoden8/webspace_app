@@ -203,9 +203,8 @@ Why each is No today, in one line each:
   before its first frame in dark mode is unchecked.
 - **Differentiate Without Color Alone**: the cues A11Y-009 lists are in
   place; nobody has checked them on a device with the Grayscale filter on.
-- **Sufficient Contrast**: text holds 4.5:1, but selection borders and
-  switch tracks in the light accents fall under 3:1 on the light theme
-  (A11Y-010).
+- **Sufficient Contrast**: text holds 4.5:1 and indicators 3:1 (A11Y-010);
+  nobody has checked them on a device with Increase Contrast on.
 - **Reduced Motion**: the helper follows the OS on every platform
   (A11Y-011), but no one has checked it on an iPhone, an iPad or a Mac.
 
@@ -560,31 +559,32 @@ border) SHALL be at least 3:1. When `MediaQuery.highContrast` is true (iOS
 Increase Contrast, GNOME High Contrast), the app SHALL use
 `highContrastTheme` / `highContrastDarkTheme`.
 
-Status: text holds; non-text indicators do not yet.
+Status: holds in both brightnesses, both contrasts and for every accent.
 
 - **Text roles.** Text the chrome draws in a colour of its own takes a role
-  that holds 4.5:1 on the scaffold, `surface` and `surfaceContainerHighest`
-  for every accent, in both brightnesses and both contrasts:
-  `onSurfaceVariant` for muted text, `error` for destructive and failed,
-  and two roles Material does not name, `accentText` (section headers, the
-  accent drawn as text) and `warning` ("Not configured", a blocked cookie, a
-  console warning), each the least change of lightness of its colour that
-  passes. Checked by `test/accent_theme_contrast_test.dart`.
-- **No fixed colours.** `Colors.grey`, `Colors.orange`, `Colors.amber` and
-  `Colors.red` appear nowhere in the chrome, as text or otherwise
+  that holds 4.5:1 on the scaffold, `surface` and `surfaceContainerHighest`:
+  `onSurfaceVariant` for muted text, `error` for destructive and failed, and
+  roles Material does not name, `accentText` (section headers, the accent
+  drawn as text), `warning`, `success` and `info`, each the least change of
+  lightness of its colour that passes. Checked by
+  `test/accent_theme_contrast_test.dart`.
+- **Indicator role.** A state drawn in the accent takes `accentIndicator`,
+  the least change of the accent that holds 3:1 on the same surfaces, with
+  what sits on it at 4.5:1. The theme gives it to a switch, checkbox or
+  radio that is on; selection borders, focus rings, the current page dot,
+  the active tab mark, drop lines and the statistics bars draw it too
+  (`test/accent_theme_contrast_test.dart`).
+- **No fixed colours.** `Colors.grey`, `Colors.orange`, `Colors.amber`,
+  `Colors.red`, `Colors.green` and `Colors.blue` appear nowhere in the
+  chrome, and no border is drawn in raw `primary`
   (`test/js/chrome_contrast_colours.test.js`).
 - **High contrast.** `MediaQuery.highContrast` shows the high contrast
   theme in either brightness, its neutral text at 7:1
   (`test/high_contrast_theme_test.dart`).
 
-Open:
-
-- **Non-text indicators** draw raw `primary`: a selection border, a switch
-  track, the library's page dot. On white the light accents fall under 3:1
-  (green 1.56).
-- **Green and blue text** in the developer tools' cookie and DNS chips and
-  the DNS statistics chips are `Colors.green` and `Colors.blue`, which the
-  gate does not name.
+Not covered by a check: a dot or bar a future widget draws in raw `primary`
+(the gate refuses only borders), and an icon button drawn in `primary`,
+which names an action rather than a state.
 
 #### Scenario: Light theme, yellow accent
 
@@ -788,10 +788,10 @@ By value over cost. Each item names the requirement it moves.
    FABs and the corner button; `Semantics(onTap:, selected:)` on the drawer
    tile and tab chip; the theme tooltip; the structural gate. Small, and it
    unblocks VoiceOver and Voice Control on iPhone.
-3. **Contrast and touch targets** (A11Y-010, A11Y-014): text contrast and
-   the high contrast theme are done; non-text indicators to 3:1 and
-   `TapTargets.compact` to 48 remain. These are two of Android's three
-   quality criteria and most of what the pre-launch report will list.
+3. **Contrast and touch targets** (A11Y-010, A11Y-014): contrast and the
+   high contrast theme are done; `TapTargets.compact` to 48 remains. These
+   are two of Android's three quality criteria and most of what the
+   pre-launch report will list.
 4. **Selected site cue** (A11Y-009) and the statistics chips and bars.
 5. **Reduced motion helper** (A11Y-011), including the Mac channel and
    WPE's setting. Done in code; the device checks remain.

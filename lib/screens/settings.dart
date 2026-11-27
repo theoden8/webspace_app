@@ -320,7 +320,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                     style: subtleStyle),
               if (isOverride && issues.isEmpty)
                 labelled(Icons.check_circle_outline, text: loc.siteSettingsUaLooksValid,
-                    color: Colors.green),
+                    color: Theme.of(context).colorScheme.success),
             ],
           ),
           for (final issue in issues)

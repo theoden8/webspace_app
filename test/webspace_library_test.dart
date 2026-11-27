@@ -291,7 +291,7 @@ void main() {
               (well.foregroundDecoration! as BoxDecoration).border! as Border;
           expect(
             outline.top.color,
-            Theme.of(tester.element(selected)).colorScheme.primary,
+            Theme.of(tester.element(selected)).colorScheme.accentIndicator,
           );
           expect(outline.top.width, greaterThan(0));
           expect(

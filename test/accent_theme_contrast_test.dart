@@ -34,6 +34,9 @@ double contrastRatio(Color a, {required Color b}) {
 // WCAG AA for normal-size text.
 const double _minRatio = 4.5;
 
+// WCAG AA for a non-text indicator of state.
+const double _indicatorRatio = 3.0;
+
 // WCAG AAA, which the high contrast theme holds its neutral text to.
 const double _highRatio = 7.0;
 
@@ -82,6 +85,8 @@ void main() {
           final texts = <String, Color>{
             'accentText': s.accentText,
             'warning': s.warning,
+            'success': s.success,
+            'info': s.info,
             'error': s.error,
             'onSurfaceVariant': s.onSurfaceVariant,
           };
@@ -105,6 +110,83 @@ void main() {
     }
 
     expect(failures, isEmpty, reason: 'below $_minRatio:1:\n${failures.join('\n')}');
+  });
+
+  test('indicators keep 3:1 on every surface, in both contrasts (A11Y-010)', () {
+    final failures = <String>[];
+
+    for (final contrast in ThemeContrast.values) {
+      for (final brightness in Brightness.values) {
+        for (final accent in _accents.entries) {
+          final theme = buildAppTheme(accent.value,
+              brightness: brightness, contrast: contrast);
+          final s = theme.colorScheme;
+          final checks = <String, (Color, Color)>{
+            'accentIndicator/scaffold': (s.accentIndicator, theme.scaffoldBackgroundColor),
+            'accentIndicator/surface': (s.accentIndicator, s.surface),
+            'accentIndicator/surfaceContainerHighest':
+                (s.accentIndicator, s.surfaceContainerHighest),
+            'outline/surface': (s.outline, s.surface),
+          };
+          for (final check in checks.entries) {
+            final (a, b) = check.value;
+            final ratio = contrastRatio(a, b: b);
+            if (ratio < _indicatorRatio) {
+              failures.add('${contrast.name} ${brightness.name} '
+                  '${accent.key} ${check.key}: ${ratio.toStringAsFixed(2)}:1');
+            }
+          }
+          final onRatio = contrastRatio(s.onAccentIndicator, b: s.accentIndicator);
+          if (onRatio < _minRatio) {
+            failures.add('${contrast.name} ${brightness.name} ${accent.key} '
+                'onAccentIndicator/accentIndicator: ${onRatio.toStringAsFixed(2)}:1');
+          }
+        }
+      }
+    }
+
+    expect(failures, isEmpty, reason: 'below the floor:\n${failures.join('\n')}');
+  });
+
+  test('a switch, checkbox or radio that is on draws the indicator role '
+      '(A11Y-010)', () {
+    const on = {WidgetState.selected};
+    const onDisabled = {WidgetState.selected, WidgetState.disabled};
+    for (final contrast in ThemeContrast.values) {
+      for (final brightness in Brightness.values) {
+        for (final accent in _accents.entries) {
+          final theme = buildAppTheme(accent.value,
+              brightness: brightness, contrast: contrast);
+          final s = theme.colorScheme;
+          final why = '${accent.key} ${brightness.name} ${contrast.name}';
+          expect(theme.switchTheme.trackColor!.resolve(on), s.accentIndicator,
+              reason: why);
+          expect(theme.switchTheme.thumbColor!.resolve(on), s.onAccentIndicator,
+              reason: why);
+          expect(theme.checkboxTheme.fillColor!.resolve(on), s.accentIndicator,
+              reason: why);
+          expect(theme.radioTheme.fillColor!.resolve(on), s.accentIndicator,
+              reason: why);
+          expect(theme.switchTheme.trackColor!.resolve(onDisabled), isNull,
+              reason: '$why: a disabled switch keeps Material\'s colours');
+          expect(theme.switchTheme.trackColor!.resolve(const {}), isNull,
+              reason: '$why: an off switch keeps Material\'s colours');
+        }
+      }
+    }
+  });
+
+  testWidgets('a Switch that is on paints its track in the indicator role '
+      '(A11Y-010)', (tester) async {
+    final theme = buildAppTheme(accentGreen, brightness: Brightness.light);
+    await tester.pumpWidget(MaterialApp(
+      theme: theme,
+      home: Material(child: Switch(value: true, onChanged: (_) {})),
+    ));
+    expect(
+      find.byType(Switch),
+      paints..rrect(color: theme.colorScheme.accentIndicator),
+    );
   });
 
   test('accentText keeps the accent where it already reads (A11Y-010)', () {

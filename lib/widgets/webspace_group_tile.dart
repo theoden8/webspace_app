@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/theme/design_tokens.dart';
@@ -123,7 +124,7 @@ class WebspaceGroupTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(LibraryStyle.radius),
                   border: Border.all(
                     color: selected
-                        ? theme.colorScheme.primary
+                        ? theme.colorScheme.accentIndicator
                         : Colors.transparent,
                     width: LibraryStyle.selectionWidth,
                   ),
@@ -158,7 +159,7 @@ class WebspaceGroupTile extends StatelessWidget {
   Widget _check(ThemeData theme) => Icon(
     Icons.check_circle,
     size: IconSizes.inline,
-    color: theme.colorScheme.primary,
+    color: theme.colorScheme.accentIndicator,
   );
 
   /// The name under the cluster, marked while selected, over the site count;

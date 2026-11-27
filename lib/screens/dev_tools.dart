@@ -735,10 +735,10 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 children: [
                   _buildSecurityChip(
                     cookie.isSecure == true ? loc.devToolsCookieSecure : loc.devToolsCookieNotSecure,
-                    color: cookie.isSecure == true ? Colors.green : Theme.of(context).colorScheme.error,
+                    color: cookie.isSecure == true ? Theme.of(context).colorScheme.success : Theme.of(context).colorScheme.error,
                   ),
                   if (cookie.isHttpOnly == true)
-                    _buildSecurityChip('HttpOnly', color: Colors.green),
+                    _buildSecurityChip('HttpOnly', color: Theme.of(context).colorScheme.success),
                   if (cookie.sameSite != null)
                     _buildSameSiteChip(cookie.sameSite.toString()),
                 ],
@@ -774,8 +774,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       subtitle: Text(rule.domain, style: const TextStyle(fontSize: 11)),
       trailing: TextButton.icon(
         onPressed: () => _unblockCookie(rule),
-        icon: const Icon(Icons.check_circle_outline, size: 16, color: Colors.green),
-        label: Text(loc.devToolsCookieUnblock, style: const TextStyle(color: Colors.green, fontSize: 12)),
+        icon: Icon(Icons.check_circle_outline, size: 16, color: Theme.of(context).colorScheme.success),
+        label: Text(loc.devToolsCookieUnblock, style: TextStyle(color: Theme.of(context).colorScheme.success, fontSize: 12)),
       ),
     );
   }
@@ -792,9 +792,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   Widget _buildSameSiteChip(String value) {
     final (label, color) = value.contains('STRICT')
-        ? ('SameSite=Strict', Colors.green)
+        ? ('SameSite=Strict', Theme.of(context).colorScheme.success)
         : value.contains('LAX')
-            ? ('SameSite=Lax', Colors.blue)
+            ? ('SameSite=Lax', Theme.of(context).colorScheme.info)
             : ('SameSite=None', Theme.of(context).colorScheme.warning);
     return _buildSecurityChip(label, color: color);
   }
@@ -857,7 +857,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                       return ExpansionTile(
                         leading: Icon(
                           active ? Icons.code : Icons.code_off,
-                          color: active ? Colors.green : Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: active ? Theme.of(context).colorScheme.success : Theme.of(context).colorScheme.onSurfaceVariant,
                           size: 20,
                         ),
                         title: Row(
@@ -1166,7 +1166,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           Icon(
             entry.blocked ? Icons.block : Icons.check_circle_outline,
             size: 14,
-            color: entry.blocked ? Theme.of(context).colorScheme.error : Colors.green,
+            color: entry.blocked ? Theme.of(context).colorScheme.error : Theme.of(context).colorScheme.success,
           ),
           const SizedBox(width: 8),
           Expanded(

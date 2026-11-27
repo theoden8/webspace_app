@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/services/site_tab.dart';
@@ -129,7 +130,7 @@ class _RailSite extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(Radii.lg),
                   side: BorderSide(
-                    color: on ? scheme.primary : scheme.outlineVariant,
+                    color: on ? scheme.accentIndicator : scheme.outlineVariant,
                     width: on ? 1.5 : Chrome.hairlineWidth,
                   ),
                 ),
@@ -188,7 +189,7 @@ class _Stripes extends StatelessWidget {
                   height: 6,
                   decoration: BoxDecoration(
                     color: row.tab.id == site.activeTabId
-                        ? scheme.primary
+                        ? scheme.accentIndicator
                         : scheme.outlineVariant,
                     borderRadius: BorderRadius.circular(Radii.sm),
                   ),
