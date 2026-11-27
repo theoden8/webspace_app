@@ -43,9 +43,6 @@ enum HandPaired implements Pairing {
   /// off the list has no candidate to check.
   offlineNotified,
 
-  /// A jar plan run by a flow of the model (`fl[f].kind # "none"`).
-  modeledPlan,
-
   /// The levels a prune may drop as it is asked: any held but the app-wide
   /// level and those a listed site asks for (DNS-021).
   dnsPrunes,

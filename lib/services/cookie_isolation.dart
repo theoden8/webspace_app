@@ -96,13 +96,10 @@ Act<W> disposeOf<W extends SitesById>(
   required UnloadLeaves<W> over,
   required void Function(StepView<W> c) then,
 }) {
-  final kind = Field<Object?, W>(FlowField.kind);
-  final modeled = Expr.handPaired<bool, W>(
-    HandPaired.modeledPlan,
-    tla: 'fl[f].kind # "none"',
-    run: kind.isSet,
-    reads: Reads.none,
-  );
+  const none = 'none';
+  final modeled = Field<Object?, W>(FlowField.kind)
+      .valueOr(none: none)
+      .neq(Expr.constant(none, tla: tlaOf(none)));
   return Act.of(
     [
       over.loaded.becomes(over.loaded.value.without(victim.value)),
