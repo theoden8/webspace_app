@@ -16,15 +16,11 @@ abstract interface class Pairing implements Enum {}
 /// name.
 enum HandPaired implements Pairing {
 
-  /// The activation's site taken off the list (`site \in gone`).
-  activationSiteGone,
 
   /// An archive open with none of its sites gone
   /// (`Archive # {} /\ Archive \cap gone = {}`).
   archiveOpen,
 
-  /// The delete's site taken off the list first (`site \in gone`).
-  deleteSiteGone,
 
 
   /// The site on screen, the model's `current`, as a tab handler reads it.

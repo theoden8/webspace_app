@@ -92,7 +92,6 @@ final class DeleteFlow {
 final _deleteNamed = Port<
   ({
     WebViewModel site,
-    bool Function() listed,
     Iterable<SiteId> Function() sites,
   }),
   DeleteFlow
@@ -102,7 +101,6 @@ final _deleteNamed = Port<
   changes: const {},
   of: (w) => (
     site: w.site,
-    listed: () => w._sites.models.hasKey(w.site),
     sites: () => [for (final m in w._sites.models) m.siteId],
   ),
 );
@@ -188,12 +186,11 @@ final _deleteBoxes = Mutable<Iterable<SiteId>, DeleteFlow>.remote(
 final _deleteNoSite = Expr.constant<SiteId?, DeleteFlow>(null, tla: '0');
 
 /// Another delete of the site took it off the list first.
-final _deleteAlreadyGone = Expr.op<bool, DeleteFlow>(
-  HandPaired.deleteSiteGone,
-  tla: '${_deleteSite.value.tla} \\in gone',
-  run: (c) => !_deleteNamed.from(c).listed(),
-  reads: _deleteSite.value.reads + const Reads(vars: {ModelVar.gone}),
-);
+final _deleteAlreadyGone = ~Expr.base<Iterable<SiteId>, DeleteFlow>(
+  BaseOp.listed,
+  args: const [],
+  run: (c) => _deleteNamed.from(c).sites(),
+).has(_deleteSite.value);
 final _deleteDone = GoTo<DeleteFlow, DeletePlace>(to(DeletePlace.done));
 
 /// Its container, unless a mounted webview still binds it.
