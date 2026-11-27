@@ -60,9 +60,6 @@ enum HandPaired implements Pairing {
   /// off the list has no candidate to check.
   offlineNotified,
 
-  /// The first headless check still open (`CHOOSE s \in headless : TRUE`).
-  anyHeadless,
-
   /// A jar plan run by a flow of the model (`fl[f].kind # "none"`).
   modeledPlan,
 
