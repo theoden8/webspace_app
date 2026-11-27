@@ -9,7 +9,6 @@ A11Y-003	no check: the theme shim answers a query pairing prefers-color-scheme w
 A11Y-004	no check: screen-reader reach of the page needs VoiceOver/TalkBack on a device; no test asserts off-screen sites drop out of the semantics tree
 A11Y-005	no check: the raw Listener on the drawer tile and tab chip, selected/toggled/expanded state, long-press alternatives and live regions are unchecked; the spec lists the failures (partly: tool/webspace_lints unnamed_button refuses an IconButton or FloatingActionButton with no tooltip)
 A11Y-008	no check: nothing renders every chrome screen dark or checks a webview's pre-paint frame; the white-flash check is explicitly unchecked
-A11Y-009	no check: no test checks a non-colour cue for the selected drawer tile or the DNS chips; the spec lists them as failing
 A11Y-010	no check: the contrast test omits primary-on-surface and the hard-coded greys/oranges, and highContrastTheme is not set; spec lists failures (partly: test/accent_theme_contrast_test.dart, "every accent keeps AA contrast on its paired on-colours")
 A11Y-011	no check: nothing reads the reduce-motion flags yet, so no test can check the helper
 A11Y-012	no check: no Shortcuts/Actions/PlatformMenuBar exist and no test drives keyboard focus traversal or Escape

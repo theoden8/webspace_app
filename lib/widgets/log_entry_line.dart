@@ -30,7 +30,8 @@ class LogEntryLine extends StatelessWidget {
     };
     final isSensitive = entry.sensitivity == LogSensitivity.sensitive;
     final prefix = isSensitive ? '[SENSITIVE] ' : '';
-    final line = '[$time] $prefix[${entry.tag}] ${entry.message}';
+    final line =
+        '[$time] [${entry.level.name}] $prefix[${entry.tag}] ${entry.message}';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 1.0),
       decoration: isSensitive

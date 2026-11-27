@@ -32,7 +32,7 @@ void main() {
       'timestamped and tagged, newest at the bottom', (tester) async {
     LogTag.navigation.debug('first');
     await open(tester);
-    expect(find.textContaining(RegExp(r'^\[\d\d:\d\d:\d\d(\.\d+)?\] \[Navigation\] first$')),
+    expect(find.textContaining(RegExp(r'^\[\d\d:\d\d:\d\d(\.\d+)?\] \[debug\] \[Navigation\] first$')),
         findsOneWidget);
 
     LogTag.lifecycle.info('second');

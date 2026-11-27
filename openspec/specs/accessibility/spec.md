@@ -201,8 +201,8 @@ Why each is No today, in one line each:
   Mac Flutter reports 1.0 and there is no in-app text size.
 - **Dark Interface**: the chrome is ready; whether a webview paints white
   before its first frame in dark mode is unchecked.
-- **Differentiate Without Color Alone**: the selected site in the drawer is a
-  tint only.
+- **Differentiate Without Color Alone**: the cues A11Y-009 lists are in
+  place; nobody has checked them on a device with the Grayscale filter on.
 - **Sufficient Contrast**: accent-coloured section headers and several
   hard-coded greys and oranges fall below 4.5:1 on the light theme.
 - **Reduced Motion**: nothing reads the OS setting.
@@ -535,18 +535,10 @@ Holds: proxy status (text beside the dot), proxy test (icon and text),
 permission badges (filled or outlined glyph, and a spoken label), the "Not
 configured" warning (icon and text), the active tab chip (border and
 weight), the selected webspace (elevation and weight), the theme and accent
-pickers.
-
-Fails:
-
-- the selected site tile in the drawer, a `primaryContainer` tint only
-  (`main.dart:9968`);
-- the DNS statistics chips on a site's Privacy screen, where two chips share
-  one label and differ by red against orange (`site_privacy.dart:603-609`);
-- the block statistics daily bars, one colour with no labels and no
-  semantics (`block_stats.dart:36-66`), which also fails VoiceOver's rule for
-  charts;
-- dev tools log severity (not a common task, same fix).
+pickers, the selected site tile in the drawer and the library (a border, and
+reported selected), the DNS statistics chips (a label each), the block
+statistics daily bars (each says its day and count), and the level of each
+dev tools log and console line (named in its text).
 
 #### Scenario: Which site is open (Grayscale)
 

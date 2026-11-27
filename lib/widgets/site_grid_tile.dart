@@ -151,6 +151,7 @@ class SiteGridTile extends StatelessWidget {
       ),
     );
     return Semantics(
+      selected: selected,
       label: [
         site.getDisplayName(),
         if (layout == SiteGridTileLayout.library)
@@ -225,6 +226,10 @@ class _SiteGridTileContent extends StatelessWidget {
               ? BoxDecoration(
                   borderRadius: BorderRadius.circular(Radii.xl),
                   color: theme.colorScheme.primaryContainer.withAlpha(80),
+                  border: Border.all(
+                    color: theme.colorScheme.primary,
+                    width: LibraryStyle.selectionWidth,
+                  ),
                 )
               : null,
           padding: isWide

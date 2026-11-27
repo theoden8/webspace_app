@@ -84,8 +84,13 @@ void main() {
       ..append('it broke', level: ConsoleMessageLevel.ERROR);
     await tester.pump();
 
-    expect(find.textContaining(RegExp(r'^\[\d\d:\d\d:\d\d\.\d{3}\] plain note$')),
+    expect(
+        find.textContaining(
+            RegExp(r'^\[\d\d:\d\d:\d\d\.\d{3}\] \[LOG\] plain note$')),
         findsOneWidget);
+    // The level is in the text too, not told by colour alone (A11Y-009).
+    expect(find.textContaining('[WARN] careful now'), findsOneWidget);
+    expect(find.textContaining('[ERROR] it broke'), findsOneWidget);
     expect(colorOf(tester, message: 'careful now'), Colors.amber);
     expect(colorOf(tester, message: 'it broke'), Colors.red);
     expect(colorOf(tester, message: 'plain note'),

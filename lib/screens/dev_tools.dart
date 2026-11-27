@@ -427,7 +427,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           };
     final text = entry.isEvalInput
         ? '> ${entry.message}'
-        : '[${_formatTimeMs(entry.timestamp)}] ${entry.message}';
+        : '[${_formatTimeMs(entry.timestamp)}] '
+              '[${_consoleLevelName(entry.level)}] ${entry.message}';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 2.0),
       child: SelectableText(
