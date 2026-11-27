@@ -23,16 +23,9 @@ enum HandPaired implements Pairing {
 
 
 
-  /// The site on screen, the model's `current`, as a tab handler reads it.
-  tabSiteOnScreen,
-
   /// The bytes' label (`fl[f].label`), the model's alone: the code holds
   /// the bytes.
   tabLabel,
-
-  /// The site on screen among those whose tabs the model follows
-  /// (`current \in Tabbed`).
-  tabbedOnScreen,
 
   /// The listed sites with tabs a child tab may open in: those with a
   /// fresh tab id left in the model's pool.

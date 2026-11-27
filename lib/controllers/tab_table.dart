@@ -83,12 +83,9 @@ abstract final class TabTable {
     of: (w) => w._c.navStates,
   );
 
-  static Expr<SiteId, TabFlow> get _current => Expr.op(
-    HandPaired.tabSiteOnScreen,
-    tla: 'current',
-    run: (c) => _flow.from(c).site.siteId,
-    reads: const Reads(vars: {ModelVar.current}),
-  );
+  /// The site on screen: every tab input runs on it, since its caller
+  /// shows the site first.
+  static final _current = _currentVar.value.unwrapped;
   static final _currentVar = Var<SiteId?, TabFlow>(
     ModelVar.current,
     read: (w) => w._c._sites.vars.current.value,
@@ -171,13 +168,7 @@ abstract final class TabTable {
 
   /// The input is the site on screen's; the model follows only the sites
   /// a config names (`Tabbed`).
-  static final _tabbedCurrent = Expr.op<bool, TabFlow>(
-    HandPaired.tabbedOnScreen,
-    tla: 'current \\in Tabbed',
-    run: (c) => _page.from(c).isShown(_flow.from(c).site.siteId),
-    reads: const Reads(vars: {ModelVar.current}),
-    needs: const {(of: ModelConst.tabbed, set: true)},
-  );
+  static final _tabbedCurrent = tabbedOf<SiteId, TabFlow>().has(_current);
 
   /// A tab handler holds the gate: the model's `"tab" \in Kinds`.
   static final tabBusy = Def<bool, TabFlow>(
