@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Níl pasfhocail seachfhreastalaí san áireamh i gcúltacaí — iontráil arís iad i socruithe an suímh / na hAipe.",
   "homeImportBlocklistRedownloadHint": "Athíoslódáil liostaí bactha DNS / ábhair i Socruithe na hAipe chun an bacadh a ghníomhachtú.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{Níl 1 eisínteacht a ainmníonn an cúltaca ar an ngléas seo: iompórtáil í i Socruithe na hAipe, faoi Eisínteachtaí.} other{Níl {count} eisínteacht a ainmníonn an cúltaca ar an ngléas seo: iompórtáil iad i Socruithe na hAipe, faoi Eisínteachtaí.}}",
+  "homeImportInterfacesMissingHint": "Ní lódálann suíomhanna atá ceangailte le comhéadan líonra nach bhfuil ar an ngléas seo aon rud go dtí go roghnaíonn tú ceann eile ina socruithe Líonra: {sites}.",
   "homeSettingsImportedSuccess": "Iompórtáladh na socruithe go rathúil",
   "homeSettingsImportedWithHints": "Iompórtáladh na socruithe. {hints}",
   "homeRestoreArchivedDataTitle": "Athchóirigh sonraí cartlannaithe",

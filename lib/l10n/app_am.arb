@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "የ Proxy የይለፍ ቃላት በመጠባበቂያዎች ውስጥ አይካተቱም — በጣቢያ / መተግበሪያ ቅንብሮች ውስጥ እንደገና አስገባቸው።",
   "homeImportBlocklistRedownloadHint": "እገዳ ለማንቃት የ DNS / የይዘት ማገጃ ዝርዝሮችን በመተግበሪያ ቅንብሮች ውስጥ እንደገና አውርድ።",
   "homeImportExtensionsMissingHint": "{count, plural, =1{መጠባበቂያው የሚጠቅሰው 1 ቅጥያ በዚህ መሣሪያ ላይ የለም፦ በመተግበሪያ ቅንብሮች ውስጥ፣ በቅጥያዎች ስር ያስመጡት።} other{መጠባበቂያው የሚጠቅሳቸው {count} ቅጥያዎች በዚህ መሣሪያ ላይ የሉም፦ በመተግበሪያ ቅንብሮች ውስጥ፣ በቅጥያዎች ስር ያስመጧቸው።}}",
+  "homeImportInterfacesMissingHint": "ይህ መሣሪያ የሌለው የአውታረ መረብ በይነገጽ ላይ የታሰሩ ጣቢያዎች በአውታረ መረብ ቅንብሮቻቸው ውስጥ ሌላ እስኪመርጡ ድረስ ምንም አይጭኑም፦ {sites}።",
   "homeSettingsImportedSuccess": "ቅንብሮች በተሳካ ሁኔታ ተስምተዋል",
   "homeSettingsImportedWithHints": "ቅንብሮች ተስምተዋል። {hints}",
   "homeRestoreArchivedDataTitle": "የተመዘገበ ውሂብ እነበረበት መልስ",

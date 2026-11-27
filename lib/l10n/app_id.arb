@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Kata sandi proxy tidak disertakan dalam cadangan — masukkan kembali di pengaturan situs / aplikasi.",
   "homeImportBlocklistRedownloadHint": "Unduh ulang daftar DNS / pemblokir konten di Pengaturan Aplikasi untuk mengaktifkan pemblokiran.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{1 ekstensi yang disebutkan dalam cadangan tidak ada di perangkat ini: impor di Pengaturan Aplikasi, pada bagian Ekstensi.} other{{count} ekstensi yang disebutkan dalam cadangan tidak ada di perangkat ini: impor di Pengaturan Aplikasi, pada bagian Ekstensi.}}",
+  "homeImportInterfacesMissingHint": "Situs yang terikat ke antarmuka jaringan yang tidak dimiliki perangkat ini tidak memuat apa pun sampai Anda memilih yang lain di pengaturan Jaringan-nya: {sites}.",
   "homeSettingsImportedSuccess": "Pengaturan berhasil diimpor",
   "homeSettingsImportedWithHints": "Pengaturan diimpor. {hints}",
   "homeRestoreArchivedDataTitle": "Pulihkan data terarsip",

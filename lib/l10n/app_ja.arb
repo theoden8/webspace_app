@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "プロキシのパスワードはバックアップに含まれません — サイト/アプリ設定で再入力してください。",
   "homeImportBlocklistRedownloadHint": "ブロックを有効にするには、アプリ設定で DNS / コンテンツブロッカーのリストを再ダウンロードしてください。",
   "homeImportExtensionsMissingHint": "{count, plural, =1{バックアップに記載された拡張機能 1 件がこのデバイスにありません。アプリ設定の「拡張機能」からインポートしてください。} other{バックアップに記載された拡張機能 {count} 件がこのデバイスにありません。アプリ設定の「拡張機能」からインポートしてください。}}",
+  "homeImportInterfacesMissingHint": "この端末にないネットワークインターフェースに結び付けられたサイトは、それぞれのネットワーク設定で別のものを選ぶまで何も読み込みません: {sites}。",
   "homeSettingsImportedSuccess": "設定を正常にインポートしました",
   "homeSettingsImportedWithHints": "設定をインポートしました。{hints}",
   "homeRestoreArchivedDataTitle": "アーカイブされたデータを復元",

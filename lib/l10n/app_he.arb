@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "סיסמאות פרוקסי אינן נכללות בגיבויים — הזן אותן מחדש בהגדרות האתר / האפליקציה.",
   "homeImportBlocklistRedownloadHint": "הורד מחדש רשימות DNS / חוסם תוכן בהגדרות האפליקציה כדי להפעיל חסימה.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{תוסף אחד שהגיבוי מציין אינו נמצא במכשיר הזה: אפשר לייבא אותו בהגדרות האפליקציה, תחת תוספים.} other{{count} תוספים שהגיבוי מציין אינם נמצאים במכשיר הזה: אפשר לייבא אותם בהגדרות האפליקציה, תחת תוספים.}}",
+  "homeImportInterfacesMissingHint": "אתרים הקשורים לממשק רשת שאין במכשיר הזה לא טוענים דבר עד שתבחרו ממשק אחר בהגדרות הרשת שלהם: {sites}.",
   "homeSettingsImportedSuccess": "ההגדרות יובאו בהצלחה",
   "homeSettingsImportedWithHints": "ההגדרות יובאו. {hints}",
   "homeRestoreArchivedDataTitle": "שחזר נתונים מאוחסנים",

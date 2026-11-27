@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Välityspalvelimen salasanoja ei sisällytetä varmuuskopioihin — syötä ne uudelleen sivusto- tai sovellusasetuksissa.",
   "homeImportBlocklistRedownloadHint": "Lataa DNS- / sisältöestolistat uudelleen sovellusasetuksissa aktivoidaksesi eston.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{1 varmuuskopion nimeämä laajennus puuttuu tältä laitteelta: tuo se Sovellusasetuksista kohdasta Laajennukset.} other{{count} varmuuskopion nimeämää laajennusta puuttuu tältä laitteelta: tuo ne Sovellusasetuksista kohdasta Laajennukset.}}",
+  "homeImportInterfacesMissingHint": "Sivustot, jotka on sidottu verkkoliitäntään, jota tässä laitteessa ei ole, eivät lataa mitään, ennen kuin valitset toisen niiden Verkko-asetuksista: {sites}.",
   "homeSettingsImportedSuccess": "Asetukset tuotu onnistuneesti",
   "homeSettingsImportedWithHints": "Asetukset tuotu. {hints}",
   "homeRestoreArchivedDataTitle": "Palauta arkistoidut tiedot",

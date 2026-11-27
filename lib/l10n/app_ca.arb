@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Les contrasenyes de servidor intermediari no s'inclouen a les còpies de seguretat: torneu a introduir-les a la configuració del lloc o de l'app.",
   "homeImportBlocklistRedownloadHint": "Torneu a baixar les llistes de DNS / bloquejador de contingut a Configuració de l'app per activar el bloqueig.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{1 extensió que la còpia de seguretat esmenta no és en aquest dispositiu: importeu-la a Configuració de l'app, a Extensions.} other{{count} extensions que la còpia de seguretat esmenta no són en aquest dispositiu: importeu-les a Configuració de l'app, a Extensions.}}",
+  "homeImportInterfacesMissingHint": "Els llocs vinculats a una interfície de xarxa que aquest dispositiu no té no carreguen res fins que en triïs una altra a la seva configuració de Xarxa: {sites}.",
   "homeSettingsImportedSuccess": "S'ha importat la configuració correctament",
   "homeSettingsImportedWithHints": "S'ha importat la configuració. {hints}",
   "homeRestoreArchivedDataTitle": "Restaura les dades arxivades",

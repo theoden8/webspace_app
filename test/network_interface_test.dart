@@ -234,6 +234,33 @@ void main() {
     });
   });
 
+  group('lackedInterface (NETIF-014)', () {
+    final wg0 = InterfaceName.parse('wg0')!;
+    final eth0 = InterfaceName.parse('eth0')!;
+
+    test('NETIF-014: a restored site whose interface this device lacks is '
+        'named', () {
+      expect(lackedInterface(_wg0, relay: _up, present: [eth0]), wg0);
+      expect(
+        lackedInterface(_wg0, relay: const EgressDown(), present: const []),
+        wg0,
+      );
+    });
+
+    test('NETIF-014: a present interface, system routing or the experiment '
+        'off is not', () {
+      expect(lackedInterface(_wg0, relay: _up, present: [eth0, wg0]), isNull);
+      expect(
+        lackedInterface(const SystemRouting(), relay: _up, present: const []),
+        isNull,
+      );
+      expect(
+        lackedInterface(_wg0, relay: const EgressOff(), present: const []),
+        isNull,
+      );
+    });
+  });
+
   group('QR share (NETIF-012)', () {
     test('NETIF-012: a QR share carries no interface', () {
       final site = WebViewModel(

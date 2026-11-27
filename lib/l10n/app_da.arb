@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Proxy-adgangskoder er ikke inkluderet i sikkerhedskopier — indtast dem igen i side- / appindstillinger.",
   "homeImportBlocklistRedownloadHint": "Download DNS- / indholdsblokeringslister igen i Appindstillinger for at aktivere blokering.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{1 udvidelse, som sikkerhedskopien nævner, findes ikke på denne enhed: importér den i Appindstillinger under Udvidelser.} other{{count} udvidelser, som sikkerhedskopien nævner, findes ikke på denne enhed: importér dem i Appindstillinger under Udvidelser.}}",
+  "homeImportInterfacesMissingHint": "Websteder, der er bundet til en netværksgrænseflade, som denne enhed mangler, indlæser intet, før du vælger en anden i deres Netværk-indstillinger: {sites}.",
   "homeSettingsImportedSuccess": "Indstillinger importeret",
   "homeSettingsImportedWithHints": "Indstillinger importeret. {hints}",
   "homeRestoreArchivedDataTitle": "Gendan arkiverede data",

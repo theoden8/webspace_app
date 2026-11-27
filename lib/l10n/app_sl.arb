@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Gesla posredniških strežnikov niso vključena v varnostne kopije — znova jih vnesite v nastavitvah strani / aplikacije.",
   "homeImportBlocklistRedownloadHint": "Znova prenesite sezname blokiranih DNS / vsebine v Nastavitvah aplikacije za aktiviranje blokiranja.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{{count} razširitev, ki jo navaja varnostna kopija, ni v tej napravi: uvozite jo v Nastavitvah aplikacije, pod Razširitve.} two{{count} razširitvi, ki ju navaja varnostna kopija, nista v tej napravi: uvozite ju v Nastavitvah aplikacije, pod Razširitve.} few{{count} razširitve, ki jih navaja varnostna kopija, niso v tej napravi: uvozite jih v Nastavitvah aplikacije, pod Razširitve.} other{{count} razširitev, ki jih navaja varnostna kopija, ni v tej napravi: uvozite jih v Nastavitvah aplikacije, pod Razširitve.}}",
+  "homeImportInterfacesMissingHint": "Spletna mesta, vezana na omrežni vmesnik, ki ga ta naprava nima, ne naložijo ničesar, dokler v njihovih nastavitvah Omrežje ne izberete drugega: {sites}.",
   "homeSettingsImportedSuccess": "Nastavitve uspešno uvožene",
   "homeSettingsImportedWithHints": "Nastavitve uvožene. {hints}",
   "homeRestoreArchivedDataTitle": "Obnovi arhivirane podatke",

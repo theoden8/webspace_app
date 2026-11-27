@@ -689,6 +689,7 @@
   "homeImportProxyPasswordsHint": "Tesserae procuratoris in subsidiis non includuntur — eas iterum in institutionibus loci / applicationis inscribe.",
   "homeImportBlocklistRedownloadHint": "Indices impediendorum DNS / impeditoris contenti in Institutionibus applicationis iterum exonera ad impeditionem activandam.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{1 extensio quam subsidium nominat in hoc instrumento non est: eam in Institutionibus applicationis, sub Extensionibus, importa.} other{{count} extensiones quas subsidium nominat in hoc instrumento non sunt: eas in Institutionibus applicationis, sub Extensionibus, importa.}}",
+  "homeImportInterfacesMissingHint": "Situs cum interfacie retis coniuncti quam hoc instrumentum non habet nihil onerant donec aliam in eorum optionibus Retis eligas: {sites}.",
   "homeSettingsImportedSuccess": "Institutiones feliciter importatae",
   "homeSettingsImportedWithHints": "Institutiones importatae. {hints}",
   "homeRestoreArchivedDataTitle": "Data condita restituere",

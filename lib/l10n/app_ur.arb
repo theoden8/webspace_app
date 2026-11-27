@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "پراکسی پاس ورڈز بیک اپ میں شامل نہیں ہیں — انہیں سائٹ / ایپ سیٹنگز میں دوبارہ درج کریں۔",
   "homeImportBlocklistRedownloadHint": "بلاکنگ فعال کرنے کے لیے ایپ سیٹنگز میں DNS / کنٹینٹ بلاکر فہرستیں دوبارہ ڈاؤن لوڈ کریں۔",
   "homeImportExtensionsMissingHint": "{count, plural, =1{بیک اپ میں مذکور 1 ایکسٹینشن اس ڈیوائس پر نہیں ہے: ایپ سیٹنگز میں، ایکسٹینشنز کے تحت اسے درآمد کریں۔} other{بیک اپ میں مذکور {count} ایکسٹینشنز اس ڈیوائس پر نہیں ہیں: ایپ سیٹنگز میں، ایکسٹینشنز کے تحت انہیں درآمد کریں۔}}",
+  "homeImportInterfacesMissingHint": "اس آلے میں موجود نہ ہونے والے نیٹ ورک انٹرفیس سے بندھی سائٹیں تب تک کچھ لوڈ نہیں کرتیں جب تک آپ ان کی نیٹ ورک ترتیبات میں کوئی اور نہ چنیں: {sites}۔",
   "homeSettingsImportedSuccess": "سیٹنگز کامیابی سے درآمد ہو گئیں",
   "homeSettingsImportedWithHints": "سیٹنگز درآمد ہو گئیں۔ {hints}",
   "homeRestoreArchivedDataTitle": "آرکائیو شدہ ڈیٹا بحال کریں",

@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Las contraseñas de proxy no se incluyen en las copias de seguridad; vuelve a introducirlas en los ajustes del sitio o de la app.",
   "homeImportBlocklistRedownloadHint": "Vuelve a descargar las listas de DNS / bloqueador de contenido en los Ajustes de la app para activar el bloqueo.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{1 extensión que nombra la copia de seguridad no está en este dispositivo: impórtala en Ajustes de la app, en Extensiones.} other{{count} extensiones que nombra la copia de seguridad no están en este dispositivo: impórtalas en Ajustes de la app, en Extensiones.}}",
+  "homeImportInterfacesMissingHint": "Los sitios vinculados a una interfaz de red que este dispositivo no tiene no cargan nada hasta que elijas otra en su configuración de Red: {sites}.",
   "homeSettingsImportedSuccess": "Ajustes importados correctamente",
   "homeSettingsImportedWithHints": "Ajustes importados. {hints}",
   "homeRestoreArchivedDataTitle": "Restaurar datos archivados",

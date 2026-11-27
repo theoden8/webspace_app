@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Proxy parolaları yedeklere dahil edilmez — bunları site / uygulama ayarlarında yeniden girin.",
   "homeImportBlocklistRedownloadHint": "Engellemeyi etkinleştirmek için DNS / içerik engelleyici listelerini Uygulama Ayarları'nda yeniden indirin.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{Yedeğin adını verdiği 1 uzantı bu cihazda yok: Uygulama Ayarları'nda, Uzantılar altında içe aktarın.} other{Yedeğin adını verdiği {count} uzantı bu cihazda yok: bunları Uygulama Ayarları'nda, Uzantılar altında içe aktarın.}}",
+  "homeImportInterfacesMissingHint": "Bu cihazda bulunmayan bir ağ arayüzüne bağlı siteler, Ağ ayarlarında başka birini seçene kadar hiçbir şey yüklemez: {sites}.",
   "homeSettingsImportedSuccess": "Ayarlar başarıyla içe aktarıldı",
   "homeSettingsImportedWithHints": "Ayarlar içe aktarıldı. {hints}",
   "homeRestoreArchivedDataTitle": "Arşivlenmiş verileri geri yükle",

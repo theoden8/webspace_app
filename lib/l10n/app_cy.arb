@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Nid yw cyfrineiriau dirprwy wedi'u cynnwys mewn copïau wrth gefn — ail-roddwch nhw yng ngosodiadau'r safle / ap.",
   "homeImportBlocklistRedownloadHint": "Ail-lawrlwythwch restrau rhwystro DNS / cynnwys yn Gosodiadau'r Ap i actifadu rhwystro.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{Nid yw 1 estyniad y mae'r copi wrth gefn yn ei enwi ar y ddyfais hon: mewnforiwch ef yng Ngosodiadau'r Ap, o dan Estyniadau.} other{Nid yw {count} estyniad y mae'r copi wrth gefn yn eu henwi ar y ddyfais hon: mewnforiwch nhw yng Ngosodiadau'r Ap, o dan Estyniadau.}}",
+  "homeImportInterfacesMissingHint": "Nid yw gwefannau sydd wedi'u rhwymo i ryngwyneb rhwydwaith nad oes gan y ddyfais hon yn llwytho dim nes i chi ddewis un arall yn eu gosodiadau Rhwydwaith: {sites}.",
   "homeSettingsImportedSuccess": "Mewnforiwyd y gosodiadau'n llwyddiannus",
   "homeSettingsImportedWithHints": "Mewnforiwyd y gosodiadau. {hints}",
   "homeRestoreArchivedDataTitle": "Adfer data archifedig",

@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Tarpinio serverio slaptažodžiai neįtraukiami į atsargines kopijas – įveskite juos iš naujo svetainės / programos nustatymuose.",
   "homeImportBlocklistRedownloadHint": "Iš naujo atsisiųskite DNS / turinio blokuoklio sąrašus programos nustatymuose, kad aktyvuotumėte blokavimą.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{Šiame įrenginyje nėra {count} atsarginėje kopijoje nurodyto plėtinio: importuokite jį programos nustatymuose, skiltyje Plėtiniai.} few{Šiame įrenginyje nėra {count} atsarginėje kopijoje nurodytų plėtinių: importuokite juos programos nustatymuose, skiltyje Plėtiniai.} other{Šiame įrenginyje nėra {count} atsarginėje kopijoje nurodytų plėtinių: importuokite juos programos nustatymuose, skiltyje Plėtiniai.}}",
+  "homeImportInterfacesMissingHint": "Svetainės, susietos su tinklo sąsaja, kurios šis įrenginys neturi, nieko neįkelia, kol jų Tinklo nustatymuose nepasirinksite kitos: {sites}.",
   "homeSettingsImportedSuccess": "Nustatymai sėkmingai importuoti",
   "homeSettingsImportedWithHints": "Nustatymai importuoti. {hints}",
   "homeRestoreArchivedDataTitle": "Atkurti archyvuotus duomenis",

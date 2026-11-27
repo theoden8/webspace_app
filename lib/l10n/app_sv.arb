@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Proxylösenord ingår inte i säkerhetskopior — ange dem på nytt i webbplats-/appinställningar.",
   "homeImportBlocklistRedownloadHint": "Ladda ner DNS-/innehållsblockerarlistor på nytt i Appinställningar för att aktivera blockering.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{1 tillägg som säkerhetskopian nämner finns inte på den här enheten: importera det i Appinställningar, under Tillägg.} other{{count} tillägg som säkerhetskopian nämner finns inte på den här enheten: importera dem i Appinställningar, under Tillägg.}}",
+  "homeImportInterfacesMissingHint": "Webbplatser som är bundna till ett nätverksgränssnitt som den här enheten saknar läser inte in något förrän du väljer ett annat i deras Nätverk-inställningar: {sites}.",
   "homeSettingsImportedSuccess": "Inställningar importerade",
   "homeSettingsImportedWithHints": "Inställningar importerade. {hints}",
   "homeRestoreArchivedDataTitle": "Återställ arkiverad data",

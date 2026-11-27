@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Parolele de proxy nu sunt incluse în backup-uri — reintroduce-le în setările site-ului / aplicației.",
   "homeImportBlocklistRedownloadHint": "Redescarcă listele DNS / blocator de conținut în Setări aplicație pentru a activa blocarea.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{1 extensie numită în backup nu este pe acest dispozitiv: import-o în Setări aplicație, la Extensii.} few{{count} extensii numite în backup nu sunt pe acest dispozitiv: importă-le în Setări aplicație, la Extensii.} other{{count} de extensii numite în backup nu sunt pe acest dispozitiv: importă-le în Setări aplicație, la Extensii.}}",
+  "homeImportInterfacesMissingHint": "Site-urile legate de o interfață de rețea pe care acest dispozitiv nu o are nu încarcă nimic până nu alegeți alta în setările lor de Rețea: {sites}.",
   "homeSettingsImportedSuccess": "Setări importate cu succes",
   "homeSettingsImportedWithHints": "Setări importate. {hints}",
   "homeRestoreArchivedDataTitle": "Restaurează datele arhivate",

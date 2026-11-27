@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Proxywachtwoorden zijn niet opgenomen in back-ups — voer ze opnieuw in bij site- / app-instellingen.",
   "homeImportBlocklistRedownloadHint": "Download DNS- / contentblokkeringslijsten opnieuw in App-instellingen om blokkering te activeren.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{1 extensie die de back-up noemt, staat niet op dit apparaat: importeer deze in App-instellingen, onder Extensies.} other{{count} extensies die de back-up noemt, staan niet op dit apparaat: importeer ze in App-instellingen, onder Extensies.}}",
+  "homeImportInterfacesMissingHint": "Sites die gebonden zijn aan een netwerkinterface die dit apparaat niet heeft, laden niets totdat je een andere kiest in hun Netwerk-instellingen: {sites}.",
   "homeSettingsImportedSuccess": "Instellingen succesvol geïmporteerd",
   "homeSettingsImportedWithHints": "Instellingen geïmporteerd. {hints}",
   "homeRestoreArchivedDataTitle": "Gearchiveerde gegevens herstellen",

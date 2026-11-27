@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Lozinke proxyja nisu uključene u sigurnosne kopije — ponovo ih unesite u postavkama stranice / aplikacije.",
   "homeImportBlocklistRedownloadHint": "Ponovo preuzmite DNS / liste blokera sadržaja u Postavkama aplikacije da aktivirate blokiranje.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{{count} proširenje navedeno u sigurnosnoj kopiji nije na ovom uređaju: uvezite ga u Postavkama aplikacije, pod Proširenja.} few{{count} proširenja navedena u sigurnosnoj kopiji nisu na ovom uređaju: uvezite ih u Postavkama aplikacije, pod Proširenja.} other{{count} proširenja navedenih u sigurnosnoj kopiji nije na ovom uređaju: uvezite ih u Postavkama aplikacije, pod Proširenja.}}",
+  "homeImportInterfacesMissingHint": "Stranice vezane za mrežni interfejs koji ovaj uređaj nema ne učitavaju ništa dok ne odaberete drugi u njihovim postavkama za Mrežu: {sites}.",
   "homeSettingsImportedSuccess": "Postavke uspješno uvezene",
   "homeSettingsImportedWithHints": "Postavke uvezene. {hints}",
   "homeRestoreArchivedDataTitle": "Vrati arhivirane podatke",

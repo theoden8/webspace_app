@@ -50,7 +50,7 @@
 - [x] 3.8 The row on `site_network.dart` (NETIF-010), its hint, and the Tor
   and HTTPS lock (NETIF-006). Code and `app_en.arb` first, the 66
   translations in their own commit.
-- [ ] 3.9 The post-import notice (NETIF-014).
+- [x] 3.9 The post-import notice (NETIF-014).
 - [ ] 3.10 A test that drives a nested screen, a popup, a headless check and
   an icon fetch for a bound site (NETIF-009).
 

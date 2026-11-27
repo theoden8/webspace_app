@@ -687,6 +687,7 @@
   "homeImportProxyPasswordsHint": "Proxy-Passwörter sind nicht in Sicherungen enthalten – geben Sie sie in den Seiten-/App-Einstellungen erneut ein.",
   "homeImportBlocklistRedownloadHint": "Laden Sie DNS-/Inhaltsblocker-Listen in den App-Einstellungen erneut herunter, um die Sperrung zu aktivieren.",
   "homeImportExtensionsMissingHint": "{count, plural, =1{1 Erweiterung, die die Sicherung nennt, ist nicht auf diesem Gerät: Importieren Sie sie in den App-Einstellungen unter Erweiterungen.} other{{count} Erweiterungen, die die Sicherung nennt, sind nicht auf diesem Gerät: Importieren Sie sie in den App-Einstellungen unter Erweiterungen.}}",
+  "homeImportInterfacesMissingHint": "Websites, die an eine Netzwerkschnittstelle gebunden sind, die dieses Gerät nicht hat, laden nichts, bis Sie in ihren Netzwerk-Einstellungen eine andere wählen: {sites}.",
   "homeSettingsImportedSuccess": "Einstellungen erfolgreich importiert",
   "homeSettingsImportedWithHints": "Einstellungen importiert. {hints}",
   "homeRestoreArchivedDataTitle": "Archivierte Daten wiederherstellen",
