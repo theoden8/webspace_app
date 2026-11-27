@@ -73,6 +73,8 @@ import 'package:webspace/services/page_focus.dart';
 import 'package:webspace/services/route_cover.dart';
 import 'package:webspace/services/popup_webview.dart';
 import 'package:webspace/services/page_js.dart';
+import 'package:webspace/services/reduced_motion.dart';
+import 'package:webspace/services/wpe_version.dart';
 
 /// The container and proxy a WebView is built with ([WebViewFactory.storeBinding]).
 ///
@@ -402,7 +404,15 @@ class WebViewFactory {
           ? inapp.UserPreferredContentMode.DESKTOP
           : inapp.UserPreferredContentMode.RECOMMENDED
       ..isInspectable = kDebugMode
-      ..useHybridComposition = WebViewFactory.hybridComposition;
+      ..useHybridComposition = WebViewFactory.hybridComposition
+      // A11Y-011: WPE pages see prefers-reduced-motion only from this; the
+      // other engines read the OS themselves.
+      ..disableAnimations = hostIsLinux
+          ? wpeDisableAnimations(
+              reduced: ReducedMotion.instance.reduced,
+              version: WpeVersion.reported,
+            )
+          : null;
   }
 
   /// The navigation rule of a webview that is the site but not the site's

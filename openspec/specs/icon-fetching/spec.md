@@ -299,7 +299,7 @@ has the fork turn favicons on for its network session; WebKit then keeps the
 icons in `icondatabase/WebpageIcons.db` under the container's cache
 directory, which `deleteContainer` removes, and an incognito or archive-tier
 site's ephemeral session keeps them in memory. The app reads the WPE version
-at startup (`WpePageIcons`): a plugin built against 2.54 needs it at run
+at startup (`WpeVersion`): a plugin built against 2.54 needs it at run
 time, while one built against an older WPE forwards nothing even on a newer
 one, and its sites keep the ICON-002 icon.
 

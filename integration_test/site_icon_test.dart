@@ -33,6 +33,7 @@ import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/site_icon_fetcher.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/wpe_version.dart';
 import 'bare_site.dart';
 import 'fixture_server.dart';
 import 'package:webspace/services/webview_config.dart';
@@ -105,7 +106,7 @@ void main() {
   final timeline = <String>[];
 
   setUpAll(() async {
-    await WpePageIcons.initialize();
+    await WpeVersion.probe();
     fetchPath = pageIconSource != PageIconSource.webview;
     // Any address, so the same server answers as the other host.
     server = await HttpServer.bind(InternetAddress.anyIPv4, 0);

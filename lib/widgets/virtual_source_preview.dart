@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
-import 'package:webspace/services/webview.dart' show WebViewFactory;
+import 'package:webspace/services/reduced_motion.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/services/webview.dart';
 
@@ -10,16 +10,18 @@ import 'package:webspace/services/webview.dart';
 /// Mirrors what the shim serves the site, which is why [objectFit] is a
 /// parameter rather than a constant: the camera cover-fits (a sensor fills its
 /// frame, and the user needs to see the crop), while a shared surface is shown
-/// entire. Muted + looped + autoplaying either way, so the user confirms the
-/// loop. Pure string so it is testable without a WebView.
+/// entire. Muted and looped either way, so the user confirms the loop; with
+/// [autoplay] off (reduced motion, A11Y-011) it rests on its first frame and
+/// plays from its controls. Pure string so it is testable without a WebView.
 String buildVirtualSourcePreviewHtml(String dataUrl,
-    {String objectFit = 'cover'}) {
+    {String objectFit = 'cover', required bool autoplay}) {
+  final play = autoplay ? 'autoplay' : 'preload="auto" controls';
   return '<!doctype html><html><head>'
       '<meta name="viewport" content="width=device-width,initial-scale=1">'
       '<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}'
       'video{width:100%;height:100%;object-fit:$objectFit;display:block}</style>'
       '</head><body>'
-      '<video src="$dataUrl" autoplay loop muted playsinline></video>'
+      '<video src="$dataUrl" $play loop muted playsinline></video>'
       '</body></html>';
 }
 
@@ -67,6 +69,8 @@ class VirtualSourcePreview extends StatelessWidget {
               color: Colors.black,
               child: source.isVideo
                   ? _VideoPreview(
+                      key: ValueKey(ReducedMotion.of(context)),
+                      autoplay: !ReducedMotion.of(context),
                       dataUrl: source.dataUrl,
                       objectFit: fit == BoxFit.contain ? 'contain' : 'cover',
                     )
@@ -86,7 +90,13 @@ class VirtualSourcePreview extends StatelessWidget {
 class _VideoPreview extends StatefulWidget {
   final String dataUrl;
   final String objectFit;
-  const _VideoPreview({required this.dataUrl, required this.objectFit});
+  final bool autoplay;
+  const _VideoPreview({
+    super.key,
+    required this.dataUrl,
+    required this.objectFit,
+    required this.autoplay,
+  });
 
   @override
   State<_VideoPreview> createState() => _VideoPreviewState();
@@ -97,12 +107,12 @@ class _VideoPreviewState extends State<_VideoPreview> {
   late final Widget _webView = inapp.InAppWebView(
     initialData: inapp.InAppWebViewInitialData(
       data: buildVirtualSourcePreviewHtml(widget.dataUrl,
-          objectFit: widget.objectFit),
+          objectFit: widget.objectFit, autoplay: widget.autoplay),
       mimeType: 'text/html',
       encoding: 'utf-8',
     ),
     initialSettings: inapp.InAppWebViewSettings(
-      // Loop preview must start without a tap.
+      // Loop preview must start without a tap, unless motion is reduced.
       mediaPlaybackRequiresUserGesture: false,
       allowsInlineMediaPlayback: true,
       transparentBackground: true,

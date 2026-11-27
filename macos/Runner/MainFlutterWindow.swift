@@ -27,6 +27,12 @@ class MainFlutterWindow: NSWindow {
   private var statusItem: NSStatusItem?
   private let trayMenu = NSMenu()
 
+  /// A11Y-011: Flutter's macOS embedder delivers no accessibility flags, so
+  /// lib/services/reduced_motion.dart asks Reduce Motion over the
+  /// `reduced_motion` channel and is told when it changes.
+  private var reducedMotionChannel: FlutterMethodChannel?
+  private var reducedMotionObserver: NSObjectProtocol?
+
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
     let windowFrame = self.frame
@@ -42,6 +48,7 @@ class MainFlutterWindow: NSWindow {
     ScreenSharePlugin.attach(to: flutterViewController.engine.binaryMessenger)
     attachDesktopWindowChannel(to: flutterViewController.engine.binaryMessenger)
     attachTrayChannel(to: flutterViewController.engine.binaryMessenger)
+    attachReducedMotionChannel(to: flutterViewController.engine.binaryMessenger)
     #if DEBUG
       WindowCapturePlugin.attach(
         to: flutterViewController.engine.binaryMessenger, window: self)
@@ -135,6 +142,30 @@ class MainFlutterWindow: NSWindow {
       }
     }
     trayChannel = channel
+  }
+
+  private func attachReducedMotionChannel(to messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(
+      name: "org.codeberg.theoden8.webspace/reduced_motion",
+      binaryMessenger: messenger
+    )
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "reduceMotion":
+        result(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+    reducedMotionObserver = NSWorkspace.shared.notificationCenter.addObserver(
+      forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
+      object: nil,
+      queue: .main
+    ) { [weak channel] _ in
+      channel?.invokeMethod(
+        "changed", arguments: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+    }
+    reducedMotionChannel = channel
   }
 
   private func showTray(title: String, icon: Data?, entries: [[String: Any]]) {

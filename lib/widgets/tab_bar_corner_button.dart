@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 
+import 'package:webspace/services/reduced_motion.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/sidebar_arrow_tab.dart';
@@ -44,7 +45,7 @@ class TabBarCornerButton extends StatelessWidget {
       onPanCancel: onDragEnd,
       child: AnimatedScale(
         scale: dragging ? FloatingButton.dragScale : 1.0,
-        duration: Motion.press,
+        duration: ReducedMotion.duration(context, full: Motion.press),
         child: Material(
           color: Theme.of(context).colorScheme.primary.withOpacity(FloatingButton.surfaceOpacity),
           shape: const CircleBorder(),
@@ -154,7 +155,9 @@ class _TabBarCornerOverlayState extends State<TabBarCornerOverlay> {
               tabBarCornerIsRight(corner) ? 1 : -1,
               tabBarCornerIsTop(corner) ? -1 : 1,
             ),
-        duration: _drag != null ? Duration.zero : Motion.settle,
+        duration: _drag != null
+            ? Duration.zero
+            : ReducedMotion.duration(context, full: Motion.settle),
         curve: Curves.easeOutCubic,
         child: TabBarCornerButton(
           dragging: _drag != null,

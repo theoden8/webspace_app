@@ -7,6 +7,7 @@ import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
+import 'package:webspace/services/reduced_motion.dart';
 
 /// A switch a card covers: [show] makes it, and [shown] says it is on
 /// screen.
@@ -107,7 +108,7 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
   }) async {
     if (_site != null ||
         _grip != null ||
-        MediaQuery.disableAnimationsOf(context)) {
+        ReducedMotion.of(context)) {
       return to.show();
     }
     _fade.value = from == null ? 0 : 1;
@@ -147,7 +148,7 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
     var finished = false;
     final showing = to.show().whenComplete(() => finished = true);
     await _hold(until: () => finished && to.shown());
-    if (mounted && !MediaQuery.disableAnimationsOf(context)) {
+    if (mounted && !ReducedMotion.of(context)) {
       await _play(_fade.reverse());
     }
     _done();
@@ -160,7 +161,7 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
   Future<void> close(WebViewModel site, {required CardLanding to}) async {
     if (_site != null ||
         _grip != null ||
-        MediaQuery.disableAnimationsOf(context)) {
+        ReducedMotion.of(context)) {
       return to.show();
     }
     _fade.value = 0;
@@ -194,7 +195,7 @@ class LaunchZoomState extends State<LaunchZoom> with TickerProviderStateMixin {
     if (_site != null || _grip != null) return null;
     final grip = _Grip(zoom: this, by: _localPoint(at), to: to, back: back);
     _grip = grip;
-    if (!MediaQuery.disableAnimationsOf(context)) {
+    if (!ReducedMotion.of(context)) {
       _fade.value = 0;
       _size.value = 1;
       _raise.value = 0;

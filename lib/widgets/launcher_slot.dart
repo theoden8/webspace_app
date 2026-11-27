@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/services/reduced_motion.dart';
 
 /// An icon's place in a launcher grid. When the grid moves it (a drop, a
 /// menu's Move, a search narrowing the grid) it slides from where it was to
@@ -64,7 +65,7 @@ class LauncherSlotState extends State<LauncherSlot>
   void _moved(Offset from) {
     if (!mounted) return;
     _dropped = null;
-    if (MediaQuery.disableAnimationsOf(context)) {
+    if (ReducedMotion.of(context)) {
       setState(() => _from = Offset.zero);
       return;
     }
