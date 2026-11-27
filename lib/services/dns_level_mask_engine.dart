@@ -189,26 +189,8 @@ Def<int, W> resolveLevelDef<W>() {
   );
 }
 
-/// What [resolveDnsLevel] is asked: the definition's three arguments.
-typedef _LevelAsk = ({int siteLevel, int globalLevel, Set<int> downloaded});
-
-/// [resolveLevelDef] over its arguments, built once: the request path runs
-/// it per request.
-final _resolveAsked = resolveLevelDef<_LevelAsk>().call([
-  _arg('sl', of: (w) => w.siteLevel),
-  _arg('g', of: (w) => w.globalLevel),
-  _arg('d', of: (w) => w.downloaded),
-]);
-
-/// One of the definition's arguments, read off what it is asked; it
-/// reaches no variable of the model.
-Expr<T, _LevelAsk> _arg<T>(String name, {required T Function(_LevelAsk w) of}) =>
-    Expr.op(
-      HandPaired.levelAsk,
-      tla: name,
-      run: Port<T, _LevelAsk>(name, reads: const {}, changes: const {}, of: of).from,
-      reads: Reads.none,
-    );
+/// [resolveLevelDef], built once: the request path runs it per request.
+final _resolveLevel = resolveLevelDef<Object?>();
 
 /// Level a site actually runs at.
 ///
@@ -221,11 +203,10 @@ int resolveDnsLevel({
   required int? siteLevel,
   required int globalLevel,
   required Set<int> downloadedLevels,
-}) => _resolveAsked.run(StepContext((
-  siteLevel: siteLevel ?? kDnsLevelFollow,
-  globalLevel: globalLevel,
-  downloaded: downloadedLevels,
-)));
+}) => _resolveLevel.evaluate(
+  null,
+  args: [siteLevel ?? kDnsLevelFollow, globalLevel, downloadedLevels],
+);
 
 /// Whether [siteLevel] is asking for a list the app has not fetched. Drives
 /// the settings row's download affordance and its "not configured" warning.

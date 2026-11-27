@@ -1048,11 +1048,9 @@ final class _WakeTable<S extends Object> {
   /// step failed before it reached its closes.
   void closeFirst(StepContext<WakeFlow<S>> c) => _site
       .becomes(
-        Expr.op(
-          HandPaired.anyHeadless,
-          tla: 'CHOOSE s \\in headless : TRUE',
+        Expr.chosen(
+          among: _eachOpen.it,
           run: (c) => _headless.value.run(c).first,
-          reads: const Reads(vars: {ModelVar.headless}),
         ),
       )
       .run(c);
