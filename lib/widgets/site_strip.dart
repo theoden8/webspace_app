@@ -90,7 +90,6 @@ class SiteStrip extends StatelessWidget {
                 tooltip: AppLocalizations.of(context).commonClose,
                 icon: const Icon(Icons.close),
                 iconSize: 20,
-                visualDensity: VisualDensity.compact,
                 onPressed: onHide,
               ),
             Expanded(
@@ -129,7 +128,6 @@ class SiteStrip extends StatelessWidget {
     return Builder(builder: (context) {
       final loc = AppLocalizations.of(context);
       final arrow = IconButton(
-        visualDensity: VisualDensity.compact,
         iconSize: IconSizes.inline,
         tooltip: opened
             ? loc.stripHideSiteTabs(site.getDisplayName())

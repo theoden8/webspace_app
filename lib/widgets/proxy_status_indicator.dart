@@ -156,7 +156,6 @@ class _ProxyStatusIndicatorState extends State<ProxyStatusIndicator> {
           IconButton(
             icon: const Icon(Icons.refresh, size: IconSizes.inline),
             tooltip: loc.proxyStatusCheckAgain,
-            visualDensity: VisualDensity.compact,
             constraints: const BoxConstraints(
               minWidth: TapTargets.compact,
               minHeight: TapTargets.compact,

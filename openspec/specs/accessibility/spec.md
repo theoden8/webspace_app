@@ -694,18 +694,28 @@ Every tappable element of the chrome SHALL have a hit area of at least
 Guidelines, `iOSTapTargetGuideline`). The drawn glyph may stay smaller; the
 hit area may not.
 
-Status: `TapTargets.compact` is 32 (`lib/theme/design_tokens.dart`), and
-`test/design_render_matrix_test.dart` holds its widgets to that floor, which
-is below both platforms'. It sizes the `HintButton` (46 call sites), the
-proxy status indicator's check-again button and the tabs sheet's
-expand/collapse control. Smaller still: the drawer's site menu button (about
-24) and the tab counter (22x22). Flutter's tap target guidelines run in no
-test.
+Status: `TapTargets.compact` is 48 (`kMinInteractiveDimension`,
+`lib/theme/design_tokens.dart`), and `test/design_render_matrix_test.dart`
+holds its widgets to it. `test/tap_targets_test.dart` runs both guidelines
+over the shipped app: the app bar with the tab counter and the strip's
+floating button, the drawer, the tab strip at phone and desktop widths, the
+tabs sheet in both scopes, App Settings and each of its screens, a site's
+settings and the proxy status indicator. An icon button in that chrome takes
+the platform's padded tap target rather than `VisualDensity.compact`, and a
+tab chip is drawn 32 tall inside its 48 tap target.
 
-Gate to add: `meetsGuideline(androidTapTargetGuideline)` and
-`meetsGuideline(iOSTapTargetGuideline)` in widget tests of the drawer, tab
-strip, app bar and settings screens, with `TapTargets.compact` raised to 48
-and the render matrix floor following it.
+Open, each a design decision, so the requirement stays owed in
+`openspec/unverified.tsv`:
+
+- The drawer tile's corner menu: a 24 square at the corner of a tile about
+  69 wide in a four-column drawer, where a 48 target would cover the site's
+  icon. It is behind `ExcludeSemantics`, so the guidelines do not see it.
+- The sidebar squares' tab toggle: 24 drawn and 40 hit, over the square's
+  icon.
+- The sidebar rail's tab bars: 24x10 each.
+
+Gate to add: the same guidelines over the sidebar's squares and rail, once
+those and the drawer's corner menu are decided.
 
 #### Scenario: Pre-launch report
 

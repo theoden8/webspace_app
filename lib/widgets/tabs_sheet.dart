@@ -467,7 +467,6 @@ class _TabsSheetState extends State<TabsSheet> {
         padding: const EdgeInsets.fromLTRB(
             Spacing.lg, Spacing.xs, Spacing.lg, Spacing.xs),
         child: SegmentedButton<bool>(
-          style: const ButtonStyle(visualDensity: VisualDensity.compact),
           showSelectedIcon: false,
           segments: [
             ButtonSegment(value: false, label: Text(loc.tabsThisSite)),
@@ -529,7 +528,6 @@ class _TabsSheetState extends State<TabsSheet> {
     final folded = _foldedSites.contains(id);
     return IconButton(
       padding: EdgeInsets.zero,
-      visualDensity: VisualDensity.compact,
       iconSize: IconSizes.inline,
       tooltip: folded ? loc.tabsUnfoldSite : loc.tabsFoldSite,
       icon: Icon(folded ? Icons.chevron_right : Icons.keyboard_arrow_down),
@@ -859,7 +857,6 @@ class _TabsSheetState extends State<TabsSheet> {
     Widget close(String tooltip,
             {required IconData icon, required TabsSheetClose onClose}) =>
         IconButton(
-          visualDensity: VisualDensity.compact,
           iconSize: IconSizes.action,
           tooltip: tooltip,
           icon: Icon(icon),
@@ -883,7 +880,6 @@ class _TabsSheetState extends State<TabsSheet> {
                   ? const SizedBox.shrink()
                   : IconButton(
                       padding: EdgeInsets.zero,
-                      visualDensity: VisualDensity.compact,
                       iconSize: IconSizes.inline,
                       tooltip:
                           collapsed ? loc.tabsExpand : loc.tabsCollapse,

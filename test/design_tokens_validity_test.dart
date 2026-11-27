@@ -138,11 +138,13 @@ void main() {
       expect(IconSizes.floating, lessThanOrEqualTo(48));
     });
 
-    test('a tap target is at least as big as the icon it holds', () {
-      expect(TapTargets.compact, greaterThanOrEqualTo(IconSizes.action));
-      // Material's own floor is 48; this token is the documented exception for
-      // compact icon buttons, and 32 is as small as that exception goes.
-      expect(TapTargets.compact, greaterThanOrEqualTo(32));
+    test('a tap target holds its icon and meets both platforms\' floor', () {
+      expect(TapTargets.compact, greaterThanOrEqualTo(IconSizes.floating));
+      for (final floor in [androidTapTargetGuideline, iOSTapTargetGuideline]) {
+        expect(TapTargets.compact,
+            greaterThanOrEqualTo(
+                (floor as MinimumTapTargetGuideline).size.longestSide));
+      }
     });
 
     test('the URL text is readable', () {
