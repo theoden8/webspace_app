@@ -6,16 +6,17 @@ import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/site_menu.dart';
 
+import 'helpers/label_shows_text.dart';
 import 'helpers/localized.dart';
 import 'helpers/real_app.dart';
 import 'helpers/semantics_actions.dart';
 
 /// Every control of the chrome has a name, a role and an action a screen
 /// reader reaches: the real app's common screens hold no tappable node
-/// without a label, a site in the drawer opens, is moved and shows its menu
-/// through semantics alone, the site menu's top row is four controls, not
-/// one, with its long presses as actions, and the find bar's match count is
-/// read as it changes.
+/// without a label, nor one whose label leaves out the text it shows, a site
+/// in the drawer opens, is moved and shows its menu through semantics alone,
+/// the site menu's top row is four controls, not one, with its long presses
+/// as actions, and the find bar's match count is read as it changes.
 void main() {
   const phone = Size(400, 800);
 
@@ -32,8 +33,10 @@ void main() {
     await openSiteFromDrawer(tester, name: 'Docs');
   }
 
-  Future<void> named(WidgetTester tester) =>
-      expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+  Future<void> named(WidgetTester tester) async {
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(labelShowsTextGuideline));
+  }
 
   Future<void> namedScrolled(WidgetTester tester) async {
     await named(tester);
