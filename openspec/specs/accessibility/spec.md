@@ -192,15 +192,16 @@ update.
 
 Why each is No today, in one line each:
 
-- **VoiceOver, Voice Control**: 13 icon buttons and both FABs are unlabelled,
-  the add-site FAB included (first launch); the drawer's site tile has no
-  tap action; several actions exist only as long press, drag or swipe. On
-  the Mac the page itself is unreachable (A11Y-004).
+- **VoiceOver, Voice Control**: every chrome control is named and pressable,
+  with its state and its drag, swipe and long-press moves as actions
+  (A11Y-005), but nobody has run either on a device, and on the Mac the page
+  itself is unreachable (A11Y-004).
 - **Larger Text**: nothing clamps the scale, but the drawer tile, site strip
   and tab counter are fixed-size boxes that no test renders at 200%. On the
   Mac Flutter reports 1.0 and there is no in-app text size.
-- **Dark Interface**: the chrome is ready; whether a webview paints white
-  before its first frame in dark mode is unchecked.
+- **Dark Interface**: the chrome and the pages it tells stay dark
+  (A11Y-008); whether a webview paints white before its first frame in dark
+  mode needs a device.
 - **Differentiate Without Color Alone**: the cues A11Y-009 lists are in
   place; nobody has checked them on a device with the Grayscale filter on.
 - **Sufficient Contrast**: text holds 4.5:1 and indicators 3:1 (A11Y-010);
@@ -807,8 +808,9 @@ By value over cost. Each item names the requirement it moves.
    tile and tab chip; the theme tooltip; the structural gate. Small, and it
    unblocks VoiceOver and Voice Control on iPhone. Done: `unnamed_button`,
    `raw_tap` and the labelled-target walk.
-3. **Contrast and touch targets** (A11Y-010, A11Y-014): contrast and the
-   high contrast theme are done; `TapTargets.compact` to 48 remains. These
+3. **Contrast and touch targets** (A11Y-010, A11Y-014): contrast, the
+   high contrast theme and 48 point targets are done, the sidebar's tab
+   toggle and rail bars aside until it is redesigned. These
    are two of Android's three quality criteria and most of what the
    pre-launch report will list.
 4. **Selected site cue** (A11Y-009) and the statistics chips and bars.
@@ -817,7 +819,7 @@ By value over cost. Each item names the requirement it moves.
 6. **Dark flash check** (A11Y-008). Then answer Dark Interface Yes.
 7. **Larger Text matrix** (A11Y-006) and the fixed boxes it finds.
 8. **Custom actions** for reorder and the long-press-only actions (A11Y-005).
-   Done outside the Tabs sheet, whose drags remain.
+   Done, the Tabs sheet's drags included.
 9. **Theme shim compound queries** and the browser-tier media-feature gate
    (A11Y-003).
 10. **Fork and engine**: Linux keyboard escape (A11Y-012), Linux text scale
