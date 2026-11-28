@@ -369,9 +369,12 @@ Status. Two analyzer errors in `lib/` hold the name and the action:
 `Listener` that acts on `onPointerUp` outside a `Semantics` with `onTap:` in
 the same build expression (the pull-to-refresh gate, which acts on no tap, is
 its one listed ignore). `test/control_semantics_test.dart` walks the real app
-on a phone against `labeledTapTargetGuideline`: the app bar, the drawer and
-the site strip, App Settings and each screen it opens, the site menu and a
-site's settings. What the failures listed at `5e1788f` became:
+on a phone against `labeledTapTargetGuideline` and against
+`labelShowsTextGuideline` (`test/helpers/label_shows_text.dart`), which fails
+a tappable node whose label and tooltip leave out a text it shows, hidden from
+the reader or not: the app bar, the drawer and the site strip, App Settings
+and each screen it opens, the site menu, a site's settings and the Tabs sheet.
+What the failures listed at `5e1788f` became:
 
 | Control | Now |
 |---|---|
@@ -388,13 +391,17 @@ site's settings. What the failures listed at `5e1788f` became:
 | `HintButton` in a merged row (`SwitchListTile`, a scoped row) | the hint's dialog as an "About {title}" custom action on the row's node, so it no longer needs a device check |
 | Tor bridge CAPTCHA | the image named Characters to type; the service offers no audio or text challenge, so the dialog names the ways round it: a transport with a built-in bridge, or a pasted line |
 | find match count, Tor progress (card and interstitial) | `LiveStatus`, a live region |
+| Tabs sheet site heading, and a one-tab site's row | Move up and Move down as custom actions, each the drop on the heading beside it (TAB-016) |
+| Tabs sheet tab row | Move up and Move down among the tabs at its level, Move under the tab above, Move out of the tab it hangs from and Move to the end, each offered only where it moves the tab and each the drop a drag makes (TAB-015) |
+| sidebar resize grip, arrow tab | the platform's scroll actions, the drags themselves: scroll right and left widen and narrow the sidebar, 6 points a step; scroll up and down move the tab along the edge |
 
-Still open: the Tabs sheet reorders sites and moves and nests tabs by drag
-alone, with no custom action; the sidebar's resize grip and the arrow tab's
-place on the edge are reached only through the platform's scroll actions,
-which no test drives; no check holds that a name contains the text a control
-shows, or finds a state or a long press on a control added later; and the
-live regions are checked as flags, not as announcements on a device.
+Still open: no check finds a state or a long press on a control added later
+(the guidelines hold a name and the text it shows, not a selected or expanded
+state left out, nor a long press with no action beside it); the live regions
+are checked as flags, not as announcements on a device; and in the "All" view
+a site moved in the Tabs sheet, by drag or by action, lands, but the open
+sheet keeps the order it had until it is opened again, since the move
+commits after the sheet has read the sites back.
 
 #### Scenario: Voice Control opens a site
 
