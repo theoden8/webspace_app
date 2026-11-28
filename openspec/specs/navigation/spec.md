@@ -872,6 +872,9 @@ opens, a site's settings, the library, dialogs, sheets and menus.
 - The arrows SHALL move focus between controls, and Tab and Shift-Tab along them; Enter or
   Space SHALL press the control that has focus, and Escape SHALL close a dialog, a sheet or a
   menu, as Flutter does on a desktop.
+- Tab SHALL reach a screen's app bar before the rest of it, however far its list has
+  scrolled under the bar, so going round never leaves the back button out; it SHALL pass
+  over the pages of a site's hidden tabs, and stay in an open drawer until Escape closes it.
 - Up and Down SHALL leave a one-line text field; Left and Right stay with its caret, and a
   field of several lines keeps all four.
 - Up and Down SHALL leave a slider; Left and Right change its value.
