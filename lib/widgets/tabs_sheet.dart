@@ -27,6 +27,7 @@ import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/settings/site_ids.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
@@ -639,8 +640,11 @@ class _TabsSheetState extends State<TabsSheet> {
       required ThemeData theme}) {
     final id = site.model.siteId;
     final key = 'site:$id';
+    final shown = _shown;
     int position(SiteId siteId) =>
-        _shown.indexWhere((s) => s.model.siteId == siteId);
+        shown.indexWhere((s) => s.model.siteId == siteId);
+    final at = position(id);
+    final words = WidgetsLocalizations.of(context);
 
     return DragTarget<_DraggedSite>(
       onWillAcceptWithDetails: (d) => d.data.siteId != id,
@@ -662,20 +666,30 @@ class _TabsSheetState extends State<TabsSheet> {
           feedback: _feedback(label, theme: theme),
           childWhenDragging:
               Opacity(opacity: TabRows.draggingOpacity, child: drawn),
-          child: Stack(
-            children: [
-              drawn,
-              if (from != null)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: above ? 0 : null,
-                  bottom: above ? null : 0,
-                  height: TabRows.dropLineWidth,
-                  child: IgnorePointer(
-                      child: ColoredBox(color: theme.colorScheme.accentIndicator)),
-                ),
-            ],
+          child: Semantics(
+            customSemanticsActions: {
+              if (at > 0)
+                CustomSemanticsAction(label: words.reorderItemUp): () =>
+                    _dropSite(id, ontoSiteId: shown[at - 1].model.siteId),
+              if (at >= 0 && at < shown.length - 1)
+                CustomSemanticsAction(label: words.reorderItemDown): () =>
+                    _dropSite(id, ontoSiteId: shown[at + 1].model.siteId),
+            },
+            child: Stack(
+              children: [
+                drawn,
+                if (from != null)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: above ? 0 : null,
+                    bottom: above ? null : 0,
+                    height: TabRows.dropLineWidth,
+                    child: IgnorePointer(
+                        child: ColoredBox(color: theme.colorScheme.accentIndicator)),
+                  ),
+              ],
+            ),
           ),
         );
       },
@@ -750,8 +764,7 @@ class _TabsSheetState extends State<TabsSheet> {
             children: [
               Expanded(
                 child: Text(
-                  loc.tabsClosedNamed(
-                      tab.title?.isNotEmpty == true ? tab.title! : tab.url),
+                  loc.tabsClosedNamed(_titleOf(tab)),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodyMedium
@@ -831,7 +844,7 @@ class _TabsSheetState extends State<TabsSheet> {
     final identity = host ?? site.model;
     final domain = addressOf(tab.url, loc: loc);
     final name = site.model.getDisplayName();
-    final pageTitle = tab.title?.isNotEmpty == true ? tab.title! : tab.url;
+    final pageTitle = _titleOf(tab);
     // A one-tab site's row names the site first, so its second line is the
     // page: the title, or the domain where the title only repeats the name.
     final page = !shape.asSite
@@ -1021,42 +1034,92 @@ class _TabsSheetState extends State<TabsSheet> {
           onDragUpdate: (d) => _autoScrollAt(d.globalPosition),
           onDragEnd: (_) => _stopAutoScroll(),
           onDraggableCanceled: (_, _) => _stopAutoScroll(),
-          feedback: _feedback(
-              tab.title?.isNotEmpty == true ? tab.title! : tab.url, theme: theme),
+          feedback: _feedback(_titleOf(tab), theme: theme),
           childWhenDragging:
               Opacity(opacity: TabRows.draggingOpacity, child: drawn),
-          child: Stack(
-            key: rowKey,
-            children: [
-              drawn,
-              if (zone == TabDropZone.into)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: line.withValues(alpha: 0.08),
-                        border: Border.all(
-                            color: line, width: TabRows.dropLineWidth),
-                        borderRadius: BorderRadius.circular(Radii.lg),
+          child: Semantics(
+            customSemanticsActions: _tabMoves(site, row: row, dragged: dragged),
+            child: Stack(
+              key: rowKey,
+              children: [
+                drawn,
+                if (zone == TabDropZone.into)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: line.withValues(alpha: 0.08),
+                          border: Border.all(
+                              color: line, width: TabRows.dropLineWidth),
+                          borderRadius: BorderRadius.circular(Radii.lg),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              if (zone == TabDropZone.before || zone == TabDropZone.after)
-                PositionedDirectional(
-                  start: indent,
-                  end: 0,
-                  top: zone == TabDropZone.before ? 0 : null,
-                  bottom: zone == TabDropZone.after ? 0 : null,
-                  height: TabRows.dropLineWidth,
-                  child: IgnorePointer(child: ColoredBox(color: line)),
-                ),
-            ],
+                if (zone == TabDropZone.before || zone == TabDropZone.after)
+                  PositionedDirectional(
+                    start: indent,
+                    end: 0,
+                    top: zone == TabDropZone.before ? 0 : null,
+                    bottom: zone == TabDropZone.after ? 0 : null,
+                    height: TabRows.dropLineWidth,
+                    child: IgnorePointer(child: ColoredBox(color: line)),
+                  ),
+              ],
+            ),
           ),
         );
       },
     );
   }
+
+  /// The drops a drag of [row] can make, as a screen reader's actions on
+  /// it: before the tab above it at its level, after the one below, under
+  /// the one above, out of the tab it hangs from, or past the last row.
+  Map<CustomSemanticsAction, VoidCallback> _tabMoves(TabsSheetSite site,
+      {required TabRow row, required _DraggedTab dragged}) {
+    final loc = AppLocalizations.of(context);
+    final words = WidgetsLocalizations.of(context);
+    final rows = TabLifecycleEngine.treeOrder(site.model.tabs);
+    final at = rows.indexWhere((r) => r.tab.id == row.tab.id);
+    SiteTab? sibling({required int step}) {
+      for (var i = at + step; i >= 0 && i < rows.length; i += step) {
+        if (rows[i].depth < row.depth) return null;
+        if (rows[i].depth == row.depth) return rows[i].tab;
+      }
+      return null;
+    }
+
+    final above = sibling(step: -1);
+    final below = sibling(step: 1);
+    final parent =
+        site.model.tabs.where((t) => t.id == row.tab.parentId).firstOrNull;
+    void drop(TabDrop to, {String? expand}) =>
+        _drop(dragged, drop: to, expand: expand);
+    return {
+      if (above != null)
+        CustomSemanticsAction(label: words.reorderItemUp): () =>
+            drop(TabDrop.onto(above.id, zone: TabDropZone.before)),
+      if (below != null)
+        CustomSemanticsAction(label: words.reorderItemDown): () => drop(
+            TabDrop.onto(below.id,
+                zone: TabDropZone.after, targetExpanded: false)),
+      if (above != null)
+        CustomSemanticsAction(label: loc.tabsMoveUnder(_titleOf(above))): () =>
+            drop(TabDrop.onto(above.id, zone: TabDropZone.into),
+                expand: _keyOf(site, tabId: above.id)),
+      if (parent != null)
+        CustomSemanticsAction(label: loc.tabsMoveOutOf(_titleOf(parent))): () =>
+            drop(TabDrop.onto(parent.id,
+                zone: TabDropZone.after, targetExpanded: false)),
+      if (row.depth > 0 || below != null)
+        CustomSemanticsAction(label: words.reorderItemToEnd): () =>
+            drop(const TabDrop.toEnd()),
+    };
+  }
+
+  static String _titleOf(SiteTab tab) =>
+      tab.title?.isNotEmpty == true ? tab.title! : tab.url;
 
   /// Past a site's last row: the dragged tab becomes its last root.
   Widget _endTarget(TabsSheetSite site, {required ThemeData theme}) {

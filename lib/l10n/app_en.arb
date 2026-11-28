@@ -5208,6 +5208,26 @@
   "@tabsCloseSubtree": {
     "description": "Tooltip on the button that closes a tab together with every tab opened from it."
   },
+  "tabsMoveUnder": "Move under {title}",
+  "@tabsMoveUnder": {
+    "description": "Action a screen reader offers on a tab in the tab list, in place of dragging it: the tab, with the tabs opened from it, becomes the last tab opened from the tab just above it at the same level, as if it had been opened from there. {title} is that tab's page title, for example 'Move under Pull requests'.",
+    "placeholders": {
+      "title": {
+        "type": "String",
+        "example": "Pull requests"
+      }
+    }
+  },
+  "tabsMoveOutOf": "Move out of {title}",
+  "@tabsMoveOutOf": {
+    "description": "Action a screen reader offers on a tab in the tab list that was opened from another tab, in place of dragging it: the tab, with the tabs opened from it, stops hanging under that tab and is listed just after it, at its level. {title} is the page title of the tab it was opened from, for example 'Move out of Pull requests'.",
+    "placeholders": {
+      "title": {
+        "type": "String",
+        "example": "Pull requests"
+      }
+    }
+  },
   "tabsLive": "open",
   "@tabsLive": {
     "description": "Read by a screen reader for the one tab of the current site that is loaded and on screen; sighted users see it drawn at full strength and highlighted. The others are stored."
