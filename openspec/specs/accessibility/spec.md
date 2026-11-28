@@ -259,17 +259,33 @@ The app SHALL NOT inject `user-scalable=no`, `maximum-scale` or
 `minimum-scale`, SHALL NOT hide elements by `role` or `aria-*`, and SHALL
 NOT set `accessibilityIgnoresInvertColors`.
 
-Status, at `5e1788f`:
+Status, at `602ff549`:
 
-- **Holds** for every shim except one. No shim handles any of the five
-  features; the anti-fingerprinting `matchMedia` wrapper touches only
-  `device-width`, `device-height` and `device-aspect-ratio`.
-- **Breaks for compound colour-scheme queries.** The theme shim
-  (`lib/services/theme_color_scheme_shim.dart:49`) answers any query whose
-  text contains `prefers-color-scheme` from the app theme alone, so
-  `(prefers-color-scheme: dark) and (prefers-contrast: more)` loses its
-  contrast half. It should answer the colour-scheme feature and evaluate
-  the rest of the query against the original `matchMedia`.
+- **Holds** for the media features, as far as Chromium and a fake engine
+  show. No page script names one of the five; the anti-fingerprinting
+  `matchMedia` wrapper touches only the device dimensions, resolution,
+  pointer and hover. The theme shim (`lib/js/theme_color_scheme.js`)
+  answers only the colour-scheme feature: it rewrites each
+  `(prefers-color-scheme: X)` to `(grid: 0)` or `(grid: 1)`, which every
+  bitmap screen answers true and false, and hands the rewritten query to
+  the engine, so `not`, `only`, `,` lists and every other feature are the
+  engine's. Its `change` listeners follow the engine's list for the
+  rewritten query and fire on a theme flip only when the answer moves.
+- **Holds** for the second paragraph in the app's own source. No viewport
+  the app writes carries `user-scalable=no`, `maximum-scale` or
+  `minimum-scale`; every site webview keeps `supportZoom` true, since on
+  iOS and macOS the fork injects `maximum-scale=1.0, user-scalable=no` when
+  it is false. The one webview with it false is the virtual camera clip's
+  preview in settings, a page the app builds from the user's own file and
+  never a site. Nothing names `accessibilityIgnoresInvertColors`, and no
+  script, rule or attribute write hides by `role`, `aria-*`, `aria-hidden`
+  or `inert`.
+- **Not checked**: `inverted-colors` on a real engine (Chromium cannot
+  emulate it, so only the fake engine and the source gate hold it); any of
+  this on WebKit, which runs these scripts on iOS, macOS and Linux; and the
+  selectors a user's filter lists carry, which the content blocker applies
+  as they are and the gate cannot see. Whether a list's `[aria-label=...]`
+  rule counts as the app hiding by `aria-*` is undecided.
 - **Known costs, kept on purpose** (Tracking Protection):
   `speechSynthesis.getVoices()` returns `[]` (ETP-011), so a page's
   read-aloud control finds no voice list, although `speak()` still uses the
@@ -278,14 +294,29 @@ Status, at `5e1788f`:
   targets from it gets its desktop layout.
 - The page-zoom and desktop-mode viewport rewrites replace a site's viewport
   `content` wholesale, which drops its `user-scalable=no`. That widens what
-  the user can do and is allowed.
+  the user can do and is allowed. The default viewport keeps a site's own
+  `content` and only adds an `initial-scale`, so a site's own limit stays
+  the site's.
 
-Gate: `test/browser/accessibility_media_real_engine.test.js` installs every
-page script at document start, emulates each feature but `inverted-colors`
-(which Chromium cannot emulate) with Puppeteer's `emulateMediaFeatures`, and
-asserts that `matchMedia` and a CSS `@media` probe both report the emulated
-value. Combined with `prefers-color-scheme` it is a todo there until the
-theme shim answers only its own feature.
+Gates:
+
+- `test/browser/accessibility_media_real_engine.test.js` installs every
+  page script at document start, emulates each feature but
+  `inverted-colors` with Puppeteer's `emulateMediaFeatures`, and asserts
+  that `matchMedia` and a CSS `@media` probe both report the emulated value,
+  alone and beside `prefers-color-scheme`. It then runs every script, alone
+  and all together, at document start and once loaded, on a page with a
+  viewport and one without, and asserts no viewport limits zoom and no
+  element with a role or `aria-*` attribute is hidden.
+- `test/js/accessibility_passthrough.test.js` runs every script over a fake
+  engine and asserts each of the five features, `inverted-colors` among
+  them, answers from it alone, beside the theme and under `not`; and reads
+  the shipped Dart, page scripts and native runners for a viewport that
+  limits zoom, a site webview without `supportZoom`, a hide by role or
+  `aria-*`, and `accessibilityIgnoresInvertColors`.
+- `test/js/theme_color_scheme_shim.test.js` holds the theme shim's rewrite:
+  compound queries, `not`, `only`, lists, case, text that only contains the
+  name, and the listener replay.
 
 #### Scenario: Reduce Motion on a tracking-protected site
 
@@ -821,7 +852,8 @@ By value over cost. Each item names the requirement it moves.
 8. **Custom actions** for reorder and the long-press-only actions (A11Y-005).
    Done, the Tabs sheet's drags included.
 9. **Theme shim compound queries** and the browser-tier media-feature gate
-   (A11Y-003).
+   (A11Y-003). Done, with the zoom and role or aria gates; `inverted-colors`
+   on a real engine and WebKit remain.
 10. **Fork and engine**: Linux keyboard escape (A11Y-012), Linux text scale
     and dark mode settings (A11Y-007, A11Y-008),
     Linux AT-SPI and macOS platform-view accessibility (A11Y-004). The Mac
