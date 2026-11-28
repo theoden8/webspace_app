@@ -35,6 +35,15 @@ test('light fixture: matchMedia(prefers-color-scheme: light) → matches=true', 
   assert.equal(mm('(prefers-color-scheme: dark)').matches, false);
 });
 
+test('an engine that does not answer the stand-ins still gets the app scheme', () => {
+  const dark = themed(DARK, { grid: '1', 'prefers-color-scheme': 'light' });
+  assert.equal(dark.mm('(prefers-color-scheme: dark)').matches, true);
+  assert.equal(dark.mm('(prefers-color-scheme: light)').matches, false);
+  const light = themed(LIGHT, { grid: '1', 'prefers-color-scheme': 'dark' });
+  assert.equal(light.mm('(prefers-color-scheme: light)').matches, true);
+  assert.equal(light.mm('(prefers-color-scheme: dark)').matches, false);
+});
+
 test('a compound query keeps its other features for the engine', () => {
   const { mm, engine } = themed(DARK, { 'prefers-contrast': 'more' });
   const q = '(prefers-color-scheme: dark) and (prefers-contrast: more)';
