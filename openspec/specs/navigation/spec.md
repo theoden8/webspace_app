@@ -901,7 +901,8 @@ A site's page keeps its keys as before (NAV-014): this requirement does not reac
 - **WHEN** the user presses Down
 - **THEN** the first icon below it has focus
 
-Test: [test/remote_controls_test.dart](../../../test/remote_controls_test.dart)
+Test: [test/remote_controls_test.dart](../../../test/remote_controls_test.dart),
+[test/keyboard_focus_test.dart](../../../test/keyboard_focus_test.dart)
 
 ---
 

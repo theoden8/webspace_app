@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:webspace/platform/host_platform.dart';
@@ -16,8 +17,21 @@ enum KeyConvention {
   android;
 
   /// The host's, or null where the app takes no keys of its own: iOS and the
-  /// web.
+  /// web. A platform override, which only a test sets, picks the keys too, as
+  /// it picks Flutter's own text field shortcuts.
   static KeyConvention? get host {
+    switch (debugDefaultTargetPlatformOverride) {
+      case TargetPlatform.macOS:
+        return mac;
+      case TargetPlatform.linux || TargetPlatform.windows:
+        return pc;
+      case TargetPlatform.android:
+        return android;
+      case TargetPlatform.iOS || TargetPlatform.fuchsia:
+        return null;
+      case null:
+        break;
+    }
     if (hostIsMacOS) return mac;
     if (hostIsAndroid) return android;
     if (hostIsDesktop) return pc;
