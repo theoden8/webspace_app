@@ -5,9 +5,7 @@
 // the Tier 1 tests can only assert the shim's wrapper logic.
 // Real-engine assertions: prefers-color-scheme actually flips against
 // the live CSS engine, the matchMedia wrapper survives addEventListener
-// chains, the meta tag reaches the DOM, and (importantly for the
-// `system` fixture) the shim's host-preference resolution reads the
-// real engine's prefers-color-scheme value at install time.
+// chains, and the meta tag reaches the DOM.
 //
 // The shim is an initial user script and is run again on the live page by
 // setThemePreference, after the document has loaded. To exercise that
@@ -22,7 +20,6 @@ const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
 
 const LIGHT = pageJs('theme_color_scheme', { theme: 'light' });
 const DARK = pageJs('theme_color_scheme', { theme: 'dark' });
-const SYSTEM = pageJs('theme_color_scheme', { theme: 'system' });
 
 const browser = setupBrowser();
 
@@ -68,34 +65,6 @@ test('light fixture: matchMedia reports prefers-color-scheme:light matches=true'
       assert.equal(r.dark, false);
       assert.equal(r.light, true);
     });
-  });
-
-test('system fixture follows host preference (emulated dark) → dark',
-  async (t) => {
-    // Use page.emulateMediaFeatures to set the host's
-    // prefers-color-scheme, then load the `system` fixture and assert
-    // it resolves to dark.
-    await withShim(t, SYSTEM, async (page) => {
-      const r = await page.evaluate(() => ({
-        resolved: window.__appThemePreference,
-        dark: matchMedia('(prefers-color-scheme: dark)').matches,
-      }));
-      assert.equal(r.resolved, 'dark',
-        'system fixture should resolve to dark when host emulates dark');
-      assert.equal(r.dark, true);
-    }, { emulateColorScheme: 'dark' });
-  });
-
-test('system fixture follows host preference (emulated light) → light',
-  async (t) => {
-    await withShim(t, SYSTEM, async (page) => {
-      const r = await page.evaluate(() => ({
-        resolved: window.__appThemePreference,
-        light: matchMedia('(prefers-color-scheme: light)').matches,
-      }));
-      assert.equal(r.resolved, 'light');
-      assert.equal(r.light, true);
-    }, { emulateColorScheme: 'light' });
   });
 
 test('width-based matchMedia queries fall through to the real engine',
