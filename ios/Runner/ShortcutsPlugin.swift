@@ -28,11 +28,16 @@ import AppIntents
 ///
 /// When an `OpenSiteIntent` runs, it stashes the chosen siteId in App Group
 /// UserDefaults; `getLaunchSiteId` drains that key the next time Flutter
-/// asks (cold launch in `_restoreAppState`, warm launch in
-/// `_handleShortcutIntent`).
+/// asks (the cold launch's restore, each resume), and `launchPending` tells
+/// a running Flutter to ask now. Main thread only (BUG-007: none-shared).
 class ShortcutsPlugin: NSObject {
   private let channel: FlutterMethodChannel
   private static let channelName = "org.codeberg.theoden8.webspace/shortcuts"
+
+  /// Posted on the main thread by `OpenSiteIntent.perform` once the launch
+  /// is in the App Group.
+  static let launchPending = Notification.Name("org.codeberg.theoden8.webspace.shortcutLaunchPending")
+  private var pendingObserver: NSObjectProtocol?
 
   init(messenger: FlutterBinaryMessenger) {
     self.channel = FlutterMethodChannel(
@@ -43,6 +48,15 @@ class ShortcutsPlugin: NSObject {
     self.channel.setMethodCallHandler { [weak self] call, result in
       self?.handle(call: call, result: result)
     }
+    pendingObserver = NotificationCenter.default.addObserver(
+      forName: Self.launchPending, object: nil, queue: .main
+    ) { [weak self] _ in
+      self?.channel.invokeMethod("launchPending", arguments: nil)
+    }
+  }
+
+  deinit {
+    if let pendingObserver { NotificationCenter.default.removeObserver(pendingObserver) }
   }
 
   private func handle(call: FlutterMethodCall, result: @escaping FlutterResult) {
