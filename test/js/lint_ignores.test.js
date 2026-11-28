@@ -79,6 +79,12 @@ const LEFT = {
         + 'controller reads for it.',
     },
   },
+  raw_tap: {
+    'lib/services/webview.dart':
+      'the pull-to-refresh gate reads the raw pointer stream to know which '
+      + 'fingers are down, and acts on no tap; the refresh it gates is also '
+      + "the site menu's Refresh. Lifted by a rule that tells a gate from a tap.",
+  },
   raw_http_client: {
     'lib/design_gallery/roboto.dart':
       'the design builds fetch their own bundled Roboto by a URL relative to '
