@@ -66,6 +66,25 @@ void main() {
     );
   });
 
+  testWidgets('a screen reader hears it as a button that expands',
+      (tester) async {
+    final semantics = tester.ensureSemantics();
+    dns.statsForSite(site)
+        .record('beacon.example', verdict: const Blocked(BlockSource.dns));
+    final loc = await pumpBanner(tester);
+    final node = find.semantics.byLabel(RegExp(loc.statsBannerBlocked(1)));
+    expect(node, findsOne);
+    expect(node.evaluate().single,
+        containsSemantics(isButton: true, isExpanded: false, hasTapAction: true));
+
+    tester.semantics.tap(node);
+    await tester.pumpAndSettle();
+    expect(find.text(loc.blockStatsDetailItems), findsOneWidget);
+    expect(find.semantics.byLabel(RegExp(loc.statsBannerBlocked(1))).evaluate().single,
+        containsSemantics(isButton: true, isExpanded: true));
+    semantics.dispose();
+  });
+
   testWidgets('hidden until the site has recorded a request (DNS-013)',
       (tester) async {
     await pumpBanner(tester);

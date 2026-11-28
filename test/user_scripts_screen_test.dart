@@ -6,6 +6,7 @@ import 'package:webspace/services/outbound_http_types.dart' show OutboundProxy;
 import 'package:webspace/settings/user_script.dart';
 
 import 'helpers/localized.dart';
+import 'helpers/semantics_actions.dart';
 
 /// US-003: the User Scripts screen in its two modes, per site and the
 /// global library, as each reports what the user changed.
@@ -215,5 +216,56 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(BottomSheet), findsNothing,
         reason: 'no sheet: deletion is by swipe here');
+  });
+
+  group('a screen reader', () {
+    SemanticsFinder row(String name) => pressable(name);
+
+    Future<void> confirmDelete(WidgetTester tester) async {
+      await tester.pumpAndSettle();
+      await tester.tap(find.descendant(
+          of: find.byType(AlertDialog), matching: find.text('Delete')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('deletes a script in the global library, where the swipe is '
+        'the only other way', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pumpLocalized(tester,
+          size: const Size(800, 1600),
+          home: UserScriptsScreen(
+            title: const Localized.verbatim('Global scripts'),
+            userScripts: [script('One'), script('Two')],
+            onSave: (s) => saved.add([for (final x in s) x.name]),
+            isGlobalLibrary: true,
+            proxy: OutboundProxy.app,
+          ));
+      await tester.pumpAndSettle();
+      expect(customActionsOf(row('One')), {'Delete'});
+      performCustomAction(row('One'), label: 'Delete');
+      await confirmDelete(tester);
+      expect(saved.last, ['Two']);
+      semantics.dispose();
+    });
+
+    testWidgets("is offered a site script's long-press actions, and a "
+        "global's delete", (tester) async {
+      final semantics = tester.ensureSemantics();
+      final g = script('Everywhere');
+      await pumpPerSite(tester,
+          site: [script('Mine'), script('Other')], globals: [g],
+          optedIn: {g.id});
+      expect(customActionsOf(row('Mine')), {'Delete', 'Make Global'});
+      expect(customActionsOf(row('Everywhere')), {'Delete'});
+
+      performCustomAction(row('Mine'), label: 'Delete');
+      await confirmDelete(tester);
+      expect(saved.last, ['Other:true']);
+
+      performCustomAction(row('Everywhere'), label: 'Delete');
+      await confirmDelete(tester);
+      expect(globalsSaved.last, isEmpty);
+      semantics.dispose();
+    });
   });
 }

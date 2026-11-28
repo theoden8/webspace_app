@@ -178,6 +178,42 @@ void main() {
     expect(backing.storage['tor_bridges'], contains('192.0.2.10:9443'));
   });
 
+  testWidgets('the captcha image is named, and the way round it is said',
+      (t) async {
+    final semantics = t.ensureSemantics();
+    await t.pumpWidget(host(TorBridgeSettingsScreen(
+      storage: TorBridgeSecureStorage(secureStorage: _enabledStore()),
+      moatClientFactory: () => MoatClient(
+        client: _FakeHttp((req) => req.url.path.endsWith('/fetch')
+            ? _json({
+                'data': [
+                  {
+                    'transport': ['obfs4'],
+                    'image': _jpegB64,
+                    'challenge': 'obfs4',
+                  }
+                ]
+              })
+            : _json({
+                'errors': [
+                  {'code': 419, 'detail': 'The CAPTCHA solution was incorrect.'}
+                ]
+              })),
+      ),
+    )));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Get bridges automatically'));
+    await t.pumpAndSettle();
+
+    expect(find.text('Prove you are human'), findsOneWidget);
+    expect(find.bySemanticsLabel('Characters to type'), findsOneWidget);
+    expect(find.textContaining('paste a bridge line you got elsewhere'),
+        findsOneWidget);
+    await t.tap(find.text('Cancel'));
+    await t.pumpAndSettle();
+    semantics.dispose();
+  });
+
   testWidgets('a built-in-line transport says so rather than looking unset',
       (t) async {
     final backing = MockFlutterSecureStorage();

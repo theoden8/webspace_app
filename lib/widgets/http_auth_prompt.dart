@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/widgets/password_visibility_toggle.dart';
 
 /// Shows the sign-in dialog for a site's HTTP authentication challenge
 /// (HTTPAUTH-003). Returns null when the user cancels.
@@ -91,13 +92,10 @@ class _HttpAuthDialogState extends State<HttpAuthDialog> {
               decoration: InputDecoration(
                 labelText: loc.httpAuthPassword,
                 border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  tooltip: _obscurePassword ? loc.passwordShow : loc.passwordHide,
-                  icon: Icon(
-                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                  ),
-                  onPressed: () =>
-                      setState(() => _obscurePassword = !_obscurePassword),
+                suffixIcon: PasswordVisibilityToggle(
+                  visible: !_obscurePassword,
+                  onChanged: (visible) =>
+                      setState(() => _obscurePassword = !visible),
                 ),
               ),
             ),

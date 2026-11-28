@@ -111,8 +111,8 @@ void main() {
       'the arrow tab; elsewhere it picks a corner', (tester) async {
     final docked = <double>[];
     final corners = <TabBarCorner>[];
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
+    await tester.pumpWidget(localizedApp(
+      Scaffold(
         body: SizedBox(
           width: 400,
           height: 800,

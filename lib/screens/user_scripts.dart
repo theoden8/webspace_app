@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/user_script_service.dart'
@@ -183,13 +186,45 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
     );
   }
 
+  /// Asks, then takes [script] out with [remove].
+  Future<void> _deleteAsked(
+    UserScriptConfig script, {
+    required bool isGlobal,
+    required ValueChanged<UserScriptConfig> remove,
+  }) async {
+    if (await _confirmDelete(script, isGlobal: isGlobal) && mounted) {
+      remove(script);
+    }
+  }
+
+  bool _canMakeGlobal({required bool isGlobal}) =>
+      !isGlobal &&
+      (widget.onMakeGlobal != null ||
+          widget.onGlobalUserScriptsChanged != null);
+
+  /// What a row's swipe and long-press sheet do, as a screen reader's
+  /// custom actions.
+  Map<CustomSemanticsAction, VoidCallback> _rowActions(
+    UserScriptConfig script, {
+    required bool isGlobal,
+    required ValueChanged<UserScriptConfig> remove,
+  }) {
+    final loc = AppLocalizations.of(context);
+    return {
+      CustomSemanticsAction(label: loc.commonDelete): () => unawaited(
+        _deleteAsked(script, isGlobal: isGlobal, remove: remove),
+      ),
+      if (_canMakeGlobal(isGlobal: isGlobal))
+        CustomSemanticsAction(label: loc.userScriptsMakeGlobal): () =>
+            unawaited(_makeGlobal(script)),
+    };
+  }
+
   /// The long-press sheet: delete, and for a site script, make it global.
   Future<void> _showActions(UserScriptConfig script,
       {required bool isGlobal}) async {
     final loc = AppLocalizations.of(context);
-    final canMakeGlobal = !isGlobal &&
-        (widget.onMakeGlobal != null ||
-            widget.onGlobalUserScriptsChanged != null);
+    final canMakeGlobal = _canMakeGlobal(isGlobal: isGlobal);
     final action = await showModalBottomSheet<String>(
       context: context,
       builder: (ctx) => SafeArea(
@@ -216,9 +251,9 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
     );
     if (!mounted) return;
     if (action == 'delete') {
-      if (await _confirmDelete(script, isGlobal: isGlobal) && mounted) {
-        isGlobal ? _deleteGlobalScript(script) : _deleteScript(script);
-      }
+      await _deleteAsked(script,
+          isGlobal: isGlobal,
+          remove: isGlobal ? _deleteGlobalScript : _deleteScript);
     } else if (action == 'global') {
       await _makeGlobal(script);
     }
@@ -326,28 +361,32 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
                 confirmDismiss: (_) =>
                     _confirmDelete(script, isGlobal: isGlobal),
                 onDismissed: (_) => _deleteScript(script),
-                child: ListTile(
-                  leading: ReorderableDragStartListener(
-                    index: index,
-                    child: const Icon(Icons.drag_handle),
+                child: Semantics(
+                  customSemanticsActions: _rowActions(script,
+                      isGlobal: isGlobal, remove: _deleteScript),
+                  child: ListTile(
+                    leading: ReorderableDragStartListener(
+                      index: index,
+                      child: const Icon(Icons.drag_handle),
+                    ),
+                    title: isGlobal
+                        ? _globalTitle(loc, name: script.name)
+                        : Text(script.name),
+                    subtitle: Text(_runsAt(loc, script: script)),
+                    trailing: isGlobal
+                        ? null
+                        : Switch(
+                            value: script.enabled,
+                            onChanged: (value) {
+                              setState(() => script.enabled = value);
+                              _syncSite();
+                            },
+                          ),
+                    onTap: () => _edit(_scripts, script: script, sync: _syncSite),
+                    onLongPress: isGlobal
+                        ? null
+                        : () => _showActions(script, isGlobal: false),
                   ),
-                  title: isGlobal
-                      ? _globalTitle(loc, name: script.name)
-                      : Text(script.name),
-                  subtitle: Text(_runsAt(loc, script: script)),
-                  trailing: isGlobal
-                      ? null
-                      : Switch(
-                          value: script.enabled,
-                          onChanged: (value) {
-                            setState(() => script.enabled = value);
-                            _syncSite();
-                          },
-                        ),
-                  onTap: () => _edit(_scripts, script: script, sync: _syncSite),
-                  onLongPress: isGlobal
-                      ? null
-                      : () => _showActions(script, isGlobal: false),
                 ),
               );
             },
@@ -360,33 +399,38 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
     final loc = AppLocalizations.of(context);
     final script = _globalScripts[index];
     final editable = widget.onGlobalUserScriptsChanged != null;
-    return ListTile(
-      leading: Icon(
-        Icons.public,
-        size: 20,
-        color: Theme.of(context).colorScheme.primary,
+    return Semantics(
+      customSemanticsActions: editable
+          ? _rowActions(script, isGlobal: true, remove: _deleteGlobalScript)
+          : null,
+      child: ListTile(
+        leading: Icon(
+          Icons.public,
+          size: 20,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        title: _globalTitle(loc, name: script.name),
+        subtitle: Text(_runsAt(loc, script: script)),
+        // Per-site opt-in is the only enable control for global scripts.
+        // In per-site mode the switch toggles membership in this site's
+        // [enabledGlobalScriptIds] set. No toggle otherwise.
+        trailing: _isPerSiteMode
+            ? Switch(
+                value: _enabledGlobalIds.contains(script.id),
+                onChanged: (value) {
+                  setState(() => value
+                      ? _enabledGlobalIds.add(script.id)
+                      : _enabledGlobalIds.remove(script.id));
+                  _syncEnabledGlobalIds();
+                },
+              )
+            : null,
+        onTap: editable
+            ? () => _edit(_globalScripts, script: script, sync: _syncGlobal)
+            : null,
+        onLongPress:
+            editable ? () => _showActions(script, isGlobal: true) : null,
       ),
-      title: _globalTitle(loc, name: script.name),
-      subtitle: Text(_runsAt(loc, script: script)),
-      // Per-site opt-in is the only enable control for global scripts.
-      // In per-site mode the switch toggles membership in this site's
-      // [enabledGlobalScriptIds] set. No toggle otherwise.
-      trailing: _isPerSiteMode
-          ? Switch(
-              value: _enabledGlobalIds.contains(script.id),
-              onChanged: (value) {
-                setState(() => value
-                    ? _enabledGlobalIds.add(script.id)
-                    : _enabledGlobalIds.remove(script.id));
-                _syncEnabledGlobalIds();
-              },
-            )
-          : null,
-      onTap: editable
-          ? () => _edit(_globalScripts, script: script, sync: _syncGlobal)
-          : null,
-      onLongPress:
-          editable ? () => _showActions(script, isGlobal: true) : null,
     );
   }
 

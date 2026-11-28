@@ -121,54 +121,59 @@ class TabChip extends StatelessWidget {
       ),
       by: (TapTargets.compact - _drawn) / 2,
     );
-    return Material(
-      color: active ? scheme.secondaryContainer : scheme.surface,
-      shape: shape,
-      child: InkWell(
-        onTap: onOpen,
-        customBorder: shape,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-              maxWidth: 180, minHeight: TapTargets.compact),
-          child: Padding(
-            padding: EdgeInsetsDirectional.only(
-                start: Spacing.sm, end: onClose == null ? Spacing.sm : 0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (openedFrom) ...[
-                  Container(
-                    key: openedFromMark,
-                    width: 5,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: scheme.onSurfaceVariant,
-                      shape: BoxShape.circle,
+    return Semantics(
+      container: true,
+      button: true,
+      selected: active,
+      child: Material(
+        color: active ? scheme.secondaryContainer : scheme.surface,
+        shape: shape,
+        child: InkWell(
+          onTap: onOpen,
+          customBorder: shape,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+                maxWidth: 180, minHeight: TapTargets.compact),
+            child: Padding(
+              padding: EdgeInsetsDirectional.only(
+                  start: Spacing.sm, end: onClose == null ? Spacing.sm : 0),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (openedFrom) ...[
+                    Container(
+                      key: openedFromMark,
+                      width: 5,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: scheme.onSurfaceVariant,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: Spacing.xs),
+                  ],
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: active ? FontWeight.w600 : null,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: Spacing.xs),
+                  if (onClose case final close?)
+                    IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints:
+                          const BoxConstraints.tightFor(width: 28, height: 28),
+                      iconSize: IconSizes.inline,
+                      tooltip: loc.tabsCloseTab,
+                      icon: const Icon(Icons.close),
+                      onPressed: close,
+                    ),
                 ],
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: active ? FontWeight.w600 : null,
-                    ),
-                  ),
-                ),
-                if (onClose case final close?)
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints.tightFor(width: 28, height: 28),
-                    iconSize: IconSizes.inline,
-                    tooltip: loc.tabsCloseTab,
-                    icon: const Icon(Icons.close),
-                    onPressed: close,
-                  ),
-              ],
+              ),
             ),
           ),
         ),

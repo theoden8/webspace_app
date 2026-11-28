@@ -68,94 +68,99 @@ class _StatsBannerState extends State<StatsBanner> {
     final textColor = scheme.onSurface;
     final subtleColor = scheme.onSurfaceVariant;
 
-    return GestureDetector(
-      onTap: () => setState(() => _expanded = !_expanded),
-      child: AnimatedSize(
-        duration: ReducedMotion.duration(
-          context,
-          full: const Duration(milliseconds: 200),
-        ),
-        curve: Curves.easeInOut,
-        alignment: Alignment.topCenter,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: bgColor,
-            border: Border(
-              bottom: BorderSide(
-                color: scheme.outlineVariant,
-                width: 0.5,
+    return Semantics(
+      container: true,
+      button: true,
+      expanded: _expanded,
+      child: GestureDetector(
+        onTap: () => setState(() => _expanded = !_expanded),
+        child: AnimatedSize(
+          duration: ReducedMotion.duration(
+            context,
+            full: const Duration(milliseconds: 200),
+          ),
+          curve: Curves.easeInOut,
+          alignment: Alignment.topCenter,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: bgColor,
+              border: Border(
+                bottom: BorderSide(
+                  color: scheme.outlineVariant,
+                  width: 0.5,
+                ),
               ),
             ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.shield, size: 14, color: textColor),
-                  const SizedBox(width: 6),
-                  Text(
-                    loc.statsBannerBlocked(stats.blocked),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: textColor,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    loc.statsBannerAllowed(stats.allowed),
-                    style: TextStyle(fontSize: 11, color: subtleColor),
-                  ),
-                  const Spacer(),
-                  Icon(
-                    _expanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    size: 16,
-                    color: subtleColor,
-                  ),
-                ],
-              ),
-              if (_expanded) ...[
-                const SizedBox(height: 4),
-                for (final source in BlockSource.values)
-                  _CountRow(
-                    icon: source.category.icon,
-                    label: source.category.label(loc),
-                    count: stats.blockedBy(source),
-                    style: TextStyle(fontSize: 11, color: subtleColor),
-                  ),
-                if (topBlocked.isNotEmpty) ...[
-                  Padding(
-                    padding:
-                        const EdgeInsetsDirectional.only(start: 20, top: 6),
-                    child: Text(
-                      loc.blockStatsDetailItems,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.shield, size: 14, color: textColor),
+                    const SizedBox(width: 6),
+                    Text(
+                      loc.statsBannerBlocked(stats.blocked),
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: subtleColor,
+                        color: textColor,
                       ),
                     ),
-                  ),
-                  for (final (:host, :count) in topBlocked)
+                    const SizedBox(width: 8),
+                    Text(
+                      loc.statsBannerAllowed(stats.allowed),
+                      style: TextStyle(fontSize: 11, color: subtleColor),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      _expanded
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
+                      size: 16,
+                      color: subtleColor,
+                    ),
+                  ],
+                ),
+                if (_expanded) ...[
+                  const SizedBox(height: 4),
+                  for (final source in BlockSource.values)
                     _CountRow(
-                      icon: Icons.block,
-                      label: host,
-                      count: count,
-                      style: TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 10,
-                        color: subtleColor,
+                      icon: source.category.icon,
+                      label: source.category.label(loc),
+                      count: stats.blockedBy(source),
+                      style: TextStyle(fontSize: 11, color: subtleColor),
+                    ),
+                  if (topBlocked.isNotEmpty) ...[
+                    Padding(
+                      padding:
+                          const EdgeInsetsDirectional.only(start: 20, top: 6),
+                      child: Text(
+                        loc.blockStatsDetailItems,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: subtleColor,
+                        ),
                       ),
                     ),
+                    for (final (:host, :count) in topBlocked)
+                      _CountRow(
+                        icon: Icons.block,
+                        label: host,
+                        count: count,
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 10,
+                          color: subtleColor,
+                        ),
+                      ),
+                  ],
                 ],
               ],
-            ],
+            ),
           ),
         ),
       ),

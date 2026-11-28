@@ -150,39 +150,40 @@ class SiteGridTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lift = LauncherLift<int>(
-      data: listIndex,
-      onOpen: onOpen,
-      onMenu: (at) => onMenu(context, globalPosition: at),
-      child: _SiteGridTileContent(
-        site: site,
-        selected: selected,
-        showTabCount: showTabCount,
-        layout: layout,
-        webspaces: webspaces,
-        lookalike: lookalike,
-        list: list,
+    // The tile's state on the node it is pressed by: the corner menu beside
+    // it is a node of its own.
+    final lift = Semantics(
+      selected: selected,
+      // A library tile's webspaces are drawn, not read; the drawer's text
+      // names the site itself.
+      label: layout == SiteGridTileLayout.library
+          ? [site.getDisplayName(), ...webspaces.map((w) => w.name)].join(', ')
+          : null,
+      child: LauncherLift<int>(
+        data: listIndex,
+        onOpen: onOpen,
+        onMenu: (at) => onMenu(context, globalPosition: at),
+        child: _SiteGridTileContent(
+          site: site,
+          selected: selected,
+          showTabCount: showTabCount,
+          layout: layout,
+          webspaces: webspaces,
+          lookalike: lookalike,
+          list: list,
+        ),
       ),
     );
-    return Semantics(
-      selected: selected,
-      label: [
-        site.getDisplayName(),
-        if (layout == SiteGridTileLayout.library)
-          ...webspaces.map((w) => w.name),
-      ].join(', '),
-      child: layout == SiteGridTileLayout.library
-          ? lift
-          : LayoutBuilder(
-              builder: (context, tile) => Stack(
-                fit: StackFit.expand,
-                children: [
-                  lift,
-                  if (cornerMenuFits(tile.biggest))
-                    Positioned(top: 0, right: 0, child: _cornerMenu(context)),
-                ],
-              ),
-            ),
+    if (layout == SiteGridTileLayout.library) return lift;
+    return LayoutBuilder(
+      builder: (context, tile) => Stack(
+        fit: StackFit.expand,
+        children: [
+          lift,
+          if (cornerMenuFits(tile.biggest))
+            Positioned(top: 0, right: 0, child: _cornerMenu(context)),
+        ],
+      ),
     );
   }
 

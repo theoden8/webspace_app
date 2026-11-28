@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/widgets/password_visibility_toggle.dart';
 
 /// The proxy username / password pair, as a fold rather than a checkbox.
 ///
@@ -105,13 +106,10 @@ class _ProxyAuthSectionState extends State<ProxyAuthSection> {
             widget.passwordController,
             label: loc.proxyAuthPassword,
             obscure: _obscurePassword,
-            suffixIcon: IconButton(
-              tooltip: _obscurePassword ? loc.passwordShow : loc.passwordHide,
-              icon: Icon(
-                _obscurePassword ? Icons.visibility : Icons.visibility_off,
-              ),
-              onPressed: () =>
-                  setState(() => _obscurePassword = !_obscurePassword),
+            suffixIcon: PasswordVisibilityToggle(
+              visible: !_obscurePassword,
+              onChanged: (visible) =>
+                  setState(() => _obscurePassword = !visible),
             ),
           ),
         ],

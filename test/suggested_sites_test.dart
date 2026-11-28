@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -9,6 +10,7 @@ import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/suggested_sites_service.dart';
 
 import 'helpers/localized.dart';
+import 'helpers/semantics_actions.dart';
 
 void main() {
   group('SiteSuggestion', () {
@@ -49,6 +51,36 @@ void main() {
       final loc = AppLocalizations.of(tester.element(find.byType(AddSiteScreen)));
       expect(find.text(loc.addSiteNoSuggestions), findsOneWidget);
       expect(find.byTooltip(loc.addSiteAddSuggestedTooltip), findsOneWidget);
+    });
+
+    testWidgets('a screen reader removes a suggestion, which a long press '
+        'does otherwise', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final changed = <List<String>>[];
+      await pumpLocalized(
+        tester,
+        size: const Size(400, 1200),
+        home: AddSiteScreen(
+          suggestions: const [
+            SiteSuggestion(name: 'Alpha', url: 'https://alpha.test', domain: 'alpha.test'),
+            SiteSuggestion(name: 'Beta', url: 'https://beta.test', domain: 'beta.test'),
+          ],
+          onSuggestionsChanged: (s) => changed.add([for (final x in s) x.name]),
+          existingUrls: const [],
+        ),
+      );
+      await tester.pump();
+      final alpha = pressable('Alpha');
+      expect(customActionsOf(alpha), {'Remove'});
+      performCustomAction(alpha, label: 'Remove');
+      await tester.pumpAndSettle();
+      await tester.tap(find.descendant(
+          of: find.byType(AlertDialog), matching: find.text('Remove')));
+      await tester.pumpAndSettle();
+      expect(changed, [
+        ['Beta']
+      ]);
+      semantics.dispose();
     });
 
     test('saveSuggestedSites and loadSuggestedSites round-trip (SUGGEST-004)', () async {

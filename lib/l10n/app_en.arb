@@ -100,11 +100,7 @@
   },
   "passwordShow": "Show password",
   "@passwordShow": {
-    "description": "Tooltip and screen-reader name of the eye button beside a password field while the password is hidden; pressing it reveals the password."
-  },
-  "passwordHide": "Hide password",
-  "@passwordHide": {
-    "description": "Tooltip and screen-reader name of the eye button beside a password field while the password is shown; pressing it hides the password again."
+    "description": "Tooltip and screen-reader name of the eye button beside a password field, which shows or hides the password. A screen reader announces it as a switch that is on while the password shows, so the name stays the same either way."
   },
   "commonRemove": "Remove",
   "@commonRemove": {
@@ -5001,6 +4997,14 @@
   "@torBridgesCaptchaAnswer": {
     "description": "Label of the captcha answer text field."
   },
+  "torBridgesCaptchaImage": "Characters to type",
+  "@torBridgesCaptchaImage": {
+    "description": "Screen-reader name of the captcha image in the dialog shown when the Tor Project's bridge service asks the user to prove they are human: the image shows distorted characters to type into the answer field."
+  },
+  "torBridgesCaptchaAlternative": "Cannot read it? Cancel, then choose a transport with a built-in bridge, or paste a bridge line you got elsewhere.",
+  "@torBridgesCaptchaAlternative": {
+    "description": "Line in the captcha dialog of the Tor bridges screen, for someone who cannot see or read the captcha image: the service offers no other kind of challenge, but a transport that comes with a built-in bridge, or a bridge line pasted into the screen, needs no captcha."
+  },
   "torBridgesRestartNeeded": "Tor is running. Restart it for this change to take effect.",
   "@torBridgesRestartNeeded": {
     "description": "Notice shown when bridges are edited while Tor is already connected."
@@ -5288,6 +5292,14 @@
   "tabsOpenedInNewTab": "Opened in a new tab",
   "@tabsOpenedInNewTab": {
     "description": "Confirmation shown after a link was opened in a background tab."
+  },
+  "tabsBackInNewTab": "Back in a new tab",
+  "@tabsBackInNewTab": {
+    "description": "Screen-reader action on the Back button in a site's menu: opens the previous page in a new tab of the site and leaves this tab where it is. Sighted users reach it with a long press on Back."
+  },
+  "tabsDuplicate": "Duplicate tab",
+  "@tabsDuplicate": {
+    "description": "Screen-reader action on the Refresh button in a site's menu: opens a copy of the current tab beside it. Sighted users reach it with a long press on Refresh."
   },
   "tabsSwitchAction": "Switch",
   "@tabsSwitchAction": {

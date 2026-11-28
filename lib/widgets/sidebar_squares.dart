@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -138,66 +139,79 @@ class _Square extends StatelessWidget {
         ),
       ),
       child: GestureDetector(
+        // A semantic long press would open the menu at no position; the
+        // custom action below opens it at the square.
+        excludeFromSemantics: true,
         onLongPressStart: (d) => onMenu(context, position: d.globalPosition),
         onSecondaryTapUp: (d) => onMenu(context, position: d.globalPosition),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(Radii.lg),
-          child: Stack(
-            alignment: AlignmentDirectional.topCenter,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: Spacing.sm,
-                  horizontal: Spacing.xs,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    UnifiedFaviconImage.site(site, size: 28),
-                    const SizedBox(height: Spacing.xs),
-                    Text(
-                      site.getDisplayName(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        fontWeight: on ? FontWeight.w600 : null,
+          child: Semantics(
+            selected: on,
+            customSemanticsActions: {
+              CustomSemanticsAction(label: loc.homeMenuTooltip): () {
+                final box = context.findRenderObject()! as RenderBox;
+                onMenu(context,
+                    position: box.localToGlobal(box.size.center(Offset.zero)));
+              },
+            },
+            child: Stack(
+              alignment: AlignmentDirectional.topCenter,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: Spacing.sm,
+                    horizontal: Spacing.xs,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      UnifiedFaviconImage.site(site, size: 28),
+                      const SizedBox(height: Spacing.xs),
+                      Text(
+                        site.getDisplayName(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: on ? FontWeight.w600 : null,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              if (onToggle case final toggle?)
-                PositionedDirectional(
-                  top: 0,
-                  start: 0,
-                  child: IconButton(
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints.tightFor(
-                      width: 24,
-                      height: 24,
-                    ),
-                    iconSize: IconSizes.inline,
-                    tooltip: opened
-                        ? loc.stripHideSiteTabs(site.getDisplayName())
-                        : loc.stripShowSiteTabs(site.getDisplayName()),
-                    icon: Icon(
-                      opened
-                          ? Icons.keyboard_arrow_up
-                          : Icons.keyboard_arrow_down,
-                    ),
-                    onPressed: toggle,
+                    ],
                   ),
                 ),
-              if (count > 1 && !opened)
-                PositionedDirectional(
-                  top: Spacing.xs,
-                  end: Spacing.xs,
-                  child: TabCountPill(count: count, active: on),
-                ),
-            ],
+                if (onToggle case final toggle?)
+                  PositionedDirectional(
+                    top: 0,
+                    start: 0,
+                    child: IconButton(
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints.tightFor(
+                        width: 24,
+                        height: 24,
+                      ),
+                      iconSize: IconSizes.inline,
+                      tooltip: opened
+                          ? loc.stripHideSiteTabs(site.getDisplayName())
+                          : loc.stripShowSiteTabs(site.getDisplayName()),
+                      icon: Icon(
+                        opened
+                            ? Icons.keyboard_arrow_up
+                            : Icons.keyboard_arrow_down,
+                      ),
+                      onPressed: toggle,
+                    ),
+                  ),
+                if (count > 1 && !opened)
+                  PositionedDirectional(
+                    top: Spacing.xs,
+                    end: Spacing.xs,
+                    child: TabCountPill(count: count, active: on),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

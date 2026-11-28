@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/developer_mode_service.dart';
@@ -195,8 +196,10 @@ class SiteMenuButton extends StatelessWidget {
 
 /// A webview menu's top row: back, home, share, and reload or stop while the
 /// page is [loading]. The site menu and the nested screen's share it, so the
-/// same buttons sit in the same place in both.
-PopupMenuItem<T> siteMenuNavRow<T>(
+/// same buttons sit in the same place in both. Each is its own control to a
+/// screen reader, and what a long press on one does is also its custom
+/// action.
+PopupMenuEntry<T> siteMenuNavRow<T>(
   BuildContext menuContext, {
   required SiteMenuNav nav,
   required bool loading,
@@ -209,15 +212,24 @@ PopupMenuItem<T> siteMenuNavRow<T>(
     then();
   }
 
+  /// [icon], offering what a long press does as [label] too.
+  Widget held(IconData icon, {required String label, VoidCallback? onHold}) =>
+      Semantics(
+        customSemanticsActions: onHold == null
+            ? null
+            : {CustomSemanticsAction(label: label): () => close(onHold)},
+        child: Icon(icon),
+      );
+
   final backInNewTab = nav.backInNewTab;
   final duplicateTab = nav.duplicateTab;
-  return PopupMenuItem(
-    padding: EdgeInsets.zero,
+  return _NavRow(
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: held(Icons.arrow_back,
+              label: loc.tabsBackInNewTab, onHold: backInNewTab),
           tooltip: shortcutTooltip<GoBack>(loc.homeGoBackTooltip, names: names),
           onLongPress:
               backInNewTab == null ? null : () => close(backInNewTab),
@@ -235,7 +247,8 @@ PopupMenuItem<T> siteMenuNavRow<T>(
           onPressed: () => close(nav.share),
         ),
         IconButton(
-          icon: Icon(loading ? Icons.close : Icons.refresh),
+          icon: held(loading ? Icons.close : Icons.refresh,
+              label: loc.tabsDuplicate, onHold: duplicateTab),
           tooltip: loading
               ? loc.homeStopTooltip
               : shortcutTooltip<ReloadPage>(loc.homeRefreshTooltip,
@@ -247,4 +260,27 @@ PopupMenuItem<T> siteMenuNavRow<T>(
       ],
     ),
   );
+}
+
+/// A menu row that is no item of its own: unlike a [PopupMenuItem], which
+/// merges what it holds into one node with one tap, the buttons it holds stay
+/// apart, each with its own name and action.
+class _NavRow<T> extends PopupMenuEntry<T> {
+  const _NavRow({required this.child});
+
+  final Widget child;
+
+  @override
+  double get height => kMinInteractiveDimension;
+
+  @override
+  bool represents(T? value) => false;
+
+  @override
+  State<_NavRow<T>> createState() => _NavRowState<T>();
+}
+
+class _NavRowState<T> extends State<_NavRow<T>> {
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

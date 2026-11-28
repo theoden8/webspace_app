@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/widgets/live_status.dart';
 
 class FindToolbar extends StatefulWidget {
   final WebViewController? webViewController;
@@ -81,7 +82,7 @@ class _FindToolbarState extends State<FindToolbar> {
                 },
               ),
             ),
-            Text(matchCounter),
+            LiveStatus(matchCounter),
             IconButton(
               tooltip: loc.findPreviousMatch,
               icon: Icon(Icons.navigate_before),

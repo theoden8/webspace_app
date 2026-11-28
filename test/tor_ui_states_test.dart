@@ -264,6 +264,21 @@ void main() {
       );
     });
 
+    testWidgets('a screen reader hears the progress as it moves', (t) async {
+      final semantics = t.ensureSemantics();
+      await withState(
+        t,
+        name: 'card_bootstrapping_live',
+        child: const TorStatusCard(),
+        state: const TorBootstrapping(45, tag: 'loading_descriptors'),
+        expectations: () => expect(
+          t.getSemantics(find.text('Connecting… 45%')),
+          containsSemantics(label: 'Connecting… 45%', isLiveRegion: true),
+        ),
+      );
+      semantics.dispose();
+    });
+
     testWidgets('a reopen after the app was away says reconnecting, not 100%',
         (t) async {
       await withState(
@@ -413,6 +428,22 @@ void main() {
         },
         size: const Size(430, 430),
       );
+    });
+
+    testWidgets('a screen reader hears the progress as it moves', (t) async {
+      final semantics = t.ensureSemantics();
+      await withState(
+        t,
+        name: 'interstitial_bootstrapping_live',
+        child: const TorBootstrapPlaceholder(),
+        state: const TorBootstrapping(45, tag: 'loading_descriptors'),
+        expectations: () => expect(
+          t.getSemantics(find.text('Connecting… 45%')),
+          containsSemantics(label: 'Connecting… 45%', isLiveRegion: true),
+        ),
+        size: const Size(430, 430),
+      );
+      semantics.dispose();
     });
 
     testWidgets('a reopen after the app was away says what the wait is for',
