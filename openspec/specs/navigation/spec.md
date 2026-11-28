@@ -608,6 +608,7 @@ it, with Command on macOS where the others take Control:
 | Ctrl/Cmd-Shift-T | the site on screen's newest closed tab back with its history, and opened (TAB-022) |
 | Ctrl/Cmd-W | close the tab on screen, as the Tabs sheet does, where the site has tabs |
 | Ctrl/Cmd-L | put the cursor in the URL bar with the address selected, where the URL bar is on |
+| F6 | take the keys out of the page: the URL bar where it is on, else the first control Tab reaches, as Chrome and Firefox move between their address bar and page; Linux's webview keeps Tab |
 | Ctrl/Cmd-R, F5 | the site menu's Refresh |
 | Ctrl/Cmd-F | the site menu's Find in page, out of full screen; Escape in its field closes it |
 | Alt-Left; Cmd-[ or Cmd-Left on macOS | the site menu's Back |

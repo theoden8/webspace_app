@@ -43,6 +43,9 @@ class _Page implements KeyboardShortcutHost {
   bool focusUrlBar() => true;
 
   @override
+  bool leavePage() => true;
+
+  @override
   bool findInPage() => true;
 
   @override
@@ -176,6 +179,11 @@ void main() {
           isA<ReloadPage>(),
         );
         expect(await chord(LogicalKeyboardKey.f5), isA<ReloadPage>());
+        expect(
+          await chord(LogicalKeyboardKey.f6),
+          isA<LeavePage>(),
+          reason: 'Chrome\'s and Firefox\'s key between address bar and page',
+        );
         expect(
           await chord(LogicalKeyboardKey.keyF, holding: [primary]),
           isA<FindInPage>(),
@@ -700,6 +708,23 @@ void main() {
       );
       expect(field.focusNode.hasFocus, isTrue);
       expect(field.controller.text, 'https://other.test/');
+    });
+
+    testWidgets('F6 takes the keys to the nested screen\'s URL bar', (
+      tester,
+    ) async {
+      await openNested(tester);
+
+      await chord(tester, key: LogicalKeyboardKey.f6, holding: const []);
+      final field = tester.widget<EditableText>(
+        inNested(
+          find.descendant(
+            of: find.byType(UrlBar),
+            matching: find.byType(EditableText),
+          ),
+        ),
+      );
+      expect(field.focusNode.hasFocus, isTrue);
     });
 
     testWidgets(
