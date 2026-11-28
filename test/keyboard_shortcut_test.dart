@@ -7,11 +7,13 @@ import 'package:webspace/controllers/site_reset_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/screens/inappbrowser.dart' show InAppWebViewScreen;
 import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/keyboard_input.dart';
 import 'package:webspace/services/keyboard_shortcuts.dart';
+import 'package:webspace/services/shortcut_menu.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -421,7 +423,11 @@ void main() {
     var quits = 0;
     final window = DesktopWindow(offered: true, exit: () async => quits++);
 
-    KeyboardShortcutController over(_Page page, {bool siteShown = true}) {
+    KeyboardShortcutController over(
+      _Page page, {
+      bool siteShown = true,
+      ShortcutMenu? menu,
+    }) {
       final sites = SiteRuntime()
         ..isolation = fakeSharedJar()
         ..applied(SitesLoaded([one, two]))
@@ -435,6 +441,7 @@ void main() {
         resets: untouched,
         back: untouched,
         window: window,
+        menu: menu,
       );
     }
 
@@ -475,6 +482,35 @@ void main() {
           isFalse);
       await pumpEventQueue();
       expect(quits, 0);
+    });
+
+    test('the Mac menu bar lists what the keys run, a locked kiosk what it '
+        'keeps (KIOSK-002)', () async {
+      const channel =
+          MethodChannel('org.codeberg.theoden8.webspace/shortcut_menu');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final listed = <List<Object?>>[];
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        listed.add([
+          for (final item in (call.arguments as Map)['items'] as List)
+            (item as Map)['title'],
+        ]);
+        return null;
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+      final en = await AppLocalizations.delegate.load(const Locale('en'));
+
+      over(_Page(kioskLocked: true), menu: ShortcutMenu(offered: true))
+          .listInMenuBar(en);
+      over(_Page(kioskLocked: false), menu: ShortcutMenu(offered: true))
+          .listInMenuBar(en);
+      over(_Page(kioskLocked: false), menu: ShortcutMenu(offered: false))
+          .listInMenuBar(en);
+
+      expect(listed, hasLength(2));
+      expect(listed.first, ['Reload Page', 'Back', 'Forward']);
+      expect(listed.last, containsAll(['New Tab', 'Next Site', 'Site 8']));
     });
 
     test('unlocked, the same keys move along the sites', () {

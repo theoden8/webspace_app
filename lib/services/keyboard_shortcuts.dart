@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/keyboard_input.dart';
 
@@ -189,6 +190,25 @@ sealed class KeyboardShortcut {
     ToggleSidebar() ||
     QuitApp() => false,
   };
+
+  /// Its name in the macOS menu bar's Site menu (A11Y-012).
+  Localized menuTitle(AppLocalizations loc) => switch (this) {
+    OpenNewTab() => loc.shortcutMenuNewTab,
+    ReopenClosedTab() => loc.shortcutMenuReopenClosedTab,
+    CloseActiveTab() => loc.shortcutMenuCloseTab,
+    FocusUrlBar() => loc.shortcutMenuFocusUrlBar,
+    LeavePage() => loc.shortcutMenuLeavePage,
+    ReloadPage() => loc.shortcutMenuReload,
+    FindInPage() => loc.shortcutMenuFind,
+    GoBack() => loc.shortcutMenuBack,
+    GoForward() => loc.shortcutMenuForward,
+    NextSite() => loc.shortcutMenuNextSite,
+    PreviousSite() => loc.shortcutMenuPreviousSite,
+    SiteAt(:final place) => loc.shortcutMenuSiteAt(place + 1),
+    LastSite() => loc.shortcutMenuLastSite,
+    ToggleSidebar() => loc.shortcutMenuToggleSidebar,
+    QuitApp() => loc.trayQuitApp,
+  };
 }
 
 /// The site menu's New tab (TAB-005).
@@ -265,6 +285,12 @@ final class SiteAt extends KeyboardShortcut {
   const SiteAt(this.place);
 
   final int place;
+
+  @override
+  bool operator ==(Object other) => other is SiteAt && other.place == place;
+
+  @override
+  int get hashCode => Object.hash(SiteAt, place);
 }
 
 final class LastSite extends KeyboardShortcut {
@@ -303,11 +329,27 @@ final class KeyboardShortcuts {
   final ShortcutScreen _screen;
   final KeyConvention? _on;
 
+  /// Every screen that takes the keys now, the last started last.
+  static final _started = <KeyboardShortcuts>[];
+
   void start() {
-    if (_on != null) FocusManager.instance.addEarlyKeyEventHandler(_onKey);
+    if (_on == null) return;
+    FocusManager.instance.addEarlyKeyEventHandler(_onKey);
+    _started.add(this);
   }
 
-  void dispose() => FocusManager.instance.removeEarlyKeyEventHandler(_onKey);
+  void dispose() {
+    FocusManager.instance.removeEarlyKeyEventHandler(_onKey);
+    _started.remove(this);
+  }
+
+  /// Runs [shortcut] as its key does, for the screen on top: a press in the
+  /// macOS menu bar's Site menu (A11Y-012). Says whether a screen ran it.
+  static bool press(KeyboardShortcut shortcut) =>
+      _started.reversed.any((keys) => keys._answer(shortcut));
+
+  bool _answer(KeyboardShortcut shortcut) =>
+      _screen.onTop && _screen.answerShortcut(shortcut);
 
   /// Whether one of the app's own text fields has the keys, the URL bar's or
   /// the find bar's. A page's field is the webview's to answer for.
@@ -326,9 +368,7 @@ final class KeyboardShortcuts {
       on: on,
       editingText: editingText,
     );
-    if (shortcut == null || !_screen.onTop) return KeyEventResult.ignored;
-    return _screen.answerShortcut(shortcut)
-        ? KeyEventResult.handled
-        : KeyEventResult.ignored;
+    if (shortcut == null) return KeyEventResult.ignored;
+    return _answer(shortcut) ? KeyEventResult.handled : KeyEventResult.ignored;
   }
 }

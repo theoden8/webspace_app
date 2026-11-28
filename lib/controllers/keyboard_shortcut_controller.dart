@@ -4,8 +4,10 @@ import 'package:webspace/controllers/back_gesture_controller.dart';
 import 'package:webspace/controllers/site_reset_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/keyboard_shortcuts.dart';
+import 'package:webspace/services/shortcut_menu.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// What the page answers for a keyboard shortcut beyond the controllers that
@@ -46,8 +48,10 @@ class KeyboardShortcutController implements ShortcutScreen {
     required SiteResetController resets,
     required BackGestureController back,
     DesktopWindow? window,
+    ShortcutMenu? menu,
   }) : _host = host,
        _window = window ?? DesktopWindow.instance,
+       _menu = menu ?? ShortcutMenu.instance,
        _tabs = tabs,
        _resets = resets,
        _back = back;
@@ -58,10 +62,18 @@ class KeyboardShortcutController implements ShortcutScreen {
   final SiteResetController _resets;
   final BackGestureController _back;
   final DesktopWindow _window;
+  final ShortcutMenu _menu;
 
   late final _keys = KeyboardShortcuts(this);
 
   void start() => _keys.start();
+
+  /// Lists the shortcuts in the macOS menu bar in [loc]'s words, only those
+  /// a locked kiosk keeps while it is locked (A11Y-012).
+  void listInMenuBar(AppLocalizations loc) {
+    if (!_menu.offered) return;
+    _menu.show(ShortcutMenu.contentOf(loc, kioskLocked: _host.kioskLocked));
+  }
 
   void dispose() => _keys.dispose();
 

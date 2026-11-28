@@ -1420,6 +1420,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       siteOnScreen: _sites.shown?.blockScreenshots,
     )));
     _keyboard.follow((site: _sites.shown?.siteId, tab: _sites.shown?.activeTabId));
+    _keys.listInMenuBar(AppLocalizations.of(context));
     return Stack(
       fit: StackFit.expand,
       children: [
