@@ -249,14 +249,14 @@ class WebspacesController {
     if (oldListIndex < 0 || oldListIndex >= filtered.length) return;
     if (newListIndex < 0 || newListIndex >= filtered.length) return;
     if (oldListIndex == newListIndex) return;
-    if (_sites.selectedWebspaceId == WebspaceId.all) {
-      await _reorderAllSites(
-        filtered[oldListIndex],
-        newModelIndex: filtered[newListIndex],
-      );
-    } else {
+    if (_sites.selectedWebspaceId != WebspaceId.all) {
       _reorderSiteInWebspace(oldListIndex, newListIndex: newListIndex);
+      return;
     }
+    await _reorderAllSites(
+      filtered[oldListIndex],
+      newModelIndex: filtered[newListIndex],
+    );
   }
 
   void _reorderSiteInWebspace(int oldListIndex, {required int newListIndex}) {
