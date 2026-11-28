@@ -57,6 +57,7 @@ import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/web_view_theme.dart';
+import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/settings/web_extension.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -1061,7 +1062,7 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
       thirdPartyCookiesEnabled: id.effectiveThirdPartyCookiesEnabled,
       incognito: id.effectiveIncognito,
     );
-    await c.setThemePreference(effectiveTheme);
+    await c.setThemePreference(toldScheme(effectiveTheme));
     defaultUserAgent ??= await HostBrowser.sentUserAgent();
   }
 
@@ -1130,7 +1131,9 @@ class WebViewModel with SiteKeyed implements MediaGrantRecord, ShortcutTarget, B
 
   /// Tells a live webview the theme it follows now (HINTS-003).
   Future<void> reapplyTheme() async {
-    if (webview != null) await controller?.setThemePreference(effectiveTheme);
+    if (webview != null) {
+      await controller?.setThemePreference(toldScheme(effectiveTheme));
+    }
   }
 
   /// Where the store binds the proxy (iOS, macOS, Linux),
@@ -1537,7 +1540,8 @@ bool dispatch(NavigationDecision decision,
               // dying frame when chromium tears down between our request
               // and its dispatch. The theme call doesn't gate any
               // subsequent work — saveFunc below is Dart-only.
-              unawaited(controller?.setThemePreference(effectiveTheme));
+              unawaited(controller
+                  ?.setThemePreference(toldScheme(effectiveTheme)));
             }
             await hooks.host.save();
             lastSavedUrl = currentNotifyUrl;

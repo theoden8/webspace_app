@@ -500,22 +500,36 @@ the page's own first paint. Pages SHALL receive the app's scheme through the
 theme shim (HINTS-001, HINTS-002). A page with no dark style of its own
 stays light; that is third-party content and outside the claim.
 
-Status: the chrome holds, in the high contrast themes too (A11Y-010). Two
-gaps:
+Status: the chrome holds, in the high contrast themes too (A11Y-010).
+`test/dark_interface_test.dart` pumps the real app dark both ways and finds
+every background surface dark on the start screen, App Settings and its
+seven screens, the drawer, a site, the tabs sheet, the site menu, a site's
+settings with their confirm dialog and four screens, and Developer Tools.
+Pages are told the scheme the chrome shows: `system` is resolved in Dart from
+the platform's brightness (`toldScheme`), and a change of it under
+`ThemeMode.system` tells every live site that follows it again
+(`didChangePlatformBrightness`; `test/theme_reapply_test.dart`). A webview
+whose page is told dark is built with `transparentBackground` over the app's
+dark background, which follows each later telling (`PageBackdrop`;
+`test/page_backdrop_test.dart`). Open:
 
-- **Unchecked flash.** Whether a webview shows its default white background
-  in the frames before a dark page paints, on creation and on site switch,
-  has not been looked at on a device. This is the one check between Dark
+- **Unchecked flash.** Whether a white frame shows before a dark page paints,
+  on creation and on site switch, is a device check. On macOS the fork's
+  `transparentBackground` only clears `underPageBackgroundColor` and leaves
+  the view opaque, so the Mac likely still flashes; on Linux it is whether
+  WPE's texture keeps its alpha. This is the one check between Dark
   Interface and Yes.
 - **CSS and JS can disagree.** The shim overrides `matchMedia` and the root
   `color-scheme`, but a stylesheet's `@media (prefers-color-scheme)` follows
   the engine, which follows the system, not the app. With the app dark and
   the system light, JS reports dark and CSS reports light. The engine-level
   fix is per platform: the webview's `overrideUserInterfaceStyle` (iOS) or
-  `appearance` (macOS) in the fork, the fork's existing `darkMode` setting
-  on Linux, and the activity's night mode on Android. Under
-  `ThemeMode.system`, `didChangePlatformBrightness` is not handled, so the
-  JS answer is stale until the next load.
+  `appearance` (macOS) in the fork, the fork's `darkMode` setting on Linux
+  (a display-wide WPE setting, so one site's theme would set every view's),
+  and the activity's night mode on Android.
+- **Warm tabs and the walk's edges.** A tab's warm webview is told a new
+  scheme only when its page next loads; the walk does not reach the add-site
+  screen, a nested screen or the archive screens.
 
 #### Scenario: Opening a dark site in dark mode
 

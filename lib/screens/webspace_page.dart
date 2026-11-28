@@ -470,6 +470,9 @@ class _WebSpacePageState extends State<WebSpacePage>
   void didChangeTextScaleFactor() => _lifecycle.textScaleChanged();
 
   @override
+  void didChangePlatformBrightness() => _lifecycle.platformBrightnessChanged();
+
+  @override
   void didHaveMemoryPressure() {
     final state = WidgetsBinding.instance.lifecycleState;
     if (!AppLifecycleEngine.memoryPressureTrims(state)) {

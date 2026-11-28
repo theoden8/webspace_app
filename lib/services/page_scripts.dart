@@ -247,7 +247,7 @@ final class _PageShims {
         // The first document gets it too; the controller replaces it when the
         // theme changes ([LiveShim.themeColorScheme]).
         ShimGroup.themeColorScheme => [
-            buildThemeColorSchemeShim(posture.page.theme),
+            buildThemeColorSchemeShim(toldScheme(posture.page.theme)),
           ],
         ShimGroup.worker => [
             ?buildWorkerShimScript(workerScopeBodies(scoped)),

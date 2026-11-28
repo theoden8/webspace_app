@@ -67,6 +67,8 @@ import 'package:webspace/services/frame_origin.dart';
 import 'package:webspace/services/webview_tls.dart';
 import 'package:webspace/services/webview_downloads.dart';
 import 'package:webspace/services/page_scripts.dart';
+import 'package:webspace/services/page_backdrop.dart';
+import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/page_phase.dart';
 import 'package:webspace/services/page_handlers.dart';
 import 'package:webspace/services/page_focus.dart';
@@ -624,12 +626,14 @@ class WebViewFactory {
         'Creating webview: siteId=${config.posture.siteId} dnsLevel=${config.effectiveDnsLevel} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${hostIsAndroid} url=${config.initialUrl} containerId=$containerId proxySettings=${inappProxy != null}',
         sensitive: true);
 
+    final backdrop = PageBackdrop(told: toldScheme(config.posture.page.theme));
     final settings = siteSettings(
       binding,
       posture: config.posture,
       textZoom: textZoom,
       desktopMode: desktopMode,
     )
+      ..transparentBackground = backdrop.transparent
       // The app's link sheet includes the tab action. On iOS the fork hides
       // WebKit's own link menu for this (-webkit-touch-callout: none on the
       // top document's links), so the long-press hit test reaches us.
@@ -920,6 +924,7 @@ class WebViewFactory {
           refuses: refused,
           navigationHeaders: headers,
           fileImport: fileImport,
+          backdrop: backdrop,
         );
         stopFollowingBlockers?.call();
         stopFollowingBlockers = followBlockerData(
@@ -1914,9 +1919,9 @@ class WebViewFactory {
       },
       child: webViewWidget,
     );
-    return RouteCover.over(_applyLetterbox(config,
+    return backdrop.under(RouteCover.over(_applyLetterbox(config,
         webView: _applyRefreshGate(config,
-            webView: pageFocus?.wrap(scoped) ?? OwnFocusOutline(child: scoped))));
+            webView: pageFocus?.wrap(scoped) ?? OwnFocusOutline(child: scoped)))));
   }
 
   /// Feeds the raw pointer stream to [WebViewConfig.pullToRefreshGate].

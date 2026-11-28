@@ -80,7 +80,9 @@ The theme hint SHALL be applied:
    open, and a popup either spawns
 2. On page navigation (theme reapplied after each page load)
 3. On a change to the app's theme mode (immediately to every existing webview
-   whose site follows the app)
+   whose site follows the app), and on a change of the platform's brightness,
+   which is what System tells a page (immediately to every existing webview
+   whose theme is System)
 4. On app startup (to all restored webviews)
 5. On a change to the site's own theme (its webview is rebuilt on save)
 

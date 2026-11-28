@@ -11,6 +11,7 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/desktop_window.dart';
 import 'package:webspace/services/keyboard_shortcuts.dart';
 import 'package:webspace/services/media_grant_engine.dart';
+import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/process_route.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/site_posture.dart';
@@ -492,6 +493,12 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   @override
   void didChangeTextScaleFactor() {
     unawaited(_controller?.setTextZoom(WebViewFactory.systemTextZoomPercent()));
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    unawaited(
+        _controller?.setThemePreference(toldScheme(widget.posture.page.theme)));
   }
 
   /// This screen runs as the site that opened it, or as the one outbound
