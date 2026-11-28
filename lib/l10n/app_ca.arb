@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Cada lloc manté una sola pestanya carregada; les altres es tornen a carregar en obrir-les",
   "tabsCloseTab": "Tanca la pestanya",
   "tabsCloseSubtree": "Tanca la pestanya i les que s'hi han obert",
+  "tabsMoveUnder": "Mou sota {title}",
+  "tabsMoveOutOf": "Treu de {title}",
   "tabsLive": "oberta",
   "tabsLoaded": "carregada",
   "tabsExpand": "Mostra les pestanyes obertes des d'aquesta",

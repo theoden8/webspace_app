@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Çdo sajt mban të ngarkuar vetëm një skedë; të tjerat ringarkohen kur hapen",
   "tabsCloseTab": "Mbyll skedën",
   "tabsCloseSubtree": "Mbyll skedën dhe skedat e hapura prej saj",
+  "tabsMoveUnder": "Zhvendos nën {title}",
+  "tabsMoveOutOf": "Nxirr nga {title}",
   "tabsLive": "hapur",
   "tabsLoaded": "e ngarkuar",
   "tabsExpand": "Shfaq skedat e hapura prej kësaj",

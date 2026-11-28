@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Her site yalnızca bir sekmeyi yüklü tutar; diğerleri açıldığında yeniden yüklenir",
   "tabsCloseTab": "Sekmeyi kapat",
   "tabsCloseSubtree": "Sekmeyi ve ondan açılan sekmeleri kapat",
+  "tabsMoveUnder": "{title} altına taşı",
+  "tabsMoveOutOf": "{title} dışına taşı",
   "tabsLive": "açık",
   "tabsLoaded": "yüklü",
   "tabsExpand": "Bundan açılan sekmeleri göster",

@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "ਹਰ ਸਾਈਟ ਦੀ ਇੱਕੋ ਟੈਬ ਲੋਡ ਰਹਿੰਦੀ ਹੈ; ਬਾਕੀ ਖੋਲ੍ਹਣ 'ਤੇ ਮੁੜ ਲੋਡ ਹੁੰਦੀਆਂ ਹਨ",
   "tabsCloseTab": "ਟੈਬ ਬੰਦ ਕਰੋ",
   "tabsCloseSubtree": "ਟੈਬ ਅਤੇ ਇਸ ਤੋਂ ਖੋਲ੍ਹੀਆਂ ਟੈਬਾਂ ਬੰਦ ਕਰੋ",
+  "tabsMoveUnder": "{title} ਹੇਠਾਂ ਲਿਜਾਓ",
+  "tabsMoveOutOf": "{title} ਤੋਂ ਬਾਹਰ ਲਿਜਾਓ",
   "tabsLive": "ਖੁੱਲ੍ਹੀ",
   "tabsLoaded": "ਲੋਡ ਹੈ",
   "tabsExpand": "ਇਸ ਤੋਂ ਖੋਲ੍ਹੀਆਂ ਟੈਬਾਂ ਦਿਖਾਓ",

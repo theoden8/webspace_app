@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Cada sitio mantén cargada unha soa lapela; as demais volven cargar ao abrilas",
   "tabsCloseTab": "Pechar a lapela",
   "tabsCloseSubtree": "Pechar a lapela e as abertas desde ela",
+  "tabsMoveUnder": "Mover baixo {title}",
+  "tabsMoveOutOf": "Sacar de {title}",
   "tabsLive": "aberta",
   "tabsLoaded": "cargada",
   "tabsExpand": "Amosar as lapelas abertas desde esta",

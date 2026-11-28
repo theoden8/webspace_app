@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Každá stránka drží načítanú iba jednu kartu; ostatné sa pri otvorení načítajú znova",
   "tabsCloseTab": "Zavrieť kartu",
   "tabsCloseSubtree": "Zavrieť kartu a karty otvorené z nej",
+  "tabsMoveUnder": "Presunúť pod {title}",
+  "tabsMoveOutOf": "Presunúť mimo {title}",
   "tabsLive": "otvorená",
   "tabsLoaded": "načítaná",
   "tabsExpand": "Zobraziť karty otvorené z tejto karty",

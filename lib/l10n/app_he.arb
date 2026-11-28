@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "בכל אתר נשארת טעונה כרטיסייה אחת; השאר נטענות מחדש כשפותחים אותן",
   "tabsCloseTab": "סגירת הכרטיסייה",
   "tabsCloseSubtree": "סגירת הכרטיסייה והכרטיסיות שנפתחו ממנה",
+  "tabsMoveUnder": "העברה אל מתחת ל-{title}",
+  "tabsMoveOutOf": "הוצאה מתוך {title}",
   "tabsLive": "פתוחה",
   "tabsLoaded": "טעונה",
   "tabsExpand": "הצגת הכרטיסיות שנפתחו מזו",

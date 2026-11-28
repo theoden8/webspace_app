@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Einn flipi á hvert vefsvæði helst hlaðinn; hinir hlaðast aftur þegar þeir eru opnaðir",
   "tabsCloseTab": "Loka flipa",
   "tabsCloseSubtree": "Loka flipanum og flipum sem opnaðir voru úr honum",
+  "tabsMoveUnder": "Færa undir {title}",
+  "tabsMoveOutOf": "Færa út úr {title}",
   "tabsLive": "opinn",
   "tabsLoaded": "hlaðinn",
   "tabsExpand": "Sýna flipa sem opnaðir voru úr þessum",

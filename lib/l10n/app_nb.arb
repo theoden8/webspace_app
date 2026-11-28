@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Hvert nettsted holder bare én fane lastet inn; de andre lastes inn på nytt når de åpnes",
   "tabsCloseTab": "Lukk fane",
   "tabsCloseSubtree": "Lukk fanen og fanene som er åpnet fra den",
+  "tabsMoveUnder": "Flytt inn under {title}",
+  "tabsMoveOutOf": "Flytt ut av {title}",
   "tabsLive": "åpen",
   "tabsLoaded": "lastet inn",
   "tabsExpand": "Vis fanene som er åpnet fra denne",

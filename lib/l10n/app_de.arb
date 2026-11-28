@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Pro Website bleibt ein Tab geladen; die anderen laden beim Öffnen neu",
   "tabsCloseTab": "Tab schließen",
   "tabsCloseSubtree": "Tab und die daraus geöffneten Tabs schließen",
+  "tabsMoveUnder": "Unter {title} verschieben",
+  "tabsMoveOutOf": "Aus {title} herausnehmen",
   "tabsLive": "offen",
   "tabsLoaded": "geladen",
   "tabsExpand": "Die aus diesem Tab geöffneten Tabs anzeigen",

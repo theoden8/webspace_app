@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Per site blijft één tabblad geladen; de andere laden opnieuw als je ze opent",
   "tabsCloseTab": "Tabblad sluiten",
   "tabsCloseSubtree": "Tabblad en de daaruit geopende tabbladen sluiten",
+  "tabsMoveUnder": "Verplaatsen onder {title}",
+  "tabsMoveOutOf": "Verplaatsen uit {title}",
   "tabsLive": "actief",
   "tabsLoaded": "geladen",
   "tabsExpand": "De hieruit geopende tabbladen tonen",

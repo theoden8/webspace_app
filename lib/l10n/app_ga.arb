@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Fanann cluaisín amháin in aghaidh an tsuímh lódáilte; athlódáiltear na cinn eile nuair a osclaítear iad",
   "tabsCloseTab": "Dún an cluaisín",
   "tabsCloseSubtree": "Dún an cluaisín agus na cluaisíní a osclaíodh uaidh",
+  "tabsMoveUnder": "Bog faoi {title}",
+  "tabsMoveOutOf": "Bog amach as {title}",
   "tabsLive": "oscailte",
   "tabsLoaded": "lódáilte",
   "tabsExpand": "Taispeáin na cluaisíní a osclaíodh ón gceann seo",

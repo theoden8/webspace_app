@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Hanya satu tab per situs yang tetap dimuat; yang lain dimuat ulang saat dibuka",
   "tabsCloseTab": "Tutup tab",
   "tabsCloseSubtree": "Tutup tab beserta tab yang dibuka darinya",
+  "tabsMoveUnder": "Pindahkan ke bawah {title}",
+  "tabsMoveOutOf": "Keluarkan dari {title}",
   "tabsLive": "terbuka",
   "tabsLoaded": "dimuat",
   "tabsExpand": "Tampilkan tab yang dibuka dari tab ini",

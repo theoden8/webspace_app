@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Kila tovuti huweka kichupo kimoja tu kikiwa kimepakiwa; vingine hupakiwa upya vinapofunguliwa",
   "tabsCloseTab": "Funga kichupo",
   "tabsCloseSubtree": "Funga kichupo na vichupo vilivyofunguliwa kutoka kwake",
+  "tabsMoveUnder": "Hamisha chini ya {title}",
+  "tabsMoveOutOf": "Toa chini ya {title}",
   "tabsLive": "wazi",
   "tabsLoaded": "kimepakiwa",
   "tabsExpand": "Onyesha vichupo vilivyofunguliwa kutoka hiki",

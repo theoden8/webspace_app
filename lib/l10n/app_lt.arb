@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Kiekvienoje svetainėje įkelta lieka tik viena kortelė; kitos atvėrus įkeliamos iš naujo",
   "tabsCloseTab": "Užverti kortelę",
   "tabsCloseSubtree": "Užverti kortelę ir iš jos atvertas korteles",
+  "tabsMoveUnder": "Perkelti po {title}",
+  "tabsMoveOutOf": "Iškelti iš {title}",
   "tabsLive": "atverta",
   "tabsLoaded": "įkelta",
   "tabsExpand": "Rodyti iš šios atvertas korteles",

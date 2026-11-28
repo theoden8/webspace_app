@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Gune bakoitzak fitxa bakarra mantentzen du kargatuta; besteak berriro kargatzen dira irekitzean",
   "tabsCloseTab": "Itxi fitxa",
   "tabsCloseSubtree": "Itxi fitxa eta hartatik irekitako fitxak",
+  "tabsMoveUnder": "Eraman {title} azpira",
+  "tabsMoveOutOf": "Atera {title} azpitik",
   "tabsLive": "irekita",
   "tabsLoaded": "kargatuta",
   "tabsExpand": "Erakutsi honetatik irekitako fitxak",

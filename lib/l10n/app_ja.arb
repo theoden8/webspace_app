@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "各サイトで読み込まれたままになるタブは1つだけで、ほかのタブは開くと再読み込みされます",
   "tabsCloseTab": "タブを閉じる",
   "tabsCloseSubtree": "タブと、そこから開いたタブを閉じる",
+  "tabsMoveUnder": "{title} の下に移動",
+  "tabsMoveOutOf": "{title} の外に移動",
   "tabsLive": "表示中",
   "tabsLoaded": "読み込み済み",
   "tabsExpand": "このタブから開いたタブを表示",

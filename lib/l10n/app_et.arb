@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Igal saidil jääb laaditud vaid üks kaart; teised laaditakse avamisel uuesti",
   "tabsCloseTab": "Sulge kaart",
   "tabsCloseSubtree": "Sulge kaart ja sellelt avatud kaardid",
+  "tabsMoveUnder": "Teisalda {title} alla",
+  "tabsMoveOutOf": "Too {title} alt välja",
   "tabsLive": "avatud",
   "tabsLoaded": "laaditud",
   "tabsExpand": "Näita sellelt avatud kaarte",

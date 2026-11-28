@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Cada site mantém só uma aba carregada; as outras recarregam ao abrir",
   "tabsCloseTab": "Fechar aba",
   "tabsCloseSubtree": "Fechar a aba e as abas abertas a partir dela",
+  "tabsMoveUnder": "Mover para baixo de {title}",
+  "tabsMoveOutOf": "Tirar de {title}",
   "tabsLive": "aberta",
   "tabsLoaded": "carregada",
   "tabsExpand": "Mostrar as abas abertas a partir desta",

@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Singulae paginae unam tantum schedam oneratam servant; ceterae aperiendo iterum onerantur",
   "tabsCloseTab": "Schedam claudere",
   "tabsCloseSubtree": "Schedam et schedas ex ea apertas claudere",
+  "tabsMoveUnder": "Sub {title} movere",
+  "tabsMoveOutOf": "Ex {title} educere",
   "tabsLive": "aperta",
   "tabsLoaded": "onerata",
   "tabsExpand": "Schedas ex hac apertas ostendere",

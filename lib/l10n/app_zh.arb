@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "每個網站只保留一個已載入的分頁，其他分頁開啟時會重新載入",
   "tabsCloseTab": "關閉分頁",
   "tabsCloseSubtree": "關閉此分頁及從它開啟的分頁",
+  "tabsMoveUnder": "移至 {title} 之下",
+  "tabsMoveOutOf": "移出 {title}",
   "tabsLive": "開啟中",
   "tabsLoaded": "已載入",
   "tabsExpand": "顯示從此分頁開啟的分頁",

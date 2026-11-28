@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Hvert websted holder kun ét faneblad indlæst; de andre genindlæses, når de åbnes",
   "tabsCloseTab": "Luk faneblad",
   "tabsCloseSubtree": "Luk fanebladet og de faneblade, der er åbnet fra det",
+  "tabsMoveUnder": "Flyt ind under {title}",
+  "tabsMoveOutOf": "Flyt ud af {title}",
   "tabsLive": "åbent",
   "tabsLoaded": "indlæst",
   "tabsExpand": "Vis de faneblade, der er åbnet fra dette",

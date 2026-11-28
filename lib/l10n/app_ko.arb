@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "사이트마다 탭 하나만 로드된 상태로 유지되고, 나머지는 열 때 다시 로드됩니다",
   "tabsCloseTab": "탭 닫기",
   "tabsCloseSubtree": "이 탭과 여기서 연 탭 닫기",
+  "tabsMoveUnder": "{title} 아래로 이동",
+  "tabsMoveOutOf": "{title} 밖으로 이동",
   "tabsLive": "열림",
   "tabsLoaded": "로드됨",
   "tabsExpand": "이 탭에서 연 탭 보기",

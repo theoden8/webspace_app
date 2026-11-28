@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Webhelyenként egy lap marad betöltve; a többi megnyitáskor újratöltődik",
   "tabsCloseTab": "Lap bezárása",
   "tabsCloseSubtree": "A lap és a belőle nyitott lapok bezárása",
+  "tabsMoveUnder": "Áthelyezés ez alá: {title}",
+  "tabsMoveOutOf": "Kivétel ez alól: {title}",
   "tabsLive": "nyitva",
   "tabsLoaded": "betöltve",
   "tabsExpand": "Az innen nyitott lapok megjelenítése",

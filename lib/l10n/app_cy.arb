@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Mae un tab i bob gwefan yn aros wedi'i lwytho; mae'r lleill yn ail-lwytho pan fyddwch yn eu hagor",
   "tabsCloseTab": "Cau'r tab",
   "tabsCloseSubtree": "Cau'r tab a'r tabiau a agorwyd ohono",
+  "tabsMoveUnder": "Symud o dan {title}",
+  "tabsMoveOutOf": "Symud allan o {title}",
   "tabsLive": "agored",
   "tabsLoaded": "wedi llwytho",
   "tabsExpand": "Dangos y tabiau a agorwyd o hwn",

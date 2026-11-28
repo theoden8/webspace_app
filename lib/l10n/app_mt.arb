@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Tab wieħed għal kull sit jibqa' mgħobbi; l-oħrajn jerġgħu jitgħabbew meta tiftaħhom",
   "tabsCloseTab": "Agħlaq it-tab",
   "tabsCloseSubtree": "Agħlaq it-tab u t-tabs miftuħa minnu",
+  "tabsMoveUnder": "Mexxi taħt {title}",
+  "tabsMoveOutOf": "Oħroġ minn {title}",
   "tabsLive": "miftuħ",
   "tabsLoaded": "mgħobbi",
   "tabsExpand": "Uri t-tabs miftuħa minn dan",

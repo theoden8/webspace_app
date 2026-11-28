@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Isang tab lang bawat site ang nananatiling naka-load; muling naglo-load ang iba kapag binuksan",
   "tabsCloseTab": "Isara ang tab",
   "tabsCloseSubtree": "Isara ang tab at ang mga tab na binuksan mula rito",
+  "tabsMoveUnder": "Ilipat sa ilalim ng {title}",
+  "tabsMoveOutOf": "Ilabas mula sa {title}",
   "tabsLive": "bukás",
   "tabsLoaded": "naka-load",
   "tabsExpand": "Ipakita ang mga tab na binuksan mula rito",

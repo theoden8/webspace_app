@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Cada site mantém só um separador carregado; os outros voltam a carregar ao abrir",
   "tabsCloseTab": "Fechar separador",
   "tabsCloseSubtree": "Fechar o separador e os separadores abertos a partir dele",
+  "tabsMoveUnder": "Mover para baixo de {title}",
+  "tabsMoveOutOf": "Retirar de {title}",
   "tabsLive": "aberto",
   "tabsLoaded": "carregado",
   "tabsExpand": "Mostrar os separadores abertos a partir deste",
