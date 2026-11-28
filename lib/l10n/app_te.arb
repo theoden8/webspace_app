@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "ఆనియన్ చిరునామా విఫలమైతే",
   "siteNetworkOnionFallbackHint": "ఆనియన్ సేవ పని చేయకపోవచ్చు, లేదా దాని సర్టిఫికెట్ గడువు ముగియవచ్చు. లోపాన్ని చూపితే సైట్ Tor లోపలే ఉంటుంది. సాధారణ చిరునామాను లోడ్ చేస్తే అది ఎగ్జిట్ రిలే ద్వారా వెళ్తుంది, ట్రాఫిక్ ఎక్కడికి వెళ్తుందో అది చూస్తుంది.",
   "onionFallbackNone": "లోపాన్ని చూపు",
-  "onionFallbackClearnet": "సాధారణ చిరునామాను లోడ్ చేయి"
+  "onionFallbackClearnet": "సాధారణ చిరునామాను లోడ్ చేయి",
+  "shortcutMenuTitle": "సైట్",
+  "shortcutMenuNewTab": "కొత్త ట్యాబ్",
+  "shortcutMenuReopenClosedTab": "మూసిన ట్యాబ్‌ను మళ్లీ తెరువు",
+  "shortcutMenuCloseTab": "ట్యాబ్‌ను మూసివేయి",
+  "shortcutMenuFocusUrlBar": "చిరునామాను సవరించు",
+  "shortcutMenuLeavePage": "ఫోకస్‌ను పేజీ నుండి బయటకు తరలించు",
+  "shortcutMenuReload": "పేజీని మళ్లీ లోడ్ చేయి",
+  "shortcutMenuFind": "పేజీలో కనుగొను",
+  "shortcutMenuBack": "వెనుకకు",
+  "shortcutMenuForward": "ముందుకు",
+  "shortcutMenuNextSite": "తదుపరి సైట్",
+  "shortcutMenuPreviousSite": "మునుపటి సైట్",
+  "shortcutMenuLastSite": "చివరి సైట్",
+  "shortcutMenuToggleSidebar": "సైడ్‌బార్‌ను చూపు లేదా దాచు",
+  "shortcutMenuSiteAt": "సైట్ {number}"
 }

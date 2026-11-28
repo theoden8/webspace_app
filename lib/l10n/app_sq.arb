@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Nëse adresa onion dështon",
   "siteNetworkOnionFallbackHint": "Një shërbim onion mund të jetë jashtë funksionit ose certifikata e tij mund të skadojë. Shfaqja e gabimit e mban sajtin brenda Tor. Ngarkimi i adresës së zakonshme e dërgon përmes një releje dalëse, e cila sheh se ku shkon trafiku.",
   "onionFallbackNone": "Shfaq gabimin",
-  "onionFallbackClearnet": "Ngarko adresën e zakonshme"
+  "onionFallbackClearnet": "Ngarko adresën e zakonshme",
+  "shortcutMenuTitle": "Sajti",
+  "shortcutMenuNewTab": "Skedë e re",
+  "shortcutMenuReopenClosedTab": "Rihap skedën e mbyllur",
+  "shortcutMenuCloseTab": "Mbyll skedën",
+  "shortcutMenuFocusUrlBar": "Redakto adresën",
+  "shortcutMenuLeavePage": "Nxirr fokusin nga faqja",
+  "shortcutMenuReload": "Ringarko faqen",
+  "shortcutMenuFind": "Gjej në faqe",
+  "shortcutMenuBack": "Pas",
+  "shortcutMenuForward": "Përpara",
+  "shortcutMenuNextSite": "Sajti tjetër",
+  "shortcutMenuPreviousSite": "Sajti i mëparshëm",
+  "shortcutMenuLastSite": "Sajti i fundit",
+  "shortcutMenuToggleSidebar": "Shfaq ose fshih shiritin anësor",
+  "shortcutMenuSiteAt": "Sajti {number}"
 }

@@ -6768,5 +6768,71 @@
   "onionFallbackClearnet": "Load the regular address",
   "@onionFallbackClearnet": {
     "description": "Option of the 'If the onion address fails' choice: the app loads the site's usual web address instead, through an exit relay of the Tor network."
+  },
+  "shortcutMenuTitle": "Site",
+  "@shortcutMenuTitle": {
+    "description": "Title of the Site menu, a menu of the app's own in the macOS menu bar (beside Edit and View) that lists the app's keyboard shortcuts; each item runs what its shortcut does, for the site on screen. Short: one word, like the menu bar's Edit and View."
+  },
+  "shortcutMenuNewTab": "New Tab",
+  "@shortcutMenuNewTab": {
+    "description": "Item of the Site menu, a menu of the app's own in the macOS menu bar (beside Edit and View) that lists the app's keyboard shortcuts; each item runs what its shortcut does, for the site on screen. Opens a new tab in the site on screen. macOS writes menu items in title case where the language has one."
+  },
+  "shortcutMenuReopenClosedTab": "Reopen Closed Tab",
+  "@shortcutMenuReopenClosedTab": {
+    "description": "Item of the Site menu, a menu of the app's own in the macOS menu bar (beside Edit and View) that lists the app's keyboard shortcuts; each item runs what its shortcut does, for the site on screen. Brings back the tab of the site on screen that was closed last, with its history."
+  },
+  "shortcutMenuCloseTab": "Close Tab",
+  "@shortcutMenuCloseTab": {
+    "description": "Item of the Site menu, a menu of the app's own in the macOS menu bar (beside Edit and View) that lists the app's keyboard shortcuts; each item runs what its shortcut does, for the site on screen. Closes the tab on screen."
+  },
+  "shortcutMenuFocusUrlBar": "Edit Address",
+  "@shortcutMenuFocusUrlBar": {
+    "description": "Item of the Site menu, a menu of the app's own in the macOS menu bar (beside Edit and View) that lists the app's keyboard shortcuts; each item runs what its shortcut does, for the site on screen. Puts the cursor in the address bar with the page's address selected, to type another."
+  },
+  "shortcutMenuLeavePage": "Move Focus Out of Page",
+  "@shortcutMenuLeavePage": {
+    "description": "Item of the Site menu, a menu of the app's own in the macOS menu bar (beside Edit and View) that lists the app's keyboard shortcuts; each item runs what its shortcut does, for the site on screen. Takes the keyboard focus out of the web page, to the address bar or the first button around the page, so the keys work the app again."
+  },
+  "shortcutMenuReload": "Reload Page",
+  "@shortcutMenuReload": {
+    "description": "Item of the Site menu, a menu of the app's own in the macOS menu bar (beside Edit and View) that lists the app's keyboard shortcuts; each item runs what its shortcut does, for the site on screen. Loads the page on screen again."
+  },
+  "shortcutMenuFind": "Find in Page",
+  "@shortcutMenuFind": {
+    "description": "Item of the Site menu, a menu of the app's own in the macOS menu bar (beside Edit and View) that lists the app's keyboard shortcuts; each item runs what its shortcut does, for the site on screen. Opens the bar that searches the text of the page on screen."
+  },
+  "shortcutMenuBack": "Back",
+  "@shortcutMenuBack": {
+    "description": "Item of the Site menu, a menu of the app's own in the macOS menu bar (beside Edit and View) that lists the app's keyboard shortcuts; each item runs what its shortcut does, for the site on screen. Goes back to the previous page in the site's history."
+  },
+  "shortcutMenuForward": "Forward",
+  "@shortcutMenuForward": {
+    "description": "Item of the Site menu, a menu of the app's own in the macOS menu bar (beside Edit and View) that lists the app's keyboard shortcuts; each item runs what its shortcut does, for the site on screen. Goes forward one page in the site's history."
+  },
+  "shortcutMenuNextSite": "Next Site",
+  "@shortcutMenuNextSite": {
+    "description": "Item of the Site menu, a menu of the app's own in the macOS menu bar (beside Edit and View) that lists the app's keyboard shortcuts; each item runs what its shortcut does, for the site on screen. Shows the next of the user's sites, in the order the site strip lists them."
+  },
+  "shortcutMenuPreviousSite": "Previous Site",
+  "@shortcutMenuPreviousSite": {
+    "description": "Item of the Site menu, a menu of the app's own in the macOS menu bar (beside Edit and View) that lists the app's keyboard shortcuts; each item runs what its shortcut does, for the site on screen. Shows the previous of the user's sites, in the order the site strip lists them."
+  },
+  "shortcutMenuLastSite": "Last Site",
+  "@shortcutMenuLastSite": {
+    "description": "Item of the Site menu, a menu of the app's own in the macOS menu bar (beside Edit and View) that lists the app's keyboard shortcuts; each item runs what its shortcut does, for the site on screen. Shows the last of the user's sites in the order the site strip lists them."
+  },
+  "shortcutMenuToggleSidebar": "Show or Hide Sidebar",
+  "@shortcutMenuToggleSidebar": {
+    "description": "Item of the Site menu, a menu of the app's own in the macOS menu bar (beside Edit and View) that lists the app's keyboard shortcuts; each item runs what its shortcut does, for the site on screen. Moves the sidebar of sites and tabs on to its next state: open, collapsed to a narrow rail of icons, or hidden."
+  },
+  "shortcutMenuSiteAt": "Site {number}",
+  "@shortcutMenuSiteAt": {
+    "description": "Item of the Site menu, a menu of the app's own in the macOS menu bar (beside Edit and View) that lists the app's keyboard shortcuts; each item runs what its shortcut does, for the site on screen. Shows the user's site at this place in the order the site strip lists them, counted from 1.",
+    "placeholders": {
+      "number": {
+        "type": "int",
+        "example": "3"
+      }
+    }
   }
 }

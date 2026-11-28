@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Se o endereço onion falhar",
   "siteNetworkOnionFallbackHint": "Um serviço onion pode estar em baixo, ou o seu certificado pode expirar. Mostrar o erro mantém o site dentro do Tor. Carregar o endereço habitual envia-o por um relé de saída, que vê para onde vai o tráfego.",
   "onionFallbackNone": "Mostrar o erro",
-  "onionFallbackClearnet": "Carregar o endereço habitual"
+  "onionFallbackClearnet": "Carregar o endereço habitual",
+  "shortcutMenuTitle": "Site",
+  "shortcutMenuNewTab": "Novo separador",
+  "shortcutMenuReopenClosedTab": "Reabrir separador fechado",
+  "shortcutMenuCloseTab": "Fechar separador",
+  "shortcutMenuFocusUrlBar": "Editar endereço",
+  "shortcutMenuLeavePage": "Retirar o foco da página",
+  "shortcutMenuReload": "Recarregar a página",
+  "shortcutMenuFind": "Localizar na página",
+  "shortcutMenuBack": "Voltar",
+  "shortcutMenuForward": "Avançar",
+  "shortcutMenuNextSite": "Site seguinte",
+  "shortcutMenuPreviousSite": "Site anterior",
+  "shortcutMenuLastSite": "Último site",
+  "shortcutMenuToggleSidebar": "Mostrar ou ocultar a barra lateral",
+  "shortcutMenuSiteAt": "Site {number}"
 }

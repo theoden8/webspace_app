@@ -703,7 +703,7 @@ On macOS and Linux every common task SHALL be operable from the keyboard:
 focus SHALL move through the chrome in order with Tab and Shift+Tab, SHALL
 be able to leave a webview the same way, and dialogs SHALL close with
 Escape. Switching sites, reload, find and focusing the URL bar SHALL have
-shortcuts, listed in the macOS menu bar (`PlatformMenuBar`).
+shortcuts, listed in the macOS menu bar beside its Edit menu.
 
 Status: the shortcuts exist (NAV-014): one `KeyboardShortcut` declaration
 (`lib/services/keyboard_shortcuts.dart`), answered by
@@ -719,16 +719,33 @@ stay in an open drawer; Escape closes dialogs, sheets, menus and the drawer
 (NAV-022). `test/keyboard_focus_test.dart` drives all of it in the shipped app
 under macOS and Linux platform overrides.
 
+On macOS the menu bar has a Site menu before Window, which lists one item
+per shortcut the Mac keys bind, at its first key ("⌘T", "⌃⇥", "F6"), in the
+order the `KeyboardShortcut` declaration gives them; while a kiosk is
+locked, only Reload, Back and Forward, the keys it keeps (KIOSK-002). The
+page sends it (`ShortcutMenu`, `lib/services/shortcut_menu.dart`) over the
+`shortcut_menu` channel, again when its language changes, and the runner
+adds it to the stock `MainMenu.xib` menus (`ShortcutMenuPlugin.swift`)
+rather than replacing them: Flutter's `PlatformMenuBar` would replace
+`NSApp.mainMenu` whole, Edit menu included, and WKWebView takes Cut, Copy,
+Paste, Undo and Select All from that menu's items. A click on an item runs
+its shortcut as its key does, for the screen on top
+(`KeyboardShortcuts.press`, the same gate the keys take). The items write
+their keys but the menu's delegate answers none of them, so a key reaches
+the app as before and runs once. Copy, paste and select all are not
+shortcuts of the app and are not in it. `test/shortcut_menu_test.dart`
+holds what is sent and what a press runs; `tool/swift_typecheck/check.sh`
+type-checks the runner's side against stubs.
+
 Still open:
 
-- **Menu bar**: the macOS menu is the stock `MainMenu.xib` and lists none of
-  the shortcuts. Flutter's `PlatformMenuBar` is not the way: its
-  `FlutterMenuPlugin` replaces `NSApp.mainMenu` whole, and its
-  platform-provided items include no Edit menu, so Cut, Copy, Paste, Undo
-  and Select All, whose first-responder actions WKWebView takes its Command
-  keys from, would stop working in every page. Listing them needs a native
-  menu beside Edit that the runner builds from the `KeyboardShortcut`
-  declaration sent over a channel, or Flutter providing the edit items.
+- **Menu bar on a Mac**: nobody has seen the Site menu in a Mac's menu bar,
+  clicked its items, or checked that its keys still run once, from the
+  Flutter view and from a page that leaves them, now that the menu writes
+  them too. That the delegate's `menuHasKeyEquivalent` keeps AppKit from
+  firing an item by its key is read from AppKit's documentation, not seen;
+  were it to fire, the press runs through the same gate the key does, so
+  each key would still run once, from the menu instead.
 - **Tab out of a page on Linux**: the fork's
   `CustomPlatformView._handleKeyEvent` returns `handled` for every key, Tab
   included, so Tab past the page's last link stays in the page; F6 is the

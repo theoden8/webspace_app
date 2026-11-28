@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "ඔනියන් ලිපිනය අසාර්ථක වුවහොත්",
   "siteNetworkOnionFallbackHint": "ඔනියන් සේවාවක් අක්‍රිය විය හැකිය, නැතහොත් එහි සහතිකය කල් ඉකුත් විය හැකිය. දෝෂය පෙන්වීමෙන් අඩවිය Tor තුළම රැඳේ. සාමාන්‍ය ලිපිනය පූරණය කිරීමෙන් එය පිටවීමේ රිලේවක් හරහා යවයි, එය ගමනාගමනය යන්නේ කොහේදැයි දකී.",
   "onionFallbackNone": "දෝෂය පෙන්වන්න",
-  "onionFallbackClearnet": "සාමාන්‍ය ලිපිනය පූරණය කරන්න"
+  "onionFallbackClearnet": "සාමාන්‍ය ලිපිනය පූරණය කරන්න",
+  "shortcutMenuTitle": "අඩවිය",
+  "shortcutMenuNewTab": "නව ටැබ්",
+  "shortcutMenuReopenClosedTab": "වසා දැමූ ටැබය නැවත විවෘත කරන්න",
+  "shortcutMenuCloseTab": "ටැබ් වසන්න",
+  "shortcutMenuFocusUrlBar": "ලිපිනය සංස්කරණය කරන්න",
+  "shortcutMenuLeavePage": "අවධානය පිටුවෙන් පිටතට ගෙන යන්න",
+  "shortcutMenuReload": "පිටුව නැවත පූරණය කරන්න",
+  "shortcutMenuFind": "පිටුවේ සොයන්න",
+  "shortcutMenuBack": "ආපසු",
+  "shortcutMenuForward": "ඉදිරියට",
+  "shortcutMenuNextSite": "ඊළඟ අඩවිය",
+  "shortcutMenuPreviousSite": "පෙර අඩවිය",
+  "shortcutMenuLastSite": "අවසාන අඩවිය",
+  "shortcutMenuToggleSidebar": "පැති තීරුව පෙන්වන්න හෝ සඟවන්න",
+  "shortcutMenuSiteAt": "අඩවිය {number}"
 }

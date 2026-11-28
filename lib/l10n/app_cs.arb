@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Když onion adresa selže",
   "siteNetworkOnionFallbackHint": "Onion služba může být mimo provoz nebo jí může vypršet certifikát. Zobrazení chyby udrží web uvnitř Toru. Načtení běžné adresy ho pošle přes výstupní uzel, který vidí, kam provoz míří.",
   "onionFallbackNone": "Zobrazit chybu",
-  "onionFallbackClearnet": "Načíst běžnou adresu"
+  "onionFallbackClearnet": "Načíst běžnou adresu",
+  "shortcutMenuTitle": "Web",
+  "shortcutMenuNewTab": "Nový panel",
+  "shortcutMenuReopenClosedTab": "Znovu otevřít zavřený panel",
+  "shortcutMenuCloseTab": "Zavřít panel",
+  "shortcutMenuFocusUrlBar": "Upravit adresu",
+  "shortcutMenuLeavePage": "Přesunout fokus mimo stránku",
+  "shortcutMenuReload": "Znovu načíst stránku",
+  "shortcutMenuFind": "Najít na stránce",
+  "shortcutMenuBack": "Zpět",
+  "shortcutMenuForward": "Vpřed",
+  "shortcutMenuNextSite": "Další web",
+  "shortcutMenuPreviousSite": "Předchozí web",
+  "shortcutMenuLastSite": "Poslední web",
+  "shortcutMenuToggleSidebar": "Zobrazit nebo skrýt postranní panel",
+  "shortcutMenuSiteAt": "Web {number}"
 }

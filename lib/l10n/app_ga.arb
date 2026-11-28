@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Má theipeann ar an seoladh onion",
   "siteNetworkOnionFallbackHint": "D'fhéadfadh seirbhís onion a bheith as feidhm, nó d'fhéadfadh a teastas dul in éag. Coinníonn taispeáint na hearráide an suíomh laistigh de Tor. Seolann lódáil an ghnáthsheolta é trí athsheachadán imeachta, a fheiceann cá dtéann an trácht.",
   "onionFallbackNone": "Taispeáin an earráid",
-  "onionFallbackClearnet": "Lódáil an gnáthsheoladh"
+  "onionFallbackClearnet": "Lódáil an gnáthsheoladh",
+  "shortcutMenuTitle": "Suíomh",
+  "shortcutMenuNewTab": "Cluaisín nua",
+  "shortcutMenuReopenClosedTab": "Athoscail an cluaisín a dúnadh",
+  "shortcutMenuCloseTab": "Dún an cluaisín",
+  "shortcutMenuFocusUrlBar": "Cuir an seoladh in eagar",
+  "shortcutMenuLeavePage": "Bog an fócas amach as an leathanach",
+  "shortcutMenuReload": "Athlódáil an leathanach",
+  "shortcutMenuFind": "Aimsigh sa leathanach",
+  "shortcutMenuBack": "Siar",
+  "shortcutMenuForward": "Ar aghaidh",
+  "shortcutMenuNextSite": "An chéad suíomh eile",
+  "shortcutMenuPreviousSite": "An suíomh roimhe seo",
+  "shortcutMenuLastSite": "An suíomh deireanach",
+  "shortcutMenuToggleSidebar": "Taispeáin nó folaigh an barra taoibh",
+  "shortcutMenuSiteAt": "Suíomh {number}"
 }

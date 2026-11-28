@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Ja onion adrese nedarbojas",
   "siteNetworkOnionFallbackHint": "Onion pakalpojums var nedarboties, vai tā sertifikātam var beigties derīgums. Kļūdas rādīšana patur vietni Tor iekšienē. Parastās adreses ielāde to sūta caur izejas releju, kas redz, kurp dodas datplūsma.",
   "onionFallbackNone": "Rādīt kļūdu",
-  "onionFallbackClearnet": "Ielādēt parasto adresi"
+  "onionFallbackClearnet": "Ielādēt parasto adresi",
+  "shortcutMenuTitle": "Vietne",
+  "shortcutMenuNewTab": "Jauna cilne",
+  "shortcutMenuReopenClosedTab": "Atkārtoti atvērt aizvērto cilni",
+  "shortcutMenuCloseTab": "Aizvērt cilni",
+  "shortcutMenuFocusUrlBar": "Rediģēt adresi",
+  "shortcutMenuLeavePage": "Pārvietot fokusu ārpus lapas",
+  "shortcutMenuReload": "Pārlādēt lapu",
+  "shortcutMenuFind": "Atrast lapā",
+  "shortcutMenuBack": "Atpakaļ",
+  "shortcutMenuForward": "Uz priekšu",
+  "shortcutMenuNextSite": "Nākamā vietne",
+  "shortcutMenuPreviousSite": "Iepriekšējā vietne",
+  "shortcutMenuLastSite": "Pēdējā vietne",
+  "shortcutMenuToggleSidebar": "Rādīt vai paslēpt sānjoslu",
+  "shortcutMenuSiteAt": "Vietne {number}"
 }

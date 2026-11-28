@@ -75,5 +75,20 @@ if [ "$(uname -s)" != "Darwin" ]; then
   "$swiftc" -typecheck -swift-version 5 -I "$work" \
     "$root/macos/Runner/ScreenSharePlugin.swift"
   echo "swift_typecheck: macos/Runner/ScreenSharePlugin.swift type-checks"
+
+  # The Site menu (A11Y-012) names its press by #selector, which needs
+  # Objective-C interop: against a stub ObjectiveC module and a Cocoa that
+  # re-exports it with AppKit's menus, as the real umbrella does. Its own
+  # directory, so the sources above keep linux_foundation_gaps.swift's
+  # Selector.
+  mkdir "$work/objc"
+  "$swiftc" -emit-module -module-name ObjectiveC -swift-version 5 \
+    -emit-module-path "$work/objc/ObjectiveC.swiftmodule" "$here/stub_ObjectiveC.swift"
+  "$swiftc" -emit-module -module-name Cocoa -swift-version 5 -I "$work/objc" \
+    -emit-module-path "$work/objc/Cocoa.swiftmodule" \
+    "$here/stub_Cocoa.swift" "$here/stub_AppKit_menus.swift"
+  "$swiftc" -typecheck -swift-version 5 -Xfrontend -enable-objc-interop \
+    -I "$work/objc" -I "$work" "$root/macos/Runner/ShortcutMenuPlugin.swift"
+  echo "swift_typecheck: macos/Runner/ShortcutMenuPlugin.swift type-checks"
 fi
 

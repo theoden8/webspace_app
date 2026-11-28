@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Ако onion адреса не успе",
   "siteNetworkOnionFallbackHint": "Onion услуга може бити недоступна или јој сертификат може истећи. Приказ грешке држи сајт унутар Tora. Учитавање уобичајене адресе шаље га кроз излазни релеј, који види куда саобраћај иде.",
   "onionFallbackNone": "Прикажи грешку",
-  "onionFallbackClearnet": "Учитај уобичајену адресу"
+  "onionFallbackClearnet": "Учитај уобичајену адресу",
+  "shortcutMenuTitle": "Сајт",
+  "shortcutMenuNewTab": "Нова картица",
+  "shortcutMenuReopenClosedTab": "Поново отвори затворену картицу",
+  "shortcutMenuCloseTab": "Затвори картицу",
+  "shortcutMenuFocusUrlBar": "Уреди адресу",
+  "shortcutMenuLeavePage": "Помери фокус ван странице",
+  "shortcutMenuReload": "Поново учитај страницу",
+  "shortcutMenuFind": "Пронађи на страници",
+  "shortcutMenuBack": "Назад",
+  "shortcutMenuForward": "Напред",
+  "shortcutMenuNextSite": "Следећи сајт",
+  "shortcutMenuPreviousSite": "Претходни сајт",
+  "shortcutMenuLastSite": "Последњи сајт",
+  "shortcutMenuToggleSidebar": "Прикажи или сакриј бочну траку",
+  "shortcutMenuSiteAt": "Сајт {number}"
 }

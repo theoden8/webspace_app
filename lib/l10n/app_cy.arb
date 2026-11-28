@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Os bydd y cyfeiriad onion yn methu",
   "siteNetworkOnionFallbackHint": "Gall gwasanaeth onion fod i lawr, neu gall ei dystysgrif ddod i ben. Mae dangos y gwall yn cadw'r wefan y tu mewn i Tor. Mae llwytho'r cyfeiriad arferol yn ei hanfon drwy gyfnewidfa ymadael, sy'n gweld i ble mae'r traffig yn mynd.",
   "onionFallbackNone": "Dangos y gwall",
-  "onionFallbackClearnet": "Llwytho'r cyfeiriad arferol"
+  "onionFallbackClearnet": "Llwytho'r cyfeiriad arferol",
+  "shortcutMenuTitle": "Safle",
+  "shortcutMenuNewTab": "Tab newydd",
+  "shortcutMenuReopenClosedTab": "Ailagor y tab a gaewyd",
+  "shortcutMenuCloseTab": "Cau'r tab",
+  "shortcutMenuFocusUrlBar": "Golygu'r cyfeiriad",
+  "shortcutMenuLeavePage": "Symud y ffocws allan o'r dudalen",
+  "shortcutMenuReload": "Ail-lwytho'r dudalen",
+  "shortcutMenuFind": "Canfod yn y dudalen",
+  "shortcutMenuBack": "Yn ôl",
+  "shortcutMenuForward": "Ymlaen",
+  "shortcutMenuNextSite": "Safle nesaf",
+  "shortcutMenuPreviousSite": "Safle blaenorol",
+  "shortcutMenuLastSite": "Safle olaf",
+  "shortcutMenuToggleSidebar": "Dangos neu guddio'r bar ochr",
+  "shortcutMenuSiteAt": "Safle {number}"
 }

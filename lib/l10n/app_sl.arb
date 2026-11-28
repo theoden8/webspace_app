@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Če onion naslov ne deluje",
   "siteNetworkOnionFallbackHint": "Storitev onion morda ne deluje ali pa ji poteče potrdilo. Prikaz napake obdrži spletno mesto znotraj Tora. Nalaganje običajnega naslova ga pošlje prek izhodnega releja, ki vidi, kam gre promet.",
   "onionFallbackNone": "Prikaži napako",
-  "onionFallbackClearnet": "Naloži običajni naslov"
+  "onionFallbackClearnet": "Naloži običajni naslov",
+  "shortcutMenuTitle": "Stran",
+  "shortcutMenuNewTab": "Nov zavihek",
+  "shortcutMenuReopenClosedTab": "Znova odpri zaprti zavihek",
+  "shortcutMenuCloseTab": "Zapri zavihek",
+  "shortcutMenuFocusUrlBar": "Uredi naslov",
+  "shortcutMenuLeavePage": "Premakni fokus iz strani",
+  "shortcutMenuReload": "Znova naloži stran",
+  "shortcutMenuFind": "Najdi na strani",
+  "shortcutMenuBack": "Nazaj",
+  "shortcutMenuForward": "Naprej",
+  "shortcutMenuNextSite": "Naslednja stran",
+  "shortcutMenuPreviousSite": "Prejšnja stran",
+  "shortcutMenuLastSite": "Zadnja stran",
+  "shortcutMenuToggleSidebar": "Pokaži ali skrij stransko vrstico",
+  "shortcutMenuSiteAt": "Stran {number}"
 }

@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Si inscriptio onion deficit",
   "siteNetworkOnionFallbackHint": "Ministerium onion interdum non operatur, aut testimonium eius exspirare potest. Errorem ostendere situm intra Tor retinet. Inscriptionem usitatam onerare eum per nodum exitus mittit, qui videt quo commeatus eat.",
   "onionFallbackNone": "Errorem ostende",
-  "onionFallbackClearnet": "Inscriptionem usitatam onera"
+  "onionFallbackClearnet": "Inscriptionem usitatam onera",
+  "shortcutMenuTitle": "Locus",
+  "shortcutMenuNewTab": "Scheda nova",
+  "shortcutMenuReopenClosedTab": "Schedam clausam iterum aperire",
+  "shortcutMenuCloseTab": "Schedam claudere",
+  "shortcutMenuFocusUrlBar": "Inscriptionem emendare",
+  "shortcutMenuLeavePage": "Focum e pagina movere",
+  "shortcutMenuReload": "Paginam iterum onerare",
+  "shortcutMenuFind": "In pagina invenire",
+  "shortcutMenuBack": "Retro",
+  "shortcutMenuForward": "Porro",
+  "shortcutMenuNextSite": "Locus sequens",
+  "shortcutMenuPreviousSite": "Locus prior",
+  "shortcutMenuLastSite": "Locus ultimus",
+  "shortcutMenuToggleSidebar": "Tabulam lateralem ostendere vel celare",
+  "shortcutMenuSiteAt": "Locus {number}"
 }

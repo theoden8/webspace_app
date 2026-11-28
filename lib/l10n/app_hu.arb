@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Ha az onion-cím nem működik",
   "siteNetworkOnionFallbackHint": "Egy onion-szolgáltatás leállhat, vagy lejárhat a tanúsítványa. A hiba megjelenítése a Toron belül tartja a webhelyet. A szokásos cím betöltése egy kilépő csomóponton át küldi, amely látja, hová megy a forgalom.",
   "onionFallbackNone": "Hiba megjelenítése",
-  "onionFallbackClearnet": "Szokásos cím betöltése"
+  "onionFallbackClearnet": "Szokásos cím betöltése",
+  "shortcutMenuTitle": "Webhely",
+  "shortcutMenuNewTab": "Új lap",
+  "shortcutMenuReopenClosedTab": "Bezárt lap újranyitása",
+  "shortcutMenuCloseTab": "Lap bezárása",
+  "shortcutMenuFocusUrlBar": "Cím szerkesztése",
+  "shortcutMenuLeavePage": "Fókusz kivétele az oldalból",
+  "shortcutMenuReload": "Oldal újratöltése",
+  "shortcutMenuFind": "Keresés az oldalon",
+  "shortcutMenuBack": "Vissza",
+  "shortcutMenuForward": "Előre",
+  "shortcutMenuNextSite": "Következő webhely",
+  "shortcutMenuPreviousSite": "Előző webhely",
+  "shortcutMenuLastSite": "Utolsó webhely",
+  "shortcutMenuToggleSidebar": "Oldalsáv megjelenítése vagy elrejtése",
+  "shortcutMenuSiteAt": "{number}. webhely"
 }

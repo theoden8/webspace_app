@@ -36,6 +36,7 @@
 		7AC2A0000000000000000009 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000005 /* AppGroup.swift */; };
 		7AC2A0000000000000000H02 /* HostBrowserPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000H01 /* HostBrowserPlugin.swift */; };
 		7AC2A0000000000000000S02 /* ScreenSharePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000S01 /* ScreenSharePlugin.swift */; };
+		7AC2A0000000000000000M02 /* ShortcutMenuPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000M01 /* ShortcutMenuPlugin.swift */; };
 		7AC2A0000000000000000T02 /* TorControllerPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000T01 /* TorControllerPlugin.swift */; };
 		C0471E5100000000000000C4 /* ContentRuleListPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0471E5100000000000000C3 /* ContentRuleListPlugin.swift */; };
 		C0471E5100000000000000D4 /* WebKitBlockReports.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0471E5100000000000000D3 /* WebKitBlockReports.swift */; };
@@ -124,6 +125,7 @@
 		7AC2A0000000000000000007 /* ShareIntentPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = ShareIntentPlugin.swift; path = ../ios/Runner/ShareIntentPlugin.swift; sourceTree = SOURCE_ROOT; };
 		7AC2A0000000000000000H01 /* HostBrowserPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HostBrowserPlugin.swift; sourceTree = "<group>"; };
 		7AC2A0000000000000000S01 /* ScreenSharePlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ScreenSharePlugin.swift; sourceTree = "<group>"; };
+		7AC2A0000000000000000M01 /* ShortcutMenuPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ShortcutMenuPlugin.swift; sourceTree = "<group>"; };
 		7AC2A0000000000000000T01 /* TorControllerPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = TorControllerPlugin.swift; path = ../ios/Runner/TorControllerPlugin.swift; sourceTree = SOURCE_ROOT; };
 		C0471E5100000000000000C3 /* ContentRuleListPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = ContentRuleListPlugin.swift; path = ../ios/Runner/ContentRuleListPlugin.swift; sourceTree = SOURCE_ROOT; };
 		C0471E5100000000000000D3 /* WebKitBlockReports.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = WebKitBlockReports.swift; path = ../ios/Runner/WebKitBlockReports.swift; sourceTree = SOURCE_ROOT; };
@@ -255,6 +257,7 @@
 				7AC2A0000000000000000007 /* ShareIntentPlugin.swift */,
 				7AC2A0000000000000000H01 /* HostBrowserPlugin.swift */,
 				7AC2A0000000000000000S01 /* ScreenSharePlugin.swift */,
+				7AC2A0000000000000000M01 /* ShortcutMenuPlugin.swift */,
 				7AC2A0000000000000000W01 /* WindowCapturePlugin.swift */,
 				33E51913231747F40026EE4D /* DebugProfile.entitlements */,
 				33E51914231749380026EE4D /* Release.entitlements */,
@@ -605,6 +608,7 @@
 				7AC2A0000000000000000008 /* ShareIntentPlugin.swift in Sources */,
 				7AC2A0000000000000000H02 /* HostBrowserPlugin.swift in Sources */,
 				7AC2A0000000000000000S02 /* ScreenSharePlugin.swift in Sources */,
+				7AC2A0000000000000000M02 /* ShortcutMenuPlugin.swift in Sources */,
 				7AC2A0000000000000000W02 /* WindowCapturePlugin.swift in Sources */,
 				335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */,
 			);

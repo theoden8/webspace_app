@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Jekk l-indirizz onion ifalli",
   "siteNetworkOnionFallbackHint": "Servizz onion jista' jkun mitfi, jew iċ-ċertifikat tiegħu jista' jiskadi. Li turi l-iżball iżomm is-sit ġewwa Tor. Li ttella' l-indirizz tas-soltu jibagħtu minn relay tal-ħruġ, li jara fejn sejjer it-traffiku.",
   "onionFallbackNone": "Uri l-iżball",
-  "onionFallbackClearnet": "Tella' l-indirizz tas-soltu"
+  "onionFallbackClearnet": "Tella' l-indirizz tas-soltu",
+  "shortcutMenuTitle": "Sit",
+  "shortcutMenuNewTab": "Tab ġdid",
+  "shortcutMenuReopenClosedTab": "Erġa' iftaħ it-tab magħluq",
+  "shortcutMenuCloseTab": "Agħlaq it-tab",
+  "shortcutMenuFocusUrlBar": "Editja l-indirizz",
+  "shortcutMenuLeavePage": "Ħu l-fokus barra mill-paġna",
+  "shortcutMenuReload": "Erġa' tella' l-paġna",
+  "shortcutMenuFind": "Fittex fil-paġna",
+  "shortcutMenuBack": "Lura",
+  "shortcutMenuForward": "'Il quddiem",
+  "shortcutMenuNextSite": "Is-sit li jmiss",
+  "shortcutMenuPreviousSite": "Is-sit ta' qabel",
+  "shortcutMenuLastSite": "L-aħħar sit",
+  "shortcutMenuToggleSidebar": "Uri jew aħbi l-virga tal-ġenb",
+  "shortcutMenuSiteAt": "Sit {number}"
 }

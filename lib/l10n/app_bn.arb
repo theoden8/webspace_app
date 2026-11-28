@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "অনিয়ন ঠিকানা ব্যর্থ হলে",
   "siteNetworkOnionFallbackHint": "একটি অনিয়ন পরিষেবা বন্ধ থাকতে পারে, বা এর সার্টিফিকেটের মেয়াদ ফুরিয়ে যেতে পারে। ত্রুটি দেখালে সাইটটি Tor-এর ভেতরে থাকে। সাধারণ ঠিকানা লোড করলে এটি একটি এক্সিট রিলে দিয়ে যায়, যা দেখতে পায় ট্রাফিক কোথায় যাচ্ছে।",
   "onionFallbackNone": "ত্রুটি দেখান",
-  "onionFallbackClearnet": "সাধারণ ঠিকানা লোড করুন"
+  "onionFallbackClearnet": "সাধারণ ঠিকানা লোড করুন",
+  "shortcutMenuTitle": "সাইট",
+  "shortcutMenuNewTab": "নতুন ট্যাব",
+  "shortcutMenuReopenClosedTab": "বন্ধ ট্যাব আবার খুলুন",
+  "shortcutMenuCloseTab": "ট্যাব বন্ধ করুন",
+  "shortcutMenuFocusUrlBar": "ঠিকানা সম্পাদনা করুন",
+  "shortcutMenuLeavePage": "পৃষ্ঠা থেকে ফোকাস সরান",
+  "shortcutMenuReload": "পৃষ্ঠা পুনরায় লোড করুন",
+  "shortcutMenuFind": "পৃষ্ঠায় খুঁজুন",
+  "shortcutMenuBack": "পিছনে",
+  "shortcutMenuForward": "সামনে",
+  "shortcutMenuNextSite": "পরবর্তী সাইট",
+  "shortcutMenuPreviousSite": "পূর্ববর্তী সাইট",
+  "shortcutMenuLastSite": "শেষ সাইট",
+  "shortcutMenuToggleSidebar": "সাইডবার দেখান বা লুকান",
+  "shortcutMenuSiteAt": "সাইট {number}"
 }

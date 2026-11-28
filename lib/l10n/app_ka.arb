@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "თუ onion მისამართი ვერ იმუშავებს",
   "siteNetworkOnionFallbackHint": "Onion სერვისი შეიძლება გათიშული იყოს ან მისი სერტიფიკატის ვადა გავიდეს. შეცდომის ჩვენება საიტს Tor-ის შიგნით ტოვებს. ჩვეულებრივი მისამართის ჩატვირთვა მას გასასვლელი რელეთი აგზავნის, რომელიც ხედავს, საით მიდის ტრაფიკი.",
   "onionFallbackNone": "შეცდომის ჩვენება",
-  "onionFallbackClearnet": "ჩვეულებრივი მისამართის ჩატვირთვა"
+  "onionFallbackClearnet": "ჩვეულებრივი მისამართის ჩატვირთვა",
+  "shortcutMenuTitle": "საიტი",
+  "shortcutMenuNewTab": "ახალი ჩანართი",
+  "shortcutMenuReopenClosedTab": "დახურული ჩანართის ხელახლა გახსნა",
+  "shortcutMenuCloseTab": "ჩანართის დახურვა",
+  "shortcutMenuFocusUrlBar": "მისამართის რედაქტირება",
+  "shortcutMenuLeavePage": "ფოკუსის გატანა გვერდიდან",
+  "shortcutMenuReload": "გვერდის ხელახლა ჩატვირთვა",
+  "shortcutMenuFind": "ძებნა გვერდზე",
+  "shortcutMenuBack": "უკან",
+  "shortcutMenuForward": "წინ",
+  "shortcutMenuNextSite": "შემდეგი საიტი",
+  "shortcutMenuPreviousSite": "წინა საიტი",
+  "shortcutMenuLastSite": "ბოლო საიტი",
+  "shortcutMenuToggleSidebar": "გვერდითი პანელის ჩვენება ან დამალვა",
+  "shortcutMenuSiteAt": "საიტი {number}"
 }

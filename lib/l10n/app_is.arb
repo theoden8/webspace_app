@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Ef onion-vistfangið bregst",
   "siteNetworkOnionFallbackHint": "Onion-þjónusta getur legið niðri eða skilríki hennar runnið út. Að sýna villuna heldur vefnum innan Tor. Að hlaða venjulega vistfanginu sendir hann um útgöngumiðlara, sem sér hvert umferðin fer.",
   "onionFallbackNone": "Sýna villuna",
-  "onionFallbackClearnet": "Hlaða venjulega vistfanginu"
+  "onionFallbackClearnet": "Hlaða venjulega vistfanginu",
+  "shortcutMenuTitle": "Vefsvæði",
+  "shortcutMenuNewTab": "Nýr flipi",
+  "shortcutMenuReopenClosedTab": "Opna lokaðan flipa aftur",
+  "shortcutMenuCloseTab": "Loka flipa",
+  "shortcutMenuFocusUrlBar": "Breyta veffangi",
+  "shortcutMenuLeavePage": "Færa fókus út af síðunni",
+  "shortcutMenuReload": "Endurhlaða síðu",
+  "shortcutMenuFind": "Finna á síðu",
+  "shortcutMenuBack": "Til baka",
+  "shortcutMenuForward": "Áfram",
+  "shortcutMenuNextSite": "Næsta vefsvæði",
+  "shortcutMenuPreviousSite": "Fyrra vefsvæði",
+  "shortcutMenuLastSite": "Síðasta vefsvæði",
+  "shortcutMenuToggleSidebar": "Sýna eða fela hliðarstiku",
+  "shortcutMenuSiteAt": "Vefsvæði {number}"
 }

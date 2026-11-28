@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Onion хаяг ажиллахгүй бол",
   "siteNetworkOnionFallbackHint": "Onion үйлчилгээ унтарсан, эсвэл түүний гэрчилгээний хугацаа дууссан байж болно. Алдааг харуулбал сайт Tor дотор үлдэнэ. Ердийн хаягийг ачаалбал гарах релеээр дамжих бөгөөд урсгал хаашаа явж байгааг тэр харна.",
   "onionFallbackNone": "Алдааг харуулах",
-  "onionFallbackClearnet": "Ердийн хаягийг ачаалах"
+  "onionFallbackClearnet": "Ердийн хаягийг ачаалах",
+  "shortcutMenuTitle": "Сайт",
+  "shortcutMenuNewTab": "Шинэ таб",
+  "shortcutMenuReopenClosedTab": "Хаасан табыг дахин нээх",
+  "shortcutMenuCloseTab": "Табыг хаах",
+  "shortcutMenuFocusUrlBar": "Хаягийг засах",
+  "shortcutMenuLeavePage": "Фокусыг хуудаснаас гаргах",
+  "shortcutMenuReload": "Хуудсыг дахин ачаалах",
+  "shortcutMenuFind": "Хуудаснаас хайх",
+  "shortcutMenuBack": "Буцах",
+  "shortcutMenuForward": "Урагшлах",
+  "shortcutMenuNextSite": "Дараагийн сайт",
+  "shortcutMenuPreviousSite": "Өмнөх сайт",
+  "shortcutMenuLastSite": "Сүүлийн сайт",
+  "shortcutMenuToggleSidebar": "Хажуугийн самбарыг харуулах эсвэл нуух",
+  "shortcutMenuSiteAt": "Сайт {number}"
 }

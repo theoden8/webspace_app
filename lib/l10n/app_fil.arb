@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Kapag pumalya ang onion address",
   "siteNetworkOnionFallbackHint": "Maaaring hindi gumagana ang isang onion service, o maaaring mag-expire ang sertipiko nito. Ang pagpapakita ng error ay nagpapanatili sa site sa loob ng Tor. Ang pag-load ng karaniwang address ay nagpapadala nito sa isang exit relay, na nakakakita kung saan papunta ang trapiko.",
   "onionFallbackNone": "Ipakita ang error",
-  "onionFallbackClearnet": "I-load ang karaniwang address"
+  "onionFallbackClearnet": "I-load ang karaniwang address",
+  "shortcutMenuTitle": "Site",
+  "shortcutMenuNewTab": "Bagong tab",
+  "shortcutMenuReopenClosedTab": "Muling buksan ang isinarang tab",
+  "shortcutMenuCloseTab": "Isara ang tab",
+  "shortcutMenuFocusUrlBar": "I-edit ang address",
+  "shortcutMenuLeavePage": "Ilipat ang focus palabas ng pahina",
+  "shortcutMenuReload": "I-reload ang pahina",
+  "shortcutMenuFind": "Hanapin sa pahina",
+  "shortcutMenuBack": "Bumalik",
+  "shortcutMenuForward": "Sumulong",
+  "shortcutMenuNextSite": "Susunod na site",
+  "shortcutMenuPreviousSite": "Nakaraang site",
+  "shortcutMenuLastSite": "Huling site",
+  "shortcutMenuToggleSidebar": "Ipakita o itago ang sidebar",
+  "shortcutMenuSiteAt": "Site {number}"
 }

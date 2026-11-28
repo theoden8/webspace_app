@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Եթե onion հասցեն չաշխատի",
   "siteNetworkOnionFallbackHint": "Onion ծառայությունը կարող է անջատված լինել, կամ նրա վկայականի ժամկետը կարող է լրանալ։ Սխալը ցույց տալը կայքը պահում է Tor-ի ներսում։ Սովորական հասցեն բեռնելը այն ուղարկում է ելքային ռելեով, որը տեսնում է, թե ուր է գնում երթևեկը։",
   "onionFallbackNone": "Ցույց տալ սխալը",
-  "onionFallbackClearnet": "Բեռնել սովորական հասցեն"
+  "onionFallbackClearnet": "Բեռնել սովորական հասցեն",
+  "shortcutMenuTitle": "Կայք",
+  "shortcutMenuNewTab": "Նոր ներդիր",
+  "shortcutMenuReopenClosedTab": "Կրկին բացել փակված ներդիրը",
+  "shortcutMenuCloseTab": "Փակել ներդիրը",
+  "shortcutMenuFocusUrlBar": "Խմբագրել հասցեն",
+  "shortcutMenuLeavePage": "Ֆոկուսը հանել էջից",
+  "shortcutMenuReload": "Վերաբեռնել էջը",
+  "shortcutMenuFind": "Գտնել էջում",
+  "shortcutMenuBack": "Հետ",
+  "shortcutMenuForward": "Առաջ",
+  "shortcutMenuNextSite": "Հաջորդ կայքը",
+  "shortcutMenuPreviousSite": "Նախորդ կայքը",
+  "shortcutMenuLastSite": "Վերջին կայքը",
+  "shortcutMenuToggleSidebar": "Ցույց տալ կամ թաքցնել կողագոտին",
+  "shortcutMenuSiteAt": "Կայք {number}"
 }

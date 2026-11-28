@@ -46,6 +46,7 @@ class MainFlutterWindow: NSWindow {
       messenger: flutterViewController.engine.binaryMessenger)
     HostBrowserPlugin.attach(to: flutterViewController.engine.binaryMessenger)
     ScreenSharePlugin.attach(to: flutterViewController.engine.binaryMessenger)
+    ShortcutMenuPlugin.attach(to: flutterViewController.engine.binaryMessenger)
     attachDesktopWindowChannel(to: flutterViewController.engine.binaryMessenger)
     attachTrayChannel(to: flutterViewController.engine.binaryMessenger)
     attachReducedMotionChannel(to: flutterViewController.engine.binaryMessenger)

@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Onion adresi başarısız olursa",
   "siteNetworkOnionFallbackHint": "Bir onion hizmeti çalışmıyor olabilir veya sertifikasının süresi dolabilir. Hatayı göstermek siteyi Tor içinde tutar. Olağan adresi yüklemek onu bir çıkış rölesinden geçirir; röle de trafiğin nereye gittiğini görür.",
   "onionFallbackNone": "Hatayı göster",
-  "onionFallbackClearnet": "Olağan adresi yükle"
+  "onionFallbackClearnet": "Olağan adresi yükle",
+  "shortcutMenuTitle": "Site",
+  "shortcutMenuNewTab": "Yeni sekme",
+  "shortcutMenuReopenClosedTab": "Kapatılan sekmeyi yeniden aç",
+  "shortcutMenuCloseTab": "Sekmeyi kapat",
+  "shortcutMenuFocusUrlBar": "Adresi düzenle",
+  "shortcutMenuLeavePage": "Odağı sayfanın dışına taşı",
+  "shortcutMenuReload": "Sayfayı yeniden yükle",
+  "shortcutMenuFind": "Sayfada bul",
+  "shortcutMenuBack": "Geri",
+  "shortcutMenuForward": "İleri",
+  "shortcutMenuNextSite": "Sonraki site",
+  "shortcutMenuPreviousSite": "Önceki site",
+  "shortcutMenuLastSite": "Son site",
+  "shortcutMenuToggleSidebar": "Kenar çubuğunu göster veya gizle",
+  "shortcutMenuSiteAt": "{number}. site"
 }

@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "إذا فشل عنوان Onion",
   "siteNetworkOnionFallbackHint": "قد تتعطل خدمة Onion أو تنتهي صلاحية شهادتها. عرض الخطأ يُبقي الموقع داخل Tor. أمّا تحميل العنوان المعتاد فيرسله عبر مُرحِّل خروج يرى وجهة حركة المرور.",
   "onionFallbackNone": "اعرض الخطأ",
-  "onionFallbackClearnet": "حمّل العنوان المعتاد"
+  "onionFallbackClearnet": "حمّل العنوان المعتاد",
+  "shortcutMenuTitle": "الموقع",
+  "shortcutMenuNewTab": "لسان جديد",
+  "shortcutMenuReopenClosedTab": "إعادة فتح اللسان المغلق",
+  "shortcutMenuCloseTab": "أغلق اللسان",
+  "shortcutMenuFocusUrlBar": "تحرير العنوان",
+  "shortcutMenuLeavePage": "نقل التركيز خارج الصفحة",
+  "shortcutMenuReload": "إعادة تحميل الصفحة",
+  "shortcutMenuFind": "البحث في الصفحة",
+  "shortcutMenuBack": "رجوع",
+  "shortcutMenuForward": "تقدّم",
+  "shortcutMenuNextSite": "الموقع التالي",
+  "shortcutMenuPreviousSite": "الموقع السابق",
+  "shortcutMenuLastSite": "الموقع الأخير",
+  "shortcutMenuToggleSidebar": "إظهار الشريط الجانبي أو إخفاؤه",
+  "shortcutMenuSiteAt": "الموقع {number}"
 }

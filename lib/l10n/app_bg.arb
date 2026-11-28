@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Ако onion адресът не работи",
   "siteNetworkOnionFallbackHint": "Една onion услуга може да не работи или сертификатът ѝ да изтече. Показването на грешката задържа сайта в Tor. Зареждането на обичайния адрес го праща през изходен възел, който вижда накъде отива трафикът.",
   "onionFallbackNone": "Покажи грешката",
-  "onionFallbackClearnet": "Зареди обичайния адрес"
+  "onionFallbackClearnet": "Зареди обичайния адрес",
+  "shortcutMenuTitle": "Сайт",
+  "shortcutMenuNewTab": "Нов раздел",
+  "shortcutMenuReopenClosedTab": "Повторно отваряне на затворен раздел",
+  "shortcutMenuCloseTab": "Затваряне на раздела",
+  "shortcutMenuFocusUrlBar": "Редактиране на адреса",
+  "shortcutMenuLeavePage": "Изнасяне на фокуса от страницата",
+  "shortcutMenuReload": "Презареждане на страницата",
+  "shortcutMenuFind": "Търсене в страницата",
+  "shortcutMenuBack": "Назад",
+  "shortcutMenuForward": "Напред",
+  "shortcutMenuNextSite": "Следващ сайт",
+  "shortcutMenuPreviousSite": "Предишен сайт",
+  "shortcutMenuLastSite": "Последен сайт",
+  "shortcutMenuToggleSidebar": "Показване или скриване на страничната лента",
+  "shortcutMenuSiteAt": "Сайт {number}"
 }

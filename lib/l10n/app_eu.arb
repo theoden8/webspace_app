@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Onion helbideak huts egiten badu",
   "siteNetworkOnionFallbackHint": "Onion zerbitzu bat erorita egon daiteke, edo bere ziurtagiria iraungi daiteke. Errorea erakusteak webgunea Tor barruan mantentzen du. Ohiko helbidea kargatzeak irteera-errele batetik bidaltzen du, eta horrek ikusten du trafikoa nora doan.",
   "onionFallbackNone": "Erakutsi errorea",
-  "onionFallbackClearnet": "Kargatu ohiko helbidea"
+  "onionFallbackClearnet": "Kargatu ohiko helbidea",
+  "shortcutMenuTitle": "Gunea",
+  "shortcutMenuNewTab": "Fitxa berria",
+  "shortcutMenuReopenClosedTab": "Ireki berriro itxitako fitxa",
+  "shortcutMenuCloseTab": "Itxi fitxa",
+  "shortcutMenuFocusUrlBar": "Editatu helbidea",
+  "shortcutMenuLeavePage": "Atera fokua orritik",
+  "shortcutMenuReload": "Kargatu berriro orria",
+  "shortcutMenuFind": "Bilatu orrian",
+  "shortcutMenuBack": "Atzera",
+  "shortcutMenuForward": "Aurrera",
+  "shortcutMenuNextSite": "Hurrengo gunea",
+  "shortcutMenuPreviousSite": "Aurreko gunea",
+  "shortcutMenuLastSite": "Azken gunea",
+  "shortcutMenuToggleSidebar": "Erakutsi edo ezkutatu alboko barra",
+  "shortcutMenuSiteAt": "{number}. gunea"
 }

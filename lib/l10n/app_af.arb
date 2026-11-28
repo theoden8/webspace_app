@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "As die onion-adres misluk",
   "siteNetworkOnionFallbackHint": "’n Onion-diens kan af wees, of sy sertifikaat kan verval. Om die fout te wys hou die werf binne Tor. Om die gewone adres te laai stuur dit eerder deur ’n uitgangsrelê, wat sien waarheen die verkeer gaan.",
   "onionFallbackNone": "Wys die fout",
-  "onionFallbackClearnet": "Laai die gewone adres"
+  "onionFallbackClearnet": "Laai die gewone adres",
+  "shortcutMenuTitle": "Webwerf",
+  "shortcutMenuNewTab": "Nuwe oortjie",
+  "shortcutMenuReopenClosedTab": "Heropen geslote oortjie",
+  "shortcutMenuCloseTab": "Sluit oortjie",
+  "shortcutMenuFocusUrlBar": "Wysig adres",
+  "shortcutMenuLeavePage": "Skuif fokus uit bladsy",
+  "shortcutMenuReload": "Herlaai bladsy",
+  "shortcutMenuFind": "Soek in bladsy",
+  "shortcutMenuBack": "Terug",
+  "shortcutMenuForward": "Vorentoe",
+  "shortcutMenuNextSite": "Volgende webwerf",
+  "shortcutMenuPreviousSite": "Vorige webwerf",
+  "shortcutMenuLastSite": "Laaste webwerf",
+  "shortcutMenuToggleSidebar": "Wys of versteek sybalk",
+  "shortcutMenuSiteAt": "Webwerf {number}"
 }

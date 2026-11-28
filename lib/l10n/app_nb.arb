@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Hvis onion-adressen feiler",
   "siteNetworkOnionFallbackHint": "En onion-tjeneste kan være nede, eller sertifikatet kan gå ut. Å vise feilen holder nettstedet inne i Tor. Å laste den vanlige adressen sender det gjennom et utgangsrelé, som ser hvor trafikken går.",
   "onionFallbackNone": "Vis feilen",
-  "onionFallbackClearnet": "Last den vanlige adressen"
+  "onionFallbackClearnet": "Last den vanlige adressen",
+  "shortcutMenuTitle": "Nettsted",
+  "shortcutMenuNewTab": "Ny fane",
+  "shortcutMenuReopenClosedTab": "Åpne lukket fane på nytt",
+  "shortcutMenuCloseTab": "Lukk fane",
+  "shortcutMenuFocusUrlBar": "Rediger adresse",
+  "shortcutMenuLeavePage": "Flytt fokus ut av siden",
+  "shortcutMenuReload": "Last inn siden på nytt",
+  "shortcutMenuFind": "Finn på siden",
+  "shortcutMenuBack": "Tilbake",
+  "shortcutMenuForward": "Fremover",
+  "shortcutMenuNextSite": "Neste nettsted",
+  "shortcutMenuPreviousSite": "Forrige nettsted",
+  "shortcutMenuLastSite": "Siste nettsted",
+  "shortcutMenuToggleSidebar": "Vis eller skjul sidepanel",
+  "shortcutMenuSiteAt": "Nettsted {number}"
 }

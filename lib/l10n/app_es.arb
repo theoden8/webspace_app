@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Si la dirección onion falla",
   "siteNetworkOnionFallbackHint": "Un servicio onion puede estar caído o su certificado puede caducar. Mostrar el error mantiene el sitio dentro de Tor. Cargar la dirección habitual lo envía por un relé de salida, que ve adónde va el tráfico.",
   "onionFallbackNone": "Mostrar el error",
-  "onionFallbackClearnet": "Cargar la dirección habitual"
+  "onionFallbackClearnet": "Cargar la dirección habitual",
+  "shortcutMenuTitle": "Sitio",
+  "shortcutMenuNewTab": "Nueva pestaña",
+  "shortcutMenuReopenClosedTab": "Reabrir pestaña cerrada",
+  "shortcutMenuCloseTab": "Cerrar pestaña",
+  "shortcutMenuFocusUrlBar": "Editar dirección",
+  "shortcutMenuLeavePage": "Sacar el foco de la página",
+  "shortcutMenuReload": "Volver a cargar la página",
+  "shortcutMenuFind": "Buscar en la página",
+  "shortcutMenuBack": "Atrás",
+  "shortcutMenuForward": "Adelante",
+  "shortcutMenuNextSite": "Sitio siguiente",
+  "shortcutMenuPreviousSite": "Sitio anterior",
+  "shortcutMenuLastSite": "Último sitio",
+  "shortcutMenuToggleSidebar": "Mostrar u ocultar la barra lateral",
+  "shortcutMenuSiteAt": "Sitio {number}"
 }

@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Jei onion adresas neveikia",
   "siteNetworkOnionFallbackHint": "Onion paslauga gali neveikti arba jos sertifikato galiojimas gali baigtis. Rodant klaidą svetainė lieka Tor viduje. Įkeliant įprastą adresą ji siunčiama per išėjimo mazgą, kuris mato, kur eina srautas.",
   "onionFallbackNone": "Rodyti klaidą",
-  "onionFallbackClearnet": "Įkelti įprastą adresą"
+  "onionFallbackClearnet": "Įkelti įprastą adresą",
+  "shortcutMenuTitle": "Svetainė",
+  "shortcutMenuNewTab": "Nauja kortelė",
+  "shortcutMenuReopenClosedTab": "Vėl atverti uždarytą kortelę",
+  "shortcutMenuCloseTab": "Užverti kortelę",
+  "shortcutMenuFocusUrlBar": "Redaguoti adresą",
+  "shortcutMenuLeavePage": "Perkelti fokusą iš puslapio",
+  "shortcutMenuReload": "Iš naujo įkelti puslapį",
+  "shortcutMenuFind": "Rasti puslapyje",
+  "shortcutMenuBack": "Atgal",
+  "shortcutMenuForward": "Pirmyn",
+  "shortcutMenuNextSite": "Kita svetainė",
+  "shortcutMenuPreviousSite": "Ankstesnė svetainė",
+  "shortcutMenuLastSite": "Paskutinė svetainė",
+  "shortcutMenuToggleSidebar": "Rodyti arba slėpti šoninį skydelį",
+  "shortcutMenuSiteAt": "Svetainė {number}"
 }

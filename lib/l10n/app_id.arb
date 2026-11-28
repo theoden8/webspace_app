@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Jika alamat onion gagal",
   "siteNetworkOnionFallbackHint": "Layanan onion bisa sedang mati, atau sertifikatnya bisa kedaluwarsa. Menampilkan galat menjaga situs tetap di dalam Tor. Memuat alamat biasa mengirimnya melalui relai keluar, yang dapat melihat ke mana lalu lintas pergi.",
   "onionFallbackNone": "Tampilkan galat",
-  "onionFallbackClearnet": "Muat alamat biasa"
+  "onionFallbackClearnet": "Muat alamat biasa",
+  "shortcutMenuTitle": "Situs",
+  "shortcutMenuNewTab": "Tab baru",
+  "shortcutMenuReopenClosedTab": "Buka lagi tab yang ditutup",
+  "shortcutMenuCloseTab": "Tutup tab",
+  "shortcutMenuFocusUrlBar": "Edit alamat",
+  "shortcutMenuLeavePage": "Pindahkan fokus keluar dari halaman",
+  "shortcutMenuReload": "Muat ulang halaman",
+  "shortcutMenuFind": "Temukan di halaman",
+  "shortcutMenuBack": "Kembali",
+  "shortcutMenuForward": "Maju",
+  "shortcutMenuNextSite": "Situs berikutnya",
+  "shortcutMenuPreviousSite": "Situs sebelumnya",
+  "shortcutMenuLastSite": "Situs terakhir",
+  "shortcutMenuToggleSidebar": "Tampilkan atau sembunyikan bilah sisi",
+  "shortcutMenuSiteAt": "Situs {number}"
 }

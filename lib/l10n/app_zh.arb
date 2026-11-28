@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Onion 位址失敗時",
   "siteNetworkOnionFallbackHint": "Onion 服務可能停止運作,或其憑證可能過期。顯示錯誤會讓網站留在 Tor 內部。載入一般位址則會經由出口中繼送出,而出口中繼看得到流量的去向。",
   "onionFallbackNone": "顯示錯誤",
-  "onionFallbackClearnet": "載入一般位址"
+  "onionFallbackClearnet": "載入一般位址",
+  "shortcutMenuTitle": "網站",
+  "shortcutMenuNewTab": "新分頁",
+  "shortcutMenuReopenClosedTab": "重新開啟已關閉的分頁",
+  "shortcutMenuCloseTab": "關閉分頁",
+  "shortcutMenuFocusUrlBar": "編輯網址",
+  "shortcutMenuLeavePage": "將焦點移出網頁",
+  "shortcutMenuReload": "重新載入網頁",
+  "shortcutMenuFind": "在網頁中尋找",
+  "shortcutMenuBack": "返回",
+  "shortcutMenuForward": "前進",
+  "shortcutMenuNextSite": "下一個網站",
+  "shortcutMenuPreviousSite": "上一個網站",
+  "shortcutMenuLastSite": "最後一個網站",
+  "shortcutMenuToggleSidebar": "顯示或隱藏側邊欄",
+  "shortcutMenuSiteAt": "網站 {number}"
 }

@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "የኦኒየን አድራሻው ካልሰራ",
   "siteNetworkOnionFallbackHint": "የኦኒየን አገልግሎት ሊቋረጥ ወይም ሰርተፊኬቱ ጊዜው ሊያልፍ ይችላል። ስህተቱን ማሳየት ድረ-ገጹን በTor ውስጥ ያቆየዋል። መደበኛውን አድራሻ መጫን ግን በመውጫ ሪሌይ በኩል ይልከዋል፣ ይህም ትራፊኩ ወዴት እንደሚሄድ ያያል።",
   "onionFallbackNone": "ስህተቱን አሳይ",
-  "onionFallbackClearnet": "መደበኛውን አድራሻ ጫን"
+  "onionFallbackClearnet": "መደበኛውን አድራሻ ጫን",
+  "shortcutMenuTitle": "ጣቢያ",
+  "shortcutMenuNewTab": "አዲስ ትር",
+  "shortcutMenuReopenClosedTab": "የተዘጋ ትር እንደገና ክፈት",
+  "shortcutMenuCloseTab": "ትር ዝጋ",
+  "shortcutMenuFocusUrlBar": "አድራሻ አርትዕ",
+  "shortcutMenuLeavePage": "ትኩረትን ከገጹ አውጣ",
+  "shortcutMenuReload": "ገጹን እንደገና ጫን",
+  "shortcutMenuFind": "በገጽ ውስጥ ፈልግ",
+  "shortcutMenuBack": "ተመለስ",
+  "shortcutMenuForward": "ወደፊት",
+  "shortcutMenuNextSite": "ቀጣይ ጣቢያ",
+  "shortcutMenuPreviousSite": "ቀዳሚ ጣቢያ",
+  "shortcutMenuLastSite": "የመጨረሻ ጣቢያ",
+  "shortcutMenuToggleSidebar": "የጎን አሞሌ አሳይ ወይም ደብቅ",
+  "shortcutMenuSiteAt": "ጣቢያ {number}"
 }
