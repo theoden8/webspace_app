@@ -19,6 +19,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/screen_share.dart';
+import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/cookie_manager.dart';
@@ -63,6 +64,29 @@ class AppLifecycleController {
   /// leave the webview stuck.
   Future<void>? _pauseFuture;
   final _resumeGuard = ReentryGuard();
+
+  /// The resume sequence in flight, which a shortcut handed over late waits
+  /// out, so a resume still ahead of its own read takes it instead.
+  Future<void> _resuming = Future<void>.value();
+  StreamSubscription<void>? _launchesPending;
+
+  void start() {
+    _launchesPending =
+        ShortcutService.followLaunches().listen((_) => unawaited(_lateLaunch()));
+  }
+
+  void dispose() => unawaited(_launchesPending?.cancel());
+
+  /// A shortcut iOS handed over after the resume that brought the app
+  /// forward had already asked for one (HS-006): opened as that resume
+  /// would have, once it has run. The read drains, so the resume and this
+  /// never both open it.
+  Future<void> _lateLaunch() async {
+    await _resuming;
+    final launched = await _host.launched();
+    if (!_host.mounted || launched == null) return;
+    await shortcuts.handleWarmLaunch(after: launched);
+  }
 
   /// Re-entry guard for [_retryIncompleteLoad]: `resumed` can fire again
   /// while a retry awaits its backoff, and two loops would fight over one
@@ -185,7 +209,7 @@ class AppLifecycleController {
     // Before the async resume sequence, so a late SurfaceView re-attach (a
     // metrics change) is caught after its one tail nudge (PAUSE-020).
     surface.openResumeWindow();
-    unawaited(_onResumed());
+    unawaited(_resuming = _onResumed());
     background.noteResumed();
     retryFailedIcons();
   }

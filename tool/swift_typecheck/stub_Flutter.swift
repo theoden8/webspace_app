@@ -35,6 +35,8 @@ public class FlutterMethodChannel: NSObject {
   public func setMethodCallHandler(
     _ handler: ((FlutterMethodCall, @escaping FlutterResult) -> Void)?
   ) {}
+  // - (void)invokeMethod:(NSString*)method arguments:(id _Nullable)arguments;
+  public func invokeMethod(_ method: String, arguments: Any?) {}
 }
 
 public protocol FlutterStreamHandler: AnyObject {

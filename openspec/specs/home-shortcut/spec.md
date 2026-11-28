@@ -204,7 +204,7 @@ Available on iOS 16+ / macOS 13+. On older OS versions the intent type is compil
 **Given** WebSpace is already running in the background
 **When** the user taps a Shortcut wired to `OpenSiteIntent`
 **Then** the app comes to the foreground
-**And** `_handleShortcutIntent` reads the pending siteId on the resume lifecycle event
+**And** the pending siteId is read on the resume lifecycle event, or, when iOS runs `OpenSiteIntent.perform()` after that read, as soon as the plugin says the launch is pending (`launchPending`), once the resume sequence has run
 **And** the chosen site becomes active
 
 ---

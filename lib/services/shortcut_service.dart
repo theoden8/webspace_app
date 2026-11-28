@@ -1,6 +1,7 @@
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/settings/shortcut_id.dart';
 import 'package:webspace/settings/site_ids.dart';
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show compute, visibleForTesting;
 import 'package:flutter/services.dart';
@@ -156,6 +157,21 @@ class ShortcutService {
     }
     return null;
   }
+
+  /// A launch the platform has for [getLaunch] since the app last asked:
+  /// iOS runs `OpenSiteIntent.perform` after it brings a running app to the
+  /// front, so the resume may have asked before the launch was there
+  /// (HS-006). Each event is a prompt to ask again.
+  static Stream<void> followLaunches() {
+    if (appIntents) {
+      _channel.setMethodCallHandler((call) async {
+        if (call.method == 'launchPending') _pending.add(null);
+      });
+    }
+    return _pending.stream;
+  }
+
+  static final _pending = StreamController<void>.broadcast();
 
   /// The enabled pinned home shortcuts, each with the site its launch intent
   /// names (HS-017). A disabled tile is left out: it opens nothing.

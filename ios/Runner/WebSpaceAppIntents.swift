@@ -107,8 +107,9 @@ struct SiteEntityQuery: EntityQuery {
 
 /// App Intent the user invokes from Shortcuts.app / Spotlight / Siri to open
 /// a specific WebSpace site. Conforming to `OpenIntent` foregrounds the host
-/// app; `perform()` just stashes the chosen siteId in the App Group so the
-/// existing Flutter resume / cold-launch path can route it.
+/// app; `perform()` stashes the chosen siteId in the App Group, where the
+/// cold launch reads it, and says so to a running app at once: iOS runs it
+/// after the app is already in front, so the resume may have looked first.
 @available(iOS 16, macOS 13, *)
 struct OpenSiteIntent: AppIntent, OpenIntent {
   static var title: LocalizedStringResource = "Open Site"
@@ -135,6 +136,9 @@ struct OpenSiteIntent: AppIntent, OpenIntent {
       }
     } else {
       WebSpaceLog.line("OpenSiteIntent: App Group \(AppGroup.id) unavailable", carries: .noUserData)
+    }
+    await MainActor.run {
+      NotificationCenter.default.post(name: ShortcutsPlugin.launchPending, object: nil)
     }
     return .result()
   }

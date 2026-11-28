@@ -336,6 +336,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     AppPref.anyChange.addListener(_onAppPrefChanged);
     debugStartupRestore = _startup.restore();
     _shortcuts.start();
+    _lifecycle.start();
     _network.start();
     _fullscreen.start();
     _sidebar.addListener(_onSidebarChanged);
@@ -441,6 +442,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   void dispose() {
     _startup.dispose();
     _entry.dispose();
+    _lifecycle.dispose();
     _background.dispose();
     _surface.dispose();
     _activation.dispose();
