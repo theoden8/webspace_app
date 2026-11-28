@@ -341,10 +341,14 @@ own accessibility tree, and SHALL NOT reach the chrome or pages of sites
 that are not on screen. On Android this SHALL hold in both composition
 modes (hybrid, and the texture experiment of PAUSE-032).
 
-The chrome side holds by construction: `WebspacesListScreen` and the site
-stack sit in `Offstage`s that exclude each other, and `IndexedStack` wraps
+The chrome side holds by construction: the library and the site stack sit
+in `PageLayer`s (an `Offstage`) that exclude each other, `IndexedStack` wraps
 each hidden child in `Visibility` with `maintainSemantics` false (Flutter
-3.44.9 `basic.dart`). The inner `Visibility` around the stack also drops
+3.44.9 `basic.dart`), and a site's warm tabs sit in an `Offstage`.
+`test/screen_reader_reach_test.dart` holds it in the shipped app: with two
+sites loaded, a warm tab behind the one on screen, or the library over a
+loaded site, the semantics tree holds the platform view of the page on screen
+and no other, and nothing of the library while a site shows. The inner `Visibility` around the stack also drops
 semantics, so on Android the site's subtree leaves the tree for the 120 ms
 of `_holdUnpainted` (the BUG-001 repaint nudge), when the WebView also
 leaves the native hierarchy. Whether TalkBack keeps its place in the page
@@ -701,12 +705,39 @@ be able to leave a webview the same way, and dialogs SHALL close with
 Escape. Switching sites, reload, find and focusing the URL bar SHALL have
 shortcuts, listed in the macOS menu bar (`PlatformMenuBar`).
 
-Status: no `Shortcuts`, `Actions` or `PlatformMenuBar` exist; the macOS menu
-is the stock template. On Linux a focused webview traps the keyboard: the
-fork's `CustomPlatformView._handleKeyEvent` returns `handled` for every key,
-Tab included, so focus never returns to the chrome. The fix is in the fork:
-let Tab out when WPE reports that focus left the page's last element, or at
-least give it an escape key.
+Status: the shortcuts exist (NAV-014): one `KeyboardShortcut` declaration
+(`lib/services/keyboard_shortcuts.dart`), answered by
+`KeyboardShortcutController` and by a nested screen, taken before the focused
+widget, so a webview that keeps every key does not stop them. Ctrl/Cmd-1 to 9,
+Ctrl-Tab and Ctrl-PageUp/PageDown switch sites, Ctrl/Cmd-R and F5 reload,
+Ctrl/Cmd-F finds and Ctrl/Cmd-L focuses the URL bar. F6 takes the keys out of
+the page, to the URL bar where it is on, else to the first control Tab
+reaches (`LeavePage`): Linux's webview keeps Tab, but not a key taken before
+it. Tab and Shift-Tab go round each screen with the app bar first, however
+far its list has scrolled under it, pass over the pages of hidden tabs, and
+stay in an open drawer; Escape closes dialogs, sheets, menus and the drawer
+(NAV-022). `test/keyboard_focus_test.dart` drives all of it in the shipped app
+under macOS and Linux platform overrides.
+
+Still open:
+
+- **Menu bar**: the macOS menu is the stock `MainMenu.xib` and lists none of
+  the shortcuts. Flutter's `PlatformMenuBar` is not the way: its
+  `FlutterMenuPlugin` replaces `NSApp.mainMenu` whole, and its
+  platform-provided items include no Edit menu, so Cut, Copy, Paste, Undo
+  and Select All, whose first-responder actions WKWebView takes its Command
+  keys from, would stop working in every page. Listing them needs a native
+  menu beside Edit that the runner builds from the `KeyboardShortcut`
+  declaration sent over a channel, or Flutter providing the edit items.
+- **Tab out of a page on Linux**: the fork's
+  `CustomPlatformView._handleKeyEvent` returns `handled` for every key, Tab
+  included, so Tab past the page's last link stays in the page; F6 is the
+  way out. Letting Tab out needs the fork to hear from WPE that focus left
+  the page's last element.
+- **Tab out of a page on macOS**: WKWebView gets the key first, so whether
+  Tab past the last element reaches the chrome is the engine's, and needs a
+  Mac to check; F6 reaches the shortcuts whenever the page leaves it.
+- Nobody has driven the app by keyboard alone on a Mac or a Linux desktop.
 
 #### Scenario: Leaving the page by keyboard (Linux)
 

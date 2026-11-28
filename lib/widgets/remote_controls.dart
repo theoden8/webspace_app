@@ -52,14 +52,43 @@ class KeyNavigation extends StatelessWidget {
       },
       child: Actions(
         actions: {_LeaveField: _LeaveFieldAction()},
-        child: Stack(
-          fit: StackFit.passthrough,
-          alignment: Alignment.topLeft,
-          children: [child, const _FocusRing()],
+        child: FocusTraversalGroup(
+          policy: BarFirstTraversalPolicy(),
+          child: Stack(
+            fit: StackFit.passthrough,
+            alignment: Alignment.topLeft,
+            children: [child, const _FocusRing()],
+          ),
         ),
       ),
     ),
   );
+}
+
+/// Reading order, with an app bar's controls ahead of the rest of its
+/// screen. A list scrolled under the bar puts its top rows above the bar,
+/// so in plain reading order Tab went round from the last row to the first
+/// and never reached the bar's back button again (NAV-022).
+class BarFirstTraversalPolicy extends ReadingOrderTraversalPolicy {
+  BarFirstTraversalPolicy({super.requestFocusCallback});
+
+  @override
+  Iterable<FocusNode> sortDescendants(
+    Iterable<FocusNode> descendants,
+    FocusNode currentNode,
+  ) {
+    final sorted = super.sortDescendants(descendants, currentNode);
+    final inBar = [
+      for (final node in sorted)
+        node.context?.findAncestorWidgetOfExactType<AppBar>() != null,
+    ];
+    return [
+      for (final (i, node) in sorted.indexed)
+        if (inBar[i]) node,
+      for (final (i, node) in sorted.indexed)
+        if (!inBar[i]) node,
+    ];
+  }
 }
 
 /// The app's chrome where a TV remote drives the device (NAV-016): the

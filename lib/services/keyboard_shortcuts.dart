@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:webspace/platform/host_platform.dart';
@@ -16,8 +17,21 @@ enum KeyConvention {
   android;
 
   /// The host's, or null where the app takes no keys of its own: iOS and the
-  /// web.
+  /// web. A platform override, which only a test sets, picks the keys too, as
+  /// it picks Flutter's own text field shortcuts.
   static KeyConvention? get host {
+    switch (debugDefaultTargetPlatformOverride) {
+      case TargetPlatform.macOS:
+        return mac;
+      case TargetPlatform.linux || TargetPlatform.windows:
+        return pc;
+      case TargetPlatform.android:
+        return android;
+      case TargetPlatform.iOS || TargetPlatform.fuchsia:
+        return null;
+      case null:
+        break;
+    }
     if (hostIsMacOS) return mac;
     if (hostIsAndroid) return android;
     if (hostIsDesktop) return pc;
@@ -127,6 +141,9 @@ sealed class KeyboardShortcut {
       for (final (place, digit) in _placeDigits.indexed)
         (command(digit), SiteAt(place)),
       (command(LogicalKeyboardKey.digit9), const LastSite()),
+      // F6 moves between a browser's address bar and its page in Chrome and
+      // Firefox alike.
+      (plain(LogicalKeyboardKey.f6), const LeavePage()),
       if (on.quits) (command(LogicalKeyboardKey.keyQ), const QuitApp()),
       // Firefox's key for its sidebar.
       (
@@ -163,6 +180,7 @@ sealed class KeyboardShortcut {
     ReopenClosedTab() ||
     CloseActiveTab() ||
     FocusUrlBar() ||
+    LeavePage() ||
     FindInPage() ||
     NextSite() ||
     PreviousSite() ||
@@ -190,6 +208,27 @@ final class CloseActiveTab extends KeyboardShortcut {
 
 final class FocusUrlBar extends KeyboardShortcut {
   const FocusUrlBar();
+}
+
+/// The keys out of the page, to the URL bar where it is on, else to the
+/// first control of the screen around it: Linux's webview keeps Tab
+/// (A11Y-012).
+final class LeavePage extends KeyboardShortcut {
+  const LeavePage();
+
+  /// Moves focus to the control Tab reaches first on the screen around
+  /// [context], and says whether it moved: not where that is the page
+  /// itself, as in full screen.
+  static bool toFirstControl(BuildContext context) {
+    final scope = FocusScope.of(context);
+    final first = FocusTraversalGroup.of(context)
+        .findFirstFocus(scope, ignoreCurrentFocus: true);
+    if (first == null || identical(first, scope) || first.hasPrimaryFocus) {
+      return false;
+    }
+    first.requestFocus();
+    return true;
+  }
 }
 
 /// The site menu's Refresh.

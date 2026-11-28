@@ -608,6 +608,7 @@ it, with Command on macOS where the others take Control:
 | Ctrl/Cmd-Shift-T | the site on screen's newest closed tab back with its history, and opened (TAB-022) |
 | Ctrl/Cmd-W | close the tab on screen, as the Tabs sheet does, where the site has tabs |
 | Ctrl/Cmd-L | put the cursor in the URL bar with the address selected, where the URL bar is on |
+| F6 | take the keys out of the page: the URL bar where it is on, else the first control Tab reaches, as Chrome and Firefox move between their address bar and page; Linux's webview keeps Tab |
 | Ctrl/Cmd-R, F5 | the site menu's Refresh |
 | Ctrl/Cmd-F | the site menu's Find in page, out of full screen; Escape in its field closes it |
 | Alt-Left; Cmd-[ or Cmd-Left on macOS | the site menu's Back |
@@ -871,6 +872,9 @@ opens, a site's settings, the library, dialogs, sheets and menus.
 - The arrows SHALL move focus between controls, and Tab and Shift-Tab along them; Enter or
   Space SHALL press the control that has focus, and Escape SHALL close a dialog, a sheet or a
   menu, as Flutter does on a desktop.
+- Tab SHALL reach a screen's app bar before the rest of it, however far its list has
+  scrolled under the bar, so going round never leaves the back button out; it SHALL pass
+  over the pages of a site's hidden tabs, and stay in an open drawer until Escape closes it.
 - Up and Down SHALL leave a one-line text field; Left and Right stay with its caret, and a
   field of several lines keeps all four.
 - Up and Down SHALL leave a slider; Left and Right change its value.
@@ -897,7 +901,8 @@ A site's page keeps its keys as before (NAV-014): this requirement does not reac
 - **WHEN** the user presses Down
 - **THEN** the first icon below it has focus
 
-Test: [test/remote_controls_test.dart](../../../test/remote_controls_test.dart)
+Test: [test/remote_controls_test.dart](../../../test/remote_controls_test.dart),
+[test/keyboard_focus_test.dart](../../../test/keyboard_focus_test.dart)
 
 ---
 

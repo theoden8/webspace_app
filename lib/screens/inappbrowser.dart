@@ -539,6 +539,13 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         final bar = _urlBar.currentState;
         if (bar == null) return false;
         bar.edit();
+      case LeavePage():
+        final bar = _urlBar.currentState;
+        if (bar != null) {
+          bar.edit();
+        } else if (!LeavePage.toFirstControl(context)) {
+          return false;
+        }
       case GoBack():
         // The back gesture's own path: the page's history, then the screen
         // at its start (NAV-008).

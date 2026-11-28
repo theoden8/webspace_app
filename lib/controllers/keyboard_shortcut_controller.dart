@@ -21,6 +21,10 @@ abstract interface class KeyboardShortcutHost {
   /// no URL bar is on screen.
   bool focusUrlBar();
 
+  /// Takes the keys from the page ([LeavePage]); false where nothing but the
+  /// page can have them.
+  bool leavePage();
+
   /// The site menu's Find in page; false where the find bar cannot show.
   bool findInPage();
 
@@ -83,6 +87,7 @@ class KeyboardShortcutController implements ShortcutScreen {
         ),
       ),
       FocusUrlBar() => _host.focusUrlBar(),
+      LeavePage() => _host.leavePage(),
       ReloadPage() => _run(() => unawaited(_resets.refreshShown())),
       FindInPage() => _host.findInPage(),
       GoBack() => _run(() => unawaited(_back.goBackIfPossible())),

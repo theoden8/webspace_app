@@ -111,12 +111,17 @@ class _SiteWebViewState extends State<_SiteWebView> {
             // The site's warm views stay mounted, hidden and paused, so a
             // switch back shows one as it was (TAB-023). Each is globally
             // keyed, so it moves between here and the shown place whole.
+            // Offstage alone leaves a hidden page in Tab's way.
             child: Stack(
               fit: StackFit.expand,
               children: [
                 for (final warm in site.warmViews.values)
                   if (warm.webview case final view?)
-                    Offstage(child: TickerMode(enabled: false, child: view)),
+                    Offstage(
+                      child: ExcludeFocus(
+                        child: TickerMode(enabled: false, child: view),
+                      ),
+                    ),
                 _withInterstitial(site.getWebView(
                   hooks,
                   cacheFirst: loadsCacheFirst(htmlSource,

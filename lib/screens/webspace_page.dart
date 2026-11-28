@@ -29,6 +29,7 @@ import 'package:webspace/controllers/backup_controller.dart';
 import 'package:webspace/widgets/backup_prompts.dart';
 import 'package:webspace/controllers/fullscreen_controller.dart';
 import 'package:webspace/controllers/keyboard_shortcut_controller.dart';
+import 'package:webspace/services/keyboard_shortcuts.dart' show LeavePage;
 import 'package:webspace/controllers/link_controller.dart';
 import 'package:webspace/controllers/site_network_controller.dart';
 import 'package:webspace/controllers/shortcut_controller.dart';
@@ -1839,6 +1840,9 @@ class _PageHost
     bar?.edit();
     return bar != null;
   }
+
+  @override
+  bool leavePage() => focusUrlBar() || LeavePage.toFirstControl(_s.context);
 
   @override
   bool findInPage() {
