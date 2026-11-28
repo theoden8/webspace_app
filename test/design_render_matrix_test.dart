@@ -72,6 +72,7 @@ final Map<String, Widget Function()> _subjects = {
   'tab-corner-button': () => TabBarCornerButton(
         dragging: false,
         onTap: () {},
+        moves: const {},
         onDragBegin: (_) {},
         onDragUpdate: (_) {},
         onDragEnd: () {},
@@ -79,6 +80,7 @@ final Map<String, Widget Function()> _subjects = {
   'tab-corner-button (dragging)': () => TabBarCornerButton(
         dragging: true,
         onTap: () {},
+        moves: const {},
         onDragBegin: (_) {},
         onDragUpdate: (_) {},
         onDragEnd: () {},
@@ -213,6 +215,7 @@ void main() {
       child: TabBarCornerButton(
         dragging: false,
         onTap: () {},
+        moves: const {},
         onDragBegin: (_) {},
         onDragUpdate: (_) {},
         onDragEnd: () {},
@@ -244,6 +247,7 @@ void main() {
         child: TabBarCornerButton(
           dragging: dragging,
           onTap: () {},
+          moves: const {},
           onDragBegin: (_) {},
           onDragUpdate: (_) {},
           onDragEnd: () {},

@@ -1,7 +1,9 @@
 import 'package:flutter/gestures.dart' show kSecondaryButton, kTouchSlop;
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:flutter/services.dart';
 import 'package:webspace/theme/accent_theme.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/page_focus.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/launcher_grid.dart';
@@ -14,7 +16,8 @@ import 'package:webspace/services/reduced_motion.dart';
 /// which makes room where it hovers and keeps it where it is let go
 /// (WEBSPACE-011). A secondary click opens the menu too. A key presses it the
 /// same way: OK or Enter let go opens it, held opens its menu, which is how a
-/// TV remote, with no long press or Menu key, reaches the menu (NAV-016).
+/// TV remote, with no long press or Menu key, reaches the menu (NAV-016). A
+/// screen reader presses it and opens its menu through its semantics.
 class LauncherLift<T extends Object> extends StatefulWidget {
   const LauncherLift({
     super.key,
@@ -95,10 +98,21 @@ class _LauncherLiftState<T extends Object> extends State<LauncherLift<T>> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final reduceMotion = ReducedMotion.of(context);
+    final words = WidgetsLocalizations.of(context);
+    final moves = LauncherCell.movesOf(context);
     final lift = Semantics(
       button: true,
       onTap: widget.onOpen,
       onLongPress: () => widget.onMenu(_center),
+      // One set, as one config's: a reader acts on the node it focuses, and
+      // two sets on nested nodes would split the icon in two.
+      customSemanticsActions: {
+        CustomSemanticsAction(
+          label: AppLocalizations.of(context).homeMenuTooltip,
+        ): () => widget.onMenu(_center),
+        CustomSemanticsAction(label: words.reorderItemUp): ?moves?.earlier,
+        CustomSemanticsAction(label: words.reorderItemDown): ?moves?.later,
+      },
       child: FocusableActionDetector(
         // A key let go after focus left presses nothing.
         onFocusChange: (focused) {

@@ -152,7 +152,7 @@ Each Android setting and where it stands, from Flutter 3.44.9's
 | Setting | Chrome (Flutter) | Web content (WebView) | Requirement |
 |---|---|---|---|
 | TalkBack | semantics tree; `accessibleNavigation` once a service reads the node tree | the WebView's own node tree through the platform view (device) | A11Y-004, A11Y-005 |
-| Switch Access | a node is clickable only if its semantics has a tap action, so Switch Access cannot tap the drawer's site tile or the tab chip | WebView nodes (device) | A11Y-005 |
+| Switch Access | a node is clickable only if its semantics has a tap action, which every chrome control now has (A11Y-005) | WebView nodes (device) | A11Y-005 |
 | Voice Access | semantics labels | [flutter#40913](https://github.com/flutter/flutter/issues/40913), open since 2019: embedded platform views lack Voice Access support (device) | A11Y-004, A11Y-005 |
 | Font size, up to 200% on Android 14 | `SystemTextScaler` applies the platform's nonlinear curve | `textZoom = fontScale * 100`, the linear value WebView itself defaults to | A11Y-006, A11Y-007 |
 | Bold text | `boldText`; `Text` merges `FontWeight.bold` on its own | no path found in `AwSettings` or `web_contents_impl.cc` | none |
@@ -363,38 +363,38 @@ Every interactive element of the chrome SHALL:
 Status changing without focus (the find counter, Tor bootstrap progress)
 SHALL be announced, through `liveRegion` or `SemanticsService.announce`.
 
-An `IconButton` or `FloatingActionButton` with no `tooltip:` does not
-compile: `tool/webspace_lints`' `unnamed_button` rule is an analyzer error
-in `lib/`, and the FABs and icon buttons once listed below now carry one.
+Status. Two analyzer errors in `lib/` hold the name and the action:
+`tool/webspace_lints`' `unnamed_button` refuses an `IconButton` or
+`FloatingActionButton` with no `tooltip:`, and its `raw_tap` refuses a
+`Listener` that acts on `onPointerUp` outside a `Semantics` with `onTap:` in
+the same build expression (the pull-to-refresh gate, which acts on no tap, is
+its one listed ignore). `test/control_semantics_test.dart` walks the real app
+on a phone against `labeledTapTargetGuideline`: the app bar, the drawer and
+the site strip, App Settings and each screen it opens, the site menu and a
+site's settings. What the failures listed at `5e1788f` became:
 
-Known failures at `5e1788f`:
-
-| Where | What |
+| Control | Now |
 |---|---|
-| `http_auth_prompt.dart:101`, `proxy_auth_section.dart:111` | show/hide password: named by its tooltip, no toggled state |
-| `tab_bar_corner_button.dart:47` | floating tabs button: no name |
-| `main.dart:9879` | drawer site tile opens on a raw `Listener`; its `Semantics(button: true)` has no `onTap`, so activation depends on the OS synthesising a touch |
-| `main.dart:8503` | tab chip: the same, and no `selected` |
-| `main.dart:9920` | site menu button: unlabelled, about 24x24, the only non-long-press route to the site menu |
-| `stats_banner.dart:80` | expand/collapse with no button role or expanded state |
-| `main.dart:8128-8200` | back, home, share and refresh inside one `PopupMenuItem`, whose `MergeSemantics` makes them one node |
-| drawer grid, site strip | reorder by drag only (the drawer's Move up/down sits behind the site menu); no custom action on the site strip |
-| `user_scripts.dart:379-442` | in the global library, swipe is the only way to delete a script |
-| `add_site.dart:880`; `main.dart:8177` | remove a suggestion, duplicate a tab: long press only |
-| `tor_bridge_settings.dart:209` | bridge CAPTCHA image: no label and no alternative challenge |
-| `find_toolbar.dart:64`, `tor_bootstrap.dart` | match counter and progress change silently |
+| show/hide password (`PasswordVisibilityToggle`, both fields) | one name, Show password, and toggled state |
+| floating site-strip button | named Site strip; Move left/right/up/down to the other corners as custom actions; its drag gestures are excluded from semantics, so a reader's long press does not drag it |
+| drawer site tile (`LauncherLift`) | semantic tap, selected state, and Menu, Move up and Move down on the node it is pressed by; the corner Menu button where it fits |
+| site strip chip | semantic tap on the chip the raw `Listener` draws, selected state, Move left and Move right where the view can be reordered, and a tap target the strip's height |
+| tab chip | selected state |
+| stats banner | button with expanded state |
+| back, home, share and refresh | four nodes (`_NavRow`, a menu entry that merges nothing); Back in a new tab and Duplicate tab as custom actions beside the long presses |
+| user scripts | Delete, and Make Global on a site's own script, as custom actions on each row, beside the swipe and the long-press sheet |
+| Add site suggestion, sidebar square | Remove, and Menu, as custom actions |
+| a setting that follows the app default | what its long press does as a custom action |
+| `HintButton` in a merged row (`SwitchListTile`, a scoped row) | the hint's dialog as an "About {title}" custom action on the row's node, so it no longer needs a device check |
+| Tor bridge CAPTCHA | the image named Characters to type; the service offers no audio or text challenge, so the dialog names the ways round it: a transport with a built-in bridge, or a pasted line |
+| find match count, Tor progress (card and interstitial) | `LiveStatus`, a live region |
 
-A `HintButton` inside a `SwitchListTile` title (about 17 call sites) is
-merged into the tile's node by the tile's own `MergeSemantics`, so the hint
-has no node of its own there; whether a reader can still open it needs a
-device check.
-
-Gates to add: a structural test under `test/js/` that fails an `IconButton`
-or `FloatingActionButton` with neither `tooltip:` nor an enclosing
-`Semantics(label:)`, and a `Listener` or `GestureDetector` with a tap
-handler and no `Semantics(onTap:)`; widget tests of the drawer, site strip,
-app bar and settings screens against `labeledTapTargetGuideline`,
-`androidTapTargetGuideline` and `iOSTapTargetGuideline`.
+Still open: the Tabs sheet reorders sites and moves and nests tabs by drag
+alone, with no custom action; the sidebar's resize grip and the arrow tab's
+place on the edge are reached only through the platform's scroll actions,
+which no test drives; no check holds that a name contains the text a control
+shows, or finds a state or a long press on a control added later; and the
+live regions are checked as flags, not as announcements on a device.
 
 #### Scenario: Voice Control opens a site
 
@@ -801,7 +801,8 @@ By value over cost. Each item names the requirement it moves.
 2. **Names and actions** (A11Y-005): tooltips on the 13 icon buttons, both
    FABs and the corner button; `Semantics(onTap:, selected:)` on the drawer
    tile and tab chip; the theme tooltip; the structural gate. Small, and it
-   unblocks VoiceOver and Voice Control on iPhone.
+   unblocks VoiceOver and Voice Control on iPhone. Done: `unnamed_button`,
+   `raw_tap` and the labelled-target walk.
 3. **Contrast and touch targets** (A11Y-010, A11Y-014): contrast and the
    high contrast theme are done; `TapTargets.compact` to 48 remains. These
    are two of Android's three quality criteria and most of what the
@@ -812,6 +813,7 @@ By value over cost. Each item names the requirement it moves.
 6. **Dark flash check** (A11Y-008). Then answer Dark Interface Yes.
 7. **Larger Text matrix** (A11Y-006) and the fixed boxes it finds.
 8. **Custom actions** for reorder and the long-press-only actions (A11Y-005).
+   Done outside the Tabs sheet, whose drags remain.
 9. **Theme shim compound queries** and the browser-tier media-feature gate
    (A11Y-003).
 10. **Fork and engine**: Linux keyboard escape (A11Y-012), Linux text scale

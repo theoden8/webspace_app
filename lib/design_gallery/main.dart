@@ -715,6 +715,7 @@ Widget _hintButton(BuildContext _) => const Row(
 Widget _corner({required bool dragging}) => TabBarCornerButton(
       dragging: dragging,
       onTap: () {},
+      moves: const {},
       onDragBegin: (_) {},
       onDragUpdate: (_) {},
       onDragEnd: () {},

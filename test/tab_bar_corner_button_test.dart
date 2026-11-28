@@ -4,6 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 
+import 'helpers/localized.dart';
+import 'helpers/semantics_actions.dart';
+
 void main() {
   late int taps;
   late List<Offset> begins;
@@ -17,8 +20,8 @@ void main() {
     updates = [];
     ends = 0;
     dragging = false;
-    return MaterialApp(
-      home: Scaffold(
+    return localizedApp(
+      Scaffold(
         body: StatefulBuilder(
           builder: (context, setState) => Stack(
             children: [
@@ -28,6 +31,7 @@ void main() {
                 child: TabBarCornerButton(
                   dragging: dragging,
                   onTap: () => taps++,
+                  moves: const {},
                   onDragBegin: (pos) => setState(() {
                     dragging = true;
                     begins.add(pos);
@@ -108,8 +112,8 @@ void main() {
   testWidgets('the overlay carries the button and reports the nearest corner',
       (tester) async {
     final chosen = <TabBarCorner>[];
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
+    await tester.pumpWidget(localizedApp(
+      Scaffold(
         body: Stack(
           children: [
             Positioned.fill(
@@ -136,5 +140,56 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
     expect(chosen, [TabBarCorner.topLeft]);
+  });
+
+  testWidgets(
+      'a screen reader names the button, presses it and moves it a corner '
+      'at a time', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final chosen = <TabBarCorner>[];
+    var taps = 0;
+    var corner = TabBarCorner.bottomRight;
+    await tester.pumpWidget(localizedApp(
+      Scaffold(
+        body: StatefulBuilder(
+          builder: (context, setState) => Stack(
+            children: [
+              Positioned.fill(
+                child: TabBarCornerOverlay(
+                  corner: corner,
+                  onTap: () => taps++,
+                  onCornerChosen: (to) => setState(() {
+                    chosen.add(to);
+                    corner = to;
+                  }),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ));
+    final button = find.semantics.byLabel('Site strip');
+    expect(button, findsOne);
+    expect(button.evaluate().single, containsSemantics(
+      isButton: true,
+      hasTapAction: true,
+      hasLongPressAction: false,
+    ));
+    expect(customActionsOf(button), {'Move left', 'Move up'});
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+
+    tester.semantics.tap(button);
+    expect(taps, 1);
+    performCustomAction(button, label: 'Move up');
+    await tester.pumpAndSettle();
+    expect(chosen, [TabBarCorner.topRight]);
+    expect(customActionsOf(find.semantics.byLabel('Site strip')),
+        {'Move left', 'Move down'});
+    performCustomAction(find.semantics.byLabel('Site strip'),
+        label: 'Move left');
+    await tester.pumpAndSettle();
+    expect(chosen, [TabBarCorner.topRight, TabBarCorner.topLeft]);
+    semantics.dispose();
   });
 }

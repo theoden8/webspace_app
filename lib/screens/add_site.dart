@@ -4,6 +4,7 @@ import 'package:webspace/platform/host_platform.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -930,52 +931,60 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
                         final suggestion = _suggestions[index];
-                        return InkWell(
-                          onTap: () => _showSuggestionDialog(suggestion),
-                          onLongPress: () async {
-                            final remove = await confirm(
-                              context,
-                              title: loc.addSiteRemoveSuggestionTitle(suggestion.name),
-                              body: loc.addSiteRemoveSuggestionBody,
-                              confirmLabel: loc.commonRemove,
-                              destructive: false,
-                            );
-                            if (!remove || !mounted) return;
-                            setState(() => _suggestions.removeAt(index));
-                            widget.onSuggestionsChanged(_suggestions);
+                        Future<void> removeAsked() async {
+                          final remove = await confirm(
+                            context,
+                            title: loc.addSiteRemoveSuggestionTitle(suggestion.name),
+                            body: loc.addSiteRemoveSuggestionBody,
+                            confirmLabel: loc.commonRemove,
+                            destructive: false,
+                          );
+                          if (!remove || !mounted) return;
+                          setState(() => _suggestions.removeAt(index));
+                          widget.onSuggestionsChanged(_suggestions);
+                        }
+
+                        return Semantics(
+                          customSemanticsActions: {
+                            CustomSemanticsAction(label: loc.commonRemove): () =>
+                                unawaited(removeAsked()),
                           },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                          child: InkWell(
+                            onTap: () => _showSuggestionDialog(suggestion),
+                            onLongPress: removeAsked,
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                                ),
                               ),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(4.0),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Expanded(
-                                    child: Center(
-                                      child: UnifiedFaviconImage(
-                                        url: 'https://${suggestion.domain}',
-                                        size: iconSize,
-                                        proxy: OutboundProxy.app,
+                              child: Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Expanded(
+                                      child: Center(
+                                        child: UnifiedFaviconImage(
+                                          url: 'https://${suggestion.domain}',
+                                          size: iconSize,
+                                          proxy: OutboundProxy.app,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  SizedBox(height: 2),
-                                  Text(
-                                    suggestion.name,
-                                    style: TextStyle(fontSize: 10),
-                                    textAlign: TextAlign.center,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
+                                    SizedBox(height: 2),
+                                    Text(
+                                      suggestion.name,
+                                      style: TextStyle(fontSize: 10),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),

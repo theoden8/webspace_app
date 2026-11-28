@@ -12,6 +12,7 @@ import 'package:webspace/widgets/tab_chips.dart';
 
 import 'helpers/localized.dart';
 import 'helpers/model_fixture.dart';
+import 'helpers/semantics_actions.dart';
 
 WebViewModel titled(String name, {required List<String> titles}) {
   final m = WebViewModel(initUrl: 'https://${name.toLowerCase()}.test', name: name);
@@ -33,13 +34,16 @@ class _Strip {
   final openedTabs = <String>[];
   final closed = <String>[];
   final added = <String>[];
+  final opened = <String>[];
+  final reordered = <(int, int)>[];
   var shown = 0;
 }
 
 Future<_Strip> pumpStrip(WidgetTester tester,
     {required List<WebViewModel> sites,
     OpenSites open = const OpenSites(),
-    int current = 0}) async {
+    int current = 0,
+    bool reorderable = false}) async {
   final log = _Strip();
   setViewSize(tester, size: const Size(1200, 400));
   await pumpLocalized(tester,
@@ -53,9 +57,11 @@ Future<_Strip> pumpStrip(WidgetTester tester,
             current: current,
             hideable: false,
             onHide: () {},
-            onOpen: (_) {},
+            onOpen: (site) => log.opened.add(site.name),
             onShowTabs: () => log.shown++,
-            onReorder: null,
+            onReorder: reorderable
+                ? (from, {required to}) => log.reordered.add((from, to))
+                : null,
             menu: const SizedBox.shrink(),
             open: open,
             onToggleOpen: (id) => log.toggled.add(id),
@@ -114,6 +120,50 @@ void main() {
         sites: [docs, mail], open: OpenSites(opened: {mail.siteId}));
     expect(find.text('Inbox'), findsOneWidget);
     expect(find.text('Q3 plan'), findsOneWidget);
+  });
+
+  for (final reorderable in [false, true]) {
+    testWidgets(
+        'a screen reader presses a site chip, hears which is on screen, '
+        '${reorderable ? 'and moves it' : 'where the view is fixed'}',
+        (tester) async {
+      final semantics = tester.ensureSemantics();
+      final news = WebViewModel(initUrl: 'https://news.test', name: 'News');
+      final log = await pumpStrip(tester,
+          sites: [docs, mail, news], current: 1, reorderable: reorderable);
+      SemanticsFinder chip(String name) => pressable(name);
+
+      expect(chip('Mail').evaluate().single,
+          containsSemantics(isButton: true, isSelected: true));
+      expect(chip('Docs').evaluate().single,
+          containsSemantics(isButton: true, isSelected: false));
+      tester.semantics.tap(chip('Docs'));
+      tester.semantics.tap(chip('Mail'));
+      expect(log.opened, ['Docs']);
+      expect(log.shown, 1, reason: 'the chip on screen opens its tabs');
+
+      if (!reorderable) {
+        expect(customActionsOf(chip('Docs')), isEmpty);
+      } else {
+        expect(customActionsOf(chip('Docs')), {'Move right'});
+        expect(customActionsOf(chip('Mail')), {'Move left', 'Move right'});
+        expect(customActionsOf(chip('News')), {'Move left'});
+        performCustomAction(chip('Mail'), label: 'Move left');
+        performCustomAction(chip('Mail'), label: 'Move right');
+        expect(log.reordered, [(1, 0), (1, 2)]);
+      }
+      semantics.dispose();
+    });
+  }
+
+  testWidgets("a screen reader hears which tab is the page's", (tester) async {
+    final semantics = tester.ensureSemantics();
+    await pumpStrip(tester, sites: [docs, mail]);
+    expect(tester.getSemantics(find.widgetWithText(TabChip, 'Q3 plan')),
+        containsSemantics(isButton: true, isSelected: true, hasTapAction: true));
+    expect(tester.getSemantics(find.widgetWithText(TabChip, 'Budget 2027')),
+        containsSemantics(isButton: true, isSelected: false));
+    semantics.dispose();
   });
 
   testWidgets('a tab chip opens its tab, its cross closes it, + adds one',

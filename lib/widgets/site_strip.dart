@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:flutter/material.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -98,8 +99,10 @@ class SiteStrip extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 itemCount: order.length,
                 padding: EdgeInsets.symmetric(horizontal: 4),
-                itemBuilder: (context, listIndex) =>
-                    _item(listIndex, theme: theme, isDark: isDark),
+                itemBuilder: (context, listIndex) => _item(listIndex,
+                    theme: theme,
+                    isDark: isDark,
+                    words: WidgetsLocalizations.of(context)),
               ),
             ),
             menu,
@@ -112,16 +115,19 @@ class SiteStrip extends StatelessWidget {
   /// One chip. Draggable when the view can be reordered and holds more than
   /// one site. Taps come from a raw [Listener] rather than a
   /// [GestureDetector], which would lose the gesture arena to the
-  /// [LongPressDraggable] (the drawer grid tiles do the same).
+  /// [LongPressDraggable] (the drawer grid tiles do the same), so the
+  /// [Semantics] around it is what a screen reader presses and moves.
   Widget _item(
     int listIndex, {
     required ThemeData theme,
     required bool isDark,
+    required WidgetsLocalizations words,
   }) {
     final site = models[order[listIndex]];
     final tabs = this.tabs;
     if (tabs == null || !site.effectiveTabsEnabled) {
-      return _chip(listIndex, theme: theme, isDark: isDark, opened: false);
+      return _chip(listIndex,
+          theme: theme, isDark: isDark, opened: false, words: words);
     }
     final isActive = order[listIndex] == current;
     final opened = open.isOpen(site.siteId,
@@ -136,16 +142,22 @@ class SiteStrip extends StatelessWidget {
         icon: Icon(opened ? Icons.chevron_left : Icons.chevron_right),
         onPressed: () => onToggleOpen?.call(site.siteId),
       );
+      // The chip fills the strip's height, as it does without tabs, so it is
+      // pressed across it.
       return Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _chip(listIndex, theme: theme, isDark: isDark, opened: opened),
+          _chip(listIndex,
+              theme: theme, isDark: isDark, opened: opened, words: words),
           // The site on screen opens and closes with a tap on its chip.
-          if (!isActive && onToggleOpen != null) arrow,
+          if (!isActive && onToggleOpen != null) Center(child: arrow),
           if (opened)
             Padding(
               padding: const EdgeInsetsDirectional.only(end: Spacing.sm),
-              child: TabChips(site: site, isCurrent: isActive, actions: tabs),
+              child: Center(
+                child: TabChips(site: site, isCurrent: isActive, actions: tabs),
+              ),
             ),
         ],
       );
@@ -157,6 +169,7 @@ class SiteStrip extends StatelessWidget {
     required ThemeData theme,
     required bool isDark,
     required bool opened,
+    required WidgetsLocalizations words,
   }) {
     final siteIndex = order[listIndex];
     final site = models[siteIndex];
@@ -176,60 +189,86 @@ class SiteStrip extends StatelessWidget {
     if (reorder == null || order.length < 2) {
       return _StripChip(
         onPressed: handleTap,
-        child: GestureDetector(onTap: handleTap, child: content),
+        child: Semantics(
+          container: true,
+          button: true,
+          selected: isActive,
+          child: GestureDetector(onTap: handleTap, child: content),
+        ),
       );
     }
 
     Offset? pointerDownPos;
     Duration? pointerDownTime;
-    final chip = DragTarget<int>(
-      onWillAcceptWithDetails: (details) => details.data != listIndex,
-      onAcceptWithDetails: (details) => reorder(details.data, to: listIndex),
-      builder: (context, candidateData, rejectedData) {
-        final isHovered = candidateData.isNotEmpty;
-        return LongPressDraggable<int>(
-          data: listIndex,
-          feedback: Material(
-            color: Colors.transparent,
-            child: Opacity(opacity: 0.85, child: content),
-          ),
-          childWhenDragging: Opacity(opacity: 0.3, child: content),
-          child: Container(
-            decoration: isHovered
-                ? BoxDecoration(
-                    borderRadius: BorderRadius.circular(Radii.lg),
-                    border: Border.all(color: theme.colorScheme.accentIndicator, width: 2),
-                  )
-                : null,
-            child: Listener(
-              behavior: HitTestBehavior.opaque,
-              onPointerDown: (event) {
-                pointerDownPos = event.position;
-                pointerDownTime = event.timeStamp;
-              },
-              onPointerUp: (event) {
-                if (pointerDownPos != null) {
-                  final distance = (event.position - pointerDownPos!).distance;
-                  final duration = event.timeStamp - pointerDownTime!;
-                  if (distance < 20 && duration < kDoubleTapTimeout) {
-                    handleTap();
-                  }
-                }
-                pointerDownPos = null;
-                pointerDownTime = null;
-              },
-              onPointerCancel: (_) {
-                pointerDownPos = null;
-                pointerDownTime = null;
-              },
-              child: content,
+    final chip = Semantics(
+      container: true,
+      button: true,
+      selected: isActive,
+      onTap: handleTap,
+      customSemanticsActions: _moves(listIndex, reorder: reorder, words: words),
+      child: DragTarget<int>(
+        onWillAcceptWithDetails: (details) => details.data != listIndex,
+        onAcceptWithDetails: (details) => reorder(details.data, to: listIndex),
+        builder: (context, candidateData, rejectedData) {
+          final isHovered = candidateData.isNotEmpty;
+          return LongPressDraggable<int>(
+            data: listIndex,
+            feedback: Material(
+              color: Colors.transparent,
+              child: Opacity(opacity: 0.85, child: content),
             ),
-          ),
-        );
-      },
+            childWhenDragging: Opacity(opacity: 0.3, child: content),
+            child: Container(
+              decoration: isHovered
+                  ? BoxDecoration(
+                      borderRadius: BorderRadius.circular(Radii.lg),
+                      border: Border.all(color: theme.colorScheme.accentIndicator, width: 2),
+                    )
+                  : null,
+              child: Listener(
+                behavior: HitTestBehavior.opaque,
+                onPointerDown: (event) {
+                  pointerDownPos = event.position;
+                  pointerDownTime = event.timeStamp;
+                },
+                onPointerUp: (event) {
+                  if (pointerDownPos != null) {
+                    final distance = (event.position - pointerDownPos!).distance;
+                    final duration = event.timeStamp - pointerDownTime!;
+                    if (distance < 20 && duration < kDoubleTapTimeout) {
+                      handleTap();
+                    }
+                  }
+                  pointerDownPos = null;
+                  pointerDownTime = null;
+                },
+                onPointerCancel: (_) {
+                  pointerDownPos = null;
+                  pointerDownTime = null;
+                },
+                child: content,
+              ),
+            ),
+          );
+        },
+      ),
     );
     return _StripChip(onPressed: handleTap, child: chip);
   }
+
+  /// The drag's moves, one place either way, for a screen reader.
+  Map<CustomSemanticsAction, VoidCallback> _moves(
+    int listIndex, {
+    required void Function(int fromListIndex, {required int to}) reorder,
+    required WidgetsLocalizations words,
+  }) => {
+    if (listIndex > 0)
+      CustomSemanticsAction(label: words.reorderItemLeft): () =>
+          reorder(listIndex, to: listIndex - 1),
+    if (listIndex < order.length - 1)
+      CustomSemanticsAction(label: words.reorderItemRight): () =>
+          reorder(listIndex, to: listIndex + 1),
+  };
 
   static const _chipMargin = EdgeInsets.symmetric(horizontal: 2, vertical: 4);
 

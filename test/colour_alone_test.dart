@@ -1,6 +1,7 @@
 import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show SemanticsNode;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/screens/block_stats.dart';
@@ -55,6 +56,14 @@ void main() {
     return null;
   }
 
+  /// The node a screen reader presses the tile by, which its name is merged
+  /// into.
+  SemanticsNode pressedBy(WidgetTester tester) => tester.getSemantics(
+    find
+        .descendant(of: find.byType(SiteGridTile), matching: find.byType(Text))
+        .first,
+  );
+
   testWidgets(
     'the drawer marks its selected site by a border and reports it selected (A11Y-009)',
     (tester) async {
@@ -63,7 +72,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(tileBorder(tester), isNull);
       expect(
-        tester.getSemantics(find.byType(SiteGridTile)).flagsCollection.isSelected,
+        pressedBy(tester).flagsCollection.isSelected,
         isNot(Tristate.isTrue),
       );
 
@@ -71,7 +80,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(tileBorder(tester), isNotNull);
       expect(
-        tester.getSemantics(find.byType(SiteGridTile)).flagsCollection.isSelected,
+        pressedBy(tester).flagsCollection.isSelected,
         Tristate.isTrue,
       );
       semantics.dispose();

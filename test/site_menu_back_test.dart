@@ -32,7 +32,7 @@ void main() {
             reason: 'the menu is open');
         webViewCalls.clear();
         await tester.tap(find.descendant(
-            of: find.byWidgetPredicate((w) => w is PopupMenuItem),
+            of: find.byWidgetPredicate((w) => w is PopupMenuEntry),
             matching: find.widgetWithIcon(IconButton, Icons.arrow_back)));
         await settleRealApp(tester);
 

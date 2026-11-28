@@ -1931,6 +1931,7 @@ class WebViewFactory {
       {required Widget webView}) {
     final gate = config.pullToRefreshGate;
     if (gate == null) return webView;
+    // ignore: webspace_lints/raw_tap
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (event) => gate.onPointerDown(event.pointer),

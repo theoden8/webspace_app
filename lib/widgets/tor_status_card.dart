@@ -19,6 +19,7 @@ import 'package:webspace/services/tor_bridges.dart' show bridgesMayHelp;
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/setting_tile.dart';
+import 'package:webspace/widgets/live_status.dart';
 
 /// User-facing heading and remedy for a failure kind.
 ///
@@ -238,7 +239,7 @@ class _TorStatusCardState extends State<TorStatusCard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(copy.label, style: theme.textTheme.bodyMedium),
+        LiveStatus(copy.label, style: theme.textTheme.bodyMedium),
         if (detail != null)
           Text(
             detail,

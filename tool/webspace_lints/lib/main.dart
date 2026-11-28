@@ -8,6 +8,7 @@ import 'src/model_await.dart';
 import 'src/model_identity.dart';
 import 'src/positional_parameters.dart';
 import 'src/raw_http_client.dart';
+import 'src/raw_tap.dart';
 import 'src/unnamed_button.dart';
 
 final plugin = WebspaceLints();
@@ -26,6 +27,7 @@ class WebspaceLints extends Plugin {
       ..registerWarningRule(LayerImport())
       ..registerWarningRule(ModelAwait())
       ..registerWarningRule(ModelIdentity())
-      ..registerWarningRule(UnnamedButton());
+      ..registerWarningRule(UnnamedButton())
+      ..registerWarningRule(RawTap());
   }
 }

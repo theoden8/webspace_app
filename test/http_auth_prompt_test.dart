@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/widgets/http_auth_prompt.dart';
 import 'helpers/localized.dart';
+import 'helpers/password_toggle.dart';
 
 Future<Future<HttpAuthPromptResult?>> _open(
   WidgetTester tester, {
@@ -88,6 +89,18 @@ void main() {
     );
 
     expect(find.byType(Checkbox), findsNothing);
+  });
+
+  testWidgets('a screen reader hears the reveal as a switch', (tester) async {
+    await _open(
+      tester,
+      request: const HttpAuthPromptRequest(
+        host: 'nas.example.com',
+        isRetry: false,
+        canRemember: false,
+      ),
+    );
+    await expectPasswordToggle(tester);
   });
 
   testWidgets('a retry says so and prefills the username', (tester) async {

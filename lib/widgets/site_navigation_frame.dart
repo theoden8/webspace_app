@@ -495,6 +495,7 @@ class SiteNavigationFrameState extends State<SiteNavigationFrame> {
                     child: TabBarCornerButton(
                       dragging: true,
                       onTap: () {},
+                      moves: const {},
                       onDragBegin: (_) {},
                       onDragUpdate: (_) {},
                       onDragEnd: () {},

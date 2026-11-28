@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -278,14 +279,15 @@ class SettingTile extends StatelessWidget {
     final text = lock?.reason(loc) ??
         subtitle ??
         (following ? scoped?.source.label(loc) : null);
+    final rowHint = scoped == null
+        ? hint
+        : Localized.joined(
+            [?hint, scoped.source.longPressHint(loc)],
+            by: Joined.paragraphs,
+          );
     final titleRow = HintedTitle(
       title,
-      hint: scoped == null
-          ? hint
-          : Localized.joined(
-              [?hint, scoped.source.longPressHint(loc)],
-              by: Joined.paragraphs,
-            ),
+      hint: rowHint,
       hintTitle: hintTitle,
       warn: missingData,
     );
@@ -308,10 +310,28 @@ Widget toggle({required bool value, required ValueChanged<bool> onChanged}) =>
     );
     if (control case ScopedToggle(
         :final value, :final source, :final onChoice)) {
+      void rescope() =>
+          onChoice(following ? Own(value) : const FollowApp());
+      final about = rowHint == null
+          ? null
+          : HintButton.action(
+              context,
+              title: hintTitle ?? title,
+              description: rowHint,
+            );
       return MergeSemantics(
         child: Semantics(
           onLongPressHint:
               following ? loc.settingKeepForSite : source.label(loc),
+          // The row's own actions take the merged node's, so the hint's
+          // dialog rides here too.
+          customSemanticsActions: {
+            if (!locked)
+              CustomSemanticsAction(
+                label: following ? loc.settingKeepForSite : source.label(loc),
+              ): rescope,
+            if (about != null) about.key: about.value,
+          },
           child: ListTile(
             leading: leading,
             contentPadding: contentPadding,
@@ -326,9 +346,7 @@ Widget toggle({required bool value, required ValueChanged<bool> onChanged}) =>
               ),
             ),
             onTap: locked ? null : () => onChoice(Own(!value)),
-            onLongPress: locked
-                ? null
-                : () => onChoice(following ? Own(value) : const FollowApp()),
+            onLongPress: locked ? null : rescope,
           ),
         ),
       );

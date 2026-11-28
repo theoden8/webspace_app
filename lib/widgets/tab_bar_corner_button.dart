@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:flutter/services.dart' show HapticFeedback;
 
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/reduced_motion.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/theme/design_tokens.dart';
@@ -15,12 +17,14 @@ import 'package:webspace/widgets/sidebar_arrow_tab.dart';
 /// after a long-press hold — reports the pointer's global position through
 /// [onDragBegin]/[onDragUpdate] so the owner can carry the button along,
 /// then [onDragEnd] lets it snap to a corner. Both recognizers route to the
-/// same callbacks; only one wins the arena per gesture.
+/// same callbacks; only one wins the arena per gesture. A screen reader
+/// moves it by [moves] instead, one corner at a time.
 class TabBarCornerButton extends StatelessWidget {
   const TabBarCornerButton({
     super.key,
     required this.dragging,
     required this.onTap,
+    required this.moves,
     required this.onDragBegin,
     required this.onDragUpdate,
     required this.onDragEnd,
@@ -28,13 +32,26 @@ class TabBarCornerButton extends StatelessWidget {
 
   final bool dragging;
   final VoidCallback onTap;
+  final Map<CustomSemanticsAction, VoidCallback> moves;
   final ValueChanged<Offset> onDragBegin;
   final ValueChanged<Offset> onDragUpdate;
   final VoidCallback onDragEnd;
 
   @override
   Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      button: true,
+      label: AppLocalizations.of(context).appSettingsSiteStrip,
+      customSemanticsActions: moves,
+      child: _gestures(context),
+    );
+  }
+
+  Widget _gestures(BuildContext context) {
     return GestureDetector(
+      // A semantic long press or scroll would drag it from nowhere.
+      excludeFromSemantics: true,
       onLongPressStart: (details) => onDragBegin(details.globalPosition),
       onLongPressMoveUpdate: (details) => onDragUpdate(details.globalPosition),
       onLongPressEnd: (_) => onDragEnd(),
@@ -142,6 +159,28 @@ class _TabBarCornerOverlayState extends State<TabBarCornerOverlay> {
     widget.onCornerChosen(tabBarCornerNearest(drag.x, y: drag.y));
   }
 
+  /// To the corner across and the one above or below [corner].
+  Map<CustomSemanticsAction, VoidCallback> _moves(
+    BuildContext context, {
+    required TabBarCorner corner,
+  }) {
+    final words = WidgetsLocalizations.of(context);
+    final right = tabBarCornerIsRight(corner);
+    final top = tabBarCornerIsTop(corner);
+    return {
+      CustomSemanticsAction(
+        label: right ? words.reorderItemLeft : words.reorderItemRight,
+      ): () => widget.onCornerChosen(
+        tabBarCornerNearest(right ? -1 : 1, y: top ? -1 : 1),
+      ),
+      CustomSemanticsAction(
+        label: top ? words.reorderItemDown : words.reorderItemUp,
+      ): () => widget.onCornerChosen(
+        tabBarCornerNearest(right ? 1 : -1, y: top ? 1 : -1),
+      ),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final corner = widget.corner;
@@ -162,6 +201,7 @@ class _TabBarCornerOverlayState extends State<TabBarCornerOverlay> {
         child: TabBarCornerButton(
           dragging: _drag != null,
           onTap: widget.onTap,
+          moves: _moves(context, corner: corner),
           onDragBegin: (globalPosition) {
             unawaited(HapticFeedback.mediumImpact());
             _dragTo(globalPosition);

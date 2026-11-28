@@ -186,49 +186,10 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
     }
   }
 
-  Future<String?> _askCaptcha(MoatChallenge challenge) async {
-    final loc = AppLocalizations.of(context);
-    final controller = TextEditingController();
-    try {
-      return await showDialog<String>(
+  Future<String?> _askCaptcha(MoatChallenge challenge) => showDialog<String>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(loc.torBridgesCaptchaTitle),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.memory(challenge.imageBytes),
-              const SizedBox(height: Spacing.md),
-              Text(loc.torBridgesCaptchaHelp,
-                  style: Theme.of(ctx).textTheme.bodySmall),
-              const SizedBox(height: Spacing.sm),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                decoration: InputDecoration(
-                  labelText: loc.torBridgesCaptchaAnswer,
-                  border: const OutlineInputBorder(),
-                ),
-                onSubmitted: (v) => Navigator.pop(ctx, v),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(loc.commonCancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, controller.text),
-              child: Text(loc.commonOk),
-            ),
-          ],
-        ),
+        builder: (_) => _CaptchaDialog(challenge: challenge),
       );
-    } finally {
-      controller.dispose();
-    }
-  }
 
   Future<void> _restartTor() => _guard.run(() async {
         await TorService.instance.restart();
@@ -428,4 +389,71 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
           ],
         ),
       );
+}
+
+/// The captcha the bridge service asks for. It owns its answer field, so the
+/// field outlives the dialog's closing animation.
+class _CaptchaDialog extends StatefulWidget {
+  const _CaptchaDialog({required this.challenge});
+
+  final MoatChallenge challenge;
+
+  @override
+  State<_CaptchaDialog> createState() => _CaptchaDialogState();
+}
+
+class _CaptchaDialogState extends State<_CaptchaDialog> {
+  final _answer = TextEditingController();
+
+  @override
+  void dispose() {
+    _answer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    final small = Theme.of(context).textTheme.bodySmall;
+    return AlertDialog(
+      title: Text(loc.torBridgesCaptchaTitle),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.memory(
+              widget.challenge.imageBytes,
+              semanticLabel: loc.torBridgesCaptchaImage,
+            ),
+            const SizedBox(height: Spacing.md),
+            Text(loc.torBridgesCaptchaHelp, style: small),
+            const SizedBox(height: Spacing.sm),
+            // The service offers no audio or text challenge; a built-in
+            // bridge or a pasted line needs none.
+            Text(loc.torBridgesCaptchaAlternative, style: small),
+            const SizedBox(height: Spacing.sm),
+            TextField(
+              controller: _answer,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: loc.torBridgesCaptchaAnswer,
+                border: const OutlineInputBorder(),
+              ),
+              onSubmitted: (v) => Navigator.pop(context, v),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(loc.commonCancel),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, _answer.text),
+          child: Text(loc.commonOk),
+        ),
+      ],
+    );
+  }
 }

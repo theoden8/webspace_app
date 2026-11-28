@@ -19,6 +19,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/widgets/live_status.dart';
 import 'package:webspace/widgets/tor_status_card.dart'
     show torFailureCopy, torFailureIcon, torRecoveryActions, torWaitCopy;
 
@@ -114,7 +115,7 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
                   children: [
                     Icon(glyph, size: _glyphSize, color: glyphColor),
                     const SizedBox(height: Spacing.lg),
-                    Text(
+                    LiveStatus(
                       title,
                       textAlign: TextAlign.center,
                       style: theme.textTheme.titleMedium

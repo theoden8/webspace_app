@@ -12,6 +12,7 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 
 import 'helpers/isolations.dart';
+import 'helpers/localized.dart';
 
 const _channel = MethodChannel('reduced_motion_test');
 
@@ -124,8 +125,8 @@ void main() {
 
   group('decorative motion stops under reduced motion (A11Y-011)', () {
     Future<void> pumpCorner(WidgetTester tester, {required bool still}) =>
-        tester.pumpWidget(MaterialApp(
-          home: MediaQuery(
+        tester.pumpWidget(localizedApp(
+          MediaQuery(
             data: MediaQueryData(disableAnimations: still),
             child: TabBarCornerOverlay(
               corner: TabBarCorner.bottomRight,

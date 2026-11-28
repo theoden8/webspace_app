@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/widgets/proxy_auth_section.dart';
 import 'helpers/localized.dart';
+import 'helpers/password_toggle.dart';
 
 Widget _host(TextEditingController user,
         {required TextEditingController password,
@@ -123,6 +124,15 @@ void main() {
     await tester.tap(find.byIcon(Icons.visibility));
     await tester.pump();
     expect(passwordField().obscureText, isFalse);
+  });
+
+  testWidgets('a screen reader hears the reveal as a switch', (tester) async {
+    final user = TextEditingController(text: 'alice');
+    final password = TextEditingController(text: 'hunter2');
+    addTearDown(user.dispose);
+    addTearDown(password.dispose);
+    await tester.pumpWidget(_host(user, password: password));
+    await expectPasswordToggle(tester);
   });
 
   testWidgets('editing a field notifies the screens that persist on edit',
