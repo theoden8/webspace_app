@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "اگر اونین پتہ ناکام ہو",
   "siteNetworkOnionFallbackHint": "اونین سروس بند ہو سکتی ہے، یا اس کے سرٹیفکیٹ کی میعاد ختم ہو سکتی ہے۔ خرابی دکھانے سے سائٹ Tor کے اندر رہتی ہے۔ عام پتہ لوڈ کرنے سے یہ ایک ایگزٹ ریلے سے ہو کر جاتی ہے، جو دیکھتا ہے کہ ٹریفک کہاں جا رہی ہے۔",
   "onionFallbackNone": "خرابی دکھائیں",
-  "onionFallbackClearnet": "عام پتہ لوڈ کریں"
+  "onionFallbackClearnet": "عام پتہ لوڈ کریں",
+  "shortcutMenuTitle": "سائٹ",
+  "shortcutMenuNewTab": "نیا ٹیب",
+  "shortcutMenuReopenClosedTab": "بند ٹیب دوبارہ کھولیں",
+  "shortcutMenuCloseTab": "ٹیب بند کریں",
+  "shortcutMenuFocusUrlBar": "پتہ میں ترمیم کریں",
+  "shortcutMenuLeavePage": "فوکس کو صفحے سے باہر لے جائیں",
+  "shortcutMenuReload": "صفحہ دوبارہ لوڈ کریں",
+  "shortcutMenuFind": "صفحے میں تلاش کریں",
+  "shortcutMenuBack": "واپس",
+  "shortcutMenuForward": "آگے",
+  "shortcutMenuNextSite": "اگلی سائٹ",
+  "shortcutMenuPreviousSite": "پچھلی سائٹ",
+  "shortcutMenuLastSite": "آخری سائٹ",
+  "shortcutMenuToggleSidebar": "سائیڈبار دکھائیں یا چھپائیں",
+  "shortcutMenuSiteAt": "سائٹ {number}"
 }

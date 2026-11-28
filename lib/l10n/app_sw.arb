@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Anwani ya onion ikishindwa",
   "siteNetworkOnionFallbackHint": "Huduma ya onion inaweza kuwa haifanyi kazi, au cheti chake kinaweza kuisha muda. Kuonyesha hitilafu huiweka tovuti ndani ya Tor. Kupakia anwani ya kawaida huituma kupitia relei ya kutoka, ambayo huona trafiki inakwenda wapi.",
   "onionFallbackNone": "Onyesha hitilafu",
-  "onionFallbackClearnet": "Pakia anwani ya kawaida"
+  "onionFallbackClearnet": "Pakia anwani ya kawaida",
+  "shortcutMenuTitle": "Tovuti",
+  "shortcutMenuNewTab": "Kichupo kipya",
+  "shortcutMenuReopenClosedTab": "Fungua tena kichupo kilichofungwa",
+  "shortcutMenuCloseTab": "Funga kichupo",
+  "shortcutMenuFocusUrlBar": "Hariri anwani",
+  "shortcutMenuLeavePage": "Hamisha lengo nje ya ukurasa",
+  "shortcutMenuReload": "Pakia ukurasa upya",
+  "shortcutMenuFind": "Tafuta kwenye ukurasa",
+  "shortcutMenuBack": "Nyuma",
+  "shortcutMenuForward": "Mbele",
+  "shortcutMenuNextSite": "Tovuti inayofuata",
+  "shortcutMenuPreviousSite": "Tovuti iliyotangulia",
+  "shortcutMenuLastSite": "Tovuti ya mwisho",
+  "shortcutMenuToggleSidebar": "Onyesha au ficha upau wa pembeni",
+  "shortcutMenuSiteAt": "Tovuti {number}"
 }

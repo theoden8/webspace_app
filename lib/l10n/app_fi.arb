@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Jos onion-osoite ei toimi",
   "siteNetworkOnionFallbackHint": "Onion-palvelu voi olla alhaalla tai sen varmenne voi vanhentua. Virheen näyttäminen pitää sivuston Torin sisällä. Tavallisen osoitteen lataaminen lähettää sen ulostulosolmun kautta, joka näkee, minne liikenne menee.",
   "onionFallbackNone": "Näytä virhe",
-  "onionFallbackClearnet": "Lataa tavallinen osoite"
+  "onionFallbackClearnet": "Lataa tavallinen osoite",
+  "shortcutMenuTitle": "Sivusto",
+  "shortcutMenuNewTab": "Uusi välilehti",
+  "shortcutMenuReopenClosedTab": "Avaa suljettu välilehti uudelleen",
+  "shortcutMenuCloseTab": "Sulje välilehti",
+  "shortcutMenuFocusUrlBar": "Muokkaa osoitetta",
+  "shortcutMenuLeavePage": "Siirrä kohdistus pois sivulta",
+  "shortcutMenuReload": "Lataa sivu uudelleen",
+  "shortcutMenuFind": "Etsi sivulta",
+  "shortcutMenuBack": "Takaisin",
+  "shortcutMenuForward": "Eteenpäin",
+  "shortcutMenuNextSite": "Seuraava sivusto",
+  "shortcutMenuPreviousSite": "Edellinen sivusto",
+  "shortcutMenuLastSite": "Viimeinen sivusto",
+  "shortcutMenuToggleSidebar": "Näytä tai piilota sivupalkki",
+  "shortcutMenuSiteAt": "Sivusto {number}"
 }

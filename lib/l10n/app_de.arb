@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Wenn die Onion-Adresse fehlschlägt",
   "siteNetworkOnionFallbackHint": "Ein Onion-Dienst kann ausfallen, oder sein Zertifikat kann ablaufen. Den Fehler anzuzeigen hält die Website innerhalb von Tor. Die übliche Adresse zu laden schickt sie stattdessen über ein Exit-Relay, das sieht, wohin der Datenverkehr geht.",
   "onionFallbackNone": "Fehler anzeigen",
-  "onionFallbackClearnet": "Übliche Adresse laden"
+  "onionFallbackClearnet": "Übliche Adresse laden",
+  "shortcutMenuTitle": "Website",
+  "shortcutMenuNewTab": "Neuer Tab",
+  "shortcutMenuReopenClosedTab": "Geschlossenen Tab wieder öffnen",
+  "shortcutMenuCloseTab": "Tab schließen",
+  "shortcutMenuFocusUrlBar": "Adresse bearbeiten",
+  "shortcutMenuLeavePage": "Fokus aus der Seite nehmen",
+  "shortcutMenuReload": "Seite neu laden",
+  "shortcutMenuFind": "Auf der Seite suchen",
+  "shortcutMenuBack": "Zurück",
+  "shortcutMenuForward": "Vorwärts",
+  "shortcutMenuNextSite": "Nächste Website",
+  "shortcutMenuPreviousSite": "Vorherige Website",
+  "shortcutMenuLastSite": "Letzte Website",
+  "shortcutMenuToggleSidebar": "Seitenleiste ein- oder ausblenden",
+  "shortcutMenuSiteAt": "Website {number}"
 }

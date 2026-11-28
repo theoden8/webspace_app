@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Als het onion-adres mislukt",
   "siteNetworkOnionFallbackHint": "Een onion-dienst kan uit de lucht zijn, of het certificaat kan verlopen. De fout tonen houdt de site binnen Tor. Het gewone adres laden stuurt hem via een exitrelay, die ziet waar het verkeer naartoe gaat.",
   "onionFallbackNone": "Fout tonen",
-  "onionFallbackClearnet": "Gewoon adres laden"
+  "onionFallbackClearnet": "Gewoon adres laden",
+  "shortcutMenuTitle": "Site",
+  "shortcutMenuNewTab": "Nieuw tabblad",
+  "shortcutMenuReopenClosedTab": "Gesloten tabblad heropenen",
+  "shortcutMenuCloseTab": "Tabblad sluiten",
+  "shortcutMenuFocusUrlBar": "Adres bewerken",
+  "shortcutMenuLeavePage": "Focus uit de pagina halen",
+  "shortcutMenuReload": "Pagina opnieuw laden",
+  "shortcutMenuFind": "Zoeken op pagina",
+  "shortcutMenuBack": "Terug",
+  "shortcutMenuForward": "Vooruit",
+  "shortcutMenuNextSite": "Volgende site",
+  "shortcutMenuPreviousSite": "Vorige site",
+  "shortcutMenuLastSite": "Laatste site",
+  "shortcutMenuToggleSidebar": "Zijbalk tonen of verbergen",
+  "shortcutMenuSiteAt": "Site {number}"
 }

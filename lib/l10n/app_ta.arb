@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "ஆனியன் முகவரி தோல்வியுற்றால்",
   "siteNetworkOnionFallbackHint": "ஒரு ஆனியன் சேவை இயங்காமல் இருக்கலாம், அல்லது அதன் சான்றிதழ் காலாவதியாகலாம். பிழையைக் காட்டினால் தளம் Tor-க்குள்ளேயே இருக்கும். வழக்கமான முகவரியை ஏற்றினால் அது ஒரு வெளியேறு ரிலே வழியாகச் செல்லும், அது போக்குவரத்து எங்கே செல்கிறது என்பதைப் பார்க்கும்.",
   "onionFallbackNone": "பிழையைக் காட்டு",
-  "onionFallbackClearnet": "வழக்கமான முகவரியை ஏற்று"
+  "onionFallbackClearnet": "வழக்கமான முகவரியை ஏற்று",
+  "shortcutMenuTitle": "தளம்",
+  "shortcutMenuNewTab": "புதிய தாவல்",
+  "shortcutMenuReopenClosedTab": "மூடிய தாவலை மீண்டும் திற",
+  "shortcutMenuCloseTab": "தாவலை மூடு",
+  "shortcutMenuFocusUrlBar": "முகவரியைத் திருத்து",
+  "shortcutMenuLeavePage": "கவனத்தைப் பக்கத்திற்கு வெளியே நகர்த்து",
+  "shortcutMenuReload": "பக்கத்தை மீண்டும் ஏற்று",
+  "shortcutMenuFind": "பக்கத்தில் கண்டறி",
+  "shortcutMenuBack": "பின்",
+  "shortcutMenuForward": "முன்",
+  "shortcutMenuNextSite": "அடுத்த தளம்",
+  "shortcutMenuPreviousSite": "முந்தைய தளம்",
+  "shortcutMenuLastSite": "கடைசி தளம்",
+  "shortcutMenuToggleSidebar": "பக்கப்பட்டியைக் காட்டு அல்லது மறை",
+  "shortcutMenuSiteAt": "தளம் {number}"
 }

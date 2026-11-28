@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Ако onion адресата не успее",
   "siteNetworkOnionFallbackHint": "Една onion услуга може да не работи или нејзиниот сертификат да истече. Прикажувањето на грешката ја задржува страницата во Tor. Вчитувањето на вообичаената адреса ја праќа преку излезен јазол, кој гледа каде оди сообраќајот.",
   "onionFallbackNone": "Прикажи ја грешката",
-  "onionFallbackClearnet": "Вчитај ја вообичаената адреса"
+  "onionFallbackClearnet": "Вчитај ја вообичаената адреса",
+  "shortcutMenuTitle": "Страница",
+  "shortcutMenuNewTab": "Ново јазиче",
+  "shortcutMenuReopenClosedTab": "Повторно отвори затворено јазиче",
+  "shortcutMenuCloseTab": "Затвори јазиче",
+  "shortcutMenuFocusUrlBar": "Уреди адреса",
+  "shortcutMenuLeavePage": "Помести го фокусот надвор од страницата",
+  "shortcutMenuReload": "Повторно вчитај ја страницата",
+  "shortcutMenuFind": "Најди на страницата",
+  "shortcutMenuBack": "Назад",
+  "shortcutMenuForward": "Напред",
+  "shortcutMenuNextSite": "Следна страница",
+  "shortcutMenuPreviousSite": "Претходна страница",
+  "shortcutMenuLastSite": "Последна страница",
+  "shortcutMenuToggleSidebar": "Прикажи или скриј странична лента",
+  "shortcutMenuSiteAt": "Страница {number}"
 }

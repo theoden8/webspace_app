@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "ഒനിയൻ വിലാസം പരാജയപ്പെട്ടാൽ",
   "siteNetworkOnionFallbackHint": "ഒരു ഒനിയൻ സേവനം പ്രവർത്തനരഹിതമായിരിക്കാം, അല്ലെങ്കിൽ അതിന്റെ സർട്ടിഫിക്കറ്റിന്റെ കാലാവധി കഴിഞ്ഞിരിക്കാം. പിശക് കാണിക്കുന്നത് സൈറ്റിനെ Tor-നുള്ളിൽ നിർത്തുന്നു. സാധാരണ വിലാസം ലോഡ് ചെയ്താൽ അത് ഒരു എക്സിറ്റ് റിലേ വഴി പോകും, ട്രാഫിക് എവിടേക്ക് പോകുന്നുവെന്ന് അത് കാണും.",
   "onionFallbackNone": "പിശക് കാണിക്കുക",
-  "onionFallbackClearnet": "സാധാരണ വിലാസം ലോഡ് ചെയ്യുക"
+  "onionFallbackClearnet": "സാധാരണ വിലാസം ലോഡ് ചെയ്യുക",
+  "shortcutMenuTitle": "സൈറ്റ്",
+  "shortcutMenuNewTab": "പുതിയ ടാബ്",
+  "shortcutMenuReopenClosedTab": "അടച്ച ടാബ് വീണ്ടും തുറക്കുക",
+  "shortcutMenuCloseTab": "ടാബ് അടയ്ക്കുക",
+  "shortcutMenuFocusUrlBar": "വിലാസം എഡിറ്റ് ചെയ്യുക",
+  "shortcutMenuLeavePage": "ഫോക്കസ് പേജിന് പുറത്തേക്ക് നീക്കുക",
+  "shortcutMenuReload": "പേജ് വീണ്ടും ലോഡ് ചെയ്യുക",
+  "shortcutMenuFind": "പേജിൽ കണ്ടെത്തുക",
+  "shortcutMenuBack": "തിരികെ",
+  "shortcutMenuForward": "മുന്നോട്ട്",
+  "shortcutMenuNextSite": "അടുത്ത സൈറ്റ്",
+  "shortcutMenuPreviousSite": "മുമ്പത്തെ സൈറ്റ്",
+  "shortcutMenuLastSite": "അവസാന സൈറ്റ്",
+  "shortcutMenuToggleSidebar": "സൈഡ്‌ബാർ കാണിക്കുക അല്ലെങ്കിൽ മറയ്ക്കുക",
+  "shortcutMenuSiteAt": "സൈറ്റ് {number}"
 }

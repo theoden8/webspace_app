@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Jika alamat onion gagal",
   "siteNetworkOnionFallbackHint": "Perkhidmatan onion mungkin tidak berfungsi, atau sijilnya mungkin tamat tempoh. Memaparkan ralat mengekalkan laman di dalam Tor. Memuatkan alamat biasa menghantarnya melalui geganti keluar, yang dapat melihat ke mana trafik pergi.",
   "onionFallbackNone": "Paparkan ralat",
-  "onionFallbackClearnet": "Muatkan alamat biasa"
+  "onionFallbackClearnet": "Muatkan alamat biasa",
+  "shortcutMenuTitle": "Tapak",
+  "shortcutMenuNewTab": "Tab baharu",
+  "shortcutMenuReopenClosedTab": "Buka semula tab yang ditutup",
+  "shortcutMenuCloseTab": "Tutup tab",
+  "shortcutMenuFocusUrlBar": "Edit alamat",
+  "shortcutMenuLeavePage": "Alihkan fokus keluar dari halaman",
+  "shortcutMenuReload": "Muat semula halaman",
+  "shortcutMenuFind": "Cari dalam halaman",
+  "shortcutMenuBack": "Undur",
+  "shortcutMenuForward": "Maju",
+  "shortcutMenuNextSite": "Tapak seterusnya",
+  "shortcutMenuPreviousSite": "Tapak sebelumnya",
+  "shortcutMenuLastSite": "Tapak terakhir",
+  "shortcutMenuToggleSidebar": "Tunjukkan atau sembunyikan bar sisi",
+  "shortcutMenuSiteAt": "Tapak {number}"
 }

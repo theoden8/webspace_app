@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Gdy adres onion zawiedzie",
   "siteNetworkOnionFallbackHint": "Usługa onion może nie działać albo jej certyfikat może wygasnąć. Pokazanie błędu zatrzymuje witrynę wewnątrz Tora. Wczytanie zwykłego adresu wysyła ją przez przekaźnik wyjściowy, który widzi, dokąd zmierza ruch.",
   "onionFallbackNone": "Pokaż błąd",
-  "onionFallbackClearnet": "Wczytaj zwykły adres"
+  "onionFallbackClearnet": "Wczytaj zwykły adres",
+  "shortcutMenuTitle": "Witryna",
+  "shortcutMenuNewTab": "Nowa karta",
+  "shortcutMenuReopenClosedTab": "Otwórz ponownie zamkniętą kartę",
+  "shortcutMenuCloseTab": "Zamknij kartę",
+  "shortcutMenuFocusUrlBar": "Edytuj adres",
+  "shortcutMenuLeavePage": "Przenieś fokus poza stronę",
+  "shortcutMenuReload": "Załaduj stronę ponownie",
+  "shortcutMenuFind": "Znajdź na stronie",
+  "shortcutMenuBack": "Wstecz",
+  "shortcutMenuForward": "Dalej",
+  "shortcutMenuNextSite": "Następna witryna",
+  "shortcutMenuPreviousSite": "Poprzednia witryna",
+  "shortcutMenuLastSite": "Ostatnia witryna",
+  "shortcutMenuToggleSidebar": "Pokaż lub ukryj panel boczny",
+  "shortcutMenuSiteAt": "Witryna {number}"
 }

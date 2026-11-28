@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "अगर ओनियन पता विफल हो",
   "siteNetworkOnionFallbackHint": "कोई ओनियन सेवा बंद हो सकती है, या उसका प्रमाणपत्र समाप्त हो सकता है। त्रुटि दिखाने से साइट Tor के भीतर रहती है। सामान्य पता लोड करने से यह एक एग्ज़िट रिले से होकर जाती है, जो देखता है कि ट्रैफ़िक कहाँ जा रहा है।",
   "onionFallbackNone": "त्रुटि दिखाएँ",
-  "onionFallbackClearnet": "सामान्य पता लोड करें"
+  "onionFallbackClearnet": "सामान्य पता लोड करें",
+  "shortcutMenuTitle": "साइट",
+  "shortcutMenuNewTab": "नया टैब",
+  "shortcutMenuReopenClosedTab": "बंद टैब फिर से खोलें",
+  "shortcutMenuCloseTab": "टैब बंद करें",
+  "shortcutMenuFocusUrlBar": "पता संपादित करें",
+  "shortcutMenuLeavePage": "फ़ोकस को पेज से बाहर ले जाएँ",
+  "shortcutMenuReload": "पेज फिर से लोड करें",
+  "shortcutMenuFind": "पेज में खोजें",
+  "shortcutMenuBack": "वापस",
+  "shortcutMenuForward": "आगे",
+  "shortcutMenuNextSite": "अगली साइट",
+  "shortcutMenuPreviousSite": "पिछली साइट",
+  "shortcutMenuLastSite": "आखिरी साइट",
+  "shortcutMenuToggleSidebar": "साइडबार दिखाएँ या छिपाएँ",
+  "shortcutMenuSiteAt": "साइट {number}"
 }

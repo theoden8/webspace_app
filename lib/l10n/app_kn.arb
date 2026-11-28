@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "ಆನಿಯನ್ ವಿಳಾಸ ವಿಫಲವಾದರೆ",
   "siteNetworkOnionFallbackHint": "ಆನಿಯನ್ ಸೇವೆ ಸ್ಥಗಿತಗೊಂಡಿರಬಹುದು, ಅಥವಾ ಅದರ ಪ್ರಮಾಣಪತ್ರದ ಅವಧಿ ಮುಗಿದಿರಬಹುದು. ದೋಷವನ್ನು ತೋರಿಸುವುದರಿಂದ ಸೈಟ್ Tor ಒಳಗೇ ಉಳಿಯುತ್ತದೆ. ಸಾಮಾನ್ಯ ವಿಳಾಸವನ್ನು ಲೋಡ್ ಮಾಡಿದರೆ ಅದು ನಿರ್ಗಮನ ರಿಲೇ ಮೂಲಕ ಹೋಗುತ್ತದೆ, ಅದು ಟ್ರಾಫಿಕ್ ಎಲ್ಲಿಗೆ ಹೋಗುತ್ತದೆ ಎಂಬುದನ್ನು ನೋಡುತ್ತದೆ.",
   "onionFallbackNone": "ದೋಷವನ್ನು ತೋರಿಸಿ",
-  "onionFallbackClearnet": "ಸಾಮಾನ್ಯ ವಿಳಾಸವನ್ನು ಲೋಡ್ ಮಾಡಿ"
+  "onionFallbackClearnet": "ಸಾಮಾನ್ಯ ವಿಳಾಸವನ್ನು ಲೋಡ್ ಮಾಡಿ",
+  "shortcutMenuTitle": "ಸೈಟ್",
+  "shortcutMenuNewTab": "ಹೊಸ ಟ್ಯಾಬ್",
+  "shortcutMenuReopenClosedTab": "ಮುಚ್ಚಿದ ಟ್ಯಾಬ್ ಮತ್ತೆ ತೆರೆಯಿರಿ",
+  "shortcutMenuCloseTab": "ಟ್ಯಾಬ್ ಮುಚ್ಚಿ",
+  "shortcutMenuFocusUrlBar": "ವಿಳಾಸ ಸಂಪಾದಿಸಿ",
+  "shortcutMenuLeavePage": "ಫೋಕಸ್ ಅನ್ನು ಪುಟದಿಂದ ಹೊರಗೆ ಸರಿಸಿ",
+  "shortcutMenuReload": "ಪುಟವನ್ನು ಮರುಲೋಡ್ ಮಾಡಿ",
+  "shortcutMenuFind": "ಪುಟದಲ್ಲಿ ಹುಡುಕಿ",
+  "shortcutMenuBack": "ಹಿಂದಕ್ಕೆ",
+  "shortcutMenuForward": "ಮುಂದಕ್ಕೆ",
+  "shortcutMenuNextSite": "ಮುಂದಿನ ಸೈಟ್",
+  "shortcutMenuPreviousSite": "ಹಿಂದಿನ ಸೈಟ್",
+  "shortcutMenuLastSite": "ಕೊನೆಯ ಸೈಟ್",
+  "shortcutMenuToggleSidebar": "ಸೈಡ್‌ಬಾರ್ ತೋರಿಸಿ ಅಥವಾ ಮರೆಮಾಡಿ",
+  "shortcutMenuSiteAt": "ಸೈಟ್ {number}"
 }

@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "ប្រសិនបើអាសយដ្ឋាន Onion បរាជ័យ",
   "siteNetworkOnionFallbackHint": "សេវា Onion អាចនឹងឈប់ដំណើរការ ឬវិញ្ញាបនបត្ររបស់វាអាចផុតកំណត់។ ការបង្ហាញកំហុសរក្សាគេហទំព័រនៅក្នុង Tor។ ការផ្ទុកអាសយដ្ឋានធម្មតាបញ្ជូនវាតាមរយៈរីឡេច្រកចេញ ដែលមើលឃើញថាចរាចរទៅណា។",
   "onionFallbackNone": "បង្ហាញកំហុស",
-  "onionFallbackClearnet": "ផ្ទុកអាសយដ្ឋានធម្មតា"
+  "onionFallbackClearnet": "ផ្ទុកអាសយដ្ឋានធម្មតា",
+  "shortcutMenuTitle": "គេហទំព័រ",
+  "shortcutMenuNewTab": "ផ្ទាំងថ្មី",
+  "shortcutMenuReopenClosedTab": "បើកផ្ទាំងដែលបានបិទឡើងវិញ",
+  "shortcutMenuCloseTab": "បិទផ្ទាំង",
+  "shortcutMenuFocusUrlBar": "កែអាសយដ្ឋាន",
+  "shortcutMenuLeavePage": "ផ្លាស់ទីការផ្តោតចេញពីទំព័រ",
+  "shortcutMenuReload": "ផ្ទុកទំព័រឡើងវិញ",
+  "shortcutMenuFind": "ស្វែងរកក្នុងទំព័រ",
+  "shortcutMenuBack": "ត្រឡប់ក្រោយ",
+  "shortcutMenuForward": "ទៅមុខ",
+  "shortcutMenuNextSite": "គេហទំព័របន្ទាប់",
+  "shortcutMenuPreviousSite": "គេហទំព័រមុន",
+  "shortcutMenuLastSite": "គេហទំព័រចុងក្រោយ",
+  "shortcutMenuToggleSidebar": "បង្ហាញ ឬលាក់របារចំហៀង",
+  "shortcutMenuSiteAt": "គេហទំព័រ {number}"
 }

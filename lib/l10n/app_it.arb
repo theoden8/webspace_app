@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Se l'indirizzo onion non funziona",
   "siteNetworkOnionFallbackHint": "Un servizio onion può essere fuori servizio o il suo certificato può scadere. Mostrare l'errore mantiene il sito dentro Tor. Caricare l'indirizzo abituale lo invia tramite un relay di uscita, che vede dove va il traffico.",
   "onionFallbackNone": "Mostra l'errore",
-  "onionFallbackClearnet": "Carica l'indirizzo abituale"
+  "onionFallbackClearnet": "Carica l'indirizzo abituale",
+  "shortcutMenuTitle": "Sito",
+  "shortcutMenuNewTab": "Nuova scheda",
+  "shortcutMenuReopenClosedTab": "Riapri scheda chiusa",
+  "shortcutMenuCloseTab": "Chiudi scheda",
+  "shortcutMenuFocusUrlBar": "Modifica indirizzo",
+  "shortcutMenuLeavePage": "Sposta il focus fuori dalla pagina",
+  "shortcutMenuReload": "Ricarica la pagina",
+  "shortcutMenuFind": "Trova nella pagina",
+  "shortcutMenuBack": "Indietro",
+  "shortcutMenuForward": "Avanti",
+  "shortcutMenuNextSite": "Sito successivo",
+  "shortcutMenuPreviousSite": "Sito precedente",
+  "shortcutMenuLastSite": "Ultimo sito",
+  "shortcutMenuToggleSidebar": "Mostra o nascondi la barra laterale",
+  "shortcutMenuSiteAt": "Sito {number}"
 }

@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Om onion-adressen misslyckas",
   "siteNetworkOnionFallbackHint": "En onion-tjänst kan vara nere, eller dess certifikat kan gå ut. Att visa felet håller webbplatsen inom Tor. Att läsa in den vanliga adressen skickar den via ett utgångsrelä, som ser vart trafiken går.",
   "onionFallbackNone": "Visa felet",
-  "onionFallbackClearnet": "Läs in den vanliga adressen"
+  "onionFallbackClearnet": "Läs in den vanliga adressen",
+  "shortcutMenuTitle": "Webbplats",
+  "shortcutMenuNewTab": "Ny flik",
+  "shortcutMenuReopenClosedTab": "Öppna stängd flik igen",
+  "shortcutMenuCloseTab": "Stäng fliken",
+  "shortcutMenuFocusUrlBar": "Redigera adress",
+  "shortcutMenuLeavePage": "Flytta fokus från sidan",
+  "shortcutMenuReload": "Läs in sidan igen",
+  "shortcutMenuFind": "Sök på sidan",
+  "shortcutMenuBack": "Tillbaka",
+  "shortcutMenuForward": "Framåt",
+  "shortcutMenuNextSite": "Nästa webbplats",
+  "shortcutMenuPreviousSite": "Föregående webbplats",
+  "shortcutMenuLastSite": "Sista webbplatsen",
+  "shortcutMenuToggleSidebar": "Visa eller dölj sidofältet",
+  "shortcutMenuSiteAt": "Webbplats {number}"
 }

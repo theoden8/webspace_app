@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "अनियन ठेगाना असफल भएमा",
   "siteNetworkOnionFallbackHint": "अनियन सेवा बन्द हुन सक्छ, वा यसको प्रमाणपत्रको म्याद सकिन सक्छ। त्रुटि देखाउँदा साइट Tor भित्रै रहन्छ। सामान्य ठेगाना लोड गर्दा यो एक्जिट रिले भएर जान्छ, जसले ट्राफिक कहाँ जाँदैछ भनेर देख्छ।",
   "onionFallbackNone": "त्रुटि देखाउनुहोस्",
-  "onionFallbackClearnet": "सामान्य ठेगाना लोड गर्नुहोस्"
+  "onionFallbackClearnet": "सामान्य ठेगाना लोड गर्नुहोस्",
+  "shortcutMenuTitle": "साइट",
+  "shortcutMenuNewTab": "नयाँ ट्याब",
+  "shortcutMenuReopenClosedTab": "बन्द गरिएको ट्याब फेरि खोल्नुहोस्",
+  "shortcutMenuCloseTab": "ट्याब बन्द गर्नुहोस्",
+  "shortcutMenuFocusUrlBar": "ठेगाना सम्पादन गर्नुहोस्",
+  "shortcutMenuLeavePage": "फोकस पृष्ठबाट बाहिर सार्नुहोस्",
+  "shortcutMenuReload": "पृष्ठ फेरि लोड गर्नुहोस्",
+  "shortcutMenuFind": "पृष्ठमा फेला पार्नुहोस्",
+  "shortcutMenuBack": "पछाडि",
+  "shortcutMenuForward": "अगाडि",
+  "shortcutMenuNextSite": "अर्को साइट",
+  "shortcutMenuPreviousSite": "अघिल्लो साइट",
+  "shortcutMenuLastSite": "अन्तिम साइट",
+  "shortcutMenuToggleSidebar": "साइडबार देखाउनुहोस् वा लुकाउनुहोस्",
+  "shortcutMenuSiteAt": "साइट {number}"
 }

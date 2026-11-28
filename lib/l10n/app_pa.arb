@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "ਜੇ ਓਨੀਅਨ ਪਤਾ ਅਸਫਲ ਹੋਵੇ",
   "siteNetworkOnionFallbackHint": "ਕੋਈ ਓਨੀਅਨ ਸੇਵਾ ਬੰਦ ਹੋ ਸਕਦੀ ਹੈ, ਜਾਂ ਉਸਦੇ ਸਰਟੀਫਿਕੇਟ ਦੀ ਮਿਆਦ ਖਤਮ ਹੋ ਸਕਦੀ ਹੈ। ਗਲਤੀ ਦਿਖਾਉਣ ਨਾਲ ਸਾਈਟ Tor ਦੇ ਅੰਦਰ ਰਹਿੰਦੀ ਹੈ। ਆਮ ਪਤਾ ਲੋਡ ਕਰਨ ਨਾਲ ਇਹ ਐਗਜ਼ਿਟ ਰਿਲੇ ਰਾਹੀਂ ਜਾਂਦੀ ਹੈ, ਜੋ ਦੇਖਦਾ ਹੈ ਕਿ ਟ੍ਰੈਫਿਕ ਕਿੱਥੇ ਜਾ ਰਿਹਾ ਹੈ।",
   "onionFallbackNone": "ਗਲਤੀ ਦਿਖਾਓ",
-  "onionFallbackClearnet": "ਆਮ ਪਤਾ ਲੋਡ ਕਰੋ"
+  "onionFallbackClearnet": "ਆਮ ਪਤਾ ਲੋਡ ਕਰੋ",
+  "shortcutMenuTitle": "ਸਾਈਟ",
+  "shortcutMenuNewTab": "ਨਵੀਂ ਟੈਬ",
+  "shortcutMenuReopenClosedTab": "ਬੰਦ ਕੀਤੀ ਟੈਬ ਮੁੜ ਖੋਲ੍ਹੋ",
+  "shortcutMenuCloseTab": "ਟੈਬ ਬੰਦ ਕਰੋ",
+  "shortcutMenuFocusUrlBar": "ਪਤਾ ਸੋਧੋ",
+  "shortcutMenuLeavePage": "ਫੋਕਸ ਨੂੰ ਪੰਨੇ ਤੋਂ ਬਾਹਰ ਲਿਜਾਓ",
+  "shortcutMenuReload": "ਪੰਨਾ ਮੁੜ ਲੋਡ ਕਰੋ",
+  "shortcutMenuFind": "ਪੰਨੇ ਵਿੱਚ ਲੱਭੋ",
+  "shortcutMenuBack": "ਵਾਪਸ",
+  "shortcutMenuForward": "ਅੱਗੇ",
+  "shortcutMenuNextSite": "ਅਗਲੀ ਸਾਈਟ",
+  "shortcutMenuPreviousSite": "ਪਿਛਲੀ ਸਾਈਟ",
+  "shortcutMenuLastSite": "ਆਖਰੀ ਸਾਈਟ",
+  "shortcutMenuToggleSidebar": "ਸਾਈਡਬਾਰ ਦਿਖਾਓ ਜਾਂ ਲੁਕਾਓ",
+  "shortcutMenuSiteAt": "ਸਾਈਟ {number}"
 }

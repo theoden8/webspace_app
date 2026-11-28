@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "اگر نشانی پیازی کار نکرد",
   "siteNetworkOnionFallbackHint": "یک سرویس پیازی ممکن است از دسترس خارج باشد یا گواهی‌اش منقضی شود. نمایش خطا سایت را درون Tor نگه می‌دارد. بارگیری نشانی معمول آن را از یک رلهٔ خروجی می‌فرستد که می‌بیند ترافیک به کجا می‌رود.",
   "onionFallbackNone": "نمایش خطا",
-  "onionFallbackClearnet": "بارگیری نشانی معمول"
+  "onionFallbackClearnet": "بارگیری نشانی معمول",
+  "shortcutMenuTitle": "سایت",
+  "shortcutMenuNewTab": "زبانهٔ جدید",
+  "shortcutMenuReopenClosedTab": "بازگشایی زبانهٔ بسته‌شده",
+  "shortcutMenuCloseTab": "بستن زبانه",
+  "shortcutMenuFocusUrlBar": "ویرایش نشانی",
+  "shortcutMenuLeavePage": "بردن تمرکز به بیرون از صفحه",
+  "shortcutMenuReload": "بارگیری دوبارهٔ صفحه",
+  "shortcutMenuFind": "یافتن در صفحه",
+  "shortcutMenuBack": "بازگشت",
+  "shortcutMenuForward": "جلو",
+  "shortcutMenuNextSite": "سایت بعدی",
+  "shortcutMenuPreviousSite": "سایت قبلی",
+  "shortcutMenuLastSite": "آخرین سایت",
+  "shortcutMenuToggleSidebar": "نمایش یا پنهان کردن نوار کناری",
+  "shortcutMenuSiteAt": "سایت {number}"
 }

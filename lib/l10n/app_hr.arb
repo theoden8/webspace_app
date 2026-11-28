@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Ako onion adresa ne uspije",
   "siteNetworkOnionFallbackHint": "Onion usluga može biti nedostupna ili joj certifikat može isteći. Prikaz pogreške drži stranicu unutar Tora. Učitavanje uobičajene adrese šalje je kroz izlazni relej, koji vidi kamo promet ide.",
   "onionFallbackNone": "Prikaži pogrešku",
-  "onionFallbackClearnet": "Učitaj uobičajenu adresu"
+  "onionFallbackClearnet": "Učitaj uobičajenu adresu",
+  "shortcutMenuTitle": "Stranica",
+  "shortcutMenuNewTab": "Nova kartica",
+  "shortcutMenuReopenClosedTab": "Ponovno otvori zatvorenu karticu",
+  "shortcutMenuCloseTab": "Zatvori karticu",
+  "shortcutMenuFocusUrlBar": "Uredi adresu",
+  "shortcutMenuLeavePage": "Premjesti fokus izvan stranice",
+  "shortcutMenuReload": "Ponovno učitaj stranicu",
+  "shortcutMenuFind": "Pronađi na stranici",
+  "shortcutMenuBack": "Natrag",
+  "shortcutMenuForward": "Naprijed",
+  "shortcutMenuNextSite": "Sljedeća stranica",
+  "shortcutMenuPreviousSite": "Prethodna stranica",
+  "shortcutMenuLastSite": "Posljednja stranica",
+  "shortcutMenuToggleSidebar": "Prikaži ili sakrij bočnu traku",
+  "shortcutMenuSiteAt": "Stranica {number}"
 }

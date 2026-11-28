@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Hvis onion-adressen fejler",
   "siteNetworkOnionFallbackHint": "En onion-tjeneste kan være nede, eller dens certifikat kan udløbe. At vise fejlen holder webstedet inde i Tor. At indlæse den sædvanlige adresse sender det gennem et exit-relæ, som ser, hvor trafikken går hen.",
   "onionFallbackNone": "Vis fejlen",
-  "onionFallbackClearnet": "Indlæs den sædvanlige adresse"
+  "onionFallbackClearnet": "Indlæs den sædvanlige adresse",
+  "shortcutMenuTitle": "Websted",
+  "shortcutMenuNewTab": "Nyt faneblad",
+  "shortcutMenuReopenClosedTab": "Genåbn lukket faneblad",
+  "shortcutMenuCloseTab": "Luk faneblad",
+  "shortcutMenuFocusUrlBar": "Rediger adresse",
+  "shortcutMenuLeavePage": "Flyt fokus ud af siden",
+  "shortcutMenuReload": "Genindlæs siden",
+  "shortcutMenuFind": "Find på siden",
+  "shortcutMenuBack": "Tilbage",
+  "shortcutMenuForward": "Frem",
+  "shortcutMenuNextSite": "Næste websted",
+  "shortcutMenuPreviousSite": "Forrige websted",
+  "shortcutMenuLastSite": "Sidste websted",
+  "shortcutMenuToggleSidebar": "Vis eller skjul sidepanel",
+  "shortcutMenuSiteAt": "Websted {number}"
 }

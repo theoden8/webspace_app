@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Se o enderezo onion falla",
   "siteNetworkOnionFallbackHint": "Un servizo onion pode estar caído ou o seu certificado pode caducar. Amosar o erro mantén o sitio dentro de Tor. Cargar o enderezo habitual mándao por un repetidor de saída, que ve a onde vai o tráfico.",
   "onionFallbackNone": "Amosar o erro",
-  "onionFallbackClearnet": "Cargar o enderezo habitual"
+  "onionFallbackClearnet": "Cargar o enderezo habitual",
+  "shortcutMenuTitle": "Sitio",
+  "shortcutMenuNewTab": "Nova lapela",
+  "shortcutMenuReopenClosedTab": "Volver abrir a lapela pechada",
+  "shortcutMenuCloseTab": "Pechar a lapela",
+  "shortcutMenuFocusUrlBar": "Editar o enderezo",
+  "shortcutMenuLeavePage": "Sacar o foco da páxina",
+  "shortcutMenuReload": "Volver cargar a páxina",
+  "shortcutMenuFind": "Buscar na páxina",
+  "shortcutMenuBack": "Atrás",
+  "shortcutMenuForward": "Adiante",
+  "shortcutMenuNextSite": "Seguinte sitio",
+  "shortcutMenuPreviousSite": "Sitio anterior",
+  "shortcutMenuLastSite": "Último sitio",
+  "shortcutMenuToggleSidebar": "Mostrar ou ocultar a barra lateral",
+  "shortcutMenuSiteAt": "Sitio {number}"
 }

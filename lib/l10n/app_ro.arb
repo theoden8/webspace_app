@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Dacă adresa onion eșuează",
   "siteNetworkOnionFallbackHint": "Un serviciu onion poate fi indisponibil sau certificatul lui poate expira. Afișarea erorii ține site-ul în Tor. Încărcarea adresei obișnuite îl trimite printr-un releu de ieșire, care vede unde merge traficul.",
   "onionFallbackNone": "Afișează eroarea",
-  "onionFallbackClearnet": "Încarcă adresa obișnuită"
+  "onionFallbackClearnet": "Încarcă adresa obișnuită",
+  "shortcutMenuTitle": "Site",
+  "shortcutMenuNewTab": "Filă nouă",
+  "shortcutMenuReopenClosedTab": "Redeschide fila închisă",
+  "shortcutMenuCloseTab": "Închide fila",
+  "shortcutMenuFocusUrlBar": "Editează adresa",
+  "shortcutMenuLeavePage": "Mută focalizarea în afara paginii",
+  "shortcutMenuReload": "Reîncarcă pagina",
+  "shortcutMenuFind": "Caută în pagină",
+  "shortcutMenuBack": "Înapoi",
+  "shortcutMenuForward": "Înainte",
+  "shortcutMenuNextSite": "Site-ul următor",
+  "shortcutMenuPreviousSite": "Site-ul anterior",
+  "shortcutMenuLastSite": "Ultimul site",
+  "shortcutMenuToggleSidebar": "Afișează sau ascunde bara laterală",
+  "shortcutMenuSiteAt": "Site-ul {number}"
 }

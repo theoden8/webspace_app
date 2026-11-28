@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Kui onion-aadress ei tööta",
   "siteNetworkOnionFallbackHint": "Onion-teenus võib olla maas või selle sertifikaat võib aeguda. Vea näitamine hoiab saidi Tori sees. Tavalise aadressi laadimine saadab selle väljundsõlme kaudu, mis näeb, kuhu liiklus läheb.",
   "onionFallbackNone": "Näita viga",
-  "onionFallbackClearnet": "Laadi tavaline aadress"
+  "onionFallbackClearnet": "Laadi tavaline aadress",
+  "shortcutMenuTitle": "Sait",
+  "shortcutMenuNewTab": "Uus kaart",
+  "shortcutMenuReopenClosedTab": "Ava suletud kaart uuesti",
+  "shortcutMenuCloseTab": "Sulge kaart",
+  "shortcutMenuFocusUrlBar": "Muuda aadressi",
+  "shortcutMenuLeavePage": "Vii fookus lehelt välja",
+  "shortcutMenuReload": "Laadi leht uuesti",
+  "shortcutMenuFind": "Otsi lehelt",
+  "shortcutMenuBack": "Tagasi",
+  "shortcutMenuForward": "Edasi",
+  "shortcutMenuNextSite": "Järgmine sait",
+  "shortcutMenuPreviousSite": "Eelmine sait",
+  "shortcutMenuLastSite": "Viimane sait",
+  "shortcutMenuToggleSidebar": "Näita või peida külgriba",
+  "shortcutMenuSiteAt": "Sait {number}"
 }

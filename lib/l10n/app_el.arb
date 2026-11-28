@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Αν η διεύθυνση onion αποτύχει",
   "siteNetworkOnionFallbackHint": "Μια υπηρεσία onion μπορεί να είναι εκτός λειτουργίας ή το πιστοποιητικό της να λήξει. Η εμφάνιση του σφάλματος κρατά τον ιστότοπο μέσα στο Tor. Η φόρτωση της συνηθισμένης διεύθυνσης τον στέλνει μέσω ενός αναμεταδότη εξόδου, που βλέπει πού πηγαίνει η κίνηση.",
   "onionFallbackNone": "Εμφάνιση σφάλματος",
-  "onionFallbackClearnet": "Φόρτωση συνηθισμένης διεύθυνσης"
+  "onionFallbackClearnet": "Φόρτωση συνηθισμένης διεύθυνσης",
+  "shortcutMenuTitle": "Ιστότοπος",
+  "shortcutMenuNewTab": "Νέα καρτέλα",
+  "shortcutMenuReopenClosedTab": "Επαναφορά κλειστής καρτέλας",
+  "shortcutMenuCloseTab": "Κλείσιμο καρτέλας",
+  "shortcutMenuFocusUrlBar": "Επεξεργασία διεύθυνσης",
+  "shortcutMenuLeavePage": "Μετακίνηση εστίασης εκτός σελίδας",
+  "shortcutMenuReload": "Επαναφόρτωση σελίδας",
+  "shortcutMenuFind": "Εύρεση στη σελίδα",
+  "shortcutMenuBack": "Πίσω",
+  "shortcutMenuForward": "Εμπρός",
+  "shortcutMenuNextSite": "Επόμενος ιστότοπος",
+  "shortcutMenuPreviousSite": "Προηγούμενος ιστότοπος",
+  "shortcutMenuLastSite": "Τελευταίος ιστότοπος",
+  "shortcutMenuToggleSidebar": "Εμφάνιση ή απόκρυψη πλευρικής στήλης",
+  "shortcutMenuSiteAt": "Ιστότοπος {number}"
 }

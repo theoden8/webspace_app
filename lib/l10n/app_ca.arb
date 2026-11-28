@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Si l'adreça onion falla",
   "siteNetworkOnionFallbackHint": "Un servei onion pot estar caigut o el seu certificat pot caducar. Mostrar l'error manté el lloc dins de Tor. Carregar l'adreça habitual l'envia per un relé de sortida, que veu cap a on va el trànsit.",
   "onionFallbackNone": "Mostra l'error",
-  "onionFallbackClearnet": "Carrega l'adreça habitual"
+  "onionFallbackClearnet": "Carrega l'adreça habitual",
+  "shortcutMenuTitle": "Lloc",
+  "shortcutMenuNewTab": "Pestanya nova",
+  "shortcutMenuReopenClosedTab": "Torna a obrir la pestanya tancada",
+  "shortcutMenuCloseTab": "Tanca la pestanya",
+  "shortcutMenuFocusUrlBar": "Edita l'adreça",
+  "shortcutMenuLeavePage": "Treu el focus de la pàgina",
+  "shortcutMenuReload": "Torna a carregar la pàgina",
+  "shortcutMenuFind": "Cerca a la pàgina",
+  "shortcutMenuBack": "Enrere",
+  "shortcutMenuForward": "Endavant",
+  "shortcutMenuNextSite": "Lloc següent",
+  "shortcutMenuPreviousSite": "Lloc anterior",
+  "shortcutMenuLastSite": "Últim lloc",
+  "shortcutMenuToggleSidebar": "Mostra o amaga la barra lateral",
+  "shortcutMenuSiteAt": "Lloc {number}"
 }

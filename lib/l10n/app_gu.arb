@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "જો ઓનિયન સરનામું નિષ્ફળ જાય",
   "siteNetworkOnionFallbackHint": "ઓનિયન સેવા બંધ હોઈ શકે છે, અથવા તેનું પ્રમાણપત્ર સમાપ્ત થઈ શકે છે. ભૂલ બતાવવાથી સાઇટ Tor ની અંદર રહે છે. સામાન્ય સરનામું લોડ કરવાથી તે એક્ઝિટ રિલે મારફતે જાય છે, જે જુએ છે કે ટ્રાફિક ક્યાં જાય છે.",
   "onionFallbackNone": "ભૂલ બતાવો",
-  "onionFallbackClearnet": "સામાન્ય સરનામું લોડ કરો"
+  "onionFallbackClearnet": "સામાન્ય સરનામું લોડ કરો",
+  "shortcutMenuTitle": "સાઇટ",
+  "shortcutMenuNewTab": "નવું ટૅબ",
+  "shortcutMenuReopenClosedTab": "બંધ કરેલું ટૅબ ફરી ખોલો",
+  "shortcutMenuCloseTab": "ટૅબ બંધ કરો",
+  "shortcutMenuFocusUrlBar": "સરનામું સંપાદિત કરો",
+  "shortcutMenuLeavePage": "ફોકસ પેજની બહાર ખસેડો",
+  "shortcutMenuReload": "પેજ ફરી લોડ કરો",
+  "shortcutMenuFind": "પેજમાં શોધો",
+  "shortcutMenuBack": "પાછા",
+  "shortcutMenuForward": "આગળ",
+  "shortcutMenuNextSite": "આગલી સાઇટ",
+  "shortcutMenuPreviousSite": "પાછલી સાઇટ",
+  "shortcutMenuLastSite": "છેલ્લી સાઇટ",
+  "shortcutMenuToggleSidebar": "સાઇડબાર બતાવો અથવા છુપાવો",
+  "shortcutMenuSiteAt": "સાઇટ {number}"
 }

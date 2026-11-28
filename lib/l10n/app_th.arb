@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "หากที่อยู่ Onion ล้มเหลว",
   "siteNetworkOnionFallbackHint": "บริการ Onion อาจล่ม หรือใบรับรองอาจหมดอายุ การแสดงข้อผิดพลาดทำให้เว็บไซต์อยู่ภายใน Tor การโหลดที่อยู่ปกติจะส่งผ่านรีเลย์ทางออก ซึ่งมองเห็นว่าทราฟฟิกไปที่ใด",
   "onionFallbackNone": "แสดงข้อผิดพลาด",
-  "onionFallbackClearnet": "โหลดที่อยู่ปกติ"
+  "onionFallbackClearnet": "โหลดที่อยู่ปกติ",
+  "shortcutMenuTitle": "เว็บไซต์",
+  "shortcutMenuNewTab": "แท็บใหม่",
+  "shortcutMenuReopenClosedTab": "เปิดแท็บที่ปิดไปอีกครั้ง",
+  "shortcutMenuCloseTab": "ปิดแท็บ",
+  "shortcutMenuFocusUrlBar": "แก้ไขที่อยู่",
+  "shortcutMenuLeavePage": "ย้ายโฟกัสออกจากหน้า",
+  "shortcutMenuReload": "โหลดหน้าซ้ำ",
+  "shortcutMenuFind": "ค้นหาในหน้า",
+  "shortcutMenuBack": "ย้อนกลับ",
+  "shortcutMenuForward": "ไปข้างหน้า",
+  "shortcutMenuNextSite": "เว็บไซต์ถัดไป",
+  "shortcutMenuPreviousSite": "เว็บไซต์ก่อนหน้า",
+  "shortcutMenuLastSite": "เว็บไซต์สุดท้าย",
+  "shortcutMenuToggleSidebar": "แสดงหรือซ่อนแถบด้านข้าง",
+  "shortcutMenuSiteAt": "เว็บไซต์ {number}"
 }

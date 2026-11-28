@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Onion アドレスが使えないとき",
   "siteNetworkOnionFallbackHint": "Onion サービスは停止していることがあり、証明書の期限が切れることもあります。エラーを表示すると、サイトは Tor の中にとどまります。通常のアドレスを読み込むと、通信は出口リレーを通り、その行き先が出口リレーに見えます。",
   "onionFallbackNone": "エラーを表示",
-  "onionFallbackClearnet": "通常のアドレスを読み込む"
+  "onionFallbackClearnet": "通常のアドレスを読み込む",
+  "shortcutMenuTitle": "サイト",
+  "shortcutMenuNewTab": "新しいタブ",
+  "shortcutMenuReopenClosedTab": "閉じたタブを開き直す",
+  "shortcutMenuCloseTab": "タブを閉じる",
+  "shortcutMenuFocusUrlBar": "アドレスを編集",
+  "shortcutMenuLeavePage": "ページからフォーカスを移す",
+  "shortcutMenuReload": "ページを再読み込み",
+  "shortcutMenuFind": "ページ内を検索",
+  "shortcutMenuBack": "戻る",
+  "shortcutMenuForward": "進む",
+  "shortcutMenuNextSite": "次のサイト",
+  "shortcutMenuPreviousSite": "前のサイト",
+  "shortcutMenuLastSite": "最後のサイト",
+  "shortcutMenuToggleSidebar": "サイドバーを表示/非表示",
+  "shortcutMenuSiteAt": "サイト {number}"
 }

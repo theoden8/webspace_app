@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "ओनियन पत्ता अयशस्वी झाल्यास",
   "siteNetworkOnionFallbackHint": "एखादी ओनियन सेवा बंद असू शकते, किंवा तिच्या प्रमाणपत्राची मुदत संपू शकते. त्रुटी दाखवल्याने साइट Tor च्या आतच राहते. नेहमीचा पत्ता लोड केल्याने ती एक्झिट रिलेमधून जाते, जो पाहतो की ट्रॅफिक कुठे जात आहे.",
   "onionFallbackNone": "त्रुटी दाखवा",
-  "onionFallbackClearnet": "नेहमीचा पत्ता लोड करा"
+  "onionFallbackClearnet": "नेहमीचा पत्ता लोड करा",
+  "shortcutMenuTitle": "साइट",
+  "shortcutMenuNewTab": "नवीन टॅब",
+  "shortcutMenuReopenClosedTab": "बंद केलेला टॅब पुन्हा उघडा",
+  "shortcutMenuCloseTab": "टॅब बंद करा",
+  "shortcutMenuFocusUrlBar": "पत्ता संपादित करा",
+  "shortcutMenuLeavePage": "फोकस पेजबाहेर हलवा",
+  "shortcutMenuReload": "पेज पुन्हा लोड करा",
+  "shortcutMenuFind": "पेजमध्ये शोधा",
+  "shortcutMenuBack": "मागे",
+  "shortcutMenuForward": "पुढे",
+  "shortcutMenuNextSite": "पुढील साइट",
+  "shortcutMenuPreviousSite": "मागील साइट",
+  "shortcutMenuLastSite": "शेवटची साइट",
+  "shortcutMenuToggleSidebar": "साइडबार दाखवा किंवा लपवा",
+  "shortcutMenuSiteAt": "साइट {number}"
 }

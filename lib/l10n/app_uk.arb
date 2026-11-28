@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "Якщо onion-адреса не працює",
   "siteNetworkOnionFallbackHint": "Onion-сервіс може не працювати, або строк дії його сертифіката може закінчитися. Показ помилки залишає сайт усередині Tor. Завантаження звичайної адреси надсилає його через вихідний вузол, який бачить, куди йде трафік.",
   "onionFallbackNone": "Показати помилку",
-  "onionFallbackClearnet": "Завантажити звичайну адресу"
+  "onionFallbackClearnet": "Завантажити звичайну адресу",
+  "shortcutMenuTitle": "Сайт",
+  "shortcutMenuNewTab": "Нова вкладка",
+  "shortcutMenuReopenClosedTab": "Знову відкрити закриту вкладку",
+  "shortcutMenuCloseTab": "Закрити вкладку",
+  "shortcutMenuFocusUrlBar": "Редагувати адресу",
+  "shortcutMenuLeavePage": "Перемістити фокус за межі сторінки",
+  "shortcutMenuReload": "Перезавантажити сторінку",
+  "shortcutMenuFind": "Знайти на сторінці",
+  "shortcutMenuBack": "Назад",
+  "shortcutMenuForward": "Уперед",
+  "shortcutMenuNextSite": "Наступний сайт",
+  "shortcutMenuPreviousSite": "Попередній сайт",
+  "shortcutMenuLastSite": "Останній сайт",
+  "shortcutMenuToggleSidebar": "Показати або сховати бічну панель",
+  "shortcutMenuSiteAt": "Сайт {number}"
 }

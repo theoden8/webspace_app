@@ -1394,5 +1394,20 @@
   "siteNetworkOnionFallback": "אם כתובת ה-Onion נכשלת",
   "siteNetworkOnionFallbackHint": "שירות Onion עשוי להיות מושבת, או שתוקף האישור שלו יפוג. הצגת השגיאה משאירה את האתר בתוך Tor. טעינת הכתובת הרגילה שולחת אותו דרך ממסר יציאה, שרואה לאן התעבורה הולכת.",
   "onionFallbackNone": "להציג את השגיאה",
-  "onionFallbackClearnet": "לטעון את הכתובת הרגילה"
+  "onionFallbackClearnet": "לטעון את הכתובת הרגילה",
+  "shortcutMenuTitle": "אתר",
+  "shortcutMenuNewTab": "כרטיסייה חדשה",
+  "shortcutMenuReopenClosedTab": "פתיחה מחדש של כרטיסייה שנסגרה",
+  "shortcutMenuCloseTab": "סגירת הכרטיסייה",
+  "shortcutMenuFocusUrlBar": "עריכת הכתובת",
+  "shortcutMenuLeavePage": "הוצאת המיקוד מהדף",
+  "shortcutMenuReload": "טעינה מחדש של הדף",
+  "shortcutMenuFind": "חיפוש בדף",
+  "shortcutMenuBack": "חזרה",
+  "shortcutMenuForward": "קדימה",
+  "shortcutMenuNextSite": "האתר הבא",
+  "shortcutMenuPreviousSite": "האתר הקודם",
+  "shortcutMenuLastSite": "האתר האחרון",
+  "shortcutMenuToggleSidebar": "הצגה או הסתרה של סרגל הצד",
+  "shortcutMenuSiteAt": "אתר {number}"
 }
