@@ -29,7 +29,7 @@ test('HINTS-005: the Dart that builds the script has no platform branch', () => 
 
 test('HINTS-005: a theme change reinstalls it the same way on every platform', () => {
   const src = dart('lib/services/webview_controller.dart');
-  for (const method of ['Future<void> setThemePreference(WebViewTheme theme) async', 'Future<void> _rotateShim(']) {
+  for (const method of ['Future<void> setThemePreference(Brightness told) async', 'Future<void> _rotateShim(']) {
     assert.doesNotMatch(blockAfter(src, method), PLATFORM, method);
   }
 });

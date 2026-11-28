@@ -27,16 +27,6 @@ test('light fixture: matchMedia(prefers-color-scheme: light) → matches=true', 
     dom.window.matchMedia('(prefers-color-scheme: dark)').matches, false);
 });
 
-test('system fixture: resolves to host preference at install time', () => {
-  // jsdom's matchMedia stub returns {matches:false} for every query,
-  // so prefers-color-scheme: dark is false → resolved theme is light.
-  // The Tier 2 test exercises the real-engine resolution path.
-  const dom = loadShim(pageJs('theme_color_scheme', { theme: 'system' }));
-  assert.equal(dom.window.__appThemePreference, 'light');
-  assert.equal(
-    dom.window.matchMedia('(prefers-color-scheme: light)').matches, true);
-});
-
 test('non-color-scheme matchMedia queries fall through to the wrapper', () => {
   // The shim only forges prefers-color-scheme answers; width-based
   // and other queries must defer to the real (or jsdom-stub) matchMedia.

@@ -7,10 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/page_shim.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
+import 'package:webspace/services/page_backdrop.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/user_agent_metadata_builder.dart';
 import 'package:webspace/services/log_service.dart';
-import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/services/file_import_document.dart';
 import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/webview.dart';
@@ -83,7 +83,7 @@ abstract class WebViewController implements LeavingView {
     bool? thirdPartyCookiesEnabled,
     bool? incognito,
   });
-  Future<void> setThemePreference(WebViewTheme theme);
+  Future<void> setThemePreference(Brightness told);
   /// Update the page-text zoom (percent, 100 = unscaled). Used to track
   /// system "font size" accessibility changes after the webview is created.
   Future<void> setTextZoom(int zoomPercent);
@@ -367,6 +367,10 @@ class PlatformWebViewController implements WebViewController {
   /// ([WebViewFactory.navigationHeaders]), for a load [reload] issues again.
   final Map<String, String> _navigationHeaders;
 
+  /// The surface under the site's own webview, which follows the scheme the
+  /// page is told; null for a popup.
+  final PageBackdrop? _backdrop;
+
   PlatformWebViewController(
     this._c, {
     required PauseTimersHackState pauseHack,
@@ -375,12 +379,14 @@ class PlatformWebViewController implements WebViewController {
     required bool Function(String url) refuses,
     required Map<String, String> navigationHeaders,
     FileImportDocument? fileImport,
+    PageBackdrop? backdrop,
   })  : _pauseHack = pauseHack,
         _settings = settings,
         _loadsAfter = loadsAfter,
         _refuses = refuses,
         _navigationHeaders = navigationHeaders,
-        _import = fileImport;
+        _import = fileImport,
+        _backdrop = backdrop;
 
   /// Null when the webview is gone or the platform refused: a native
   /// failure arrives as [PlatformException], a torn-down platform view as
@@ -516,7 +522,8 @@ class PlatformWebViewController implements WebViewController {
   }
 
   @override
-  Future<void> setThemePreference(WebViewTheme theme) async {
+  Future<void> setThemePreference(Brightness told) async {
+    _backdrop?.tell(told);
     // Rotate the DOCUMENT_START user script so future page loads
     // (including controller.reload()) re-run the shim. Without this,
     // a refresh drops the matchMedia override and `<meta name=
@@ -524,7 +531,7 @@ class PlatformWebViewController implements WebViewController {
     // (typically light), since onUrlChanged dedups same-URL events
     // and skips its own evaluateJavascript reapplication.
     await _rotateShim(
-        LiveShim.themeColorScheme, shim: buildThemeColorSchemeShim(theme));
+        LiveShim.themeColorScheme, shim: buildThemeColorSchemeShim(told));
   }
 
   @override

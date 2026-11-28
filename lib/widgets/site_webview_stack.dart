@@ -7,7 +7,6 @@ import 'package:webspace/web_view_model_hooks.dart';
 import 'package:webspace/widgets/stats_banner.dart';
 import 'package:webspace/widgets/tor_bootstrap.dart';
 import 'package:webspace/widgets/unproxied_block.dart';
-import 'package:webspace/settings/web_view_theme.dart';
 
 /// One webview per loaded site, the one at [current] showing. A slot that is
 /// not loaded holds an empty box, so positions line up with [models] and a
@@ -173,12 +172,9 @@ class _SiteWebViewState extends State<_SiteWebView> {
   String? _importedHtml(BuildContext context) {
     final cached = HtmlImportStorage.instance.getHtmlSync(site.siteId);
     if (cached == null) return null;
-    final isDark = switch (site.effectiveTheme) {
-      WebViewTheme.dark => true,
-      WebViewTheme.light => false,
-      WebViewTheme.system =>
-        MediaQuery.platformBrightnessOf(context) == Brightness.dark,
-    };
-    return HtmlImportStorage.applyThemePrelude(cached, dark: isDark);
+    final told =
+        site.effectiveTheme.under(MediaQuery.platformBrightnessOf(context));
+    return HtmlImportStorage.applyThemePrelude(cached,
+        dark: told == Brightness.dark);
   }
 }

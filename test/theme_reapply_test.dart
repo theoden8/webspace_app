@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/settings/shim_group.dart';
@@ -72,5 +73,34 @@ void main() {
     await settleRealApp(tester);
 
     expect(_lastTheme(_follows), isNotNull);
+  });
+
+  testWidgets(
+      'HINTS-003: under the system theme, the platform turning dark reaches '
+      'every open webview that follows it, and a site with its own keeps it',
+      (tester) async {
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+    await pumpRealApp(
+      tester,
+      sites: [
+        WebViewModel(initUrl: _light, name: 'Light', theme: WebViewTheme.light),
+        WebViewModel(initUrl: _follows, name: 'Follows'),
+      ],
+    );
+    await openWebspace(tester, name: 'All');
+    await openSiteFromDrawer(tester, name: 'Light');
+    await attachWebViews(tester);
+    await openSiteFromDrawer(tester, name: 'Follows');
+    await attachWebViews(tester);
+    expect(_lastTheme(_follows), 'light',
+        reason: 'the system theme is told as the brightness it names');
+    webViewUserScripts.clear();
+
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+    await settleRealApp(tester);
+
+    expect(_lastTheme(_follows), 'dark');
+    expect(_lastTheme(_light), isNull);
   });
 }

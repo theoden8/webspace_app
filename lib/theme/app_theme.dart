@@ -19,10 +19,7 @@ ThemeData buildAppTheme(Color accent,
               : null);
   return ThemeData(
     colorScheme: scheme,
-    scaffoldBackgroundColor: switch (brightness) {
-      Brightness.light => const Color(0xFFFFFFFF),
-      Brightness.dark => const Color(0xFF000000),
-    },
+    scaffoldBackgroundColor: appBackground(brightness),
     switchTheme: SwitchThemeData(
       trackColor: whenOn(scheme.accentIndicator),
       thumbColor: whenOn(scheme.onAccentIndicator),

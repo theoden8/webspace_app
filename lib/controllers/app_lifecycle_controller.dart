@@ -5,6 +5,7 @@ import 'package:webspace/controllers/startup_controller.dart' show Launched, Rea
 import 'package:webspace/controllers/background_sites_controller.dart';
 import 'package:webspace/controllers/let_go_table.dart';
 import 'package:webspace/controllers/page_host.dart';
+import 'package:webspace/settings/web_view_theme.dart';
 import 'package:webspace/controllers/shortcut_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/surface_repaint_controller.dart';
@@ -350,6 +351,14 @@ class AppLifecycleController {
     final zoom = WebViewFactory.systemTextZoomPercent();
     for (final m in _sites.loaded) {
       unawaited(m.controller?.setTextZoom(zoom));
+    }
+  }
+
+  /// Under the system theme the platform's brightness is what pages are
+  /// told, so each live site following it is told again (A11Y-008).
+  void platformBrightnessChanged() {
+    for (final m in _sites.loaded) {
+      if (m.effectiveTheme == WebViewTheme.system) unawaited(m.reapplyTheme());
     }
   }
 }
