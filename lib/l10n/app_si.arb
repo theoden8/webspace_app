@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "එක් අඩවියකට එක් ටැබයක් පමණක් පූරණය වී පවතී; අනෙක්වා විවෘත කළ විට යළි පූරණය වේ",
   "tabsCloseTab": "ටැබ් වසන්න",
   "tabsCloseSubtree": "ටැබ් එකත් එයින් විවෘත කළ ටැබ් ද වසන්න",
+  "tabsMoveUnder": "{title} යටතට ගෙන යන්න",
+  "tabsMoveOutOf": "{title} වෙතින් පිටතට ගෙන යන්න",
   "tabsLive": "විවෘතයි",
   "tabsLoaded": "පූරණය කර ඇත",
   "tabsExpand": "මෙයින් විවෘත කළ ටැබ් පෙන්වන්න",

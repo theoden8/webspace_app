@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Fiecare site păstrează încărcată o singură filă; celelalte se reîncarcă la deschidere",
   "tabsCloseTab": "Închide fila",
   "tabsCloseSubtree": "Închide fila și filele deschise din ea",
+  "tabsMoveUnder": "Mută sub {title}",
+  "tabsMoveOutOf": "Scoate din {title}",
   "tabsLive": "deschisă",
   "tabsLoaded": "încărcată",
   "tabsExpand": "Arată filele deschise din aceasta",

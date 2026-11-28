@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Katrai vietnei ielādēta paliek viena cilne; pārējās tiek ielādētas no jauna, kad tās atver",
   "tabsCloseTab": "Aizvērt cilni",
   "tabsCloseSubtree": "Aizvērt cilni un no tās atvērtās cilnes",
+  "tabsMoveUnder": "Pārvietot zem {title}",
+  "tabsMoveOutOf": "Izcelt no {title}",
   "tabsLive": "atvērta",
   "tabsLoaded": "ielādēta",
   "tabsExpand": "Rādīt no šīs atvērtās cilnes",

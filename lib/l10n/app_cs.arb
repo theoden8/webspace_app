@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Každý web drží načtený jen jeden panel; ostatní se při otevření načtou znovu",
   "tabsCloseTab": "Zavřít panel",
   "tabsCloseSubtree": "Zavřít panel i panely z něj otevřené",
+  "tabsMoveUnder": "Přesunout pod {title}",
+  "tabsMoveOutOf": "Přesunout mimo {title}",
   "tabsLive": "otevřený",
   "tabsLoaded": "načtený",
   "tabsExpand": "Zobrazit panely otevřené z tohoto",

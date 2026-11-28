@@ -1,21 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/site_menu.dart';
 
+import 'helpers/label_shows_text.dart';
 import 'helpers/localized.dart';
+import 'helpers/model_fixture.dart';
 import 'helpers/real_app.dart';
 import 'helpers/semantics_actions.dart';
 
 /// Every control of the chrome has a name, a role and an action a screen
 /// reader reaches: the real app's common screens hold no tappable node
-/// without a label, a site in the drawer opens, is moved and shows its menu
-/// through semantics alone, the site menu's top row is four controls, not
-/// one, with its long presses as actions, and the find bar's match count is
-/// read as it changes.
+/// without a label, nor one whose label leaves out the text it shows, the
+/// Tabs sheet's drags are actions too, a site in the drawer opens, is moved
+/// and shows its menu through semantics alone, the site menu's top row is
+/// four controls, not one, with its long presses as actions, and the find
+/// bar's match count is read as it changes.
 void main() {
   const phone = Size(400, 800);
 
@@ -32,8 +37,10 @@ void main() {
     await openSiteFromDrawer(tester, name: 'Docs');
   }
 
-  Future<void> named(WidgetTester tester) =>
-      expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+  Future<void> named(WidgetTester tester) async {
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(labelShowsTextGuideline));
+  }
 
   Future<void> namedScrolled(WidgetTester tester) async {
     await named(tester);
@@ -134,6 +141,67 @@ void main() {
     expect(
         find.descendant(of: find.byType(AppBar), matching: find.text('News')),
         findsOneWidget);
+    semantics.dispose();
+  });
+
+  testWidgets('every tappable node is named: the Tabs sheet, whose tabs and '
+      'sites move through actions', (tester) async {
+    final semantics = tester.ensureSemantics();
+    setViewSize(tester, size: phone);
+    final [docs, ...rest] = sites();
+    docs.setTabs([
+      ...docs.tabs,
+      for (final page in ['Drafts', 'Sent'])
+        SiteTab(
+            id: TabId(page),
+            url: 'https://docs.test/${page.toLowerCase()}',
+            title: page),
+    ]);
+    await pumpRealApp(tester, sites: [docs, ...rest], webspaces: [
+      Webspace(
+          id: WebspaceId('work'),
+          name: 'Work',
+          siteIds: [docs.siteId, for (final site in rest) site.siteId]),
+    ]);
+    await openWebspace(tester, name: 'Work');
+    await openSiteFromDrawer(tester, name: 'Docs');
+    await openTabsSheet(tester);
+    await named(tester);
+
+    expect(customActionsOf(pressable('Sent')), {'Move up', 'Move under Drafts'});
+    performCustomAction(pressable('Sent'), label: 'Move under Drafts');
+    await settleRealApp(tester);
+    expect(appSite('Docs').tabs.firstWhere((t) => t.title == 'Sent').parentId,
+        TabId('Drafts'));
+    expect(customActionsOf(pressable('Sent')),
+        {'Move out of Drafts', 'Move to the end'});
+
+    await tester.tap(find.text('All sites'));
+    await settleRealApp(tester);
+    await named(tester);
+    expect(customActionsOf(pressable('News')), {'Move up'});
+    performCustomAction(pressable('News'), label: 'Move up');
+    await settleRealApp(tester);
+    double top(String name) => tester.getTopLeft(find.text(name).last).dy;
+    expect(top('News'), lessThan(top('Mail')),
+        reason: 'the site moves without a drag');
+    semantics.dispose();
+  });
+
+  testWidgets('a site moved in the open Tabs sheet under All takes its new '
+      'place there, though its commit lands after the action', (tester) async {
+    final semantics = tester.ensureSemantics();
+    setViewSize(tester, size: phone);
+    await pumpRealApp(tester, sites: sites());
+    await openWebspace(tester, name: 'All');
+    await openSiteFromDrawer(tester, name: 'Docs');
+    await openTabsSheet(tester);
+    await tester.tap(find.text('All sites'));
+    await settleRealApp(tester);
+    performCustomAction(pressable('News'), label: 'Move up');
+    await settleRealApp(tester);
+    double top(String name) => tester.getTopLeft(find.text(name).last).dy;
+    expect(top('News'), lessThan(top('Mail')));
     semantics.dispose();
   });
 

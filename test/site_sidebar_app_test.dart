@@ -3,6 +3,7 @@
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show SemanticsAction;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/navigation_surface_engine.dart';
 import 'package:webspace/services/site_tab.dart';
@@ -242,6 +243,23 @@ void main() {
     await tester.dragFrom(edge + const Offset(40, 0), const Offset(400, 0));
     await settleRealApp(tester);
     expect(AppPref.sidebarWidth.value, 420);
+  });
+
+  testWidgets('a screen reader widens and narrows it through the edge\'s '
+      'scroll actions, as a drag does (TAB-032)', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await start(tester);
+    final edge = find.semantics.byLabel('Drag to resize the sidebar');
+    final before = AppPref.sidebarWidth.value;
+    tester.semantics.performAction(edge, SemanticsAction.scrollRight);
+    await settleRealApp(tester);
+    final wider = AppPref.sidebarWidth.value;
+    expect(wider, greaterThan(before));
+    expect(tester.getSize(docked(SiteSidebar).first).width, wider);
+    tester.semantics.performAction(edge, SemanticsAction.scrollLeft);
+    await settleRealApp(tester);
+    expect(AppPref.sidebarWidth.value, lessThan(wider));
+    semantics.dispose();
   });
 
   testWidgets('TAB-037 expand on hover: the rail opens over the page while the '

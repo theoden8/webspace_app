@@ -17,6 +17,7 @@ import 'package:webspace/services/step_table.dart';
 import 'helpers/fake_webview_controller.dart';
 import 'helpers/localized.dart';
 import 'helpers/model_fixture.dart';
+import 'helpers/semantics_actions.dart';
 import 'helpers/tab_chain.dart';
 
 Future<void> pumpSheet(
@@ -30,7 +31,7 @@ Future<void> pumpSheet(
   TabsSheetReopen? onReopen,
   bool Function(WebViewModel site,
       {required TabId tabId, required TabDrop drop})? onMoveTab,
-  List<TabsSheetSite>? Function(String siteId,
+  Future<List<TabsSheetSite>?> Function(String siteId,
       {required String ontoSiteId})? onMoveSite,
   TabReturn? wayBack,
   String? title,
@@ -246,6 +247,37 @@ void main() {
       expect(drops, isEmpty);
     });
 
+    testWidgets('a screen reader makes the moves a drag makes, on the row',
+        (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (m, drops) = await pumpDraggable(tester);
+      SemanticsFinder row(String url) => pressable(url);
+      expect(customActionsOf(row(a)), {'Move down', 'Move to the end'});
+      expect(customActionsOf(row(b)),
+          {'Move up', 'Move down', 'Move under $a', 'Move to the end'});
+      expect(customActionsOf(row(c)), {'Move up', 'Move under $b'});
+
+      Future<void> move(String url, {required String label}) async {
+        performCustomAction(row(url), label: label);
+        await tester.pumpAndSettle();
+      }
+
+      await move(c, label: 'Move under $b');
+      expect(m.tabs.firstWhere((t) => t.url == c).parentId, idOf(m, url: b));
+      expect(customActionsOf(row(c)), {'Move out of $b', 'Move to the end'});
+      await move(c, label: 'Move out of $b');
+      expect(m.tabs.every((t) => t.parentId == null), isTrue);
+      expect(rowOrder(tester, texts: [a, b, c]), [a, b, c]);
+      await move(b, label: 'Move up');
+      expect(rowOrder(tester, texts: [a, b, c]), [b, a, c]);
+      await move(b, label: 'Move down');
+      expect(rowOrder(tester, texts: [a, b, c]), [a, b, c]);
+      await move(a, label: 'Move to the end');
+      expect(rowOrder(tester, texts: [a, b, c]), [b, c, a]);
+      expect(drops, hasLength(5), reason: 'each move is a drop the host makes');
+      semantics.dispose();
+    });
+
     testWidgets('without a move handler a long press drags nothing',
         (tester) async {
       final m = siteWithRoots('GitHub', urls: [a, b]);
@@ -289,7 +321,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
         tester,
         sites: sites(),
         onOpenTab: onOpenTab,
-        onMoveSite: (id, {required ontoSiteId}) {
+        onMoveSite: (id, {required ontoSiteId}) async {
           moves.add((id, ontoSiteId));
           if (refuse) return null;
           final from = models.indexWhere((m) => m.siteId == id);
@@ -325,6 +357,34 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
       await gesture.up();
       await tester.pumpAndSettle();
     }
+
+    testWidgets('a screen reader moves a site up or down from its heading',
+        (tester) async {
+      final semantics = tester.ensureSemantics();
+      final (models, moves) = await pumpSites(tester);
+      final [github, mastodon, wikipedia] = [for (final m in models) m.siteId];
+      SemanticsFinder headed(String text) => find.semantics.byPredicate(
+            (node) =>
+                !node.isMergedIntoParent &&
+                node.label == text &&
+                (node.getSemanticsData().customSemanticsActionIds?.isNotEmpty ??
+                    false),
+            describeMatch: (_) => 'the heading $text',
+          );
+      expect(customActionsOf(headed(gh)), {'Move down'});
+      expect(customActionsOf(headed(md)), {'Move up', 'Move down'});
+      expect(customActionsOf(headed(wp)), {'Move up'});
+
+      performCustomAction(headed(wp), label: 'Move up');
+      await tester.pumpAndSettle();
+      expect(moves, [(wikipedia, mastodon)]);
+      expect(headingOrder(tester), [gh, wp, md]);
+      performCustomAction(headed(gh), label: 'Move down');
+      await tester.pumpAndSettle();
+      expect(moves.last, (github, wikipedia));
+      expect(headingOrder(tester), [wp, gh, md]);
+      semantics.dispose();
+    });
 
     testWidgets('a site dropped on an earlier heading takes its place',
         (tester) async {
@@ -1210,7 +1270,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
           TabsSheetSite(model: gh, isCurrent: true, isLoaded: true),
           TabsSheetSite(model: md, isCurrent: false, isLoaded: false),
         ],
-        onMoveSite: (id, {required ontoSiteId}) {
+        onMoveSite: (id, {required ontoSiteId}) async {
           moves.add((id, ontoSiteId));
           return null;
         },

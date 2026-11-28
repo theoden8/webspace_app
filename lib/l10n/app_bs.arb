@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Po jedna kartica svake stranice ostaje učitana; ostale se ponovo učitavaju kad ih otvorite",
   "tabsCloseTab": "Zatvori karticu",
   "tabsCloseSubtree": "Zatvori karticu i kartice otvorene iz nje",
+  "tabsMoveUnder": "Premjesti ispod {title}",
+  "tabsMoveOutOf": "Premjesti izvan {title}",
   "tabsLive": "otvorena",
   "tabsLoaded": "učitana",
   "tabsExpand": "Prikaži kartice otvorene iz ove",

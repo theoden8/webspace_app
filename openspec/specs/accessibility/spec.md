@@ -192,15 +192,16 @@ update.
 
 Why each is No today, in one line each:
 
-- **VoiceOver, Voice Control**: 13 icon buttons and both FABs are unlabelled,
-  the add-site FAB included (first launch); the drawer's site tile has no
-  tap action; several actions exist only as long press, drag or swipe. On
-  the Mac the page itself is unreachable (A11Y-004).
+- **VoiceOver, Voice Control**: every chrome control is named and pressable,
+  with its state and its drag, swipe and long-press moves as actions
+  (A11Y-005), but nobody has run either on a device, and on the Mac the page
+  itself is unreachable (A11Y-004).
 - **Larger Text**: nothing clamps the scale, but the drawer tile, site strip
   and tab counter are fixed-size boxes that no test renders at 200%. On the
   Mac Flutter reports 1.0 and there is no in-app text size.
-- **Dark Interface**: the chrome is ready; whether a webview paints white
-  before its first frame in dark mode is unchecked.
+- **Dark Interface**: the chrome and the pages it tells stay dark
+  (A11Y-008); whether a webview paints white before its first frame in dark
+  mode needs a device.
 - **Differentiate Without Color Alone**: the cues A11Y-009 lists are in
   place; nobody has checked them on a device with the Grayscale filter on.
 - **Sufficient Contrast**: text holds 4.5:1 and indicators 3:1 (A11Y-010);
@@ -369,9 +370,12 @@ Status. Two analyzer errors in `lib/` hold the name and the action:
 `Listener` that acts on `onPointerUp` outside a `Semantics` with `onTap:` in
 the same build expression (the pull-to-refresh gate, which acts on no tap, is
 its one listed ignore). `test/control_semantics_test.dart` walks the real app
-on a phone against `labeledTapTargetGuideline`: the app bar, the drawer and
-the site strip, App Settings and each screen it opens, the site menu and a
-site's settings. What the failures listed at `5e1788f` became:
+on a phone against `labeledTapTargetGuideline` and against
+`labelShowsTextGuideline` (`test/helpers/label_shows_text.dart`), which fails
+a tappable node whose label and tooltip leave out a text it shows, hidden from
+the reader or not: the app bar, the drawer and the site strip, App Settings
+and each screen it opens, the site menu, a site's settings and the Tabs sheet.
+What the failures listed at `5e1788f` became:
 
 | Control | Now |
 |---|---|
@@ -388,13 +392,14 @@ site's settings. What the failures listed at `5e1788f` became:
 | `HintButton` in a merged row (`SwitchListTile`, a scoped row) | the hint's dialog as an "About {title}" custom action on the row's node, so it no longer needs a device check |
 | Tor bridge CAPTCHA | the image named Characters to type; the service offers no audio or text challenge, so the dialog names the ways round it: a transport with a built-in bridge, or a pasted line |
 | find match count, Tor progress (card and interstitial) | `LiveStatus`, a live region |
+| Tabs sheet site heading, and a one-tab site's row | Move up and Move down as custom actions, each the drop on the heading beside it (TAB-016) |
+| Tabs sheet tab row | Move up and Move down among the tabs at its level, Move under the tab above, Move out of the tab it hangs from and Move to the end, each offered only where it moves the tab and each the drop a drag makes (TAB-015) |
+| sidebar resize grip, arrow tab | the platform's scroll actions, the drags themselves: scroll right and left widen and narrow the sidebar, 6 points a step; scroll up and down move the tab along the edge |
 
-Still open: the Tabs sheet reorders sites and moves and nests tabs by drag
-alone, with no custom action; the sidebar's resize grip and the arrow tab's
-place on the edge are reached only through the platform's scroll actions,
-which no test drives; no check holds that a name contains the text a control
-shows, or finds a state or a long press on a control added later; and the
-live regions are checked as flags, not as announcements on a device.
+Still open: no check finds a state or a long press on a control added later
+(the guidelines hold a name and the text it shows, not a selected or expanded
+state left out, nor a long press with no action beside it); and the live
+regions are checked as flags, not as announcements on a device.
 
 #### Scenario: Voice Control opens a site
 
@@ -803,8 +808,9 @@ By value over cost. Each item names the requirement it moves.
    tile and tab chip; the theme tooltip; the structural gate. Small, and it
    unblocks VoiceOver and Voice Control on iPhone. Done: `unnamed_button`,
    `raw_tap` and the labelled-target walk.
-3. **Contrast and touch targets** (A11Y-010, A11Y-014): contrast and the
-   high contrast theme are done; `TapTargets.compact` to 48 remains. These
+3. **Contrast and touch targets** (A11Y-010, A11Y-014): contrast, the
+   high contrast theme and 48 point targets are done, the sidebar's tab
+   toggle and rail bars aside until it is redesigned. These
    are two of Android's three quality criteria and most of what the
    pre-launch report will list.
 4. **Selected site cue** (A11Y-009) and the statistics chips and bars.
@@ -813,7 +819,7 @@ By value over cost. Each item names the requirement it moves.
 6. **Dark flash check** (A11Y-008). Then answer Dark Interface Yes.
 7. **Larger Text matrix** (A11Y-006) and the fixed boxes it finds.
 8. **Custom actions** for reorder and the long-press-only actions (A11Y-005).
-   Done outside the Tabs sheet, whose drags remain.
+   Done, the Tabs sheet's drags included.
 9. **Theme shim compound queries** and the browser-tier media-feature gate
    (A11Y-003).
 10. **Fork and engine**: Linux keyboard escape (A11Y-012), Linux text scale

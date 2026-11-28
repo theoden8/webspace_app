@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Każda witryna trzyma wczytaną tylko jedną kartę; pozostałe wczytują się ponownie po otwarciu",
   "tabsCloseTab": "Zamknij kartę",
   "tabsCloseSubtree": "Zamknij kartę i karty otwarte z niej",
+  "tabsMoveUnder": "Przenieś pod {title}",
+  "tabsMoveOutOf": "Wyjmij spod {title}",
   "tabsLive": "otwarta",
   "tabsLoaded": "wczytana",
   "tabsExpand": "Pokaż karty otwarte z tej karty",

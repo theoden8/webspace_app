@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Een oortjie per werf bly gelaai; die ander herlaai wanneer jy dit oopmaak",
   "tabsCloseTab": "Sluit oortjie",
   "tabsCloseSubtree": "Sluit oortjie en die oortjies wat daaruit oopgemaak is",
+  "tabsMoveUnder": "Skuif onder {title}",
+  "tabsMoveOutOf": "Skuif uit {title}",
   "tabsLive": "oop",
   "tabsLoaded": "gelaai",
   "tabsExpand": "Wys die oortjies wat hieruit oopgemaak is",

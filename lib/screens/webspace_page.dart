@@ -1184,7 +1184,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         if (at < 0) return;
         final to = action == SiteListAction.moveUp ? at - 1 : at + 1;
         if (to < 0 || to >= _sites.filteredIndices().length) return;
-        _webspaces.reorderSite(at, newListIndex: to);
+        await _webspaces.reorderSite(at, newListIndex: to);
     }
   }
 
@@ -1320,8 +1320,8 @@ class _WebSpacePageState extends State<WebSpacePage>
                     onOpenSite: (site) => unawaited(_openSite(site)),
                     onSiteMenu: _showSiteContextMenu,
                     onReorderSite: _webspaces.canReorderView
-                        ? (from, {required to}) =>
-                              _webspaces.reorderSite(from, newListIndex: to)
+                        ? (from, {required to}) => unawaited(
+                              _webspaces.reorderSite(from, newListIndex: to))
                         : null,
                     onAddSite: ({required into}) => unawaited(_editing.addSite(into: into)),
                     onShowTabs: (scope) => unawaited(_showLibraryTabs(scope)),
@@ -1489,7 +1489,8 @@ class _WebSpacePageState extends State<WebSpacePage>
         onOpen: (site) => unawaited(_openSiteFromDrawer(site)),
         onMenu: _showSiteContextMenu,
         onReorder: _webspaces.canReorderView
-            ? (from, {required to}) => _webspaces.reorderSite(from, newListIndex: to)
+            ? (from, {required to}) =>
+                unawaited(_webspaces.reorderSite(from, newListIndex: to))
             : null,
         onAddSite: () => unawaited(_editing.addSite()),
       ),

@@ -366,13 +366,15 @@ void guarded(String src,
 
     test("the move is the drawer's reorder, not a copy of it", () {
       final start =
-          source.indexOf('List<TabsSheetSite>? _moveSiteInTabsSheet(');
+          source.indexOf('Future<List<TabsSheetSite>?> _moveSiteInTabsSheet(');
       expect(start, isNot(-1));
       final end = source.indexOf('\n  }\n', start);
       final body = source.substring(start, end);
-      expect(body.contains('_webspaces.reorderSite(from, newListIndex: to);'),
+      expect(
+          body.contains('await _webspaces.reorderSite(from, newListIndex: to);'),
           isTrue);
-      // Reordering "All" renumbers every site, so the sheet gets them afresh.
+      // Reordering "All" renumbers every site once its commit lands, so the
+      // sheet gets them afresh after it.
       expect(body.contains('return _tabs.sheetSites();'), isTrue);
       expect(body.contains('.insert('), isFalse);
       expect(body.contains('.removeAt('), isFalse);

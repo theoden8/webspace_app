@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "แต่ละไซต์เก็บแท็บที่โหลดไว้เพียงแท็บเดียว แท็บอื่นจะโหลดใหม่เมื่อเปิด",
   "tabsCloseTab": "ปิดแท็บ",
   "tabsCloseSubtree": "ปิดแท็บนี้และแท็บที่เปิดจากแท็บนี้",
+  "tabsMoveUnder": "ย้ายไปไว้ใต้ {title}",
+  "tabsMoveOutOf": "ย้ายออกจาก {title}",
   "tabsLive": "เปิดอยู่",
   "tabsLoaded": "โหลดแล้ว",
   "tabsExpand": "แสดงแท็บที่เปิดจากแท็บนี้",

@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Hanya satu tab bagi setiap laman kekal dimuatkan; yang lain dimuat semula apabila dibuka",
   "tabsCloseTab": "Tutup tab",
   "tabsCloseSubtree": "Tutup tab dan tab yang dibuka daripadanya",
+  "tabsMoveUnder": "Alihkan ke bawah {title}",
+  "tabsMoveOutOf": "Keluarkan daripada {title}",
   "tabsLive": "terbuka",
   "tabsLoaded": "dimuatkan",
   "tabsExpand": "Tunjukkan tab yang dibuka daripada tab ini",

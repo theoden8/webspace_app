@@ -6,6 +6,7 @@
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show SemanticsAction;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/navigation_surface_engine.dart';
@@ -148,6 +149,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(corners, [TabBarCorner.topRight]);
     expect(docked, hasLength(1));
+  });
+
+  testWidgets('a screen reader moves the arrow tab along the edge through '
+      'its scroll actions, as a drag up or down does', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(frame());
+    final tab = find.semantics.byPredicate(
+        (node) => node.tooltip == 'Show the tab sidebar',
+        describeMatch: (_) => 'the arrow tab');
+    tester.semantics.performAction(tab, SemanticsAction.scrollUp);
+    await tester.pumpAndSettle();
+    expect(handle, [lessThan(0.5)]);
+    tester.semantics.performAction(tab, SemanticsAction.scrollDown);
+    await tester.pumpAndSettle();
+    expect(handle.last, greaterThan(0.5),
+        reason: 'the frame here keeps the fraction it was built with');
+    semantics.dispose();
   });
 
   testWidgets('TAB-038 the first arrow tab says, once, that it can be dragged '

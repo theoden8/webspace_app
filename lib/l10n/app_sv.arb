@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Varje webbplats håller bara en flik inläst; de andra läses in igen när de öppnas",
   "tabsCloseTab": "Stäng fliken",
   "tabsCloseSubtree": "Stäng fliken och flikarna som öppnats från den",
+  "tabsMoveUnder": "Flytta in under {title}",
+  "tabsMoveOutOf": "Flytta ut ur {title}",
   "tabsLive": "öppen",
   "tabsLoaded": "inläst",
   "tabsExpand": "Visa flikarna som öppnats från denna",

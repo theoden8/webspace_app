@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "Vsako spletno mesto ohrani naložen le en zavihek; drugi se ob odprtju znova naložijo",
   "tabsCloseTab": "Zapri zavihek",
   "tabsCloseSubtree": "Zapri zavihek in zavihke, odprte iz njega",
+  "tabsMoveUnder": "Premakni pod {title}",
+  "tabsMoveOutOf": "Premakni iz {title}",
   "tabsLive": "odprt",
   "tabsLoaded": "naložen",
   "tabsExpand": "Pokaži zavihke, odprte iz tega",

@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "ከእያንዳንዱ ጣቢያ አንድ ትር ብቻ ተጭኖ ይቆያል፤ ሌሎቹ ሲከፈቱ እንደገና ይጫናሉ",
   "tabsCloseTab": "ትር ዝጋ",
   "tabsCloseSubtree": "ትሩንና ከእሱ የተከፈቱትን ትሮች ዝጋ",
+  "tabsMoveUnder": "ከ{title} ስር አንቀሳቅስ",
+  "tabsMoveOutOf": "ከ{title} ስር አውጣ",
   "tabsLive": "ክፍት",
   "tabsLoaded": "ተጭኗል",
   "tabsExpand": "ከዚህ የተከፈቱትን ትሮች አሳይ",

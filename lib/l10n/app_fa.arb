@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "از هر سایت فقط یک زبانه بارشده می‌ماند؛ بقیه هنگام باز شدن دوباره بار می‌شوند",
   "tabsCloseTab": "بستن زبانه",
   "tabsCloseSubtree": "بستن زبانه و زبانه‌های بازشده از آن",
+  "tabsMoveUnder": "انتقال به زیر {title}",
+  "tabsMoveOutOf": "انتقال به بیرون از {title}",
   "tabsLive": "باز",
   "tabsLoaded": "بارشده",
   "tabsExpand": "نمایش زبانه‌های بازشده از این زبانه",

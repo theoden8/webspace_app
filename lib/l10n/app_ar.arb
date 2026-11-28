@@ -1072,6 +1072,8 @@
   "tabsMemoryNote": "يبقى لسان واحد لكل موقع محمّلًا، وتُعاد تحميل الألسنة الأخرى عند فتحها",
   "tabsCloseTab": "أغلق اللسان",
   "tabsCloseSubtree": "أغلق اللسان والألسنة المفتوحة منه",
+  "tabsMoveUnder": "نقل تحت {title}",
+  "tabsMoveOutOf": "نقل خارج {title}",
   "tabsLive": "مفتوح",
   "tabsLoaded": "محمّل",
   "tabsExpand": "أظهر الألسنة المفتوحة من هذا",

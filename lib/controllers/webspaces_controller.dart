@@ -243,21 +243,20 @@ class WebspacesController {
   /// current view. Dispatches to the per-webspace `siteIds` reorder for a
   /// named webspace, or the global `_sites.models` reorder for "All".
   /// [oldListIndex]/[newListIndex] are positions in `_sites.filteredIndices()`.
-  void reorderSite(int oldListIndex, {required int newListIndex}) {
+  /// Completes once the new order is the one the page lists.
+  Future<void> reorderSite(int oldListIndex, {required int newListIndex}) async {
     final filtered = _sites.filteredIndices();
     if (oldListIndex < 0 || oldListIndex >= filtered.length) return;
     if (newListIndex < 0 || newListIndex >= filtered.length) return;
     if (oldListIndex == newListIndex) return;
-    if (_sites.selectedWebspaceId == WebspaceId.all) {
-      unawaited(
-        _reorderAllSites(
-          filtered[oldListIndex],
-          newModelIndex: filtered[newListIndex],
-        ),
-      );
-    } else {
+    if (_sites.selectedWebspaceId != WebspaceId.all) {
       _reorderSiteInWebspace(oldListIndex, newListIndex: newListIndex);
+      return;
     }
+    await _reorderAllSites(
+      filtered[oldListIndex],
+      newModelIndex: filtered[newListIndex],
+    );
   }
 
   void _reorderSiteInWebspace(int oldListIndex, {required int newListIndex}) {
