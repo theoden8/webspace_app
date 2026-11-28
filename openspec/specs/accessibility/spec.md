@@ -397,11 +397,8 @@ What the failures listed at `5e1788f` became:
 
 Still open: no check finds a state or a long press on a control added later
 (the guidelines hold a name and the text it shows, not a selected or expanded
-state left out, nor a long press with no action beside it); the live regions
-are checked as flags, not as announcements on a device; and in the "All" view
-a site moved in the Tabs sheet, by drag or by action, lands, but the open
-sheet keeps the order it had until it is opened again, since the move
-commits after the sheet has read the sites back.
+state left out, nor a long press with no action beside it); and the live
+regions are checked as flags, not as announcements on a device.
 
 #### Scenario: Voice Control opens a site
 

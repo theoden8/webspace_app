@@ -188,6 +188,23 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('a site moved in the open Tabs sheet under All takes its new '
+      'place there, though its commit lands after the action', (tester) async {
+    final semantics = tester.ensureSemantics();
+    setViewSize(tester, size: phone);
+    await pumpRealApp(tester, sites: sites());
+    await openWebspace(tester, name: 'All');
+    await openSiteFromDrawer(tester, name: 'Docs');
+    await openTabsSheet(tester);
+    await tester.tap(find.text('All sites'));
+    await settleRealApp(tester);
+    performCustomAction(pressable('News'), label: 'Move up');
+    await settleRealApp(tester);
+    double top(String name) => tester.getTopLeft(find.text(name).last).dy;
+    expect(top('News'), lessThan(top('Mail')));
+    semantics.dispose();
+  });
+
   testWidgets("the site menu's top row is four controls, its long presses "
       'actions', (tester) async {
     final semantics = tester.ensureSemantics();

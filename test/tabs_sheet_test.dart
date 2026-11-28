@@ -31,7 +31,7 @@ Future<void> pumpSheet(
   TabsSheetReopen? onReopen,
   bool Function(WebViewModel site,
       {required TabId tabId, required TabDrop drop})? onMoveTab,
-  List<TabsSheetSite>? Function(String siteId,
+  Future<List<TabsSheetSite>?> Function(String siteId,
       {required String ontoSiteId})? onMoveSite,
   TabReturn? wayBack,
   String? title,
@@ -321,7 +321,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
         tester,
         sites: sites(),
         onOpenTab: onOpenTab,
-        onMoveSite: (id, {required ontoSiteId}) {
+        onMoveSite: (id, {required ontoSiteId}) async {
           moves.add((id, ontoSiteId));
           if (refuse) return null;
           final from = models.indexWhere((m) => m.siteId == id);
@@ -1270,7 +1270,7 @@ Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
           TabsSheetSite(model: gh, isCurrent: true, isLoaded: true),
           TabsSheetSite(model: md, isCurrent: false, isLoaded: false),
         ],
-        onMoveSite: (id, {required ontoSiteId}) {
+        onMoveSite: (id, {required ontoSiteId}) async {
           moves.add((id, ontoSiteId));
           return null;
         },

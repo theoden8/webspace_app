@@ -142,9 +142,10 @@ class TabsSheet extends StatefulWidget {
       {required TabId tabId, required TabDrop drop})? onMoveTab;
 
   /// A site's heading dropped on another's in the All sites view (TAB-016):
-  /// the site takes the other's place. Returns every site in its new order,
-  /// or null when the move was refused. Null leaves the headings in place.
-  final List<TabsSheetSite>? Function(SiteId siteId,
+  /// the site takes the other's place. Completes with every site in its new
+  /// order once the move has landed, or null when it was refused. Null leaves
+  /// the headings in place.
+  final Future<List<TabsSheetSite>?> Function(SiteId siteId,
       {required SiteId ontoSiteId})? onMoveSite;
 
   /// The jump Back would undo from the tab on screen (TAB-019): the tab it
@@ -650,7 +651,8 @@ class _TabsSheetState extends State<TabsSheet> {
       onWillAcceptWithDetails: (d) => d.data.siteId != id,
       onMove: (_) => _hover(key),
       onLeave: (_) => _unhover(key),
-      onAcceptWithDetails: (d) => _dropSite(d.data.siteId, ontoSiteId: id),
+      onAcceptWithDetails: (d) =>
+          unawaited(_dropSite(d.data.siteId, ontoSiteId: id)),
       builder: (context, candidates, _) {
         final from = candidates.isEmpty ? null : candidates.first?.siteId;
         // The site lands in this one's place: above it coming from below,
@@ -670,10 +672,12 @@ class _TabsSheetState extends State<TabsSheet> {
             customSemanticsActions: {
               if (at > 0)
                 CustomSemanticsAction(label: words.reorderItemUp): () =>
-                    _dropSite(id, ontoSiteId: shown[at - 1].model.siteId),
+                    unawaited(_dropSite(id,
+                        ontoSiteId: shown[at - 1].model.siteId)),
               if (at >= 0 && at < shown.length - 1)
                 CustomSemanticsAction(label: words.reorderItemDown): () =>
-                    _dropSite(id, ontoSiteId: shown[at + 1].model.siteId),
+                    unawaited(_dropSite(id,
+                        ontoSiteId: shown[at + 1].model.siteId)),
             },
             child: Stack(
               children: [
@@ -784,13 +788,12 @@ class _TabsSheetState extends State<TabsSheet> {
     );
   }
 
-  void _dropSite(SiteId siteId, {required SiteId ontoSiteId}) {
+  Future<void> _dropSite(SiteId siteId, {required SiteId ontoSiteId}) async {
     _stopAutoScroll();
-    final moved = widget.onMoveSite?.call(siteId, ontoSiteId: ontoSiteId);
-    setState(() {
-      _dropKey = _dropZone = null;
-      if (moved != null) _listing = (sites: moved, wayBack: _listing.wayBack);
-    });
+    setState(() => _dropKey = _dropZone = null);
+    final moved = await widget.onMoveSite?.call(siteId, ontoSiteId: ontoSiteId);
+    if (!mounted || moved == null) return;
+    setState(() => _listing = (sites: moved, wayBack: _listing.wayBack));
   }
 
   List<Widget> _rowsFor(TabsSheetSite site,

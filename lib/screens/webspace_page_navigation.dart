@@ -69,8 +69,8 @@ extension _PageNavigation on _WebSpacePageState {
   /// A site heading dropped on another in the Tabs sheet (TAB-016): the same
   /// reorder the drawer grid and the site strip make. Returns the sheet's sites
   /// afresh, since reordering "All" renumbers them.
-  List<TabsSheetSite>? _moveSiteInTabsSheet(SiteId siteId,
-      {required SiteId ontoSiteId}) {
+  Future<List<TabsSheetSite>?> _moveSiteInTabsSheet(SiteId siteId,
+      {required SiteId ontoSiteId}) async {
     if (_tabs.busy || !_webspaces.canReorderView) return null;
     final order = _sites.filteredIndices();
     int at(String id) => order.indexWhere((i) =>
@@ -78,7 +78,7 @@ extension _PageNavigation on _WebSpacePageState {
     final from = at(siteId);
     final to = at(ontoSiteId);
     if (from < 0 || to < 0 || from == to) return null;
-    _webspaces.reorderSite(from, newListIndex: to);
+    await _webspaces.reorderSite(from, newListIndex: to);
     return _tabs.sheetSites();
   }
 
@@ -180,7 +180,8 @@ extension _PageNavigation on _WebSpacePageState {
       },
       tabs: _tabChipActions,
       onReorder: _webspaces.canReorderView
-          ? (from, {required to}) => _webspaces.reorderSite(from, newListIndex: to)
+          ? (from, {required to}) =>
+              unawaited(_webspaces.reorderSite(from, newListIndex: to))
           : null,
       menu: _siteMenu(SiteMenuPlacement.tabStrip),
     );
