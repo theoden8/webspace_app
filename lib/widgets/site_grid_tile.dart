@@ -60,6 +60,18 @@ class SiteGridTile extends StatelessWidget {
   final void Function(BuildContext context, {required Offset globalPosition})
   onMenu;
 
+  /// Whether a drawer tile laid out in [size] puts its icon at the start of a
+  /// row rather than over its name.
+  static bool isWide(Size size) => size.width > size.height * 1.5;
+
+  /// Whether a drawer tile laid out in [size] has room for its corner menu's
+  /// 48 target beside its icon (A11Y-014): beside the row's icon in a wide
+  /// tile, or on either side of the centred one in a tile three targets
+  /// across. A narrower tile has none; its long press and right-click open
+  /// the same menu.
+  static bool cornerMenuFits(Size size) =>
+      isWide(size) || size.width >= 3 * kMinInteractiveDimension;
+
   /// A library tile's height in a column [width] wide, under [webspaceCount]
   /// webspace labels.
   static double extentFor(
@@ -161,23 +173,21 @@ class SiteGridTile extends StatelessWidget {
       ].join(', '),
       child: layout == SiteGridTileLayout.library
           ? lift
-          : Stack(
-              fit: StackFit.expand,
-              children: [
-                lift,
-                Positioned(
-                  top: 2,
-                  right: 2,
-                  child: ExcludeSemantics(child: _cornerMenu(context)),
-                ),
-              ],
+          : LayoutBuilder(
+              builder: (context, tile) => Stack(
+                fit: StackFit.expand,
+                children: [
+                  lift,
+                  if (cornerMenuFits(tile.biggest))
+                    Positioned(top: 0, right: 0, child: _cornerMenu(context)),
+                ],
+              ),
             ),
     );
   }
 
-  Widget _cornerMenu(BuildContext context) => GestureDetector(
-    behavior: HitTestBehavior.opaque,
-    onTap: () {
+  Widget _cornerMenu(BuildContext context) {
+    void open() {
       final renderBox = context.findRenderObject()! as RenderBox;
       onMenu(
         context,
@@ -185,16 +195,35 @@ class SiteGridTile extends StatelessWidget {
           Offset(renderBox.size.width - 8, 8),
         ),
       );
-    },
-    child: Padding(
-      padding: const EdgeInsets.all(4.0),
-      child: Icon(
-        Icons.more_vert,
-        size: 16,
-        color: Theme.of(context).colorScheme.onSurfaceVariant.withAlpha(150),
+    }
+
+    return Semantics(
+      button: true,
+      label: AppLocalizations.of(context).homeMenuTooltip,
+      onTap: open,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: open,
+        child: SizedBox.square(
+          dimension: kMinInteractiveDimension,
+          child: Align(
+            alignment: Alignment.topRight,
+            child: Padding(
+              padding: const EdgeInsets.all(6.0),
+              child: Icon(
+                Icons.more_vert,
+                size: 16,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurfaceVariant.withAlpha(150),
+              ),
+            ),
+          ),
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _SiteGridTileContent extends StatelessWidget {
@@ -222,7 +251,7 @@ class _SiteGridTileContent extends StatelessWidget {
     if (layout == SiteGridTileLayout.library) return _library(context);
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isWide = constraints.maxWidth > constraints.maxHeight * 1.5;
+        final isWide = SiteGridTile.isWide(constraints.biggest);
         return Container(
           decoration: selected
               ? BoxDecoration(

@@ -709,20 +709,20 @@ floating button, the drawer, the tab strip at phone and desktop widths, the
 tabs sheet in both scopes, App Settings and each of its screens, a site's
 settings and the proxy status indicator. An icon button in that chrome takes
 the platform's padded tap target rather than `VisualDensity.compact`, and a
-tab chip is drawn 32 tall inside its 48 tap target.
+tab chip is drawn 32 tall inside its 48 tap target. A drawer tile shows its
+corner menu, a 48 target, only where the tile is wide enough for it beside the
+icon (`SiteGridTile.cornerMenuFits`); a narrower tile has none, and its long
+press and right-click open the same menu.
 
-Open, each a design decision, so the requirement stays owed in
-`openspec/unverified.tsv`:
+Open, so the requirement stays owed in `openspec/unverified.tsv`: the sidebar
+is left as it is until it is redesigned.
 
-- The drawer tile's corner menu: a 24 square at the corner of a tile about
-  69 wide in a four-column drawer, where a 48 target would cover the site's
-  icon. It is behind `ExcludeSemantics`, so the guidelines do not see it.
 - The sidebar squares' tab toggle: 24 drawn and 40 hit, over the square's
   icon.
 - The sidebar rail's tab bars: 24x10 each.
 
 Gate to add: the same guidelines over the sidebar's squares and rail, once
-those and the drawer's corner menu are decided.
+the sidebar is redesigned.
 
 #### Scenario: Pre-launch report
 

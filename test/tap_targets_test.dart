@@ -6,6 +6,7 @@ import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/proxy_status_indicator.dart';
+import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/site_menu.dart';
 import 'package:webspace/widgets/tab_chips.dart';
 
@@ -17,10 +18,8 @@ import 'helpers/real_app.dart';
 /// chrome on screen is at least 48x48 (Android) and 44x44 (iOS), as Flutter's
 /// own guidelines measure it, while what is drawn inside may stay smaller.
 ///
-/// The guidelines read semantics, so a control left out of them is not held
-/// here: the drawer tile's corner menu (24, behind `ExcludeSemantics`) is
-/// owed in openspec/unverified.tsv, as are the sidebar's squares and rail,
-/// which no test here opens.
+/// The sidebar's squares and rail, which no test here opens, are owed in
+/// openspec/unverified.tsv until the sidebar is redesigned.
 void main() {
   WebViewModel withTabs(String name, {required List<String> titles}) {
     final url = 'https://${name.toLowerCase()}.test';
@@ -180,4 +179,52 @@ void main() {
     await meetsFloors(tester);
     semantics.dispose();
   });
+
+  for (final (size, fits) in [
+    (const Size(150, 180), true),
+    (const Size(240, 72), true),
+    (const Size(120, 180), false),
+  ]) {
+    testWidgets(
+        'touch targets: a drawer tile ${size.width.round()}x'
+        '${size.height.round()} ${fits ? 'shows' : 'has no'} corner menu',
+        (tester) async {
+      final semantics = tester.ensureSemantics();
+      final menus = <Offset>[];
+      await pumpLocalized(
+        tester,
+        home: Scaffold(
+          body: Center(
+            child: SizedBox.fromSize(
+              size: size,
+              child: SiteGridTile(
+                site: WebViewModel(initUrl: 'https://example.test'),
+                listIndex: 0,
+                selected: false,
+                showTabCount: false,
+                onOpen: () {},
+                onMenu: (_, {required globalPosition}) =>
+                    menus.add(globalPosition),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final corner = find.bySemanticsLabel('Menu');
+      expect(corner, fits ? findsOneWidget : findsNothing);
+      if (fits) {
+        expect(tester.getSize(corner),
+            const Size.square(kMinInteractiveDimension));
+        await meetsFloors(tester);
+        await tester.tap(corner);
+        expect(menus, hasLength(1));
+      } else {
+        await tester.longPress(find.byType(SiteGridTile));
+        await tester.pumpAndSettle();
+        expect(menus, hasLength(1), reason: 'the long press opens the menu');
+      }
+      semantics.dispose();
+    });
+  }
 }
